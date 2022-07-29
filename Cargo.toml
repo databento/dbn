@@ -1,0 +1,5 @@
+[workspace]
+members = [
+  "src/dbz-cli",
+  "src/dbz-lib",
+]
