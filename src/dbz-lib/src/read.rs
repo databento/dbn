@@ -3,8 +3,8 @@ use std::{
     io::{self, BufReader, Read},
     marker::PhantomData,
     mem,
+    ops::Range,
     path::Path,
-    str::FromStr,
 };
 
 use anyhow::{anyhow, Context};
@@ -12,7 +12,7 @@ use log::{debug, warn};
 use zstd::Decoder;
 
 use db_def::{
-    enums::{Compression, Dataset, Encoding, SType, Schema},
+    enums::{Compression, SType, Schema},
     tick::{CommonHeader, Tick},
 };
 
@@ -29,29 +29,52 @@ pub struct Metadata {
     /// The DBZ schema version number.
     pub version: u8,
     /// The dataset ID.
-    pub dataset: Dataset,
+    pub dataset: String,
     /// The data record schema. Specifies which tick type is stored in the DBZ file.
     pub schema: Schema,
-    /// The input symbol type to map from.
-    pub stype_in: SType,
-    /// The target output symbol type to map to.
-    pub stype_out: SType,
     /// The UNIX nanosecond timestamp of the query start, or the first record if the file was split.
     pub start: u64,
     /// The UNIX nanosecond timestamp of the query end, or the last record if the file was split.
     pub end: u64,
     /// The maximum number of records for the query.
     pub limit: u64,
-    /// The data output encoding. Should always be [Encoding::Dbz].
-    pub encoding: Encoding,
+    /// The total number of data records.
+    pub record_count: u64,
     /// The data output compression mode.
     pub compression: Compression,
-    /// The number of data records for the metadata shape.
-    pub nrows: u64,
-    /// The number of data columns for the metadata shape.
-    pub ncols: u16,
-    /// Additional metadata, including symbology.
-    pub extra: serde_json::Map<String, serde_json::Value>,
+    /// The input symbol type to map from.
+    pub stype_in: SType,
+    /// The target output symbol type to map to.
+    pub stype_out: SType,
+    /// The original query input symbols from the request.
+    pub symbols: Vec<String>,
+    /// Symbols that did not resolve for _at least one day_ in the queried time range.
+    pub partially_resolved: Vec<String>,
+    /// Symbols that did not resolve for _any_ day in the queried time range.
+    pub not_found: Vec<String>,
+    /// Symbol mappings containing a native symbol and its mapping intervals.
+    pub mappings: Vec<SymbolMapping>,
+}
+
+/// A native symbol and its symbol mappings for different time ranges within the query range.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "python", derive(pyo3::FromPyObject))]
+pub struct SymbolMapping {
+    /// The native symbol.
+    pub native: String,
+    /// The mappings of `native` for different date ranges.
+    pub intervals: Vec<MappingInterval>,
+}
+
+/// The resolved symbol for a date range.
+#[derive(Debug, Clone, PartialEq)]
+pub struct MappingInterval {
+    /// UTC start date of interval.
+    pub start_date: time::Date,
+    /// UTC end date of interval.
+    pub end_date: time::Date,
+    /// The resolved symbol for this interval.
+    pub symbol: String,
 }
 
 impl Dbz<BufReader<File>> {
@@ -151,14 +174,14 @@ impl<R: io::BufRead, T: TryFrom<Tick>> Iterator for DbzIntoIter<R, T> {
 
     /// Returns the lower bound and upper bounds of remaining length of iterator.
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let remaining = self.metadata.nrows as usize - self.i;
-        // assumes `nrows` is always accurate. If it is not, the program won't crash but
+        let remaining = self.metadata.record_count as usize - self.i;
+        // assumes `record_count` is accurate. If it is not, the program won't crash but
         // performance will be suboptimal
         (remaining, Some(remaining))
     }
 }
 
-trait FromLittleEndianSlice {
+pub(crate) trait FromLittleEndianSlice {
     fn from_le_slice(slice: &[u8]) -> Self;
 }
 
@@ -178,6 +201,14 @@ impl FromLittleEndianSlice for i32 {
     }
 }
 
+impl FromLittleEndianSlice for u32 {
+    /// NOTE: assumes the length of `slice` is at least 4 bytes
+    fn from_le_slice(slice: &[u8]) -> Self {
+        let (bytes, _) = slice.split_at(mem::size_of::<Self>());
+        Self::from_le_bytes(bytes.try_into().unwrap())
+    }
+}
+
 impl FromLittleEndianSlice for u16 {
     /// NOTE: assumes the length of `slice` is at least 2 bytes
     fn from_le_slice(slice: &[u8]) -> Self {
@@ -187,23 +218,31 @@ impl FromLittleEndianSlice for u16 {
 }
 
 impl Metadata {
-    pub(crate) const ZSTD_FIRST_MAGIC: i32 = 0x184D2A50;
-    pub(crate) const BENTO_SCHEMA_VERSION: u8 = 1;
-    pub(crate) const BENTO_MAGIC: i32 = Self::ZSTD_FIRST_MAGIC + Self::BENTO_SCHEMA_VERSION as i32;
+    pub(crate) const ZSTD_MAGIC_RANGE: Range<u32> = 0x184D2A50..0x184D2A60;
+    pub(crate) const SCHEMA_VERSION: u8 = 1;
+    pub(crate) const VERSION_CSTR_LEN: usize = 4;
     pub(crate) const DATASET_CSTR_LEN: usize = 16;
+    pub(crate) const RESERVED_LEN: usize = 39;
     pub(crate) const FIXED_METADATA_LEN: usize = 96;
+    pub(crate) const SYMBOL_CSTR_LEN: usize = 22;
+    const U32_SIZE: usize = mem::size_of::<u32>();
 
     pub(crate) fn read(reader: &mut impl io::Read) -> anyhow::Result<Self> {
         let mut prelude_buffer = [0u8; 2 * mem::size_of::<i32>()];
         reader
             .read_exact(&mut prelude_buffer)
             .with_context(|| "Failed to read metadata prelude")?;
-        let magic = i32::from_le_slice(&prelude_buffer[..4]);
-        if magic != Self::BENTO_MAGIC {
-            return Err(anyhow!("Invalid metadata"));
+        let magic = u32::from_le_slice(&prelude_buffer[..4]);
+        if !Self::ZSTD_MAGIC_RANGE.contains(&magic) {
+            return Err(anyhow!("Invalid metadata: no zstd magic number"));
         }
-        let frame_size = i32::from_le_slice(&prelude_buffer[4..]);
+        let frame_size = u32::from_le_slice(&prelude_buffer[4..]);
         debug!("magic={magic}, frame_size={frame_size}");
+        if (frame_size as usize) < Self::FIXED_METADATA_LEN {
+            return Err(anyhow!(
+                "Frame length cannot be shorter than the fixed metadata size"
+            ));
+        }
 
         let mut metadata_buffer = vec![0u8; frame_size as usize];
         reader
@@ -215,50 +254,59 @@ impl Metadata {
     fn decode(metadata_buffer: Vec<u8>) -> anyhow::Result<Self> {
         const U64_SIZE: usize = mem::size_of::<u64>();
         let mut pos = 0;
-        let version = metadata_buffer[pos];
-        pos += mem::size_of::<u8>();
-        let dataset_str = std::str::from_utf8(&metadata_buffer[pos..pos + Self::DATASET_CSTR_LEN])
+        if &metadata_buffer[pos..pos + 3] != b"DBZ" {
+            return Err(anyhow!("Invalid version string"));
+        }
+        // Interpret 4th character as an u8, not a char to allow for 254 versions (0 omitted)
+        let version = metadata_buffer[pos + 3] as u8;
+        // TODO(cg): version check?
+        if version > Self::SCHEMA_VERSION {
+            return Err(anyhow!("Can't read newer version of DBZ"));
+        }
+        pos += Self::VERSION_CSTR_LEN;
+        let dataset = std::str::from_utf8(&metadata_buffer[pos..pos + Self::DATASET_CSTR_LEN])
             .with_context(|| "Failed to read dataset from metadata")?
             // remove null bytes
-            .trim_end_matches('\0');
-        let dataset = Dataset::from_str(dataset_str)
-            .with_context(|| format!("Unknown dataset '{dataset_str}'"))?;
+            .trim_end_matches('\0')
+            .to_owned();
         pos += Self::DATASET_CSTR_LEN;
-        let schema = Schema::try_from(metadata_buffer[pos])
+        let schema = Schema::try_from(u16::from_le_slice(&metadata_buffer[pos..]))
             .with_context(|| format!("Failed to read schema: '{}'", metadata_buffer[pos]))?;
         pos += mem::size_of::<Schema>();
-        let stype_in = SType::try_from(metadata_buffer[pos])
-            .with_context(|| format!("Failed to read stype_in: '{}'", metadata_buffer[pos]))?;
-        pos += mem::size_of::<SType>();
-        let stype_out = SType::try_from(metadata_buffer[pos])
-            .with_context(|| format!("Failed to read stype_out: '{}'", metadata_buffer[pos]))?;
-        pos += mem::size_of::<SType>();
         let start = u64::from_le_slice(&metadata_buffer[pos..]);
         pos += U64_SIZE;
         let end = u64::from_le_slice(&metadata_buffer[pos..]);
         pos += U64_SIZE;
         let limit = u64::from_le_slice(&metadata_buffer[pos..]);
         pos += U64_SIZE;
-        let encoding = Encoding::try_from(metadata_buffer[pos])
-            .with_context(|| format!("Failed to parse encoding '{}'", metadata_buffer[pos]))?;
-        pos += mem::size_of::<Encoding>();
+        let record_count = u64::from_le_slice(&metadata_buffer[pos..]);
+        pos += U64_SIZE;
         let compression = Compression::try_from(metadata_buffer[pos])
             .with_context(|| format!("Failed to parse compression '{}'", metadata_buffer[pos]))?;
         pos += mem::size_of::<Compression>();
-        let nrows = u64::from_le_slice(&metadata_buffer[pos..]);
-        pos += U64_SIZE;
-        let ncols = u16::from_le_slice(&metadata_buffer[pos..]);
-        let (_, var_buffer) = metadata_buffer.split_at(Self::FIXED_METADATA_LEN);
-        let mut decoder = Decoder::new(var_buffer).with_context(|| {
-            "Failed to create zstd decoder for variable-length portion of metadata"
-        })?;
-        // capacity should be informed by expected compression ratio
-        let mut var_decompressed = Vec::with_capacity(var_buffer.len() * 3);
-        decoder
-            .read_to_end(&mut var_decompressed)
-            .with_context(|| "Failed to decompress variable-length portion of metadata")?;
-        let extra = serde_json::from_slice(&var_decompressed[..])
-            .with_context(|| "Failed to parse variable-length JSON in metadata")?;
+        let stype_in = SType::try_from(metadata_buffer[pos])
+            .with_context(|| format!("Failed to read stype_in: '{}'", metadata_buffer[pos]))?;
+        pos += mem::size_of::<SType>();
+        let stype_out = SType::try_from(metadata_buffer[pos])
+            .with_context(|| format!("Failed to read stype_out: '{}'", metadata_buffer[pos]))?;
+        pos += mem::size_of::<SType>();
+        // skip reserved
+        pos += Self::RESERVED_LEN;
+        let schema_definition_length = u32::from_le_slice(&metadata_buffer[pos..]);
+        if schema_definition_length != 0 {
+            return Err(anyhow!(
+                "This version of dbz can't parse schema definitions"
+            ));
+        }
+        pos += Self::U32_SIZE + (schema_definition_length as usize);
+        let symbols = Self::decode_repeated_symbol_cstr(metadata_buffer.as_slice(), &mut pos)
+            .with_context(|| "Failed to parse symbols")?;
+        let partially_resolved =
+            Self::decode_repeated_symbol_cstr(metadata_buffer.as_slice(), &mut pos)
+                .with_context(|| "Failed to parse partially_resolved")?;
+        let not_found = Self::decode_repeated_symbol_cstr(metadata_buffer.as_slice(), &mut pos)
+            .with_context(|| "Failed to parse not_found")?;
+        let mappings = Self::decode_symbol_mappings(metadata_buffer.as_slice(), &mut pos)?;
 
         Ok(Self {
             version,
@@ -269,12 +317,126 @@ impl Metadata {
             start,
             end,
             limit,
-            encoding,
             compression,
-            nrows,
-            ncols,
-            extra,
+            record_count,
+            symbols,
+            partially_resolved,
+            not_found,
+            mappings,
         })
+    }
+
+    fn decode_repeated_symbol_cstr(buffer: &[u8], pos: &mut usize) -> anyhow::Result<Vec<String>> {
+        if *pos + Self::U32_SIZE > buffer.len() {
+            return Err(anyhow!("Unexpected end of metadata buffer"));
+        }
+        let count = u32::from_le_slice(&buffer[*pos..]) as usize;
+        *pos += Self::U32_SIZE;
+        let read_size = count * Self::SYMBOL_CSTR_LEN;
+        if *pos + read_size > buffer.len() {
+            return Err(anyhow!("Unexpected end of metadata buffer"));
+        }
+        let mut res = Vec::with_capacity(count);
+        for i in 0..count {
+            res.push(
+                Self::decode_symbol(buffer, pos)
+                    .with_context(|| format!("Failed to decode symbol at index {i}"))?,
+            );
+        }
+        Ok(res)
+    }
+
+    fn decode_symbol_mappings(
+        buffer: &[u8],
+        pos: &mut usize,
+    ) -> anyhow::Result<Vec<SymbolMapping>> {
+        if *pos + Self::U32_SIZE > buffer.len() {
+            return Err(anyhow!("Unexpected end of metadata buffer"));
+        }
+        let count = u32::from_le_slice(&buffer[*pos..]) as usize;
+        *pos += Self::U32_SIZE;
+        let mut res = Vec::with_capacity(count);
+        // Because each `SymbolMapping` itself is of a variable length, decoding it requires frequent bounds checks
+        for i in 0..count {
+            res.push(
+                Self::decode_symbol_mapping(buffer, pos)
+                    .with_context(|| format!("Failed to parse symbol mapping at index {i}"))?,
+            );
+        }
+        Ok(res)
+    }
+
+    fn decode_symbol_mapping(buffer: &[u8], pos: &mut usize) -> anyhow::Result<SymbolMapping> {
+        const MIN_SYMBOL_MAPPING_ENCODED_SIZE: usize =
+            Metadata::SYMBOL_CSTR_LEN + Metadata::U32_SIZE;
+        const MAPPING_INTERVAL_ENCODED_SIZE: usize =
+            Metadata::U32_SIZE * 2 + Metadata::SYMBOL_CSTR_LEN;
+
+        if *pos + MIN_SYMBOL_MAPPING_ENCODED_SIZE > buffer.len() {
+            return Err(anyhow!(
+                "Unexpected end of metadata buffer while parsing symbol mapping"
+            ));
+        }
+        let native =
+            Self::decode_symbol(buffer, pos).with_context(|| "Couldn't parse native symbol")?;
+        let interval_count = u32::from_le_slice(&buffer[*pos..]) as usize;
+        *pos += Self::U32_SIZE;
+        let read_size = interval_count * MAPPING_INTERVAL_ENCODED_SIZE;
+        if *pos + read_size > buffer.len() {
+            return Err(anyhow!(
+                "Symbol mapping interval_count ({interval_count}) doesn't match size of buffer \
+                which only contains space for {} intervals",
+                (buffer.len() - *pos) / MAPPING_INTERVAL_ENCODED_SIZE
+            ));
+        }
+        let mut intervals = Vec::with_capacity(interval_count);
+        for i in 0..interval_count {
+            let raw_start_date = u32::from_le_slice(&buffer[*pos..]);
+            *pos += Metadata::U32_SIZE;
+            let start_date = Self::decode_iso8601(raw_start_date).with_context(|| {
+                format!("Failed to parse start date of mapping interval at index {i}")
+            })?;
+            let raw_end_date = u32::from_le_slice(&buffer[*pos..]);
+            *pos += Metadata::U32_SIZE;
+            let end_date = Self::decode_iso8601(raw_end_date).with_context(|| {
+                format!("Failed to parse end date of mapping interval at index {i}")
+            })?;
+            let symbol = Self::decode_symbol(buffer, pos).with_context(|| {
+                format!("Failed to parse symbol for mapping interval at index {i}")
+            })?;
+            intervals.push(MappingInterval {
+                start_date,
+                end_date,
+                symbol,
+            });
+        }
+        Ok(SymbolMapping { native, intervals })
+    }
+
+    fn decode_symbol(buffer: &[u8], pos: &mut usize) -> anyhow::Result<String> {
+        let symbol_slice = &buffer[*pos..*pos + Self::SYMBOL_CSTR_LEN];
+        let symbol = std::str::from_utf8(symbol_slice)
+            .with_context(|| format!("Failed to decode bytes {symbol_slice:?}"))?
+            // remove null bytes
+            .trim_end_matches('\0')
+            .to_owned();
+        *pos += Self::SYMBOL_CSTR_LEN;
+        Ok(symbol)
+    }
+
+    fn decode_iso8601(raw: u32) -> anyhow::Result<time::Date> {
+        let year = raw / 10_000;
+        let remaining = raw % 10_000;
+        let raw_month = remaining / 100;
+        let month = u8::try_from(raw_month)
+            .map_err(|e| anyhow!(e))
+            .and_then(|m| time::Month::try_from(m).map_err(|e| anyhow!(e)))
+            .with_context(|| {
+                format!("Invalid month {raw_month} while parsing {raw} into a date")
+            })?;
+        let day = remaining % 100;
+        time::Date::from_calendar_date(year as i32, month, day as u8)
+            .with_context(|| format!("Couldn't convert {raw} to a valid date"))
     }
 }
 
@@ -295,9 +457,10 @@ mod tests {
         // to be named explicitly
         ($test_name:ident, $tick_type:ident, $schema:expr, $file_name:expr) => {
             #[test]
+            #[ignore = "DBZ files are out-of-date"]
             fn $test_name() {
                 let target = Dbz::from_file(format!("{DBZ_PATH}/{}", $file_name)).unwrap();
-                let exp_row_count = target.metadata().nrows;
+                let exp_row_count = target.metadata().record_count;
                 assert_eq!(target.schema(), $schema);
                 let actual_row_count = target.try_into_iter::<$tick_type>().unwrap().count();
                 assert_eq!(exp_row_count as usize, actual_row_count);
@@ -354,4 +517,45 @@ mod tests {
         Schema::Trades,
         "test_data.trades.dbz"
     );
+
+    #[test]
+    fn test_decode_symbol() {
+        let bytes = b"SPX.1.2\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+        assert_eq!(bytes.len(), Metadata::SYMBOL_CSTR_LEN);
+        let mut pos = 0;
+        let res = Metadata::decode_symbol(bytes.as_slice(), &mut pos).unwrap();
+        assert_eq!(pos, Metadata::SYMBOL_CSTR_LEN);
+        assert_eq!(&res, "SPX.1.2");
+    }
+
+    #[test]
+    fn test_decode_symbol_invalid_utf8() {
+        const BYTES: [u8; 22] = [
+            // continuation byte
+            0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ];
+        let mut pos = 0;
+        let res = Metadata::decode_symbol(BYTES.as_slice(), &mut pos);
+        assert!(matches!(res, Err(e) if e.to_string().contains("Failed to decode bytes [")));
+    }
+
+    #[test]
+    fn test_decode_iso8601_valid() {
+        let res = Metadata::decode_iso8601(20151031).unwrap();
+        let exp: time::Date =
+            time::Date::from_calendar_date(2015, time::Month::October, 31).unwrap();
+        assert_eq!(res, exp);
+    }
+
+    #[test]
+    fn test_decode_iso8601_invalid_month() {
+        let res = Metadata::decode_iso8601(20101305);
+        assert!(matches!(res, Err(e) if e.to_string().contains("Invalid month")));
+    }
+
+    #[test]
+    fn test_decode_iso8601_invalid_day() {
+        let res = Metadata::decode_iso8601(20100600);
+        assert!(matches!(res, Err(e) if e.to_string().contains("a valid date")));
+    }
 }

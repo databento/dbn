@@ -9,5 +9,5 @@ mod write;
 #[cfg(feature = "python")]
 pub mod python;
 
-pub use crate::read::{Dbz, DbzIntoIter, Metadata};
+pub use crate::read::{Dbz, DbzIntoIter, MappingInterval, Metadata, SymbolMapping};
 pub use crate::write::OutputEncoding;
