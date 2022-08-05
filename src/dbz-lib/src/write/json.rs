@@ -237,7 +237,7 @@ mod tests {
             currency: [0; 4],
             settl_currency: ['U' as c_char, 'S' as c_char, 'D' as c_char, 0],
             secsubtype: [0; 6],
-            symbol: [0; 21],
+            symbol: [0; 22],
             group: [0; 21],
             exchange: [0; 5],
             asset: [0; 7],
@@ -261,7 +261,7 @@ mod tests {
             contract_multiplier_unit: 0,
             flow_schedule_type: 5,
             tick_rule: 0,
-            _dummy: [0; 4],
+            _dummy: [0; 3],
         }];
         let res = write_json_to_string(data.into_iter());
         assert_eq!(
