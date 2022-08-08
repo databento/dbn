@@ -36,9 +36,9 @@ pub struct Metadata {
     pub stype_in: SType,
     /// The target output symbol type to map to.
     pub stype_out: SType,
-    /// The UNIX nanosecond timestamp of the query start or the first record if the file was split.
+    /// The UNIX nanosecond timestamp of the query start, or the first record if the file was split.
     pub start: u64,
-    /// The UNIX nanosecond timestamp of the query end or the last record if the file was split.
+    /// The UNIX nanosecond timestamp of the query end, or the last record if the file was split.
     pub end: u64,
     /// The maximum number of records for the query.
     pub limit: u64,

@@ -6,7 +6,7 @@ use serde::{ser::SerializeSeq, Serialize, Serializer};
 use db_def::tick::Tick;
 
 /// Incrementally serializes the contents of `iter` into JSON to `writer` so the
-/// contents of `iter` are not all buffered into memory at once
+/// contents of `iter` are not all buffered into memory at once.
 pub fn write_json<T>(
     iter: impl Iterator<Item = T>,
     mut writer: impl io::Write,
@@ -32,10 +32,11 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::{io::BufWriter, os::raw::c_char};
+
     use super::*;
     use crate::write::test_data::{BID_ASK, COMMON_HEADER};
     use db_def::tick::{Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, SymDefMsg, TickMsg, TradeMsg};
-    use std::{io::BufWriter, os::raw::c_char};
 
     fn write_json_to_string<T>(iter: impl Iterator<Item = T>) -> String
     where
@@ -67,6 +68,7 @@ mod tests {
             sequence: 1_002_375,
         }];
         let res = write_json_to_string(data.into_iter());
+
         assert_eq!(
             res,
             format!(
@@ -92,6 +94,7 @@ mod tests {
             booklevel: [BID_ASK; 1],
         }];
         let res = write_json_to_string(data.into_iter());
+
         assert_eq!(
             res,
             format!(
@@ -118,6 +121,7 @@ mod tests {
             booklevel: [BID_ASK; 10],
         }];
         let res = write_json_to_string(data.into_iter());
+
         assert_eq!(
             res,
             format!(
@@ -144,6 +148,7 @@ mod tests {
             booklevel: [],
         }];
         let res = write_json_to_string(data.into_iter());
+
         assert_eq!(
             res,
             format!(
@@ -164,6 +169,7 @@ mod tests {
             volume: 55_000,
         }];
         let res = write_json_to_string(data.into_iter());
+
         assert_eq!(
             res,
             format!(
@@ -188,6 +194,7 @@ mod tests {
             trading_event: 6,
         }];
         let res = write_json_to_string(data.into_iter());
+
         assert_eq!(
             res,
             format!(
@@ -264,6 +271,7 @@ mod tests {
             _dummy: [0; 3],
         }];
         let res = write_json_to_string(data.into_iter());
+
         assert_eq!(
             res,
             format!(

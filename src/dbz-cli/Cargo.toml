@@ -27,5 +27,5 @@ serde = { version = "1.0", features = ["derive"] }
 assert_cmd = "2.0.4"
 # assert_cmd companion
 predicates = "2.1.1"
-# temporary files that are automatically cleaned up
+# A library for managing temporary files and directories
 tempfile = "3.3.0"

@@ -31,7 +31,7 @@ pub mod serialize {
     use std::{fmt, io};
 
     /// Because of the flat nature of CSVs, there are several limitations in the
-    /// rust CSV serde serialization library. This trait helps work around them.
+    /// Rust CSV serde serialization library. This trait helps work around them.
     pub trait CsvSerialize: Serialize + fmt::Debug {
         /// The CSV header needs to be defined in a flat struct (no nested structs)
         /// in order to work correctly and the library doesn't support `#[serde(flatten)]`.

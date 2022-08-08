@@ -86,6 +86,7 @@ mod tests {
         metadata.encode(cursor).unwrap();
         dbg!(&buffer);
         let res = Metadata::read(&mut &buffer[..]).unwrap();
+
         assert_eq!(res, metadata);
     }
 }
