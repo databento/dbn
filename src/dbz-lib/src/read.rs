@@ -28,7 +28,7 @@ pub struct Dbz<R: io::Read> {
 pub struct Metadata {
     /// The DBZ schema version number.
     pub version: u8,
-    /// The dataset ID.
+    /// The dataset name.
     pub dataset: String,
     /// The data record schema. Specifies which tick type is stored in the DBZ file.
     pub schema: Schema,
