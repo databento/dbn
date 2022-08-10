@@ -66,7 +66,7 @@ mod test_data {
     pub const COMMON_HEADER: CommonHeader = CommonHeader {
         nwords: 30,
         type_: 4,
-        pub_id: 1,
+        dataset_id: 1,
         product_id: 323,
         ts_event: 1658441851000000000,
     };

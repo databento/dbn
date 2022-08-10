@@ -49,7 +49,7 @@ mod tests {
     }
 
     const HEADER_JSON: &str =
-        r#""hd":{"pub_id":1,"product_id":323,"ts_event":1658441851000000000}"#;
+        r#""hd":{"dataset_id":1,"product_id":323,"ts_event":1658441851000000000}"#;
     const BID_ASK_JSON: &str = r#"{"bid_price":372000000000000,"ask_price":372500000000000,"bid_size":10,"ask_size":5,"bid_orders":5,"ask_orders":2}"#;
 
     #[test]
@@ -60,7 +60,7 @@ mod tests {
             price: 5500,
             size: 3,
             flags: -128,
-            chan_id: 14,
+            channel_id: 14,
             action: 'B' as i8,
             side: 67,
             ts_recv: 1658441891000000000,
@@ -73,7 +73,7 @@ mod tests {
             res,
             format!(
                 "[{{{HEADER_JSON},{}}}]\n",
-                r#""order_id":16,"price":5500,"size":3,"flags":-128,"chan_id":14,"action":66,"side":67,"ts_recv":1658441891000000000,"ts_in_delta":22000,"sequence":1002375"#
+                r#""order_id":16,"price":5500,"size":3,"flags":-128,"channel_id":14,"action":66,"side":67,"ts_recv":1658441891000000000,"ts_in_delta":22000,"sequence":1002375"#
             )
         );
     }

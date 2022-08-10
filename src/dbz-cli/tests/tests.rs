@@ -53,7 +53,7 @@ fn write_to_stdout() {
         ])
         .assert()
         .success()
-        .stdout(contains("chan_id"));
+        .stdout(contains("channel_id"));
 }
 
 #[test]
