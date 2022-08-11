@@ -41,7 +41,7 @@ impl<R: io::BufRead> Dbz<R> {
                 self.write_with_tick_to::<OhlcvMsg, _>(writer, encoding)
             }
             Schema::Definition => self.write_with_tick_to::<SymDefMsg, _>(writer, encoding),
-            Schema::Statistics => return Err(anyhow!("Not implemented for schema Statistics")),
+            Schema::Statistics => Err(anyhow!("Not implemented for schema Statistics")),
             Schema::Status => self.write_with_tick_to::<StatusMsg, _>(writer, encoding),
         }
     }

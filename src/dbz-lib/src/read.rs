@@ -24,7 +24,7 @@ pub struct Dbz<R: io::Read> {
 }
 
 /// Information about the data contained in a DBZ file.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Metadata {
     /// The DBZ schema version number.
     pub version: u8,
@@ -57,7 +57,7 @@ pub struct Metadata {
 }
 
 /// A native symbol and its symbol mappings for different time ranges within the query range.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "python", derive(pyo3::FromPyObject))]
 pub struct SymbolMapping {
     /// The native symbol.
@@ -67,7 +67,7 @@ pub struct SymbolMapping {
 }
 
 /// The resolved symbol for a date range.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MappingInterval {
     /// UTC start date of interval.
     pub start_date: time::Date,

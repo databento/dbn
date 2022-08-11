@@ -1,3 +1,4 @@
+#![allow(clippy::borrow_deref_ref)] // in generated code from `pyfunction` macro and `&PyBytes`
 use std::{fmt, io};
 
 use pyo3::exceptions::PyValueError;
