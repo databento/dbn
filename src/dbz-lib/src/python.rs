@@ -1,7 +1,7 @@
 #![allow(clippy::borrow_deref_ref)] // in generated code from `pyfunction` macro and `&PyBytes`
-use std::{fmt, io};
+use std::{fmt, io, io::SeekFrom};
 
-use pyo3::exceptions::PyValueError;
+use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDate, PyDateAccess, PyDict, PyString};
 use time::Date;
@@ -16,6 +16,7 @@ fn dbz_lib(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     // all functions exposed to Python need to be added here
     m.add_function(wrap_pyfunction!(decode_metadata, m)?)?;
     m.add_function(wrap_pyfunction!(encode_metadata, m)?)?;
+    m.add_function(wrap_pyfunction!(update_encoded_metadata, m)?)?;
     Ok(())
 }
 
@@ -77,6 +78,48 @@ fn encode_metadata(
     Ok(PyBytes::new(py, encoded.as_slice()).into())
 }
 
+/// Updates existing fields that have already been written to the given file.
+#[pyfunction]
+fn update_encoded_metadata(
+    _py: Python<'_>,
+    file: PyFileLike,
+    start: u64,
+    end: u64,
+    limit: Option<u64>,
+    record_count: u64,
+) -> PyResult<()> {
+    Metadata::update_encoded(file, start, end, limit.unwrap_or(0), record_count).map_err(to_val_err)
+}
+
+struct PyFileLike {
+    inner: PyObject,
+}
+
+impl<'source> FromPyObject<'source> for PyFileLike {
+    fn extract(any: &'source PyAny) -> PyResult<Self> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let obj: PyObject = any.extract()?;
+        if obj.getattr(py, "read").is_err() {
+            return Err(PyTypeError::new_err(
+                "object is missing a `read()` method".to_owned(),
+            ));
+        }
+        if obj.getattr(py, "write").is_err() {
+            return Err(PyTypeError::new_err(
+                "object is missing a `write()` method".to_owned(),
+            ));
+        }
+        if obj.getattr(py, "seek").is_err() {
+            return Err(PyTypeError::new_err(
+                "object is missing a `seek()` method".to_owned(),
+            ));
+        }
+        Ok(PyFileLike { inner: obj })
+    }
+}
+
 // [Metadata] gets converted into a plain Python `dict` when returned back to Python
 impl IntoPy<PyObject> for Metadata {
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -127,18 +170,17 @@ fn extract_date(any: &PyAny) -> PyResult<time::Date> {
 
 impl<'source> FromPyObject<'source> for MappingInterval {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        let dict = ob.downcast::<PyDict>()?;
-        let start_date = dict
-            .get_item("start_date")
-            .ok_or_else(|| to_val_err("Missing start_date".to_owned()))
+        let start_date = ob
+            .getattr("start_date")
+            .map_err(|_| to_val_err("Missing start_date".to_owned()))
             .and_then(extract_date)?;
-        let end_date = dict
-            .get_item("end_date")
-            .ok_or_else(|| to_val_err("Missing end_date".to_owned()))
+        let end_date = ob
+            .getattr("end_date")
+            .map_err(|_| to_val_err("Missing end_date".to_owned()))
             .and_then(extract_date)?;
-        let symbol = dict
-            .get_item("symbol")
-            .ok_or_else(|| to_val_err("Missing symbol".to_owned()))
+        let symbol = ob
+            .getattr("symbol")
+            .map_err(|_| to_val_err("Missing symbol".to_owned()))
             .and_then(|d| d.downcast::<PyString>().map_err(PyErr::from))?
             .to_str()?
             .to_owned();
@@ -182,4 +224,64 @@ impl ToPyObject for MappingInterval {
 
 fn to_val_err(e: impl fmt::Debug) -> PyErr {
     PyValueError::new_err(format!("{e:?}"))
+}
+
+fn py_to_rs_io_err(e: PyErr) -> io::Error {
+    let gil = Python::acquire_gil();
+    let py = gil.python();
+    let e_as_object: PyObject = e.into_py(py);
+
+    match e_as_object.call_method(py, "__str__", (), None) {
+        Ok(repr) => match repr.extract::<String>(py) {
+            Ok(s) => io::Error::new(io::ErrorKind::Other, s),
+            Err(_e) => io::Error::new(io::ErrorKind::Other, "An unknown error has occurred"),
+        },
+        Err(_) => io::Error::new(io::ErrorKind::Other, "Err doesn't have __str__"),
+    }
+}
+
+impl io::Write for PyFileLike {
+    fn write(&mut self, buf: &[u8]) -> Result<usize, io::Error> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let bytes = PyBytes::new(py, buf).to_object(py);
+        let number_bytes_written = self
+            .inner
+            .call_method(py, "write", (bytes,), None)
+            .map_err(py_to_rs_io_err)?;
+
+        number_bytes_written.extract(py).map_err(py_to_rs_io_err)
+    }
+
+    fn flush(&mut self) -> Result<(), io::Error> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        self.inner
+            .call_method(py, "flush", (), None)
+            .map_err(py_to_rs_io_err)?;
+
+        Ok(())
+    }
+}
+
+impl io::Seek for PyFileLike {
+    fn seek(&mut self, pos: SeekFrom) -> Result<u64, io::Error> {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let (whence, offset) = match pos {
+            SeekFrom::Start(i) => (0, i as i64),
+            SeekFrom::Current(i) => (1, i as i64),
+            SeekFrom::End(i) => (2, i as i64),
+        };
+
+        let new_position = self
+            .inner
+            .call_method(py, "seek", (offset, whence), None)
+            .map_err(py_to_rs_io_err)?;
+
+        new_position.extract(py).map_err(py_to_rs_io_err)
+    }
 }

@@ -1,16 +1,11 @@
-use std::{
-    io::{self, SeekFrom},
-    mem,
-};
+use std::io::{self, SeekFrom};
 
 use anyhow::{anyhow, Context};
 
 use crate::{read::SymbolMapping, Metadata};
 
 impl Metadata {
-    #[allow(unused)]
-    pub(crate) fn encode(&self, mut writer: impl io::Write + io::Seek) -> anyhow::Result<()> {
-        const MAGIC_AND_LEN_SIZE: usize = 2 * mem::size_of::<u32>();
+    pub fn encode(&self, mut writer: impl io::Write + io::Seek) -> anyhow::Result<()> {
         writer.write_all(Self::ZSTD_MAGIC_RANGE.start.to_le_bytes().as_slice())?;
         // write placeholder frame size to filled in at the end
         writer.write_all(b"0000")?;
@@ -18,10 +13,13 @@ impl Metadata {
         writer.write_all(&[self.version])?;
         Self::encode_fixed_len_cstr::<_, { Self::DATASET_CSTR_LEN }>(&mut writer, &self.dataset)?;
         writer.write_all((self.schema as u16).to_le_bytes().as_slice())?;
-        writer.write_all(self.start.to_le_bytes().as_slice())?;
-        writer.write_all(self.end.to_le_bytes().as_slice())?;
-        writer.write_all(self.limit.to_le_bytes().as_slice())?;
-        writer.write_all(self.record_count.to_le_bytes().as_slice())?;
+        Self::encode_range_and_counts(
+            &mut writer,
+            self.start,
+            self.end,
+            self.limit,
+            self.record_count,
+        )?;
         writer.write_all(&[self.compression as u8])?;
         writer.write_all(&[self.stype_in as u8])?;
         writer.write_all(&[self.stype_out as u8])?;
@@ -45,6 +43,41 @@ impl Metadata {
         let frame_size = (raw_size - 8) as u32;
         writer.write_all(frame_size.to_le_bytes().as_slice())?;
 
+        Ok(())
+    }
+
+    pub fn update_encoded(
+        mut writer: impl io::Write + io::Seek,
+        start: u64,
+        end: u64,
+        limit: u64,
+        record_count: u64,
+    ) -> anyhow::Result<()> {
+        /// Byte position of the field `start`
+        const START_SEEK_FROM: SeekFrom =
+            SeekFrom::Start((8 + 4 + Metadata::DATASET_CSTR_LEN + 2) as u64);
+
+        writer
+            .seek(START_SEEK_FROM)
+            .with_context(|| "Failed to seek to write position".to_owned())?;
+        Self::encode_range_and_counts(&mut writer, start, end, limit, record_count)?;
+        writer
+            .seek(SeekFrom::End(0))
+            .with_context(|| "Failed to seek back to end".to_owned())?;
+        Ok(())
+    }
+
+    fn encode_range_and_counts(
+        writer: &mut impl io::Write,
+        start: u64,
+        end: u64,
+        limit: u64,
+        record_count: u64,
+    ) -> anyhow::Result<()> {
+        writer.write_all(start.to_le_bytes().as_slice())?;
+        writer.write_all(end.to_le_bytes().as_slice())?;
+        writer.write_all(limit.to_le_bytes().as_slice())?;
+        writer.write_all(record_count.to_le_bytes().as_slice())?;
         Ok(())
     }
 
@@ -129,6 +162,8 @@ impl Metadata {
 
 #[cfg(test)]
 mod tests {
+    use std::{io::Seek, mem};
+
     use db_def::enums::{Compression, SType, Schema};
 
     use crate::read::{FromLittleEndianSlice, MappingInterval};
@@ -248,5 +283,48 @@ mod tests {
         Metadata::encode_date(&mut buffer, date).unwrap();
         assert_eq!(buffer.len(), mem::size_of::<u32>());
         assert_eq!(buffer.as_slice(), 20200517u32.to_le_bytes().as_slice());
+    }
+
+    #[test]
+    fn test_update_encoded() {
+        let orig_metadata = Metadata {
+            version: 1,
+            dataset: "GLBX.MDP3".to_owned(),
+            schema: Schema::Mbo,
+            stype_in: SType::Smart,
+            stype_out: SType::Native,
+            start: 1657230820000000000,
+            end: 1658960170000000000,
+            limit: 0,
+            record_count: 1_450_000,
+            compression: Compression::ZStd,
+            symbols: vec![],
+            partial: vec![],
+            not_found: vec![],
+            mappings: vec![],
+        };
+        let mut buffer = Vec::new();
+        let cursor = io::Cursor::new(&mut buffer);
+        orig_metadata.encode(cursor).unwrap();
+        let orig_res = Metadata::read(&mut &buffer[..]).unwrap();
+        assert_eq!(orig_metadata, orig_res);
+        let mut cursor = io::Cursor::new(&mut buffer);
+        assert_eq!(cursor.position(), 0);
+        cursor.seek(SeekFrom::End(0)).unwrap();
+        let before_pos = cursor.position();
+        assert!(before_pos != 0);
+        let new_start = 1697240529000000000;
+        let new_end = 17058980170000000000;
+        let new_limit = 10;
+        let new_record_count = 100_678;
+        Metadata::update_encoded(&mut cursor, new_start, new_end, new_limit, new_record_count)
+            .unwrap();
+        assert_eq!(before_pos, cursor.position());
+        let res = Metadata::read(&mut &buffer[..]).unwrap();
+        assert!(res != orig_res);
+        assert_eq!(res.start, new_start);
+        assert_eq!(res.end, new_end);
+        assert_eq!(res.limit, new_limit);
+        assert_eq!(res.record_count, new_record_count);
     }
 }
