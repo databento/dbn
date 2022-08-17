@@ -42,15 +42,15 @@ pub struct Metadata {
     pub record_count: u64,
     /// The data output compression mode.
     pub compression: Compression,
-    /// The input symbol type to map from.
+    /// The input symbology type to map from.
     pub stype_in: SType,
-    /// The target output symbol type to map to.
+    /// The output symbology type to map to.
     pub stype_out: SType,
     /// The original query input symbols from the request.
     pub symbols: Vec<String>,
-    /// Symbols that did not resolve for _at least one day_ in the queried time range.
-    pub partially_resolved: Vec<String>,
-    /// Symbols that did not resolve for _any_ day in the queried time range.
+    /// Symbols that did not resolve for _at least one day_ in the query time range.
+    pub partial: Vec<String>,
+    /// Symbols that did not resolve for _any_ day in the query time range.
     pub not_found: Vec<String>,
     /// Symbol mappings containing a native symbol and its mapping intervals.
     pub mappings: Vec<SymbolMapping>,
@@ -301,9 +301,8 @@ impl Metadata {
         pos += Self::U32_SIZE + (schema_definition_length as usize);
         let symbols = Self::decode_repeated_symbol_cstr(metadata_buffer.as_slice(), &mut pos)
             .with_context(|| "Failed to parse symbols")?;
-        let partially_resolved =
-            Self::decode_repeated_symbol_cstr(metadata_buffer.as_slice(), &mut pos)
-                .with_context(|| "Failed to parse partially_resolved")?;
+        let partial = Self::decode_repeated_symbol_cstr(metadata_buffer.as_slice(), &mut pos)
+            .with_context(|| "Failed to parse partial")?;
         let not_found = Self::decode_repeated_symbol_cstr(metadata_buffer.as_slice(), &mut pos)
             .with_context(|| "Failed to parse not_found")?;
         let mappings = Self::decode_symbol_mappings(metadata_buffer.as_slice(), &mut pos)?;
@@ -320,7 +319,7 @@ impl Metadata {
             compression,
             record_count,
             symbols,
-            partially_resolved,
+            partial,
             not_found,
             mappings,
         })

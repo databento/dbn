@@ -51,7 +51,7 @@ fn encode_metadata(
     stype_in: u8,
     stype_out: u8,
     symbols: Vec<String>,
-    partially_resolved: Vec<String>,
+    partial: Vec<String>,
     not_found: Vec<String>,
     mappings: Vec<SymbolMapping>,
 ) -> PyResult<Py<PyBytes>> {
@@ -67,7 +67,7 @@ fn encode_metadata(
         stype_in: SType::try_from(stype_in).map_err(to_val_err)?,
         stype_out: SType::try_from(stype_out).map_err(to_val_err)?,
         symbols,
-        partially_resolved,
+        partial,
         not_found,
         mappings,
     };
@@ -97,8 +97,7 @@ impl IntoPy<PyObject> for Metadata {
         dict.set_item("stype_out", self.stype_out as u8)
             .expect("set stype_out");
         dict.set_item("symbols", self.symbols).expect("set symbols");
-        dict.set_item("partially_resolved", self.partially_resolved)
-            .expect("set partially_resolved");
+        dict.set_item("partial", self.partial).expect("set partial");
         dict.set_item("not_found", self.not_found)
             .expect("set not_found");
         dict.set_item("mappings", self.mappings)

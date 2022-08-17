@@ -32,8 +32,8 @@ impl Metadata {
 
         Self::encode_repeated_symbol_cstr(&mut writer, self.symbols.as_slice())
             .with_context(|| "Failed to encode symbols")?;
-        Self::encode_repeated_symbol_cstr(&mut writer, self.partially_resolved.as_slice())
-            .with_context(|| "Failed to encode partially_resolved")?;
+        Self::encode_repeated_symbol_cstr(&mut writer, self.partial.as_slice())
+            .with_context(|| "Failed to encode partial")?;
         Self::encode_repeated_symbol_cstr(&mut writer, self.not_found.as_slice())
             .with_context(|| "Failed to encode not_found")?;
         Self::encode_symbol_mappings(&mut writer, self.mappings.as_slice())?;
@@ -154,7 +154,7 @@ mod tests {
             compression: Compression::ZStd,
             record_count: 14,
             symbols: vec!["ES".to_owned(), "NG".to_owned()],
-            partially_resolved: vec!["ESM2".to_owned()],
+            partial: vec!["ESM2".to_owned()],
             not_found: vec!["QQQQQ".to_owned()],
             mappings: vec![
                 SymbolMapping {
