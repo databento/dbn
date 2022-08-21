@@ -1,10 +1,23 @@
-use std::io::{self, SeekFrom};
+use std::{
+    io::{self, SeekFrom, Write},
+    ops::Range,
+};
 
 use anyhow::{anyhow, Context};
 
 use crate::{read::SymbolMapping, Metadata};
+use zstd::Encoder;
 
 impl Metadata {
+    pub(crate) const ZSTD_MAGIC_RANGE: Range<u32> = 0x184D2A50..0x184D2A60;
+    pub(crate) const SCHEMA_VERSION: u8 = 1;
+    pub(crate) const VERSION_CSTR_LEN: usize = 4;
+    pub(crate) const DATASET_CSTR_LEN: usize = 16;
+    pub(crate) const RESERVED_LEN: usize = 39;
+    pub(crate) const FIXED_METADATA_LEN: usize = 96;
+    pub(crate) const SYMBOL_CSTR_LEN: usize = 22;
+    pub(crate) const ZSTD_COMPRESSION_LEVEL: i32 = 0;
+
     pub fn encode(&self, mut writer: impl io::Write + io::Seek) -> anyhow::Result<()> {
         writer.write_all(Self::ZSTD_MAGIC_RANGE.start.to_le_bytes().as_slice())?;
         // write placeholder frame size to filled in at the end
@@ -25,16 +38,21 @@ impl Metadata {
         writer.write_all(&[self.stype_out as u8])?;
         // padding
         writer.write_all(&[0; Self::RESERVED_LEN])?;
-        // schema_definition_length
-        writer.write_all(0u32.to_le_bytes().as_slice())?;
+        {
+            // remaining metadata is compressed
+            let mut zstd_encoder =
+                Encoder::new(&mut writer, Self::ZSTD_COMPRESSION_LEVEL)?.auto_finish();
+            // schema_definition_length
+            zstd_encoder.write_all(0u32.to_le_bytes().as_slice())?;
 
-        Self::encode_repeated_symbol_cstr(&mut writer, self.symbols.as_slice())
-            .with_context(|| "Failed to encode symbols")?;
-        Self::encode_repeated_symbol_cstr(&mut writer, self.partial.as_slice())
-            .with_context(|| "Failed to encode partial")?;
-        Self::encode_repeated_symbol_cstr(&mut writer, self.not_found.as_slice())
-            .with_context(|| "Failed to encode not_found")?;
-        Self::encode_symbol_mappings(&mut writer, self.mappings.as_slice())?;
+            Self::encode_repeated_symbol_cstr(&mut zstd_encoder, self.symbols.as_slice())
+                .with_context(|| "Failed to encode symbols")?;
+            Self::encode_repeated_symbol_cstr(&mut zstd_encoder, self.partial.as_slice())
+                .with_context(|| "Failed to encode partial")?;
+            Self::encode_repeated_symbol_cstr(&mut zstd_encoder, self.not_found.as_slice())
+                .with_context(|| "Failed to encode not_found")?;
+            Self::encode_symbol_mappings(&mut zstd_encoder, self.mappings.as_slice())?;
+        }
 
         let raw_size = writer.stream_position()?;
         // go back and update the size now that we know it

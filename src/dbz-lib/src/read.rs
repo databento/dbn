@@ -3,7 +3,6 @@ use std::{
     io::{self, BufReader, Read},
     marker::PhantomData,
     mem,
-    ops::Range,
     path::Path,
 };
 
@@ -218,13 +217,6 @@ impl FromLittleEndianSlice for u16 {
 }
 
 impl Metadata {
-    pub(crate) const ZSTD_MAGIC_RANGE: Range<u32> = 0x184D2A50..0x184D2A60;
-    pub(crate) const SCHEMA_VERSION: u8 = 1;
-    pub(crate) const VERSION_CSTR_LEN: usize = 4;
-    pub(crate) const DATASET_CSTR_LEN: usize = 16;
-    pub(crate) const RESERVED_LEN: usize = 39;
-    pub(crate) const FIXED_METADATA_LEN: usize = 96;
-    pub(crate) const SYMBOL_CSTR_LEN: usize = 22;
     const U32_SIZE: usize = mem::size_of::<u32>();
 
     pub(crate) fn read(reader: &mut impl io::Read) -> anyhow::Result<Self> {
@@ -259,7 +251,7 @@ impl Metadata {
         }
         // Interpret 4th character as an u8, not a char to allow for 254 versions (0 omitted)
         let version = metadata_buffer[pos + 3] as u8;
-        // TODO(cg): version check?
+        // assume not forwards compatible
         if version > Self::SCHEMA_VERSION {
             return Err(anyhow!("Can't read newer version of DBZ"));
         }
@@ -292,20 +284,29 @@ impl Metadata {
         pos += mem::size_of::<SType>();
         // skip reserved
         pos += Self::RESERVED_LEN;
-        let schema_definition_length = u32::from_le_slice(&metadata_buffer[pos..]);
+        // remaining metadata is compressed
+        let mut zstd_decoder = Decoder::new(&metadata_buffer[pos..])
+            .with_context(|| "Failed to read zstd-zipped variable-length metadata".to_owned())?;
+
+        // decompressed variable-length metadata buffer
+        let buffer_capacity = (metadata_buffer.len() - pos) * 3; // 3x is arbitrary
+        let mut var_buffer = Vec::with_capacity(buffer_capacity);
+        zstd_decoder.read_to_end(&mut var_buffer)?;
+        pos = 0;
+        let schema_definition_length = u32::from_le_slice(&var_buffer[pos..]);
         if schema_definition_length != 0 {
             return Err(anyhow!(
                 "This version of dbz can't parse schema definitions"
             ));
         }
         pos += Self::U32_SIZE + (schema_definition_length as usize);
-        let symbols = Self::decode_repeated_symbol_cstr(metadata_buffer.as_slice(), &mut pos)
+        let symbols = Self::decode_repeated_symbol_cstr(var_buffer.as_slice(), &mut pos)
             .with_context(|| "Failed to parse symbols")?;
-        let partial = Self::decode_repeated_symbol_cstr(metadata_buffer.as_slice(), &mut pos)
+        let partial = Self::decode_repeated_symbol_cstr(var_buffer.as_slice(), &mut pos)
             .with_context(|| "Failed to parse partial")?;
-        let not_found = Self::decode_repeated_symbol_cstr(metadata_buffer.as_slice(), &mut pos)
+        let not_found = Self::decode_repeated_symbol_cstr(var_buffer.as_slice(), &mut pos)
             .with_context(|| "Failed to parse not_found")?;
-        let mappings = Self::decode_symbol_mappings(metadata_buffer.as_slice(), &mut pos)?;
+        let mappings = Self::decode_symbol_mappings(var_buffer.as_slice(), &mut pos)?;
 
         Ok(Self {
             version,
