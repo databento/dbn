@@ -49,7 +49,7 @@ mod tests {
     }
 
     const HEADER_JSON: &str =
-        r#""hd":{"dataset_id":1,"product_id":323,"ts_event":1658441851000000000}"#;
+        r#""hd":{"publisher_id":1,"product_id":323,"ts_event":1658441851000000000}"#;
     const BID_ASK_JSON: &str = r#"{"bid_price":372000000000000,"ask_price":372500000000000,"bid_size":10,"ask_size":5,"bid_orders":5,"ask_orders":2}"#;
 
     #[test]

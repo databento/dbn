@@ -48,7 +48,7 @@ pub mod serialize {
 
     impl CsvSerialize for TickMsg {
         const HEADERS: &'static [&'static str] = &[
-            "dataset_id",
+            "publisher_id",
             "product_id",
             "ts_event",
             "order_id",
@@ -66,7 +66,7 @@ pub mod serialize {
 
     impl CsvSerialize for Mbp1Msg {
         const HEADERS: &'static [&'static str] = &[
-            "dataset_id",
+            "publisher_id",
             "product_id",
             "ts_event",
             "price",
@@ -89,7 +89,7 @@ pub mod serialize {
 
     impl CsvSerialize for Mbp10Msg {
         const HEADERS: &'static [&'static str] = &[
-            "dataset_id",
+            "publisher_id",
             "product_id",
             "ts_event",
             "price",
@@ -164,7 +164,7 @@ pub mod serialize {
         ];
 
         fn serialize_to<W: io::Write>(&self, csv_writer: &mut Writer<W>) -> anyhow::Result<()> {
-            csv_writer.write_field(self.hd.dataset_id.to_string())?;
+            csv_writer.write_field(self.hd.publisher_id.to_string())?;
             csv_writer.write_field(self.hd.product_id.to_string())?;
             csv_writer.write_field(self.hd.ts_event.to_string())?;
             csv_writer.write_field(self.price.to_string())?;
@@ -192,7 +192,7 @@ pub mod serialize {
 
     impl CsvSerialize for TradeMsg {
         const HEADERS: &'static [&'static str] = &[
-            "dataset_id",
+            "publisher_id",
             "product_id",
             "ts_event",
             "price",
@@ -209,7 +209,7 @@ pub mod serialize {
 
     impl CsvSerialize for OhlcvMsg {
         const HEADERS: &'static [&'static str] = &[
-            "dataset_id",
+            "publisher_id",
             "product_id",
             "ts_event",
             "open",
@@ -222,7 +222,7 @@ pub mod serialize {
 
     impl CsvSerialize for StatusMsg {
         const HEADERS: &'static [&'static str] = &[
-            "dataset_id",
+            "publisher_id",
             "product_id",
             "ts_event",
             "ts_recv",
@@ -235,7 +235,7 @@ pub mod serialize {
 
     impl CsvSerialize for SymDefMsg {
         const HEADERS: &'static [&'static str] = &[
-            "dataset_id",
+            "publisher_id",
             "product_id",
             "ts_event",
             "ts_recv",
