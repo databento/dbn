@@ -24,13 +24,13 @@ python = ["dep:pyo3", "dep:pyo3-build-config"]
 db-def = { path = "../../../db-def", features = ["serde"], version = "0.1.0" }
 
 # error handling
-anyhow = "1.0.58"
+anyhow = "1.0.62"
 # CSV serialization
-csv = "1.1"
+csv = "1.1.6"
 # logging
 log = "0.4.17"
 # Python bindings for Rust
-pyo3 = { version = "0.16.5", features = ["extension-module"], optional = true }
+pyo3 = { version = "0.17.0", features = ["extension-module"], optional = true }
 # Derialization
 serde = { version = "1.0", features = ["derive"] }
 # JSON serialization
@@ -38,7 +38,7 @@ serde_json = "1.0"
 # decompression from DBZ
 zstd = "= 0.11.2+zstd1.5.2"
 # date and datetime support
-time = { version = "0.3.12", features = ["serde"] }
+time = { version = "0.3.13", features = ["serde"] }
 
 [build-dependencies]
-pyo3-build-config = { version = "0.16.5", optional = true }
+pyo3-build-config = { version = "0.17.0", optional = true }

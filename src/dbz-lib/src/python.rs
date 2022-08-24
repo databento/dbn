@@ -97,26 +97,25 @@ struct PyFileLike {
 
 impl<'source> FromPyObject<'source> for PyFileLike {
     fn extract(any: &'source PyAny) -> PyResult<Self> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-
-        let obj: PyObject = any.extract()?;
-        if obj.getattr(py, "read").is_err() {
-            return Err(PyTypeError::new_err(
-                "object is missing a `read()` method".to_owned(),
-            ));
-        }
-        if obj.getattr(py, "write").is_err() {
-            return Err(PyTypeError::new_err(
-                "object is missing a `write()` method".to_owned(),
-            ));
-        }
-        if obj.getattr(py, "seek").is_err() {
-            return Err(PyTypeError::new_err(
-                "object is missing a `seek()` method".to_owned(),
-            ));
-        }
-        Ok(PyFileLike { inner: obj })
+        Python::with_gil(|py| {
+            let obj: PyObject = any.extract()?;
+            if obj.getattr(py, "read").is_err() {
+                return Err(PyTypeError::new_err(
+                    "object is missing a `read()` method".to_owned(),
+                ));
+            }
+            if obj.getattr(py, "write").is_err() {
+                return Err(PyTypeError::new_err(
+                    "object is missing a `write()` method".to_owned(),
+                ));
+            }
+            if obj.getattr(py, "seek").is_err() {
+                return Err(PyTypeError::new_err(
+                    "object is missing a `seek()` method".to_owned(),
+                ));
+            }
+            Ok(PyFileLike { inner: obj })
+        })
     }
 }
 
@@ -227,61 +226,58 @@ fn to_val_err(e: impl fmt::Debug) -> PyErr {
 }
 
 fn py_to_rs_io_err(e: PyErr) -> io::Error {
-    let gil = Python::acquire_gil();
-    let py = gil.python();
-    let e_as_object: PyObject = e.into_py(py);
+    Python::with_gil(|py| {
+        let e_as_object: PyObject = e.into_py(py);
 
-    match e_as_object.call_method(py, "__str__", (), None) {
-        Ok(repr) => match repr.extract::<String>(py) {
-            Ok(s) => io::Error::new(io::ErrorKind::Other, s),
-            Err(_e) => io::Error::new(io::ErrorKind::Other, "An unknown error has occurred"),
-        },
-        Err(_) => io::Error::new(io::ErrorKind::Other, "Err doesn't have __str__"),
-    }
+        match e_as_object.call_method(py, "__str__", (), None) {
+            Ok(repr) => match repr.extract::<String>(py) {
+                Ok(s) => io::Error::new(io::ErrorKind::Other, s),
+                Err(_e) => io::Error::new(io::ErrorKind::Other, "An unknown error has occurred"),
+            },
+            Err(_) => io::Error::new(io::ErrorKind::Other, "Err doesn't have __str__"),
+        }
+    })
 }
 
 impl io::Write for PyFileLike {
     fn write(&mut self, buf: &[u8]) -> Result<usize, io::Error> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let bytes = PyBytes::new(py, buf).to_object(py);
+            let number_bytes_written = self
+                .inner
+                .call_method(py, "write", (bytes,), None)
+                .map_err(py_to_rs_io_err)?;
 
-        let bytes = PyBytes::new(py, buf).to_object(py);
-        let number_bytes_written = self
-            .inner
-            .call_method(py, "write", (bytes,), None)
-            .map_err(py_to_rs_io_err)?;
-
-        number_bytes_written.extract(py).map_err(py_to_rs_io_err)
+            number_bytes_written.extract(py).map_err(py_to_rs_io_err)
+        })
     }
 
     fn flush(&mut self) -> Result<(), io::Error> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            self.inner
+                .call_method(py, "flush", (), None)
+                .map_err(py_to_rs_io_err)?;
 
-        self.inner
-            .call_method(py, "flush", (), None)
-            .map_err(py_to_rs_io_err)?;
-
-        Ok(())
+            Ok(())
+        })
     }
 }
 
 impl io::Seek for PyFileLike {
     fn seek(&mut self, pos: SeekFrom) -> Result<u64, io::Error> {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        Python::with_gil(|py| {
+            let (whence, offset) = match pos {
+                SeekFrom::Start(i) => (0, i as i64),
+                SeekFrom::Current(i) => (1, i as i64),
+                SeekFrom::End(i) => (2, i as i64),
+            };
 
-        let (whence, offset) = match pos {
-            SeekFrom::Start(i) => (0, i as i64),
-            SeekFrom::Current(i) => (1, i as i64),
-            SeekFrom::End(i) => (2, i as i64),
-        };
+            let new_position = self
+                .inner
+                .call_method(py, "seek", (offset, whence), None)
+                .map_err(py_to_rs_io_err)?;
 
-        let new_position = self
-            .inner
-            .call_method(py, "seek", (offset, whence), None)
-            .map_err(py_to_rs_io_err)?;
-
-        new_position.extract(py).map_err(py_to_rs_io_err)
+            new_position.extract(py).map_err(py_to_rs_io_err)
+        })
     }
 }
