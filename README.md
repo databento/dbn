@@ -3,9 +3,9 @@
 A library (`dbz-lib`) and CLI tool (`dbz-cli`) for working with Databento Binary
 Encoding (DBZ) files.
 
-The Databento Binary Encoding + Zstandard compression (DBZ) encoding, is an
-efficient highly compressible binary encoding suitable for bulk financial time
-series data, which includes a metadata header.
+The Databento Binary Encoding + Zstandard compression (DBZ) is an efficient
+highly compressible binary encoding suitable for bulk financial time series data,
+which includes a metadata header.
 
 ## Features
 

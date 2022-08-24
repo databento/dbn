@@ -39,7 +39,7 @@ pub struct Metadata {
     pub limit: u64,
     /// The total number of data records.
     pub record_count: u64,
-    /// The data output compression mode.
+    /// The data compression format (if any).
     pub compression: Compression,
     /// The input symbology type to map from.
     pub stype_in: SType,
