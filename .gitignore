@@ -1,3 +1,8 @@
+.git/
+.idea/
+.profile/
+.vscode/
+
 target/
 **/*.rs.bk
 *.sw[po]

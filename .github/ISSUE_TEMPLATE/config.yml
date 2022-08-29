@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: General Questions
+    url: https://github.com/databento/dbz/discussions
+    about: Please ask questions like "How do I achieve x?" here.
+  - name: DatabentoHQ
+    url: https://twitter.com/DatabentoHQ
+    about: Follow us on twitter for news and updates!
