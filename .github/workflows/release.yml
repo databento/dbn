@@ -59,6 +59,34 @@ jobs:
       - name: Run tests
         run: cargo test --all-features
 
+# TODO(cs): need a way to get version from the Cargo.toml
+#      # Tag the commit with the library version
+#      - name: Create git tag
+#        uses: salsify/action-detect-and-tag-new-version@v2
+#        with:
+#          version-command: python setup.py --version
+#
+#      # Set release output variables
+#      - name: Set output
+#        id: vars
+#        run: |
+#          echo "::set-output name=tag_name::v$(python setup.py --version)"
+#          echo "::set-output name=release_name::$(python setup.py --version)"
+#
+#      # Create GitHub release
+#      - name: Create release
+#        id: create-release
+#        uses: actions/create-release@v1
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#          TAG_NAME: ${{ steps.vars.outputs.tag_name }}
+#          RELEASE_NAME: ${{ steps.vars.outputs.release_name }}
+#        with:
+#          tag_name: ${{ env.TAG_NAME }}
+#          release_name: ${{ env.RELEASE_NAME }}
+#          draft: false
+#          prerelease: false
+
       # Publish to PyPI
       - name: Publish to PyPI
         run: |
