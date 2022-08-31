@@ -1,7 +1,7 @@
 [package]
 name = "dbz-lib"
 authors = ["Databento <support@databento.com>"]
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 description = "Library for working with the Databento Binary Encoding (DBZ) format"
 license = "Apache-2.0"
@@ -21,7 +21,7 @@ python = ["dep:pyo3", "dep:pyo3-build-config"]
 
 [dependencies]
 # Databento common definitions
-db-def = { git = "https://github.com/databento/db-def", branch = "dev", features = ["serde"], version = "0.1.0" }
+db-def = { git = "https://github.com/databento/databento-defs", branch = "dev", features = ["serde"], version = "0.1.0" }
 
 # error handling
 anyhow = "1.0.62"
