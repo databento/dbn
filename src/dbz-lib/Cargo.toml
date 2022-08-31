@@ -24,7 +24,7 @@ python = ["dep:pyo3", "dep:pyo3-build-config"]
 db-def = { git = "https://github.com/databento/databento-defs", branch = "dev", features = ["serde"], version = "0.1.0" }
 
 # error handling
-anyhow = "1.0.62"
+anyhow = "1.0.63"
 # CSV serialization
 csv = "1.1.6"
 # logging
