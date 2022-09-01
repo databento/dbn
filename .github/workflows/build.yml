@@ -4,7 +4,7 @@ name: build
 
 on:
   push:
-    branches: [ dev ]
+    branches: [ main, dev ]
 
 jobs:
   build:

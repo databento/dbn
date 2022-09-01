@@ -3,11 +3,16 @@ name: release
 # Release dbz-lib
 
 on:
-  push:
+  workflow_run:
+    workflows:
+      - build
     branches: [ main ]
+    types:
+      - completed
 
 jobs:
   release:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     strategy:
       fail-fast: false
       matrix:
