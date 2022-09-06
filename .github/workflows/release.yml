@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [ x86 ]
+        arch: [ x64, ARM64 ]
         os: [ ubuntu-latest, macos-latest, windows-latest ]
         python-version: [ "3.7", "3.8", "3.9", "3.10" ]
     name: build - Python ${{ matrix.python-version }} (${{ matrix.arch }} ${{ matrix.os }})
@@ -96,4 +96,9 @@ jobs:
       - name: Publish to PyPI
         run: |
           cd src/dbz-lib
-          maturin publish --features python --no-sdist --username databento --password ${{ secrets.MATURIN_PASSWORD }}
+          maturin publish \
+            --features python \
+            --no-sdist \
+            --username databento \
+            --password ${{ secrets.MATURIN_PASSWORD }} \
+            --interpreter python${{matrix.python_version}}
