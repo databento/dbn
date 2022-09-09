@@ -445,10 +445,7 @@ mod tests {
     use super::*;
     use databento_defs::tick::{Mbp10Msg, Mbp1Msg, OhlcvMsg, TbboMsg, TickMsg, TradeMsg};
 
-    const DBZ_PATH: &str = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../../databento-python/tests/data"
-    );
+    const DBZ_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/data");
 
     /// there are crates like rstest that provide pytest-like parameterized tests, however
     /// they don't support passing types
