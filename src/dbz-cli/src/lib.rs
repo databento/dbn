@@ -15,7 +15,7 @@ pub enum OutputEncoding {
 }
 
 #[derive(Debug, Parser)]
-#[clap(author, version, about)]
+#[clap(version, about)]
 pub struct Args {
     #[clap(
         help = "A DBZ file to convert to another encoding",
@@ -29,14 +29,10 @@ pub struct Args {
         value_name = "FILE"
     )]
     pub output: Option<PathBuf>,
-    #[clap(
-        short,
-        long,
-        value_enum,
-        default_value = "infer",
-        help = "Specify the output encoding. If none is specified, it will infer the encoding from the output file extension"
-    )]
-    pub encoding: OutputEncoding,
+    #[clap(short = 'J', long, action = ArgAction::SetTrue, default_value = "false", help = "Output the result as JSON")]
+    pub json: bool,
+    #[clap(short = 'C', long,  action = ArgAction::SetTrue, default_value = "false", conflicts_with = "json", help = "Output the result as CSV")]
+    pub csv: bool,
     #[clap(
         short,
         long,
@@ -47,8 +43,19 @@ pub struct Args {
     pub force: bool,
 }
 
+impl Args {
+    pub fn output_encoding(&self) -> OutputEncoding {
+        match (self.json, self.csv) {
+            (false, false) => OutputEncoding::Infer,
+            (true, false) => OutputEncoding::Json,
+            (false, true) => OutputEncoding::Csv,
+            (true, true) => unreachable!("Invalid state that clap conflicts_with should prevent"),
+        }
+    }
+}
+
 pub fn infer_encoding(args: &Args) -> anyhow::Result<dbz_lib::OutputEncoding> {
-    match args.encoding {
+    match args.output_encoding() {
         OutputEncoding::Csv => Ok(dbz_lib::OutputEncoding::Csv),
         OutputEncoding::Json => Ok(dbz_lib::OutputEncoding::Json),
         OutputEncoding::Infer => match args.output.as_ref().and_then(|o| o.extension()) {

@@ -7,25 +7,32 @@ Encoding (DBZ) files to text formats. This tool is heavily inspired by the
 ## Usage
 
 `dbz` currently supports CSV and JSON as output formats.
+By default `dbz` outputs the result to standard output for ease of use with
+text-based command-line utilities.
 Running
 ```sh
-dbz some.dbz --encoding csv | head -n 5
+dbz some.dbz --csv | head -n 5
 ```
-will print the first 5 rows in `some.dbz` in CSV format to the console.
+will print the first the header row and 4 data rows in `some.dbz` in CSV format to the console.
+Similarly, running
+```sh
+dbz ohlcv-1d.dbz --json | jq '.[] | .high'
+```
+Will extract only the high prices from `ohlcv-1d.dbz`.
 
 You can also save the results directly to another file by running
 ```sh
-dbz some.dbz -e csv --output some.csv
+dbz some.dbz --json --output some.json
 ```
-`dbz` will output the a new file `some.csv` with the data from `some.dbz`
-formatted as a CSV.
+`dbz` will create a new file `some.csv` with the data from `some.dbz`
+formatted as JSON.
 
 When the file name passed `--output` or `-o` ends in `.json` or `.csv`, you
-can omit the `--encoding` or `-e` flag.
+can omit the `--json` and `--csv` flags.
 ```sh
-dbz another.dbz -o data.json
+dbz another.dbz -o data.csv
 ```
-This writes the contents of `another.dbz` to `data.json` in JSON format.
+This writes the contents of `another.dbz` to `data.json` in CSV format.
 
 By default, `dbz` will not overwrite an existing file.
 To replace the contents of an existing file and allow overwriting files, pass
