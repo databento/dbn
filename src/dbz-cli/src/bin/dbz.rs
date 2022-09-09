@@ -5,8 +5,8 @@ use dbz_lib::Dbz;
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let dbz = Dbz::from_file(&args.input)?;
+    let writer = output_from_args(&args)?;
     let encoding = infer_encoding(&args)?;
-    let writer = output_from_args(&args, encoding)?;
     dbz.write_to(writer, encoding)?;
     Ok(())
 }

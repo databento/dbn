@@ -1,7 +1,7 @@
 [package]
 name = "dbz-cli"
 authors = ["Databento <support@databento.com>"]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Command-line utility for converting dbz files to text-based formats"
 default-run = "dbz"

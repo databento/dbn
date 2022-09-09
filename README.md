@@ -1,5 +1,8 @@
 # dbz
 
+[![build](https://github.com/databento/dbz/actions/workflows/build.yml/badge.svg)](https://github.com/databento/dbz/actions/workflows/build.yml)
+![license](https://img.shields.io/github/license/databento/dbz?color=blue)
+
 A library (`dbz-lib`) and CLI tool (`dbz-cli`) for working with Databento Binary
 Encoding (DBZ) files.
 
