@@ -10,13 +10,9 @@ fn cmd() -> Command {
     Command::cargo_bin("dbz").unwrap()
 }
 
-const DBZ_PATH: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../public/databento-python/tests/data"
-);
+const DBZ_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/data");
 
 #[test]
-#[ignore = "Need to update DBZ file"]
 fn write_json_to_path() {
     // create a directory whose contents will be cleaned up at the end of the test
     let output_dir = tempdir().unwrap();
@@ -26,8 +22,7 @@ fn write_json_to_path() {
             &format!("{DBZ_PATH}/test_data.mbp-1.dbz"),
             "--output",
             &output_path,
-            "--encoding",
-            "json",
+            "--json",
         ])
         .assert()
         .success()
@@ -42,30 +37,22 @@ fn write_json_to_path() {
 }
 
 #[test]
-#[ignore = "Need to update DBZ file"]
 fn write_to_stdout() {
     cmd()
-        .args(&[
-            &format!("{DBZ_PATH}/test_data.mbo.dbz"),
-            "--stdout",
-            "--encoding",
-            "csv",
-        ])
+        .args(&[&format!("{DBZ_PATH}/test_data.mbo.dbz"), "--csv"])
         .assert()
         .success()
         .stdout(contains("channel_id"));
 }
 
 #[test]
-#[ignore = "Need to update DBZ file"]
 fn write_to_nonexistent_path() {
     cmd()
         .args(&[
             &format!("{DBZ_PATH}/test_data.mbo.dbz"),
             "--output",
             "./a/b/c/d/e",
-            "--encoding",
-            "csv",
+            "-C", // CSV
         ])
         .assert()
         .failure()
@@ -91,7 +78,6 @@ fn read_from_nonexistent_path() {
 }
 
 #[test]
-#[ignore = "Need to update DBZ file"]
 fn write_csv() {
     // create a directory whose contents will be cleaned up at the end of the test
     let output_dir = tempdir().unwrap();
@@ -101,8 +87,7 @@ fn write_csv() {
             &format!("{DBZ_PATH}/test_data.mbp-1.dbz"),
             "--output",
             &output_path,
-            "--encoding",
-            "csv",
+            "--csv",
         ])
         .assert()
         .success()
@@ -117,7 +102,6 @@ fn write_csv() {
 }
 
 #[test]
-#[ignore = "Need to update DBZ file"]
 fn encoding_overrides_extension() {
     // create a directory whose contents will be cleaned up at the end of the test
     let output_dir = tempdir().unwrap();
@@ -128,8 +112,7 @@ fn encoding_overrides_extension() {
             &format!("{DBZ_PATH}/test_data.mbp-1.dbz"),
             "--output",
             &output_path,
-            "--encoding",
-            "json",
+            "-J", // JSON
         ])
         .assert()
         .success()
@@ -144,7 +127,6 @@ fn encoding_overrides_extension() {
 }
 
 #[test]
-#[ignore = "Need to update DBZ file"]
 fn bad_infer() {
     let output_dir = tempdir().unwrap();
     let output_path = format!("{}/a.yaml", output_dir.path().to_string_lossy());
@@ -162,7 +144,6 @@ fn bad_infer() {
 }
 
 #[test]
-#[ignore = "Need to update DBZ file"]
 fn no_extension_infer() {
     let output_dir = tempdir().unwrap();
     let output_path = format!("{}/a", output_dir.path().to_string_lossy());
@@ -180,7 +161,6 @@ fn no_extension_infer() {
 }
 
 #[test]
-#[ignore = "Need to update DBZ file"]
 fn overwrite_fails() {
     let output_file = NamedTempFile::new().unwrap();
 
@@ -189,8 +169,7 @@ fn overwrite_fails() {
             &format!("{DBZ_PATH}/test_data.mbo.dbz"),
             "--output",
             &output_file.path().to_string_lossy(),
-            "--encoding",
-            "csv",
+            "--csv",
         ])
         .assert()
         .failure()
@@ -198,7 +177,6 @@ fn overwrite_fails() {
 }
 
 #[test]
-#[ignore = "Need to update DBZ file"]
 fn force_overwrite() {
     let output_file = NamedTempFile::new().unwrap();
     cmd()
@@ -206,8 +184,7 @@ fn force_overwrite() {
             &format!("{DBZ_PATH}/test_data.mbo.dbz"),
             "--output",
             &output_file.path().to_string_lossy(),
-            "--encoding",
-            "csv",
+            "-C", // CSV
             "--force",
         ])
         .assert()
@@ -215,6 +192,15 @@ fn force_overwrite() {
         .stdout(is_empty());
     let mut contents = String::new();
     output_file.as_file().read_to_string(&mut contents).unwrap();
+}
+
+#[test]
+fn cant_specify_json_and_csv() {
+    cmd()
+        .args(&[&format!("{DBZ_PATH}/test_data.mbo.dbz"), "--json", "--csv"])
+        .assert()
+        .failure()
+        .stderr(contains("cannot be used with"));
 }
 
 #[test]
