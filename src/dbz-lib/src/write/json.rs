@@ -3,7 +3,7 @@ use std::{fmt, io};
 use anyhow::Context;
 use serde::{ser::SerializeSeq, Serialize, Serializer};
 
-use db_def::tick::Tick;
+use databento_defs::tick::Tick;
 
 /// Incrementally serializes the contents of `iter` into JSON to `writer` so the
 /// contents of `iter` are not all buffered into memory at once.
@@ -36,7 +36,9 @@ mod tests {
 
     use super::*;
     use crate::write::test_data::{BID_ASK, COMMON_HEADER};
-    use db_def::tick::{Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, SymDefMsg, TickMsg, TradeMsg};
+    use databento_defs::tick::{
+        Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, SymDefMsg, TickMsg, TradeMsg,
+    };
 
     fn write_json_to_string<T>(iter: impl Iterator<Item = T>) -> String
     where

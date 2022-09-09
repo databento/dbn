@@ -182,7 +182,7 @@ impl Metadata {
 mod tests {
     use std::{io::Seek, mem};
 
-    use db_def::enums::{Compression, SType, Schema};
+    use databento_defs::enums::{Compression, SType, Schema};
 
     use crate::read::{FromLittleEndianSlice, MappingInterval};
 

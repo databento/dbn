@@ -8,14 +8,14 @@ Encoding (DBZ) files to text formats. This tool is heavily inspired by the
 
 `dbz` currently supports CSV and JSON as output formats. Running
 ```sh
-dbz some.mbo.dbz --encoding csv
+dbz some.dbz --encoding csv
 ```
-will create a new file `some.mbo.csv` with the data from `some.mbo.dbz`
+will create a new file `some.csv` with the data from `some.dbz`
 formatted as a CSV.
 
 You may also specify an output file name:
 ```sh
-dbz some.mbo.dbz --output a_different_name.mbo.json
+dbz some.dbz --output a_different_name.json
 ```
 If the output file name has a `.json` or `.csv` extension, the encoding is
 implied and no `--encoding` argument is required, but it can still be used as an
@@ -25,7 +25,7 @@ If you want to view the contents of a DBZ file in the terminal or pipe the
 output to another program, pass the `-c` or `--stdout` flag. For example, to
 print the first five rows to the terminal, you'd run:
 ```sh
-dbz some.mbo.dbz --encoding csv --stdout | head -n 5
+dbz some.dbz --encoding csv --stdout | head -n 5
 ```
 
 By default, `dbz` will not overwrite an existing file.
@@ -48,7 +48,7 @@ cargo build --release
 ## Testing
 
 Tests are run through `cargo test`.
-All integration tests are located in [tests.rs](tests/tests.rs).
+All integration tests are located in [integration_tests.rs](tests/integration_tests.rs).
 
 ## License
 

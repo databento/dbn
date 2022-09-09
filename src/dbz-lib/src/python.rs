@@ -6,7 +6,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDate, PyDateAccess, PyDict, PyString};
 use time::Date;
 
-use db_def::enums::{Compression, SType, Schema};
+use databento_defs::enums::{Compression, SType, Schema};
 
 use crate::{MappingInterval, Metadata, SymbolMapping};
 

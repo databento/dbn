@@ -8,7 +8,7 @@ use anyhow::anyhow;
 
 use self::csv::{serialize::CsvSerialize, write_csv};
 use crate::Dbz;
-use db_def::{
+use databento_defs::{
     enums::Schema,
     tick::{Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, SymDefMsg, TbboMsg, Tick, TickMsg, TradeMsg},
 };
@@ -61,7 +61,7 @@ impl<R: io::BufRead> Dbz<R> {
 
 #[cfg(test)]
 mod test_data {
-    use db_def::tick::{BidAskPair, CommonHeader};
+    use databento_defs::tick::{BidAskPair, CommonHeader};
 
     pub const COMMON_HEADER: CommonHeader = CommonHeader {
         nwords: 30,

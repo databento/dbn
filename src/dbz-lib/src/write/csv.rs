@@ -3,7 +3,7 @@ use std::{fmt, io};
 use anyhow::Context;
 use serde::Serialize;
 
-use db_def::tick::Tick;
+use databento_defs::tick::Tick;
 
 /// Incrementally serializes the contents of `iter` into CSV to `writer` so the
 /// contents of `iter` are not all buffered into memory at once.
@@ -26,7 +26,9 @@ where
 pub mod serialize {
     use anyhow::Context;
     use csv::Writer;
-    use db_def::tick::{Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, SymDefMsg, TickMsg, TradeMsg};
+    use databento_defs::tick::{
+        Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, SymDefMsg, TickMsg, TradeMsg,
+    };
     use serde::Serialize;
     use std::{fmt, io};
 
@@ -306,7 +308,9 @@ pub mod serialize {
 mod tests {
     use super::*;
     use crate::write::test_data::{BID_ASK, COMMON_HEADER};
-    use db_def::tick::{Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, SymDefMsg, TickMsg, TradeMsg};
+    use databento_defs::tick::{
+        Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, SymDefMsg, TickMsg, TradeMsg,
+    };
     use std::{io::BufWriter, os::raw::c_char};
 
     const HEADER_CSV: &str = "1,323,1658441851000000000";

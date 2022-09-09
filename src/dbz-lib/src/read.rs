@@ -10,7 +10,7 @@ use anyhow::{anyhow, Context};
 use log::{debug, warn};
 use zstd::Decoder;
 
-use db_def::{
+use databento_defs::{
     enums::{Compression, SType, Schema},
     tick::{CommonHeader, Tick},
 };
@@ -443,11 +443,11 @@ impl Metadata {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use db_def::tick::{Mbp10Msg, Mbp1Msg, OhlcvMsg, TbboMsg, TickMsg, TradeMsg};
+    use databento_defs::tick::{Mbp10Msg, Mbp1Msg, OhlcvMsg, TbboMsg, TickMsg, TradeMsg};
 
     const DBZ_PATH: &str = concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../public/databento-python/tests/data"
+        "/../../../databento-python/tests/data"
     );
 
     /// there are crates like rstest that provide pytest-like parameterized tests, however
@@ -457,7 +457,6 @@ mod tests {
         // to be named explicitly
         ($test_name:ident, $tick_type:ident, $schema:expr, $file_name:expr) => {
             #[test]
-            #[ignore = "DBZ files are out-of-date"]
             fn $test_name() {
                 let target = Dbz::from_file(format!("{DBZ_PATH}/{}", $file_name)).unwrap();
                 let exp_row_count = target.metadata().record_count;
