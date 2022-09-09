@@ -6,13 +6,17 @@ use std::{fmt, io};
 
 use anyhow::anyhow;
 
-use self::csv::{serialize::CsvSerialize, write_csv};
-use crate::Dbz;
 use databento_defs::{
     enums::Schema,
     tick::{Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, SymDefMsg, TbboMsg, Tick, TickMsg, TradeMsg},
 };
-use json::write_json;
+use serde_json::ser::CompactFormatter;
+
+use self::{
+    csv::{serialize::CsvSerialize, write_csv},
+    json::{pretty_formatter, write_json, write_json_metadata},
+};
+use crate::{Dbz, Metadata};
 
 /// An encoding that DBZs can be translated to.
 #[derive(Clone, Copy, Debug)]
@@ -20,15 +24,16 @@ pub enum OutputEncoding {
     /// Comma-separate values.
     Csv,
     /// JavaScript object notation.
-    Json,
+    Json { should_pretty_print: bool },
 }
 
 impl<R: io::BufRead> Dbz<R> {
-    /// Streams the contents of the [Dbz] to `writer` encoding it using `encoding`. Consumes the
-    /// [Dbz] object.
+    /// Streams the contents of the [`Dbz`] to `writer` encoding it using `encoding`. Consumes the
+    /// [`Dbz`] object.
     ///
     /// # Errors
-    /// This function returns an error if [Dbz::schema()] is [Schema::Statistics]. It will also
+    /// This function returns an error if [`Dbz::schema()`] is
+    /// [`Schema::Statistics`](databento_defs::enums::Schema::Statistics). It will also
     /// return an error if there's an issue writing the output to `writer`.
     pub fn write_to(self, writer: impl io::Write, encoding: OutputEncoding) -> anyhow::Result<()> {
         match self.schema() {
@@ -53,8 +58,44 @@ impl<R: io::BufRead> Dbz<R> {
     {
         let iter = self.try_into_iter::<T>()?;
         match encoding {
-            OutputEncoding::Csv => write_csv(iter, writer),
-            OutputEncoding::Json => write_json(iter, writer),
+            OutputEncoding::Csv => write_csv(writer, iter),
+            OutputEncoding::Json {
+                should_pretty_print,
+            } => {
+                if should_pretty_print {
+                    write_json(writer, pretty_formatter(), iter)
+                } else {
+                    write_json(writer, CompactFormatter, iter)
+                }
+            }
+        }
+    }
+}
+
+impl Metadata {
+    /// Writes the metadata to `writer` encoding it using `encoding`, if supported.
+    ///
+    /// # Note
+    /// Encoding Metadata as CSV is unsupported.
+    ///
+    /// # Errors
+    /// This function returns an error if [`Dbz::schema()`] is
+    /// [`Schema::Statistics`](databento_defs::enums::Schema::Statistics). It will also
+    /// return an error if there's an issue writing the output to `writer`.
+    pub fn write_to(&self, writer: impl io::Write, encoding: OutputEncoding) -> anyhow::Result<()> {
+        match encoding {
+            OutputEncoding::Csv => Err(anyhow!(
+                "Encode metadata as a CSV is unsupported because it isn't tabular"
+            )),
+            OutputEncoding::Json {
+                should_pretty_print,
+            } => {
+                if should_pretty_print {
+                    write_json_metadata(writer, pretty_formatter(), self)
+                } else {
+                    write_json_metadata(writer, CompactFormatter, self)
+                }
+            }
         }
     }
 }

@@ -3,7 +3,7 @@ use std::io::Read;
 use std::process::Command;
 
 use assert_cmd::prelude::*;
-use predicates::str::{contains, is_empty};
+use predicates::str::{contains, ends_with, is_empty, starts_with};
 use tempfile::{tempdir, NamedTempFile};
 
 fn cmd() -> Command {
@@ -201,6 +201,55 @@ fn cant_specify_json_and_csv() {
         .assert()
         .failure()
         .stderr(contains("cannot be used with"));
+}
+
+#[test]
+fn metadata() {
+    cmd()
+        .args(&[&format!("{DBZ_PATH}/test_data.ohlcv-1m.dbz"), "-J", "-m"])
+        .assert()
+        .success()
+        .stdout(starts_with("{"))
+        .stdout(ends_with("}\n"))
+        .stderr(is_empty());
+}
+
+#[test]
+fn no_csv_metadata() {
+    cmd()
+        .args(&[&format!("{DBZ_PATH}/test_data.ohlcv-1m.dbz"), "--csv", "-m"])
+        .assert()
+        .failure()
+        .stdout(is_empty())
+        .stderr(contains("unsupported"));
+}
+
+#[test]
+fn pretty_print_data() {
+    cmd()
+        .args(&[
+            &format!("{DBZ_PATH}/test_data.mbo.dbz"),
+            "--json",
+            "--pretty-print",
+        ])
+        .assert()
+        .success()
+        .stdout(contains("    "))
+        .stdout(contains(",\n"))
+        .stderr(is_empty());
+}
+
+#[test]
+fn pretty_print_data_metadata() {
+    cmd()
+        .args(&[
+            &format!("{DBZ_PATH}/test_data.mbo.dbz"),
+            "-J",
+            "--metadata",
+            "-p",
+        ])
+        .assert()
+        .stderr(is_empty());
 }
 
 #[test]

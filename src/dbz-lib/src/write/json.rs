@@ -4,17 +4,21 @@ use anyhow::Context;
 use serde::{ser::SerializeSeq, Serialize, Serializer};
 
 use databento_defs::tick::Tick;
+use serde_json::ser::{Formatter, PrettyFormatter};
+
+use crate::Metadata;
 
 /// Incrementally serializes the contents of `iter` into JSON to `writer` so the
 /// contents of `iter` are not all buffered into memory at once.
-pub fn write_json<T>(
-    iter: impl Iterator<Item = T>,
+pub fn write_json<F: Formatter, T>(
     mut writer: impl io::Write,
+    formatter: F,
+    iter: impl Iterator<Item = T>,
 ) -> anyhow::Result<()>
 where
     T: TryFrom<Tick> + Serialize + fmt::Debug,
 {
-    let mut serializer = serde_json::Serializer::new(&mut writer);
+    let mut serializer = serde_json::Serializer::with_formatter(&mut writer, formatter);
     let mut sequence = serializer
         .serialize_seq(iter.size_hint().1)
         .with_context(|| "Failed to create JSON sequence serializer")?;
@@ -30,23 +34,64 @@ where
     Ok(())
 }
 
+/// Serializes `metadata` in JSON format to `writer`.
+pub fn write_json_metadata<F: Formatter>(
+    mut writer: impl io::Write,
+    formatter: F,
+    metadata: &Metadata,
+) -> anyhow::Result<()> {
+    let mut serializer = serde_json::Serializer::with_formatter(&mut writer, formatter);
+    metadata.serialize(&mut serializer)?;
+    // newline at EOF
+    writer.write_all(b"\n")?;
+    writer.flush()?;
+    Ok(())
+}
+
+pub fn pretty_formatter() -> PrettyFormatter<'static> {
+    // with_indent should be `const`
+    PrettyFormatter::with_indent(b"    ")
+}
+
 #[cfg(test)]
 mod tests {
     use std::{io::BufWriter, os::raw::c_char};
 
     use super::*;
-    use crate::write::test_data::{BID_ASK, COMMON_HEADER};
-    use databento_defs::tick::{
-        Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, SymDefMsg, TickMsg, TradeMsg,
+    use crate::{
+        write::test_data::{BID_ASK, COMMON_HEADER},
+        MappingInterval, SymbolMapping,
     };
+    use databento_defs::{
+        enums::{Compression, SType, Schema},
+        tick::{Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, SymDefMsg, TickMsg, TradeMsg},
+    };
+    use serde_json::ser::CompactFormatter;
 
-    fn write_json_to_string<T>(iter: impl Iterator<Item = T>) -> String
+    fn write_json_to_string<T>(iter: impl Iterator<Item = T>, should_pretty_print: bool) -> String
     where
         T: TryFrom<Tick> + Serialize + fmt::Debug,
     {
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        write_json(iter, writer).unwrap();
+        if should_pretty_print {
+            write_json(writer, pretty_formatter(), iter)
+        } else {
+            write_json(writer, CompactFormatter, iter)
+        }
+        .unwrap();
+        String::from_utf8(buffer).expect("valid UTF-8")
+    }
+
+    fn write_json_metadata_to_string(metadata: &Metadata, should_pretty_print: bool) -> String {
+        let mut buffer = Vec::new();
+        let writer = BufWriter::new(&mut buffer);
+        if should_pretty_print {
+            write_json_metadata(writer, pretty_formatter(), metadata)
+        } else {
+            write_json_metadata(writer, CompactFormatter, metadata)
+        }
+        .unwrap();
         String::from_utf8(buffer).expect("valid UTF-8")
     }
 
@@ -69,7 +114,7 @@ mod tests {
             ts_in_delta: 22_000,
             sequence: 1_002_375,
         }];
-        let res = write_json_to_string(data.into_iter());
+        let res = write_json_to_string(data.into_iter(), false);
 
         assert_eq!(
             res,
@@ -95,7 +140,7 @@ mod tests {
             sequence: 1_002_375,
             booklevel: [BID_ASK; 1],
         }];
-        let res = write_json_to_string(data.into_iter());
+        let res = write_json_to_string(data.into_iter(), false);
 
         assert_eq!(
             res,
@@ -122,7 +167,7 @@ mod tests {
             sequence: 1_002_375,
             booklevel: [BID_ASK; 10],
         }];
-        let res = write_json_to_string(data.into_iter());
+        let res = write_json_to_string(data.into_iter(), false);
 
         assert_eq!(
             res,
@@ -149,7 +194,7 @@ mod tests {
             sequence: 1_002_375,
             booklevel: [],
         }];
-        let res = write_json_to_string(data.into_iter());
+        let res = write_json_to_string(data.into_iter(), false);
 
         assert_eq!(
             res,
@@ -170,7 +215,7 @@ mod tests {
             close: 6000,
             volume: 55_000,
         }];
-        let res = write_json_to_string(data.into_iter());
+        let res = write_json_to_string(data.into_iter(), false);
 
         assert_eq!(
             res,
@@ -195,7 +240,7 @@ mod tests {
             halt_reason: 4,
             trading_event: 6,
         }];
-        let res = write_json_to_string(data.into_iter());
+        let res = write_json_to_string(data.into_iter(), false);
 
         assert_eq!(
             res,
@@ -272,7 +317,7 @@ mod tests {
             tick_rule: 0,
             _dummy: [0; 3],
         }];
-        let res = write_json_to_string(data.into_iter());
+        let res = write_json_to_string(data.into_iter(), false);
 
         assert_eq!(
             res,
@@ -290,6 +335,45 @@ mod tests {
                     r#""user_defined_instrument":1,"contract_multiplier_unit":0,"flow_schedule_type":5,"tick_rule":0"#
                 )
             )
+        );
+    }
+
+    #[test]
+    fn test_metadata_write_json() {
+        let metadata = Metadata {
+            version: 1,
+            dataset: "GLBX.MDP3".to_owned(),
+            schema: Schema::Ohlcv1h,
+            start: 1662734705128748281,
+            end: 1662734720914876944,
+            limit: 0,
+            record_count: 3,
+            compression: Compression::ZStd,
+            stype_in: SType::ProductId,
+            stype_out: SType::Native,
+            symbols: vec!["ESZ2".to_owned()],
+            partial: Vec::new(),
+            not_found: Vec::new(),
+            mappings: vec![SymbolMapping {
+                native: "ESZ2".to_owned(),
+                intervals: vec![MappingInterval {
+                    start_date: time::Date::from_calendar_date(2022, time::Month::September, 9)
+                        .unwrap(),
+                    end_date: time::Date::from_calendar_date(2022, time::Month::September, 10)
+                        .unwrap(),
+                    symbol: "ESH2".to_owned(),
+                }],
+            }],
+        };
+        let res = write_json_metadata_to_string(&metadata, false);
+        assert_eq!(
+            res,
+            "{\"version\":1,\"dataset\":\"GLBX.MDP3\",\"schema\":\"ohlcv-1h\",\"start\"\
+            :1662734705128748281,\"end\":1662734720914876944,\"limit\":0,\"record_count\":3,\"\
+            compression\":\"zstd\",\"stype_in\":\"product_id\",\"stype_out\":\"native\",\"symbols\"\
+            :[\"ESZ2\"],\"partial\":[],\"not_found\":[],\"mappings\":[{\"native\":\"ESZ2\",\
+            \"intervals\":[{\"start_date\":\"2022-09-09\",\"end_date\":\"2022-09-10\",\"symbol\":\
+            \"ESH2\"}]}]}\n"
         );
     }
 }

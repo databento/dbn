@@ -8,6 +8,7 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use log::{debug, warn};
+use serde::Serialize;
 use zstd::Decoder;
 
 use databento_defs::{
@@ -23,7 +24,7 @@ pub struct Dbz<R: io::Read> {
 }
 
 /// Information about the data contained in a DBZ file.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Metadata {
     /// The DBZ schema version number.
     pub version: u8,
@@ -56,7 +57,7 @@ pub struct Metadata {
 }
 
 /// A native symbol and its symbol mappings for different time ranges within the query range.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "python", derive(pyo3::FromPyObject))]
 pub struct SymbolMapping {
     /// The native symbol.
@@ -66,18 +67,28 @@ pub struct SymbolMapping {
 }
 
 /// The resolved symbol for a date range.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct MappingInterval {
     /// UTC start date of interval.
+    #[serde(serialize_with = "serialize_date")]
     pub start_date: time::Date,
     /// UTC end date of interval.
+    #[serde(serialize_with = "serialize_date")]
     pub end_date: time::Date,
     /// The resolved symbol for this interval.
     pub symbol: String,
 }
 
+// Override `time::Date`'s serialization format to be ISO 8601.
+fn serialize_date<S: serde::Serializer>(
+    date: &time::Date,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    serializer.serialize_str(&date.to_string()) // ISO 8601
+}
+
 impl Dbz<BufReader<File>> {
-    /// Creates a new [Dbz] from the file at `path`. This function reads the metadata,
+    /// Creates a new [`Dbz`] from the file at `path`. This function reads the metadata,
     /// but does not read the body of the file.
     ///
     /// # Errors
@@ -98,7 +109,7 @@ impl Dbz<BufReader<File>> {
 // `BufRead` instead of `Read` because the [zstd::Decoder] works with `BufRead` so accepting
 // a `Read` could result in redundant `BufReader`s being created.
 impl<R: io::BufRead> Dbz<R> {
-    /// Creates a new [Dbz] from `reader`.
+    /// Creates a new [`Dbz`] from `reader`.
     ///
     /// # Errors
     /// This function will return an error if it is unable to parse the metadata in `reader`.
@@ -107,13 +118,13 @@ impl<R: io::BufRead> Dbz<R> {
         Ok(Self { reader, metadata })
     }
 
-    /// Returns the [Schema] of the DBZ data. The schema also indicates the tick type `T` for
-    /// [Self::try_into_iter].
+    /// Returns the [`Schema`] of the DBZ data. The schema also indicates the tick type `T` for
+    /// [`Self::try_into_iter`].
     pub fn schema(&self) -> Schema {
         self.metadata.schema
     }
 
-    /// Returns a reference to all metadata read from the Dbz data in a [Metadata] object.
+    /// Returns a reference to all metadata read from the Dbz data in a [`Metadata`] object.
     pub fn metadata(&self) -> &Metadata {
         &self.metadata
     }
@@ -136,20 +147,20 @@ impl<R: io::BufRead> Dbz<R> {
     }
 }
 
-/// A consuming iterator over a [Dbz]. Lazily decompresses and translates the contents of the file
-/// or other buffer. This struct is created by the [Dbz::try_into_iter] method.
+/// A consuming iterator over a [`Dbz`]. Lazily decompresses and translates the contents of the file
+/// or other buffer. This struct is created by the [`Dbz::try_into_iter`] method.
 pub struct DbzIntoIter<R: io::BufRead, T> {
-    /// [Metadata] about the file being iterated
+    /// [`Metadata`] about the file being iterated
     metadata: Metadata,
-    /// Reference to the underlying [Dbz] object.
-    /// Buffered zstd decoder of the DBZ file, so each call to [DbzIntoIter::next()] doesn't result in a
+    /// Reference to the underlying [`Dbz`] object.
+    /// Buffered zstd decoder of the DBZ file, so each call to [`DbzIntoIter::next()`] doesn't result in a
     /// separate system call.
     decoder: Decoder<'static, R>,
-    /// Number of elements that have been decoded. Used for [Iterator::size_hint].
+    /// Number of elements that have been decoded. Used for [`Iterator::size_hint`].
     i: usize,
     /// Reusable buffer for reading into.
     buffer: Vec<u8>,
-    /// Required to associate [DbzIntoIter] with a `T`.
+    /// Required to associate [`DbzIntoIter`] with a `T`.
     _item: PhantomData<T>,
 }
 

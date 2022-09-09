@@ -7,7 +7,7 @@ use databento_defs::tick::Tick;
 
 /// Incrementally serializes the contents of `iter` into CSV to `writer` so the
 /// contents of `iter` are not all buffered into memory at once.
-pub fn write_csv<T>(iter: impl Iterator<Item = T>, writer: impl io::Write) -> anyhow::Result<()>
+pub fn write_csv<T>(writer: impl io::Write, iter: impl Iterator<Item = T>) -> anyhow::Result<()>
 where
     T: TryFrom<Tick> + serialize::CsvSerialize + Serialize + fmt::Debug,
 {
@@ -344,7 +344,7 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        write_csv(data.into_iter(), writer).unwrap();
+        write_csv(writer, data.into_iter()).unwrap();
         let line = extract_2nd_line(buffer);
         assert_eq!(
             line,
@@ -369,7 +369,7 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        write_csv(data.into_iter(), writer).unwrap();
+        write_csv(writer, data.into_iter()).unwrap();
         let line = extract_2nd_line(buffer);
         assert_eq!(
             line,
@@ -396,7 +396,7 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        write_csv(data.into_iter(), writer).unwrap();
+        write_csv(writer, data.into_iter()).unwrap();
         let line = extract_2nd_line(buffer);
         assert_eq!(
             line,
@@ -421,7 +421,7 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        write_csv(data.into_iter(), writer).unwrap();
+        write_csv(writer, data.into_iter()).unwrap();
         let line = extract_2nd_line(buffer);
         assert_eq!(
             line,
@@ -441,7 +441,7 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        write_csv(data.into_iter(), writer).unwrap();
+        write_csv(writer, data.into_iter()).unwrap();
         let line = extract_2nd_line(buffer);
         assert_eq!(line, format!("{HEADER_CSV},5000,8000,3000,6000,55000"));
     }
@@ -462,7 +462,7 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        write_csv(data.into_iter(), writer).unwrap();
+        write_csv(writer, data.into_iter()).unwrap();
         let line = extract_2nd_line(buffer);
         assert_eq!(
             line,
@@ -538,7 +538,7 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        write_csv(data.into_iter(), writer).unwrap();
+        write_csv(writer, data.into_iter()).unwrap();
         let line = extract_2nd_line(buffer);
         assert_eq!(line, format!("{HEADER_CSV},1658441891000000000,100,1000,1698450000000000000,1697350000000000000,1000000,-1000000,0,500000,5,5,10,10,256785,0,0,13,0,10000,1,1000,100,1,0,0,0,0,0,0,0,0,0,4,,USD,,,,,,,,,,,1,2,4,8,9,23,10,7,8,9,11,1,0,5,0"));
     }

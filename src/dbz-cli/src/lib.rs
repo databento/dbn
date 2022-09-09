@@ -1,10 +1,11 @@
-use anyhow::{anyhow, Context};
-use clap::{ArgAction, Parser, ValueEnum};
 use std::{
     fs::File,
     io::{self, BufWriter},
     path::PathBuf,
 };
+
+use anyhow::{anyhow, Context};
+use clap::{ArgAction, Parser, ValueEnum};
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
 pub enum OutputEncoding {
@@ -29,9 +30,22 @@ pub struct Args {
         value_name = "FILE"
     )]
     pub output: Option<PathBuf>,
-    #[clap(short = 'J', long, action = ArgAction::SetTrue, default_value = "false", help = "Output the result as JSON")]
+    #[clap(
+        short = 'J',
+        long,
+        action = ArgAction::SetTrue,
+        default_value = "false",
+        help = "Output the result as JSON"
+    )]
     pub json: bool,
-    #[clap(short = 'C', long,  action = ArgAction::SetTrue, default_value = "false", conflicts_with = "json", help = "Output the result as CSV")]
+    #[clap(
+        short = 'C',
+        long,
+        action = ArgAction::SetTrue,
+        default_value = "false",
+        conflicts_with = "json",
+        help = "Output the result as CSV"
+    )]
     pub csv: bool,
     #[clap(
         short,
@@ -41,6 +55,22 @@ pub struct Args {
         help = "Allow overwriting of existing files, such as the output file"
     )]
     pub force: bool,
+    #[clap(
+        short = 'm',
+        long = "metadata",
+        action = ArgAction::SetTrue,
+        default_value = "false",
+        help = "Output the metadata section instead of the body of the DBZ file"
+    )]
+    pub should_output_metadata: bool,
+    #[clap(
+         short = 'p',
+         long = "pretty-print",
+         action = ArgAction::SetTrue,
+         default_value = "false",
+         help ="Make the output easier to read with spacing and indentation. Only works with JSON."
+    )]
+    pub should_pretty_print: bool,
 }
 
 impl Args {
@@ -57,10 +87,14 @@ impl Args {
 pub fn infer_encoding(args: &Args) -> anyhow::Result<dbz_lib::OutputEncoding> {
     match args.output_encoding() {
         OutputEncoding::Csv => Ok(dbz_lib::OutputEncoding::Csv),
-        OutputEncoding::Json => Ok(dbz_lib::OutputEncoding::Json),
+        OutputEncoding::Json => Ok(dbz_lib::OutputEncoding::Json {
+            should_pretty_print: args.should_pretty_print,
+        }),
         OutputEncoding::Infer => match args.output.as_ref().and_then(|o| o.extension()) {
             Some(ext) if ext == "csv" => Ok(dbz_lib::OutputEncoding::Csv),
-            Some(ext) if ext == "json" => Ok(dbz_lib::OutputEncoding::Json),
+            Some(ext) if ext == "json" => Ok(dbz_lib::OutputEncoding::Json {
+                should_pretty_print: args.should_pretty_print,
+            }),
             Some(ext) => Err(anyhow!(
                 "Unable to infer output encoding from output file with extension '{}'",
                 ext.to_string_lossy()

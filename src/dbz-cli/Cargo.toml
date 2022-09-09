@@ -11,9 +11,13 @@ keywords = ["market-data", "json", "csv", "conversion", "encoding"]
 # see https://crates.io/category_slugs
 categories = ["command-line-utilities", "encoding"]
 
+[[bin]]
+name = "dbz"
+path = "src/main.rs"
+
 [dependencies]
 # Databento common DBZ library
-dbz-lib = { path = "../dbz-lib", version = "0.1.0" }
+dbz-lib = { path = "../dbz-lib" }
 
 # Error handling
 anyhow = "1.0.58"
