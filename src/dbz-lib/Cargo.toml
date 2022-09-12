@@ -10,14 +10,9 @@ keywords = ["market-data", "json", "csv", "conversion", "encoding"]
 # see https://crates.io/category_slugs
 categories = ["encoding"]
 
-[lib]
-name = "dbz_lib" # Python modules can't contain dashes
-# 'lib' for default and 'cdylib' for PyO3 support
-crate-type = ["cdylib", "lib"]
-
 [features]
 default = []
-python = ["dep:pyo3", "dep:pyo3-build-config"]
+python = ["dep:pyo3"]
 
 [dependencies]
 # Databento common definitions
@@ -40,5 +35,3 @@ zstd = "= 0.11.2+zstd1.5.2"
 # date and datetime support
 time = { version = "0.3.14", features = ["serde"] }
 
-[build-dependencies]
-pyo3-build-config = { version = "0.17.1", optional = true }

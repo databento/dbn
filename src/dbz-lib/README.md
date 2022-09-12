@@ -35,22 +35,6 @@ cd dbz
 cargo build --release
 ```
 
-### Python bindings
-
-To also include the optional Python bindings when running any `cargo` command,
-pass the `--all-features` flag or `--features=python`.
-For example, to build all of dbz with Python bindings, run:
-```sh
-cargo build --all-features
-```
-
-To create a Python package from `dbz-lib`, you'll need to install [Maturin](https://github.com/PyO3/maturin).
-For a Python package to develop against, run:
-```
-maturin develop -F python
-```
-This will install a package named `dbz_lib` in your current Python environment.
-
 ## Testing
 
 Tests are run through `cargo test` and are located within each module.

@@ -5,8 +5,9 @@
 
 A library (`dbz-lib`) and CLI tool (`dbz-cli`) for working with Databento Binary
 Encoding (DBZ) files.
+Python bindings for `dbz-lib` are provided in the `dbz-python` package.
 
-The Databento Binary Encoding + Zstandard compression (DBZ) is an efficient
+The **D**atabento **B**inary Encoding + **Z**standard compression (DBZ) is an efficient
 highly compressible binary encoding suitable for bulk financial time series data,
 which includes a metadata header.
 
@@ -26,6 +27,7 @@ compressed, however the symbology portion is.
 See the respective READMEs for usage details:
 - [`dbz-cli`](src/dbz-cli/README.md)
 - [`dbz-lib`](src/dbz-lib/README.md)
+- [`dbz-python`](src/dbz-python/README.md)
 
 ## Building
 
@@ -40,13 +42,12 @@ cargo build --release
 ./target/release/dbz --help
 ```
 
-### Python bindings
+For the Python bindings, you'll need [Maturin](https://github.com/PyO3/maturin) installed as well.
+To install the bindings for your active Python environment, run the following:
 
-To also include the optional Python bindings when running any `cargo` command,
-pass the `--all-features` flag.
-For example, to build all of dbz with Python bindings, run:
 ```sh
-cargo build --all-features
+maturin develop --release
+python -c 'import dbz_python'""
 ```
 
 ## Testing

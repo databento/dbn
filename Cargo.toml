@@ -2,4 +2,5 @@
 members = [
   "src/dbz-cli",
   "src/dbz-lib",
+  "src/dbz-python",
 ]

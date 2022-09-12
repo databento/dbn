@@ -1,3 +1,5 @@
+//! Python wrappers around dbz_lib functions. These are implemented here instead of `dbz-python`
+//! to be able to implement `pyo3` traits for `dbz_lib` types.
 #![allow(clippy::borrow_deref_ref)] // in generated code from `pyfunction` macro and `&PyBytes`
 use std::{fmt, io, io::SeekFrom};
 
@@ -10,23 +12,13 @@ use databento_defs::enums::{Compression, SType, Schema};
 
 use crate::{MappingInterval, Metadata, SymbolMapping};
 
-/// A Python module wrapping dbz-lib functions
-#[pymodule] // The name of the function must match `lib.name` in `Cargo.toml`
-fn dbz_lib(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
-    // all functions exposed to Python need to be added here
-    m.add_function(wrap_pyfunction!(decode_metadata, m)?)?;
-    m.add_function(wrap_pyfunction!(encode_metadata, m)?)?;
-    m.add_function(wrap_pyfunction!(update_encoded_metadata, m)?)?;
-    Ok(())
-}
-
 /// Decodes the given Python `bytes` to `Metadata`. Returns a Python `dict` with
 /// all the DBZ metadata.
 ///
 /// # Errors
 /// This function returns an error if the metadata cannot be parsed from `bytes`.
 #[pyfunction]
-fn decode_metadata(bytes: &PyBytes) -> PyResult<Metadata> {
+pub fn decode_metadata(bytes: &PyBytes) -> PyResult<Metadata> {
     let mut reader = io::BufReader::new(bytes.as_bytes());
     Metadata::read(&mut reader).map_err(to_val_err)
 }
@@ -40,7 +32,7 @@ fn decode_metadata(bytes: &PyBytes) -> PyResult<Metadata> {
 /// the encoded metadata to bytes.
 #[pyfunction]
 #[allow(clippy::too_many_arguments)]
-fn encode_metadata(
+pub fn encode_metadata(
     py: Python<'_>,
     dataset: String,
     schema: u16,
@@ -80,7 +72,7 @@ fn encode_metadata(
 
 /// Updates existing fields that have already been written to the given file.
 #[pyfunction]
-fn update_encoded_metadata(
+pub fn update_encoded_metadata(
     _py: Python<'_>,
     file: PyFileLike,
     start: u64,
@@ -91,7 +83,7 @@ fn update_encoded_metadata(
     Metadata::update_encoded(file, start, end, limit.unwrap_or(0), record_count).map_err(to_val_err)
 }
 
-struct PyFileLike {
+pub struct PyFileLike {
     inner: PyObject,
 }
 

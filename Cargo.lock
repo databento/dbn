@@ -173,11 +173,19 @@ dependencies = [
  "databento-defs",
  "log",
  "pyo3",
- "pyo3-build-config",
  "serde",
  "serde_json",
  "time",
  "zstd",
+]
+
+[[package]]
+name = "dbz-python"
+version = "0.1.0"
+dependencies = [
+ "dbz-lib",
+ "pyo3",
+ "pyo3-build-config",
 ]
 
 [[package]]
