@@ -76,18 +76,18 @@ jobs:
           echo "::set-output name=release_name::$(grep -E '^version =' src/dbz-python/Cargo.toml | cut -d'"' -f 2)"
 
       # Create GitHub release
-      # - name: Create release
-      #   id: create-release
-      #   uses: actions/create-release@v1
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #     TAG_NAME: ${{ steps.vars.outputs.tag_name }}
-      #     RELEASE_NAME: ${{ steps.vars.outputs.release_name }}
-      #   with:
-      #     tag_name: ${{ env.TAG_NAME }}
-      #     release_name: ${{ env.RELEASE_NAME }}
-      #     draft: false
-      #     prerelease: false
+      - name: Create release
+        id: create-release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ steps.vars.outputs.tag_name }}
+          RELEASE_NAME: ${{ steps.vars.outputs.release_name }}
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          release_name: ${{ env.RELEASE_NAME }}
+          draft: false
+          prerelease: false
 
   macos-release:
     needs: [ tag-release ]
