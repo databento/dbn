@@ -1,16 +1,16 @@
 use std::{fmt, io};
 
 use anyhow::Context;
-use serde::{ser::SerializeSeq, Serialize, Serializer};
+use serde::Serialize;
 
 use databento_defs::tick::Tick;
 use serde_json::ser::{Formatter, PrettyFormatter};
 
 use crate::Metadata;
 
-/// Incrementally serializes the contents of `iter` into JSON to `writer` so the
+/// Incrementally serializes the contents of `iter` into NDJSON to `writer` so the
 /// contents of `iter` are not all buffered into memory at once.
-pub fn write_json<F: Formatter, T>(
+pub fn write_json<F: Clone + Formatter, T>(
     mut writer: impl io::Write,
     formatter: F,
     iter: impl Iterator<Item = T>,
@@ -18,18 +18,14 @@ pub fn write_json<F: Formatter, T>(
 where
     T: TryFrom<Tick> + Serialize + fmt::Debug,
 {
-    let mut serializer = serde_json::Serializer::with_formatter(&mut writer, formatter);
-    let mut sequence = serializer
-        .serialize_seq(iter.size_hint().1)
-        .with_context(|| "Failed to create JSON sequence serializer")?;
     for tick in iter {
-        sequence
-            .serialize_element(&tick)
-            .with_context(|| format!("Failed to serialize {:#?}", tick))?;
+        tick.serialize(&mut serde_json::Serializer::with_formatter(
+            &mut writer,
+            formatter.clone(),
+        ))
+        .with_context(|| format!("Failed to serialize {tick:#?}"))?;
+        writer.write_all(b"\n")?;
     }
-    sequence.end()?;
-    // newline at EOF
-    writer.write_all(b"\n")?;
     writer.flush()?;
     Ok(())
 }
@@ -119,7 +115,7 @@ mod tests {
         assert_eq!(
             res,
             format!(
-                "[{{{HEADER_JSON},{}}}]\n",
+                "{{{HEADER_JSON},{}}}\n",
                 r#""order_id":16,"price":5500,"size":3,"flags":-128,"channel_id":14,"action":66,"side":67,"ts_recv":1658441891000000000,"ts_in_delta":22000,"sequence":1002375"#
             )
         );
@@ -145,7 +141,7 @@ mod tests {
         assert_eq!(
             res,
             format!(
-                "[{{{HEADER_JSON},{},{}}}]\n",
+                "{{{HEADER_JSON},{},{}}}\n",
                 r#""price":5500,"size":3,"action":66,"side":67,"flags":-128,"depth":9,"ts_recv":1658441891000000000,"ts_in_delta":22000,"sequence":1002375"#,
                 format_args!("\"booklevel\":[{BID_ASK_JSON}]")
             )
@@ -172,7 +168,7 @@ mod tests {
         assert_eq!(
             res,
             format!(
-                "[{{{HEADER_JSON},{},{}}}]\n",
+                "{{{HEADER_JSON},{},{}}}\n",
                 r#""price":5500,"size":3,"action":66,"side":67,"flags":-128,"depth":9,"ts_recv":1658441891000000000,"ts_in_delta":22000,"sequence":1002375"#,
                 format_args!("\"booklevel\":[{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON}]")
             )
@@ -199,7 +195,7 @@ mod tests {
         assert_eq!(
             res,
             format!(
-                "[{{{HEADER_JSON},{}}}]\n",
+                "{{{HEADER_JSON},{}}}\n",
                 r#""price":5500,"size":3,"action":66,"side":67,"flags":-128,"depth":9,"ts_recv":1658441891000000000,"ts_in_delta":22000,"sequence":1002375"#,
             )
         );
@@ -220,7 +216,7 @@ mod tests {
         assert_eq!(
             res,
             format!(
-                "[{{{HEADER_JSON},{}}}]\n",
+                "{{{HEADER_JSON},{}}}\n",
                 r#""open":5000,"high":8000,"low":3000,"close":6000,"volume":55000"#,
             )
         );
@@ -245,7 +241,7 @@ mod tests {
         assert_eq!(
             res,
             format!(
-                "[{{{HEADER_JSON},{}}}]\n",
+                "{{{HEADER_JSON},{}}}\n",
                 r#""ts_recv":1658441891000000000,"group":"group","trading_status":3,"halt_reason":4,"trading_event":6"#,
             )
         );
@@ -322,7 +318,7 @@ mod tests {
         assert_eq!(
             res,
             format!(
-                "[{{{HEADER_JSON},{}}}]\n",
+                "{{{HEADER_JSON},{}}}\n",
                 concat!(
                     r#""ts_recv":1658441891000000000,"min_price_increment":100,"display_factor":1000,"expiration":1698450000000000000,"activation":1697350000000000000,"#,
                     r#""high_limit_price":1000000,"low_limit_price":-1000000,"max_price_variation":0,"trading_reference_price":500000,"unit_of_measure_qty":5,"#,

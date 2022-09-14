@@ -6,7 +6,8 @@ Encoding (DBZ) files to text formats. This tool is heavily inspired by the
 
 ## Usage
 
-`dbz` currently supports CSV and JSON as output formats.
+`dbz` currently supports CSV and JSON (technically [newline-delimited JSON](http://ndjson.org/))
+as output formats.
 By default `dbz` outputs the result to standard output for ease of use with
 text-based command-line utilities.
 Running
@@ -16,7 +17,7 @@ dbz some.dbz --csv | head -n 5
 will print the first the header row and 4 data rows in `some.dbz` in CSV format to the console.
 Similarly, running
 ```sh
-dbz ohlcv-1d.dbz --json | jq '.[] | .high'
+dbz ohlcv-1d.dbz --json | jq '.high'
 ```
 Will extract only the high prices from `ohlcv-1d.dbz`.
 

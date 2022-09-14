@@ -1,7 +1,7 @@
 [package]
 name = "dbz-python"
 authors = ["Databento <support@databento.com>"]
-version = "0.1.5"
+version = "0.1.6"
 edition = "2021"
 description = "Python library written in Rust for working with the Databento Binary Encoding (DBZ) format"
 license = "Apache-2.0"

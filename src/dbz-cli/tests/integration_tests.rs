@@ -230,7 +230,7 @@ fn pretty_print_data() {
         .args(&[
             &format!("{DBZ_PATH}/test_data.mbo.dbz"),
             "--json",
-            "--pretty-print",
+            "--pretty-json",
         ])
         .assert()
         .success()

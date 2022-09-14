@@ -35,7 +35,7 @@ pub struct Args {
         long,
         action = ArgAction::SetTrue,
         default_value = "false",
-        help = "Output the result as JSON"
+        help = "Output the result as NDJSON (newline-delimited JSON)"
     )]
     pub json: bool,
     #[clap(
@@ -65,10 +65,10 @@ pub struct Args {
     pub should_output_metadata: bool,
     #[clap(
          short = 'p',
-         long = "pretty-print",
+         long = "pretty-json",
          action = ArgAction::SetTrue,
          default_value = "false",
-         help ="Make the output easier to read with spacing and indentation. Only works with JSON."
+         help ="Make the JSON output easier to read with spacing and indentation"
     )]
     pub should_pretty_print: bool,
 }
