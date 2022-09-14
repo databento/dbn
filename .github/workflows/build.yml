@@ -1,6 +1,6 @@
 name: build
 
-# Build and test dbz-lib
+# Build and test dbz
 
 on:
   push:

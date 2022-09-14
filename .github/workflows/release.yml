@@ -1,6 +1,6 @@
 name: release
 
-# Release dbz-lib
+# Release dbz-python
 
 on:
   workflow_run:
@@ -62,46 +62,40 @@ jobs:
       - name: Run tests
         run: cargo test --all-features
 
-     # Tag the commit with the library version
+      # Tag the commit with the library version
       - name: Create git tag
         uses: salsify/action-detect-and-tag-new-version@v2
         with:
-          version-command: grep -E '^version =' src/dbz-lib/Cargo.toml | cut -d'"' -f 2
+          version-command: grep -E '^version =' src/dbz-python/Cargo.toml | cut -d'"' -f 2
 
       # Set release output variables
       - name: Set output
         id: vars
         run: |
-          echo "::set-output name=tag_name::v$(grep -E '^version =' src/dbz-lib/Cargo.toml | cut -d'"' -f 2)"
-          echo "::set-output name=release_name::$(grep -E '^version =' src/dbz-lib/Cargo.toml | cut -d'"' -f 2)"
+          echo "::set-output name=tag_name::v$(grep -E '^version =' src/dbz-python/Cargo.toml | cut -d'"' -f 2)"
+          echo "::set-output name=release_name::$(grep -E '^version =' src/dbz-python/Cargo.toml | cut -d'"' -f 2)"
 
       # Create GitHub release
-      - name: Create release
-        id: create-release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG_NAME: ${{ steps.vars.outputs.tag_name }}
-          RELEASE_NAME: ${{ steps.vars.outputs.release_name }}
-        with:
-          tag_name: ${{ env.TAG_NAME }}
-          release_name: ${{ env.RELEASE_NAME }}
-          draft: false
-          prerelease: false
+      # - name: Create release
+      #   id: create-release
+      #   uses: actions/create-release@v1
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #     TAG_NAME: ${{ steps.vars.outputs.tag_name }}
+      #     RELEASE_NAME: ${{ steps.vars.outputs.release_name }}
+      #   with:
+      #     tag_name: ${{ env.TAG_NAME }}
+      #     release_name: ${{ env.RELEASE_NAME }}
+      #     draft: false
+      #     prerelease: false
 
-
-  release:
+  macos-release:
     needs: [ tag-release ]
-
     strategy:
       fail-fast: false
       matrix:
-        arch: [ x64, ARM64 ]
-        os: [ ubuntu-latest, macos-latest, windows-latest ]
         python-version: [ "3.7", "3.8", "3.9", "3.10" ]
-    name: build - Python ${{ matrix.python-version }} (${{ matrix.arch }} ${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-
+    runs-on: macos-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -110,9 +104,111 @@ jobs:
       - name: Set up Rust environment
         uses: actions-rs/toolchain@v1
         with:
-            toolchain: stable
-            override: true
-            components: rustfmt, clippy
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+
+      # Cargo setup
+      - name: Set up Cargo cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+
+      # Python setup
+      - name: Set up Python environment
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: x64
+
+      - name: Build wheels - x86_64
+        uses: messense/maturin-action@v1
+        with:
+          target: x86_64
+          args: --release --out dist --manifest-path src/dbz-python/Cargo.toml --interpreter python${{ matrix.python-version }}
+
+      - name: Build wheels - universal2
+        uses: messense/maturin-action@v1
+        with:
+          args: --release --universal2 --out dist --manifest-path src/dbz-python/Cargo.toml --interpreter python${{ matrix.python-version }}
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v2
+        with:
+          name: wheels
+          path: dist
+
+  windows-release:
+    needs: [ tag-release ]
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ "3.7", "3.8", "3.9", "3.10" ]
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Rust setup
+      - name: Set up Rust environment
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+
+      # Cargo setup
+      - name: Set up Cargo cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+
+      # Python setup
+      - name: Set up Python environment
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: x64
+
+      - name: Build wheels
+        uses: messense/maturin-action@v1
+        with:
+          target: x64
+          args: --release --out dist --manifest-path src/dbz-python/Cargo.toml --interpreter python${{ matrix.python-version }}
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v2
+        with:
+          name: wheels
+          path: dist
+
+  linux-release:
+    needs: [ tag-release ]
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ "3.7", "3.8", "3.9", "3.10" ]
+        target: [ x86_64, aarch64 ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Rust setup
+      - name: Set up Rust environment
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
 
       # Cargo setup
       - name: Set up Cargo cache
@@ -130,55 +226,81 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      # Install build dependencies
-      - name: Install build dependencies
-        run: python -m pip install --upgrade pip setuptools wheel maturin
-
-      # Run Cargo checks
-      - name: Run cargo checks
-        run: |
-          cargo fmt --all -- --check
-          cargo clippy -- -D warnings
-
-      # Run tests
-      - name: Run tests
-        run: cargo test --all-features
-
-      # Build wheel
-      - name: Build wheel
+      - name: Build wheels
         uses: messense/maturin-action@v1
         with:
-          maturin-version: latest
-          command: build
-          target: ${{ matrix.platform.target }}
-          args: --release --manifest-path src/dbz-lib/Cargo.toml --interpreter python${{matrix.python_version}}
+          target: ${{ matrix.target }}
+          manylinux: auto
+          args: --release --out dist --manifest-path src/dbz-python/Cargo.toml --interpreter python${{ matrix.python-version }}
 
-      # Set release output variables
-      - name: Set output
-        id: vars
-        run: |
-          echo "::set-output name=asset_path::$(find ./target/wheels -mindepth 1 -print -quit)"
-          cd target/wheels
-          echo "::set-output name=asset_name::$(printf '%s\0' * | awk 'BEGIN{RS="\0"} {print;  exit}')"
-
-      # Upload release asset
-      - name: Upload release asset
-        id: upload-release-asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ASSET_PATH: ${{ steps.vars.outputs.asset_path }}
-          ASSET_NAME: ${{ steps.vars.outputs.asset_name }}
+      - name: Upload wheels
+        uses: actions/upload-artifact@v2
         with:
-          upload_url: ${{ needs.tag-release.outputs.upload_url }}
-          asset_path: ${{ env.ASSET_PATH }}
-          asset_name: ${{ env.ASSET_NAME }}
-          asset_content_type: application/zip
+          name: wheels
+          path: dist
 
-      # Publish wheel to PyPI
+  linux-musl-release:
+    needs: [ tag-release ]
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ "3.7", "3.8", "3.9", "3.10" ]
+        target: [ x86_64-unknown-linux-musl, aarch64-unknown-linux-musl ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Rust setup
+      - name: Set up Rust environment
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+
+      # Cargo setup
+      - name: Set up Cargo cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+
+      # Python setup
+      - name: Set up Python environment
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Build wheels
+        uses: messense/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          manylinux: musllinux_1_2
+          args: --release --out dist --manifest-path src/dbz-python/Cargo.toml --interpreter python${{ matrix.python-version }}
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v2
+        with:
+          name: wheels
+          path: dist
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: [ macos-release, windows-release, linux-release, linux-musl-release ]
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          name: wheels
+      # Install publish dependencies
+      - name: Install publish dependencies
+        run: python -m pip install --upgrade twine
       - name: Publish to PyPI
         id: publish-to-pypi
         env:
           TWINE_USERNAME: ${{ secrets.TWINE_USERNAME }}
           TWINE_PASSWORD: ${{ secrets.TWINE_PASSWORD }}
-        run: twine upload target/wheels/*
+        run: twine upload *
