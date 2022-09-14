@@ -1,7 +1,7 @@
 [package]
 name = "dbz-lib"
 authors = ["Databento <support@databento.com>"]
-version = "0.1.4"
+version = "0.1.5"
 edition = "2021"
 description = "Library for working with the Databento Binary Encoding (DBZ) format"
 license = "Apache-2.0"
@@ -19,7 +19,7 @@ python = ["dep:pyo3"]
 databento-defs = { git = "https://github.com/databento/databento-defs", branch = "dev", features = ["serde"], version = "0.1.1" }
 
 # error handling
-anyhow = "1.0.64"
+anyhow = "1.0.65"
 # CSV serialization
 csv = "1.1.6"
 # logging
@@ -34,4 +34,3 @@ serde_json = "1.0"
 zstd = "= 0.11.2+zstd1.5.2"
 # date and datetime support
 time = { version = "0.3.14", features = ["serde"] }
-
