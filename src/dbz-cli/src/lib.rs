@@ -19,7 +19,7 @@ pub enum OutputEncoding {
 #[clap(version, about)]
 pub struct Args {
     #[clap(
-        help = "A DBZ file to convert to another encoding",
+        help = "A DBZ file to convert to another encoding. Pass '-' to read from standard input",
         value_name = "FILE"
     )]
     pub input: PathBuf,

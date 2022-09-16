@@ -18,7 +18,7 @@ use databento_defs::{
 
 /// Object for reading, parsing, and serializing a Databento Binary Encoding (DBZ) file.
 #[derive(Debug)]
-pub struct Dbz<R: io::Read> {
+pub struct Dbz<R: io::BufRead> {
     reader: R,
     metadata: Metadata,
 }
