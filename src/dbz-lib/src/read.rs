@@ -13,7 +13,7 @@ use zstd::Decoder;
 
 use databento_defs::{
     enums::{Compression, SType, Schema},
-    tick::{CommonHeader, Tick},
+    record::{Record, RecordHeader},
 };
 
 /// Object for reading, parsing, and serializing a Databento Binary Encoding (DBZ) file.
@@ -135,7 +135,7 @@ impl<R: io::BufRead> Dbz<R> {
     /// # Errors
     /// This function will return an error if the zstd portion of the DBZ file was compressed in
     /// an unexpected manner.
-    pub fn try_into_iter<T: TryFrom<Tick>>(self) -> anyhow::Result<DbzIntoIter<R, T>> {
+    pub fn try_into_iter<T: TryFrom<Record>>(self) -> anyhow::Result<DbzIntoIter<R, T>> {
         let decoder = Decoder::with_buffer(self.reader)?;
         Ok(DbzIntoIter {
             metadata: self.metadata,
@@ -164,14 +164,14 @@ pub struct DbzIntoIter<R: io::BufRead, T> {
     _item: PhantomData<T>,
 }
 
-impl<R: io::BufRead, T: TryFrom<Tick>> Iterator for DbzIntoIter<R, T> {
+impl<R: io::BufRead, T: TryFrom<Record>> Iterator for DbzIntoIter<R, T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.decoder.read_exact(&mut self.buffer).is_err() {
             return None;
         }
-        let tick = match Tick::new(self.buffer.as_ptr() as *const CommonHeader) {
+        let tick = match Record::new(self.buffer.as_ptr() as *const RecordHeader) {
             Ok(tick) => tick,
             Err(e) => {
                 warn!("Unexpected tick value: {e}. Raw buffer: {:?}", self.buffer);
@@ -454,7 +454,7 @@ impl Metadata {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use databento_defs::tick::{Mbp10Msg, Mbp1Msg, OhlcvMsg, TbboMsg, TickMsg, TradeMsg};
+    use databento_defs::record::{Mbp10Msg, Mbp1Msg, OhlcvMsg, TbboMsg, TickMsg, TradeMsg};
 
     const DBZ_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/data");
 

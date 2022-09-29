@@ -3,13 +3,13 @@ use std::{fmt, io};
 use anyhow::Context;
 use serde::Serialize;
 
-use databento_defs::tick::Tick;
+use databento_defs::record::Record;
 
 /// Incrementally serializes the contents of `iter` into CSV to `writer` so the
 /// contents of `iter` are not all buffered into memory at once.
 pub fn write_csv<T>(writer: impl io::Write, iter: impl Iterator<Item = T>) -> anyhow::Result<()>
 where
-    T: TryFrom<Tick> + serialize::CsvSerialize + Serialize + fmt::Debug,
+    T: TryFrom<Record> + serialize::CsvSerialize + Serialize + fmt::Debug,
 {
     let mut csv_writer = csv::WriterBuilder::new()
         .has_headers(false) // need to write our own custom header
@@ -26,7 +26,7 @@ where
 pub mod serialize {
     use anyhow::Context;
     use csv::Writer;
-    use databento_defs::tick::{
+    use databento_defs::record::{
         Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, SymDefMsg, TickMsg, TradeMsg,
     };
     use serde::Serialize;
@@ -50,6 +50,7 @@ pub mod serialize {
 
     impl CsvSerialize for TickMsg {
         const HEADERS: &'static [&'static str] = &[
+            "rtype",
             "publisher_id",
             "product_id",
             "ts_event",
@@ -68,6 +69,7 @@ pub mod serialize {
 
     impl CsvSerialize for Mbp1Msg {
         const HEADERS: &'static [&'static str] = &[
+            "rtype",
             "publisher_id",
             "product_id",
             "ts_event",
@@ -80,17 +82,18 @@ pub mod serialize {
             "ts_recv",
             "ts_in_delta",
             "sequence",
-            "bid_price",
-            "ask_price",
-            "bid_size",
-            "ask_size",
-            "bid_orders",
-            "ask_orders",
+            "bid_px_00",
+            "ask_px_00",
+            "bid_sz_00",
+            "ask_sz_00",
+            "bid_ct_00",
+            "ask_ct_00",
         ];
     }
 
     impl CsvSerialize for Mbp10Msg {
         const HEADERS: &'static [&'static str] = &[
+            "rtype",
             "publisher_id",
             "product_id",
             "ts_event",
@@ -103,69 +106,70 @@ pub mod serialize {
             "ts_recv",
             "ts_in_delta",
             "sequence",
-            "bid_price_0",
-            "ask_price_0",
-            "bid_size_0",
-            "ask_size_0",
-            "bid_orders_0",
-            "ask_orders_0",
-            "bid_price_1",
-            "ask_price_1",
-            "bid_size_1",
-            "ask_size_1",
-            "bid_orders_1",
-            "ask_orders_1",
-            "bid_price_2",
-            "ask_price_2",
-            "bid_size_2",
-            "ask_size_2",
-            "bid_orders_2",
-            "ask_orders_2",
-            "bid_price_3",
-            "ask_price_3",
-            "bid_size_3",
-            "ask_size_3",
-            "bid_orders_3",
-            "ask_orders_3",
-            "bid_price_4",
-            "ask_price_4",
-            "bid_size_4",
-            "ask_size_4",
-            "bid_orders_4",
-            "ask_orders_4",
-            "bid_price_5",
-            "ask_price_5",
-            "bid_size_5",
-            "ask_size_5",
-            "bid_orders_5",
-            "ask_orders_5",
-            "bid_price_6",
-            "ask_price_6",
-            "bid_size_6",
-            "ask_size_6",
-            "bid_orders_6",
-            "ask_orders_6",
-            "bid_price_7",
-            "ask_price_7",
-            "bid_size_7",
-            "ask_size_7",
-            "bid_orders_7",
-            "ask_orders_7",
-            "bid_price_8",
-            "ask_price_8",
-            "bid_size_8",
-            "ask_size_8",
-            "bid_orders_8",
-            "ask_orders_8",
-            "bid_price_9",
-            "ask_price_9",
-            "bid_size_9",
-            "ask_size_9",
-            "bid_orders_9",
-            "ask_orders_9",
+            "bid_px_00",
+            "ask_px_00",
+            "bid_sz_00",
+            "ask_sz_00",
+            "bid_ct_00",
+            "ask_ct_00",
+            "bid_px_01",
+            "ask_px_01",
+            "bid_sz_01",
+            "ask_sz_01",
+            "bid_ct_01",
+            "ask_ct_01",
+            "bid_px_02",
+            "ask_px_02",
+            "bid_sz_02",
+            "ask_sz_02",
+            "bid_ct_02",
+            "ask_ct_02",
+            "bid_px_03",
+            "ask_px_03",
+            "bid_sz_03",
+            "ask_sz_03",
+            "bid_ct_03",
+            "ask_ct_03",
+            "bid_px_04",
+            "ask_px_04",
+            "bid_sz_04",
+            "ask_sz_04",
+            "bid_ct_04",
+            "ask_ct_04",
+            "bid_px_05",
+            "ask_px_05",
+            "bid_sz_05",
+            "ask_sz_05",
+            "bid_ct_05",
+            "ask_ct_05",
+            "bid_px_06",
+            "ask_px_06",
+            "bid_sz_06",
+            "ask_sz_06",
+            "bid_ct_06",
+            "ask_ct_06",
+            "bid_px_07",
+            "ask_px_07",
+            "bid_sz_07",
+            "ask_sz_07",
+            "bid_ct_07",
+            "ask_ct_07",
+            "bid_px_08",
+            "ask_px_08",
+            "bid_sz_08",
+            "ask_sz_08",
+            "bid_ct_08",
+            "ask_ct_08",
+            "bid_px_09",
+            "ask_px_09",
+            "bid_sz_09",
+            "ask_sz_09",
+            "bid_ct_09",
+            "ask_ct_09",
         ];
 
         fn serialize_to<W: io::Write>(&self, csv_writer: &mut Writer<W>) -> anyhow::Result<()> {
+            csv_writer.write_field(self.hd.rtype.to_string())?;
             csv_writer.write_field(self.hd.publisher_id.to_string())?;
             csv_writer.write_field(self.hd.product_id.to_string())?;
             csv_writer.write_field(self.hd.ts_event.to_string())?;
@@ -179,12 +183,12 @@ pub mod serialize {
             csv_writer.write_field(self.ts_in_delta.to_string())?;
             csv_writer.write_field(self.sequence.to_string())?;
             for level in self.booklevel.iter() {
-                csv_writer.write_field(level.bid_price.to_string())?;
-                csv_writer.write_field(level.ask_price.to_string())?;
-                csv_writer.write_field(level.bid_size.to_string())?;
-                csv_writer.write_field(level.ask_size.to_string())?;
-                csv_writer.write_field(level.bid_orders.to_string())?;
-                csv_writer.write_field(level.ask_orders.to_string())?;
+                csv_writer.write_field(level.bid_px.to_string())?;
+                csv_writer.write_field(level.ask_px.to_string())?;
+                csv_writer.write_field(level.bid_sz.to_string())?;
+                csv_writer.write_field(level.ask_sz.to_string())?;
+                csv_writer.write_field(level.bid_ct.to_string())?;
+                csv_writer.write_field(level.ask_ct.to_string())?;
             }
             // end of line
             csv_writer.write_record(None::<&[u8]>)?;
@@ -194,6 +198,7 @@ pub mod serialize {
 
     impl CsvSerialize for TradeMsg {
         const HEADERS: &'static [&'static str] = &[
+            "rtype",
             "publisher_id",
             "product_id",
             "ts_event",
@@ -211,6 +216,7 @@ pub mod serialize {
 
     impl CsvSerialize for OhlcvMsg {
         const HEADERS: &'static [&'static str] = &[
+            "rtype",
             "publisher_id",
             "product_id",
             "ts_event",
@@ -224,6 +230,7 @@ pub mod serialize {
 
     impl CsvSerialize for StatusMsg {
         const HEADERS: &'static [&'static str] = &[
+            "rtype",
             "publisher_id",
             "product_id",
             "ts_event",
@@ -237,6 +244,7 @@ pub mod serialize {
 
     impl CsvSerialize for SymDefMsg {
         const HEADERS: &'static [&'static str] = &[
+            "rtype",
             "publisher_id",
             "product_id",
             "ts_event",
@@ -307,13 +315,13 @@ pub mod serialize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::write::test_data::{BID_ASK, COMMON_HEADER};
-    use databento_defs::tick::{
+    use crate::write::test_data::{BID_ASK, RECORD_HEADER};
+    use databento_defs::record::{
         Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, SymDefMsg, TickMsg, TradeMsg,
     };
     use std::{io::BufWriter, os::raw::c_char};
 
-    const HEADER_CSV: &str = "1,323,1658441851000000000";
+    const HEADER_CSV: &str = "4,1,323,1658441851000000000";
 
     const BID_ASK_CSV: &str = "372000000000000,372500000000000,10,5,5,2";
 
@@ -330,7 +338,7 @@ mod tests {
     #[test]
     fn test_tick_write_csv() {
         let data = vec![TickMsg {
-            hd: COMMON_HEADER,
+            hd: RECORD_HEADER,
             order_id: 16,
             price: 5500,
             size: 3,
@@ -355,7 +363,7 @@ mod tests {
     #[test]
     fn test_mbo1_write_csv() {
         let data = vec![Mbp1Msg {
-            hd: COMMON_HEADER,
+            hd: RECORD_HEADER,
             price: 5500,
             size: 3,
             action: 'B' as i8,
@@ -382,7 +390,7 @@ mod tests {
     #[test]
     fn test_mbo10_write_csv() {
         let data = vec![Mbp10Msg {
-            hd: COMMON_HEADER,
+            hd: RECORD_HEADER,
             price: 5500,
             size: 3,
             action: 'B' as i8,
@@ -407,7 +415,7 @@ mod tests {
     #[test]
     fn test_trade_write_csv() {
         let data = vec![TradeMsg {
-            hd: COMMON_HEADER,
+            hd: RECORD_HEADER,
             price: 5500,
             size: 3,
             action: 'B' as i8,
@@ -432,7 +440,7 @@ mod tests {
     #[test]
     fn test_ohlcv_write_csv() {
         let data = vec![OhlcvMsg {
-            hd: COMMON_HEADER,
+            hd: RECORD_HEADER,
             open: 5000,
             high: 8000,
             low: 3000,
@@ -453,7 +461,7 @@ mod tests {
             group[i] = c as c_char;
         }
         let data = vec![StatusMsg {
-            hd: COMMON_HEADER,
+            hd: RECORD_HEADER,
             ts_recv: 1658441891000000000,
             group,
             trading_status: 3,
@@ -473,7 +481,7 @@ mod tests {
     #[test]
     fn test_sym_def_write_csv() {
         let data = vec![SymDefMsg {
-            hd: COMMON_HEADER,
+            hd: RECORD_HEADER,
             ts_recv: 1658441891000000000,
             min_price_increment: 100,
             display_factor: 1000,

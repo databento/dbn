@@ -3,7 +3,7 @@ use std::{fmt, io};
 use anyhow::Context;
 use serde::Serialize;
 
-use databento_defs::tick::Tick;
+use databento_defs::record::Record;
 use serde_json::ser::{Formatter, PrettyFormatter};
 
 use crate::Metadata;
@@ -16,7 +16,7 @@ pub fn write_json<F: Clone + Formatter, T>(
     iter: impl Iterator<Item = T>,
 ) -> anyhow::Result<()>
 where
-    T: TryFrom<Tick> + Serialize + fmt::Debug,
+    T: TryFrom<Record> + Serialize + fmt::Debug,
 {
     for tick in iter {
         tick.serialize(&mut serde_json::Serializer::with_formatter(
@@ -55,18 +55,18 @@ mod tests {
 
     use super::*;
     use crate::{
-        write::test_data::{BID_ASK, COMMON_HEADER},
+        write::test_data::{BID_ASK, RECORD_HEADER},
         MappingInterval, SymbolMapping,
     };
     use databento_defs::{
         enums::{Compression, SType, Schema},
-        tick::{Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, SymDefMsg, TickMsg, TradeMsg},
+        record::{Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, SymDefMsg, TickMsg, TradeMsg},
     };
     use serde_json::ser::CompactFormatter;
 
     fn write_json_to_string<T>(iter: impl Iterator<Item = T>, should_pretty_print: bool) -> String
     where
-        T: TryFrom<Tick> + Serialize + fmt::Debug,
+        T: TryFrom<Record> + Serialize + fmt::Debug,
     {
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
@@ -92,13 +92,13 @@ mod tests {
     }
 
     const HEADER_JSON: &str =
-        r#""hd":{"publisher_id":1,"product_id":323,"ts_event":1658441851000000000}"#;
-    const BID_ASK_JSON: &str = r#"{"bid_price":372000000000000,"ask_price":372500000000000,"bid_size":10,"ask_size":5,"bid_orders":5,"ask_orders":2}"#;
+        r#""hd":{"rtype":4,"publisher_id":1,"product_id":323,"ts_event":1658441851000000000}"#;
+    const BID_ASK_JSON: &str = r#"{"bid_px":372000000000000,"ask_px":372500000000000,"bid_sz":10,"ask_sz":5,"bid_ct":5,"ask_ct":2}"#;
 
     #[test]
     fn test_tick_write_json() {
         let data = vec![TickMsg {
-            hd: COMMON_HEADER,
+            hd: RECORD_HEADER,
             order_id: 16,
             price: 5500,
             size: 3,
@@ -124,7 +124,7 @@ mod tests {
     #[test]
     fn test_mbo1_write_json() {
         let data = vec![Mbp1Msg {
-            hd: COMMON_HEADER,
+            hd: RECORD_HEADER,
             price: 5500,
             size: 3,
             action: 'B' as i8,
@@ -151,7 +151,7 @@ mod tests {
     #[test]
     fn test_mbo10_write_json() {
         let data = vec![Mbp10Msg {
-            hd: COMMON_HEADER,
+            hd: RECORD_HEADER,
             price: 5500,
             size: 3,
             action: 'B' as i8,
@@ -178,7 +178,7 @@ mod tests {
     #[test]
     fn test_trade_write_json() {
         let data = vec![TradeMsg {
-            hd: COMMON_HEADER,
+            hd: RECORD_HEADER,
             price: 5500,
             size: 3,
             action: 'B' as i8,
@@ -204,7 +204,7 @@ mod tests {
     #[test]
     fn test_ohlcv_write_json() {
         let data = vec![OhlcvMsg {
-            hd: COMMON_HEADER,
+            hd: RECORD_HEADER,
             open: 5000,
             high: 8000,
             low: 3000,
@@ -229,7 +229,7 @@ mod tests {
             group[i] = c as c_char;
         }
         let data = vec![StatusMsg {
-            hd: COMMON_HEADER,
+            hd: RECORD_HEADER,
             ts_recv: 1658441891000000000,
             group,
             trading_status: 3,
@@ -250,7 +250,7 @@ mod tests {
     #[test]
     fn test_symdef_write_json() {
         let data = vec![SymDefMsg {
-            hd: COMMON_HEADER,
+            hd: RECORD_HEADER,
             ts_recv: 1658441891000000000,
             min_price_increment: 100,
             display_factor: 1000,

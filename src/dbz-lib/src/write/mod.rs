@@ -8,7 +8,9 @@ use anyhow::anyhow;
 
 use databento_defs::{
     enums::Schema,
-    tick::{Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, SymDefMsg, TbboMsg, Tick, TickMsg, TradeMsg},
+    record::{
+        Mbp10Msg, Mbp1Msg, OhlcvMsg, Record, StatusMsg, SymDefMsg, TbboMsg, TickMsg, TradeMsg,
+    },
 };
 use serde_json::ser::CompactFormatter;
 
@@ -53,7 +55,7 @@ impl<R: io::BufRead> Dbz<R> {
 
     fn write_with_tick_to<T, W>(self, writer: W, encoding: OutputEncoding) -> anyhow::Result<()>
     where
-        T: TryFrom<Tick> + CsvSerialize + fmt::Debug,
+        T: TryFrom<Record> + CsvSerialize + fmt::Debug,
         W: io::Write,
     {
         let iter = self.try_into_iter::<T>()?;
@@ -102,22 +104,23 @@ impl Metadata {
 
 #[cfg(test)]
 mod test_data {
-    use databento_defs::tick::{BidAskPair, CommonHeader};
+    use databento_defs::record::{BidAskPair, RecordHeader};
 
-    pub const COMMON_HEADER: CommonHeader = CommonHeader {
-        nwords: 30,
-        type_: 4,
+    // Common data used in multiple tests
+    pub const RECORD_HEADER: RecordHeader = RecordHeader {
+        length: 30,
+        rtype: 4,
         publisher_id: 1,
         product_id: 323,
         ts_event: 1658441851000000000,
     };
 
     pub const BID_ASK: BidAskPair = BidAskPair {
-        bid_price: 372000000000000,
-        ask_price: 372500000000000,
-        bid_size: 10,
-        ask_size: 5,
-        bid_orders: 5,
-        ask_orders: 2,
+        bid_px: 372000000000000,
+        ask_px: 372500000000000,
+        bid_sz: 10,
+        ask_sz: 5,
+        bid_ct: 5,
+        ask_ct: 2,
     };
 }
