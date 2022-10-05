@@ -96,7 +96,7 @@ mod tests {
     }
 
     const HEADER_JSON: &str =
-        r#""hd":{"rtype":4,"publisher_id":1,"product_id":323,"ts_event":1658441851000000000}"#;
+        r#""hd":{"rtype":4,"publisher_id":1,"product_id":323,"ts_event":"1658441851000000000"}"#;
     const BID_ASK_JSON: &str = r#"{"bid_px":372000000000000,"ask_px":372500000000000,"bid_sz":10,"ask_sz":5,"bid_ct":5,"ask_ct":2}"#;
 
     #[test]
@@ -120,7 +120,7 @@ mod tests {
             res,
             format!(
                 "{{{HEADER_JSON},{}}}\n",
-                r#""order_id":16,"price":5500,"size":3,"flags":-128,"channel_id":14,"action":66,"side":67,"ts_recv":1658441891000000000,"ts_in_delta":22000,"sequence":1002375"#
+                r#""order_id":16,"price":5500,"size":3,"flags":-128,"channel_id":14,"action":66,"side":67,"ts_recv":"1658441891000000000","ts_in_delta":22000,"sequence":1002375"#
             )
         );
     }
@@ -146,7 +146,7 @@ mod tests {
             res,
             format!(
                 "{{{HEADER_JSON},{},{}}}\n",
-                r#""price":5500,"size":3,"action":66,"side":67,"flags":-128,"depth":9,"ts_recv":1658441891000000000,"ts_in_delta":22000,"sequence":1002375"#,
+                r#""price":5500,"size":3,"action":66,"side":67,"flags":-128,"depth":9,"ts_recv":"1658441891000000000","ts_in_delta":22000,"sequence":1002375"#,
                 format_args!("\"booklevel\":[{BID_ASK_JSON}]")
             )
         );
@@ -173,7 +173,7 @@ mod tests {
             res,
             format!(
                 "{{{HEADER_JSON},{},{}}}\n",
-                r#""price":5500,"size":3,"action":66,"side":67,"flags":-128,"depth":9,"ts_recv":1658441891000000000,"ts_in_delta":22000,"sequence":1002375"#,
+                r#""price":5500,"size":3,"action":66,"side":67,"flags":-128,"depth":9,"ts_recv":"1658441891000000000","ts_in_delta":22000,"sequence":1002375"#,
                 format_args!("\"booklevel\":[{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON}]")
             )
         );
@@ -200,7 +200,7 @@ mod tests {
             res,
             format!(
                 "{{{HEADER_JSON},{}}}\n",
-                r#""price":5500,"size":3,"action":66,"side":67,"flags":-128,"depth":9,"ts_recv":1658441891000000000,"ts_in_delta":22000,"sequence":1002375"#,
+                r#""price":5500,"size":3,"action":66,"side":67,"flags":-128,"depth":9,"ts_recv":"1658441891000000000","ts_in_delta":22000,"sequence":1002375"#,
             )
         );
     }
@@ -246,7 +246,7 @@ mod tests {
             res,
             format!(
                 "{{{HEADER_JSON},{}}}\n",
-                r#""ts_recv":1658441891000000000,"group":"group","trading_status":3,"halt_reason":4,"trading_event":6"#,
+                r#""ts_recv":"1658441891000000000","group":"group","trading_status":3,"halt_reason":4,"trading_event":6"#,
             )
         );
     }
@@ -324,7 +324,7 @@ mod tests {
             format!(
                 "{{{HEADER_JSON},{}}}\n",
                 concat!(
-                    r#""ts_recv":1658441891000000000,"min_price_increment":100,"display_factor":1000,"expiration":1698450000000000000,"activation":1697350000000000000,"#,
+                    r#""ts_recv":"1658441891000000000","min_price_increment":100,"display_factor":1000,"expiration":"1698450000000000000","activation":"1697350000000000000","#,
                     r#""high_limit_price":1000000,"low_limit_price":-1000000,"max_price_variation":0,"trading_reference_price":500000,"unit_of_measure_qty":5,"#,
                     r#""min_price_increment_amount":5,"price_ratio":10,"inst_attrib_value":10,"underlying_id":256785,"cleared_volume":0,"market_depth_implied":0,"#,
                     r#""market_depth":13,"market_segment_id":0,"max_trade_vol":10000,"min_lot_size":1,"min_lot_size_block":1000,"min_lot_size_round_lot":100,"min_trade_vol":1,"#,

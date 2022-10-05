@@ -144,8 +144,7 @@ dependencies = [
 
 [[package]]
 name = "databento-defs"
-version = "0.2.0"
-source = "git+https://github.com/databento/databento-defs?branch=dev#a6ad1bc0a49ee54a172e49a24c4ff217ef3a464f"
+version = "0.2.1"
 dependencies = [
  "num_enum",
  "serde",
