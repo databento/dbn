@@ -16,15 +16,24 @@ where
         .from_writer(writer);
     csv_writer.write_record(T::HEADERS)?;
     for tick in iter {
-        tick.serialize_to(&mut csv_writer)
-            .with_context(|| format!("Failed to serialize {:#?}", tick))?;
+        match tick.serialize_to(&mut csv_writer) {
+            Err(e) => {
+                if matches!(e.kind(), csv::ErrorKind::Io(io_err) if io_err.kind() == io::ErrorKind::BrokenPipe) {
+                    // closed pipe, should stop writing output
+                    return Ok(())
+                 } else {
+                    Err(e)
+                 }
+            }
+            r => r,
+        }
+        .with_context(|| format!("Failed to serialize {:#?}", tick))?;
     }
     csv_writer.flush()?;
     Ok(())
 }
 
 pub mod serialize {
-    use anyhow::Context;
     use csv::Writer;
     use databento_defs::record::{
         Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, SymDefMsg, TickMsg, TradeMsg,
@@ -41,10 +50,8 @@ pub mod serialize {
 
         /// Serialize the object to `csv_writer`. Allows custom behavior that would otherwise
         /// cause a runtime error, e.g. serializing a struct with array field.
-        fn serialize_to<W: io::Write>(&self, csv_writer: &mut Writer<W>) -> anyhow::Result<()> {
-            csv_writer
-                .serialize(self)
-                .with_context(|| format!("Failed to serialize {:#?}", self))
+        fn serialize_to<W: io::Write>(&self, csv_writer: &mut Writer<W>) -> csv::Result<()> {
+            csv_writer.serialize(self)
         }
     }
 
@@ -168,7 +175,7 @@ pub mod serialize {
             "ask_ct_09",
         ];
 
-        fn serialize_to<W: io::Write>(&self, csv_writer: &mut Writer<W>) -> anyhow::Result<()> {
+        fn serialize_to<W: io::Write>(&self, csv_writer: &mut Writer<W>) -> csv::Result<()> {
             csv_writer.write_field(self.hd.rtype.to_string())?;
             csv_writer.write_field(self.hd.publisher_id.to_string())?;
             csv_writer.write_field(self.hd.product_id.to_string())?;

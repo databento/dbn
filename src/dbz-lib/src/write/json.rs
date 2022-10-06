@@ -19,10 +19,14 @@ where
     T: TryFrom<Record> + Serialize + fmt::Debug,
 {
     for tick in iter {
-        tick.serialize(&mut serde_json::Serializer::with_formatter(
+        match tick.serialize(&mut serde_json::Serializer::with_formatter(
             &mut writer,
             formatter.clone(),
-        ))
+        )) {
+            // broken output, likely a closed pipe
+            Err(e) if e.is_io() => return Ok(()),
+            r => r,
+        }
         .with_context(|| format!("Failed to serialize {tick:#?}"))?;
         writer.write_all(b"\n")?;
     }
