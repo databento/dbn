@@ -491,25 +491,25 @@ mod tests {
     test_reading_dbz!(
         test_reading_ohlcv1d,
         OhlcvMsg,
-        Schema::Ohlcv1d,
+        Schema::Ohlcv1D,
         "test_data.ohlcv-1d.dbz"
     );
     test_reading_dbz!(
         test_reading_ohlcv1h,
         OhlcvMsg,
-        Schema::Ohlcv1h,
+        Schema::Ohlcv1H,
         "test_data.ohlcv-1h.dbz"
     );
     test_reading_dbz!(
         test_reading_ohlcv1m,
         OhlcvMsg,
-        Schema::Ohlcv1m,
+        Schema::Ohlcv1M,
         "test_data.ohlcv-1m.dbz"
     );
     test_reading_dbz!(
         test_reading_ohlcv1s,
         OhlcvMsg,
-        Schema::Ohlcv1s,
+        Schema::Ohlcv1S,
         "test_data.ohlcv-1s.dbz"
     );
     test_reading_dbz!(

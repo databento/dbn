@@ -44,7 +44,7 @@ impl<R: io::BufRead> Dbz<R> {
             Schema::Mbp10 => self.write_with_tick_to::<Mbp10Msg, _>(writer, encoding),
             Schema::Tbbo => self.write_with_tick_to::<TbboMsg, _>(writer, encoding),
             Schema::Trades => self.write_with_tick_to::<TradeMsg, _>(writer, encoding),
-            Schema::Ohlcv1s | Schema::Ohlcv1m | Schema::Ohlcv1h | Schema::Ohlcv1d => {
+            Schema::Ohlcv1S | Schema::Ohlcv1M | Schema::Ohlcv1H | Schema::Ohlcv1D => {
                 self.write_with_tick_to::<OhlcvMsg, _>(writer, encoding)
             }
             Schema::Definition => self.write_with_tick_to::<SymDefMsg, _>(writer, encoding),

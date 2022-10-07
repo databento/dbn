@@ -343,7 +343,7 @@ mod tests {
         let metadata = Metadata {
             version: 1,
             dataset: "GLBX.MDP3".to_owned(),
-            schema: Schema::Ohlcv1h,
+            schema: Schema::Ohlcv1H,
             start: 1662734705128748281,
             end: 1662734720914876944,
             limit: 0,
