@@ -4,9 +4,9 @@ use std::{
 };
 
 use anyhow::{anyhow, Context};
+use zstd::Encoder;
 
 use crate::{read::SymbolMapping, Metadata};
-use zstd::Encoder;
 
 impl Metadata {
     pub(crate) const ZSTD_MAGIC_RANGE: Range<u32> = 0x184D2A50..0x184D2A60;

@@ -144,8 +144,8 @@ dependencies = [
 
 [[package]]
 name = "databento-defs"
-version = "0.2.2"
-source = "git+https://github.com/databento/databento-defs?branch=dev#ff9499c85abeeb0b01e0a715ded913807d4275cb"
+version = "0.3.0"
+source = "git+https://github.com/databento/databento-defs?branch=dev#d0fde96d88e950b76cf3e32850eed0d226ac56a0"
 dependencies = [
  "num_enum",
  "serde",
@@ -175,6 +175,7 @@ dependencies = [
  "pyo3",
  "serde",
  "serde_json",
+ "streaming-iterator",
  "time",
  "zstd",
 ]
@@ -658,6 +659,12 @@ name = "smallvec"
 version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2fd0db749597d91ff862fd1d55ea87f7855a744a8425a64695b6fca237d1dad1"
+
+[[package]]
+name = "streaming-iterator"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d55dd09aaa2f85ef8767cc9177294d63c30d62c8533329e75aa51d8b94976e22"
 
 [[package]]
 name = "strsim"

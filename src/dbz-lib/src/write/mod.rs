@@ -5,14 +5,14 @@ mod json;
 use std::{fmt, io};
 
 use anyhow::anyhow;
+use serde_json::ser::CompactFormatter;
 
 use databento_defs::{
     enums::Schema,
     record::{
-        Mbp10Msg, Mbp1Msg, OhlcvMsg, Record, StatusMsg, SymDefMsg, TbboMsg, TickMsg, TradeMsg,
+        ConstTypeId, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, SymDefMsg, TbboMsg, TickMsg, TradeMsg,
     },
 };
-use serde_json::ser::CompactFormatter;
 
 use self::{
     csv::{serialize::CsvSerialize, write_csv},
@@ -55,7 +55,7 @@ impl<R: io::BufRead> Dbz<R> {
 
     fn write_with_tick_to<T, W>(self, writer: W, encoding: OutputEncoding) -> anyhow::Result<()>
     where
-        T: TryFrom<Record> + CsvSerialize + fmt::Debug,
+        T: ConstTypeId + CsvSerialize + fmt::Debug,
         W: io::Write,
     {
         let iter = self.try_into_iter::<T>()?;
@@ -105,6 +105,7 @@ impl Metadata {
 #[cfg(test)]
 mod test_data {
     use databento_defs::record::{BidAskPair, RecordHeader};
+    use streaming_iterator::StreamingIterator;
 
     // Common data used in multiple tests
     pub const RECORD_HEADER: RecordHeader = RecordHeader {
@@ -123,4 +124,30 @@ mod test_data {
         bid_ct: 5,
         ask_ct: 2,
     };
+
+    /// A testing shim to get a streaming iterator from a [`Vec`].
+    pub struct VecStream<T> {
+        vec: Vec<T>,
+        idx: isize,
+    }
+
+    impl<T> VecStream<T> {
+        pub fn new(vec: Vec<T>) -> Self {
+            // initialize at -1 because `advance()` is always called before
+            // `get()`.
+            Self { vec, idx: -1 }
+        }
+    }
+
+    impl<T> StreamingIterator for VecStream<T> {
+        type Item = T;
+
+        fn advance(&mut self) {
+            self.idx += 1;
+        }
+
+        fn get(&self) -> Option<&Self::Item> {
+            self.vec.get(self.idx as usize)
+        }
+    }
 }

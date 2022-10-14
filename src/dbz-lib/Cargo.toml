@@ -16,7 +16,7 @@ python = ["dep:pyo3"]
 
 [dependencies]
 # Databento common definitions
-databento-defs = { git = "https://github.com/databento/databento-defs", branch = "dev", features = ["serde"], version = "0.2.2" }
+databento-defs = { git = "https://github.com/databento/databento-defs", branch = "dev", features = ["serde"], version = "0.3.0" }
 
 # error handling
 anyhow = "1.0.65"
@@ -30,7 +30,9 @@ pyo3 = { version = "0.17.1", features = ["extension-module"], optional = true }
 serde = { version = "1.0", features = ["derive"] }
 # JSON serialization
 serde_json = "1.0"
-# decompression from DBZ
-zstd = "= 0.11.2+zstd1.5.2"
+# zero-copy DBZ decoding
+streaming-iterator = "0.1.8"
 # date and datetime support
 time = { version = "0.3.14", features = ["serde"] }
+# decompression from DBZ
+zstd = "= 0.11.2+zstd1.5.2"

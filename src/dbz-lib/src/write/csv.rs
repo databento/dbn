@@ -2,21 +2,25 @@ use std::{fmt, io};
 
 use anyhow::Context;
 use serde::Serialize;
+use streaming_iterator::StreamingIterator;
 
-use databento_defs::record::Record;
+use databento_defs::record::ConstTypeId;
 
 /// Incrementally serializes the contents of `iter` into CSV to `writer` so the
 /// contents of `iter` are not all buffered into memory at once.
-pub fn write_csv<T>(writer: impl io::Write, iter: impl Iterator<Item = T>) -> anyhow::Result<()>
+pub fn write_csv<T>(
+    writer: impl io::Write,
+    mut iter: impl StreamingIterator<Item = T>,
+) -> anyhow::Result<()>
 where
-    T: TryFrom<Record> + serialize::CsvSerialize + Serialize + fmt::Debug,
+    T: ConstTypeId + serialize::CsvSerialize + Serialize + fmt::Debug,
 {
     let mut csv_writer = csv::WriterBuilder::new()
         .has_headers(false) // need to write our own custom header
         .from_writer(writer);
     csv_writer.write_record(T::HEADERS)?;
-    for tick in iter {
-        match tick.serialize_to(&mut csv_writer) {
+    while let Some(record) = iter.next() {
+        match record.serialize_to(&mut csv_writer) {
             Err(e) => {
                 if matches!(e.kind(), csv::ErrorKind::Io(io_err) if io_err.kind() == io::ErrorKind::BrokenPipe) {
                     // closed pipe, should stop writing output
@@ -27,7 +31,7 @@ where
             }
             r => r,
         }
-        .with_context(|| format!("Failed to serialize {:#?}", tick))?;
+        .with_context(|| format!("Failed to serialize {:#?}", record))?;
     }
     csv_writer.flush()?;
     Ok(())
@@ -322,7 +326,7 @@ pub mod serialize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::write::test_data::{BID_ASK, RECORD_HEADER};
+    use crate::write::test_data::{VecStream, BID_ASK, RECORD_HEADER};
     use databento_defs::record::{
         Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, SymDefMsg, TickMsg, TradeMsg,
     };
@@ -359,7 +363,7 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        write_csv(writer, data.into_iter()).unwrap();
+        write_csv(writer, VecStream::new(data)).unwrap();
         let line = extract_2nd_line(buffer);
         assert_eq!(
             line,
@@ -384,7 +388,7 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        write_csv(writer, data.into_iter()).unwrap();
+        write_csv(writer, VecStream::new(data)).unwrap();
         let line = extract_2nd_line(buffer);
         assert_eq!(
             line,
@@ -411,7 +415,7 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        write_csv(writer, data.into_iter()).unwrap();
+        write_csv(writer, VecStream::new(data)).unwrap();
         let line = extract_2nd_line(buffer);
         assert_eq!(
             line,
@@ -436,7 +440,7 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        write_csv(writer, data.into_iter()).unwrap();
+        write_csv(writer, VecStream::new(data)).unwrap();
         let line = extract_2nd_line(buffer);
         assert_eq!(
             line,
@@ -456,7 +460,7 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        write_csv(writer, data.into_iter()).unwrap();
+        write_csv(writer, VecStream::new(data)).unwrap();
         let line = extract_2nd_line(buffer);
         assert_eq!(line, format!("{HEADER_CSV},5000,8000,3000,6000,55000"));
     }
@@ -477,7 +481,7 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        write_csv(writer, data.into_iter()).unwrap();
+        write_csv(writer, VecStream::new(data)).unwrap();
         let line = extract_2nd_line(buffer);
         assert_eq!(
             line,
@@ -553,7 +557,7 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        write_csv(writer, data.into_iter()).unwrap();
+        write_csv(writer, VecStream::new(data)).unwrap();
         let line = extract_2nd_line(buffer);
         assert_eq!(line, format!("{HEADER_CSV},1658441891000000000,100,1000,1698450000000000000,1697350000000000000,1000000,-1000000,0,500000,5,5,10,10,256785,0,0,13,0,10000,1,1000,100,1,0,0,0,0,0,0,0,0,0,4,,USD,,,,,,,,,,,1,2,4,8,9,23,10,7,8,9,11,1,0,5,0"));
     }

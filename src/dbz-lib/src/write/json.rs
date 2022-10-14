@@ -2,9 +2,10 @@ use std::{fmt, io};
 
 use anyhow::Context;
 use serde::Serialize;
-
-use databento_defs::record::Record;
 use serde_json::ser::{Formatter, PrettyFormatter};
+use streaming_iterator::StreamingIterator;
+
+use databento_defs::record::ConstTypeId;
 
 use crate::Metadata;
 
@@ -13,13 +14,13 @@ use crate::Metadata;
 pub fn write_json<F: Clone + Formatter, T>(
     mut writer: impl io::Write,
     formatter: F,
-    iter: impl Iterator<Item = T>,
+    mut iter: impl StreamingIterator<Item = T>,
 ) -> anyhow::Result<()>
 where
-    T: TryFrom<Record> + Serialize + fmt::Debug,
+    T: ConstTypeId + Serialize + fmt::Debug,
 {
-    for tick in iter {
-        match tick.serialize(&mut serde_json::Serializer::with_formatter(
+    while let Some(record) = iter.next() {
+        match record.serialize(&mut serde_json::Serializer::with_formatter(
             &mut writer,
             formatter.clone(),
         )) {
@@ -27,7 +28,7 @@ where
             Err(e) if e.is_io() => return Ok(()),
             r => r,
         }
-        .with_context(|| format!("Failed to serialize {tick:#?}"))?;
+        .with_context(|| format!("Failed to serialize {record:#?}"))?;
         writer.write_all(b"\n")?;
     }
     writer.flush()?;
@@ -59,7 +60,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        write::test_data::{BID_ASK, RECORD_HEADER},
+        write::test_data::{VecStream, BID_ASK, RECORD_HEADER},
         MappingInterval, SymbolMapping,
     };
     use databento_defs::{
@@ -68,16 +69,16 @@ mod tests {
     };
     use serde_json::ser::CompactFormatter;
 
-    fn write_json_to_string<T>(iter: impl Iterator<Item = T>, should_pretty_print: bool) -> String
+    fn write_json_to_string<T>(vec: Vec<T>, should_pretty_print: bool) -> String
     where
-        T: TryFrom<Record> + Serialize + fmt::Debug,
+        T: ConstTypeId + Serialize + fmt::Debug,
     {
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
         if should_pretty_print {
-            write_json(writer, pretty_formatter(), iter)
+            write_json(writer, pretty_formatter(), VecStream::new(vec))
         } else {
-            write_json(writer, CompactFormatter, iter)
+            write_json(writer, CompactFormatter, VecStream::new(vec))
         }
         .unwrap();
         String::from_utf8(buffer).expect("valid UTF-8")
@@ -114,7 +115,7 @@ mod tests {
             ts_in_delta: 22_000,
             sequence: 1_002_375,
         }];
-        let res = write_json_to_string(data.into_iter(), false);
+        let res = write_json_to_string(data, false);
 
         assert_eq!(
             res,
@@ -140,7 +141,7 @@ mod tests {
             sequence: 1_002_375,
             booklevel: [BID_ASK; 1],
         }];
-        let res = write_json_to_string(data.into_iter(), false);
+        let res = write_json_to_string(data, false);
 
         assert_eq!(
             res,
@@ -167,7 +168,7 @@ mod tests {
             sequence: 1_002_375,
             booklevel: [BID_ASK; 10],
         }];
-        let res = write_json_to_string(data.into_iter(), false);
+        let res = write_json_to_string(data, false);
 
         assert_eq!(
             res,
@@ -194,7 +195,7 @@ mod tests {
             sequence: 1_002_375,
             booklevel: [],
         }];
-        let res = write_json_to_string(data.into_iter(), false);
+        let res = write_json_to_string(data, false);
 
         assert_eq!(
             res,
@@ -215,7 +216,7 @@ mod tests {
             close: 6000,
             volume: 55_000,
         }];
-        let res = write_json_to_string(data.into_iter(), false);
+        let res = write_json_to_string(data, false);
 
         assert_eq!(
             res,
@@ -240,7 +241,7 @@ mod tests {
             halt_reason: 4,
             trading_event: 6,
         }];
-        let res = write_json_to_string(data.into_iter(), false);
+        let res = write_json_to_string(data, false);
 
         assert_eq!(
             res,
@@ -317,7 +318,7 @@ mod tests {
             tick_rule: 0,
             _dummy: [0; 3],
         }];
-        let res = write_json_to_string(data.into_iter(), false);
+        let res = write_json_to_string(data, false);
 
         assert_eq!(
             res,

@@ -9,11 +9,12 @@ use std::{
 use anyhow::{anyhow, Context};
 use log::{debug, warn};
 use serde::Serialize;
+use streaming_iterator::StreamingIterator;
 use zstd::Decoder;
 
 use databento_defs::{
     enums::{Compression, SType, Schema},
-    record::{Record, RecordHeader},
+    record::{transmute_record_bytes, ConstTypeId},
 };
 
 /// Object for reading, parsing, and serializing a Databento Binary Encoding (DBZ) file.
@@ -129,15 +130,15 @@ impl<R: io::BufRead> Dbz<R> {
         &self.metadata
     }
 
-    /// Try to decode the DBZ file into an iterator. This decodes the data
-    /// lazily.
+    /// Try to decode the DBZ file into a streaming iterator. This decodes the
+    /// data lazily.
     ///
     /// # Errors
-    /// This function will return an error if the zstd portion of the DBZ file was compressed in
-    /// an unexpected manner.
-    pub fn try_into_iter<T: TryFrom<Record>>(self) -> anyhow::Result<DbzIntoIter<R, T>> {
+    /// This function will return an error if the zstd portion of the DBZ file
+    /// was compressed in an unexpected manner.
+    pub fn try_into_iter<T: ConstTypeId>(self) -> anyhow::Result<DbzStreamIter<R, T>> {
         let decoder = Decoder::with_buffer(self.reader)?;
-        Ok(DbzIntoIter {
+        Ok(DbzStreamIter {
             metadata: self.metadata,
             decoder,
             i: 0,
@@ -149,37 +150,38 @@ impl<R: io::BufRead> Dbz<R> {
 
 /// A consuming iterator over a [`Dbz`]. Lazily decompresses and translates the contents of the file
 /// or other buffer. This struct is created by the [`Dbz::try_into_iter`] method.
-pub struct DbzIntoIter<R: io::BufRead, T> {
+pub struct DbzStreamIter<R: io::BufRead, T> {
     /// [`Metadata`] about the file being iterated
     metadata: Metadata,
     /// Reference to the underlying [`Dbz`] object.
-    /// Buffered zstd decoder of the DBZ file, so each call to [`DbzIntoIter::next()`] doesn't result in a
+    /// Buffered zstd decoder of the DBZ file, so each call to [`DbzStreamIter::next()`] doesn't result in a
     /// separate system call.
     decoder: Decoder<'static, R>,
     /// Number of elements that have been decoded. Used for [`Iterator::size_hint`].
     i: usize,
     /// Reusable buffer for reading into.
     buffer: Vec<u8>,
-    /// Required to associate [`DbzIntoIter`] with a `T`.
+    /// Required to associate [`DbzStreamIter`] with a `T`.
     _item: PhantomData<T>,
 }
 
-impl<R: io::BufRead, T: TryFrom<Record>> Iterator for DbzIntoIter<R, T> {
+impl<R: io::BufRead, T: ConstTypeId> StreamingIterator for DbzStreamIter<R, T> {
     type Item = T;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.decoder.read_exact(&mut self.buffer).is_err() {
+    fn advance(&mut self) {
+        if let Err(e) = self.decoder.read_exact(&mut self.buffer) {
+            warn!("Failed to read from DBZ decoder: {e:?}");
+            self.i = self.metadata.record_count as usize + 1;
+        }
+        self.i += 1;
+    }
+
+    fn get(&self) -> Option<&Self::Item> {
+        if self.i > self.metadata.record_count as usize {
             return None;
         }
-        let tick = match Record::new(self.buffer.as_ptr() as *const RecordHeader) {
-            Ok(tick) => tick,
-            Err(e) => {
-                warn!("Unexpected tick value: {e}. Raw buffer: {:?}", self.buffer);
-                return None;
-            }
-        };
-        self.i += 1;
-        T::try_from(tick).ok()
+        // Safety: `buffer` is specifically sized to `T`
+        unsafe { transmute_record_bytes(self.buffer.as_slice()) }
     }
 
     /// Returns the lower bound and upper bounds of remaining length of iterator.
