@@ -31,7 +31,7 @@ pub struct Metadata {
     pub version: u8,
     /// The dataset name.
     pub dataset: String,
-    /// The data record schema. Specifies which tick type is stored in the DBZ file.
+    /// The data record schema. Specifies which record type is stored in the DBZ file.
     pub schema: Schema,
     /// The UNIX nanosecond timestamp of the query start, or the first record if the file was split.
     pub start: u64,
@@ -119,7 +119,7 @@ impl<R: io::BufRead> Dbz<R> {
         Ok(Self { reader, metadata })
     }
 
-    /// Returns the [`Schema`] of the DBZ data. The schema also indicates the tick type `T` for
+    /// Returns the [`Schema`] of the DBZ data. The schema also indicates the record type `T` for
     /// [`Self::try_into_iter`].
     pub fn schema(&self) -> Schema {
         self.metadata.schema
