@@ -6,7 +6,7 @@ on:
   workflow_run:
     workflows:
       - build
-    branches: [ main ]
+    branches: [main]
     types:
       - completed
 
@@ -24,14 +24,6 @@ jobs:
         with:
           fetch-depth: 2
 
-      # Rust setup
-      - name: Set up Rust environment
-        uses: actions-rs/toolchain@v1
-        with:
-            toolchain: stable
-            override: true
-            components: rustfmt, clippy
-
       # Cargo setup
       - name: Set up Cargo cache
         uses: actions/cache@v3
@@ -44,7 +36,7 @@ jobs:
 
       # Python setup
       - name: Set up Python environment
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: "3.10"
 
@@ -90,23 +82,15 @@ jobs:
           prerelease: false
 
   macos-release:
-    needs: [ tag-release ]
+    needs: [tag-release]
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ "3.7", "3.8", "3.9", "3.10" ]
+        python-version: ["3.7", "3.8", "3.9", "3.10"]
     runs-on: macos-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-
-      # Rust setup
-      - name: Set up Rust environment
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-          components: rustfmt, clippy
 
       # Cargo setup
       - name: Set up Cargo cache
@@ -120,7 +104,7 @@ jobs:
 
       # Python setup
       - name: Set up Python environment
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
@@ -137,29 +121,21 @@ jobs:
           args: --release --universal2 --out dist --manifest-path src/dbz-python/Cargo.toml --interpreter python${{ matrix.python-version }}
 
       - name: Upload wheels
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: wheels
           path: dist
 
   windows-release:
-    needs: [ tag-release ]
+    needs: [tag-release]
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ "3.7", "3.8", "3.9", "3.10" ]
+        python-version: ["3.7", "3.8", "3.9", "3.10"]
     runs-on: windows-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-
-      # Rust setup
-      - name: Set up Rust environment
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-          components: rustfmt, clippy
 
       # Cargo setup
       - name: Set up Cargo cache
@@ -173,7 +149,7 @@ jobs:
 
       # Python setup
       - name: Set up Python environment
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
@@ -185,30 +161,22 @@ jobs:
           args: --release --out dist --manifest-path src/dbz-python/Cargo.toml --interpreter python${{ matrix.python-version }}
 
       - name: Upload wheels
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: wheels
           path: dist
 
   linux-release:
-    needs: [ tag-release ]
+    needs: [tag-release]
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ "3.7", "3.8", "3.9", "3.10" ]
-        target: [ x86_64, aarch64 ]
+        python-version: ["3.7", "3.8", "3.9", "3.10"]
+        target: [x86_64, aarch64]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-
-      # Rust setup
-      - name: Set up Rust environment
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-          components: rustfmt, clippy
 
       # Cargo setup
       - name: Set up Cargo cache
@@ -222,7 +190,7 @@ jobs:
 
       # Python setup
       - name: Set up Python environment
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -234,30 +202,22 @@ jobs:
           args: --release --out dist --manifest-path src/dbz-python/Cargo.toml --interpreter python${{ matrix.python-version }}
 
       - name: Upload wheels
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: wheels
           path: dist
 
   linux-musl-release:
-    needs: [ tag-release ]
+    needs: [tag-release]
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ "3.7", "3.8", "3.9", "3.10" ]
-        target: [ x86_64-unknown-linux-musl, aarch64-unknown-linux-musl ]
+        python-version: ["3.7", "3.8", "3.9", "3.10"]
+        target: [x86_64-unknown-linux-musl, aarch64-unknown-linux-musl]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-
-      # Rust setup
-      - name: Set up Rust environment
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-          components: rustfmt, clippy
 
       # Cargo setup
       - name: Set up Cargo cache
@@ -271,7 +231,7 @@ jobs:
 
       # Python setup
       - name: Set up Python environment
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -283,16 +243,23 @@ jobs:
           args: --release --out dist --manifest-path src/dbz-python/Cargo.toml --interpreter python${{ matrix.python-version }}
 
       - name: Upload wheels
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: wheels
           path: dist
 
   publish:
     runs-on: ubuntu-latest
-    needs: [ tag-release, macos-release, windows-release, linux-release, linux-musl-release ]
+    needs:
+      [
+        tag-release,
+        macos-release,
+        windows-release,
+        linux-release,
+        linux-musl-release,
+      ]
     steps:
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v3
         with:
           name: wheels
       # Install publish dependencies
@@ -305,10 +272,10 @@ jobs:
           TWINE_PASSWORD: ${{ secrets.TWINE_PASSWORD }}
         run: twine upload *
       - name: Upload to release
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           name: wheels
-          path: '*'
+          path: "*"
           upload_url: ${{ needs.tag-release.outputs.upload_url }}
