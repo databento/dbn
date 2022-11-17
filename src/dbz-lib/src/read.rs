@@ -137,14 +137,7 @@ impl<R: io::BufRead> Dbz<R> {
     /// This function will return an error if the zstd portion of the DBZ file
     /// was compressed in an unexpected manner.
     pub fn try_into_iter<T: ConstTypeId>(self) -> anyhow::Result<DbzStreamIter<R, T>> {
-        let decoder = Decoder::with_buffer(self.reader)?;
-        Ok(DbzStreamIter {
-            metadata: self.metadata,
-            decoder,
-            i: 0,
-            buffer: vec![0; mem::size_of::<T>()],
-            _item: PhantomData {},
-        })
+        DbzStreamIter::new(self.reader, self.metadata)
     }
 }
 
@@ -163,6 +156,19 @@ pub struct DbzStreamIter<R: io::BufRead, T> {
     buffer: Vec<u8>,
     /// Required to associate [`DbzStreamIter`] with a `T`.
     _item: PhantomData<T>,
+}
+
+impl<R: io::BufRead, T> DbzStreamIter<R, T> {
+    pub(crate) fn new(reader: R, metadata: Metadata) -> anyhow::Result<Self> {
+        let decoder = Decoder::with_buffer(reader)?;
+        Ok(DbzStreamIter {
+            metadata,
+            decoder,
+            i: 0,
+            buffer: vec![0; mem::size_of::<T>()],
+            _item: PhantomData {},
+        })
+    }
 }
 
 impl<R: io::BufRead, T: ConstTypeId> StreamingIterator for DbzStreamIter<R, T> {

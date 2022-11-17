@@ -31,7 +31,7 @@ where
             }
             r => r,
         }
-        .with_context(|| format!("Failed to serialize {:#?}", record))?;
+        .with_context(|| format!("Failed to serialize {record:#?}"))?;
     }
     csv_writer.flush()?;
     Ok(())

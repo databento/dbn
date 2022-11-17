@@ -9,4 +9,4 @@ mod write;
 pub mod python;
 
 pub use crate::read::{Dbz, DbzStreamIter, MappingInterval, Metadata, SymbolMapping};
-pub use crate::write::OutputEncoding;
+pub use crate::write::{write_dbz, write_dbz_stream, OutputEncoding};

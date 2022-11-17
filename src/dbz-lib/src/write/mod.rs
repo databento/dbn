@@ -14,6 +14,7 @@ use databento_defs::{
     },
 };
 
+pub use self::dbz::{write_dbz, write_dbz_stream};
 use self::{
     csv::{serialize::CsvSerialize, write_csv},
     json::{pretty_formatter, write_json, write_json_metadata},
