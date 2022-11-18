@@ -12,11 +12,11 @@ use zstd::Encoder;
 
 use crate::{read::SymbolMapping, Metadata};
 
+pub(crate) const SCHEMA_VERSION: u8 = 1;
 pub(crate) const ZSTD_COMPRESSION_LEVEL: i32 = 0;
 
 impl Metadata {
     pub(crate) const ZSTD_MAGIC_RANGE: Range<u32> = 0x184D2A50..0x184D2A60;
-    pub(crate) const SCHEMA_VERSION: u8 = 1;
     pub(crate) const VERSION_CSTR_LEN: usize = 4;
     pub(crate) const DATASET_CSTR_LEN: usize = 16;
     pub(crate) const RESERVED_LEN: usize = 39;
@@ -64,6 +64,8 @@ impl Metadata {
         // magic number and size aren't included in the metadata size
         let frame_size = (raw_size - 8) as u32;
         writer.write_all(frame_size.to_le_bytes().as_slice())?;
+        // go back to end to leave `writer` in a place for more data to be written
+        writer.seek(SeekFrom::End(0))?;
 
         Ok(())
     }
@@ -214,7 +216,7 @@ where
 }
 
 /// Incrementally serializes the records in `iter` in the DBZ format to `writer`.
-pub fn write_dbz<'a, T, I>(
+pub fn write_dbz<'a, T>(
     writer: impl io::Write,
     iter: impl Iterator<Item = &'a T>,
 ) -> anyhow::Result<()>

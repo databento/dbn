@@ -17,6 +17,8 @@ use databento_defs::{
     record::{transmute_record_bytes, ConstTypeId},
 };
 
+use crate::write::dbz::SCHEMA_VERSION;
+
 /// Object for reading, parsing, and serializing a Databento Binary Encoding (DBZ) file.
 #[derive(Debug)]
 pub struct Dbz<R: io::BufRead> {
@@ -59,7 +61,10 @@ pub struct Metadata {
 
 /// A native symbol and its symbol mappings for different time ranges within the query range.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[cfg_attr(feature = "python", derive(pyo3::FromPyObject))]
+#[cfg_attr(
+    any(feature = "python", feature = "python-test"),
+    derive(pyo3::FromPyObject)
+)]
 pub struct SymbolMapping {
     /// The native symbol.
     pub native: String,
@@ -271,7 +276,7 @@ impl Metadata {
         // Interpret 4th character as an u8, not a char to allow for 254 versions (0 omitted)
         let version = metadata_buffer[pos + 3] as u8;
         // assume not forwards compatible
-        if version > Self::SCHEMA_VERSION {
+        if version > SCHEMA_VERSION {
             return Err(anyhow!("Can't read newer version of DBZ"));
         }
         pos += Self::VERSION_CSTR_LEN;
@@ -471,67 +476,29 @@ mod tests {
     macro_rules! test_reading_dbz {
         // Rust doesn't allow concatenating identifiers in stable rust, so each test case needs
         // to be named explicitly
-        ($test_name:ident, $tick_type:ident, $schema:expr, $file_name:expr) => {
+        ($test_name:ident, $record_type:ident, $schema:expr) => {
             #[test]
             fn $test_name() {
-                let target = Dbz::from_file(format!("{DBZ_PATH}/{}", $file_name)).unwrap();
+                let target =
+                    Dbz::from_file(format!("{DBZ_PATH}/test_data.{}.dbz", $schema.as_str()))
+                        .unwrap();
                 let exp_row_count = target.metadata().record_count;
                 assert_eq!(target.schema(), $schema);
-                let actual_row_count = target.try_into_iter::<$tick_type>().unwrap().count();
+                let actual_row_count = target.try_into_iter::<$record_type>().unwrap().count();
                 assert_eq!(exp_row_count as usize, actual_row_count);
             }
         };
     }
 
-    test_reading_dbz!(test_reading_mbo, TickMsg, Schema::Mbo, "test_data.mbo.dbz");
-    test_reading_dbz!(
-        test_reading_mbp1,
-        Mbp1Msg,
-        Schema::Mbp1,
-        "test_data.mbp-1.dbz"
-    );
-    test_reading_dbz!(
-        test_reading_mbp10,
-        Mbp10Msg,
-        Schema::Mbp10,
-        "test_data.mbp-10.dbz"
-    );
-    test_reading_dbz!(
-        test_reading_ohlcv1d,
-        OhlcvMsg,
-        Schema::Ohlcv1D,
-        "test_data.ohlcv-1d.dbz"
-    );
-    test_reading_dbz!(
-        test_reading_ohlcv1h,
-        OhlcvMsg,
-        Schema::Ohlcv1H,
-        "test_data.ohlcv-1h.dbz"
-    );
-    test_reading_dbz!(
-        test_reading_ohlcv1m,
-        OhlcvMsg,
-        Schema::Ohlcv1M,
-        "test_data.ohlcv-1m.dbz"
-    );
-    test_reading_dbz!(
-        test_reading_ohlcv1s,
-        OhlcvMsg,
-        Schema::Ohlcv1S,
-        "test_data.ohlcv-1s.dbz"
-    );
-    test_reading_dbz!(
-        test_reading_tbbo,
-        TbboMsg,
-        Schema::Tbbo,
-        "test_data.tbbo.dbz"
-    );
-    test_reading_dbz!(
-        test_reading_trades,
-        TradeMsg,
-        Schema::Trades,
-        "test_data.trades.dbz"
-    );
+    test_reading_dbz!(test_reading_mbo, TickMsg, Schema::Mbo);
+    test_reading_dbz!(test_reading_mbp1, Mbp1Msg, Schema::Mbp1);
+    test_reading_dbz!(test_reading_mbp10, Mbp10Msg, Schema::Mbp10);
+    test_reading_dbz!(test_reading_ohlcv1d, OhlcvMsg, Schema::Ohlcv1D);
+    test_reading_dbz!(test_reading_ohlcv1h, OhlcvMsg, Schema::Ohlcv1H);
+    test_reading_dbz!(test_reading_ohlcv1m, OhlcvMsg, Schema::Ohlcv1M);
+    test_reading_dbz!(test_reading_ohlcv1s, OhlcvMsg, Schema::Ohlcv1S);
+    test_reading_dbz!(test_reading_tbbo, TbboMsg, Schema::Tbbo);
+    test_reading_dbz!(test_reading_trades, TradeMsg, Schema::Trades);
 
     #[test]
     fn test_decode_symbol() {

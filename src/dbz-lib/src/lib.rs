@@ -5,8 +5,11 @@
 mod read;
 mod write;
 
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-test"))]
 pub mod python;
 
 pub use crate::read::{Dbz, DbzStreamIter, MappingInterval, Metadata, SymbolMapping};
-pub use crate::write::{write_dbz, write_dbz_stream, OutputEncoding};
+pub use crate::write::{
+    dbz::{write_dbz, write_dbz_stream},
+    OutputEncoding,
+};

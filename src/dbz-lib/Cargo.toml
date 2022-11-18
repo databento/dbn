@@ -12,7 +12,10 @@ categories = ["encoding"]
 
 [features]
 default = []
-python = ["dep:pyo3"]
+python = ["pyo3/extension-module"]
+# `cargo test` fails with linker errors when the extension-module feature is
+# enabled, see https://github.com/PyO3/pyo3/issues/340
+python-test = ["pyo3"]
 
 [dependencies]
 # Databento common definitions
@@ -25,7 +28,7 @@ csv = "1.1.6"
 # logging
 log = "0.4.17"
 # Python bindings for Rust
-pyo3 = { version = "0.17.1", features = ["extension-module"], optional = true }
+pyo3 = { version = "0.17.1", optional = true }
 # Derialization
 serde = { version = "1.0", features = ["derive"] }
 # JSON serialization
