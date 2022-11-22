@@ -8,12 +8,20 @@ use std::{
 use anyhow::{anyhow, Context};
 use databento_defs::record::ConstTypeId;
 use streaming_iterator::StreamingIterator;
-use zstd::Encoder;
+use zstd::{stream::AutoFinishEncoder, Encoder};
 
 use crate::{read::SymbolMapping, Metadata};
 
 pub(crate) const SCHEMA_VERSION: u8 = 1;
-pub(crate) const ZSTD_COMPRESSION_LEVEL: i32 = 0;
+
+/// Create a new Zstd encoder with default settings
+fn new_encoder<'a, W: io::Write>(writer: W) -> anyhow::Result<AutoFinishEncoder<'a, W>> {
+    pub(crate) const ZSTD_COMPRESSION_LEVEL: i32 = 0;
+
+    let mut encoder = Encoder::new(writer, ZSTD_COMPRESSION_LEVEL)?;
+    encoder.include_checksum(true)?;
+    Ok(encoder.auto_finish())
+}
 
 impl Metadata {
     pub(crate) const ZSTD_MAGIC_RANGE: Range<u32> = 0x184D2A50..0x184D2A60;
@@ -45,7 +53,7 @@ impl Metadata {
         writer.write_all(&[0; Self::RESERVED_LEN])?;
         {
             // remaining metadata is compressed
-            let mut zstd_encoder = Encoder::new(&mut writer, ZSTD_COMPRESSION_LEVEL)?.auto_finish();
+            let mut zstd_encoder = new_encoder(&mut writer)?;
             // schema_definition_length
             zstd_encoder.write_all(0u32.to_le_bytes().as_slice())?;
 
@@ -196,9 +204,8 @@ pub fn write_dbz_stream<T>(
 where
     T: ConstTypeId + Sized,
 {
-    let mut encoder = zstd::Encoder::new(writer, ZSTD_COMPRESSION_LEVEL)
-        .with_context(|| "Failed to create Zstd encoder for writing DBZ".to_owned())?
-        .auto_finish();
+    let mut encoder = new_encoder(writer)
+        .with_context(|| "Failed to create Zstd encoder for writing DBZ".to_owned())?;
     while let Some(record) = stream.next() {
         let bytes = unsafe {
             // Safety: all records, types implementing `ConstTypeId` are POD
@@ -223,9 +230,8 @@ pub fn write_dbz<'a, T>(
 where
     T: 'a + ConstTypeId + Sized,
 {
-    let mut encoder = zstd::Encoder::new(writer, ZSTD_COMPRESSION_LEVEL)
-        .with_context(|| "Failed to create Zstd encoder for writing DBZ".to_owned())?
-        .auto_finish();
+    let mut encoder = new_encoder(writer)
+        .with_context(|| "Failed to create Zstd encoder for writing DBZ".to_owned())?;
     for record in iter {
         let bytes = unsafe {
             // Safety: all records, types implementing `ConstTypeId` are POD
