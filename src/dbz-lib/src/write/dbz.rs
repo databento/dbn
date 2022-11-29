@@ -1,22 +1,35 @@
 use std::{
     io::{self, SeekFrom, Write},
+    mem,
     ops::Range,
+    slice,
 };
 
 use anyhow::{anyhow, Context};
+use databento_defs::record::ConstTypeId;
+use streaming_iterator::StreamingIterator;
+use zstd::{stream::AutoFinishEncoder, Encoder};
 
 use crate::{read::SymbolMapping, Metadata};
-use zstd::Encoder;
+
+pub(crate) const SCHEMA_VERSION: u8 = 1;
+
+/// Create a new Zstd encoder with default settings
+fn new_encoder<'a, W: io::Write>(writer: W) -> anyhow::Result<AutoFinishEncoder<'a, W>> {
+    pub(crate) const ZSTD_COMPRESSION_LEVEL: i32 = 0;
+
+    let mut encoder = Encoder::new(writer, ZSTD_COMPRESSION_LEVEL)?;
+    encoder.include_checksum(true)?;
+    Ok(encoder.auto_finish())
+}
 
 impl Metadata {
     pub(crate) const ZSTD_MAGIC_RANGE: Range<u32> = 0x184D2A50..0x184D2A60;
-    pub(crate) const SCHEMA_VERSION: u8 = 1;
     pub(crate) const VERSION_CSTR_LEN: usize = 4;
     pub(crate) const DATASET_CSTR_LEN: usize = 16;
     pub(crate) const RESERVED_LEN: usize = 39;
     pub(crate) const FIXED_METADATA_LEN: usize = 96;
     pub(crate) const SYMBOL_CSTR_LEN: usize = 22;
-    pub(crate) const ZSTD_COMPRESSION_LEVEL: i32 = 0;
 
     pub fn encode(&self, mut writer: impl io::Write + io::Seek) -> anyhow::Result<()> {
         writer.write_all(Self::ZSTD_MAGIC_RANGE.start.to_le_bytes().as_slice())?;
@@ -40,8 +53,7 @@ impl Metadata {
         writer.write_all(&[0; Self::RESERVED_LEN])?;
         {
             // remaining metadata is compressed
-            let mut zstd_encoder =
-                Encoder::new(&mut writer, Self::ZSTD_COMPRESSION_LEVEL)?.auto_finish();
+            let mut zstd_encoder = new_encoder(&mut writer)?;
             // schema_definition_length
             zstd_encoder.write_all(0u32.to_le_bytes().as_slice())?;
 
@@ -60,6 +72,8 @@ impl Metadata {
         // magic number and size aren't included in the metadata size
         let frame_size = (raw_size - 8) as u32;
         writer.write_all(frame_size.to_le_bytes().as_slice())?;
+        // go back to end to leave `writer` in a place for more data to be written
+        writer.seek(SeekFrom::End(0))?;
 
         Ok(())
     }
@@ -178,18 +192,86 @@ impl Metadata {
     }
 }
 
+unsafe fn as_u8_slice<T: Sized>(data: &T) -> &[u8] {
+    slice::from_raw_parts(data as *const T as *const u8, mem::size_of::<T>())
+}
+
+/// Incrementally serializes the records in `iter` in the DBZ format to `writer`.
+pub fn write_dbz_stream<T>(
+    writer: impl io::Write,
+    mut stream: impl StreamingIterator<Item = T>,
+) -> anyhow::Result<()>
+where
+    T: ConstTypeId + Sized,
+{
+    let mut encoder = new_encoder(writer)
+        .with_context(|| "Failed to create Zstd encoder for writing DBZ".to_owned())?;
+    while let Some(record) = stream.next() {
+        let bytes = unsafe {
+            // Safety: all records, types implementing `ConstTypeId` are POD
+            as_u8_slice(record)
+        };
+        match encoder.write_all(bytes) {
+            // closed pipe, should stop writing output
+            Err(e) if e.kind() == io::ErrorKind::BrokenPipe => return Ok(()),
+            r => r,
+        }
+        .with_context(|| "Failed to serialize {record:#?}")?;
+    }
+    encoder.flush()?;
+    Ok(())
+}
+
+/// Incrementally serializes the records in `iter` in the DBZ format to `writer`.
+pub fn write_dbz<'a, T>(
+    writer: impl io::Write,
+    iter: impl Iterator<Item = &'a T>,
+) -> anyhow::Result<()>
+where
+    T: 'a + ConstTypeId + Sized,
+{
+    let mut encoder = new_encoder(writer)
+        .with_context(|| "Failed to create Zstd encoder for writing DBZ".to_owned())?;
+    for record in iter {
+        let bytes = unsafe {
+            // Safety: all records, types implementing `ConstTypeId` are POD
+            as_u8_slice(record)
+        };
+        match encoder.write_all(bytes) {
+            // closed pipe, should stop writing output
+            Err(e) if e.kind() == io::ErrorKind::BrokenPipe => return Ok(()),
+            r => r,
+        }
+        .with_context(|| "Failed to serialize {record:#?}")?;
+    }
+    encoder.flush()?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
-    use std::{io::Seek, mem};
+    use std::{
+        ffi::c_char,
+        fmt,
+        io::{BufWriter, Seek},
+        mem,
+    };
 
-    use databento_defs::enums::{Compression, SType, Schema};
+    use databento_defs::{
+        enums::{Compression, SType, Schema},
+        record::{Mbp1Msg, OhlcvMsg, RecordHeader, StatusMsg, TickMsg, TradeMsg},
+    };
 
-    use crate::read::{FromLittleEndianSlice, MappingInterval};
+    use crate::{
+        read::{FromLittleEndianSlice, MappingInterval},
+        write::test_data::{VecStream, BID_ASK, RECORD_HEADER},
+        DbzStreamIter,
+    };
 
     use super::*;
 
     #[test]
-    fn test_encode_decode_identity() {
+    fn test_encode_decode_metadata_identity() {
         let mut extra = serde_json::Map::default();
         extra.insert(
             "Key".to_owned(),
@@ -344,5 +426,262 @@ mod tests {
         assert_eq!(res.end, new_end);
         assert_eq!(res.limit, new_limit);
         assert_eq!(res.record_count, new_record_count);
+    }
+
+    fn encode_records_and_stub_metadata<T>(schema: Schema, records: Vec<T>) -> (Vec<u8>, Metadata)
+    where
+        T: ConstTypeId + Clone,
+    {
+        let mut buffer = Vec::new();
+        let writer = BufWriter::new(&mut buffer);
+        write_dbz_stream(writer, VecStream::new(records.clone())).unwrap();
+        dbg!(&buffer);
+        let metadata = Metadata {
+            version: 1,
+            dataset: "GLBX.MDP3".to_owned(),
+            schema,
+            start: 0,
+            end: 0,
+            limit: 0,
+            record_count: records.len() as u64,
+            compression: Compression::None,
+            stype_in: SType::Native,
+            stype_out: SType::ProductId,
+            symbols: vec![],
+            partial: vec![],
+            not_found: vec![],
+            mappings: vec![],
+        };
+        (buffer, metadata)
+    }
+
+    fn assert_encode_decode_record_identity<T>(schema: Schema, records: Vec<T>)
+    where
+        T: ConstTypeId + Clone + fmt::Debug + PartialEq,
+    {
+        let (buffer, metadata) = encode_records_and_stub_metadata(schema, records.clone());
+        let mut iter: DbzStreamIter<&[u8], T> =
+            DbzStreamIter::new(buffer.as_slice(), metadata).unwrap();
+        let mut res = Vec::new();
+        while let Some(rec) = iter.next() {
+            res.push(rec.to_owned());
+        }
+        dbg!(&res, &records);
+        assert_eq!(res, records);
+    }
+
+    #[test]
+    fn test_encode_decode_mbo_identity() {
+        let records = vec![
+            TickMsg {
+                hd: RecordHeader {
+                    rtype: TickMsg::TYPE_ID,
+                    ..RECORD_HEADER
+                },
+                order_id: 2,
+                price: 9250000000,
+                size: 25,
+                flags: -128,
+                channel_id: 1,
+                action: 'B' as i8,
+                side: 67,
+                ts_recv: 1658441891000000000,
+                ts_in_delta: 1000,
+                sequence: 98,
+            },
+            TickMsg {
+                hd: RecordHeader {
+                    rtype: TickMsg::TYPE_ID,
+                    ..RECORD_HEADER
+                },
+                order_id: 3,
+                price: 9350000000,
+                size: 800,
+                flags: 0,
+                channel_id: 1,
+                action: 'C' as i8,
+                side: 67,
+                ts_recv: 1658441991000000000,
+                ts_in_delta: 750,
+                sequence: 101,
+            },
+        ];
+        assert_encode_decode_record_identity(Schema::Mbo, records);
+    }
+
+    #[test]
+    fn test_encode_decode_mbp1_identity() {
+        let records = vec![
+            Mbp1Msg {
+                hd: RecordHeader {
+                    rtype: Mbp1Msg::TYPE_ID,
+                    ..RECORD_HEADER
+                },
+                price: 925000000000,
+                size: 300,
+                action: 'S' as i8,
+                side: 67,
+                flags: -128,
+                depth: 1,
+                ts_recv: 1658442001000000000,
+                ts_in_delta: 750,
+                sequence: 100,
+                booklevel: [BID_ASK; 1],
+            },
+            Mbp1Msg {
+                hd: RecordHeader {
+                    rtype: Mbp1Msg::TYPE_ID,
+                    ..RECORD_HEADER
+                },
+                price: 925000000000,
+                size: 50,
+                action: 'B' as i8,
+                side: 67,
+                flags: -128,
+                depth: 1,
+                ts_recv: 1658542001000000000,
+                ts_in_delta: 787,
+                sequence: 101,
+                booklevel: [BID_ASK; 1],
+            },
+        ];
+        assert_encode_decode_record_identity(Schema::Mbp1, records);
+    }
+
+    #[test]
+    fn test_encode_decode_trade_identity() {
+        let records = vec![
+            TradeMsg {
+                hd: RecordHeader {
+                    rtype: TradeMsg::TYPE_ID,
+                    ..RECORD_HEADER
+                },
+                price: 925000000000,
+                size: 1,
+                action: 'T' as i8,
+                side: 'B' as i8,
+                flags: 0,
+                depth: 4,
+                ts_recv: 1658441891000000000,
+                ts_in_delta: 234,
+                sequence: 1005,
+                booklevel: [],
+            },
+            TradeMsg {
+                hd: RecordHeader {
+                    rtype: TradeMsg::TYPE_ID,
+                    ..RECORD_HEADER
+                },
+                price: 925000000000,
+                size: 10,
+                action: 'T' as i8,
+                side: 'S' as i8,
+                flags: 0,
+                depth: 1,
+                ts_recv: 1659441891000000000,
+                ts_in_delta: 10358,
+                sequence: 1010,
+                booklevel: [],
+            },
+        ];
+        assert_encode_decode_record_identity(Schema::Trades, records);
+    }
+
+    #[test]
+    fn test_encode_decode_ohlcv_identity() {
+        let records = vec![
+            OhlcvMsg {
+                hd: RecordHeader {
+                    rtype: OhlcvMsg::TYPE_ID,
+                    ..RECORD_HEADER
+                },
+                open: 92500000000,
+                high: 95200000000,
+                low: 91200000000,
+                close: 91600000000,
+                volume: 6785,
+            },
+            OhlcvMsg {
+                hd: RecordHeader {
+                    rtype: OhlcvMsg::TYPE_ID,
+                    ..RECORD_HEADER
+                },
+                open: 91600000000,
+                high: 95100000000,
+                low: 91600000000,
+                close: 92300000000,
+                volume: 7685,
+            },
+        ];
+        assert_encode_decode_record_identity(Schema::Ohlcv1D, records);
+    }
+
+    #[test]
+    fn test_encode_decode_status_identity() {
+        let mut group = [0; 21];
+        for (i, c) in "group".chars().enumerate() {
+            group[i] = c as c_char;
+        }
+        let records = vec![
+            StatusMsg {
+                hd: RecordHeader {
+                    rtype: StatusMsg::TYPE_ID,
+                    ..RECORD_HEADER
+                },
+                ts_recv: 1658441891000000000,
+                group,
+                trading_status: 3,
+                halt_reason: 4,
+                trading_event: 5,
+            },
+            StatusMsg {
+                hd: RecordHeader {
+                    rtype: StatusMsg::TYPE_ID,
+                    ..RECORD_HEADER
+                },
+                ts_recv: 1658541891000000000,
+                group,
+                trading_status: 4,
+                halt_reason: 5,
+                trading_event: 6,
+            },
+        ];
+        assert_encode_decode_record_identity(Schema::Status, records);
+    }
+
+    #[test]
+    fn test_decode_malformed_encoded_dbz() {
+        let records = vec![
+            OhlcvMsg {
+                hd: RecordHeader {
+                    rtype: OhlcvMsg::TYPE_ID,
+                    ..RECORD_HEADER
+                },
+                open: 92500000000,
+                high: 95200000000,
+                low: 91200000000,
+                close: 91600000000,
+                volume: 6785,
+            },
+            OhlcvMsg {
+                hd: RecordHeader {
+                    rtype: OhlcvMsg::TYPE_ID,
+                    ..RECORD_HEADER
+                },
+                open: 91600000000,
+                high: 95100000000,
+                low: 91600000000,
+                close: 92300000000,
+                volume: 7685,
+            },
+        ];
+        let wrong_schema = Schema::Mbo;
+        let (buffer, metadata) = encode_records_and_stub_metadata(wrong_schema, records);
+        type WrongRecord = TickMsg;
+        let mut iter: DbzStreamIter<&[u8], WrongRecord> =
+            DbzStreamIter::new(buffer.as_slice(), metadata).unwrap();
+        // check doesn't panic
+        assert!(iter.next().is_none());
+        assert!(iter.next().is_none());
     }
 }

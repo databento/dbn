@@ -9,16 +9,19 @@ use std::{
 use anyhow::{anyhow, Context};
 use log::{debug, warn};
 use serde::Serialize;
+use streaming_iterator::StreamingIterator;
 use zstd::Decoder;
 
 use databento_defs::{
     enums::{Compression, SType, Schema},
-    tick::{CommonHeader, Tick},
+    record::{transmute_record_bytes, ConstTypeId},
 };
+
+use crate::write::dbz::SCHEMA_VERSION;
 
 /// Object for reading, parsing, and serializing a Databento Binary Encoding (DBZ) file.
 #[derive(Debug)]
-pub struct Dbz<R: io::Read> {
+pub struct Dbz<R: io::BufRead> {
     reader: R,
     metadata: Metadata,
 }
@@ -30,7 +33,7 @@ pub struct Metadata {
     pub version: u8,
     /// The dataset name.
     pub dataset: String,
-    /// The data record schema. Specifies which tick type is stored in the DBZ file.
+    /// The data record schema. Specifies which record type is stored in the DBZ file.
     pub schema: Schema,
     /// The UNIX nanosecond timestamp of the query start, or the first record if the file was split.
     pub start: u64,
@@ -58,7 +61,10 @@ pub struct Metadata {
 
 /// A native symbol and its symbol mappings for different time ranges within the query range.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[cfg_attr(feature = "python", derive(pyo3::FromPyObject))]
+#[cfg_attr(
+    any(feature = "python", feature = "python-test"),
+    derive(pyo3::FromPyObject)
+)]
 pub struct SymbolMapping {
     /// The native symbol.
     pub native: String,
@@ -118,7 +124,7 @@ impl<R: io::BufRead> Dbz<R> {
         Ok(Self { reader, metadata })
     }
 
-    /// Returns the [`Schema`] of the DBZ data. The schema also indicates the tick type `T` for
+    /// Returns the [`Schema`] of the DBZ data. The schema also indicates the record type `T` for
     /// [`Self::try_into_iter`].
     pub fn schema(&self) -> Schema {
         self.metadata.schema
@@ -129,16 +135,39 @@ impl<R: io::BufRead> Dbz<R> {
         &self.metadata
     }
 
-    /// Try to decode the DBZ file into an iterator. This decodes the data
-    /// lazily.
+    /// Try to decode the DBZ file into a streaming iterator. This decodes the
+    /// data lazily.
     ///
     /// # Errors
-    /// This function will return an error if the zstd portion of the DBZ file was compressed in
-    /// an unexpected manner.
-    pub fn try_into_iter<T: TryFrom<Tick>>(self) -> anyhow::Result<DbzIntoIter<R, T>> {
-        let decoder = Decoder::with_buffer(self.reader)?;
-        Ok(DbzIntoIter {
-            metadata: self.metadata,
+    /// This function will return an error if the zstd portion of the DBZ file
+    /// was compressed in an unexpected manner.
+    pub fn try_into_iter<T: ConstTypeId>(self) -> anyhow::Result<DbzStreamIter<R, T>> {
+        DbzStreamIter::new(self.reader, self.metadata)
+    }
+}
+
+/// A consuming iterator over a [`Dbz`]. Lazily decompresses and translates the contents of the file
+/// or other buffer. This struct is created by the [`Dbz::try_into_iter`] method.
+pub struct DbzStreamIter<R: io::BufRead, T> {
+    /// [`Metadata`] about the file being iterated
+    metadata: Metadata,
+    /// Reference to the underlying [`Dbz`] object.
+    /// Buffered zstd decoder of the DBZ file, so each call to [`DbzStreamIter::next()`] doesn't result in a
+    /// separate system call.
+    decoder: Decoder<'static, R>,
+    /// Number of elements that have been decoded. Used for [`Iterator::size_hint`].
+    i: usize,
+    /// Reusable buffer for reading into.
+    buffer: Vec<u8>,
+    /// Required to associate [`DbzStreamIter`] with a `T`.
+    _item: PhantomData<T>,
+}
+
+impl<R: io::BufRead, T> DbzStreamIter<R, T> {
+    pub(crate) fn new(reader: R, metadata: Metadata) -> anyhow::Result<Self> {
+        let decoder = Decoder::with_buffer(reader)?;
+        Ok(DbzStreamIter {
+            metadata,
             decoder,
             i: 0,
             buffer: vec![0; mem::size_of::<T>()],
@@ -147,39 +176,23 @@ impl<R: io::BufRead> Dbz<R> {
     }
 }
 
-/// A consuming iterator over a [`Dbz`]. Lazily decompresses and translates the contents of the file
-/// or other buffer. This struct is created by the [`Dbz::try_into_iter`] method.
-pub struct DbzIntoIter<R: io::BufRead, T> {
-    /// [`Metadata`] about the file being iterated
-    metadata: Metadata,
-    /// Reference to the underlying [`Dbz`] object.
-    /// Buffered zstd decoder of the DBZ file, so each call to [`DbzIntoIter::next()`] doesn't result in a
-    /// separate system call.
-    decoder: Decoder<'static, R>,
-    /// Number of elements that have been decoded. Used for [`Iterator::size_hint`].
-    i: usize,
-    /// Reusable buffer for reading into.
-    buffer: Vec<u8>,
-    /// Required to associate [`DbzIntoIter`] with a `T`.
-    _item: PhantomData<T>,
-}
-
-impl<R: io::BufRead, T: TryFrom<Tick>> Iterator for DbzIntoIter<R, T> {
+impl<R: io::BufRead, T: ConstTypeId> StreamingIterator for DbzStreamIter<R, T> {
     type Item = T;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.decoder.read_exact(&mut self.buffer).is_err() {
+    fn advance(&mut self) {
+        if let Err(e) = self.decoder.read_exact(&mut self.buffer) {
+            warn!("Failed to read from DBZ decoder: {e:?}");
+            self.i = self.metadata.record_count as usize + 1;
+        }
+        self.i += 1;
+    }
+
+    fn get(&self) -> Option<&Self::Item> {
+        if self.i > self.metadata.record_count as usize {
             return None;
         }
-        let tick = match Tick::new(self.buffer.as_ptr() as *const CommonHeader) {
-            Ok(tick) => tick,
-            Err(e) => {
-                warn!("Unexpected tick value: {e}. Raw buffer: {:?}", self.buffer);
-                return None;
-            }
-        };
-        self.i += 1;
-        T::try_from(tick).ok()
+        // Safety: `buffer` is specifically sized to `T`
+        unsafe { transmute_record_bytes(self.buffer.as_slice()) }
     }
 
     /// Returns the lower bound and upper bounds of remaining length of iterator.
@@ -263,7 +276,7 @@ impl Metadata {
         // Interpret 4th character as an u8, not a char to allow for 254 versions (0 omitted)
         let version = metadata_buffer[pos + 3] as u8;
         // assume not forwards compatible
-        if version > Self::SCHEMA_VERSION {
+        if version > SCHEMA_VERSION {
             return Err(anyhow!("Can't read newer version of DBZ"));
         }
         pos += Self::VERSION_CSTR_LEN;
@@ -454,7 +467,7 @@ impl Metadata {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use databento_defs::tick::{Mbp10Msg, Mbp1Msg, OhlcvMsg, TbboMsg, TickMsg, TradeMsg};
+    use databento_defs::record::{Mbp10Msg, Mbp1Msg, OhlcvMsg, TbboMsg, TickMsg, TradeMsg};
 
     const DBZ_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/data");
 
@@ -463,67 +476,29 @@ mod tests {
     macro_rules! test_reading_dbz {
         // Rust doesn't allow concatenating identifiers in stable rust, so each test case needs
         // to be named explicitly
-        ($test_name:ident, $tick_type:ident, $schema:expr, $file_name:expr) => {
+        ($test_name:ident, $record_type:ident, $schema:expr) => {
             #[test]
             fn $test_name() {
-                let target = Dbz::from_file(format!("{DBZ_PATH}/{}", $file_name)).unwrap();
+                let target =
+                    Dbz::from_file(format!("{DBZ_PATH}/test_data.{}.dbz", $schema.as_str()))
+                        .unwrap();
                 let exp_row_count = target.metadata().record_count;
                 assert_eq!(target.schema(), $schema);
-                let actual_row_count = target.try_into_iter::<$tick_type>().unwrap().count();
+                let actual_row_count = target.try_into_iter::<$record_type>().unwrap().count();
                 assert_eq!(exp_row_count as usize, actual_row_count);
             }
         };
     }
 
-    test_reading_dbz!(test_reading_mbo, TickMsg, Schema::Mbo, "test_data.mbo.dbz");
-    test_reading_dbz!(
-        test_reading_mbp1,
-        Mbp1Msg,
-        Schema::Mbp1,
-        "test_data.mbp-1.dbz"
-    );
-    test_reading_dbz!(
-        test_reading_mbp10,
-        Mbp10Msg,
-        Schema::Mbp10,
-        "test_data.mbp-10.dbz"
-    );
-    test_reading_dbz!(
-        test_reading_ohlcv1d,
-        OhlcvMsg,
-        Schema::Ohlcv1d,
-        "test_data.ohlcv-1d.dbz"
-    );
-    test_reading_dbz!(
-        test_reading_ohlcv1h,
-        OhlcvMsg,
-        Schema::Ohlcv1h,
-        "test_data.ohlcv-1h.dbz"
-    );
-    test_reading_dbz!(
-        test_reading_ohlcv1m,
-        OhlcvMsg,
-        Schema::Ohlcv1m,
-        "test_data.ohlcv-1m.dbz"
-    );
-    test_reading_dbz!(
-        test_reading_ohlcv1s,
-        OhlcvMsg,
-        Schema::Ohlcv1s,
-        "test_data.ohlcv-1s.dbz"
-    );
-    test_reading_dbz!(
-        test_reading_tbbo,
-        TbboMsg,
-        Schema::Tbbo,
-        "test_data.tbbo.dbz"
-    );
-    test_reading_dbz!(
-        test_reading_trades,
-        TradeMsg,
-        Schema::Trades,
-        "test_data.trades.dbz"
-    );
+    test_reading_dbz!(test_reading_mbo, TickMsg, Schema::Mbo);
+    test_reading_dbz!(test_reading_mbp1, Mbp1Msg, Schema::Mbp1);
+    test_reading_dbz!(test_reading_mbp10, Mbp10Msg, Schema::Mbp10);
+    test_reading_dbz!(test_reading_ohlcv1d, OhlcvMsg, Schema::Ohlcv1D);
+    test_reading_dbz!(test_reading_ohlcv1h, OhlcvMsg, Schema::Ohlcv1H);
+    test_reading_dbz!(test_reading_ohlcv1m, OhlcvMsg, Schema::Ohlcv1M);
+    test_reading_dbz!(test_reading_ohlcv1s, OhlcvMsg, Schema::Ohlcv1S);
+    test_reading_dbz!(test_reading_tbbo, TbboMsg, Schema::Tbbo);
+    test_reading_dbz!(test_reading_trades, TradeMsg, Schema::Trades);
 
     #[test]
     fn test_decode_symbol() {

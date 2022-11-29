@@ -1,35 +1,36 @@
 use std::{fmt, io};
 
 use anyhow::Context;
-use serde::{ser::SerializeSeq, Serialize, Serializer};
-
-use databento_defs::tick::Tick;
+use serde::Serialize;
 use serde_json::ser::{Formatter, PrettyFormatter};
+use streaming_iterator::StreamingIterator;
+
+use databento_defs::record::ConstTypeId;
 
 use crate::Metadata;
 
-/// Incrementally serializes the contents of `iter` into JSON to `writer` so the
+/// Incrementally serializes the contents of `iter` into NDJSON to `writer` so the
 /// contents of `iter` are not all buffered into memory at once.
-pub fn write_json<F: Formatter, T>(
+pub fn write_json<F: Clone + Formatter, T>(
     mut writer: impl io::Write,
     formatter: F,
-    iter: impl Iterator<Item = T>,
+    mut iter: impl StreamingIterator<Item = T>,
 ) -> anyhow::Result<()>
 where
-    T: TryFrom<Tick> + Serialize + fmt::Debug,
+    T: ConstTypeId + Serialize + fmt::Debug,
 {
-    let mut serializer = serde_json::Serializer::with_formatter(&mut writer, formatter);
-    let mut sequence = serializer
-        .serialize_seq(iter.size_hint().1)
-        .with_context(|| "Failed to create JSON sequence serializer")?;
-    for tick in iter {
-        sequence
-            .serialize_element(&tick)
-            .with_context(|| format!("Failed to serialize {:#?}", tick))?;
+    while let Some(record) = iter.next() {
+        match record.serialize(&mut serde_json::Serializer::with_formatter(
+            &mut writer,
+            formatter.clone(),
+        )) {
+            // broken output, likely a closed pipe
+            Err(e) if e.is_io() => return Ok(()),
+            r => r,
+        }
+        .with_context(|| format!("Failed to serialize {record:#?}"))?;
+        writer.write_all(b"\n")?;
     }
-    sequence.end()?;
-    // newline at EOF
-    writer.write_all(b"\n")?;
     writer.flush()?;
     Ok(())
 }
@@ -59,25 +60,25 @@ mod tests {
 
     use super::*;
     use crate::{
-        write::test_data::{BID_ASK, COMMON_HEADER},
+        write::test_data::{VecStream, BID_ASK, RECORD_HEADER},
         MappingInterval, SymbolMapping,
     };
     use databento_defs::{
         enums::{Compression, SType, Schema},
-        tick::{Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, SymDefMsg, TickMsg, TradeMsg},
+        record::{Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, SymDefMsg, TickMsg, TradeMsg},
     };
     use serde_json::ser::CompactFormatter;
 
-    fn write_json_to_string<T>(iter: impl Iterator<Item = T>, should_pretty_print: bool) -> String
+    fn write_json_to_string<T>(vec: Vec<T>, should_pretty_print: bool) -> String
     where
-        T: TryFrom<Tick> + Serialize + fmt::Debug,
+        T: ConstTypeId + Serialize + fmt::Debug,
     {
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
         if should_pretty_print {
-            write_json(writer, pretty_formatter(), iter)
+            write_json(writer, pretty_formatter(), VecStream::new(vec))
         } else {
-            write_json(writer, CompactFormatter, iter)
+            write_json(writer, CompactFormatter, VecStream::new(vec))
         }
         .unwrap();
         String::from_utf8(buffer).expect("valid UTF-8")
@@ -96,13 +97,13 @@ mod tests {
     }
 
     const HEADER_JSON: &str =
-        r#""hd":{"publisher_id":1,"product_id":323,"ts_event":1658441851000000000}"#;
-    const BID_ASK_JSON: &str = r#"{"bid_price":372000000000000,"ask_price":372500000000000,"bid_size":10,"ask_size":5,"bid_orders":5,"ask_orders":2}"#;
+        r#""hd":{"rtype":4,"publisher_id":1,"product_id":323,"ts_event":"1658441851000000000"}"#;
+    const BID_ASK_JSON: &str = r#"{"bid_px":372000000000000,"ask_px":372500000000000,"bid_sz":10,"ask_sz":5,"bid_ct":5,"ask_ct":2}"#;
 
     #[test]
     fn test_tick_write_json() {
         let data = vec![TickMsg {
-            hd: COMMON_HEADER,
+            hd: RECORD_HEADER,
             order_id: 16,
             price: 5500,
             size: 3,
@@ -114,13 +115,13 @@ mod tests {
             ts_in_delta: 22_000,
             sequence: 1_002_375,
         }];
-        let res = write_json_to_string(data.into_iter(), false);
+        let res = write_json_to_string(data, false);
 
         assert_eq!(
             res,
             format!(
-                "[{{{HEADER_JSON},{}}}]\n",
-                r#""order_id":16,"price":5500,"size":3,"flags":-128,"channel_id":14,"action":66,"side":67,"ts_recv":1658441891000000000,"ts_in_delta":22000,"sequence":1002375"#
+                "{{{HEADER_JSON},{}}}\n",
+                r#""order_id":16,"price":5500,"size":3,"flags":-128,"channel_id":14,"action":66,"side":67,"ts_recv":"1658441891000000000","ts_in_delta":22000,"sequence":1002375"#
             )
         );
     }
@@ -128,7 +129,7 @@ mod tests {
     #[test]
     fn test_mbo1_write_json() {
         let data = vec![Mbp1Msg {
-            hd: COMMON_HEADER,
+            hd: RECORD_HEADER,
             price: 5500,
             size: 3,
             action: 'B' as i8,
@@ -140,13 +141,13 @@ mod tests {
             sequence: 1_002_375,
             booklevel: [BID_ASK; 1],
         }];
-        let res = write_json_to_string(data.into_iter(), false);
+        let res = write_json_to_string(data, false);
 
         assert_eq!(
             res,
             format!(
-                "[{{{HEADER_JSON},{},{}}}]\n",
-                r#""price":5500,"size":3,"action":66,"side":67,"flags":-128,"depth":9,"ts_recv":1658441891000000000,"ts_in_delta":22000,"sequence":1002375"#,
+                "{{{HEADER_JSON},{},{}}}\n",
+                r#""price":5500,"size":3,"action":66,"side":67,"flags":-128,"depth":9,"ts_recv":"1658441891000000000","ts_in_delta":22000,"sequence":1002375"#,
                 format_args!("\"booklevel\":[{BID_ASK_JSON}]")
             )
         );
@@ -155,7 +156,7 @@ mod tests {
     #[test]
     fn test_mbo10_write_json() {
         let data = vec![Mbp10Msg {
-            hd: COMMON_HEADER,
+            hd: RECORD_HEADER,
             price: 5500,
             size: 3,
             action: 'B' as i8,
@@ -167,13 +168,13 @@ mod tests {
             sequence: 1_002_375,
             booklevel: [BID_ASK; 10],
         }];
-        let res = write_json_to_string(data.into_iter(), false);
+        let res = write_json_to_string(data, false);
 
         assert_eq!(
             res,
             format!(
-                "[{{{HEADER_JSON},{},{}}}]\n",
-                r#""price":5500,"size":3,"action":66,"side":67,"flags":-128,"depth":9,"ts_recv":1658441891000000000,"ts_in_delta":22000,"sequence":1002375"#,
+                "{{{HEADER_JSON},{},{}}}\n",
+                r#""price":5500,"size":3,"action":66,"side":67,"flags":-128,"depth":9,"ts_recv":"1658441891000000000","ts_in_delta":22000,"sequence":1002375"#,
                 format_args!("\"booklevel\":[{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON}]")
             )
         );
@@ -182,7 +183,7 @@ mod tests {
     #[test]
     fn test_trade_write_json() {
         let data = vec![TradeMsg {
-            hd: COMMON_HEADER,
+            hd: RECORD_HEADER,
             price: 5500,
             size: 3,
             action: 'B' as i8,
@@ -194,13 +195,13 @@ mod tests {
             sequence: 1_002_375,
             booklevel: [],
         }];
-        let res = write_json_to_string(data.into_iter(), false);
+        let res = write_json_to_string(data, false);
 
         assert_eq!(
             res,
             format!(
-                "[{{{HEADER_JSON},{}}}]\n",
-                r#""price":5500,"size":3,"action":66,"side":67,"flags":-128,"depth":9,"ts_recv":1658441891000000000,"ts_in_delta":22000,"sequence":1002375"#,
+                "{{{HEADER_JSON},{}}}\n",
+                r#""price":5500,"size":3,"action":66,"side":67,"flags":-128,"depth":9,"ts_recv":"1658441891000000000","ts_in_delta":22000,"sequence":1002375"#,
             )
         );
     }
@@ -208,19 +209,19 @@ mod tests {
     #[test]
     fn test_ohlcv_write_json() {
         let data = vec![OhlcvMsg {
-            hd: COMMON_HEADER,
+            hd: RECORD_HEADER,
             open: 5000,
             high: 8000,
             low: 3000,
             close: 6000,
             volume: 55_000,
         }];
-        let res = write_json_to_string(data.into_iter(), false);
+        let res = write_json_to_string(data, false);
 
         assert_eq!(
             res,
             format!(
-                "[{{{HEADER_JSON},{}}}]\n",
+                "{{{HEADER_JSON},{}}}\n",
                 r#""open":5000,"high":8000,"low":3000,"close":6000,"volume":55000"#,
             )
         );
@@ -233,20 +234,20 @@ mod tests {
             group[i] = c as c_char;
         }
         let data = vec![StatusMsg {
-            hd: COMMON_HEADER,
+            hd: RECORD_HEADER,
             ts_recv: 1658441891000000000,
             group,
             trading_status: 3,
             halt_reason: 4,
             trading_event: 6,
         }];
-        let res = write_json_to_string(data.into_iter(), false);
+        let res = write_json_to_string(data, false);
 
         assert_eq!(
             res,
             format!(
-                "[{{{HEADER_JSON},{}}}]\n",
-                r#""ts_recv":1658441891000000000,"group":"group","trading_status":3,"halt_reason":4,"trading_event":6"#,
+                "{{{HEADER_JSON},{}}}\n",
+                r#""ts_recv":"1658441891000000000","group":"group","trading_status":3,"halt_reason":4,"trading_event":6"#,
             )
         );
     }
@@ -254,7 +255,7 @@ mod tests {
     #[test]
     fn test_symdef_write_json() {
         let data = vec![SymDefMsg {
-            hd: COMMON_HEADER,
+            hd: RECORD_HEADER,
             ts_recv: 1658441891000000000,
             min_price_increment: 100,
             display_factor: 1000,
@@ -317,14 +318,14 @@ mod tests {
             tick_rule: 0,
             _dummy: [0; 3],
         }];
-        let res = write_json_to_string(data.into_iter(), false);
+        let res = write_json_to_string(data, false);
 
         assert_eq!(
             res,
             format!(
-                "[{{{HEADER_JSON},{}}}]\n",
+                "{{{HEADER_JSON},{}}}\n",
                 concat!(
-                    r#""ts_recv":1658441891000000000,"min_price_increment":100,"display_factor":1000,"expiration":1698450000000000000,"activation":1697350000000000000,"#,
+                    r#""ts_recv":"1658441891000000000","min_price_increment":100,"display_factor":1000,"expiration":"1698450000000000000","activation":"1697350000000000000","#,
                     r#""high_limit_price":1000000,"low_limit_price":-1000000,"max_price_variation":0,"trading_reference_price":500000,"unit_of_measure_qty":5,"#,
                     r#""min_price_increment_amount":5,"price_ratio":10,"inst_attrib_value":10,"underlying_id":256785,"cleared_volume":0,"market_depth_implied":0,"#,
                     r#""market_depth":13,"market_segment_id":0,"max_trade_vol":10000,"min_lot_size":1,"min_lot_size_block":1000,"min_lot_size_round_lot":100,"min_trade_vol":1,"#,
@@ -343,7 +344,7 @@ mod tests {
         let metadata = Metadata {
             version: 1,
             dataset: "GLBX.MDP3".to_owned(),
-            schema: Schema::Ohlcv1h,
+            schema: Schema::Ohlcv1H,
             start: 1662734705128748281,
             end: 1662734720914876944,
             limit: 0,

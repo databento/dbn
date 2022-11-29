@@ -1,8 +1,7 @@
 use std::fs;
 use std::io::Read;
-use std::process::Command;
 
-use assert_cmd::prelude::*;
+use assert_cmd::Command;
 use predicates::str::{contains, ends_with, is_empty, starts_with};
 use tempfile::{tempdir, NamedTempFile};
 
@@ -230,7 +229,7 @@ fn pretty_print_data() {
         .args(&[
             &format!("{DBZ_PATH}/test_data.mbo.dbz"),
             "--json",
-            "--pretty-print",
+            "--pretty-json",
         ])
         .assert()
         .success()
@@ -250,6 +249,25 @@ fn pretty_print_data_metadata() {
         ])
         .assert()
         .stderr(is_empty());
+}
+
+#[test]
+fn read_from_stdin() {
+    let path = format!("{DBZ_PATH}/test_data.mbp-10.dbz");
+    let read_from_stdin_output = cmd()
+        .args(&[
+            "-", // STDIN
+            "--json",
+        ])
+        // Pipe input from file
+        .pipe_stdin(&path)
+        .unwrap()
+        .ok()
+        .unwrap();
+    let read_from_file_output = cmd().args(&[&path, "--json"]).ok().unwrap();
+    assert_eq!(read_from_stdin_output.stdout, read_from_file_output.stdout);
+    assert!(read_from_stdin_output.stderr.is_empty());
+    assert!(read_from_file_output.stderr.is_empty());
 }
 
 #[test]

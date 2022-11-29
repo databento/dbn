@@ -1,16 +1,18 @@
 mod csv;
-mod dbz;
+pub(crate) mod dbz;
 mod json;
 
 use std::{fmt, io};
 
 use anyhow::anyhow;
+use serde_json::ser::CompactFormatter;
 
 use databento_defs::{
     enums::Schema,
-    tick::{Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, SymDefMsg, TbboMsg, Tick, TickMsg, TradeMsg},
+    record::{
+        ConstTypeId, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, SymDefMsg, TbboMsg, TickMsg, TradeMsg,
+    },
 };
-use serde_json::ser::CompactFormatter;
 
 use self::{
     csv::{serialize::CsvSerialize, write_csv},
@@ -42,7 +44,7 @@ impl<R: io::BufRead> Dbz<R> {
             Schema::Mbp10 => self.write_with_tick_to::<Mbp10Msg, _>(writer, encoding),
             Schema::Tbbo => self.write_with_tick_to::<TbboMsg, _>(writer, encoding),
             Schema::Trades => self.write_with_tick_to::<TradeMsg, _>(writer, encoding),
-            Schema::Ohlcv1s | Schema::Ohlcv1m | Schema::Ohlcv1h | Schema::Ohlcv1d => {
+            Schema::Ohlcv1S | Schema::Ohlcv1M | Schema::Ohlcv1H | Schema::Ohlcv1D => {
                 self.write_with_tick_to::<OhlcvMsg, _>(writer, encoding)
             }
             Schema::Definition => self.write_with_tick_to::<SymDefMsg, _>(writer, encoding),
@@ -53,7 +55,7 @@ impl<R: io::BufRead> Dbz<R> {
 
     fn write_with_tick_to<T, W>(self, writer: W, encoding: OutputEncoding) -> anyhow::Result<()>
     where
-        T: TryFrom<Tick> + CsvSerialize + fmt::Debug,
+        T: ConstTypeId + CsvSerialize + fmt::Debug,
         W: io::Write,
     {
         let iter = self.try_into_iter::<T>()?;
@@ -102,22 +104,50 @@ impl Metadata {
 
 #[cfg(test)]
 mod test_data {
-    use databento_defs::tick::{BidAskPair, CommonHeader};
+    use databento_defs::record::{BidAskPair, RecordHeader};
+    use streaming_iterator::StreamingIterator;
 
-    pub const COMMON_HEADER: CommonHeader = CommonHeader {
-        nwords: 30,
-        type_: 4,
+    // Common data used in multiple tests
+    pub const RECORD_HEADER: RecordHeader = RecordHeader {
+        length: 30,
+        rtype: 4,
         publisher_id: 1,
         product_id: 323,
         ts_event: 1658441851000000000,
     };
 
     pub const BID_ASK: BidAskPair = BidAskPair {
-        bid_price: 372000000000000,
-        ask_price: 372500000000000,
-        bid_size: 10,
-        ask_size: 5,
-        bid_orders: 5,
-        ask_orders: 2,
+        bid_px: 372000000000000,
+        ask_px: 372500000000000,
+        bid_sz: 10,
+        ask_sz: 5,
+        bid_ct: 5,
+        ask_ct: 2,
     };
+
+    /// A testing shim to get a streaming iterator from a [`Vec`].
+    pub struct VecStream<T> {
+        vec: Vec<T>,
+        idx: isize,
+    }
+
+    impl<T> VecStream<T> {
+        pub fn new(vec: Vec<T>) -> Self {
+            // initialize at -1 because `advance()` is always called before
+            // `get()`.
+            Self { vec, idx: -1 }
+        }
+    }
+
+    impl<T> StreamingIterator for VecStream<T> {
+        type Item = T;
+
+        fn advance(&mut self) {
+            self.idx += 1;
+        }
+
+        fn get(&self) -> Option<&Self::Item> {
+            self.vec.get(self.idx as usize)
+        }
+    }
 }

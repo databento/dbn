@@ -2,12 +2,14 @@
 #[deny(missing_docs)]
 #[deny(rustdoc::broken_intra_doc_links)]
 #[deny(clippy::missing_errors_doc)]
-#[forbid(unsafe_code)]
 mod read;
 mod write;
 
-#[cfg(feature = "python")]
+#[cfg(any(feature = "python", feature = "python-test"))]
 pub mod python;
 
-pub use crate::read::{Dbz, DbzIntoIter, MappingInterval, Metadata, SymbolMapping};
-pub use crate::write::OutputEncoding;
+pub use crate::read::{Dbz, DbzStreamIter, MappingInterval, Metadata, SymbolMapping};
+pub use crate::write::{
+    dbz::{write_dbz, write_dbz_stream},
+    OutputEncoding,
+};

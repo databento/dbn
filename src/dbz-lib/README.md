@@ -10,9 +10,10 @@ To read a DBZ file with MBO data and print each row:
 ```rust
 use databento_defs::tick::TickMsg;
 use dbz_lib::Dbz;
+use streaming_iterator::StreamingIterator;
 
-let dbz = Dbz::from_file("20201228.dbz")?;
-for tick in dbz.try_into_iter::<TickMsg>() {
+let dbz = Dbz::from_file("20201228.dbz")?.try_into_iter::<TickMsg>()?;
+while let Some(tick) = dbz.next() {
     println!("{tick:?}");
 }
 ```
