@@ -52,7 +52,10 @@ jobs:
 
       # Run tests
       - name: Run tests
-        run: cargo test --all-features
+        run: |
+          cargo test
+          cd src/dbz-lib
+          cargo test --features python-test
 
       # Tag the commit with the library version
       - name: Create git tag
