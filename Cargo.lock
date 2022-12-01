@@ -156,8 +156,9 @@ dependencies = [
 
 [[package]]
 name = "databento-defs"
-version = "0.3.0"
-source = "git+https://github.com/databento/databento-defs?branch=dev#bacb7dca09853b365bc4c8607d9bbb9f981fd20f"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f25485834e9e4d65ae6d038fc54b509e0f8b6a18f0544dd8da78e686ad47f419"
 dependencies = [
  "num_enum",
  "serde",

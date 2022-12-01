@@ -65,7 +65,10 @@ mod tests {
     };
     use databento_defs::{
         enums::{Compression, SType, Schema},
-        record::{Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, SymDefMsg, TickMsg, TradeMsg},
+        record::{
+            Mbp10Msg, Mbp1Msg, OhlcvMsg, SecurityUpdateAction, StatusMsg, SymDefMsg, TickMsg,
+            TradeMsg,
+        },
     };
     use serde_json::ser::CompactFormatter;
 
@@ -308,7 +311,7 @@ mod tests {
             settl_price_type: 9,
             sub_fraction: 23,
             underlying_product: 10,
-            security_update_action: 7,
+            security_update_action: SecurityUpdateAction::Invalid,
             maturity_month_month: 8,
             maturity_month_day: 9,
             maturity_month_week: 11,
@@ -332,7 +335,7 @@ mod tests {
                     r#""open_interest_qty":0,"contract_multiplier":0,"decay_quantity":0,"original_contract_size":0,"related_security_id":0,"trading_reference_date":0,"appl_id":0,"#,
                     r#""maturity_month_year":0,"decay_start_date":0,"chan":4,"currency":"","settl_currency":"USD","secsubtype":"","symbol":"","group":"","exchange":"","asset":"","cfi":"","#,
                     r#""security_type":"","unit_of_measure":"","underlying":"","related":"","match_algorithm":1,"md_security_trading_status":2,"main_fraction":4,"price_display_format":8,"#,
-                    r#""settl_price_type":9,"sub_fraction":23,"underlying_product":10,"security_update_action":7,"maturity_month_month":8,"maturity_month_day":9,"maturity_month_week":11,"#,
+                    r#""settl_price_type":9,"sub_fraction":23,"underlying_product":10,"security_update_action":"Invalid","maturity_month_month":8,"maturity_month_day":9,"maturity_month_week":11,"#,
                     r#""user_defined_instrument":1,"contract_multiplier_unit":0,"flow_schedule_type":5,"tick_rule":0"#
                 )
             )

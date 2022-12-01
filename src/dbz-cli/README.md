@@ -1,5 +1,9 @@
 # dbz-cli
 
+[![build](https://github.com/databento/dbz/actions/workflows/build.yml/badge.svg)](https://github.com/databento/dbz/actions/workflows/build.yml)
+![license](https://img.shields.io/github/license/databento/dbz?color=blue)
+[![Current Crates.io Version](https://img.shields.io/crates/v/dbz-lib.svg)](https://crates.io/crates/dbz-lib)
+
 This crate provides a CLI tool `dbz` for converting the Databento Binary
 Encoding (DBZ) files to text formats. This tool is heavily inspired by the
 [`zstd` CLI](https://github.com/facebook/zstd).

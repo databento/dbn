@@ -328,7 +328,7 @@ mod tests {
     use super::*;
     use crate::write::test_data::{VecStream, BID_ASK, RECORD_HEADER};
     use databento_defs::record::{
-        Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, SymDefMsg, TickMsg, TradeMsg,
+        Mbp10Msg, Mbp1Msg, OhlcvMsg, SecurityUpdateAction, StatusMsg, SymDefMsg, TickMsg, TradeMsg,
     };
     use std::{io::BufWriter, os::raw::c_char};
 
@@ -545,7 +545,7 @@ mod tests {
             settl_price_type: 9,
             sub_fraction: 23,
             underlying_product: 10,
-            security_update_action: 7,
+            security_update_action: SecurityUpdateAction::Invalid,
             maturity_month_month: 8,
             maturity_month_day: 9,
             maturity_month_week: 11,
@@ -559,6 +559,6 @@ mod tests {
         let writer = BufWriter::new(&mut buffer);
         write_csv(writer, VecStream::new(data)).unwrap();
         let line = extract_2nd_line(buffer);
-        assert_eq!(line, format!("{HEADER_CSV},1658441891000000000,100,1000,1698450000000000000,1697350000000000000,1000000,-1000000,0,500000,5,5,10,10,256785,0,0,13,0,10000,1,1000,100,1,0,0,0,0,0,0,0,0,0,4,,USD,,,,,,,,,,,1,2,4,8,9,23,10,7,8,9,11,1,0,5,0"));
+        assert_eq!(line, format!("{HEADER_CSV},1658441891000000000,100,1000,1698450000000000000,1697350000000000000,1000000,-1000000,0,500000,5,5,10,10,256785,0,0,13,0,10000,1,1000,100,1,0,0,0,0,0,0,0,0,0,4,,USD,,,,,,,,,,,1,2,4,8,9,23,10,Invalid,8,9,11,1,0,5,0"));
     }
 }
