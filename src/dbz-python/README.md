@@ -1,6 +1,47 @@
 # dbz-python
 
+[![build](https://github.com/databento/dbz/actions/workflows/build.yml/badge.svg)](https://github.com/databento/dbz/actions/workflows/build.yml)
+![license](https://img.shields.io/github/license/databento/dbz?color=blue)
+![pypi-version](https://img.shields.io/pypi/v/dbz_python)
+
 Python bindings for the `dbz-lib` Rust library.
+Used by the [Databento Python client library](https://github.com/databento/databento-python).
+
+Using this crate is for advanced users and is not fully documented or supported.
+
+## Installation
+
+To install the latest stable version from PyPI:
+```sh
+pip install -U dbz-python
+```
+
+## Usage
+
+To read the metadata from a DBZ file into a `dict`, read the raw bytes and pass them to `decode_metadata`.
+```python
+from dbz_python import decode_metadata
+
+with open("my.dbz", "rb") as fin:
+    metadata = decode_metadata(fin.read())
+# Print symbology mappings
+print(metadata["mappings"])
+```
+
+You can write DBZ files using `write_dbz_file`:
+```python
+from dbz_python import write_dbz_file
+
+records = [
+    {"rtype": 160, "publisher_id": 1, "product_id": 1, "ts_event": 647784973705, "order_id": 1,
+     "price": 3723000000000, "size": 1, "flags": -128, "channel_id": 0, "action": ord('C'),
+     "side": ord('A'), "ts_recv": 1609160400000704060, "ts_in_delta": 0, "sequence": 1170352}
+]
+with open("my.dbz", "wb") as out:
+    write_dbz_file(file=out, schema="mbo", dataset="custom", records=records, stype="product_id")
+```
+Note that the keys in the dictionaries in `records` must match the field names of the schema, or
+the function will raise a `KeyError`.
 
 ## Building
 

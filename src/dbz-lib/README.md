@@ -1,5 +1,9 @@
 # dbz-lib
 
+[![build](https://github.com/databento/dbz/actions/workflows/build.yml/badge.svg)](https://github.com/databento/dbz/actions/workflows/build.yml)
+![license](https://img.shields.io/github/license/databento/dbz?color=blue)
+[![Current Crates.io Version](https://img.shields.io/crates/v/dbz-lib.svg)](https://crates.io/crates/dbz-lib)
+
 The official library for working with the Databento Binary Encoding (DBZ) format.
 
 ## Usage
@@ -18,11 +22,9 @@ while let Some(tick) = dbz.next() {
 }
 ```
 
-The documentation provides an overview of all methods and features.
-
 ## Documentation
 
-FIXME: when prepping to release to crates.io
+See [the docs](https://docs.rs/dbz-lib) for more detailed usage.
 
 ## Building
 
