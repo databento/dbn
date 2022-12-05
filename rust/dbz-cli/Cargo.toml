@@ -17,7 +17,7 @@ path = "src/main.rs"
 
 [dependencies]
 # Databento common DBZ library
-dbz-lib = { path = "../dbz-lib", version = "0.2.1" }
+dbz = { path = "../dbz", version = "0.2.1" }
 
 # Error handling
 anyhow = "1.0.58"

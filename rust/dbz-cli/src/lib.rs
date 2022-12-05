@@ -84,15 +84,15 @@ impl Args {
     }
 }
 
-pub fn infer_encoding(args: &Args) -> anyhow::Result<dbz_lib::OutputEncoding> {
+pub fn infer_encoding(args: &Args) -> anyhow::Result<dbz::OutputEncoding> {
     match args.output_encoding() {
-        OutputEncoding::Csv => Ok(dbz_lib::OutputEncoding::Csv),
-        OutputEncoding::Json => Ok(dbz_lib::OutputEncoding::Json {
+        OutputEncoding::Csv => Ok(dbz::OutputEncoding::Csv),
+        OutputEncoding::Json => Ok(dbz::OutputEncoding::Json {
             should_pretty_print: args.should_pretty_print,
         }),
         OutputEncoding::Infer => match args.output.as_ref().and_then(|o| o.extension()) {
-            Some(ext) if ext == "csv" => Ok(dbz_lib::OutputEncoding::Csv),
-            Some(ext) if ext == "json" => Ok(dbz_lib::OutputEncoding::Json {
+            Some(ext) if ext == "csv" => Ok(dbz::OutputEncoding::Csv),
+            Some(ext) if ext == "json" => Ok(dbz::OutputEncoding::Json {
                 should_pretty_print: args.should_pretty_print,
             }),
             Some(ext) => Err(anyhow!(

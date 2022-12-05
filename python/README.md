@@ -1,10 +1,10 @@
-# dbz-python
+# databento-dbz
 
 [![build](https://github.com/databento/dbz/actions/workflows/build.yml/badge.svg)](https://github.com/databento/dbz/actions/workflows/build.yml)
 ![license](https://img.shields.io/github/license/databento/dbz?color=blue)
-![pypi-version](https://img.shields.io/pypi/v/dbz_python)
+![pypi-version](https://img.shields.io/pypi/v/databento_dbz)
 
-Python bindings for the `dbz-lib` Rust library.
+Python bindings for the `dbz` Rust library.
 Used by the [Databento Python client library](https://github.com/databento/databento-python).
 
 Using this crate is for advanced users and is not fully documented or supported.
@@ -13,14 +13,14 @@ Using this crate is for advanced users and is not fully documented or supported.
 
 To install the latest stable version from PyPI:
 ```sh
-pip install -U dbz-python
+pip install -U databento-dbz
 ```
 
 ## Usage
 
 To read the metadata from a DBZ file into a `dict`, read the raw bytes and pass them to `decode_metadata`.
 ```python
-from dbz_python import decode_metadata
+from databento_dbz import decode_metadata
 
 with open("my.dbz", "rb") as fin:
     metadata = decode_metadata(fin.read())
@@ -30,7 +30,7 @@ print(metadata["mappings"])
 
 You can write DBZ files using `write_dbz_file`:
 ```python
-from dbz_python import write_dbz_file
+from databento_dbz import write_dbz_file
 
 records = [
     {"rtype": 160, "publisher_id": 1, "product_id": 1, "ts_event": 647784973705, "order_id": 1,
@@ -45,7 +45,7 @@ the function will raise a `KeyError`.
 
 ## Building
 
-`dbz-python` is written in Rust, so you'll need to have [Rust installed](https://www.rust-lang.org/)
+`databento-dbz` is written in Rust, so you'll need to have [Rust installed](https://www.rust-lang.org/)
 as well as [Maturin](https://github.com/PyO3/maturin).
 
 To build, run the following commands:
@@ -59,7 +59,7 @@ To build the Python package and install it for the active Python interpreter in 
 ```sh
 maturin develop
 ```
-This will install a package named `dbz_python` in your current Python environment.
+This will install a package named `databento-dbz` in your current Python environment.
 
 ## License
 

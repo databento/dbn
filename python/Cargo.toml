@@ -1,5 +1,5 @@
 [package]
-name = "dbz-python"
+name = "databento-dbz"
 authors = ["Databento <support@databento.com>"]
 version = "0.2.1"
 edition = "2021"
@@ -8,13 +8,13 @@ license = "Apache-2.0"
 repository = "https://github.com/databento/dbz"
 
 [lib]
-name = "dbz_python" # Python modules can't contain dashes
+name = "databento_dbz" # Python modules can't contain dashes
 # 'cdylib' for PyO3 support
 crate-type = ["cdylib"]
 
 [dependencies]
 # DBZ library
-dbz-lib = { path = "../dbz-lib", features = [ "python" ] }
+dbz = { path = "../rust/dbz", features = [ "python" ] }
 # Python bindings for Rust
 pyo3 = { version = "0.17.1", features = ["extension-module"] }
 

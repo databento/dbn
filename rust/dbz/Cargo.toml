@@ -1,5 +1,5 @@
 [package]
-name = "dbz-lib"
+name = "dbz"
 authors = ["Databento <support@databento.com>"]
 version = "0.2.1"
 edition = "2021"

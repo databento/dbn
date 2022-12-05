@@ -1,5 +1,5 @@
-//! Python wrappers around dbz_lib functions. These are implemented here instead of `dbz-python`
-//! to be able to implement `pyo3` traits for `dbz_lib` types.
+//! Python wrappers around dbz functions. These are implemented here instead of in `python/`
+//! to be able to implement `pyo3` traits for `dbz` types.
 #![allow(clippy::borrow_deref_ref)]
 use std::ffi::c_char;
 use std::mem;

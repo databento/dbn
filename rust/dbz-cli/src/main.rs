@@ -1,8 +1,8 @@
 use std::io;
 
 use clap::Parser;
+use dbz::Dbz;
 use dbz_cli::{infer_encoding, output_from_args, Args};
-use dbz_lib::Dbz;
 
 fn write_dbz<R: io::BufRead>(dbz: Dbz<R>, args: &Args) -> anyhow::Result<()> {
     let writer = output_from_args(args)?;

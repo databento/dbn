@@ -2,11 +2,12 @@
 
 [![build](https://github.com/databento/dbz/actions/workflows/build.yml/badge.svg)](https://github.com/databento/dbz/actions/workflows/build.yml)
 ![license](https://img.shields.io/github/license/databento/dbz?color=blue)
-[![Current Crates.io Version](https://img.shields.io/crates/v/dbz-lib.svg)](https://crates.io/crates/dbz-lib)
+[![Current Crates.io Version](https://img.shields.io/crates/v/dbz.svg)](https://crates.io/crates/dbz)
+![pypi-version](https://img.shields.io/pypi/v/databento_dbz)
 
-A library (`dbz-lib`) and CLI tool (`dbz-cli`) for working with Databento Binary
+A library (`dbz`) and CLI tool (`dbz`) for working with Databento Binary
 Encoding (DBZ) files.
-Python bindings for `dbz-lib` are provided in the `dbz-python` package.
+Python bindings for `dbz` are provided in the `databento-dbz` package.
 
 The **D**atabento **B**inary Encoding + **Z**standard compression (DBZ) is an efficient
 highly compressible binary encoding suitable for bulk financial time series data,
@@ -26,34 +27,9 @@ compressed, however the symbology portion is.
 ## Usage
 
 See the respective READMEs for usage details:
-- [`dbz-cli`](src/dbz-cli/README.md)
-- [`dbz-lib`](src/dbz-lib/README.md)
-- [`dbz-python`](src/dbz-python/README.md)
-
-## Building
-
-`dbz` is written in Rust, so you'll need to have [Rust installed](https://www.rust-lang.org/)
-first.
-
-To build, run the following commands:
-```sh
-git clone https://github.com/databento/dbz
-cd dbz
-cargo build --release
-./target/release/dbz --help
-```
-
-For the Python bindings, you'll need [Maturin](https://github.com/PyO3/maturin) installed as well.
-To install the bindings for your active Python environment, run the following:
-
-```sh
-maturin develop --release
-python -c 'import dbz_python'""
-```
-
-## Testing
-
-Tests are run through `cargo test`.
+- [`dbz`](rust/dbz/README.md)
+- [`dbz-cli`](rust/dbz-cli/README.md)
+- [`databento-dbz`](python/README.md)
 
 # License
 

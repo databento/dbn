@@ -54,7 +54,7 @@ jobs:
       - name: Run tests
         run: |
           cargo test
-          cd src/dbz-lib
+          cd rust/dbz
           cargo test --features python-test
 
       # Tag the commit with the library version
