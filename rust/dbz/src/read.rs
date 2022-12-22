@@ -274,7 +274,7 @@ impl Metadata {
             return Err(anyhow!("Invalid version string"));
         }
         // Interpret 4th character as an u8, not a char to allow for 254 versions (0 omitted)
-        let version = metadata_buffer[pos + 3] as u8;
+        let version = metadata_buffer[pos + 3];
         // assume not forwards compatible
         if version > SCHEMA_VERSION {
             return Err(anyhow!("Can't read newer version of DBZ"));
