@@ -10,7 +10,8 @@ use serde_json::ser::CompactFormatter;
 use databento_defs::{
     enums::Schema,
     record::{
-        ConstTypeId, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, SymDefMsg, TbboMsg, TickMsg, TradeMsg,
+        ConstTypeId, InstrumentDefMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, TbboMsg, TickMsg,
+        TradeMsg,
     },
 };
 
@@ -47,7 +48,7 @@ impl<R: io::BufRead> Dbz<R> {
             Schema::Ohlcv1S | Schema::Ohlcv1M | Schema::Ohlcv1H | Schema::Ohlcv1D => {
                 self.write_with_tick_to::<OhlcvMsg, _>(writer, encoding)
             }
-            Schema::Definition => self.write_with_tick_to::<SymDefMsg, _>(writer, encoding),
+            Schema::Definition => self.write_with_tick_to::<InstrumentDefMsg, _>(writer, encoding),
             Schema::Statistics => Err(anyhow!("Not implemented for schema Statistics")),
             Schema::Status => self.write_with_tick_to::<StatusMsg, _>(writer, encoding),
         }

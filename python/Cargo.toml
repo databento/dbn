@@ -16,7 +16,7 @@ crate-type = ["cdylib"]
 # DBZ library
 dbz = { path = "../rust/dbz", features = [ "python" ] }
 # Python bindings for Rust
-pyo3 = { version = "0.17.1", features = ["extension-module"] }
+pyo3 = { version = "0.17.3", features = ["extension-module"] }
 
 [build-dependencies]
-pyo3-build-config = { version = "0.17.1" }
+pyo3-build-config = { version = "0.17.3" }

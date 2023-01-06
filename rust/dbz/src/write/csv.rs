@@ -40,7 +40,7 @@ where
 pub mod serialize {
     use csv::Writer;
     use databento_defs::record::{
-        Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, SymDefMsg, TickMsg, TradeMsg,
+        InstrumentDefMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, TickMsg, TradeMsg,
     };
     use serde::Serialize;
     use std::{fmt, io};
@@ -253,7 +253,7 @@ pub mod serialize {
         ];
     }
 
-    impl CsvSerialize for SymDefMsg {
+    impl CsvSerialize for InstrumentDefMsg {
         const HEADERS: &'static [&'static str] = &[
             "rtype",
             "publisher_id",
@@ -289,9 +289,9 @@ pub mod serialize {
             "related_security_id",
             "trading_reference_date",
             "appl_id",
-            "maturity_month_year",
+            "maturity_year",
             "decay_start_date",
-            "chan",
+            "channel_id",
             "currency",
             "settl_currency",
             "secsubtype",
@@ -312,9 +312,9 @@ pub mod serialize {
             "sub_fraction",
             "underlying_product",
             "security_update_action",
-            "maturity_month_month",
-            "maturity_month_day",
-            "maturity_month_week",
+            "maturity_month",
+            "maturity_day",
+            "maturity_week",
             "user_defined_instrument",
             "contract_multiplier_unit",
             "flow_schedule_type",
@@ -328,7 +328,8 @@ mod tests {
     use super::*;
     use crate::write::test_data::{VecStream, BID_ASK, RECORD_HEADER};
     use databento_defs::record::{
-        Mbp10Msg, Mbp1Msg, OhlcvMsg, SecurityUpdateAction, StatusMsg, SymDefMsg, TickMsg, TradeMsg,
+        InstrumentDefMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, SecurityUpdateAction, StatusMsg, TickMsg,
+        TradeMsg,
     };
     use std::{io::BufWriter, os::raw::c_char};
 
@@ -353,7 +354,7 @@ mod tests {
             order_id: 16,
             price: 5500,
             size: 3,
-            flags: -128,
+            flags: 128,
             channel_id: 14,
             action: 'B' as i8,
             side: 67,
@@ -367,7 +368,7 @@ mod tests {
         let line = extract_2nd_line(buffer);
         assert_eq!(
             line,
-            format!("{HEADER_CSV},16,5500,3,-128,14,66,67,1658441891000000000,22000,1002375")
+            format!("{HEADER_CSV},16,5500,3,128,14,66,67,1658441891000000000,22000,1002375")
         );
     }
 
@@ -379,7 +380,7 @@ mod tests {
             size: 3,
             action: 'B' as i8,
             side: 67,
-            flags: -128,
+            flags: 128,
             depth: 9,
             ts_recv: 1658441891000000000,
             ts_in_delta: 22_000,
@@ -393,7 +394,7 @@ mod tests {
         assert_eq!(
             line,
             format!(
-                "{HEADER_CSV},5500,3,66,67,-128,9,1658441891000000000,22000,1002375,{BID_ASK_CSV}"
+                "{HEADER_CSV},5500,3,66,67,128,9,1658441891000000000,22000,1002375,{BID_ASK_CSV}"
             )
         );
     }
@@ -406,7 +407,7 @@ mod tests {
             size: 3,
             action: 'B' as i8,
             side: 67,
-            flags: -128,
+            flags: 128,
             depth: 9,
             ts_recv: 1658441891000000000,
             ts_in_delta: 22_000,
@@ -419,7 +420,7 @@ mod tests {
         let line = extract_2nd_line(buffer);
         assert_eq!(
             line,
-            format!("{HEADER_CSV},5500,3,66,67,-128,9,1658441891000000000,22000,1002375,{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV}")
+            format!("{HEADER_CSV},5500,3,66,67,128,9,1658441891000000000,22000,1002375,{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV}")
         );
     }
 
@@ -431,7 +432,7 @@ mod tests {
             size: 3,
             action: 'B' as i8,
             side: 67,
-            flags: -128,
+            flags: 128,
             depth: 9,
             ts_recv: 1658441891000000000,
             ts_in_delta: 22_000,
@@ -444,7 +445,7 @@ mod tests {
         let line = extract_2nd_line(buffer);
         assert_eq!(
             line,
-            format!("{HEADER_CSV},5500,3,66,67,-128,9,1658441891000000000,22000,1002375")
+            format!("{HEADER_CSV},5500,3,66,67,128,9,1658441891000000000,22000,1002375")
         );
     }
 
@@ -490,8 +491,8 @@ mod tests {
     }
 
     #[test]
-    fn test_sym_def_write_csv() {
-        let data = vec![SymDefMsg {
+    fn test_instrument_def_write_csv() {
+        let data = vec![InstrumentDefMsg {
             hd: RECORD_HEADER,
             ts_recv: 1658441891000000000,
             min_price_increment: 100,
@@ -523,9 +524,9 @@ mod tests {
             related_security_id: 0,
             trading_reference_date: 0,
             appl_id: 0,
-            maturity_month_year: 0,
+            maturity_year: 0,
             decay_start_date: 0,
-            chan: 4,
+            channel_id: 4,
             currency: [0; 4],
             settl_currency: ['U' as c_char, 'S' as c_char, 'D' as c_char, 0],
             secsubtype: [0; 6],
@@ -546,9 +547,9 @@ mod tests {
             sub_fraction: 23,
             underlying_product: 10,
             security_update_action: SecurityUpdateAction::Invalid,
-            maturity_month_month: 8,
-            maturity_month_day: 9,
-            maturity_month_week: 11,
+            maturity_month: 8,
+            maturity_day: 9,
+            maturity_week: 11,
             user_defined_instrument: 1,
             contract_multiplier_unit: 0,
             flow_schedule_type: 5,

@@ -66,8 +66,8 @@ mod tests {
     use databento_defs::{
         enums::{Compression, SType, Schema},
         record::{
-            Mbp10Msg, Mbp1Msg, OhlcvMsg, SecurityUpdateAction, StatusMsg, SymDefMsg, TickMsg,
-            TradeMsg,
+            InstrumentDefMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, SecurityUpdateAction, StatusMsg,
+            TickMsg, TradeMsg,
         },
     };
     use serde_json::ser::CompactFormatter;
@@ -110,7 +110,7 @@ mod tests {
             order_id: 16,
             price: 5500,
             size: 3,
-            flags: -128,
+            flags: 128,
             channel_id: 14,
             action: 'B' as i8,
             side: 67,
@@ -124,7 +124,7 @@ mod tests {
             res,
             format!(
                 "{{{HEADER_JSON},{}}}\n",
-                r#""order_id":16,"price":5500,"size":3,"flags":-128,"channel_id":14,"action":66,"side":67,"ts_recv":"1658441891000000000","ts_in_delta":22000,"sequence":1002375"#
+                r#""order_id":16,"price":5500,"size":3,"flags":128,"channel_id":14,"action":66,"side":67,"ts_recv":"1658441891000000000","ts_in_delta":22000,"sequence":1002375"#
             )
         );
     }
@@ -137,7 +137,7 @@ mod tests {
             size: 3,
             action: 'B' as i8,
             side: 67,
-            flags: -128,
+            flags: 128,
             depth: 9,
             ts_recv: 1658441891000000000,
             ts_in_delta: 22_000,
@@ -150,7 +150,7 @@ mod tests {
             res,
             format!(
                 "{{{HEADER_JSON},{},{}}}\n",
-                r#""price":5500,"size":3,"action":66,"side":67,"flags":-128,"depth":9,"ts_recv":"1658441891000000000","ts_in_delta":22000,"sequence":1002375"#,
+                r#""price":5500,"size":3,"action":66,"side":67,"flags":128,"depth":9,"ts_recv":"1658441891000000000","ts_in_delta":22000,"sequence":1002375"#,
                 format_args!("\"booklevel\":[{BID_ASK_JSON}]")
             )
         );
@@ -164,7 +164,7 @@ mod tests {
             size: 3,
             action: 'B' as i8,
             side: 67,
-            flags: -128,
+            flags: 128,
             depth: 9,
             ts_recv: 1658441891000000000,
             ts_in_delta: 22_000,
@@ -177,7 +177,7 @@ mod tests {
             res,
             format!(
                 "{{{HEADER_JSON},{},{}}}\n",
-                r#""price":5500,"size":3,"action":66,"side":67,"flags":-128,"depth":9,"ts_recv":"1658441891000000000","ts_in_delta":22000,"sequence":1002375"#,
+                r#""price":5500,"size":3,"action":66,"side":67,"flags":128,"depth":9,"ts_recv":"1658441891000000000","ts_in_delta":22000,"sequence":1002375"#,
                 format_args!("\"booklevel\":[{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON}]")
             )
         );
@@ -191,7 +191,7 @@ mod tests {
             size: 3,
             action: 'B' as i8,
             side: 67,
-            flags: -128,
+            flags: 128,
             depth: 9,
             ts_recv: 1658441891000000000,
             ts_in_delta: 22_000,
@@ -204,7 +204,7 @@ mod tests {
             res,
             format!(
                 "{{{HEADER_JSON},{}}}\n",
-                r#""price":5500,"size":3,"action":66,"side":67,"flags":-128,"depth":9,"ts_recv":"1658441891000000000","ts_in_delta":22000,"sequence":1002375"#,
+                r#""price":5500,"size":3,"action":66,"side":67,"flags":128,"depth":9,"ts_recv":"1658441891000000000","ts_in_delta":22000,"sequence":1002375"#,
             )
         );
     }
@@ -256,8 +256,8 @@ mod tests {
     }
 
     #[test]
-    fn test_symdef_write_json() {
-        let data = vec![SymDefMsg {
+    fn test_instrument_def_write_json() {
+        let data = vec![InstrumentDefMsg {
             hd: RECORD_HEADER,
             ts_recv: 1658441891000000000,
             min_price_increment: 100,
@@ -289,9 +289,9 @@ mod tests {
             related_security_id: 0,
             trading_reference_date: 0,
             appl_id: 0,
-            maturity_month_year: 0,
+            maturity_year: 0,
             decay_start_date: 0,
-            chan: 4,
+            channel_id: 4,
             currency: [0; 4],
             settl_currency: ['U' as c_char, 'S' as c_char, 'D' as c_char, 0],
             secsubtype: [0; 6],
@@ -312,9 +312,9 @@ mod tests {
             sub_fraction: 23,
             underlying_product: 10,
             security_update_action: SecurityUpdateAction::Invalid,
-            maturity_month_month: 8,
-            maturity_month_day: 9,
-            maturity_month_week: 11,
+            maturity_month: 8,
+            maturity_day: 9,
+            maturity_week: 11,
             user_defined_instrument: 1,
             contract_multiplier_unit: 0,
             flow_schedule_type: 5,
@@ -333,9 +333,9 @@ mod tests {
                     r#""min_price_increment_amount":5,"price_ratio":10,"inst_attrib_value":10,"underlying_id":256785,"cleared_volume":0,"market_depth_implied":0,"#,
                     r#""market_depth":13,"market_segment_id":0,"max_trade_vol":10000,"min_lot_size":1,"min_lot_size_block":1000,"min_lot_size_round_lot":100,"min_trade_vol":1,"#,
                     r#""open_interest_qty":0,"contract_multiplier":0,"decay_quantity":0,"original_contract_size":0,"related_security_id":0,"trading_reference_date":0,"appl_id":0,"#,
-                    r#""maturity_month_year":0,"decay_start_date":0,"chan":4,"currency":"","settl_currency":"USD","secsubtype":"","symbol":"","group":"","exchange":"","asset":"","cfi":"","#,
+                    r#""maturity_year":0,"decay_start_date":0,"channel_id":4,"currency":"","settl_currency":"USD","secsubtype":"","symbol":"","group":"","exchange":"","asset":"","cfi":"","#,
                     r#""security_type":"","unit_of_measure":"","underlying":"","related":"","match_algorithm":1,"md_security_trading_status":2,"main_fraction":4,"price_display_format":8,"#,
-                    r#""settl_price_type":9,"sub_fraction":23,"underlying_product":10,"security_update_action":"Invalid","maturity_month_month":8,"maturity_month_day":9,"maturity_month_week":11,"#,
+                    r#""settl_price_type":9,"sub_fraction":23,"underlying_product":10,"security_update_action":"Invalid","maturity_month":8,"maturity_day":9,"maturity_week":11,"#,
                     r#""user_defined_instrument":1,"contract_multiplier_unit":0,"flow_schedule_type":5,"tick_rule":0"#
                 )
             )
