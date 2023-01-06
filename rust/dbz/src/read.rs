@@ -467,7 +467,9 @@ impl Metadata {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use databento_defs::record::{Mbp10Msg, Mbp1Msg, OhlcvMsg, TbboMsg, TickMsg, TradeMsg};
+    use databento_defs::record::{
+        Mbp10Msg, Mbp1Msg, OhlcvMsg, SymDefMsg, TbboMsg, TickMsg, TradeMsg,
+    };
 
     const DBZ_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/data");
 
@@ -499,6 +501,7 @@ mod tests {
     test_reading_dbz!(test_reading_ohlcv1s, OhlcvMsg, Schema::Ohlcv1S);
     test_reading_dbz!(test_reading_tbbo, TbboMsg, Schema::Tbbo);
     test_reading_dbz!(test_reading_trades, TradeMsg, Schema::Trades);
+    test_reading_dbz!(test_reading_definition, SymDefMsg, Schema::Definition);
 
     #[test]
     fn test_decode_symbol() {
