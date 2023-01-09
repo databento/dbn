@@ -231,81 +231,150 @@ pub struct StatusMsg {
 pub struct InstrumentDefMsg {
     /// The common header.
     pub hd: RecordHeader,
-    /// The capture-server-received timestamp expressed as number of nanoseconds since UNIX epoch.
+    /// The capture-server-received timestamp expressed as number of nanoseconds since
+    /// UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub ts_recv: u64,
+    /// The minimum constant tick for the instrument in units of 1e-9, i.e.
+    /// 1/1,000,000,000 or 0.000000001.
     pub min_price_increment: i64,
+    /// The multiplier to convert the venue’s display price to the conventional price.
     pub display_factor: i64,
+    /// The time of instrument activation expressed as a number of nanoseconds since UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub expiration: u64,
+    /// The last eligible trade time expressed as a number of nanoseconds since UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub activation: u64,
+    /// The allowable high limit price for the trading day in units of 1e-9, i.e.
+    /// 1/1,000,000,000 or 0.000000001.
     pub high_limit_price: i64,
+    /// The allowable low limit price for the trading day in units of 1e-9, i.e.
+    /// 1/1,000,000,000 or 0.000000001.
     pub low_limit_price: i64,
+    /// The differential value for price banding in units of 1e-9, i.e. 1/1,000,000,000
+    /// or 0.000000001.
     pub max_price_variation: i64,
+    /// The trading session date corresponding to the settlement price in
+    /// `trading_reference_price,` in number of days since the UNIX epoch.
     pub trading_reference_price: i64,
+    /// The contract size for each instrument, in combination with `unit_of_measure`.
     pub unit_of_measure_qty: i64,
+    /// The value currently under development by the venue. Converted to units of 1e-9, i.e.
+    /// 1/1,000,000,000 or 0.000000001.
     pub min_price_increment_amount: i64,
+    /// The value used for price calculation in spread and leg pricing in units of 1e-9,
+    /// i.e. 1/1,000,000,000 or 0.000000001.
     pub price_ratio: i64,
+    /// A bitmap of instrument eligibility attributes.
     pub inst_attrib_value: i32,
+    /// The `product_id` of the first underlying instrument.
     pub underlying_id: u32,
+    /// The total cleared volume of the instrument traded during the prior trading session.
     pub cleared_volume: i32,
+    /// The implied book depth on the price level data feed.
     pub market_depth_implied: i32,
+    /// The (outright) book depth on the price level data feed.
     pub market_depth: i32,
+    /// The market segment of the instrument.
     pub market_segment_id: u32,
+    /// The maximum trading volume for the instrument.
     pub max_trade_vol: u32,
+    /// The minimum order entry quantity for the instrument.
     pub min_lot_size: i32,
+    /// The minimum quantity required for a block trade of the instrument.
     pub min_lot_size_block: i32,
+    /// The minimum quantity required for a round lot of the instrument. Multiples of this quantity
+    /// are also round lots.
     pub min_lot_size_round_lot: i32,
+    /// The minimum trading volume for the instrument.
     pub min_trade_vol: u32,
+    /// The total open interest for the market at the close of the prior trading session.
     pub open_interest_qty: i32,
+    /// The number of deliverables per instrument, i.e. peak days.
     pub contract_multiplier: i32,
+    /// The quantity that a contract will decay daily, after `decay_start_date` has been reached.
     pub decay_quantity: i32,
+    /// The fixed contract value assigned to each instrument.
     pub original_contract_size: i32,
+    #[doc(hidden)]
     pub related_security_id: u32,
+    /// The trading session date corresponding to the settlement price in
+    /// `trading_reference_price`, in number of days since the UNIX epoch.
     pub trading_reference_date: u16,
+    /// The channel ID assigned at the venue.
     pub appl_id: i16,
+    /// The calendar year reflected in the instrument symbol.
     pub maturity_year: u16,
+    /// The date at which a contract will begin to decay.
     pub decay_start_date: u16,
+    /// The channel ID assigned by Databento as an incrementing integer starting at zero.
     pub channel_id: u16,
+    /// The currency used for price fields.
     #[serde(serialize_with = "serialize_c_char_arr")]
     pub currency: [c_char; 4],
+    /// The currency used for settlement, if different from `currency`.
     #[serde(serialize_with = "serialize_c_char_arr")]
     pub settl_currency: [c_char; 4],
+    /// The strategy type of the spread.
     #[serde(serialize_with = "serialize_c_char_arr")]
     pub secsubtype: [c_char; 6],
+    /// The instrument name (symbol).
     #[serde(serialize_with = "serialize_c_char_arr")]
     pub symbol: [c_char; 22],
+    /// The security group code of the instrument.
     #[serde(serialize_with = "serialize_c_char_arr")]
     pub group: [c_char; 21],
+    /// The exchange used to identify the instrument.
     #[serde(serialize_with = "serialize_c_char_arr")]
     pub exchange: [c_char; 5],
+    /// The underlying asset code (product code) of the instrument.
     #[serde(serialize_with = "serialize_c_char_arr")]
     pub asset: [c_char; 7],
+    /// The ISO standard instrument categorization code.
     #[serde(serialize_with = "serialize_c_char_arr")]
     pub cfi: [c_char; 7],
+    /// The type of the instrument, e.g. FUT for future or future spread.
     #[serde(serialize_with = "serialize_c_char_arr")]
     pub security_type: [c_char; 7],
+    /// The unit of measure for the instrument’s original contract size, e.g. USD or LBS.
     #[serde(serialize_with = "serialize_c_char_arr")]
     pub unit_of_measure: [c_char; 31],
+    /// The symbol of the first underlying instrument.
     #[serde(serialize_with = "serialize_c_char_arr")]
     pub underlying: [c_char; 21],
+    #[doc(hidden)]
     #[serde(serialize_with = "serialize_c_char_arr")]
     pub related: [c_char; 21],
+    /// The matching algorithm used for the instrument, typically **F**IFO.
     pub match_algorithm: c_char,
+    /// The current trading state of the instrument.
     pub md_security_trading_status: u8,
+    /// The price denominator of the main fraction.
     pub main_fraction: u8,
+    ///  The number of digits to the right of the tick mark, to display fractional prices.
     pub price_display_format: u8,
+    /// The type indicators for the settlement price, as a bitmap.
     pub settl_price_type: u8,
+    /// The price denominator of the sub fraction.
     pub sub_fraction: u8,
+    /// The product complex of the instrument.
     pub underlying_product: u8,
+    /// Indicates if the instrument definition has been added, modified, or deleted.
     pub security_update_action: SecurityUpdateAction,
+    /// The calendar month reflected in the instrument symbol.
     pub maturity_month: u8,
+    /// The calendar day reflected in the instrument symbol, or 0.
     pub maturity_day: u8,
+    /// The calendar week reflected in the instrument symbol, or 0.
     pub maturity_week: u8,
+    /// Indicates if the instrument is user defined: **Y**es or **N**o.
     pub user_defined_instrument: c_char,
+    /// The type of `contract_multiplier`. Either `1` for hours, or `2` for days.
     pub contract_multiplier_unit: i8,
+    /// The schedule for delivering electricity.
     pub flow_schedule_type: i8,
+    /// The tick rule of the spread.
     pub tick_rule: u8,
     /// Adjust filler for alignment.
     #[serde(skip)]
