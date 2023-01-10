@@ -12,12 +12,11 @@ use serde::Serialize;
 use streaming_iterator::StreamingIterator;
 use zstd::Decoder;
 
-use databento_defs::{
+use crate::{
     enums::{Compression, SType, Schema},
     record::{transmute_record_bytes, ConstTypeId},
+    write::dbn::SCHEMA_VERSION,
 };
-
-use crate::write::dbn::SCHEMA_VERSION;
 
 /// Object for reading, parsing, and serializing a Databento Binary Encoding (DBN) file.
 #[derive(Debug)]
@@ -468,9 +467,7 @@ impl Metadata {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use databento_defs::record::{
-        InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, TbboMsg, TradeMsg,
-    };
+    use crate::record::{InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, TbboMsg, TradeMsg};
 
     const DBN_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/data");
 

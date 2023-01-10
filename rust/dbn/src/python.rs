@@ -6,17 +6,15 @@ use std::mem;
 // in generated code from `pyfunction` macro and `&PyBytes`
 use std::{fmt, io, io::SeekFrom};
 
-use databento_defs::record::{
-    BidAskPair, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader, TbboMsg, TradeMsg,
-};
 use pyo3::exceptions::{PyKeyError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDate, PyDateAccess, PyDict};
 use time::Date;
 
-use databento_defs::enums::{Compression, SType, Schema};
-use databento_defs::record::ConstTypeId;
-
+use crate::enums::{Compression, SType, Schema};
+use crate::record::{
+    BidAskPair, ConstTypeId, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader, TbboMsg, TradeMsg,
+};
 use crate::write::dbn::SCHEMA_VERSION;
 use crate::{write_dbn, MappingInterval, Metadata, SymbolMapping};
 

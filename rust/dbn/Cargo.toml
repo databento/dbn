@@ -6,7 +6,7 @@ edition = "2021"
 description = "Library for working with the Databento Binary Encoding (DBN) format"
 license = "Apache-2.0"
 repository = "https://github.com/databento/dbn"
-keywords = ["market-data", "json", "csv", "conversion", "encoding"]
+keywords = ["finance", "market-data", "conversion", "encoding", "trading"]
 # see https://crates.io/category_slugs
 categories = ["encoding"]
 
@@ -16,17 +16,20 @@ python = ["pyo3/extension-module"]
 # `cargo test` fails with linker errors when the extension-module feature is
 # enabled, see https://github.com/PyO3/pyo3/issues/340
 python-test = ["pyo3"]
+# Enables deriving the `Copy` trait for records.
+trivial_copy = []
 
 [dependencies]
-# Databento common definitions
-databento-defs = { version = "0.4.1", features = ["serde"] }
-
 # error handling
 anyhow = "1.0.68"
 # CSV serialization
 csv = "1.1.6"
 # logging
 log = "0.4.17"
+# Deriving translation between integers and enums
+num_enum = "= 0.5.7"
+# Pin version temporarily
+num_enum_derive = "= 0.5.7"
 # Python bindings for Rust
 pyo3 = { version = "0.17.3", optional = true }
 # Derialization

@@ -6,11 +6,10 @@ use std::{
 };
 
 use anyhow::{anyhow, Context};
-use databento_defs::record::ConstTypeId;
 use streaming_iterator::StreamingIterator;
 use zstd::{stream::AutoFinishEncoder, Encoder};
 
-use crate::{read::SymbolMapping, Metadata};
+use crate::{read::SymbolMapping, record::ConstTypeId, Metadata};
 
 pub(crate) const SCHEMA_VERSION: u8 = 1;
 
@@ -257,18 +256,14 @@ mod tests {
         mem,
     };
 
-    use databento_defs::{
-        enums::{Compression, SType, Schema},
-        record::{MboMsg, Mbp1Msg, OhlcvMsg, RecordHeader, StatusMsg, TradeMsg},
-    };
-
+    use super::*;
     use crate::{
+        enums::{Compression, SType, Schema},
         read::{FromLittleEndianSlice, MappingInterval},
+        record::{MboMsg, Mbp1Msg, OhlcvMsg, RecordHeader, StatusMsg, TradeMsg},
         write::test_data::{VecStream, BID_ASK, RECORD_HEADER},
         DbnStreamIter,
     };
-
-    use super::*;
 
     #[test]
     fn test_encode_decode_metadata_identity() {

@@ -2,7 +2,10 @@
 #[deny(missing_docs)]
 #[deny(rustdoc::broken_intra_doc_links)]
 #[deny(clippy::missing_errors_doc)]
+pub mod enums;
+pub mod error;
 mod read;
+pub mod record;
 mod write;
 
 #[cfg(any(feature = "python", feature = "python-test"))]

@@ -4,7 +4,7 @@ use anyhow::Context;
 use serde::Serialize;
 use streaming_iterator::StreamingIterator;
 
-use databento_defs::record::ConstTypeId;
+use crate::record::ConstTypeId;
 
 /// Incrementally serializes the contents of `iter` into CSV to `writer` so the
 /// contents of `iter` are not all buffered into memory at once.
@@ -38,12 +38,14 @@ where
 }
 
 pub mod serialize {
+    use std::{fmt, io};
+
     use csv::Writer;
-    use databento_defs::record::{
+    use serde::Serialize;
+
+    use crate::record::{
         InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, TradeMsg,
     };
-    use serde::Serialize;
-    use std::{fmt, io};
 
     /// Because of the flat nature of CSVs, there are several limitations in the
     /// Rust CSV serde serialization library. This trait helps work around them.
@@ -325,13 +327,14 @@ pub mod serialize {
 
 #[cfg(test)]
 mod tests {
+    use std::{io::BufWriter, os::raw::c_char};
+
     use super::*;
-    use crate::write::test_data::{VecStream, BID_ASK, RECORD_HEADER};
-    use databento_defs::{
+    use crate::{
         enums::SecurityUpdateAction,
         record::{InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, TradeMsg},
+        write::test_data::{VecStream, BID_ASK, RECORD_HEADER},
     };
-    use std::{io::BufWriter, os::raw::c_char};
 
     const HEADER_CSV: &str = "4,1,323,1658441851000000000";
 

@@ -164,23 +164,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "databento-defs"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fbf1bfc9148c55ff24c4e454435c6f921715b9759eee5b44f7ca108774991033"
-dependencies = [
- "num_enum",
- "serde",
-]
-
-[[package]]
 name = "dbn"
 version = "0.2.1"
 dependencies = [
  "anyhow",
  "csv",
- "databento-defs",
  "log",
+ "num_enum",
+ "num_enum_derive",
  "pyo3",
  "serde",
  "serde_json",

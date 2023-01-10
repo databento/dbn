@@ -5,9 +5,7 @@ use serde::Serialize;
 use serde_json::ser::{Formatter, PrettyFormatter};
 use streaming_iterator::StreamingIterator;
 
-use databento_defs::record::ConstTypeId;
-
-use crate::Metadata;
+use crate::{record::ConstTypeId, Metadata};
 
 /// Incrementally serializes the contents of `iter` into NDJSON to `writer` so the
 /// contents of `iter` are not all buffered into memory at once.
@@ -58,16 +56,15 @@ pub fn pretty_formatter() -> PrettyFormatter<'static> {
 mod tests {
     use std::{io::BufWriter, os::raw::c_char};
 
+    use serde_json::ser::CompactFormatter;
+
     use super::*;
     use crate::{
+        enums::{Compression, SType, Schema, SecurityUpdateAction},
+        record::{InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, TradeMsg},
         write::test_data::{VecStream, BID_ASK, RECORD_HEADER},
         MappingInterval, SymbolMapping,
     };
-    use databento_defs::{
-        enums::{Compression, SType, Schema, SecurityUpdateAction},
-        record::{InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, TradeMsg},
-    };
-    use serde_json::ser::CompactFormatter;
 
     fn write_json_to_string<T>(vec: Vec<T>, should_pretty_print: bool) -> String
     where

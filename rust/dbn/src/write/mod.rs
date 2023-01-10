@@ -7,19 +7,18 @@ use std::{fmt, io};
 use anyhow::anyhow;
 use serde_json::ser::CompactFormatter;
 
-use databento_defs::{
+use self::{
+    csv::{serialize::CsvSerialize, write_csv},
+    json::{pretty_formatter, write_json, write_json_metadata},
+};
+use crate::{
     enums::Schema,
     record::{
         ConstTypeId, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, TbboMsg,
         TradeMsg,
     },
+    Dbn, Metadata,
 };
-
-use self::{
-    csv::{serialize::CsvSerialize, write_csv},
-    json::{pretty_formatter, write_json, write_json_metadata},
-};
-use crate::{Dbn, Metadata};
 
 /// An encoding that DBNs can be translated to.
 #[derive(Clone, Copy, Debug)]
@@ -105,8 +104,9 @@ impl Metadata {
 
 #[cfg(test)]
 mod test_data {
-    use databento_defs::record::{BidAskPair, RecordHeader};
     use streaming_iterator::StreamingIterator;
+
+    use crate::record::{BidAskPair, RecordHeader};
 
     // Common data used in multiple tests
     pub const RECORD_HEADER: RecordHeader = RecordHeader {
