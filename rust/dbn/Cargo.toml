@@ -27,9 +27,7 @@ csv = "1.1.6"
 # logging
 log = "0.4.17"
 # Deriving translation between integers and enums
-num_enum = "= 0.5.7"
-# Pin version temporarily
-num_enum_derive = "= 0.5.7"
+num_enum = "0.5.7"
 # Python bindings for Rust
 pyo3 = { version = "0.17.3", optional = true }
 # Derialization
