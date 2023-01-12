@@ -24,8 +24,6 @@ trivial_copy = []
 anyhow = "1.0.68"
 # CSV serialization
 csv = "1.1.6"
-# logging
-log = "0.4.17"
 # Deriving translation between integers and enums
 num_enum = "0.5.7"
 # Python bindings for Rust

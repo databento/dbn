@@ -109,9 +109,15 @@ impl std::str::FromStr for SType {
     }
 }
 
+impl AsRef<str> for SType {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
 impl SType {
     /// Convert the symbology type to its `str` representation.
-    pub fn as_str(&self) -> &'static str {
+    pub const fn as_str(&self) -> &'static str {
         match self {
             SType::Native => "native",
             SType::Smart => "smart",
@@ -164,22 +170,24 @@ pub enum Schema {
     Tbbo = 3,
     /// All trade events.
     Trades = 4,
-    /// Open, high, low, close, and volume at a 1-second cadence.
+    /// Open, high, low, close, and volume at a one-second interval.
     Ohlcv1S = 5,
-    /// Open, high, low, close, and volume at a 1-minute cadence.
+    /// Open, high, low, close, and volume at a one-minute interval.
     Ohlcv1M = 6,
-    /// Open, high, low, close, and volume at an hourly cadence.
+    /// Open, high, low, close, and volume at an hourly interval.
     Ohlcv1H = 7,
-    /// Open, high, low, close, and volume at a daily cadence.
+    /// Open, high, low, close, and volume at a daily interval.
     Ohlcv1D = 8,
-    /// Symbol definitions.
+    /// Instrument definitions.
     Definition = 9,
-    ///
+    #[doc(hidden)]
     Statistics = 10,
     /// Exchange status.
+    #[doc(hidden)]
     Status = 11,
 }
-/// Update SCHEMA_COUNT value, if add more Schema items
+
+/// The number of [`Schema`]s.
 pub const SCHEMA_COUNT: usize = 12;
 
 impl std::str::FromStr for Schema {
@@ -206,9 +214,15 @@ impl std::str::FromStr for Schema {
     }
 }
 
+impl AsRef<str> for Schema {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
 impl Schema {
     /// Converts the given schema to a `&'static str`.
-    pub fn as_str(&self) -> &'static str {
+    pub const fn as_str(&self) -> &'static str {
         match self {
             Schema::Mbo => "mbo",
             Schema::Mbp1 => "mbp-1",
@@ -243,8 +257,8 @@ impl Display for Schema {
 #[serde(rename_all = "lowercase")]
 #[repr(u8)]
 pub enum Encoding {
-    /// Databento Binary Encoding + Zstandard compression.
-    Dbz = 0,
+    /// Databento Binary Encoding.
+    Dbn = 0,
     /// Comma-separated values.
     Csv = 1,
     /// JavaScript object notation.
@@ -256,7 +270,7 @@ impl std::str::FromStr for Encoding {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "dbz" => Ok(Encoding::Dbz),
+            "dbn" | "dbz" => Ok(Encoding::Dbn),
             "csv" => Ok(Encoding::Csv),
             "json" => Ok(Encoding::Json),
             _ => Err(ConversionError::TypeConversion(
@@ -266,11 +280,17 @@ impl std::str::FromStr for Encoding {
     }
 }
 
+impl AsRef<str> for Encoding {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
 impl Encoding {
     /// Converts the given encoding to a `&'static str`.
-    pub fn as_str(&self) -> &'static str {
+    pub const fn as_str(&self) -> &'static str {
         match self {
-            Encoding::Dbz => "dbz",
+            Encoding::Dbn => "dbn",
             Encoding::Csv => "csv",
             Encoding::Json => "json",
         }
@@ -293,6 +313,7 @@ pub enum Compression {
     /// Zstandard compressed.
     ZStd = 1,
 }
+
 impl std::str::FromStr for Compression {
     type Err = ConversionError;
 
@@ -307,9 +328,15 @@ impl std::str::FromStr for Compression {
     }
 }
 
+impl AsRef<str> for Compression {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
 impl Compression {
     /// Converts the given compression to a `&'static str`.
-    pub fn as_str(&self) -> &'static str {
+    pub const fn as_str(&self) -> &'static str {
         match self {
             Compression::None => "none",
             Compression::ZStd => "zstd",
@@ -330,7 +357,7 @@ pub enum SecurityUpdateAction {
     Add = b'A',
     Modify = b'M',
     Delete = b'D',
-    // Deprecated, but still present in legacy files
+    #[deprecated = "Still present in legacy files."]
     Invalid = b'~',
 }
 

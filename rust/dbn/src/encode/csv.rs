@@ -1,43 +1,77 @@
-use std::{fmt, io};
+//! Encoding of DBN records into comma-separated values (CSV).
+use std::io;
 
-use anyhow::Context;
-use serde::Serialize;
 use streaming_iterator::StreamingIterator;
 
-use crate::record::ConstRType;
+use super::EncodeDbn;
 
-/// Incrementally serializes the contents of `iter` into CSV to `writer` so the
-/// contents of `iter` are not all buffered into memory at once.
-pub fn write_csv<T>(
-    writer: impl io::Write,
-    mut iter: impl StreamingIterator<Item = T>,
-) -> anyhow::Result<()>
+/// Type for encoding files and streams of DBN records in CSV.
+pub struct Encoder<W>
 where
-    T: ConstRType + serialize::CsvSerialize + Serialize + fmt::Debug,
+    W: io::Write,
 {
-    let mut csv_writer = csv::WriterBuilder::new()
-        .has_headers(false) // need to write our own custom header
-        .from_writer(writer);
-    csv_writer.write_record(T::HEADERS)?;
-    while let Some(record) = iter.next() {
-        match record.serialize_to(&mut csv_writer) {
-            Err(e) => {
-                if matches!(e.kind(), csv::ErrorKind::Io(io_err) if io_err.kind() == io::ErrorKind::BrokenPipe) {
-                    // closed pipe, should stop writing output
-                    return Ok(())
-                 } else {
-                    Err(e)
-                 }
-            }
-            r => r,
-        }
-        .with_context(|| format!("Failed to serialize {record:#?}"))?;
-    }
-    csv_writer.flush()?;
-    Ok(())
+    writer: csv::Writer<W>,
 }
 
-pub mod serialize {
+impl<W> Encoder<W>
+where
+    W: io::Write,
+{
+    /// Creates a new [`Encoder`] that will write to `writer`.
+    pub fn new(writer: W) -> Self {
+        let csv_writer = csv::WriterBuilder::new()
+            .has_headers(false) // need to write our own custom header
+            .from_writer(writer);
+        Self { writer: csv_writer }
+    }
+}
+
+impl<W> EncodeDbn for Encoder<W>
+where
+    W: io::Write,
+{
+    fn encode_record<R: super::DbnEncodable>(&mut self, record: &R) -> anyhow::Result<bool> {
+        match record.serialize_to(&mut self.writer) {
+            Ok(_) => Ok(false),
+            Err(e) => {
+                if matches!(e.kind(), csv::ErrorKind::Io(io_err) if io_err.kind() == io::ErrorKind::BrokenPipe)
+                {
+                    // closed pipe, should stop writing output
+                    Ok(true)
+                } else {
+                    Err(anyhow::Error::new(e).context(format!("Failed to serialize {record:#?}")))
+                }
+            }
+        }
+    }
+
+    fn encode_records<R: super::DbnEncodable>(&mut self, records: &[R]) -> anyhow::Result<()> {
+        self.writer.write_record(R::HEADERS)?;
+        for record in records {
+            if self.encode_record(record)? {
+                return Ok(());
+            }
+        }
+        self.writer.flush()?;
+        Ok(())
+    }
+
+    fn encode_stream<R: super::DbnEncodable>(
+        &mut self,
+        mut stream: impl StreamingIterator<Item = R>,
+    ) -> anyhow::Result<()> {
+        self.writer.write_record(R::HEADERS)?;
+        while let Some(record) = stream.next() {
+            if self.encode_record(record)? {
+                return Ok(());
+            }
+        }
+        self.writer.flush()?;
+        Ok(())
+    }
+}
+
+pub(crate) mod serialize {
     use std::{fmt, io};
 
     use csv::Writer;
@@ -327,13 +361,13 @@ pub mod serialize {
 
 #[cfg(test)]
 mod tests {
-    use std::{io::BufWriter, os::raw::c_char};
+    use std::{array, io::BufWriter, os::raw::c_char};
 
     use super::*;
     use crate::{
+        encode::test_data::{VecStream, BID_ASK, RECORD_HEADER},
         enums::SecurityUpdateAction,
         record::{InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, TradeMsg},
-        write::test_data::{VecStream, BID_ASK, RECORD_HEADER},
     };
 
     const HEADER_CSV: &str = "4,1,323,1658441851000000000";
@@ -351,7 +385,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tick_write_csv() {
+    fn test_tick_encode_stream() {
         let data = vec![MboMsg {
             hd: RECORD_HEADER,
             order_id: 16,
@@ -367,7 +401,9 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        write_csv(writer, VecStream::new(data)).unwrap();
+        Encoder::new(writer)
+            .encode_stream(VecStream::new(data))
+            .unwrap();
         let line = extract_2nd_line(buffer);
         assert_eq!(
             line,
@@ -376,7 +412,7 @@ mod tests {
     }
 
     #[test]
-    fn test_mbo1_write_csv() {
+    fn test_mbo1_encode_records() {
         let data = vec![Mbp1Msg {
             hd: RECORD_HEADER,
             price: 5500,
@@ -388,11 +424,13 @@ mod tests {
             ts_recv: 1658441891000000000,
             ts_in_delta: 22_000,
             sequence: 1_002_375,
-            booklevel: [BID_ASK; 1],
+            booklevel: [BID_ASK],
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        write_csv(writer, VecStream::new(data)).unwrap();
+        Encoder::new(writer)
+            .encode_records(data.as_slice())
+            .unwrap();
         let line = extract_2nd_line(buffer);
         assert_eq!(
             line,
@@ -403,7 +441,7 @@ mod tests {
     }
 
     #[test]
-    fn test_mbo10_write_csv() {
+    fn test_mbo10_encode_stream() {
         let data = vec![Mbp10Msg {
             hd: RECORD_HEADER,
             price: 5500,
@@ -415,11 +453,13 @@ mod tests {
             ts_recv: 1658441891000000000,
             ts_in_delta: 22_000,
             sequence: 1_002_375,
-            booklevel: [BID_ASK; 10],
+            booklevel: array::from_fn(|_| BID_ASK.clone()),
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        write_csv(writer, VecStream::new(data)).unwrap();
+        Encoder::new(writer)
+            .encode_stream(VecStream::new(data))
+            .unwrap();
         let line = extract_2nd_line(buffer);
         assert_eq!(
             line,
@@ -428,7 +468,7 @@ mod tests {
     }
 
     #[test]
-    fn test_trade_write_csv() {
+    fn test_trade_encode_records() {
         let data = vec![TradeMsg {
             hd: RECORD_HEADER,
             price: 5500,
@@ -444,7 +484,9 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        write_csv(writer, VecStream::new(data)).unwrap();
+        Encoder::new(writer)
+            .encode_records(data.as_slice())
+            .unwrap();
         let line = extract_2nd_line(buffer);
         assert_eq!(
             line,
@@ -453,7 +495,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ohlcv_write_csv() {
+    fn test_ohlcv_encode_stream() {
         let data = vec![OhlcvMsg {
             hd: RECORD_HEADER,
             open: 5000,
@@ -464,13 +506,15 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        write_csv(writer, VecStream::new(data)).unwrap();
+        Encoder::new(writer)
+            .encode_stream(VecStream::new(data))
+            .unwrap();
         let line = extract_2nd_line(buffer);
         assert_eq!(line, format!("{HEADER_CSV},5000,8000,3000,6000,55000"));
     }
 
     #[test]
-    fn test_status_write_csv() {
+    fn test_status_encode_records() {
         let mut group = [0; 21];
         for (i, c) in "group".chars().enumerate() {
             group[i] = c as c_char;
@@ -485,7 +529,9 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        write_csv(writer, VecStream::new(data)).unwrap();
+        Encoder::new(writer)
+            .encode_records(data.as_slice())
+            .unwrap();
         let line = extract_2nd_line(buffer);
         assert_eq!(
             line,
@@ -494,7 +540,7 @@ mod tests {
     }
 
     #[test]
-    fn test_instrument_def_write_csv() {
+    fn test_instrument_def_encode_stream() {
         let data = vec![InstrumentDefMsg {
             hd: RECORD_HEADER,
             ts_recv: 1658441891000000000,
@@ -549,7 +595,7 @@ mod tests {
             settl_price_type: 9,
             sub_fraction: 23,
             underlying_product: 10,
-            security_update_action: SecurityUpdateAction::Invalid,
+            security_update_action: SecurityUpdateAction::Add,
             maturity_month: 8,
             maturity_day: 9,
             maturity_week: 11,
@@ -561,8 +607,10 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        write_csv(writer, VecStream::new(data)).unwrap();
+        Encoder::new(writer)
+            .encode_stream(VecStream::new(data))
+            .unwrap();
         let line = extract_2nd_line(buffer);
-        assert_eq!(line, format!("{HEADER_CSV},1658441891000000000,100,1000,1698450000000000000,1697350000000000000,1000000,-1000000,0,500000,5,5,10,10,256785,0,0,13,0,10000,1,1000,100,1,0,0,0,0,0,0,0,0,0,4,,USD,,,,,,,,,,,1,2,4,8,9,23,10,~,8,9,11,1,0,5,0"));
+        assert_eq!(line, format!("{HEADER_CSV},1658441891000000000,100,1000,1698450000000000000,1697350000000000000,1000000,-1000000,0,500000,5,5,10,10,256785,0,0,13,0,10000,1,1000,100,1,0,0,0,0,0,0,0,0,0,4,,USD,,,,,,,,,,,1,2,4,8,9,23,10,A,8,9,11,1,0,5,0"));
     }
 }

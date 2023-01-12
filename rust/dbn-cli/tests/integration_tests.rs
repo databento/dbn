@@ -9,16 +9,16 @@ fn cmd() -> Command {
     Command::cargo_bin("dbn").unwrap()
 }
 
-const DBN_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/data");
+const TEST_DATA_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/data");
 
 #[test]
 fn write_json_to_path() {
     // create a directory whose contents will be cleaned up at the end of the test
     let output_dir = tempdir().unwrap();
-    let output_path = format!("{}/a.json", output_dir.path().to_string_lossy());
+    let output_path = format!("{}/a.json", output_dir.path().to_str().unwrap());
     cmd()
         .args(&[
-            &format!("{DBN_PATH}/test_data.mbp-1.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.mbp-1.dbn.zst"),
             "--output",
             &output_path,
             "--json",
@@ -38,7 +38,7 @@ fn write_json_to_path() {
 #[test]
 fn write_to_stdout() {
     cmd()
-        .args(&[&format!("{DBN_PATH}/test_data.mbo.dbn.zst"), "--csv"])
+        .args(&[&format!("{TEST_DATA_PATH}/test_data.mbo.dbn.zst"), "--csv"])
         .assert()
         .success()
         .stdout(contains("channel_id"));
@@ -48,7 +48,7 @@ fn write_to_stdout() {
 fn write_to_nonexistent_path() {
     cmd()
         .args(&[
-            &format!("{DBN_PATH}/test_data.mbo.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.tbbo.dbn"),
             "--output",
             "./a/b/c/d/e",
             "-C", // CSV
@@ -67,23 +67,23 @@ fn read_from_nonexistent_path() {
     let output_file = NamedTempFile::new().unwrap();
     cmd()
         .args(&[
-            &input_path.to_string_lossy(),
+            &input_path.to_str().unwrap(),
             "--output",
-            &output_file.path().to_string_lossy(),
+            &output_file.path().to_str().unwrap(),
         ])
         .assert()
         .failure()
-        .stderr(contains("Error opening dbn file"));
+        .stderr(contains("Error opening file to decode"));
 }
 
 #[test]
 fn write_csv() {
     // create a directory whose contents will be cleaned up at the end of the test
     let output_dir = tempdir().unwrap();
-    let output_path = format!("{}/a.json", output_dir.path().to_string_lossy());
+    let output_path = format!("{}/a.json", output_dir.path().to_str().unwrap());
     cmd()
         .args(&[
-            &format!("{DBN_PATH}/test_data.mbp-1.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.mbp-1.dbn"),
             "--output",
             &output_path,
             "--csv",
@@ -105,10 +105,10 @@ fn encoding_overrides_extension() {
     // create a directory whose contents will be cleaned up at the end of the test
     let output_dir = tempdir().unwrap();
     // output file extension is csv, but the encoding argument is json
-    let output_path = format!("{}/a.csv", output_dir.path().to_string_lossy());
+    let output_path = format!("{}/a.csv", output_dir.path().to_str().unwrap());
     cmd()
         .args(&[
-            &format!("{DBN_PATH}/test_data.mbp-1.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.mbp-10.dbn.zst"),
             "--output",
             &output_path,
             "-J", // JSON
@@ -128,35 +128,31 @@ fn encoding_overrides_extension() {
 #[test]
 fn bad_infer() {
     let output_dir = tempdir().unwrap();
-    let output_path = format!("{}/a.yaml", output_dir.path().to_string_lossy());
+    let output_path = format!("{}/a.yaml", output_dir.path().to_str().unwrap());
     cmd()
         .args(&[
-            &format!("{DBN_PATH}/test_data.mbo.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.trades.dbz"),
             "--output",
             &output_path,
         ])
         .assert()
         .failure()
-        .stderr(contains(
-            "Unable to infer output encoding from output file with extension 'yaml'",
-        ));
+        .stderr(contains("Unable to infer output encoding from output path"));
 }
 
 #[test]
 fn no_extension_infer() {
     let output_dir = tempdir().unwrap();
-    let output_path = format!("{}/a", output_dir.path().to_string_lossy());
+    let output_path = format!("{}/a", output_dir.path().to_str().unwrap());
     cmd()
         .args(&[
-            &format!("{DBN_PATH}/test_data.mbo.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.mbo.dbn.zst"),
             "--output",
             &output_path,
         ])
         .assert()
         .failure()
-        .stderr(contains(
-            "Unable to infer output encoding from output file without an extension",
-        ));
+        .stderr(contains("Unable to infer output encoding from output path"));
 }
 
 #[test]
@@ -165,9 +161,9 @@ fn overwrite_fails() {
 
     cmd()
         .args(&[
-            &format!("{DBN_PATH}/test_data.mbo.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.mbo.dbn.zst"),
             "--output",
-            &output_file.path().to_string_lossy(),
+            &output_file.path().to_str().unwrap(),
             "--csv",
         ])
         .assert()
@@ -180,9 +176,9 @@ fn force_overwrite() {
     let output_file = NamedTempFile::new().unwrap();
     cmd()
         .args(&[
-            &format!("{DBN_PATH}/test_data.mbo.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.mbo.dbn.zst"),
             "--output",
-            &output_file.path().to_string_lossy(),
+            &output_file.path().to_str().unwrap(),
             "-C", // CSV
             "--force",
         ])
@@ -197,7 +193,7 @@ fn force_overwrite() {
 fn cant_specify_json_and_csv() {
     cmd()
         .args(&[
-            &format!("{DBN_PATH}/test_data.mbo.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.mbo.dbn.zst"),
             "--json",
             "--csv",
         ])
@@ -210,7 +206,7 @@ fn cant_specify_json_and_csv() {
 fn metadata() {
     cmd()
         .args(&[
-            &format!("{DBN_PATH}/test_data.ohlcv-1m.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.ohlcv-1m.dbn.zst"),
             "-J",
             "-m",
         ])
@@ -225,21 +221,21 @@ fn metadata() {
 fn no_csv_metadata() {
     cmd()
         .args(&[
-            &format!("{DBN_PATH}/test_data.ohlcv-1m.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.ohlcv-1m.dbn.zst"),
             "--csv",
             "-m",
         ])
         .assert()
         .failure()
         .stdout(is_empty())
-        .stderr(contains("unsupported"));
+        .stderr(contains("cannot be used with"));
 }
 
 #[test]
 fn pretty_print_data() {
     cmd()
         .args(&[
-            &format!("{DBN_PATH}/test_data.mbo.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.mbo.dbn.zst"),
             "--json",
             "--pretty-json",
         ])
@@ -254,7 +250,7 @@ fn pretty_print_data() {
 fn pretty_print_data_metadata() {
     cmd()
         .args(&[
-            &format!("{DBN_PATH}/test_data.mbo.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.mbo.dbn.zst"),
             "-J",
             "--metadata",
             "-p",
@@ -265,7 +261,7 @@ fn pretty_print_data_metadata() {
 
 #[test]
 fn read_from_stdin() {
-    let path = format!("{DBN_PATH}/test_data.mbp-10.dbn.zst");
+    let path = format!("{TEST_DATA_PATH}/test_data.mbp-10.dbn.zst");
     let read_from_stdin_output = cmd()
         .args(&[
             "-", // STDIN
@@ -280,6 +276,22 @@ fn read_from_stdin() {
     assert_eq!(read_from_stdin_output.stdout, read_from_file_output.stdout);
     assert!(read_from_stdin_output.stderr.is_empty());
     assert!(read_from_file_output.stderr.is_empty());
+}
+
+#[test]
+fn convert_dbz_to_dbn() {
+    let output_dir = tempdir().unwrap();
+    let output_path = format!("{}/a.dbn", output_dir.path().to_str().unwrap());
+    cmd()
+        .args(&[
+            &format!("{TEST_DATA_PATH}/test_data.definition.dbz"),
+            "--dbn",
+            "-o",
+            &output_path,
+        ])
+        .assert()
+        .success()
+        .stderr(is_empty());
 }
 
 #[test]

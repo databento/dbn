@@ -6,7 +6,7 @@
 ![pypi-version](https://img.shields.io/pypi/v/databento_dbn)
 
 A library (`dbn`) and CLI tool (`dbn`) for working with Databento Binary
-Encoding (DBN) files.
+Encoding (DBN) files and streams.
 Python bindings for `dbn` are provided in the `databento-dbn` package.
 
 The **D**atabento **B**inary E**n**coding (DBN) is an efficient

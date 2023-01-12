@@ -15,7 +15,7 @@ pub struct RecordHeader {
     #[serde(skip)]
     pub length: u8,
     /// The record type; with `0x00..0x0F` specifying MBP booklevel size.
-    /// Record types implement the trait [`ConstRType`], and the [`has_rtype`][ConstRType::has_rtype]
+    /// Record types implement the trait [`HasRType`], and the [`has_rtype`][HasRType::has_rtype]
     /// function can be used to check if that type can be used to decode a message with a given rtype.
     /// The set of possible values is defined in [`rtype`].
     pub rtype: u8,
@@ -28,8 +28,8 @@ pub struct RecordHeader {
     pub ts_event: u64,
 }
 
-/// Market-by-order (MBO) tick message.
-/// `hd.rtype = 0xA0`
+/// A market-by-order (MBO) tick message. The record of the
+/// [`Mbo`](crate::enums::Schema::Mbo) schema.
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
@@ -61,7 +61,6 @@ pub struct MboMsg {
     pub sequence: u32,
 }
 
-// Named `DB_BA` in C
 /// A book level.
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -81,10 +80,8 @@ pub struct BidAskPair {
     pub ask_ct: u32,
 }
 
-pub const MAX_UA_BOOK_LEVEL: usize = 0xF;
-
 /// Market by price implementation with a book depth of 0. Equivalent to
-/// MBP-0.
+/// MBP-0. The record of the [`Trades`](crate::enums::Schema::Trades) schema.
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
@@ -116,7 +113,8 @@ pub struct TradeMsg {
     pub booklevel: [BidAskPair; 0],
 }
 
-/// Market by price implementation with a known book depth of 1.
+/// Market by price implementation with a known book depth of 1. The record of the
+/// [`Mbp1`](crate::enums::Schema::Mbp1) schema.
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
@@ -147,7 +145,8 @@ pub struct Mbp1Msg {
     pub booklevel: [BidAskPair; 1],
 }
 
-/// Market by price implementation with a known book depth of 10.
+/// Market by price implementation with a known book depth of 10. The record of the
+/// [`Mbp10`](crate::enums::Schema::Mbp10) schema.
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
@@ -178,9 +177,14 @@ pub struct Mbp10Msg {
     pub booklevel: [BidAskPair; 10],
 }
 
+/// The record of the [`Tbbo`](crate::enums::Schema::Tbbo) schema.
 pub type TbboMsg = Mbp1Msg;
 
-/// Open, high, low, close, and volume.
+/// Open, high, low, close, and volume. The record of the following schemas:
+/// - [`Ohlcv1S`](crate::enums::Schema::Ohlcv1S)
+/// - [`Ohlcv1M`](crate::enums::Schema::Ohlcv1M)
+/// - [`Ohlcv1H`](crate::enums::Schema::Ohlcv1H)
+/// - [`Ohlcv1D`](crate::enums::Schema::Ohlcv1D)
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
@@ -199,8 +203,9 @@ pub struct OhlcvMsg {
     pub volume: u64,
 }
 
-/// Trading status update message
-/// `hd.rtype = 0x12`
+/// Trading status update message. The record of the
+/// [`Status`](crate::enums::Schema::Status) schema.
+#[doc(hidden)]
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
@@ -217,8 +222,8 @@ pub struct StatusMsg {
     pub trading_event: u8,
 }
 
-/// Definition of an instrument.
-/// `hd.rtype = 0x13`
+/// Definition of an instrument. The record of the
+/// [`Definition`](crate::enums::Schema::Definition) schema.
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
@@ -308,10 +313,10 @@ pub struct InstrumentDefMsg {
 }
 
 /// Order imbalance message.
+#[doc(hidden)]
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
-#[doc(hidden)]
 pub struct Imbalance {
     pub hd: RecordHeader,
     #[serde(serialize_with = "serialize_large_u64")]
@@ -344,8 +349,8 @@ pub struct Imbalance {
     pub _dummy: [c_char; 4],
 }
 
-/// Gateway error message
-/// `hd.rtype = 0x15`
+/// An error message from the Databento Live Subscription Gateway (LSG). This will never
+/// be present in historical data.
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
@@ -355,8 +360,7 @@ pub struct GatewayErrorMsg {
     pub err: [c_char; 64],
 }
 
-/// Symbol mapping message
-/// `hd.rtype = 0x16`
+/// A symbol mapping message.
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
@@ -386,9 +390,10 @@ fn serialize_large_u64<S: serde::Serializer>(num: &u64, serializer: S) -> Result
     serializer.serialize_str(&num.to_string())
 }
 
-/// A trait for objects with polymorphism based around [`RecordHeader::rtype`].
-pub trait ConstRType {
-    /// The value of [`RecordHeader::rtype`] for the implementing type.
+/// A trait for objects with polymorphism based around [`RecordHeader::rtype`]. All implementing
+/// types begin with a [`RecordHeader`].
+pub trait HasRType {
+    /// Returns `true` if `rtype` matches the value associated with the implementing type.
     fn has_rtype(rtype: u8) -> bool;
 }
 
@@ -398,9 +403,9 @@ pub trait ConstRType {
 /// is tied to the input.
 ///
 /// # Safety
-/// Although this function accepts a reference to a [`ConstRType`], it's assumed this struct's
+/// Although this function accepts a reference to a [`HasRType`], it's assumed this struct's
 /// binary representation begins with a RecordHeader value
-pub unsafe fn transmute_into_header<T: ConstRType>(record: &T) -> &RecordHeader {
+pub unsafe fn transmute_into_header<T: HasRType>(record: &T) -> &RecordHeader {
     // Safety: because it comes from a reference, `header` must not be null. It's ok to cast to `mut`
     // because it's never mutated.
     let non_null = NonNull::from(record);
@@ -415,7 +420,7 @@ pub unsafe fn transmute_into_header<T: ConstRType>(record: &T) -> &RecordHeader 
 /// # Safety
 /// `raw` must contain at least `std::mem::size_of::<T>()` bytes and a valid
 /// [`RecordHeader`] instance.
-pub unsafe fn transmute_record_bytes<T: ConstRType>(bytes: &[u8]) -> Option<&T> {
+pub unsafe fn transmute_record_bytes<T: HasRType>(bytes: &[u8]) -> Option<&T> {
     assert!(
         bytes.len() >= mem::size_of::<T>(),
         concat!(
@@ -465,7 +470,7 @@ pub unsafe fn transmute_header_bytes(bytes: &[u8]) -> Option<&RecordHeader> {
 /// # Safety
 /// Although this function accepts a reference to a [`RecordHeader`], it's assumed this is
 /// part of a larger `T` struct.
-pub unsafe fn transmute_record<T: ConstRType>(header: &RecordHeader) -> Option<&T> {
+pub unsafe fn transmute_record<T: HasRType>(header: &RecordHeader) -> Option<&T> {
     if T::has_rtype(header.rtype) {
         // Safety: because it comes from a reference, `header` must not be null. It's ok to cast to `mut`
         // because it's never mutated.
@@ -483,7 +488,7 @@ pub unsafe fn transmute_record<T: ConstRType>(header: &RecordHeader) -> Option<&
 /// # Safety
 /// Although this function accepts a reference to a [`RecordHeader`], it's assumed this is
 /// part of a larger `T` struct.
-pub unsafe fn transmute_record_mut<T: ConstRType>(header: &mut RecordHeader) -> Option<&mut T> {
+pub unsafe fn transmute_record_mut<T: HasRType>(header: &mut RecordHeader) -> Option<&mut T> {
     if T::has_rtype(header.rtype) {
         // Safety: because it comes from a reference, `header` must not be null. It's ok to cast to `mut`
         // because it's never mutated.
@@ -494,7 +499,7 @@ pub unsafe fn transmute_record_mut<T: ConstRType>(header: &mut RecordHeader) -> 
     }
 }
 
-impl ConstRType for MboMsg {
+impl HasRType for MboMsg {
     fn has_rtype(rtype: u8) -> bool {
         rtype == rtype::MBO
     }
@@ -502,57 +507,57 @@ impl ConstRType for MboMsg {
 
 /// [TradeMsg]'s type ID is the size of its `booklevel` array (0) and is
 /// equivalent to MBP-0.
-impl ConstRType for TradeMsg {
+impl HasRType for TradeMsg {
     fn has_rtype(rtype: u8) -> bool {
         rtype == rtype::MBP_0
     }
 }
 
 /// [Mbp1Msg]'s type ID is the size of its `booklevel` array.
-impl ConstRType for Mbp1Msg {
+impl HasRType for Mbp1Msg {
     fn has_rtype(rtype: u8) -> bool {
         rtype == rtype::MBP_1
     }
 }
 
 /// [Mbp10Msg]'s type ID is the size of its `booklevel` array.
-impl ConstRType for Mbp10Msg {
+impl HasRType for Mbp10Msg {
     fn has_rtype(rtype: u8) -> bool {
         rtype == rtype::MBP_10
     }
 }
 
-impl ConstRType for OhlcvMsg {
+impl HasRType for OhlcvMsg {
     fn has_rtype(rtype: u8) -> bool {
         rtype == rtype::OHLCV
     }
 }
 
-impl ConstRType for StatusMsg {
+impl HasRType for StatusMsg {
     fn has_rtype(rtype: u8) -> bool {
         rtype == rtype::STATUS
     }
 }
 
-impl ConstRType for InstrumentDefMsg {
+impl HasRType for InstrumentDefMsg {
     fn has_rtype(rtype: u8) -> bool {
         rtype == rtype::INSTRUMENT_DEF
     }
 }
 
-impl ConstRType for Imbalance {
+impl HasRType for Imbalance {
     fn has_rtype(rtype: u8) -> bool {
         rtype == rtype::IMBALANCE
     }
 }
 
-impl ConstRType for GatewayErrorMsg {
+impl HasRType for GatewayErrorMsg {
     fn has_rtype(rtype: u8) -> bool {
         rtype == rtype::GATEWAY_ERROR
     }
 }
 
-impl ConstRType for SymbolMappingMsg {
+impl HasRType for SymbolMappingMsg {
     fn has_rtype(rtype: u8) -> bool {
         rtype == rtype::SYMBOL_MAPPING
     }

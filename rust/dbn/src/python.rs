@@ -1,22 +1,29 @@
 //! Python wrappers around dbn functions. These are implemented here instead of in `python/`
-//! to be able to implement `pyo3` traits for `dbn` types.
+//! to be able to implement [`pyo3`] traits for [`dbn`] types.
 #![allow(clippy::borrow_deref_ref)]
-use std::ffi::c_char;
-use std::mem;
 // in generated code from `pyfunction` macro and `&PyBytes`
-use std::{fmt, io, io::SeekFrom};
+use std::{ffi::c_char, fmt, io, io::SeekFrom, mem, num::NonZeroU64};
 
-use pyo3::exceptions::{PyKeyError, PyTypeError, PyValueError};
-use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyDate, PyDateAccess, PyDict};
+use pyo3::{
+    exceptions::{PyKeyError, PyTypeError, PyValueError},
+    prelude::*,
+    types::{PyBytes, PyDate, PyDateAccess, PyDict},
+};
 use time::Date;
 
-use crate::enums::{Compression, SType, Schema};
-use crate::record::{
-    BidAskPair, ConstRType, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader, TbboMsg, TradeMsg,
+use crate::{
+    decode::dbn::MetadataDecoder,
+    encode::{
+        dbn::{self, MetadataEncoder},
+        DbnEncodable, DynWriter, EncodeDbn,
+    },
+    enums::{Compression, SType, Schema},
+    metadata::MetadataBuilder,
+    record::{
+        BidAskPair, HasRType, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader, TbboMsg, TradeMsg,
+    },
 };
-use crate::write::dbn::SCHEMA_VERSION;
-use crate::{write_dbn, MappingInterval, Metadata, SymbolMapping};
+use crate::{MappingInterval, Metadata, SymbolMapping};
 
 /// Decodes the given Python `bytes` to `Metadata`. Returns a Python `dict` with
 /// all the DBN metadata.
@@ -25,8 +32,8 @@ use crate::{write_dbn, MappingInterval, Metadata, SymbolMapping};
 /// This function returns an error if the metadata cannot be parsed from `bytes`.
 #[pyfunction]
 pub fn decode_metadata(bytes: &PyBytes) -> PyResult<Metadata> {
-    let mut reader = io::BufReader::new(bytes.as_bytes());
-    Metadata::read(&mut reader).map_err(to_val_err)
+    let reader = io::BufReader::new(bytes.as_bytes());
+    MetadataDecoder::new(reader).decode().map_err(to_val_err)
 }
 
 /// Encodes the given metadata into the DBN metadata binary format.
@@ -41,38 +48,36 @@ pub fn decode_metadata(bytes: &PyBytes) -> PyResult<Metadata> {
 pub fn encode_metadata(
     py: Python<'_>,
     dataset: String,
-    schema: u16,
+    schema: Schema,
     start: u64,
     end: u64,
     limit: Option<u64>,
     record_count: u64,
-    compression: u8,
-    stype_in: u8,
-    stype_out: u8,
+    stype_in: SType,
+    stype_out: SType,
     symbols: Vec<String>,
     partial: Vec<String>,
     not_found: Vec<String>,
     mappings: Vec<SymbolMapping>,
 ) -> PyResult<Py<PyBytes>> {
-    let metadata = Metadata {
-        version: SCHEMA_VERSION,
-        dataset,
-        schema: Schema::try_from(schema).map_err(to_val_err)?,
-        start,
-        end,
-        limit: limit.unwrap_or(0),
-        record_count,
-        compression: Compression::try_from(compression).map_err(to_val_err)?,
-        stype_in: SType::try_from(stype_in).map_err(to_val_err)?,
-        stype_out: SType::try_from(stype_out).map_err(to_val_err)?,
-        symbols,
-        partial,
-        not_found,
-        mappings,
-    };
+    let metadata = MetadataBuilder::new()
+        .dataset(dataset)
+        .schema(schema)
+        .start(start)
+        .end(end)
+        .record_count(record_count)
+        .limit(NonZeroU64::new(limit.unwrap_or(0)))
+        .stype_in(stype_in)
+        .stype_out(stype_out)
+        .symbols(symbols)
+        .partial(partial)
+        .not_found(not_found)
+        .mappings(mappings)
+        .build();
     let mut encoded = Vec::with_capacity(1024);
-    let cursor = io::Cursor::new(&mut encoded);
-    metadata.encode(cursor).map_err(to_val_err)?;
+    MetadataEncoder::new(encoded.as_mut_slice())
+        .encode(&metadata)
+        .map_err(to_val_err)?;
     Ok(PyBytes::new(py, encoded.as_slice()).into())
 }
 
@@ -86,7 +91,9 @@ pub fn update_encoded_metadata(
     limit: Option<u64>,
     record_count: u64,
 ) -> PyResult<()> {
-    Metadata::update_encoded(file, start, end, limit.unwrap_or(0), record_count).map_err(to_val_err)
+    MetadataEncoder::new(file)
+        .update_encoded(start, end, limit.and_then(NonZeroU64::new), record_count)
+        .map_err(to_val_err)
 }
 
 pub struct PyFileLike {
@@ -108,61 +115,53 @@ pub struct PyFileLike {
 #[pyfunction]
 pub fn write_dbn_file(
     _py: Python<'_>,
-    mut file: PyFileLike,
-    schema: &str,
+    file: PyFileLike,
+    compression: Compression,
+    schema: Schema,
     dataset: String,
     records: Vec<&PyDict>,
-    stype: &str,
+    stype: SType,
 ) -> PyResult<()> {
-    let schema = schema.parse::<Schema>().map_err(to_val_err)?;
-    let stype = stype.parse::<SType>().map_err(to_val_err)?;
-    let metadata = Metadata {
-        version: SCHEMA_VERSION,
-        dataset,
-        schema,
-        start: 0,
-        end: 0,
-        limit: 0,
-        record_count: records.len() as u64,
-        compression: Compression::None,
-        stype_in: stype,
-        stype_out: stype,
-        symbols: vec![],
-        partial: vec![],
-        not_found: vec![],
-        mappings: vec![],
-    };
-    metadata.encode(&mut file).map_err(to_val_err)?;
+    let metadata = MetadataBuilder::new()
+        .schema(schema)
+        .dataset(dataset)
+        .record_count(records.len() as u64)
+        .stype_in(stype)
+        .stype_out(stype)
+        .start(0)
+        .build();
+    let writer = DynWriter::new(file, compression).map_err(to_val_err)?;
+    let encoder = dbn::Encoder::new(writer, &metadata).map_err(to_val_err)?;
     match schema {
-        Schema::Mbo => write_records_to_dbn::<MboMsg>(file, &records),
-        Schema::Mbp1 => write_records_to_dbn::<Mbp1Msg>(file, &records),
-        Schema::Mbp10 => write_records_to_dbn::<Mbp10Msg>(file, &records),
-        Schema::Tbbo => write_records_to_dbn::<TbboMsg>(file, &records),
-        Schema::Trades => write_records_to_dbn::<TradeMsg>(file, &records),
-        Schema::Ohlcv1S => write_records_to_dbn::<OhlcvMsg>(file, &records),
-        Schema::Ohlcv1M => write_records_to_dbn::<OhlcvMsg>(file, &records),
-        Schema::Ohlcv1H => write_records_to_dbn::<OhlcvMsg>(file, &records),
-        Schema::Ohlcv1D => write_records_to_dbn::<OhlcvMsg>(file, &records),
+        Schema::Mbo => encode_pydicts::<MboMsg>(encoder, &records),
+        Schema::Mbp1 => encode_pydicts::<Mbp1Msg>(encoder, &records),
+        Schema::Mbp10 => encode_pydicts::<Mbp10Msg>(encoder, &records),
+        Schema::Tbbo => encode_pydicts::<TbboMsg>(encoder, &records),
+        Schema::Trades => encode_pydicts::<TradeMsg>(encoder, &records),
+        Schema::Ohlcv1S => encode_pydicts::<OhlcvMsg>(encoder, &records),
+        Schema::Ohlcv1M => encode_pydicts::<OhlcvMsg>(encoder, &records),
+        Schema::Ohlcv1H => encode_pydicts::<OhlcvMsg>(encoder, &records),
+        Schema::Ohlcv1D => encode_pydicts::<OhlcvMsg>(encoder, &records),
         Schema::Definition | Schema::Statistics | Schema::Status => Err(PyValueError::new_err(
             "Unsupported schema type for writing DBN files",
         )),
     }
 }
 
-#[allow(clippy::ptr_arg)]
-fn write_records_to_dbn<T: ConstRType + FromPyDict>(
-    file: PyFileLike,
-    records: &Vec<&PyDict>,
+fn encode_pydicts<T: DbnEncodable + FromPyDict>(
+    mut encoder: dbn::Encoder<DynWriter<PyFileLike>>,
+    records: &[&PyDict],
 ) -> PyResult<()> {
-    write_dbn(
-        file,
-        records
-            .iter()
-            .map(|dict| T::from_py_dict(dict))
-            .collect::<PyResult<Vec<T>>>()?
-            .iter(),
-    )
-    .map_err(to_val_err)
+    encoder
+        .encode_records(
+            records
+                .iter()
+                .map(|dict| T::from_py_dict(dict))
+                .collect::<PyResult<Vec<T>>>()?
+                .iter()
+                .as_slice(),
+        )
+        .map_err(to_val_err)
 }
 
 impl<'source> FromPyObject<'source> for PyFileLike {
@@ -199,11 +198,10 @@ impl IntoPy<PyObject> for Metadata {
             .expect("set schema");
         dict.set_item("start", self.start).expect("set start");
         dict.set_item("end", self.end).expect("set end");
-        dict.set_item("limit", self.limit).expect("set limit");
+        dict.set_item("limit", self.limit.map(|n| n.get()))
+            .expect("set limit");
         dict.set_item("record_count", self.record_count)
             .expect("set record_count");
-        dict.set_item("compression", self.compression as u8)
-            .expect("set compression");
         dict.set_item("stype_in", self.stype_in as u8)
             .expect("set stype_in");
         dict.set_item("stype_out", self.stype_out as u8)
@@ -222,7 +220,8 @@ impl IntoPy<PyObject> for Metadata {
 impl ToPyObject for SymbolMapping {
     fn to_object(&self, py: Python<'_>) -> PyObject {
         let dict = PyDict::new(py);
-        dict.set_item("native", &self.native).expect("set native");
+        dict.set_item("native_symbol", &self.native_symbol)
+            .expect("set native_symbol");
         dict.set_item("intervals", &self.intervals)
             .expect("set intervals");
         dict.into_py(py)
@@ -366,7 +365,7 @@ where
     try_get_item(dict, key)?.extract::<D>()
 }
 
-fn header_from_dict<T: ConstRType>(dict: &PyDict) -> PyResult<RecordHeader> {
+fn header_from_dict<T: HasRType>(dict: &PyDict) -> PyResult<RecordHeader> {
     let rtype = try_extract_item::<u8>(dict, "rtype")?;
     if T::has_rtype(rtype) {
         Ok(RecordHeader {
@@ -490,6 +489,27 @@ impl FromPyDict for OhlcvMsg {
     }
 }
 
+impl<'source> FromPyObject<'source> for Compression {
+    fn extract(any: &'source PyAny) -> PyResult<Self> {
+        let str: &str = any.extract()?;
+        str.parse().map_err(to_val_err)
+    }
+}
+
+impl<'source> FromPyObject<'source> for Schema {
+    fn extract(any: &'source PyAny) -> PyResult<Self> {
+        let str: &str = any.extract()?;
+        str.parse().map_err(to_val_err)
+    }
+}
+
+impl<'source> FromPyObject<'source> for SType {
+    fn extract(any: &'source PyAny) -> PyResult<Self> {
+        let str: &str = any.extract()?;
+        str.parse().map_err(to_val_err)
+    }
+}
+
 #[cfg(all(test, feature = "python-test"))]
 mod tests {
     use std::io::{Cursor, Seek, Write};
@@ -498,7 +518,10 @@ mod tests {
     use streaming_iterator::StreamingIterator;
 
     use super::*;
-    use crate::{Dbn, OutputEncoding};
+    use crate::{
+        decode::{dbn, DecodeDbn},
+        encode::json,
+    };
 
     const DBN_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/data");
 
@@ -613,18 +636,16 @@ mod tests {
                 pyo3::prepare_freethreaded_python();
 
                 // Read in test data
-                let input =
-                    Dbn::from_file(format!("{DBN_PATH}/test_data.{}.dbn.zst", $schema.as_str()))
-                        .unwrap();
+                let decoder = dbn::Decoder::from_zstd_file(format!(
+                    "{DBN_PATH}/test_data.{}.dbn.zst",
+                    $schema.as_str()
+                ))
+                .unwrap();
                 // Serialize test data to JSON
                 let mut writer = Cursor::new(Vec::new());
-                input
-                    .write_to(
-                        &mut writer,
-                        OutputEncoding::Json {
-                            should_pretty_print: false,
-                        },
-                    )
+                let mut encoder = json::Encoder::new(&mut writer, true);
+                encoder
+                    .encode_stream(decoder.decode_stream::<$record_type>().unwrap())
                     .unwrap();
                 // Read in JSON to generic serde JSON objects
                 let input_buf = writer.into_inner();
@@ -642,15 +663,15 @@ mod tests {
                     let mock_file = MockPyFile::new();
                     let output_buf = mock_file.inner();
                     let mock_file = Py::new(py, mock_file).unwrap().into_py(py);
-                    dbg!(&recs);
                     // Call target function
                     write_dbn_file(
                         py,
                         mock_file.extract(py).unwrap(),
-                        $schema.as_str(),
+                        Compression::ZStd,
+                        $schema,
                         DATASET.to_owned(),
                         recs,
-                        STYPE.as_str(),
+                        STYPE,
                     )
                     .unwrap();
 
@@ -665,19 +686,21 @@ mod tests {
                 dbg!(output_buf.len());
                 // Reread output written with `write_dbn_file` and compare to original
                 // contents
-                let py_dbn = Dbn::new(Cursor::new(&output_buf)).unwrap();
-                let metadata = py_dbn.metadata().clone();
+                let py_decoder = dbn::Decoder::with_zstd(Cursor::new(&output_buf)).unwrap();
+                let metadata = py_decoder.metadata().clone();
                 assert_eq!(metadata.schema, $schema);
                 assert_eq!(metadata.dataset, DATASET);
                 assert_eq!(metadata.stype_in, STYPE);
                 assert_eq!(metadata.stype_out, STYPE);
                 assert_eq!(metadata.record_count as usize, json_recs.len());
-                let input =
-                    Dbn::from_file(format!("{DBN_PATH}/test_data.{}.dbn.zst", $schema.as_str()))
-                        .unwrap();
+                let decoder = dbn::Decoder::from_zstd_file(format!(
+                    "{DBN_PATH}/test_data.{}.dbn.zst",
+                    $schema.as_str()
+                ))
+                .unwrap();
 
-                let mut py_iter = py_dbn.try_into_iter::<$record_type>().unwrap();
-                let mut expected_iter = input.try_into_iter::<$record_type>().unwrap();
+                let mut py_iter = py_decoder.decode_stream::<$record_type>().unwrap();
+                let mut expected_iter = decoder.decode_stream::<$record_type>().unwrap();
                 let mut count = 0;
                 while let Some((py_rec, exp_rec)) = py_iter
                     .next()

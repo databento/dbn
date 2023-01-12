@@ -1,95 +1,155 @@
+//! Encoding of DBN records into newline-delimited JSON (ndjson).
 use std::{fmt, io};
 
 use anyhow::Context;
 use serde::Serialize;
-use serde_json::ser::{Formatter, PrettyFormatter};
+use serde_json::ser::PrettyFormatter;
 use streaming_iterator::StreamingIterator;
 
-use crate::{record::ConstRType, Metadata};
+use crate::Metadata;
 
-/// Incrementally serializes the contents of `iter` into NDJSON to `writer` so the
-/// contents of `iter` are not all buffered into memory at once.
-pub fn write_json<F: Clone + Formatter, T>(
-    mut writer: impl io::Write,
-    formatter: F,
-    mut iter: impl StreamingIterator<Item = T>,
-) -> anyhow::Result<()>
+use super::{DbnEncodable, EncodeDbn};
+
+/// Type for encoding files and streams of DBN records in newline-delimited JSON (ndjson).
+pub struct Encoder<W>
 where
-    T: ConstRType + Serialize + fmt::Debug,
+    W: io::Write,
 {
-    while let Some(record) = iter.next() {
-        match record.serialize(&mut serde_json::Serializer::with_formatter(
-            &mut writer,
-            formatter.clone(),
-        )) {
-            // broken output, likely a closed pipe
-            Err(e) if e.is_io() => return Ok(()),
-            r => r,
+    writer: W,
+    should_pretty_print: bool,
+}
+
+impl<W> Encoder<W>
+where
+    W: io::Write,
+{
+    /// Creates a new instance of [`Encoder`]. If `should_pretty_print` is `true`,
+    /// each JSON object will be nicely formatted and indented, instead of the default
+    /// compact output with no whitespace between key-value pairs.
+    pub fn new(writer: W, should_pretty_print: bool) -> Self {
+        Self {
+            writer,
+            should_pretty_print,
         }
-        .with_context(|| format!("Failed to serialize {record:#?}"))?;
-        writer.write_all(b"\n")?;
     }
-    writer.flush()?;
-    Ok(())
+
+    /// Encodes `metadata` into JSON.
+    ///
+    /// # Errors
+    /// This function returns an error if `metadata` is not serializable or if there's
+    /// an error writing to `writer`.
+    pub fn encode_metadata(&mut self, metadata: &Metadata) -> anyhow::Result<()> {
+        self.serialize(metadata)
+            .with_context(|| format!("Failed to serialize {metadata:#?}"))?;
+        // newline at EOF
+        self.writer.write_all(b"\n")?;
+        self.writer.flush()?;
+        Ok(())
+    }
+
+    fn serialize<T: fmt::Debug + Serialize>(&mut self, obj: &T) -> serde_json::Result<()> {
+        if self.should_pretty_print {
+            obj.serialize(&mut serde_json::Serializer::with_formatter(
+                &mut self.writer,
+                Self::pretty_formatter(),
+            ))
+        } else {
+            obj.serialize(&mut serde_json::Serializer::new(&mut self.writer))
+        }
+    }
+
+    fn pretty_formatter() -> PrettyFormatter<'static> {
+        // `PrettyFormatter::with_indent` should be `const`
+        PrettyFormatter::with_indent(b"    ")
+    }
 }
 
-/// Serializes `metadata` in JSON format to `writer`.
-pub fn write_json_metadata<F: Formatter>(
-    mut writer: impl io::Write,
-    formatter: F,
-    metadata: &Metadata,
-) -> anyhow::Result<()> {
-    let mut serializer = serde_json::Serializer::with_formatter(&mut writer, formatter);
-    metadata.serialize(&mut serializer)?;
-    // newline at EOF
-    writer.write_all(b"\n")?;
-    writer.flush()?;
-    Ok(())
-}
+impl<W> EncodeDbn for Encoder<W>
+where
+    W: io::Write,
+{
+    fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> anyhow::Result<bool> {
+        match self.serialize(record) {
+            // broken output, likely a closed pipe
+            Ok(_) => Ok(()),
+            Err(e) if e.is_io() => return Ok(true),
+            Err(e) => {
+                Err(anyhow::Error::new(e).context(format!("Failed to serialize {record:#?}")))
+            }
+        }?;
+        match self.writer.write_all(b"\n") {
+            Err(e) if e.kind() == io::ErrorKind::BrokenPipe => return Ok(true),
+            r => r,
+        }?;
+        Ok(false)
+    }
 
-pub fn pretty_formatter() -> PrettyFormatter<'static> {
-    // with_indent should be `const`
-    PrettyFormatter::with_indent(b"    ")
+    fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> anyhow::Result<()> {
+        for record in records {
+            if self.encode_record(record)? {
+                return Ok(());
+            }
+        }
+        self.writer.flush()?;
+        Ok(())
+    }
+
+    fn encode_stream<R: DbnEncodable>(
+        &mut self,
+        mut stream: impl StreamingIterator<Item = R>,
+    ) -> anyhow::Result<()> {
+        while let Some(record) = stream.next() {
+            if self.encode_record(record)? {
+                return Ok(());
+            }
+        }
+        self.writer.flush()?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::{io::BufWriter, os::raw::c_char};
-
-    use serde_json::ser::CompactFormatter;
+    use std::{array, io::BufWriter, os::raw::c_char};
 
     use super::*;
     use crate::{
-        enums::{Compression, SType, Schema, SecurityUpdateAction},
+        encode::test_data::{VecStream, BID_ASK, RECORD_HEADER},
+        enums::{SType, Schema, SecurityUpdateAction},
         record::{InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, TradeMsg},
-        write::test_data::{VecStream, BID_ASK, RECORD_HEADER},
         MappingInterval, SymbolMapping,
     };
 
-    fn write_json_to_string<T>(vec: Vec<T>, should_pretty_print: bool) -> String
+    fn write_json_to_string<R>(records: &[R], should_pretty_print: bool) -> String
     where
-        T: ConstRType + Serialize + fmt::Debug,
+        R: DbnEncodable,
     {
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        if should_pretty_print {
-            write_json(writer, pretty_formatter(), VecStream::new(vec))
-        } else {
-            write_json(writer, CompactFormatter, VecStream::new(vec))
-        }
-        .unwrap();
+        Encoder::new(writer, should_pretty_print)
+            .encode_records(records)
+            .unwrap();
+        String::from_utf8(buffer).expect("valid UTF-8")
+    }
+
+    fn write_json_stream_to_string<R>(records: Vec<R>, should_pretty_print: bool) -> String
+    where
+        R: DbnEncodable,
+    {
+        let mut buffer = Vec::new();
+        let writer = BufWriter::new(&mut buffer);
+        Encoder::new(writer, should_pretty_print)
+            .encode_stream(VecStream::new(records))
+            .unwrap();
         String::from_utf8(buffer).expect("valid UTF-8")
     }
 
     fn write_json_metadata_to_string(metadata: &Metadata, should_pretty_print: bool) -> String {
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        if should_pretty_print {
-            write_json_metadata(writer, pretty_formatter(), metadata)
-        } else {
-            write_json_metadata(writer, CompactFormatter, metadata)
-        }
-        .unwrap();
+        Encoder::new(writer, should_pretty_print)
+            .encode_metadata(metadata)
+            .unwrap();
         String::from_utf8(buffer).expect("valid UTF-8")
     }
 
@@ -112,10 +172,12 @@ mod tests {
             ts_in_delta: 22_000,
             sequence: 1_002_375,
         }];
-        let res = write_json_to_string(data, false);
+        let slice_res = write_json_to_string(data.as_slice(), false);
+        let stream_res = write_json_stream_to_string(data, false);
 
+        assert_eq!(slice_res, stream_res);
         assert_eq!(
-            res,
+            slice_res,
             format!(
                 "{{{HEADER_JSON},{}}}\n",
                 r#""order_id":16,"price":5500,"size":3,"flags":128,"channel_id":14,"action":66,"side":67,"ts_recv":"1658441891000000000","ts_in_delta":22000,"sequence":1002375"#
@@ -136,12 +198,14 @@ mod tests {
             ts_recv: 1658441891000000000,
             ts_in_delta: 22_000,
             sequence: 1_002_375,
-            booklevel: [BID_ASK; 1],
+            booklevel: [BID_ASK],
         }];
-        let res = write_json_to_string(data, false);
+        let slice_res = write_json_to_string(data.as_slice(), false);
+        let stream_res = write_json_stream_to_string(data, false);
 
+        assert_eq!(slice_res, stream_res);
         assert_eq!(
-            res,
+            slice_res,
             format!(
                 "{{{HEADER_JSON},{},{}}}\n",
                 r#""price":5500,"size":3,"action":66,"side":67,"flags":128,"depth":9,"ts_recv":"1658441891000000000","ts_in_delta":22000,"sequence":1002375"#,
@@ -163,12 +227,14 @@ mod tests {
             ts_recv: 1658441891000000000,
             ts_in_delta: 22_000,
             sequence: 1_002_375,
-            booklevel: [BID_ASK; 10],
+            booklevel: array::from_fn(|_| BID_ASK.clone()),
         }];
-        let res = write_json_to_string(data, false);
+        let slice_res = write_json_to_string(data.as_slice(), false);
+        let stream_res = write_json_stream_to_string(data, false);
 
+        assert_eq!(slice_res, stream_res);
         assert_eq!(
-            res,
+            slice_res,
             format!(
                 "{{{HEADER_JSON},{},{}}}\n",
                 r#""price":5500,"size":3,"action":66,"side":67,"flags":128,"depth":9,"ts_recv":"1658441891000000000","ts_in_delta":22000,"sequence":1002375"#,
@@ -192,10 +258,12 @@ mod tests {
             sequence: 1_002_375,
             booklevel: [],
         }];
-        let res = write_json_to_string(data, false);
+        let slice_res = write_json_to_string(data.as_slice(), false);
+        let stream_res = write_json_stream_to_string(data, false);
 
+        assert_eq!(slice_res, stream_res);
         assert_eq!(
-            res,
+            slice_res,
             format!(
                 "{{{HEADER_JSON},{}}}\n",
                 r#""price":5500,"size":3,"action":66,"side":67,"flags":128,"depth":9,"ts_recv":"1658441891000000000","ts_in_delta":22000,"sequence":1002375"#,
@@ -213,10 +281,12 @@ mod tests {
             close: 6000,
             volume: 55_000,
         }];
-        let res = write_json_to_string(data, false);
+        let slice_res = write_json_to_string(data.as_slice(), false);
+        let stream_res = write_json_stream_to_string(data, false);
 
+        assert_eq!(slice_res, stream_res);
         assert_eq!(
-            res,
+            slice_res,
             format!(
                 "{{{HEADER_JSON},{}}}\n",
                 r#""open":5000,"high":8000,"low":3000,"close":6000,"volume":55000"#,
@@ -238,10 +308,12 @@ mod tests {
             halt_reason: 4,
             trading_event: 6,
         }];
-        let res = write_json_to_string(data, false);
+        let slice_res = write_json_to_string(data.as_slice(), false);
+        let stream_res = write_json_stream_to_string(data, false);
 
+        assert_eq!(slice_res, stream_res);
         assert_eq!(
-            res,
+            slice_res,
             format!(
                 "{{{HEADER_JSON},{}}}\n",
                 r#""ts_recv":"1658441891000000000","group":"group","trading_status":3,"halt_reason":4,"trading_event":6"#,
@@ -305,7 +377,7 @@ mod tests {
             settl_price_type: 9,
             sub_fraction: 23,
             underlying_product: 10,
-            security_update_action: SecurityUpdateAction::Invalid,
+            security_update_action: SecurityUpdateAction::Add,
             maturity_month: 8,
             maturity_day: 9,
             maturity_week: 11,
@@ -315,10 +387,12 @@ mod tests {
             tick_rule: 0,
             _dummy: [0; 3],
         }];
-        let res = write_json_to_string(data, false);
+        let slice_res = write_json_to_string(data.as_slice(), false);
+        let stream_res = write_json_stream_to_string(data, false);
 
+        assert_eq!(slice_res, stream_res);
         assert_eq!(
-            res,
+            slice_res,
             format!(
                 "{{{HEADER_JSON},{}}}\n",
                 concat!(
@@ -329,7 +403,7 @@ mod tests {
                     r#""open_interest_qty":0,"contract_multiplier":0,"decay_quantity":0,"original_contract_size":0,"related_security_id":0,"trading_reference_date":0,"appl_id":0,"#,
                     r#""maturity_year":0,"decay_start_date":0,"channel_id":4,"currency":"","settl_currency":"USD","secsubtype":"","symbol":"","group":"","exchange":"","asset":"","cfi":"","#,
                     r#""security_type":"","unit_of_measure":"","underlying":"","related":"","match_algorithm":1,"md_security_trading_status":2,"main_fraction":4,"price_display_format":8,"#,
-                    r#""settl_price_type":9,"sub_fraction":23,"underlying_product":10,"security_update_action":"~","maturity_month":8,"maturity_day":9,"maturity_week":11,"#,
+                    r#""settl_price_type":9,"sub_fraction":23,"underlying_product":10,"security_update_action":"A","maturity_month":8,"maturity_day":9,"maturity_week":11,"#,
                     r#""user_defined_instrument":1,"contract_multiplier_unit":0,"flow_schedule_type":5,"tick_rule":0"#
                 )
             )
@@ -344,16 +418,15 @@ mod tests {
             schema: Schema::Ohlcv1H,
             start: 1662734705128748281,
             end: 1662734720914876944,
-            limit: 0,
+            limit: None,
             record_count: 3,
-            compression: Compression::ZStd,
             stype_in: SType::ProductId,
             stype_out: SType::Native,
             symbols: vec!["ESZ2".to_owned()],
             partial: Vec::new(),
             not_found: Vec::new(),
             mappings: vec![SymbolMapping {
-                native: "ESZ2".to_owned(),
+                native_symbol: "ESZ2".to_owned(),
                 intervals: vec![MappingInterval {
                     start_date: time::Date::from_calendar_date(2022, time::Month::September, 9)
                         .unwrap(),
@@ -367,9 +440,9 @@ mod tests {
         assert_eq!(
             res,
             "{\"version\":1,\"dataset\":\"GLBX.MDP3\",\"schema\":\"ohlcv-1h\",\"start\"\
-            :1662734705128748281,\"end\":1662734720914876944,\"limit\":0,\"record_count\":3,\"\
-            compression\":\"zstd\",\"stype_in\":\"product_id\",\"stype_out\":\"native\",\"symbols\"\
-            :[\"ESZ2\"],\"partial\":[],\"not_found\":[],\"mappings\":[{\"native\":\"ESZ2\",\
+            :1662734705128748281,\"end\":1662734720914876944,\"limit\":0,\"record_count\":3,\
+            \"stype_in\":\"product_id\",\"stype_out\":\"native\",\"symbols\"\
+            :[\"ESZ2\"],\"partial\":[],\"not_found\":[],\"mappings\":[{\"native_symbol\":\"ESZ2\",\
             \"intervals\":[{\"start_date\":\"2022-09-09\",\"end_date\":\"2022-09-10\",\"symbol\":\
             \"ESH2\"}]}]}\n"
         );
