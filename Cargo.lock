@@ -171,7 +171,6 @@ dependencies = [
  "csv",
  "log",
  "num_enum",
- "num_enum_derive",
  "pyo3",
  "serde",
  "serde_json",

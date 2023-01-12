@@ -35,7 +35,7 @@ impl<R: io::BufRead> Dbn<R> {
     ///
     /// # Errors
     /// This function returns an error if [`Dbn::schema()`] is
-    /// [`Schema::Statistics`](databento_defs::enums::Schema::Statistics). It will also
+    /// [`Schema::Statistics`](crate::enums::Schema::Statistics). It will also
     /// return an error if there's an issue writing the output to `writer`.
     pub fn write_to(self, writer: impl io::Write, encoding: OutputEncoding) -> anyhow::Result<()> {
         match self.schema() {
@@ -82,7 +82,7 @@ impl Metadata {
     ///
     /// # Errors
     /// This function returns an error if [`Dbn::schema()`] is
-    /// [`Schema::Statistics`](databento_defs::enums::Schema::Statistics). It will also
+    /// [`Schema::Statistics`](crate::enums::Schema::Statistics). It will also
     /// return an error if there's an issue writing the output to `writer`.
     pub fn write_to(&self, writer: impl io::Write, encoding: OutputEncoding) -> anyhow::Result<()> {
         match encoding {
