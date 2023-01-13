@@ -195,7 +195,7 @@ unsafe fn as_u8_slice<T: Sized>(data: &T) -> &[u8] {
     slice::from_raw_parts(data as *const T as *const u8, mem::size_of::<T>())
 }
 
-/// Incrementally serializes the records in `iter` in the DBN format to `writer`.
+/// Incrementally serializes the records in `iter` in the DBN encoding to `writer`.
 pub fn write_dbn_stream<T>(
     writer: impl io::Write,
     mut stream: impl StreamingIterator<Item = T>,
@@ -221,7 +221,7 @@ where
     Ok(())
 }
 
-/// Incrementally serializes the records in `iter` in the DBN format to `writer`.
+/// Incrementally serializes the records in `iter` in the DBN encoding to `writer`.
 pub fn write_dbn<'a, T>(
     writer: impl io::Write,
     iter: impl Iterator<Item = &'a T>,

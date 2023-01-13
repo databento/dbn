@@ -93,7 +93,7 @@ pub struct PyFileLike {
     inner: PyObject,
 }
 
-/// Encodes the given data in the DBN format and writes it to `file`. Most
+/// Encodes the given data in the DBN encoding and writes it to `file`. Most
 /// metadata is inferred based on the arguments.
 ///
 /// `records` is a list of **flat** dicts where the field names match the
