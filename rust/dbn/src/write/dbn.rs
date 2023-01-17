@@ -9,7 +9,7 @@ use anyhow::{anyhow, Context};
 use streaming_iterator::StreamingIterator;
 use zstd::{stream::AutoFinishEncoder, Encoder};
 
-use crate::{read::SymbolMapping, record::ConstTypeId, Metadata};
+use crate::{read::SymbolMapping, record::ConstRType, Metadata};
 
 pub(crate) const SCHEMA_VERSION: u8 = 1;
 
@@ -201,13 +201,13 @@ pub fn write_dbn_stream<T>(
     mut stream: impl StreamingIterator<Item = T>,
 ) -> anyhow::Result<()>
 where
-    T: ConstTypeId + Sized,
+    T: ConstRType + Sized,
 {
     let mut encoder = new_encoder(writer)
         .with_context(|| "Failed to create Zstd encoder for writing DBN".to_owned())?;
     while let Some(record) = stream.next() {
         let bytes = unsafe {
-            // Safety: all records, types implementing `ConstTypeId` are POD
+            // Safety: all records, types implementing `ConstRType` are POD
             as_u8_slice(record)
         };
         match encoder.write_all(bytes) {
@@ -227,13 +227,13 @@ pub fn write_dbn<'a, T>(
     iter: impl Iterator<Item = &'a T>,
 ) -> anyhow::Result<()>
 where
-    T: 'a + ConstTypeId + Sized,
+    T: 'a + ConstRType + Sized,
 {
     let mut encoder = new_encoder(writer)
         .with_context(|| "Failed to create Zstd encoder for writing DBN".to_owned())?;
     for record in iter {
         let bytes = unsafe {
-            // Safety: all records, types implementing `ConstTypeId` are POD
+            // Safety: all records, types implementing `ConstRType` are POD
             as_u8_slice(record)
         };
         match encoder.write_all(bytes) {
@@ -258,7 +258,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        enums::{Compression, SType, Schema},
+        enums::{rtype, Compression, SType, Schema},
         read::{FromLittleEndianSlice, MappingInterval},
         record::{MboMsg, Mbp1Msg, OhlcvMsg, RecordHeader, StatusMsg, TradeMsg},
         write::test_data::{VecStream, BID_ASK, RECORD_HEADER},
@@ -425,7 +425,7 @@ mod tests {
 
     fn encode_records_and_stub_metadata<T>(schema: Schema, records: Vec<T>) -> (Vec<u8>, Metadata)
     where
-        T: ConstTypeId + Clone,
+        T: ConstRType + Clone,
     {
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
@@ -452,7 +452,7 @@ mod tests {
 
     fn assert_encode_decode_record_identity<T>(schema: Schema, records: Vec<T>)
     where
-        T: ConstTypeId + Clone + fmt::Debug + PartialEq,
+        T: ConstRType + Clone + fmt::Debug + PartialEq,
     {
         let (buffer, metadata) = encode_records_and_stub_metadata(schema, records.clone());
         let mut iter: DbnStreamIter<&[u8], T> =
@@ -470,7 +470,7 @@ mod tests {
         let records = vec![
             MboMsg {
                 hd: RecordHeader {
-                    rtype: MboMsg::TYPE_ID,
+                    rtype: rtype::MBO,
                     ..RECORD_HEADER
                 },
                 order_id: 2,
@@ -486,7 +486,7 @@ mod tests {
             },
             MboMsg {
                 hd: RecordHeader {
-                    rtype: MboMsg::TYPE_ID,
+                    rtype: rtype::MBO,
                     ..RECORD_HEADER
                 },
                 order_id: 3,
@@ -509,7 +509,7 @@ mod tests {
         let records = vec![
             Mbp1Msg {
                 hd: RecordHeader {
-                    rtype: Mbp1Msg::TYPE_ID,
+                    rtype: rtype::MBP_1,
                     ..RECORD_HEADER
                 },
                 price: 925000000000,
@@ -525,7 +525,7 @@ mod tests {
             },
             Mbp1Msg {
                 hd: RecordHeader {
-                    rtype: Mbp1Msg::TYPE_ID,
+                    rtype: rtype::MBP_1,
                     ..RECORD_HEADER
                 },
                 price: 925000000000,
@@ -548,7 +548,7 @@ mod tests {
         let records = vec![
             TradeMsg {
                 hd: RecordHeader {
-                    rtype: TradeMsg::TYPE_ID,
+                    rtype: rtype::MBP_0,
                     ..RECORD_HEADER
                 },
                 price: 925000000000,
@@ -564,7 +564,7 @@ mod tests {
             },
             TradeMsg {
                 hd: RecordHeader {
-                    rtype: TradeMsg::TYPE_ID,
+                    rtype: rtype::MBP_0,
                     ..RECORD_HEADER
                 },
                 price: 925000000000,
@@ -587,7 +587,7 @@ mod tests {
         let records = vec![
             OhlcvMsg {
                 hd: RecordHeader {
-                    rtype: OhlcvMsg::TYPE_ID,
+                    rtype: rtype::OHLCV,
                     ..RECORD_HEADER
                 },
                 open: 92500000000,
@@ -598,7 +598,7 @@ mod tests {
             },
             OhlcvMsg {
                 hd: RecordHeader {
-                    rtype: OhlcvMsg::TYPE_ID,
+                    rtype: rtype::OHLCV,
                     ..RECORD_HEADER
                 },
                 open: 91600000000,
@@ -620,7 +620,7 @@ mod tests {
         let records = vec![
             StatusMsg {
                 hd: RecordHeader {
-                    rtype: StatusMsg::TYPE_ID,
+                    rtype: rtype::STATUS,
                     ..RECORD_HEADER
                 },
                 ts_recv: 1658441891000000000,
@@ -631,7 +631,7 @@ mod tests {
             },
             StatusMsg {
                 hd: RecordHeader {
-                    rtype: StatusMsg::TYPE_ID,
+                    rtype: rtype::STATUS,
                     ..RECORD_HEADER
                 },
                 ts_recv: 1658541891000000000,
@@ -649,7 +649,7 @@ mod tests {
         let records = vec![
             OhlcvMsg {
                 hd: RecordHeader {
-                    rtype: OhlcvMsg::TYPE_ID,
+                    rtype: rtype::OHLCV,
                     ..RECORD_HEADER
                 },
                 open: 92500000000,
@@ -660,7 +660,7 @@ mod tests {
             },
             OhlcvMsg {
                 hd: RecordHeader {
-                    rtype: OhlcvMsg::TYPE_ID,
+                    rtype: rtype::OHLCV,
                     ..RECORD_HEADER
                 },
                 open: 91600000000,

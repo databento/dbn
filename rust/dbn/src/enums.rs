@@ -126,6 +126,30 @@ impl Display for SType {
     }
 }
 
+/// Record types, possible values for [`RecordHeader::rtype`][crate::record::RecordHeader::rtype]
+pub mod rtype {
+    /// Market by price with a book depth of 0 (used for trades).
+    pub const MBP_0: u8 = 0x00;
+    /// Market by price with a book depth of 1 (also used for TBBO).
+    pub const MBP_1: u8 = 0x01;
+    /// Market by price with a book depth of 10.
+    pub const MBP_10: u8 = 0x0a;
+    /// Open, high, low, close, and volume
+    pub const OHLCV: u8 = 0x11;
+    /// Exchange status.
+    pub const STATUS: u8 = 0x12;
+    /// Instrument definition.
+    pub const INSTRUMENT_DEF: u8 = 0x13;
+    /// Order imbalance.
+    pub const IMBALANCE: u8 = 0x14;
+    /// Gateway error.
+    pub const GATEWAY_ERROR: u8 = 0x15;
+    /// Symbol mapping.
+    pub const SYMBOL_MAPPING: u8 = 0x16;
+    /// Market by order.
+    pub const MBO: u8 = 0xa0;
+}
+
 /// A data record schema.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
 #[repr(u16)]

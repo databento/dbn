@@ -4,7 +4,7 @@ use anyhow::Context;
 use serde::Serialize;
 use streaming_iterator::StreamingIterator;
 
-use crate::record::ConstTypeId;
+use crate::record::ConstRType;
 
 /// Incrementally serializes the contents of `iter` into CSV to `writer` so the
 /// contents of `iter` are not all buffered into memory at once.
@@ -13,7 +13,7 @@ pub fn write_csv<T>(
     mut iter: impl StreamingIterator<Item = T>,
 ) -> anyhow::Result<()>
 where
-    T: ConstTypeId + serialize::CsvSerialize + Serialize + fmt::Debug,
+    T: ConstRType + serialize::CsvSerialize + Serialize + fmt::Debug,
 {
     let mut csv_writer = csv::WriterBuilder::new()
         .has_headers(false) // need to write our own custom header

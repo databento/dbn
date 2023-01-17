@@ -14,7 +14,7 @@ use zstd::Decoder;
 
 use crate::{
     enums::{Compression, SType, Schema},
-    record::{transmute_record_bytes, ConstTypeId},
+    record::{transmute_record_bytes, ConstRType},
     write::dbn::SCHEMA_VERSION,
 };
 
@@ -140,7 +140,7 @@ impl<R: io::BufRead> Dbn<R> {
     /// # Errors
     /// This function will return an error if the zstd portion of the DBN file
     /// was compressed in an unexpected manner.
-    pub fn try_into_iter<T: ConstTypeId>(self) -> anyhow::Result<DbnStreamIter<R, T>> {
+    pub fn try_into_iter<T: ConstRType>(self) -> anyhow::Result<DbnStreamIter<R, T>> {
         DbnStreamIter::new(self.reader, self.metadata)
     }
 }
@@ -175,7 +175,7 @@ impl<R: io::BufRead, T> DbnStreamIter<R, T> {
     }
 }
 
-impl<R: io::BufRead, T: ConstTypeId> StreamingIterator for DbnStreamIter<R, T> {
+impl<R: io::BufRead, T: ConstRType> StreamingIterator for DbnStreamIter<R, T> {
     type Item = T;
 
     fn advance(&mut self) {

@@ -1,5 +1,6 @@
 //! Market data types for encoding different Databento [`Schema`](crate::enums::Schema)s and conversion functions.
-use std::{mem, ops::RangeInclusive, os::raw::c_char, ptr::NonNull};
+use crate::enums::rtype;
+use std::{mem, os::raw::c_char, ptr::NonNull};
 
 use serde::Serialize;
 
@@ -13,9 +14,10 @@ pub struct RecordHeader {
     /// The length of the message in 32-bit words.
     #[serde(skip)]
     pub length: u8,
-    /// The record type; with `0x00..0x0F` specifying booklevel size. Record
-    /// types implement the trait [`ConstTypeId`], which contains a constant
-    /// ID specific to that record type.
+    /// The record type; with `0x00..0x0F` specifying MBP booklevel size.
+    /// Record types implement the trait [`ConstRType`], and the [`has_rtype`][ConstRType::has_rtype]
+    /// function can be used to check if that type can be used to decode a message with a given rtype.
+    /// The set of possible values is defined in [`rtype`].
     pub rtype: u8,
     /// The publisher ID assigned by Databento.
     pub publisher_id: u16,
@@ -26,7 +28,6 @@ pub struct RecordHeader {
     pub ts_event: u64,
 }
 
-pub const TICK_MSG_TYPE_ID: u8 = 0xA0;
 /// Market-by-order (MBO) tick message.
 /// `hd.rtype = 0xA0`
 #[repr(C)]
@@ -81,7 +82,6 @@ pub struct BidAskPair {
 }
 
 pub const MAX_UA_BOOK_LEVEL: usize = 0xF;
-pub const MBP_MSG_TYPE_ID_RANGE: RangeInclusive<u8> = 0x00..=(MAX_UA_BOOK_LEVEL as u8);
 
 /// Market by price implementation with a book depth of 0. Equivalent to
 /// MBP-0.
@@ -180,7 +180,6 @@ pub struct Mbp10Msg {
 
 pub type TbboMsg = Mbp1Msg;
 
-pub const OHLCV_TYPE_ID: u8 = 0x11;
 /// Open, high, low, close, and volume.
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -200,7 +199,6 @@ pub struct OhlcvMsg {
     pub volume: u64,
 }
 
-pub const STATUS_MSG_TYPE_ID: u8 = 0x12;
 /// Trading status update message
 /// `hd.rtype = 0x12`
 #[repr(C)]
@@ -219,7 +217,6 @@ pub struct StatusMsg {
     pub trading_event: u8,
 }
 
-pub const INSTRUMENT_DEF_MSG_TYPE_ID: u8 = 0x13;
 /// Definition of an instrument.
 /// `hd.rtype = 0x13`
 #[repr(C)]
@@ -310,7 +307,6 @@ pub struct InstrumentDefMsg {
     pub _dummy: [c_char; 3],
 }
 
-pub const IMBALANCE_TYPE_ID: u8 = 0x14;
 /// Order imbalance message.
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -348,7 +344,6 @@ pub struct Imbalance {
     pub _dummy: [c_char; 4],
 }
 
-pub const GATEWAY_ERROR_MSG_TYPE_ID: u8 = 0x15;
 /// Gateway error message
 /// `hd.rtype = 0x15`
 #[repr(C)]
@@ -360,7 +355,6 @@ pub struct GatewayErrorMsg {
     pub err: [c_char; 64],
 }
 
-pub const SYMBOL_MAPPING_MSG_TYPE_ID: u8 = 0x16;
 /// Symbol mapping message
 /// `hd.rtype = 0x16`
 #[repr(C)]
@@ -393,9 +387,9 @@ fn serialize_large_u64<S: serde::Serializer>(num: &u64, serializer: S) -> Result
 }
 
 /// A trait for objects with polymorphism based around [`RecordHeader::rtype`].
-pub trait ConstTypeId {
+pub trait ConstRType {
     /// The value of [`RecordHeader::rtype`] for the implementing type.
-    const TYPE_ID: u8;
+    fn has_rtype(rtype: u8) -> bool;
 }
 
 /// Provides a _relatively safe_ method for converting a reference to a
@@ -404,9 +398,9 @@ pub trait ConstTypeId {
 /// is tied to the input.
 ///
 /// # Safety
-/// Although this function accepts a reference to a [`ConstTypeId`], it's assumed this struct's
+/// Although this function accepts a reference to a [`ConstRType`], it's assumed this struct's
 /// binary representation begins with a RecordHeader value
-pub unsafe fn transmute_into_header<T: ConstTypeId>(record: &T) -> &RecordHeader {
+pub unsafe fn transmute_into_header<T: ConstRType>(record: &T) -> &RecordHeader {
     // Safety: because it comes from a reference, `header` must not be null. It's ok to cast to `mut`
     // because it's never mutated.
     let non_null = NonNull::from(record);
@@ -421,7 +415,7 @@ pub unsafe fn transmute_into_header<T: ConstTypeId>(record: &T) -> &RecordHeader
 /// # Safety
 /// `raw` must contain at least `std::mem::size_of::<T>()` bytes and a valid
 /// [`RecordHeader`] instance.
-pub unsafe fn transmute_record_bytes<T: ConstTypeId>(bytes: &[u8]) -> Option<&T> {
+pub unsafe fn transmute_record_bytes<T: ConstRType>(bytes: &[u8]) -> Option<&T> {
     assert!(
         bytes.len() >= mem::size_of::<T>(),
         concat!(
@@ -431,7 +425,7 @@ pub unsafe fn transmute_record_bytes<T: ConstTypeId>(bytes: &[u8]) -> Option<&T>
         )
     );
     let non_null = NonNull::new_unchecked(bytes.as_ptr() as *mut u8);
-    if non_null.cast::<RecordHeader>().as_ref().rtype == T::TYPE_ID {
+    if T::has_rtype(non_null.cast::<RecordHeader>().as_ref().rtype) {
         Some(non_null.cast::<T>().as_ref())
     } else {
         None
@@ -471,8 +465,8 @@ pub unsafe fn transmute_header_bytes(bytes: &[u8]) -> Option<&RecordHeader> {
 /// # Safety
 /// Although this function accepts a reference to a [`RecordHeader`], it's assumed this is
 /// part of a larger `T` struct.
-pub unsafe fn transmute_record<T: ConstTypeId>(header: &RecordHeader) -> Option<&T> {
-    if header.rtype == T::TYPE_ID {
+pub unsafe fn transmute_record<T: ConstRType>(header: &RecordHeader) -> Option<&T> {
+    if T::has_rtype(header.rtype) {
         // Safety: because it comes from a reference, `header` must not be null. It's ok to cast to `mut`
         // because it's never mutated.
         let non_null = NonNull::from(header);
@@ -489,8 +483,8 @@ pub unsafe fn transmute_record<T: ConstTypeId>(header: &RecordHeader) -> Option<
 /// # Safety
 /// Although this function accepts a reference to a [`RecordHeader`], it's assumed this is
 /// part of a larger `T` struct.
-pub unsafe fn transmute_record_mut<T: ConstTypeId>(header: &mut RecordHeader) -> Option<&mut T> {
-    if header.rtype == T::TYPE_ID {
+pub unsafe fn transmute_record_mut<T: ConstRType>(header: &mut RecordHeader) -> Option<&mut T> {
+    if T::has_rtype(header.rtype) {
         // Safety: because it comes from a reference, `header` must not be null. It's ok to cast to `mut`
         // because it's never mutated.
         let non_null = NonNull::from(header);
@@ -500,48 +494,68 @@ pub unsafe fn transmute_record_mut<T: ConstTypeId>(header: &mut RecordHeader) ->
     }
 }
 
-impl ConstTypeId for MboMsg {
-    const TYPE_ID: u8 = TICK_MSG_TYPE_ID;
+impl ConstRType for MboMsg {
+    fn has_rtype(rtype: u8) -> bool {
+        rtype == rtype::MBO
+    }
 }
 
 /// [TradeMsg]'s type ID is the size of its `booklevel` array (0) and is
 /// equivalent to MBP-0.
-impl ConstTypeId for TradeMsg {
-    const TYPE_ID: u8 = 0;
+impl ConstRType for TradeMsg {
+    fn has_rtype(rtype: u8) -> bool {
+        rtype == rtype::MBP_0
+    }
 }
 
 /// [Mbp1Msg]'s type ID is the size of its `booklevel` array.
-impl ConstTypeId for Mbp1Msg {
-    const TYPE_ID: u8 = 1;
+impl ConstRType for Mbp1Msg {
+    fn has_rtype(rtype: u8) -> bool {
+        rtype == rtype::MBP_1
+    }
 }
 
 /// [Mbp10Msg]'s type ID is the size of its `booklevel` array.
-impl ConstTypeId for Mbp10Msg {
-    const TYPE_ID: u8 = 10;
+impl ConstRType for Mbp10Msg {
+    fn has_rtype(rtype: u8) -> bool {
+        rtype == rtype::MBP_10
+    }
 }
 
-impl ConstTypeId for OhlcvMsg {
-    const TYPE_ID: u8 = OHLCV_TYPE_ID;
+impl ConstRType for OhlcvMsg {
+    fn has_rtype(rtype: u8) -> bool {
+        rtype == rtype::OHLCV
+    }
 }
 
-impl ConstTypeId for StatusMsg {
-    const TYPE_ID: u8 = STATUS_MSG_TYPE_ID;
+impl ConstRType for StatusMsg {
+    fn has_rtype(rtype: u8) -> bool {
+        rtype == rtype::STATUS
+    }
 }
 
-impl ConstTypeId for InstrumentDefMsg {
-    const TYPE_ID: u8 = INSTRUMENT_DEF_MSG_TYPE_ID;
+impl ConstRType for InstrumentDefMsg {
+    fn has_rtype(rtype: u8) -> bool {
+        rtype == rtype::INSTRUMENT_DEF
+    }
 }
 
-impl ConstTypeId for Imbalance {
-    const TYPE_ID: u8 = IMBALANCE_TYPE_ID;
+impl ConstRType for Imbalance {
+    fn has_rtype(rtype: u8) -> bool {
+        rtype == rtype::IMBALANCE
+    }
 }
 
-impl ConstTypeId for GatewayErrorMsg {
-    const TYPE_ID: u8 = GATEWAY_ERROR_MSG_TYPE_ID;
+impl ConstRType for GatewayErrorMsg {
+    fn has_rtype(rtype: u8) -> bool {
+        rtype == rtype::GATEWAY_ERROR
+    }
 }
 
-impl ConstTypeId for SymbolMappingMsg {
-    const TYPE_ID: u8 = SYMBOL_MAPPING_MSG_TYPE_ID;
+impl ConstRType for SymbolMappingMsg {
+    fn has_rtype(rtype: u8) -> bool {
+        rtype == rtype::SYMBOL_MAPPING
+    }
 }
 
 #[cfg(test)]
@@ -551,7 +565,7 @@ mod tests {
     const OHLCV_MSG: OhlcvMsg = OhlcvMsg {
         hd: RecordHeader {
             length: 56,
-            rtype: 17,
+            rtype: rtype::OHLCV,
             publisher_id: 1,
             product_id: 5482,
             ts_event: 1609160400000000000,

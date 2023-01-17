@@ -13,7 +13,7 @@ use time::Date;
 
 use crate::enums::{Compression, SType, Schema};
 use crate::record::{
-    BidAskPair, ConstTypeId, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader, TbboMsg, TradeMsg,
+    BidAskPair, ConstRType, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader, TbboMsg, TradeMsg,
 };
 use crate::write::dbn::SCHEMA_VERSION;
 use crate::{write_dbn, MappingInterval, Metadata, SymbolMapping};
@@ -150,7 +150,7 @@ pub fn write_dbn_file(
 }
 
 #[allow(clippy::ptr_arg)]
-fn write_records_to_dbn<T: ConstTypeId + FromPyDict>(
+fn write_records_to_dbn<T: ConstRType + FromPyDict>(
     file: PyFileLike,
     records: &Vec<&PyDict>,
 ) -> PyResult<()> {
@@ -366,14 +366,21 @@ where
     try_get_item(dict, key)?.extract::<D>()
 }
 
-fn header_from_dict<T: ConstTypeId>(dict: &PyDict) -> PyResult<RecordHeader> {
-    Ok(RecordHeader {
-        length: (mem::size_of::<T>() / 4) as u8,
-        rtype: T::TYPE_ID,
-        publisher_id: try_extract_item::<u16>(dict, "publisher_id")?,
-        product_id: try_extract_item::<u32>(dict, "product_id")?,
-        ts_event: try_extract_item::<u64>(dict, "ts_event")?,
-    })
+fn header_from_dict<T: ConstRType>(dict: &PyDict) -> PyResult<RecordHeader> {
+    let rtype = try_extract_item::<u8>(dict, "rtype")?;
+    if T::has_rtype(rtype) {
+        Ok(RecordHeader {
+            length: (mem::size_of::<T>() / 4) as u8,
+            rtype,
+            publisher_id: try_extract_item::<u16>(dict, "publisher_id")?,
+            product_id: try_extract_item::<u32>(dict, "product_id")?,
+            ts_event: try_extract_item::<u64>(dict, "ts_event")?,
+        })
+    } else {
+        Err(PyValueError::new_err(format!(
+            "Incorrect rtype {rtype:?} for message"
+        )))
+    }
 }
 
 impl FromPyDict for MboMsg {

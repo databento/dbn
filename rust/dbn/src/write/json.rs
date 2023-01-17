@@ -5,7 +5,7 @@ use serde::Serialize;
 use serde_json::ser::{Formatter, PrettyFormatter};
 use streaming_iterator::StreamingIterator;
 
-use crate::{record::ConstTypeId, Metadata};
+use crate::{record::ConstRType, Metadata};
 
 /// Incrementally serializes the contents of `iter` into NDJSON to `writer` so the
 /// contents of `iter` are not all buffered into memory at once.
@@ -15,7 +15,7 @@ pub fn write_json<F: Clone + Formatter, T>(
     mut iter: impl StreamingIterator<Item = T>,
 ) -> anyhow::Result<()>
 where
-    T: ConstTypeId + Serialize + fmt::Debug,
+    T: ConstRType + Serialize + fmt::Debug,
 {
     while let Some(record) = iter.next() {
         match record.serialize(&mut serde_json::Serializer::with_formatter(
@@ -68,7 +68,7 @@ mod tests {
 
     fn write_json_to_string<T>(vec: Vec<T>, should_pretty_print: bool) -> String
     where
-        T: ConstTypeId + Serialize + fmt::Debug,
+        T: ConstRType + Serialize + fmt::Debug,
     {
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);

@@ -14,7 +14,7 @@ use self::{
 use crate::{
     enums::Schema,
     record::{
-        ConstTypeId, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, TbboMsg,
+        ConstRType, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, TbboMsg,
         TradeMsg,
     },
     Dbn, Metadata,
@@ -55,7 +55,7 @@ impl<R: io::BufRead> Dbn<R> {
 
     fn write_with_tick_to<T, W>(self, writer: W, encoding: OutputEncoding) -> anyhow::Result<()>
     where
-        T: ConstTypeId + CsvSerialize + fmt::Debug,
+        T: ConstRType + CsvSerialize + fmt::Debug,
         W: io::Write,
     {
         let iter = self.try_into_iter::<T>()?;
