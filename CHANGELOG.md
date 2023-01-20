@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0
+- Rename DBZ to DBN
+- Rename python package to `databento-dbn`
+- Support metadata in uncompressed files
+- Fold in `databento-defs`
+
 ## 0.2.1 - 2022-12-02
 - Add Python DBZ writing example
 - Depend on crates.io version of [databento-defs](https://crates.io/crates/databento-defs)

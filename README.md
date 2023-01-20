@@ -1,35 +1,30 @@
-# dbz
+# dbn
 
-[![build](https://github.com/databento/dbz/actions/workflows/build.yml/badge.svg)](https://github.com/databento/dbz/actions/workflows/build.yml)
-![license](https://img.shields.io/github/license/databento/dbz?color=blue)
-[![Current Crates.io Version](https://img.shields.io/crates/v/dbz.svg)](https://crates.io/crates/dbz)
-![pypi-version](https://img.shields.io/pypi/v/databento_dbz)
+[![build](https://github.com/databento/dbn/actions/workflows/build.yaml/badge.svg)](https://github.com/databento/dbn/actions/workflows/build.yaml)
+![license](https://img.shields.io/github/license/databento/dbn?color=blue)
+[![Current Crates.io Version](https://img.shields.io/crates/v/dbn.svg)](https://crates.io/crates/dbn)
+![pypi-version](https://img.shields.io/pypi/v/databento_dbn)
 
-A library (`dbz`) and CLI tool (`dbz`) for working with Databento Binary
-Encoding (DBZ) files.
-Python bindings for `dbz` are provided in the `databento-dbz` package.
+A library (`dbn`) and CLI tool (`dbn`) for working with Databento Binary
+Encoding (DBN) files.
+Python bindings for `dbn` are provided in the `databento-dbn` package.
 
-The **D**atabento **B**inary Encoding + **Z**standard compression (DBZ) is an efficient
-highly compressible binary encoding suitable for bulk financial time series data,
-which includes a metadata header.
+The **D**atabento **B**inary E**n**coding (DBN) is an efficient
+highly-compressible binary encoding suitable for bulk financial time series data.
 
 ## Features
 
 - Performant binary encoding and decoding
 - Highly compressible with Zstandard
 - Extendable fixed-width schemas
-- Metadata header in a leading zstd skippable frame
-
-The DBZ format relies on a compliant Zstandard decompressor to read the data.
-The basic metadata can be read without the need for zstd, as it is not
-compressed, however the symbology portion is.
+- When Zstd-compressed, an optional metadata header in a leading zstd skippable frame
 
 ## Usage
 
 See the respective READMEs for usage details:
-- [`dbz`](rust/dbz/README.md)
-- [`dbz-cli`](rust/dbz-cli/README.md)
-- [`databento-dbz`](python/README.md)
+- [`dbn`](rust/dbn/README.md)
+- [`dbn-cli`](rust/dbn-cli/README.md)
+- [`databento-dbn`](python/README.md)
 
 # License
 

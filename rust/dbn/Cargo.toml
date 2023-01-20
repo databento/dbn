@@ -1,0 +1,41 @@
+[package]
+name = "dbn"
+authors = ["Databento <support@databento.com>"]
+version = "0.2.1"
+edition = "2021"
+description = "Library for working with the Databento Binary Encoding (DBN) format"
+license = "Apache-2.0"
+repository = "https://github.com/databento/dbn"
+keywords = ["market-data", "json", "csv", "conversion", "encoding"]
+# see https://crates.io/category_slugs
+categories = ["encoding"]
+
+[features]
+default = []
+python = ["pyo3/extension-module"]
+# `cargo test` fails with linker errors when the extension-module feature is
+# enabled, see https://github.com/PyO3/pyo3/issues/340
+python-test = ["pyo3"]
+
+[dependencies]
+# Databento common definitions
+databento-defs = { version = "0.4.1", features = ["serde"] }
+
+# error handling
+anyhow = "1.0.68"
+# CSV serialization
+csv = "1.1.6"
+# logging
+log = "0.4.17"
+# Python bindings for Rust
+pyo3 = { version = "0.17.3", optional = true }
+# Derialization
+serde = { version = "1.0", features = ["derive"] }
+# JSON serialization
+serde_json = "1.0"
+# zero-copy DBN decoding
+streaming-iterator = "0.1.9"
+# date and datetime support
+time = { version = "0.3.17", features = ["serde"] }
+# (de)compression
+zstd = "=0.11.2"

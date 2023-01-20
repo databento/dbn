@@ -23,4 +23,4 @@ Add here...
 
 - OS platform:
 - Rust version:
-- `dbz` version:
+- `dbn` version:

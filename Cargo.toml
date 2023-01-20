@@ -1,6 +1,6 @@
 [workspace]
 members = [
-  "rust/dbz-cli",
-  "rust/dbz",
+  "rust/dbn-cli",
+  "rust/dbn",
   "python",
 ]

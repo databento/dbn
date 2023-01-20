@@ -1,6 +1,6 @@
 name: build
 
-# Build and test dbz
+# Build and test dbn
 
 on:
   push:
