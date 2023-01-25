@@ -10,7 +10,7 @@ use anyhow::{anyhow, Context};
 use streaming_iterator::StreamingIterator;
 
 use super::{zstd_encoder, DbnEncodable, EncodeDbn};
-use crate::{enums::Schema, Metadata, SymbolMapping};
+use crate::{enums::Schema, Metadata, SymbolMapping, DBN_VERSION};
 
 /// Type for encoding files and streams in Databento Binary Encoding (DBN).
 pub struct Encoder<W>
@@ -118,7 +118,8 @@ where
 
     pub fn encode(&mut self, metadata: &Metadata) -> anyhow::Result<()> {
         self.writer.write_all(b"DBN")?;
-        self.writer.write_all(&[metadata.version])?;
+        // regardless of version in metadata, should encode crate version
+        self.writer.write_all(&[DBN_VERSION])?;
         let length = Self::calc_length(metadata);
         self.writer.write_all(length.to_le_bytes().as_slice())?;
         self.encode_fixed_len_cstr::<{ crate::METADATA_DATASET_CSTR_LEN }>(&metadata.dataset)?;

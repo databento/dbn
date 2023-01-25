@@ -18,6 +18,7 @@ use crate::{
     Metadata,
     SymbolMapping,
     DBN_VERSION,
+    METADATA_FIXED_LEN,
 };
 
 /// Returns `true` if `bytes` starts with valid uncompressed DBN.
@@ -206,9 +207,14 @@ where
         }
         let version = prelude_buffer[3];
         if version > DBN_VERSION {
-            return Err(anyhow!("Can't reader newer version of DBN"));
+            return Err(anyhow!("Can't decode newer version of DBN. Decododer version is {DBN_VERSION}, input version is {version}"));
         }
         let length = u32::from_le_slice(&prelude_buffer[4..]);
+        if (length as usize) < METADATA_FIXED_LEN {
+            return Err(anyhow!(
+                "Invalid DBN metadata. Metadata length shorter than fixed length."
+            ));
+        }
         let mut metadata_buffer = vec![0u8; length as usize];
         self.reader
             .read_exact(&mut metadata_buffer)
