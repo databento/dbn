@@ -356,7 +356,7 @@ mod tests {
                 ))
                 .unwrap();
                 let exp_row_count = target.metadata().record_count;
-                assert_eq!(target.schema(), $schema);
+                assert_eq!(target.metadata().schema, $schema);
                 let actual_row_count = target.decode_stream::<$record_type>().unwrap().count();
                 assert_eq!(exp_row_count.unwrap() as usize, actual_row_count);
             }

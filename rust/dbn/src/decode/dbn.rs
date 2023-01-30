@@ -158,7 +158,6 @@ where
     // }
 
     fn decode_stream<T: HasRType>(self) -> anyhow::Result<super::StreamIterDecoder<Self, T>> {
-        // FIXME: verify `T` matches schema
         Ok(StreamIterDecoder::new(self))
     }
 }

@@ -4,7 +4,7 @@ use std::num::NonZeroU64;
 
 use serde::Serialize;
 
-use crate::enums::{SType, Schema};
+use crate::enums::{rtype, SType, Schema};
 
 /// Information about the data contained in a DBN file or stream. DBN requires the
 /// Metadata to be included at the start of the encoded data.
@@ -39,9 +39,6 @@ pub struct Metadata {
     pub mappings: Vec<SymbolMapping>,
 }
 
-/// Sentinel type for a required field that has not yet been set.
-pub struct Unset {}
-
 /// Helper for constructing [`Metadata`] structs with defaults.
 ///
 /// This struct uses type state to ensure at compile time that all the required fields
@@ -69,6 +66,23 @@ pub struct MetadataBuilder<D, Sch, Start, StIn, StOut> {
     not_found: Vec<String>,
     mappings: Vec<SymbolMapping>,
 }
+
+impl Metadata {
+    /// Returns the billable size of the stream being decoded if known. Billable
+    /// size is the uncompressed size of all the records and excludes metadata.
+    pub fn billable_size(&self) -> Option<usize> {
+        match (
+            rtype::record_size(rtype::from(self.schema)),
+            self.record_count,
+        ) {
+            (Some(record_size), Some(record_count)) => Some(record_size * record_count as usize),
+            _ => None,
+        }
+    }
+}
+
+/// Sentinel type for a required field that has not yet been set.
+pub struct Unset {}
 
 impl MetadataBuilder<Unset, Unset, Unset, Unset, Unset> {
     /// Creates a new instance of the builder.
@@ -295,4 +309,37 @@ fn serialize_as_raw<S: serde::Serializer>(
     serializer: S,
 ) -> Result<S::Ok, S::Error> {
     serializer.serialize_u64(val.map(|n| n.get()).unwrap_or(0))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_billable_size() {
+        let target = MetadataBuilder::new()
+            .schema(Schema::Mbp10)
+            .dataset("XNAS.ITCH".to_owned())
+            .start(1674856533000000000)
+            .stype_in(SType::Native)
+            .stype_out(SType::ProductId)
+            .record_count(Some(100))
+            .build();
+        assert_eq!(
+            target.billable_size(),
+            Some(100 * rtype::record_size(rtype::MBP_10).unwrap())
+        );
+    }
+
+    #[test]
+    fn test_billable_size_none() {
+        let target = MetadataBuilder::new()
+            .schema(Schema::Mbp10)
+            .dataset("XNAS.ITCH".to_owned())
+            .start(1674856533000000000)
+            .stype_in(SType::Native)
+            .stype_out(SType::ProductId)
+            .build();
+        assert!(target.billable_size().is_none());
+    }
 }

@@ -39,7 +39,7 @@ pub trait EncodeDbn {
 
     /// Encode DBN records directly from a DBN decoder.
     fn encode_decoded<D: DecodeDbn>(&mut self, decoder: D) -> anyhow::Result<()> {
-        match decoder.schema() {
+        match decoder.metadata().schema {
             Schema::Mbo => self.encode_stream(decoder.decode_stream::<MboMsg>()?),
             Schema::Mbp1 => self.encode_stream(decoder.decode_stream::<Mbp1Msg>()?),
             Schema::Mbp10 => self.encode_stream(decoder.decode_stream::<Mbp10Msg>()?),

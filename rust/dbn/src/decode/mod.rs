@@ -24,7 +24,6 @@ use std::{
 use anyhow::{anyhow, Context};
 
 use crate::{
-    enums::Schema,
     record::HasRType,
     // record_ref::RecordRef,
     Metadata,
@@ -35,12 +34,6 @@ pub use stream::StreamIterDecoder;
 pub trait DecodeDbn: private::BufferSlice {
     /// Returns a reference to the decoded [`Metadata`].
     fn metadata(&self) -> &Metadata;
-
-    /// Returns the [`Schema`] of the DBN data. The schema also indicates which
-    /// record type it contains.
-    fn schema(&self) -> Schema {
-        self.metadata().schema
-    }
 
     /// Try to decode a reference to a single record of type `T`. Returns `None` if
     /// the input has been exhausted or the next record is not of type `T`.
@@ -68,7 +61,6 @@ pub trait DecodeDbn: private::BufferSlice {
     where
         Self: Sized,
     {
-        // FIXME: verify schema and `T` agree
         let mut res = if let Some(record_count) = self.metadata().record_count {
             Vec::with_capacity(record_count as usize)
         } else {

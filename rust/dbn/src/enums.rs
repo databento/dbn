@@ -134,6 +134,13 @@ impl Display for SType {
 
 /// Record types, possible values for [`RecordHeader::rtype`][crate::record::RecordHeader::rtype]
 pub mod rtype {
+    use std::mem;
+
+    use crate::record::{
+        ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg,
+        SymbolMappingMsg, TbboMsg,
+    };
+
     /// Market by price with a book depth of 0 (used for trades).
     pub const MBP_0: u8 = 0x00;
     /// Market by price with a book depth of 1 (also used for TBBO).
@@ -149,11 +156,45 @@ pub mod rtype {
     /// Order imbalance.
     pub const IMBALANCE: u8 = 0x14;
     /// Gateway error.
-    pub const GATEWAY_ERROR: u8 = 0x15;
+    pub const ERROR: u8 = 0x15;
     /// Symbol mapping.
     pub const SYMBOL_MAPPING: u8 = 0x16;
     /// Market by order.
     pub const MBO: u8 = 0xa0;
+
+    /// Get the corresponding `rtype` for the given `schema`.
+    pub fn from(schema: super::Schema) -> u8 {
+        match schema {
+            super::Schema::Mbo => MBO,
+            super::Schema::Mbp1 => MBP_1,
+            super::Schema::Mbp10 => MBP_10,
+            super::Schema::Tbbo => MBP_0,
+            super::Schema::Trades => MBP_0,
+            super::Schema::Ohlcv1S => OHLCV,
+            super::Schema::Ohlcv1M => OHLCV,
+            super::Schema::Ohlcv1H => OHLCV,
+            super::Schema::Ohlcv1D => OHLCV,
+            super::Schema::Definition => INSTRUMENT_DEF,
+            super::Schema::Statistics => unimplemented!("Statistics is not yet supported"),
+            super::Schema::Status => STATUS,
+        }
+    }
+
+    pub fn record_size(rtype: u8) -> Option<usize> {
+        match rtype {
+            MBP_0 => Some(mem::size_of::<TbboMsg>()),
+            MBP_1 => Some(mem::size_of::<Mbp1Msg>()),
+            MBP_10 => Some(mem::size_of::<Mbp10Msg>()),
+            OHLCV => Some(mem::size_of::<OhlcvMsg>()),
+            STATUS => Some(mem::size_of::<StatusMsg>()),
+            INSTRUMENT_DEF => Some(mem::size_of::<InstrumentDefMsg>()),
+            IMBALANCE => Some(mem::size_of::<ImbalanceMsg>()),
+            ERROR => Some(mem::size_of::<ErrorMsg>()),
+            SYMBOL_MAPPING => Some(mem::size_of::<SymbolMappingMsg>()),
+            MBO => Some(mem::size_of::<MboMsg>()),
+            _ => None,
+        }
+    }
 }
 
 /// A data record schema.

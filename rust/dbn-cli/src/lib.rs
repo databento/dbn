@@ -76,7 +76,6 @@ pub struct Args {
         long = "metadata",
         action = ArgAction::SetTrue,
         default_value = "false",
-        conflicts_with = "should-output-billable-size",
         conflicts_with = "csv",
         conflicts_with = "dbn",
         help = "Output the metadata section instead of the body of the DBN file. Only valid for JSON output encoding"
@@ -87,6 +86,11 @@ pub struct Args {
         long = "billable-size",
         action = ArgAction::SetTrue,
         default_value = "false",
+        conflicts_with = "should-output-metadata",
+        conflicts_with = "csv",
+        conflicts_with = "dbn",
+        conflicts_with = "json",
+        conflicts_with = "output",
         help = "Output the billable size of the DBN file, i.e. uncompressed file size excluding metadata"
     )]
     pub should_output_billable_size: bool,

@@ -386,7 +386,7 @@ pub struct InstrumentDefMsg {
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
-pub struct Imbalance {
+pub struct ImbalanceMsg {
     pub hd: RecordHeader,
     #[serde(serialize_with = "serialize_large_u64")]
     pub ts_recv: u64,
@@ -423,7 +423,7 @@ pub struct Imbalance {
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
-pub struct GatewayErrorMsg {
+pub struct ErrorMsg {
     pub hd: RecordHeader,
     #[serde(serialize_with = "serialize_c_char_arr")]
     pub err: [c_char; 64],
@@ -614,15 +614,15 @@ impl HasRType for InstrumentDefMsg {
     }
 }
 
-impl HasRType for Imbalance {
+impl HasRType for ImbalanceMsg {
     fn has_rtype(rtype: u8) -> bool {
         rtype == rtype::IMBALANCE
     }
 }
 
-impl HasRType for GatewayErrorMsg {
+impl HasRType for ErrorMsg {
     fn has_rtype(rtype: u8) -> bool {
-        rtype == rtype::GATEWAY_ERROR
+        rtype == rtype::ERROR
     }
 }
 
