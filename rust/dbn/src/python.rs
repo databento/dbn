@@ -50,9 +50,9 @@ pub fn encode_metadata(
     dataset: String,
     schema: Schema,
     start: u64,
-    end: u64,
+    end: Option<u64>,
     limit: Option<u64>,
-    record_count: u64,
+    record_count: Option<u64>,
     stype_in: SType,
     stype_out: SType,
     symbols: Vec<String>,
@@ -64,7 +64,7 @@ pub fn encode_metadata(
         .dataset(dataset)
         .schema(schema)
         .start(start)
-        .end(end)
+        .end(NonZeroU64::new(end.unwrap_or(0)))
         .record_count(record_count)
         .limit(NonZeroU64::new(limit.unwrap_or(0)))
         .stype_in(stype_in)
@@ -87,12 +87,17 @@ pub fn update_encoded_metadata(
     _py: Python<'_>,
     file: PyFileLike,
     start: u64,
-    end: u64,
+    end: Option<u64>,
     limit: Option<u64>,
-    record_count: u64,
+    record_count: Option<u64>,
 ) -> PyResult<()> {
     MetadataEncoder::new(file)
-        .update_encoded(start, end, limit.and_then(NonZeroU64::new), record_count)
+        .update_encoded(
+            start,
+            end.and_then(NonZeroU64::new),
+            limit.and_then(NonZeroU64::new),
+            record_count,
+        )
         .map_err(to_val_err)
 }
 
@@ -125,7 +130,7 @@ pub fn write_dbn_file(
     let metadata = MetadataBuilder::new()
         .schema(schema)
         .dataset(dataset)
-        .record_count(records.len() as u64)
+        .record_count(Some(records.len() as u64))
         .stype_in(stype)
         .stype_out(stype)
         .start(0)
@@ -197,7 +202,8 @@ impl IntoPy<PyObject> for Metadata {
         dict.set_item("schema", self.schema as u8)
             .expect("set schema");
         dict.set_item("start", self.start).expect("set start");
-        dict.set_item("end", self.end).expect("set end");
+        dict.set_item("end", self.end.map(|n| n.get()))
+            .expect("set end");
         dict.set_item("limit", self.limit.map(|n| n.get()))
             .expect("set limit");
         dict.set_item("record_count", self.record_count)
@@ -692,7 +698,7 @@ mod tests {
                 assert_eq!(metadata.dataset, DATASET);
                 assert_eq!(metadata.stype_in, STYPE);
                 assert_eq!(metadata.stype_out, STYPE);
-                assert_eq!(metadata.record_count as usize, json_recs.len());
+                assert_eq!(metadata.record_count.unwrap() as usize, json_recs.len());
                 let decoder = dbn::Decoder::from_zstd_file(format!(
                     "{DBN_PATH}/test_data.{}.dbn.zst",
                     $schema.as_str()
@@ -709,7 +715,7 @@ mod tests {
                     assert_eq!(py_rec, exp_rec);
                     count += 1;
                 }
-                assert_eq!(count, metadata.record_count);
+                assert_eq!(count, metadata.record_count.unwrap());
             }
         };
     }

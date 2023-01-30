@@ -110,7 +110,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::{array, io::BufWriter, os::raw::c_char};
+    use std::{array, io::BufWriter, num::NonZeroU64, os::raw::c_char};
 
     use super::*;
     use crate::{
@@ -417,9 +417,9 @@ mod tests {
             dataset: "GLBX.MDP3".to_owned(),
             schema: Schema::Ohlcv1H,
             start: 1662734705128748281,
-            end: 1662734720914876944,
+            end: NonZeroU64::new(1662734720914876944),
             limit: None,
-            record_count: 3,
+            record_count: Some(3),
             stype_in: SType::ProductId,
             stype_out: SType::Native,
             symbols: vec!["ESZ2".to_owned()],

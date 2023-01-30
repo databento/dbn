@@ -69,11 +69,10 @@ pub trait DecodeDbn: private::BufferSlice {
         Self: Sized,
     {
         // FIXME: verify schema and `T` agree
-        let record_count = self.metadata().record_count;
-        let mut res = if record_count == u64::MAX {
-            Vec::new()
+        let mut res = if let Some(record_count) = self.metadata().record_count {
+            Vec::with_capacity(record_count as usize)
         } else {
-            Vec::with_capacity(self.metadata().record_count as usize)
+            Vec::new()
         };
         while let Some(rec) = self.decode_record::<T>() {
             res.push(rec.clone());

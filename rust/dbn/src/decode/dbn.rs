@@ -19,6 +19,8 @@ use crate::{
     SymbolMapping,
     DBN_VERSION,
     METADATA_FIXED_LEN,
+    NULL_END,
+    NULL_RECORD_COUNT,
 };
 
 /// Returns `true` if `bytes` starts with valid uncompressed DBN.
@@ -272,9 +274,17 @@ where
             stype_in,
             stype_out,
             start,
-            end,
+            end: if end == NULL_END {
+                None
+            } else {
+                NonZeroU64::new(end)
+            },
             limit,
-            record_count,
+            record_count: if record_count == NULL_RECORD_COUNT {
+                None
+            } else {
+                Some(record_count)
+            },
             symbols,
             partial,
             not_found,
@@ -401,6 +411,11 @@ mod tests {
     use std::fs::File;
 
     use super::*;
+    use crate::{
+        decode::tests::TEST_DATA_PATH,
+        encode::{dbn::Encoder, EncodeDbn},
+        record::{InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, TbboMsg, TradeMsg},
+    };
 
     #[test]
     fn test_decode_symbol() {
@@ -442,4 +457,78 @@ mod tests {
         let res = decode_iso8601(20100600);
         assert!(matches!(res, Err(e) if e.to_string().contains("a valid date")));
     }
+
+    macro_rules! test_dbn_identity {
+        ($test_name:ident, $record_type:ident, $schema:expr) => {
+            #[test]
+            fn $test_name() {
+                let file_decoder = Decoder::from_file(format!(
+                    "{TEST_DATA_PATH}/test_data.{}.dbn",
+                    $schema.as_str()
+                ))
+                .unwrap();
+                let file_metadata = file_decoder.metadata().clone();
+                let decoded_records = file_decoder.decode_records::<$record_type>().unwrap();
+                let mut buffer = Vec::new();
+                Encoder::new(&mut buffer, &file_metadata)
+                    .unwrap()
+                    .encode_records(decoded_records.as_slice())
+                    .unwrap();
+                let buf_decoder = Decoder::new(buffer.as_slice()).unwrap();
+                assert_eq!(buf_decoder.metadata(), &file_metadata);
+                assert_eq!(decoded_records, buf_decoder.decode_records().unwrap());
+            }
+        };
+    }
+    macro_rules! test_dbn_zstd_identity {
+        ($test_name:ident, $record_type:ident, $schema:expr) => {
+            #[test]
+            fn $test_name() {
+                let file_decoder = Decoder::from_zstd_file(format!(
+                    "{TEST_DATA_PATH}/test_data.{}.dbn.zst",
+                    $schema.as_str()
+                ))
+                .unwrap();
+                let file_metadata = file_decoder.metadata().clone();
+                let decoded_records = file_decoder.decode_records::<$record_type>().unwrap();
+                let mut buffer = Vec::new();
+                Encoder::with_zstd(&mut buffer, &file_metadata)
+                    .unwrap()
+                    .encode_records(decoded_records.as_slice())
+                    .unwrap();
+                let buf_decoder = Decoder::with_zstd(buffer.as_slice()).unwrap();
+                assert_eq!(buf_decoder.metadata(), &file_metadata);
+                assert_eq!(decoded_records, buf_decoder.decode_records().unwrap());
+            }
+        };
+    }
+
+    test_dbn_identity!(test_dbn_identity_mbo, MboMsg, Schema::Mbo);
+    test_dbn_zstd_identity!(test_dbn_zstd_identity_mbo, MboMsg, Schema::Mbo);
+    test_dbn_identity!(test_dbn_identity_mbp1, Mbp1Msg, Schema::Mbp1);
+    test_dbn_zstd_identity!(test_dbn_zstd_identity_mbp1, Mbp1Msg, Schema::Mbp1);
+    test_dbn_identity!(test_dbn_identity_mbp10, Mbp10Msg, Schema::Mbp10);
+    test_dbn_zstd_identity!(test_dbn_zstd_identity_mbp10, Mbp10Msg, Schema::Mbp10);
+    test_dbn_identity!(test_dbn_identity_ohlcv1d, OhlcvMsg, Schema::Ohlcv1D);
+    test_dbn_zstd_identity!(test_dbn_zstd_identity_ohlcv1d, OhlcvMsg, Schema::Ohlcv1D);
+    test_dbn_identity!(test_dbn_identity_ohlcv1h, OhlcvMsg, Schema::Ohlcv1H);
+    test_dbn_zstd_identity!(test_dbn_zstd_identity_ohlcv1h, OhlcvMsg, Schema::Ohlcv1H);
+    test_dbn_identity!(test_dbn_identity_ohlcv1m, OhlcvMsg, Schema::Ohlcv1M);
+    test_dbn_zstd_identity!(test_dbn_zstd_identity_ohlcv1m, OhlcvMsg, Schema::Ohlcv1M);
+    test_dbn_identity!(test_dbn_identity_ohlcv1s, OhlcvMsg, Schema::Ohlcv1S);
+    test_dbn_zstd_identity!(test_dbn_zstd_identity_ohlcv1s, OhlcvMsg, Schema::Ohlcv1S);
+    test_dbn_identity!(test_dbn_identity_tbbo, TbboMsg, Schema::Tbbo);
+    test_dbn_zstd_identity!(test_dbn_zstd_identity_tbbo, TbboMsg, Schema::Tbbo);
+    test_dbn_identity!(test_dbn_identity_trades, TradeMsg, Schema::Trades);
+    test_dbn_zstd_identity!(test_dbn_zstd_identity_trades, TradeMsg, Schema::Trades);
+    test_dbn_identity!(
+        test_dbn_identity_instrument_def,
+        InstrumentDefMsg,
+        Schema::Definition
+    );
+    test_dbn_zstd_identity!(
+        test_dbn_zstd_identity_instrument_def,
+        InstrumentDefMsg,
+        Schema::Definition
+    );
 }

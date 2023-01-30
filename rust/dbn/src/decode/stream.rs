@@ -17,7 +17,8 @@ where
     /// The underlying decoder implementation.
     decoder: D,
     /// Number of element sthat have been decoded. Used for [`Iterator::size_hint()`].
-    i: usize,
+    /// `None` indicates the end of the stream has been reached.
+    i: Option<usize>,
     /// Required to associate this type with a specific record type `T`.
     _marker: PhantomData<T>,
 }
@@ -30,7 +31,7 @@ where
     pub(crate) fn new(decoder: D) -> Self {
         Self {
             decoder,
-            i: 0,
+            i: Some(0),
             _marker: PhantomData,
         }
     }
@@ -44,32 +45,36 @@ where
     type Item = T;
 
     fn advance(&mut self) {
-        if self.decoder.decode_record::<T>().is_none() {
-            // warn!("Failed to read from DBZ decoder: {e:?}");
-            // set error state sentinel
-            self.i = self.decoder.metadata().record_count as usize + 1;
+        if let Some(i) = self.i.as_mut() {
+            if self.decoder.decode_record::<T>().is_none() {
+                // warn!("Failed to read from DBZ decoder: {e:?}");
+                // set error state sentinel
+                self.i = None;
+            } else {
+                *i += 1;
+            }
         }
-        self.i += 1;
     }
 
     fn get(&self) -> Option<&Self::Item> {
-        // TODO(cg): improve error handling
-        if self.i > self.decoder.metadata().record_count as usize {
-            return None;
+        if self.i.is_some() {
+            // Safety: `buffer` is specifically sized to `T` and `i` has been
+            // checked to see that the end of the stream hasn't been reached
+            unsafe { transmute_record_bytes(self.decoder.buffer_slice()) }
+        } else {
+            None
         }
-        // Safety: `buffer` is specifically sized to `T`
-        unsafe { transmute_record_bytes(self.decoder.buffer_slice()) }
     }
 
     /// Returns the lower bound and upper bounds of remaining length of iterator.
     fn size_hint(&self) -> (usize, Option<usize>) {
-        if self.decoder.metadata().record_count == u64::MAX {
-            (0, None)
-        } else {
-            let remaining = self.decoder.metadata().record_count as usize - self.i;
+        if let Some(record_count) = self.decoder.metadata().record_count {
+            let remaining = record_count as usize - self.i.unwrap_or(record_count as usize);
             // assumes `record_count` is accurate. If it is not, the program won't crash but
             // performance will be suboptimal
             (remaining, Some(remaining))
+        } else {
+            (0, None)
         }
     }
 }

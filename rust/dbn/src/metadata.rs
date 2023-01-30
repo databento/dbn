@@ -19,12 +19,12 @@ pub struct Metadata {
     /// The UNIX nanosecond timestamp of the query start, or the first record if the file was split.
     pub start: u64,
     /// The UNIX nanosecond timestamp of the query end, or the last record if the file was split.
-    pub end: u64,
+    pub end: Option<NonZeroU64>,
     #[serde(serialize_with = "serialize_as_raw")]
     /// The optional maximum number of records for the query.
     pub limit: Option<NonZeroU64>,
     /// The total number of data records.
-    pub record_count: u64,
+    pub record_count: Option<u64>,
     /// The input symbology type to map from.
     pub stype_in: SType,
     /// The output symbology type to map to.
@@ -59,9 +59,9 @@ pub struct MetadataBuilder<D, Sch, Start, StIn, StOut> {
     dataset: D,
     schema: Sch,
     start: Start,
-    end: u64,
+    end: Option<NonZeroU64>,
     limit: Option<NonZeroU64>,
-    record_count: u64,
+    record_count: Option<u64>,
     stype_in: StIn,
     stype_out: StOut,
     symbols: Vec<String>,
@@ -136,7 +136,7 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
     }
 
     /// Sets the [`end`](Metadata::end) and returns the builder.
-    pub fn end(mut self, end: u64) -> Self {
+    pub fn end(mut self, end: Option<NonZeroU64>) -> Self {
         self.end = end;
         self
     }
@@ -148,7 +148,7 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
     }
 
     /// Sets the [`record_count`](Metadata::record_count) and returns the builder.
-    pub fn record_count(mut self, record_count: u64) -> Self {
+    pub fn record_count(mut self, record_count: Option<u64>) -> Self {
         self.record_count = record_count;
         self
     }
@@ -243,9 +243,9 @@ impl Default for MetadataBuilder<Unset, Unset, Unset, Unset, Unset> {
             dataset: Unset {},
             schema: Unset {},
             start: Unset {},
-            end: u64::MAX,
+            end: None,
             limit: None,
-            record_count: 0,
+            record_count: None,
             stype_in: Unset {},
             stype_out: Unset {},
             symbols: vec![],

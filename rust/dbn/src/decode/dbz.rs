@@ -222,10 +222,10 @@ impl MetadataDecoder {
             stype_in,
             stype_out,
             start,
-            end,
+            end: NonZeroU64::new(end),
             limit,
             // compression,
-            record_count,
+            record_count: Some(record_count),
             symbols,
             partial,
             not_found,
@@ -358,7 +358,7 @@ mod tests {
                 let exp_row_count = target.metadata().record_count;
                 assert_eq!(target.schema(), $schema);
                 let actual_row_count = target.decode_stream::<$record_type>().unwrap().count();
-                assert_eq!(exp_row_count as usize, actual_row_count);
+                assert_eq!(exp_row_count.unwrap() as usize, actual_row_count);
             }
         };
     }

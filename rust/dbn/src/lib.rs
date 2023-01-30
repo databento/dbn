@@ -23,3 +23,6 @@ pub(crate) const METADATA_RESERVED_LEN: usize = 48;
 /// Excludes magic string, version, and length.
 pub(crate) const METADATA_FIXED_LEN: usize = 100;
 pub(crate) const SYMBOL_CSTR_LEN: usize = 22;
+pub const NULL_END: u64 = u64::MAX;
+pub const NULL_LIMIT: u64 = 0;
+pub const NULL_RECORD_COUNT: u64 = u64::MAX;

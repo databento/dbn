@@ -10,7 +10,9 @@ use anyhow::{anyhow, Context};
 use streaming_iterator::StreamingIterator;
 
 use super::{zstd_encoder, DbnEncodable, EncodeDbn};
-use crate::{enums::Schema, Metadata, SymbolMapping, DBN_VERSION};
+use crate::{
+    enums::Schema, Metadata, SymbolMapping, DBN_VERSION, NULL_END, NULL_LIMIT, NULL_RECORD_COUNT,
+};
 
 /// Type for encoding files and streams in Databento Binary Encoding (DBN).
 pub struct Encoder<W>
@@ -174,16 +176,30 @@ where
     fn encode_range_and_counts(
         &mut self,
         start: u64,
-        end: u64,
+        end: Option<NonZeroU64>,
         limit: Option<NonZeroU64>,
-        record_count: u64,
+        record_count: Option<u64>,
     ) -> anyhow::Result<()> {
         self.writer.write_all(start.to_le_bytes().as_slice())?;
-        self.writer.write_all(end.to_le_bytes().as_slice())?;
-        self.writer
-            .write_all(limit.map(|l| l.get()).unwrap_or(0).to_le_bytes().as_slice())?;
-        self.writer
-            .write_all(record_count.to_le_bytes().as_slice())?;
+        self.writer.write_all(
+            end.map(|e| e.get())
+                .unwrap_or(NULL_END)
+                .to_le_bytes()
+                .as_slice(),
+        )?;
+        self.writer.write_all(
+            limit
+                .map(|l| l.get())
+                .unwrap_or(NULL_LIMIT)
+                .to_le_bytes()
+                .as_slice(),
+        )?;
+        self.writer.write_all(
+            record_count
+                .unwrap_or(NULL_RECORD_COUNT)
+                .to_le_bytes()
+                .as_slice(),
+        )?;
         Ok(())
     }
 
@@ -258,9 +274,9 @@ where
     pub fn update_encoded(
         &mut self,
         start: u64,
-        end: u64,
+        end: Option<NonZeroU64>,
         limit: Option<NonZeroU64>,
-        record_count: u64,
+        record_count: Option<u64>,
     ) -> anyhow::Result<()> {
         /// Byte position of the field `start`
         const START_SEEK_FROM: SeekFrom = SeekFrom::Start(
@@ -286,7 +302,7 @@ mod tests {
     use crate::{
         decode::{dbn::MetadataDecoder, FromLittleEndianSlice},
         enums::{SType, Schema},
-        MappingInterval,
+        MappingInterval, MetadataBuilder,
     };
 
     #[test]
@@ -303,9 +319,9 @@ mod tests {
             stype_in: SType::Native,
             stype_out: SType::ProductId,
             start: 1657230820000000000,
-            end: 1658960170000000000,
+            end: NonZeroU64::new(1658960170000000000),
             limit: None,
-            record_count: 14,
+            record_count: Some(14),
             symbols: vec!["ES".to_owned(), "NG".to_owned()],
             partial: vec!["ESM2".to_owned()],
             not_found: vec!["QQQQQ".to_owned()],
@@ -420,9 +436,9 @@ mod tests {
             stype_in: SType::Smart,
             stype_out: SType::Native,
             start: 1657230820000000000,
-            end: 1658960170000000000,
+            end: NonZeroU64::new(1658960170000000000),
             limit: None,
-            record_count: 1_450_000,
+            record_count: Some(1_450_000),
             symbols: vec![],
             partial: vec![],
             not_found: vec![],
@@ -441,9 +457,9 @@ mod tests {
         let before_pos = cursor.position();
         assert!(before_pos != 0);
         let new_start = 1697240529000000000;
-        let new_end = 17058980170000000000;
+        let new_end = NonZeroU64::new(17058980170000000000);
         let new_limit = NonZeroU64::new(10);
-        let new_record_count = 100_678;
+        let new_record_count = Some(100_678);
         MetadataEncoder::new(&mut cursor)
             .update_encoded(new_start, new_end, new_limit, new_record_count)
             .unwrap();
@@ -456,5 +472,25 @@ mod tests {
         assert_eq!(res.end, new_end);
         assert_eq!(res.limit, new_limit);
         assert_eq!(res.record_count, new_record_count);
+    }
+
+    #[test]
+    fn test_encode_decode_nulls() {
+        let metadata = MetadataBuilder::new()
+            .dataset("XNAS.ITCH".to_owned())
+            .schema(Schema::Mbo)
+            .start(1697240529000000000)
+            .stype_in(SType::Native)
+            .stype_out(SType::ProductId)
+            .build();
+        assert!(metadata.end.is_none());
+        assert!(metadata.limit.is_none());
+        assert!(metadata.record_count.is_none());
+        let mut buffer = Vec::new();
+        MetadataEncoder::new(&mut buffer).encode(&metadata).unwrap();
+        let decoded = MetadataDecoder::new(buffer.as_slice()).decode().unwrap();
+        assert!(decoded.end.is_none());
+        assert!(decoded.limit.is_none());
+        assert!(decoded.record_count.is_none());
     }
 }
