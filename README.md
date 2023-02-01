@@ -17,7 +17,6 @@ highly-compressible binary encoding suitable for bulk financial time series data
 - Performant binary encoding and decoding
 - Highly compressible with Zstandard
 - Extendable fixed-width schemas
-- When Zstd-compressed, an optional metadata header in a leading zstd skippable frame
 
 ## Usage
 

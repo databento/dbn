@@ -9,6 +9,7 @@ pub mod enums;
 pub mod error;
 pub mod metadata;
 pub mod record;
+#[doc(hidden)]
 pub mod record_ref;
 
 #[cfg(any(feature = "python", feature = "python-test"))]
@@ -16,13 +17,13 @@ pub mod python;
 
 pub use crate::metadata::{MappingInterval, Metadata, MetadataBuilder, SymbolMapping};
 
-/// The current version of the DBN encoding.
+/// The current version of the DBN encoding, which is different from the crate version.
 pub const DBN_VERSION: u8 = 1;
-pub(crate) const METADATA_DATASET_CSTR_LEN: usize = 16;
-pub(crate) const METADATA_RESERVED_LEN: usize = 48;
+const METADATA_DATASET_CSTR_LEN: usize = 16;
+const METADATA_RESERVED_LEN: usize = 48;
 /// Excludes magic string, version, and length.
-pub(crate) const METADATA_FIXED_LEN: usize = 100;
-pub(crate) const SYMBOL_CSTR_LEN: usize = 22;
-pub const NULL_END: u64 = u64::MAX;
-pub const NULL_LIMIT: u64 = 0;
-pub const NULL_RECORD_COUNT: u64 = u64::MAX;
+const METADATA_FIXED_LEN: usize = 100;
+const SYMBOL_CSTR_LEN: usize = 22;
+const NULL_END: u64 = u64::MAX;
+const NULL_LIMIT: u64 = 0;
+const NULL_RECORD_COUNT: u64 = u64::MAX;

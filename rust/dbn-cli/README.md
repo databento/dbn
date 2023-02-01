@@ -67,24 +67,6 @@ dbn 20221212.mbo.dbz -o 20221212.dbz.zst
 ```
 or pass `--dbn` to set the output encoding explicitly.
 
-## Building
-
-`dbn` is written in Rust, so you'll need to have [Rust installed](https://www.rust-lang.org/)
-first.
-
-To build, run the following commands:
-```sh
-git clone https://github.com/databento/dbn
-cd dbn
-cargo build --release
-./target/release/dbn --help
-```
-
-## Testing
-
-Tests are run through `cargo test`.
-All integration tests are located in [integration_tests.rs](tests/integration_tests.rs).
-
 ## License
 
 Distributed under the [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0.html).

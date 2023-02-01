@@ -12,7 +12,7 @@ use pyo3::{
 use time::Date;
 
 use crate::{
-    decode::dbn::MetadataDecoder,
+    decode::{DecodeDbn, DynDecoder},
     encode::{
         dbn::{self, MetadataEncoder},
         DbnEncodable, DynWriter, EncodeDbn,
@@ -33,7 +33,10 @@ use crate::{MappingInterval, Metadata, SymbolMapping};
 #[pyfunction]
 pub fn decode_metadata(bytes: &PyBytes) -> PyResult<Metadata> {
     let reader = io::BufReader::new(bytes.as_bytes());
-    MetadataDecoder::new(reader).decode().map_err(to_val_err)
+    Ok(DynDecoder::with_buffer(reader)
+        .map_err(to_val_err)?
+        .metadata()
+        .to_owned())
 }
 
 /// Encodes the given metadata into the DBN metadata binary format.

@@ -1,5 +1,5 @@
 //! Encoding DBN and Zstd-compressed DBN files and streams. Encoders implement the
-//! [``]
+//! [`EncodeDbn`] trait.
 pub mod csv;
 pub mod dbn;
 pub mod json;
@@ -57,7 +57,8 @@ pub trait EncodeDbn {
 /// The default Zstandard compression level.
 const ZSTD_COMPRESSION_LEVEL: i32 = 0;
 
-/// Type for runtime polymorphism over whether encoding uncompressed or ZStd-compressed DBN records.
+/// Type for runtime polymorphism over whether encoding uncompressed or ZStd-compressed
+/// DBN records. Implements [`std::io::Write`].
 pub enum DynWriter<'a, W>
 where
     W: io::Write,

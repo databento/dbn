@@ -11,12 +11,12 @@ The official library for working with the Databento Binary Encoding (DBN, former
 To read a DBN file with MBO data and print each row:
 ```rust
 use dbn::{
-    decode::dbn,
+    decode::dbn::Decoder,
     records::MboMsg,
 };
 use streaming_iterator::StreamingIterator;
 
-let mut dbn_stream = dbn::Decoder::from_zstd_file("20201228.dbn.zst")?.stream::<MboMsg>()?;
+let mut dbn_stream = Decoder::from_zstd_file("20201228.dbn.zst")?.decode_stream::<MboMsg>()?;
 while let Some(mbo_msg) = dbn_stream.next() {
     println!("{mbo_msg:?}");
 }

@@ -114,10 +114,12 @@ impl<W> MetadataEncoder<W>
 where
     W: io::Write,
 {
+    /// Creates a new [`MetadataEncoder`] that will write to `writer`.
     pub fn new(writer: W) -> Self {
         Self { writer }
     }
 
+    /// Encodes `metadata` into DBN.
     pub fn encode(&mut self, metadata: &Metadata) -> anyhow::Result<()> {
         self.writer.write_all(b"DBN")?;
         // regardless of version in metadata, should encode crate version
@@ -271,6 +273,7 @@ impl<W> MetadataEncoder<W>
 where
     W: io::Write + io::Seek,
 {
+    /// Updates the given metadata properties in an existing DBN buffer.
     pub fn update_encoded(
         &mut self,
         start: u64,

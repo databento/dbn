@@ -7,7 +7,7 @@
 Python bindings for the `dbn` Rust library.
 Used by the [Databento Python client library](https://github.com/databento/databento-python).
 
-Using this crate is for advanced users and is not fully documented or supported.
+Using this library is for advanced users and is not fully documented or supported.
 
 ## Installation
 
@@ -34,11 +34,12 @@ from databento_dbn import write_dbn_file
 
 records = [
     {"rtype": 160, "publisher_id": 1, "product_id": 1, "ts_event": 647784973705, "order_id": 1,
-     "price": 3723000000000, "size": 1, "flags": -128, "channel_id": 0, "action": ord('C'),
+     "price": 3723000000000, "size": 1, "flags": 128, "channel_id": 0, "action": ord('C'),
      "side": ord('A'), "ts_recv": 1609160400000704060, "ts_in_delta": 0, "sequence": 1170352}
 ]
 with open("my.dbn.zst", "wb") as out:
-    write_dbn_file(file=out, schema="mbo", dataset="custom", records=records, stype="product_id")
+    write_dbn_file(file=out, compression="zstd", schema="mbo", dataset="custom",
+                   records=records, stype="product_id")
 ```
 Note that the keys in the dictionaries in `records` must match the field names of the schema, or
 the function will raise a `KeyError`.

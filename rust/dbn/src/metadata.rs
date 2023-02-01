@@ -231,6 +231,8 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
 }
 
 impl MetadataBuilder<String, Schema, u64, SType, SType> {
+    /// Constructs a [`Metadata`] object. The availability of this method indicates all
+    /// required fields have been set.
     pub fn build(self) -> Metadata {
         Metadata {
             version: self.version,

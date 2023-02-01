@@ -6,6 +6,8 @@ use streaming_iterator::StreamingIterator;
 use super::EncodeDbn;
 
 /// Type for encoding files and streams of DBN records in CSV.
+///
+/// Note that encoding [`Metadata`](crate::Metadata) in CSV is not supported.
 pub struct Encoder<W>
 where
     W: io::Write,
