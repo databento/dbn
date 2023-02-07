@@ -13,7 +13,7 @@ use crate::enums::SecurityUpdateAction;
 pub struct RecordHeader {
     /// The length of the message in 32-bit words.
     #[serde(skip)]
-    pub length: u8,
+    pub(crate) length: u8,
     /// The record type; with `0x00..0x0F` specifying MBP booklevel size.
     /// Record types implement the trait [`HasRType`], and the [`has_rtype`][HasRType::has_rtype]
     /// function can be used to check if that type can be used to decode a message with a given rtype.
@@ -464,21 +464,55 @@ fn serialize_large_u64<S: serde::Serializer>(num: &u64, serializer: S) -> Result
 pub trait HasRType {
     /// Returns `true` if `rtype` matches the value associated with the implementing type.
     fn has_rtype(rtype: u8) -> bool;
+
+    /// Returns the `RecordHeader` that comes at the beginning of all record types.
+    fn header(&self) -> &RecordHeader;
+
+    /// Returns the size of the record in bytes.
+    fn size(&self) -> usize {
+        self.header().record_size()
+    }
 }
 
-/// Provides a _relatively safe_ method for converting a reference to a
-/// struct beginning with the header into a [`RecordHeader`].
-/// Because it accepts a reference, the lifetime of the returned reference
-/// is tied to the input.
-///
-/// # Safety
-/// Although this function accepts a reference to a [`HasRType`], it's assumed this struct's
-/// binary representation begins with a RecordHeader value
-pub unsafe fn transmute_into_header<T: HasRType>(record: &T) -> &RecordHeader {
-    // Safety: because it comes from a reference, `header` must not be null. It's ok to cast to `mut`
-    // because it's never mutated.
-    let non_null = NonNull::from(record);
-    non_null.cast::<RecordHeader>().as_ref()
+impl RecordHeader {
+    const LENGTH_MULTIPLIER: usize = 4;
+
+    /// Creates a new `RecordHeader`. `R` and `rtype` should be compatible.
+    pub const fn new<R: HasRType>(
+        rtype: u8,
+        publisher_id: u16,
+        product_id: u32,
+        ts_event: u64,
+    ) -> Self {
+        Self {
+            length: (mem::size_of::<R>() / Self::LENGTH_MULTIPLIER) as u8,
+            rtype,
+            publisher_id,
+            product_id,
+            ts_event,
+        }
+    }
+
+    /// Returns the size of the **entire** record in bytes. The size of a `RecordHeader`
+    /// is constant.
+    pub const fn record_size(&self) -> usize {
+        self.length as usize * Self::LENGTH_MULTIPLIER
+    }
+}
+
+impl ErrorMsg {
+    /// Creates a new `ErrorMsg`.
+    pub fn new(ts_event: u64, msg: &str) -> Self {
+        let mut error = Self {
+            hd: RecordHeader::new::<Self>(rtype::ERROR, 0, 0, ts_event),
+            err: [0; 64],
+        };
+        // leave at least one null byte
+        for (i, byte) in msg.as_bytes().iter().take(error.err.len() - 1).enumerate() {
+            error.err[i] = *byte as c_char;
+        }
+        error
+    }
 }
 
 /// Provides a _relatively safe_ method for converting a reference to
@@ -572,6 +606,10 @@ impl HasRType for MboMsg {
     fn has_rtype(rtype: u8) -> bool {
         rtype == rtype::MBO
     }
+
+    fn header(&self) -> &RecordHeader {
+        &self.hd
+    }
 }
 
 /// [TradeMsg]'s type ID is the size of its `booklevel` array (0) and is
@@ -580,12 +618,20 @@ impl HasRType for TradeMsg {
     fn has_rtype(rtype: u8) -> bool {
         rtype == rtype::MBP_0
     }
+
+    fn header(&self) -> &RecordHeader {
+        &self.hd
+    }
 }
 
 /// [Mbp1Msg]'s type ID is the size of its `booklevel` array.
 impl HasRType for Mbp1Msg {
     fn has_rtype(rtype: u8) -> bool {
         rtype == rtype::MBP_1
+    }
+
+    fn header(&self) -> &RecordHeader {
+        &self.hd
     }
 }
 
@@ -594,11 +640,19 @@ impl HasRType for Mbp10Msg {
     fn has_rtype(rtype: u8) -> bool {
         rtype == rtype::MBP_10
     }
+
+    fn header(&self) -> &RecordHeader {
+        &self.hd
+    }
 }
 
 impl HasRType for OhlcvMsg {
     fn has_rtype(rtype: u8) -> bool {
         rtype == rtype::OHLCV
+    }
+
+    fn header(&self) -> &RecordHeader {
+        &self.hd
     }
 }
 
@@ -606,11 +660,19 @@ impl HasRType for StatusMsg {
     fn has_rtype(rtype: u8) -> bool {
         rtype == rtype::STATUS
     }
+
+    fn header(&self) -> &RecordHeader {
+        &self.hd
+    }
 }
 
 impl HasRType for InstrumentDefMsg {
     fn has_rtype(rtype: u8) -> bool {
         rtype == rtype::INSTRUMENT_DEF
+    }
+
+    fn header(&self) -> &RecordHeader {
+        &self.hd
     }
 }
 
@@ -618,17 +680,29 @@ impl HasRType for ImbalanceMsg {
     fn has_rtype(rtype: u8) -> bool {
         rtype == rtype::IMBALANCE
     }
+
+    fn header(&self) -> &RecordHeader {
+        &self.hd
+    }
 }
 
 impl HasRType for ErrorMsg {
     fn has_rtype(rtype: u8) -> bool {
         rtype == rtype::ERROR
     }
+
+    fn header(&self) -> &RecordHeader {
+        &self.hd
+    }
 }
 
 impl HasRType for SymbolMappingMsg {
     fn has_rtype(rtype: u8) -> bool {
         rtype == rtype::SYMBOL_MAPPING
+    }
+
+    fn header(&self) -> &RecordHeader {
+        &self.hd
     }
 }
 
@@ -694,5 +768,15 @@ mod tests {
     #[test]
     fn test_symbol_mapping_size() {
         assert_eq!(mem::size_of::<SymbolMappingMsg>(), 80);
+    }
+
+    #[test]
+    fn test_serialize_quoted_str_to_json() {
+        let error = ErrorMsg::new(0, "\"A test");
+        let json = serde_json::to_string(&error).unwrap();
+        assert_eq!(
+            json,
+            r#"{"hd":{"rtype":21,"publisher_id":0,"product_id":0,"ts_event":"0"},"err":"\"A test"}"#
+        );
     }
 }
