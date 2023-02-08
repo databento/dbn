@@ -138,7 +138,7 @@ pub mod rtype {
 
     use crate::record::{
         ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg,
-        SymbolMappingMsg, TbboMsg,
+        SymbolMappingMsg, TradeMsg,
     };
 
     /// Market by price with a book depth of 0 (used for trades).
@@ -168,7 +168,7 @@ pub mod rtype {
             super::Schema::Mbo => MBO,
             super::Schema::Mbp1 => MBP_1,
             super::Schema::Mbp10 => MBP_10,
-            super::Schema::Tbbo => MBP_0,
+            super::Schema::Tbbo => MBP_1,
             super::Schema::Trades => MBP_0,
             super::Schema::Ohlcv1S => OHLCV,
             super::Schema::Ohlcv1M => OHLCV,
@@ -182,7 +182,7 @@ pub mod rtype {
 
     pub fn record_size(rtype: u8) -> Option<usize> {
         match rtype {
-            MBP_0 => Some(mem::size_of::<TbboMsg>()),
+            MBP_0 => Some(mem::size_of::<TradeMsg>()),
             MBP_1 => Some(mem::size_of::<Mbp1Msg>()),
             MBP_10 => Some(mem::size_of::<Mbp10Msg>()),
             OHLCV => Some(mem::size_of::<OhlcvMsg>()),
@@ -207,7 +207,8 @@ pub enum Schema {
     Mbp1 = 1,
     /// Market by price with a book depth of 10.
     Mbp10 = 2,
-    /// Combination of [Self::Trades] and [Self::Mbp1].
+    /// All trade events with the best bid and offer (BBO) immediately **before** the
+    /// effect of the trade.
     Tbbo = 3,
     /// All trade events.
     Trades = 4,
