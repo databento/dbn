@@ -78,6 +78,13 @@ where
             Compression::ZStd => zstd_encoder(writer).map(Self::ZStd),
         }
     }
+
+    pub fn get_mut(&mut self) -> &mut W {
+        match self {
+            DynWriter::Uncompressed(w) => w,
+            DynWriter::ZStd(enc) => enc.get_mut(),
+        }
+    }
 }
 
 fn zstd_encoder<'a, W: io::Write>(
@@ -276,6 +283,86 @@ mod test_data {
 
         fn get(&self) -> Option<&Self::Item> {
             self.vec.get(self.idx as usize)
+        }
+    }
+}
+
+#[cfg(feature = "async")]
+pub use r#async::DynWriter as DynAsyncWriter;
+
+#[cfg(feature = "async")]
+mod r#async {
+    use std::{
+        pin::Pin,
+        task::{Context, Poll},
+    };
+
+    use async_compression::tokio::write::ZstdEncoder;
+    use tokio::io;
+
+    use crate::enums::Compression;
+
+    /// An object that allows for abstracting over compressed and uncompressed output.
+    pub struct DynWriter<W>(DynWriterImpl<W>)
+    where
+        W: io::AsyncWriteExt + Unpin;
+
+    enum DynWriterImpl<W>
+    where
+        W: io::AsyncWriteExt + Unpin,
+    {
+        Uncompressed(W),
+        ZStd(ZstdEncoder<W>),
+    }
+
+    impl<W> DynWriter<W>
+    where
+        W: io::AsyncWriteExt + Unpin,
+    {
+        /// Creates a new instance of [`DynWriter`] which will wrap `writer` with
+        /// `compression`.
+        pub fn new(writer: W, compression: Compression) -> Self {
+            Self(match compression {
+                Compression::None => DynWriterImpl::Uncompressed(writer),
+                Compression::ZStd => DynWriterImpl::ZStd(ZstdEncoder::new(writer)),
+            })
+        }
+
+        pub fn get_mut(&mut self) -> &mut W {
+            match &mut self.0 {
+                DynWriterImpl::Uncompressed(w) => w,
+                DynWriterImpl::ZStd(enc) => enc.get_mut(),
+            }
+        }
+    }
+
+    impl<W> io::AsyncWrite for DynWriter<W>
+    where
+        W: io::AsyncWrite + io::AsyncWriteExt + Unpin,
+    {
+        fn poll_write(
+            mut self: Pin<&mut Self>,
+            cx: &mut Context<'_>,
+            buf: &[u8],
+        ) -> Poll<Result<usize, io::Error>> {
+            match &mut self.0 {
+                DynWriterImpl::Uncompressed(w) => io::AsyncWrite::poll_write(Pin::new(w), cx, buf),
+                DynWriterImpl::ZStd(enc) => io::AsyncWrite::poll_write(Pin::new(enc), cx, buf),
+            }
+        }
+
+        fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+            match &mut self.0 {
+                DynWriterImpl::Uncompressed(w) => io::AsyncWrite::poll_flush(Pin::new(w), cx),
+                DynWriterImpl::ZStd(enc) => io::AsyncWrite::poll_flush(Pin::new(enc), cx),
+            }
+        }
+
+        fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+            match &mut self.0 {
+                DynWriterImpl::Uncompressed(w) => io::AsyncWrite::poll_shutdown(Pin::new(w), cx),
+                DynWriterImpl::ZStd(enc) => io::AsyncWrite::poll_shutdown(Pin::new(enc), cx),
+            }
         }
     }
 }

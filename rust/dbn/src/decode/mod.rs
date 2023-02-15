@@ -24,7 +24,9 @@ use std::{
 use anyhow::{anyhow, Context};
 
 use crate::{
+    enums::Compression,
     record::HasRType,
+    record_ref::RecordRef,
     // record_ref::RecordRef,
     Metadata,
 };
@@ -35,14 +37,14 @@ pub trait DecodeDbn: private::BufferSlice {
     /// Returns a reference to the decoded [`Metadata`].
     fn metadata(&self) -> &Metadata;
 
-    /// Try to decode a reference to a single record of type `T`. Returns `None` if
+    /// Tries to decode a reference to a single record of type `T`. Returns `None` if
     /// the input has been exhausted or the next record is not of type `T`.
     fn decode_record<T: HasRType>(&mut self) -> Option<&T>;
 
-    /// Try to decode a generic reference a record.
-    // fn decode_record_ref<'a>(&'a mut self) -> Option<RecordRef<'a>>;
+    /// Tries to decode a generic reference a record.
+    fn decode_record_ref(&mut self) -> Option<RecordRef>;
 
-    /// Try to convert the decoder into a streaming iterator. This lazily decodes the
+    /// Tries to convert the decoder into a streaming iterator. This lazily decodes the
     /// data.
     ///
     /// # Errors
@@ -52,7 +54,7 @@ pub trait DecodeDbn: private::BufferSlice {
     where
         Self: Sized;
 
-    /// Try to decode all records into a `Vec`. This eagerly decodes the data.
+    /// Tries to decode all records into a `Vec`. This eagerly decodes the data.
     ///
     /// # Errors
     /// This function returns an error if schema of the data being decoded doesn't
@@ -94,14 +96,23 @@ impl<'a, R> DynDecoder<'a, BufReader<R>>
 where
     R: io::Read,
 {
-    /// Creates a new [`DynDecoder`] from a reader. If `reader` also implements
-    /// [`io::BufRead`](std::io::BufRead), it is better to use [`with_buffer()`](Self::with_buffer).
+    /// Creates a new [`DynDecoder`] from a reader, with the specified `compression`.
+    ///
+    /// # Errors
+    /// This function will return an error if it fails to parse the metadata.
+    pub fn new(reader: R, compression: Compression) -> anyhow::Result<Self> {
+        Self::with_buffer(BufReader::new(reader), compression)
+    }
+
+    /// Creates a new [`DynDecoder`] from a reader, inferring the encoding and
+    /// compression. If `reader` also implements [`io::BufRead`](std::io::BufRead), it
+    /// is better to use [`inferred_with_buffer()`](Self::inferred_with_buffer).
     ///
     /// # Errors
     /// This function will return an error if it is unable to determine
     /// the encoding of `reader` or it fails to parse the metadata.
-    pub fn new(reader: R) -> anyhow::Result<Self> {
-        Self::with_buffer(BufReader::new(reader))
+    pub fn new_inferred(reader: R) -> anyhow::Result<Self> {
+        Self::inferred_with_buffer(BufReader::new(reader))
     }
 }
 
@@ -109,12 +120,28 @@ impl<'a, R> DynDecoder<'a, R>
 where
     R: io::BufRead,
 {
-    /// Creates a new [`DynDecoder`] from a buffered reader.
+    /// Creates a new [`DynDecoder`] from a buffered reader with the specified
+    /// `compression`.
     ///
     /// # Errors
     /// This function will return an error if it is unable to determine
     /// the encoding of `reader` or it fails to parse the metadata.
-    pub fn with_buffer(mut reader: R) -> anyhow::Result<Self> {
+    pub fn with_buffer(reader: R, compression: Compression) -> anyhow::Result<Self> {
+        match compression {
+            Compression::None => Ok(Self(DynDecoderImpl::Dbn(dbn::Decoder::new(reader)?))),
+            Compression::ZStd => Ok(Self(DynDecoderImpl::ZstdDbn(
+                dbn::Decoder::with_zstd_buffer(reader)?,
+            ))),
+        }
+    }
+
+    /// Creates a new [`DynDecoder`] from a buffered reader, inferring the encoding
+    /// and compression.
+    ///
+    /// # Errors
+    /// This function will return an error if it is unable to determine
+    /// the encoding of `reader` or it fails to parse the metadata.
+    pub fn inferred_with_buffer(mut reader: R) -> anyhow::Result<Self> {
         let first_bytes = reader
             .fill_buf()
             .context("Failed to read bytes to determine encoding")?;
@@ -146,7 +173,7 @@ impl<'a> DynDecoder<'a, BufReader<File>> {
                 path.as_ref().display()
             )
         })?;
-        DynDecoder::new(file)
+        DynDecoder::new_inferred(file)
     }
 }
 
@@ -160,6 +187,14 @@ where
             DynDecoderImpl::Dbn(decoder) => decoder.metadata(),
             DynDecoderImpl::ZstdDbn(decoder) => decoder.metadata(),
             DynDecoderImpl::LegacyDbz(decoder) => decoder.metadata(),
+        }
+    }
+
+    fn decode_record_ref(&mut self) -> Option<RecordRef> {
+        match &mut self.0 {
+            DynDecoderImpl::Dbn(decoder) => decoder.decode_record_ref(),
+            DynDecoderImpl::ZstdDbn(decoder) => decoder.decode_record_ref(),
+            DynDecoderImpl::LegacyDbz(decoder) => decoder.decode_record_ref(),
         }
     }
 
@@ -240,4 +275,61 @@ impl FromLittleEndianSlice for u16 {
 #[cfg(test)]
 mod tests {
     pub const TEST_DATA_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/data");
+}
+
+#[cfg(feature = "async")]
+pub use r#async::DynReader as AsyncDynReader;
+
+#[cfg(feature = "async")]
+mod r#async {
+    use std::pin::Pin;
+
+    use async_compression::tokio::bufread::ZstdDecoder;
+    use tokio::io::{self, BufReader};
+
+    use crate::enums::Compression;
+
+    /// A type for runtime polymorphism on compressed and uncompressed input.
+    pub struct DynReader<R>(DynReaderImpl<R>)
+    where
+        R: io::AsyncReadExt + Unpin;
+
+    enum DynReaderImpl<R>
+    where
+        R: io::AsyncReadExt + Unpin,
+    {
+        Uncompressed(R),
+        ZStd(ZstdDecoder<BufReader<R>>),
+    }
+
+    impl<R> DynReader<R>
+    where
+        R: io::AsyncReadExt + Unpin,
+    {
+        /// Creates a new instance of [`DynReader`] with the specified `compression`.
+        pub fn new(reader: R, compression: Compression) -> Self {
+            Self(match compression {
+                Compression::None => DynReaderImpl::Uncompressed(reader),
+                Compression::ZStd => DynReaderImpl::ZStd(ZstdDecoder::new(BufReader::new(reader))),
+            })
+        }
+    }
+
+    impl<R> io::AsyncRead for DynReader<R>
+    where
+        R: io::AsyncRead + io::AsyncReadExt + Unpin,
+    {
+        fn poll_read(
+            mut self: std::pin::Pin<&mut Self>,
+            cx: &mut std::task::Context<'_>,
+            buf: &mut io::ReadBuf<'_>,
+        ) -> std::task::Poll<std::io::Result<()>> {
+            match &mut self.0 {
+                DynReaderImpl::Uncompressed(reader) => {
+                    io::AsyncRead::poll_read(Pin::new(reader), cx, buf)
+                }
+                DynReaderImpl::ZStd(dec) => io::AsyncRead::poll_read(Pin::new(dec), cx, buf),
+            }
+        }
+    }
 }

@@ -33,7 +33,7 @@ use crate::{MappingInterval, Metadata, SymbolMapping};
 #[pyfunction]
 pub fn decode_metadata(bytes: &PyBytes) -> PyResult<Metadata> {
     let reader = io::BufReader::new(bytes.as_bytes());
-    Ok(DynDecoder::with_buffer(reader)
+    Ok(DynDecoder::inferred_with_buffer(reader)
         .map_err(to_val_err)?
         .metadata()
         .to_owned())

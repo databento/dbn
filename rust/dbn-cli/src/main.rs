@@ -39,7 +39,7 @@ fn write_dbn<R: io::BufRead>(decoder: DynDecoder<R>, args: &Args) -> anyhow::Res
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     if args.input.as_os_str() == "-" {
-        write_dbn(DynDecoder::new(io::stdin().lock())?, &args)
+        write_dbn(DynDecoder::inferred_with_buffer(io::stdin().lock())?, &args)
     } else {
         write_dbn(DynDecoder::from_file(&args.input)?, &args)
     }

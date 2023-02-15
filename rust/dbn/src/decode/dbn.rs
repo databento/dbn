@@ -13,21 +13,19 @@ use super::{private::BufferSlice, DecodeDbn, FromLittleEndianSlice, StreamIterDe
 use crate::{
     enums::{SType, Schema},
     record::{transmute_record_bytes, HasRType},
-    // record_ref::RecordRef,
-    MappingInterval,
-    Metadata,
-    SymbolMapping,
-    DBN_VERSION,
-    METADATA_FIXED_LEN,
-    NULL_END,
+    record_ref::RecordRef,
+    MappingInterval, Metadata, SymbolMapping, DBN_VERSION, METADATA_FIXED_LEN, NULL_END,
     NULL_RECORD_COUNT,
 };
 
+const DBN_PREFIX: &[u8] = b"DBN";
+const DBN_PREFIX_LEN: usize = DBN_PREFIX.len();
+
 /// Returns `true` if `bytes` starts with valid uncompressed DBN.
 pub fn starts_with_prefix(bytes: &[u8]) -> bool {
-    bytes.len() >= 4
-        && &bytes[..3] == MetadataDecoder::<File>::DBN_PREFIX
-        && bytes[3] <= crate::DBN_VERSION
+    bytes.len() > DBN_PREFIX_LEN
+        && &bytes[..DBN_PREFIX_LEN] == DBN_PREFIX
+        && bytes[DBN_PREFIX_LEN] <= crate::DBN_VERSION
 }
 
 /// Type for decoding files and streams in Databento Binary Encoding (DBN).
@@ -44,7 +42,7 @@ impl<R> Decoder<R>
 where
     R: io::Read,
 {
-    /// Crates a new DBN [`Decoder`] from `reader`.
+    /// Creates a new DBN [`Decoder`] from `reader`.
     ///
     /// # Errors
     /// This function will return an error if it is unable to parse the metadata in `reader`.
@@ -53,7 +51,7 @@ where
         Ok(Self {
             reader,
             metadata,
-            // buffer should capacity for reading `length`
+            // `buffer` should have capacity for reading `length`
             buffer: vec![0],
         })
     }
@@ -63,7 +61,7 @@ impl<'a, R> Decoder<zstd::stream::Decoder<'a, BufReader<R>>>
 where
     R: io::Read,
 {
-    /// Crates a new DBN [`Decoder`] from Zstandard-compressed `reader`.
+    /// Creates a new DBN [`Decoder`] from Zstandard-compressed `reader`.
     ///
     /// # Errors
     /// This function will return an error if it is unable to parse the metadata in `reader`.
@@ -76,7 +74,7 @@ impl<'a, R> Decoder<zstd::stream::Decoder<'a, R>>
 where
     R: io::BufRead,
 {
-    /// Crates a new DBN [`Decoder`] from Zstandard-compressed buffered `reader`.
+    /// Creates a new DBN [`Decoder`] from Zstandard-compressed buffered `reader`.
     ///
     /// # Errors
     /// This function will return an error if it is unable to parse the metadata in `reader`.
@@ -138,24 +136,20 @@ where
         }
     }
 
-    // fn decode_record_ref<'a>(&'a mut self) -> Option<RecordRef<'a>> {
-    //     if self.reader.read_exact(&mut self.buffer[..1]).is_err() {
-    //         return None;
-    //     }
-    //     let length = self.buffer[0] as usize * 4;
-    //     if length > self.buffer.len() {
-    //         self.buffer.resize(length, 0);
-    //     }
-    //     if self
-    //         .reader
-    //         .read_exact(&mut self.buffer[1..length - 1])
-    //         .is_err()
-    //     {
-    //         return None;
-    //     }
-    //     // Safety: `buffer` is resized to contain at least `length` bytes.
-    //     Some(unsafe { RecordRef::new(self.buffer.as_mut_slice()) })
-    // }
+    fn decode_record_ref(&mut self) -> Option<RecordRef> {
+        if self.reader.read_exact(&mut self.buffer[..1]).is_err() {
+            return None;
+        }
+        let length = self.buffer[0] as usize * 4;
+        if length > self.buffer.len() {
+            self.buffer.resize(length, 0);
+        }
+        if self.reader.read_exact(&mut self.buffer[1..length]).is_err() {
+            return None;
+        }
+        // Safety: `buffer` is resized to contain at least `length` bytes.
+        Some(unsafe { RecordRef::new(self.buffer.as_mut_slice()) })
+    }
 
     fn decode_stream<T: HasRType>(self) -> anyhow::Result<super::StreamIterDecoder<Self, T>> {
         Ok(StreamIterDecoder::new(self))
@@ -183,13 +177,9 @@ impl<R> MetadataDecoder<R>
 where
     R: io::Read,
 {
-    const DBN_PREFIX: &[u8] = b"DBN";
     const U32_SIZE: usize = mem::size_of::<u32>();
 
-    /// Crates a new DBN [`MetadataDecoder`] from `reader`.
-    ///
-    /// # Errors
-    /// This function will return an error if it is unable to parse the metadata in `reader`.
+    /// Creates a new DBN [`MetadataDecoder`] from `reader`.
     pub fn new(reader: R) -> Self {
         Self { reader }
     }
@@ -203,12 +193,12 @@ where
         self.reader
             .read_exact(&mut prelude_buffer)
             .with_context(|| "Failed to read DBN metadata prelude")?;
-        if &prelude_buffer[..3] != Self::DBN_PREFIX {
+        if &prelude_buffer[..DBN_PREFIX_LEN] != DBN_PREFIX {
             return Err(anyhow!("Invalid DBN header"));
         }
-        let version = prelude_buffer[3];
+        let version = prelude_buffer[DBN_PREFIX_LEN];
         if version > DBN_VERSION {
-            return Err(anyhow!("Can't decode newer version of DBN. Decododer version is {DBN_VERSION}, input version is {version}"));
+            return Err(anyhow!("Can't decode newer version of DBN. Decoder version is {DBN_VERSION}, input version is {version}"));
         }
         let length = u32::from_le_slice(&prelude_buffer[4..]);
         if (length as usize) < METADATA_FIXED_LEN {
@@ -290,6 +280,7 @@ where
             mappings,
         })
     }
+
     fn decode_repeated_symbol_cstr(buffer: &[u8], pos: &mut usize) -> anyhow::Result<Vec<String>> {
         if *pos + Self::U32_SIZE > buffer.len() {
             return Err(anyhow!("Unexpected end of metadata buffer"));
@@ -413,7 +404,12 @@ mod tests {
     use crate::{
         decode::tests::TEST_DATA_PATH,
         encode::{dbn::Encoder, EncodeDbn},
-        record::{InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, TbboMsg, TradeMsg},
+        enums::rtype,
+        record::{
+            ErrorMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader, TbboMsg,
+            TradeMsg,
+        },
+        MetadataBuilder,
     };
 
     #[test]
@@ -530,4 +526,342 @@ mod tests {
         InstrumentDefMsg,
         Schema::Definition
     );
+
+    #[test]
+    fn test_decode_record_ref() {
+        let mut buffer = Vec::new();
+        let mut encoder = Encoder::new(
+            &mut buffer,
+            &MetadataBuilder::new()
+                .dataset("XNAS.ITCH".to_owned())
+                .schema(Schema::Mbo)
+                .start(0)
+                .stype_in(SType::ProductId)
+                .stype_out(SType::ProductId)
+                .build(),
+        )
+        .unwrap();
+        const OHLCV_MSG: OhlcvMsg = OhlcvMsg {
+            hd: RecordHeader::new::<OhlcvMsg>(rtype::OHLCV, 1, 1, 0),
+            open: 100,
+            high: 200,
+            low: 75,
+            close: 125,
+            volume: 65,
+        };
+        let error_msg: ErrorMsg = ErrorMsg::new(0, "Test failed successfully");
+        encoder.encode_record(&OHLCV_MSG).unwrap();
+        encoder.encode_record(&error_msg).unwrap();
+
+        let mut decoder = Decoder::new(buffer.as_slice()).unwrap();
+        let ref1 = decoder.decode_record_ref().unwrap();
+        assert_eq!(*ref1.get::<OhlcvMsg>().unwrap(), OHLCV_MSG);
+        let ref2 = decoder.decode_record_ref().unwrap();
+        assert_eq!(*ref2.get::<ErrorMsg>().unwrap(), error_msg);
+        assert!(decoder.decode_record_ref().is_none());
+    }
+}
+
+#[cfg(feature = "async")]
+pub use r#async::{MetadataDecoder as AsyncMetadataDecoder, RecordDecoder as AsyncRecordDecoder};
+
+#[cfg(feature = "async")]
+mod r#async {
+    use std::mem;
+
+    use anyhow::{anyhow, Context};
+    use async_compression::tokio::bufread::ZstdDecoder;
+    use tokio::io::{self, BufReader};
+
+    use crate::{
+        decode::FromLittleEndianSlice,
+        record::{transmute_record_bytes, HasRType, RecordHeader},
+        record_ref::RecordRef,
+        Metadata, DBN_VERSION, METADATA_FIXED_LEN,
+    };
+
+    /// An async decoder for files and streams of Databento Binary Encoding (DBN) records.
+    pub struct RecordDecoder<R>
+    where
+        R: io::AsyncReadExt + Unpin,
+    {
+        reader: R,
+        buffer: Vec<u8>,
+    }
+
+    impl<R> RecordDecoder<R>
+    where
+        R: io::AsyncReadExt + Unpin,
+    {
+        /// Creates a new DBN [`RecordDecoder`] from `reader`.
+        pub fn new(reader: R) -> Self {
+            Self {
+                reader,
+                // `buffer` should have capacity for reading `length`
+                buffer: vec![0],
+            }
+        }
+
+        /// Tries to decode a single record and returns a reference to the record that
+        /// lasts until the next method call. Returns `None` if `reader` has been
+        /// exhausted or the next record is not of type `T`.
+        pub async fn decode_record<'a, T: HasRType + 'a>(&'a mut self) -> Option<&'a T> {
+            self.buffer.resize(mem::size_of::<T>(), 0);
+            if self.reader.read_exact(&mut self.buffer).await.is_ok() {
+                // Safety: `buffer` if specifically sized for `T` and
+                // `transmute_record_bytes` verifies the `rtype` is correct.
+                unsafe { transmute_record_bytes(self.buffer.as_slice()) }
+            } else {
+                None
+            }
+        }
+
+        /// Tries to decode a single record and returns a reference to the record that
+        /// lasts until the next method call. Returns `None` if `reader` has been
+        /// exhausted.
+        pub async fn decode_record_ref(&mut self) -> Option<RecordRef> {
+            if self.reader.read_exact(&mut self.buffer[..1]).await.is_err() {
+                return None;
+            }
+            let length = self.buffer[0] as usize * RecordHeader::LENGTH_MULTIPLIER;
+            if length > self.buffer.len() {
+                self.buffer.resize(length, 0);
+            }
+            if self
+                .reader
+                .read_exact(&mut self.buffer[1..length])
+                .await
+                .is_err()
+            {
+                return None;
+            }
+            // Safety: `buffer` is resized to contain at least `length` bytes.
+            Some(unsafe { RecordRef::new(self.buffer.as_mut_slice()) })
+        }
+
+        /// Returns a mutable reference to the inner reader.
+        pub fn get_mut(&mut self) -> &mut R {
+            &mut self.reader
+        }
+
+        /// Consumes the decoder and returns the inner reader.
+        pub fn into_inner(self) -> R {
+            self.reader
+        }
+    }
+
+    impl<R> From<MetadataDecoder<R>> for RecordDecoder<R>
+    where
+        R: io::AsyncReadExt + Unpin,
+    {
+        fn from(meta_decoder: MetadataDecoder<R>) -> Self {
+            RecordDecoder::new(meta_decoder.into_inner())
+        }
+    }
+
+    /// An async decoder for the metadata in files and streams in Databento Binary Encoding (DBN).
+    pub struct MetadataDecoder<R>
+    where
+        R: io::AsyncReadExt + Unpin,
+    {
+        reader: R,
+    }
+
+    impl<R> MetadataDecoder<R>
+    where
+        R: io::AsyncReadExt + Unpin,
+    {
+        /// Creates a new async DBN [`MetadataDecoder`] from `reader`.
+        pub fn new(reader: R) -> Self {
+            Self { reader }
+        }
+
+        /// Decodes and returns a DBN [`Metadata`].
+        ///
+        /// # Errors
+        /// This function will return an error if it is unable to parse the metadata.
+        pub async fn decode(&mut self) -> anyhow::Result<Metadata> {
+            let mut prelude_buffer = [0u8; 8];
+            self.reader
+                .read_exact(&mut prelude_buffer)
+                .await
+                .with_context(|| "Failed to read DBN metadata prelude")?;
+            if &prelude_buffer[..super::DBN_PREFIX_LEN] != super::DBN_PREFIX {
+                return Err(anyhow!("Invalid DBN header"));
+            }
+            let version = prelude_buffer[super::DBN_PREFIX_LEN];
+            if version > DBN_VERSION {
+                return Err(anyhow!("Can't decode newer version of DBN. Decoder version is {DBN_VERSION}, input version is {version}"));
+            }
+            let length = u32::from_le_slice(&prelude_buffer[4..]);
+            if (length as usize) < METADATA_FIXED_LEN {
+                return Err(anyhow!(
+                    "Invalid DBN metadata. Metadata length shorter than fixed length."
+                ));
+            }
+            let mut metadata_buffer = vec![0u8; length as usize];
+            self.reader
+                .read_exact(&mut metadata_buffer)
+                .await
+                .with_context(|| "Failed to read metadata")?;
+            super::MetadataDecoder::<std::fs::File>::decode_metadata_fields(
+                version,
+                metadata_buffer,
+            )
+        }
+
+        /// Returns a mutable reference to the inner reader.
+        pub fn get_mut(&mut self) -> &mut R {
+            &mut self.reader
+        }
+
+        /// Consumes the decoder and returns the inner reader.
+        pub fn into_inner(self) -> R {
+            self.reader
+        }
+    }
+
+    impl<R> MetadataDecoder<ZstdDecoder<BufReader<R>>>
+    where
+        R: io::AsyncReadExt + Unpin,
+    {
+        /// Creates a new async DBN [`MetadataDecoder`] from a Zstandard-compressed `reader`.
+        pub fn with_zstd(reader: R) -> Self {
+            MetadataDecoder::new(ZstdDecoder::new(BufReader::new(reader)))
+        }
+    }
+
+    impl<R> MetadataDecoder<ZstdDecoder<R>>
+    where
+        R: io::AsyncBufReadExt + Unpin,
+    {
+        /// Creates a new async DBN [`MetadataDecoder`] from a Zstandard-compressed buffered `reader`.
+        pub fn with_zstd_buffer(reader: R) -> Self {
+            MetadataDecoder::new(ZstdDecoder::new(reader))
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use tokio::io::AsyncWriteExt;
+
+        use super::*;
+        use crate::{
+            decode::tests::TEST_DATA_PATH,
+            encode::dbn::{AsyncMetadataEncoder, AsyncRecordEncoder},
+            enums::Schema,
+            record::{InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, TbboMsg, TradeMsg},
+        };
+
+        macro_rules! test_dbn_identity {
+            ($test_name:ident, $record_type:ident, $schema:expr) => {
+                #[tokio::test]
+                async fn $test_name() {
+                    let mut file = tokio::fs::File::open(format!(
+                        "{TEST_DATA_PATH}/test_data.{}.dbn",
+                        $schema
+                    ))
+                    .await
+                    .unwrap();
+                    let file_metadata = MetadataDecoder::new(&mut file).decode().await.unwrap();
+                    let mut file_decoder = RecordDecoder::new(&mut file);
+                    let mut file_records = Vec::new();
+                    while let Some(record) = file_decoder.decode_record::<$record_type>().await {
+                        file_records.push(record.clone());
+                    }
+                    let mut buffer = Vec::new();
+                    AsyncMetadataEncoder::new(&mut buffer)
+                        .encode(&file_metadata)
+                        .await
+                        .unwrap();
+                    assert_eq!(file_records.is_empty(), $schema == Schema::Ohlcv1D);
+                    let mut buf_encoder = AsyncRecordEncoder::new(&mut buffer);
+                    for record in file_records.iter() {
+                        buf_encoder.encode(record).await.unwrap();
+                    }
+                    let mut buf_cursor = std::io::Cursor::new(&mut buffer);
+                    let buf_metadata = MetadataDecoder::new(&mut buf_cursor)
+                        .decode()
+                        .await
+                        .unwrap();
+                    assert_eq!(buf_metadata, file_metadata);
+                    let mut buf_decoder = RecordDecoder::new(&mut buf_cursor);
+                    let mut buf_records = Vec::new();
+                    while let Some(record) = buf_decoder.decode_record::<$record_type>().await {
+                        buf_records.push(record.clone());
+                    }
+                    assert_eq!(buf_records, file_records);
+                }
+            };
+        }
+
+        macro_rules! test_dbn_zstd_identity {
+            ($test_name:ident, $record_type:ident, $schema:expr) => {
+                #[tokio::test]
+                async fn $test_name() {
+                    let file = tokio::fs::File::open(format!(
+                        "{TEST_DATA_PATH}/test_data.{}.dbn.zst",
+                        $schema
+                    ))
+                    .await
+                    .unwrap();
+                    let mut file_meta_decoder = MetadataDecoder::with_zstd(file);
+                    let file_metadata = file_meta_decoder.decode().await.unwrap();
+                    let mut file_decoder = RecordDecoder::from(file_meta_decoder);
+                    let mut file_records = Vec::new();
+                    while let Some(record) = file_decoder.decode_record::<$record_type>().await {
+                        file_records.push(record.clone());
+                    }
+                    let mut buffer = Vec::new();
+                    let mut meta_encoder = AsyncMetadataEncoder::with_zstd(&mut buffer);
+                    meta_encoder.encode(&file_metadata).await.unwrap();
+                    assert_eq!(file_records.is_empty(), $schema == Schema::Ohlcv1D);
+                    let mut buf_encoder = AsyncRecordEncoder::from(meta_encoder);
+                    for record in file_records.iter() {
+                        buf_encoder.encode(record).await.unwrap();
+                    }
+                    buf_encoder.into_inner().shutdown().await.unwrap();
+                    let mut buf_cursor = std::io::Cursor::new(&mut buffer);
+                    let mut buf_meta_decoder = MetadataDecoder::with_zstd_buffer(&mut buf_cursor);
+                    let buf_metadata = buf_meta_decoder.decode().await.unwrap();
+                    assert_eq!(buf_metadata, file_metadata);
+                    let mut buf_decoder = RecordDecoder::from(buf_meta_decoder);
+                    let mut buf_records = Vec::new();
+                    while let Some(record) = buf_decoder.decode_record::<$record_type>().await {
+                        buf_records.push(record.clone());
+                    }
+                    assert_eq!(buf_records, file_records);
+                }
+            };
+        }
+
+        test_dbn_identity!(test_dbn_identity_mbo, MboMsg, Schema::Mbo);
+        test_dbn_zstd_identity!(test_dbn_zstd_identity_mbo, MboMsg, Schema::Mbo);
+        test_dbn_identity!(test_dbn_identity_mbp1, Mbp1Msg, Schema::Mbp1);
+        test_dbn_zstd_identity!(test_dbn_zstd_identity_mbp1, Mbp1Msg, Schema::Mbp1);
+        test_dbn_identity!(test_dbn_identity_mbp10, Mbp10Msg, Schema::Mbp10);
+        test_dbn_zstd_identity!(test_dbn_zstd_identity_mbp10, Mbp10Msg, Schema::Mbp10);
+        test_dbn_identity!(test_dbn_identity_ohlcv1d, OhlcvMsg, Schema::Ohlcv1D);
+        test_dbn_zstd_identity!(test_dbn_zstd_identity_ohlcv1d, OhlcvMsg, Schema::Ohlcv1D);
+        test_dbn_identity!(test_dbn_identity_ohlcv1h, OhlcvMsg, Schema::Ohlcv1H);
+        test_dbn_zstd_identity!(test_dbn_zstd_identity_ohlcv1h, OhlcvMsg, Schema::Ohlcv1H);
+        test_dbn_identity!(test_dbn_identity_ohlcv1m, OhlcvMsg, Schema::Ohlcv1M);
+        test_dbn_zstd_identity!(test_dbn_zstd_identity_ohlcv1m, OhlcvMsg, Schema::Ohlcv1M);
+        test_dbn_identity!(test_dbn_identity_ohlcv1s, OhlcvMsg, Schema::Ohlcv1S);
+        test_dbn_zstd_identity!(test_dbn_zstd_identity_ohlcv1s, OhlcvMsg, Schema::Ohlcv1S);
+        test_dbn_identity!(test_dbn_identity_tbbo, TbboMsg, Schema::Tbbo);
+        test_dbn_zstd_identity!(test_dbn_zstd_identity_tbbo, TbboMsg, Schema::Tbbo);
+        test_dbn_identity!(test_dbn_identity_trades, TradeMsg, Schema::Trades);
+        test_dbn_zstd_identity!(test_dbn_zstd_identity_trades, TradeMsg, Schema::Trades);
+        test_dbn_identity!(
+            test_dbn_identity_instrument_def,
+            InstrumentDefMsg,
+            Schema::Definition
+        );
+        test_dbn_zstd_identity!(
+            test_dbn_zstd_identity_instrument_def,
+            InstrumentDefMsg,
+            Schema::Definition
+        );
+    }
 }

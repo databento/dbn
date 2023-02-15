@@ -47,6 +47,16 @@ where
         Ok(())
     }
 
+    /// Returns a reference to the underlying writer.
+    pub fn get_ref(&self) -> &W {
+        &self.writer
+    }
+
+    /// Returns a mutable reference to the underlying writer.
+    pub fn get_mut(&mut self) -> &mut W {
+        &mut self.writer
+    }
+
     fn serialize<T: fmt::Debug + Serialize>(&mut self, obj: &T) -> serde_json::Result<()> {
         if self.should_pretty_print {
             obj.serialize(&mut serde_json::Serializer::with_formatter(

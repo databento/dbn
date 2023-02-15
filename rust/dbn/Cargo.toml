@@ -12,6 +12,7 @@ categories = ["encoding"]
 
 [features]
 default = []
+async = ["async-compression", "tokio"]
 python = ["pyo3/extension-module"]
 # `cargo test` fails with linker errors when the extension-module feature is
 # enabled, see https://github.com/PyO3/pyo3/issues/340
@@ -22,6 +23,8 @@ trivial_copy = []
 [dependencies]
 # error handling
 anyhow = "1.0.68"
+# async (de)compression
+async-compression = { version = "0.3.15", features = ["tokio", "zstd"], optional = true }
 # CSV serialization
 csv = "1.1.6"
 # Deriving translation between integers and enums
@@ -36,5 +39,10 @@ serde_json = "1.0"
 streaming-iterator = "0.1.9"
 # date and datetime support
 time = { version = "0.3.17", features = ["serde"] }
+# async traits
+tokio = { version = "1.25", features = ["io-util"], optional = true }
 # (de)compression
 zstd = "=0.11.2"
+
+[dev-dependencies]
+tokio = { version = "1.25", features = ["fs", "io-util", "macros", "rt-multi-thread"] }

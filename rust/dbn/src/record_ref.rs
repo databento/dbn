@@ -1,5 +1,3 @@
-//! NOTE: This module is somewhat experimental, as using it would require a lot of
-//! duplicate functionality on both the encoding and decoding sides.
 use std::{marker::PhantomData, mem, ptr::NonNull};
 
 use crate::record::{HasRType, RecordHeader};
@@ -9,6 +7,7 @@ use crate::record::{HasRType, RecordHeader};
 #[derive(Clone, Debug)]
 pub struct RecordRef<'a> {
     ptr: NonNull<RecordHeader>,
+    /// Associates the object with the lifetime of the memory pointed to by `ptr`.
     _marker: PhantomData<&'a RecordHeader>,
 }
 
@@ -63,5 +62,56 @@ impl<'a> RecordRef<'a> {
     pub unsafe fn get_unchecked<T: HasRType>(&self) -> &T {
         debug_assert!(self.has::<T>());
         self.ptr.cast::<T>().as_ref()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::ffi::c_char;
+
+    use crate::{
+        enums::rtype,
+        record::{ErrorMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, TradeMsg},
+    };
+
+    use super::*;
+
+    unsafe fn as_mut_u8_slice<T: Sized + 'static>(data: &mut T) -> &mut [u8] {
+        std::slice::from_raw_parts_mut(data as *mut T as *mut u8, mem::size_of::<T>())
+    }
+
+    const SOURCE_RECORD: MboMsg = MboMsg {
+        hd: RecordHeader::new::<MboMsg>(rtype::MBO, 1, 1, 0),
+        order_id: 17,
+        price: 0,
+        size: 32,
+        flags: 0,
+        channel_id: 1,
+        action: 'A' as c_char,
+        side: 'B' as c_char,
+        ts_recv: 0,
+        ts_in_delta: 160,
+        sequence: 1067,
+    };
+
+    #[test]
+    fn test_header() {
+        let mut source = SOURCE_RECORD;
+        let target = unsafe { RecordRef::new(as_mut_u8_slice(&mut source)) };
+        assert_eq!(*target.header(), SOURCE_RECORD.hd);
+    }
+
+    #[test]
+    fn test_has_and_get() {
+        let mut source = SOURCE_RECORD;
+        let target = unsafe { RecordRef::new(as_mut_u8_slice(&mut source)) };
+        assert!(!target.has::<Mbp1Msg>());
+        assert!(!target.has::<Mbp10Msg>());
+        assert!(!target.has::<TradeMsg>());
+        assert!(!target.has::<ErrorMsg>());
+        assert!(!target.has::<OhlcvMsg>());
+        assert!(!target.has::<InstrumentDefMsg>());
+        assert!(target.has::<MboMsg>());
+        assert_eq!(*unsafe { target.get_unchecked::<MboMsg>() }, SOURCE_RECORD);
     }
 }

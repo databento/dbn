@@ -475,7 +475,7 @@ pub trait HasRType {
 }
 
 impl RecordHeader {
-    const LENGTH_MULTIPLIER: usize = 4;
+    pub const LENGTH_MULTIPLIER: usize = 4;
 
     /// Creates a new `RecordHeader`. `R` and `rtype` should be compatible.
     pub const fn new<R: HasRType>(

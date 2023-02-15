@@ -13,6 +13,7 @@ use crate::{
     decode::{dbn::decode_iso8601, FromLittleEndianSlice},
     enums::{Compression, SType, Schema},
     record::{transmute_record_bytes, HasRType},
+    record_ref::RecordRef,
     MappingInterval, Metadata, SymbolMapping,
 };
 
@@ -90,6 +91,21 @@ impl<R: io::BufRead> DecodeDbn for Decoder<R> {
         } else {
             None
         }
+    }
+
+    fn decode_record_ref(&mut self) -> Option<RecordRef> {
+        if self.reader.read_exact(&mut self.buffer[..1]).is_err() {
+            return None;
+        }
+        let length = self.buffer[0] as usize * 4;
+        if length > self.buffer.len() {
+            self.buffer.resize(length, 0);
+        }
+        if self.reader.read_exact(&mut self.buffer[1..length]).is_err() {
+            return None;
+        }
+        // Safety: `buffer` is resized to contain at least `length` bytes.
+        Some(unsafe { RecordRef::new(self.buffer.as_mut_slice()) })
     }
 
     /// Try to decode the DBZ file into a streaming iterator. This decodes the

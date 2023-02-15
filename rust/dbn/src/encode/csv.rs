@@ -80,7 +80,8 @@ pub(crate) mod serialize {
     use serde::Serialize;
 
     use crate::record::{
-        InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, TradeMsg,
+        ErrorMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg,
+        SymbolMappingMsg, TradeMsg,
     };
 
     /// Because of the flat nature of CSVs, there are several limitations in the
@@ -357,6 +358,24 @@ pub(crate) mod serialize {
             "contract_multiplier_unit",
             "flow_schedule_type",
             "tick_rule",
+        ];
+    }
+
+    impl CsvSerialize for ErrorMsg {
+        const HEADERS: &'static [&'static str] =
+            &["rtype", "publisher_id", "product_id", "ts_event", "err"];
+    }
+
+    impl CsvSerialize for SymbolMappingMsg {
+        const HEADERS: &'static [&'static str] = &[
+            "rtype",
+            "publisher_id",
+            "product_id",
+            "ts_event",
+            "stype_in_symbol",
+            "stype_out_symbol",
+            "start_ts",
+            "end_ts",
         ];
     }
 }

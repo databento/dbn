@@ -9,7 +9,6 @@ pub mod enums;
 pub mod error;
 pub mod metadata;
 pub mod record;
-#[doc(hidden)]
 pub mod record_ref;
 
 #[cfg(any(feature = "python", feature = "python-test"))]
