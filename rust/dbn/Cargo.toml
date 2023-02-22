@@ -1,0 +1,48 @@
+[package]
+name = "dbn"
+authors = ["Databento <support@databento.com>"]
+version = "0.3.0"
+edition = "2021"
+description = "Library for working with Databento Binary Encoding (DBN)"
+license = "Apache-2.0"
+repository = "https://github.com/databento/dbn"
+keywords = ["finance", "market-data", "conversion", "encoding", "trading"]
+# see https://crates.io/category_slugs
+categories = ["encoding"]
+
+[features]
+default = []
+async = ["async-compression", "tokio"]
+python = ["pyo3/extension-module"]
+# `cargo test` fails with linker errors when the extension-module feature is
+# enabled, see https://github.com/PyO3/pyo3/issues/340
+python-test = ["pyo3"]
+# Enables deriving the `Copy` trait for records.
+trivial_copy = []
+
+[dependencies]
+# error handling
+anyhow = "1.0.68"
+# async (de)compression
+async-compression = { version = "0.3.15", features = ["tokio", "zstd"], optional = true }
+# CSV serialization
+csv = "1.1.6"
+# Deriving translation between integers and enums
+num_enum = "0.5.7"
+# Python bindings for Rust
+pyo3 = { version = "0.17.3", optional = true }
+# Derialization
+serde = { version = "1.0", features = ["derive"] }
+# JSON serialization
+serde_json = "1.0"
+# zero-copy DBN decoding
+streaming-iterator = "0.1.9"
+# date and datetime support
+time = { version = "0.3.17", features = ["serde"] }
+# async traits
+tokio = { version = "1.25", features = ["io-util"], optional = true }
+# (de)compression
+zstd = "=0.11.2"
+
+[dev-dependencies]
+tokio = { version = "1.25", features = ["fs", "io-util", "macros", "rt-multi-thread"] }

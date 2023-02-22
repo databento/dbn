@@ -1,59 +1,29 @@
-# dbz
+# dbn
 
-[![build](https://github.com/databento/dbz/actions/workflows/build.yml/badge.svg)](https://github.com/databento/dbz/actions/workflows/build.yml)
-![license](https://img.shields.io/github/license/databento/dbz?color=blue)
-[![Current Crates.io Version](https://img.shields.io/crates/v/dbz-lib.svg)](https://crates.io/crates/dbz-lib)
+[![build](https://github.com/databento/dbn/actions/workflows/build.yaml/badge.svg)](https://github.com/databento/dbn/actions/workflows/build.yaml)
+![license](https://img.shields.io/github/license/databento/dbn?color=blue)
+[![Current Crates.io Version](https://img.shields.io/crates/v/dbn.svg)](https://crates.io/crates/dbn)
+![pypi-version](https://img.shields.io/pypi/v/databento_dbn)
 
-A library (`dbz-lib`) and CLI tool (`dbz-cli`) for working with Databento Binary
-Encoding (DBZ) files.
-Python bindings for `dbz-lib` are provided in the `dbz-python` package.
+A library (`dbn`) and CLI tool (`dbn`) for working with Databento Binary
+Encoding (DBN) files and streams.
+Python bindings for `dbn` are provided in the `databento-dbn` package.
 
-The **D**atabento **B**inary Encoding + **Z**standard compression (DBZ) is an efficient
-highly compressible binary encoding suitable for bulk financial time series data,
-which includes a metadata header.
+The **D**atabento **B**inary E**n**coding (DBN) is an efficient
+highly-compressible binary encoding suitable for bulk financial time series data.
 
 ## Features
 
 - Performant binary encoding and decoding
 - Highly compressible with Zstandard
 - Extendable fixed-width schemas
-- Metadata header in a leading zstd skippable frame
-
-The DBZ format relies on a compliant Zstandard decompressor to read the data.
-The basic metadata can be read without the need for zstd, as it is not
-compressed, however the symbology portion is.
 
 ## Usage
 
 See the respective READMEs for usage details:
-- [`dbz-cli`](src/dbz-cli/README.md)
-- [`dbz-lib`](src/dbz-lib/README.md)
-- [`dbz-python`](src/dbz-python/README.md)
-
-## Building
-
-`dbz` is written in Rust, so you'll need to have [Rust installed](https://www.rust-lang.org/)
-first.
-
-To build, run the following commands:
-```sh
-git clone https://github.com/databento/dbz
-cd dbz
-cargo build --release
-./target/release/dbz --help
-```
-
-For the Python bindings, you'll need [Maturin](https://github.com/PyO3/maturin) installed as well.
-To install the bindings for your active Python environment, run the following:
-
-```sh
-maturin develop --release
-python -c 'import dbz_python'""
-```
-
-## Testing
-
-Tests are run through `cargo test`.
+- [`dbn`](rust/dbn/README.md)
+- [`dbn-cli`](rust/dbn-cli/README.md)
+- [`databento-dbn`](python/README.md)
 
 # License
 

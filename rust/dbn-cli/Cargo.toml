@@ -1,0 +1,35 @@
+[package]
+name = "dbn-cli"
+authors = ["Databento <support@databento.com>"]
+version = "0.3.0"
+edition = "2021"
+description = "Command-line utility for converting Databento Binary Encoding (DBN) files to text-based formats"
+default-run = "dbn"
+license = "Apache-2.0"
+repository = "https://github.com/databento/dbn"
+keywords = ["market-data", "json", "csv", "conversion", "encoding"]
+# see https://crates.io/category_slugs
+categories = ["command-line-utilities", "encoding"]
+
+[[bin]]
+name = "dbn"
+path = "src/main.rs"
+
+[dependencies]
+# Databento common DBN library
+dbn = { path = "../dbn", version = "0.3.0" }
+
+# Error handling
+anyhow = "1.0.68"
+# CLI argument parsing
+clap = { version = "3.2", features = ["derive"] }
+# deserialization for CLI args
+serde = { version = "1.0", features = ["derive"] }
+
+[dev-dependencies]
+# CLI integration tests
+assert_cmd = "2.0.7"
+# assert_cmd companion
+predicates = "2.1.5"
+# A library for managing temporary files and directories
+tempfile = "3.3.0"
