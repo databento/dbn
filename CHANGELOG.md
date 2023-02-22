@@ -1,12 +1,13 @@
 # Changelog
 
-## 0.3.0
+## 0.3.0 - 2023-02-22
 - Renamed DBZ to DBN
   - Added ability to migrate legacy DBZ to DBN through CLI
 - Renamed python package to `databento-dbn`
 - Dropped requirement that DBN be Zstandard-compressed
 - Moved metadata out of skippable frame
 - Folded in `databento-defs`
+- Added support for async encoding and decoding
 - Added billable size calculation to `dbn` CLI
 - Added `MetadataBuilder` to assist with defaults
 - Refactored into encoder and decoder types

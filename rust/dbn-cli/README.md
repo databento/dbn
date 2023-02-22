@@ -63,7 +63,7 @@ dbn ohlcv-1d.dbn --json --zstd > ohlcv-1d.json.zst
 DBN is an evolution of DBZ, which required Zstandard.
 To update an old DBZ file to Zstandard-compressed DBN, run
 ```sh
-dbn 20221212.mbo.dbz -o 20221212.dbz.zst
+dbn 20221212.mbo.dbz -o 20221212.dbn.zst
 ```
 or pass `--dbn` to set the output encoding explicitly.
 
