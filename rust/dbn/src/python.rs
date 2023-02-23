@@ -1,7 +1,5 @@
 //! Python wrappers around dbn functions. These are implemented here instead of in `python/`
 //! to be able to implement [`pyo3`] traits for [`dbn`] types.
-#![allow(clippy::borrow_deref_ref)]
-// in generated code from `pyfunction` macro and `&PyBytes`
 use std::{ffi::c_char, fmt, io, io::SeekFrom, mem, num::NonZeroU64};
 
 use pyo3::{
@@ -17,7 +15,7 @@ use crate::{
         dbn::{self, MetadataEncoder},
         DbnEncodable, DynWriter, EncodeDbn,
     },
-    enums::{Compression, SType, Schema},
+    enums::{Compression, SType, Schema, SecurityUpdateAction},
     metadata::MetadataBuilder,
     record::{
         BidAskPair, HasRType, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader, TbboMsg, TradeMsg,
@@ -53,15 +51,15 @@ pub fn encode_metadata(
     dataset: String,
     schema: Schema,
     start: u64,
-    end: Option<u64>,
-    limit: Option<u64>,
-    record_count: Option<u64>,
     stype_in: SType,
     stype_out: SType,
     symbols: Vec<String>,
     partial: Vec<String>,
     not_found: Vec<String>,
     mappings: Vec<SymbolMapping>,
+    end: Option<u64>,
+    limit: Option<u64>,
+    record_count: Option<u64>,
 ) -> PyResult<Py<PyBytes>> {
     let metadata = MetadataBuilder::new()
         .dataset(dataset)
@@ -78,9 +76,12 @@ pub fn encode_metadata(
         .mappings(mappings)
         .build();
     let mut encoded = Vec::with_capacity(1024);
-    MetadataEncoder::new(encoded.as_mut_slice())
+    MetadataEncoder::new(&mut encoded)
         .encode(&metadata)
-        .map_err(to_val_err)?;
+        .map_err(|e| {
+            println!("{e:?}");
+            to_val_err(e)
+        })?;
     Ok(PyBytes::new(py, encoded.as_slice()).into())
 }
 
@@ -196,32 +197,9 @@ impl<'source> FromPyObject<'source> for PyFileLike {
     }
 }
 
-// [Metadata] gets converted into a plain Python `dict` when returned back to Python
-impl IntoPy<PyObject> for Metadata {
+impl IntoPy<PyObject> for SymbolMapping {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        let dict = PyDict::new(py);
-        dict.set_item("version", self.version).expect("set version");
-        dict.set_item("dataset", self.dataset).expect("set dataset");
-        dict.set_item("schema", self.schema as u8)
-            .expect("set schema");
-        dict.set_item("start", self.start).expect("set start");
-        dict.set_item("end", self.end.map(|n| n.get()))
-            .expect("set end");
-        dict.set_item("limit", self.limit.map(|n| n.get()))
-            .expect("set limit");
-        dict.set_item("record_count", self.record_count)
-            .expect("set record_count");
-        dict.set_item("stype_in", self.stype_in as u8)
-            .expect("set stype_in");
-        dict.set_item("stype_out", self.stype_out as u8)
-            .expect("set stype_out");
-        dict.set_item("symbols", self.symbols).expect("set symbols");
-        dict.set_item("partial", self.partial).expect("set partial");
-        dict.set_item("not_found", self.not_found)
-            .expect("set not_found");
-        dict.set_item("mappings", self.mappings)
-            .expect("set mappings");
-        dict.into_py(py)
+        self.to_object(py)
     }
 }
 
@@ -297,7 +275,7 @@ impl ToPyObject for MappingInterval {
     }
 }
 
-fn to_val_err(e: impl fmt::Debug) -> PyErr {
+pub fn to_val_err(e: impl fmt::Debug) -> PyErr {
     PyValueError::new_err(format!("{e:?}"))
 }
 
@@ -512,6 +490,12 @@ impl<'source> FromPyObject<'source> for Schema {
     }
 }
 
+impl IntoPy<PyObject> for Schema {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        (self as u16).into_py(py)
+    }
+}
+
 impl<'source> FromPyObject<'source> for SType {
     fn extract(any: &'source PyAny) -> PyResult<Self> {
         let str: &str = any.extract()?;
@@ -519,7 +503,25 @@ impl<'source> FromPyObject<'source> for SType {
     }
 }
 
-#[cfg(all(test, feature = "python-test"))]
+impl IntoPy<PyObject> for SType {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        (self as u8).into_py(py)
+    }
+}
+
+impl<'source> FromPyObject<'source> for SecurityUpdateAction {
+    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+        u8::extract(ob).and_then(|num| Self::try_from(num).map_err(to_val_err))
+    }
+}
+
+impl IntoPy<PyObject> for SecurityUpdateAction {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        (self as u8).into_py(py)
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use std::io::{Cursor, Seek, Write};
     use std::sync::{Arc, Mutex};

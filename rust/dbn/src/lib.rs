@@ -11,7 +11,7 @@ pub mod metadata;
 pub mod record;
 pub mod record_ref;
 
-#[cfg(any(feature = "python", feature = "python-test"))]
+#[cfg(feature = "python")]
 pub mod python;
 
 pub use crate::metadata::{MappingInterval, Metadata, MetadataBuilder, SymbolMapping};

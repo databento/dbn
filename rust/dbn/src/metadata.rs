@@ -9,6 +9,7 @@ use crate::enums::{rtype, SType, Schema};
 /// Information about the data contained in a DBN file or stream. DBN requires the
 /// Metadata to be included at the start of the encoded data.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "python", pyo3::pyclass(get_all))]
 pub struct Metadata {
     /// The DBN schema version number. Newly-encoded DBN files will use [`crate::DBN_VERSION`].
     pub version: u8,
@@ -274,10 +275,7 @@ impl Default for MetadataBuilder<Unset, Unset, Unset, Unset, Unset> {
 
 /// A native symbol and its symbol mappings for different time ranges within the query range.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[cfg_attr(
-    any(feature = "python", feature = "python-test"),
-    derive(pyo3::FromPyObject)
-)]
+#[cfg_attr(feature = "python", derive(pyo3::FromPyObject))]
 pub struct SymbolMapping {
     /// The native symbol.
     pub native_symbol: String,

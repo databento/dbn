@@ -13,10 +13,7 @@ categories = ["encoding"]
 [features]
 default = []
 async = ["async-compression", "tokio"]
-python = ["pyo3/extension-module"]
-# `cargo test` fails with linker errors when the extension-module feature is
-# enabled, see https://github.com/PyO3/pyo3/issues/340
-python-test = ["pyo3"]
+python = ["pyo3"]
 # Enables deriving the `Copy` trait for records.
 trivial_copy = []
 
@@ -30,7 +27,7 @@ csv = "1.1.6"
 # Deriving translation between integers and enums
 num_enum = "0.5.7"
 # Python bindings for Rust
-pyo3 = { version = "0.17.3", optional = true }
+pyo3 = { version = "0.18.1", optional = true }
 # Derialization
 serde = { version = "1.0", features = ["derive"] }
 # JSON serialization

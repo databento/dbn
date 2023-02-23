@@ -392,7 +392,7 @@ impl Display for Compression {
 }
 
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoPrimitive)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoPrimitive, TryFromPrimitive)]
 #[doc(hidden)]
 pub enum SecurityUpdateAction {
     Add = b'A',
