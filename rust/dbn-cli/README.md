@@ -8,8 +8,6 @@ This crate provides a CLI tool `dbn` for converting the Databento Binary
 Encoding (DBN) files to text formats, as well as updating legacy DBZ files to
 DBN.
 
-This tool is heavily inspired by the [`zstd` CLI](https://github.com/facebook/zstd).
-
 ## Usage
 
 `dbn` currently supports CSV and JSON (technically [newline-delimited JSON](http://ndjson.org/))
