@@ -80,7 +80,7 @@ impl serde::Serialize for Action {
     }
 }
 
-/// A symbology type. Refer to the [symbology documentation](https://docs.databento.com/reference-historical/basics/symbology)
+/// A symbology type. Refer to the [symbology documentation](https://docs.databento.com/api-reference-historical/basics/symbology)
 /// for more information.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, TryFromPrimitive)]
 #[serde(rename_all = "snake_case")]
