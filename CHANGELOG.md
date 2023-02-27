@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1 - 2023-02-27
+- Added improved Python bindings for decoding DBN
+- Fixed bug with `encode_metadata` Python function
+- Standardized documentation for `start`, `end`, and `limit`
+
 ## 0.3.0 - 2023-02-22
 - Renamed DBZ to DBN
   - Added ability to migrate legacy DBZ to DBN through CLI
