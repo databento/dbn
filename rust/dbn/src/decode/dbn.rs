@@ -28,14 +28,13 @@ pub fn starts_with_prefix(bytes: &[u8]) -> bool {
         && bytes[DBN_PREFIX_LEN] <= crate::DBN_VERSION
 }
 
-/// Type for decoding files and streams in Databento Binary Encoding (DBN).
+/// Type for decoding files and streams in Databento Binary Encoding (DBN), both metadata and records.
 pub struct Decoder<R>
 where
     R: io::Read,
 {
-    reader: R,
     metadata: Metadata,
-    buffer: Vec<u8>,
+    decoder: RecordDecoder<R>,
 }
 
 impl<R> Decoder<R>
@@ -49,11 +48,19 @@ where
     pub fn new(mut reader: R) -> anyhow::Result<Self> {
         let metadata = MetadataDecoder::new(&mut reader).decode()?;
         Ok(Self {
-            reader,
             metadata,
-            // `buffer` should have capacity for reading `length`
-            buffer: vec![0],
+            decoder: RecordDecoder::new(reader),
         })
+    }
+
+    /// Returns a mutable reference to the inner reader.
+    pub fn get_mut(&mut self) -> &mut R {
+        self.decoder.get_mut()
+    }
+
+    /// Consumes the decoder and returns the inner reader.
+    pub fn into_inner(self) -> R {
+        self.decoder.into_inner()
     }
 }
 
@@ -126,6 +133,62 @@ where
     }
 
     fn decode_record<T: HasRType>(&mut self) -> Option<&T> {
+        self.decoder.decode_record()
+    }
+
+    fn decode_record_ref(&mut self) -> Option<RecordRef> {
+        self.decoder.decode_record_ref()
+    }
+
+    fn decode_stream<T: HasRType>(self) -> anyhow::Result<super::StreamIterDecoder<Self, T>> {
+        Ok(StreamIterDecoder::new(self))
+    }
+}
+
+impl<R> BufferSlice for Decoder<R>
+where
+    R: io::Read,
+{
+    fn buffer_slice(&self) -> &[u8] {
+        self.decoder.buffer_slice()
+    }
+}
+
+/// A DBN decoder of records
+pub struct RecordDecoder<R>
+where
+    R: io::Read,
+{
+    reader: R,
+    buffer: Vec<u8>,
+}
+
+impl<R> RecordDecoder<R>
+where
+    R: io::Read,
+{
+    /// Creates a new `RecordDecoder` that will decode from `reader`.
+    pub fn new(reader: R) -> Self {
+        Self {
+            reader,
+            // `buffer` should have capacity for reading `length`
+            buffer: vec![0],
+        }
+    }
+
+    /// Returns a mutable reference to the inner reader.
+    pub fn get_mut(&mut self) -> &mut R {
+        &mut self.reader
+    }
+
+    /// Consumes the decoder and returns the inner reader.
+    pub fn into_inner(self) -> R {
+        self.reader
+    }
+
+    /// Decodes the next record if it's of type `T`. Returns `None` if
+    /// the reader is exhausted or the next record is of a different type.
+    pub fn decode_record<T: HasRType>(&mut self) -> Option<&T> {
         self.buffer.resize(mem::size_of::<T>(), 0);
         if self.reader.read_exact(&mut self.buffer).is_ok() {
             // Safety: `buffer` if specifically sized for `T` and
@@ -136,7 +199,8 @@ where
         }
     }
 
-    fn decode_record_ref(&mut self) -> Option<RecordRef> {
+    /// Tries to decode a generic reference a record.
+    pub fn decode_record_ref(&mut self) -> Option<RecordRef> {
         if self.reader.read_exact(&mut self.buffer[..1]).is_err() {
             return None;
         }
@@ -150,13 +214,9 @@ where
         // Safety: `buffer` is resized to contain at least `length` bytes.
         Some(unsafe { RecordRef::new(self.buffer.as_mut_slice()) })
     }
-
-    fn decode_stream<T: HasRType>(self) -> anyhow::Result<super::StreamIterDecoder<Self, T>> {
-        Ok(StreamIterDecoder::new(self))
-    }
 }
 
-impl<R> BufferSlice for Decoder<R>
+impl<R> BufferSlice for RecordDecoder<R>
 where
     R: io::Read,
 {
@@ -380,6 +440,16 @@ where
             .to_owned();
         *pos += crate::SYMBOL_CSTR_LEN;
         Ok(symbol)
+    }
+
+    /// Returns a mutable reference to the inner reader.
+    pub fn get_mut(&mut self) -> &mut R {
+        &mut self.reader
+    }
+
+    /// Consumes the decoder and returns the inner reader.
+    pub fn into_inner(self) -> R {
+        self.reader
     }
 }
 

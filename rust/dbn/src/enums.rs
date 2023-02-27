@@ -80,7 +80,7 @@ impl serde::Serialize for Action {
     }
 }
 
-/// A symbology type. Refer to the [symbology documentation](https://docs.databento.com/reference-historical/basics/symbology)
+/// A symbology type. Refer to the [symbology documentation](https://docs.databento.com/api-reference-historical/basics/symbology)
 /// for more information.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, TryFromPrimitive)]
 #[serde(rename_all = "snake_case")]
@@ -392,7 +392,7 @@ impl Display for Compression {
 }
 
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoPrimitive)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoPrimitive, TryFromPrimitive)]
 #[doc(hidden)]
 pub enum SecurityUpdateAction {
     Add = b'A',
