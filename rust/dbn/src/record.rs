@@ -10,7 +10,10 @@ use crate::enums::SecurityUpdateAction;
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
-#[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all))]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(get_all, set_all, module = "databento_dbn")
+)]
 pub struct RecordHeader {
     /// The length of the message in 32-bit words.
     #[serde(skip)]
@@ -34,7 +37,10 @@ pub struct RecordHeader {
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
-#[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all))]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(get_all, set_all, module = "databento_dbn")
+)]
 pub struct MboMsg {
     /// The common header.
     pub hd: RecordHeader,
@@ -67,7 +73,10 @@ pub struct MboMsg {
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
-#[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all))]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(get_all, set_all, module = "databento_dbn")
+)]
 pub struct BidAskPair {
     /// The bid price.
     pub bid_px: i64,
@@ -88,7 +97,10 @@ pub struct BidAskPair {
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
-#[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all))]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(get_all, set_all, module = "databento_dbn")
+)]
 pub struct TradeMsg {
     /// The common header.
     pub hd: RecordHeader,
@@ -122,7 +134,10 @@ pub struct TradeMsg {
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
-#[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all))]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(get_all, set_all, module = "databento_dbn")
+)]
 pub struct Mbp1Msg {
     /// The common header.
     pub hd: RecordHeader,
@@ -155,7 +170,10 @@ pub struct Mbp1Msg {
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
-#[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all))]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(get_all, set_all, module = "databento_dbn")
+)]
 pub struct Mbp10Msg {
     /// The common header.
     pub hd: RecordHeader,
@@ -194,7 +212,10 @@ pub type TbboMsg = Mbp1Msg;
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
-#[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all))]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(get_all, set_all, module = "databento_dbn")
+)]
 pub struct OhlcvMsg {
     /// The common header.
     pub hd: RecordHeader,
@@ -234,7 +255,10 @@ pub struct StatusMsg {
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
-#[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all))]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(get_all, set_all, module = "databento_dbn")
+)]
 pub struct InstrumentDefMsg {
     /// The common header.
     pub hd: RecordHeader,
@@ -430,7 +454,10 @@ pub struct ImbalanceMsg {
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
-#[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all))]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(get_all, set_all, module = "databento_dbn")
+)]
 pub struct ErrorMsg {
     pub hd: RecordHeader,
     #[serde(serialize_with = "serialize_c_char_arr")]
@@ -441,7 +468,10 @@ pub struct ErrorMsg {
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
-#[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all))]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(get_all, set_all, module = "databento_dbn")
+)]
 pub struct SymbolMappingMsg {
     pub hd: RecordHeader,
     #[serde(serialize_with = "serialize_c_char_arr")]

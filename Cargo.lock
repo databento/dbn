@@ -177,6 +177,7 @@ dependencies = [
  "anyhow",
  "async-compression",
  "csv",
+ "dbn-macros",
  "num_enum",
  "pyo3",
  "serde",
@@ -199,6 +200,10 @@ dependencies = [
  "serde",
  "tempfile",
 ]
+
+[[package]]
+name = "dbn-macros"
+version = "0.3.1"
 
 [[package]]
 name = "difflib"

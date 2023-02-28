@@ -303,6 +303,11 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
 
+      - name: Publish dbn-macros to crates.io
+        run: cargo publish --token ${CARGO_REGISTRY_TOKEN} --package dbn-macros
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
       - name: Publish dbn to crates.io
         run: cargo publish --token ${CARGO_REGISTRY_TOKEN} --package dbn
         env:

@@ -18,6 +18,8 @@ python = ["pyo3"]
 trivial_copy = []
 
 [dependencies]
+dbn-macros = { version = "=0.3.1", path = "../dbn-macros" }
+
 # error handling
 anyhow = "1.0.68"
 # async (de)compression

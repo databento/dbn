@@ -6,6 +6,8 @@ edition = "2021"
 description = "Python library written in Rust for working with Databento Binary Encoding (DBN)"
 license = "Apache-2.0"
 repository = "https://github.com/databento/dbn"
+# This crate should only be published as a Python package
+publish = false
 
 [lib]
 name = "databento_dbn" # Python modules can't contain dashes
