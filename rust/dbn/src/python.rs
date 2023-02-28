@@ -23,8 +23,8 @@ use crate::{
 };
 use crate::{MappingInterval, Metadata, SymbolMapping};
 
-/// Decodes the given Python `bytes` to `Metadata`. Returns a Python `dict` with
-/// all the DBN metadata.
+/// Decodes the given Python `bytes` to `Metadata`. Returns a `Metadata` object with
+/// all the DBN metadata attributes.
 ///
 /// # Errors
 /// This function returns an error if the metadata cannot be parsed from `bytes`.
