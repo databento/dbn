@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.3.2 - TBD
+## 0.3.2 - 2023-03-01
+- Added records and `Metadata` as exports of `databento_dbn` Python package
+- Improved how `Metadata` appears in Python and added `__repr__`
 - Fixed bug where `dbn` CLI tool didn't truncate existing files
 
 ## 0.3.1 - 2023-02-27

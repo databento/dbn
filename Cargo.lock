@@ -163,7 +163,7 @@ dependencies = [
 
 [[package]]
 name = "databento-dbn"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "dbn",
  "pyo3",
@@ -172,7 +172,7 @@ dependencies = [
 
 [[package]]
 name = "dbn"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "anyhow",
  "async-compression",
@@ -190,7 +190,7 @@ dependencies = [
 
 [[package]]
 name = "dbn-cli"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -203,7 +203,7 @@ dependencies = [
 
 [[package]]
 name = "dbn-macros"
-version = "0.3.1"
+version = "0.3.2"
 
 [[package]]
 name = "difflib"
