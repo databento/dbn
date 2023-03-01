@@ -1,30 +1,47 @@
 //! Python bindings for the [`dbn`] crate using [`pyo3`].
 use std::io::{self, Write};
 
-use pyo3::{prelude::*, wrap_pyfunction};
+use pyo3::{prelude::*, wrap_pyfunction, PyClass};
 
 use dbn::{
     decode::dbn::{MetadataDecoder, RecordDecoder},
     enums::rtype,
     python::to_val_err,
     record::{
-        ErrorMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, SymbolMappingMsg, TradeMsg,
+        BidAskPair, ErrorMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader,
+        SymbolMappingMsg, TradeMsg,
     },
 };
 
 /// A Python module wrapping dbn functions
 #[pymodule] // The name of the function must match `lib.name` in `Cargo.toml`
 fn databento_dbn(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+    fn checked_add_class<T: PyClass>(m: &PyModule) -> PyResult<()> {
+        // ensure a module was specified, otherwise it defaults to builtins
+        assert_eq!(T::MODULE.unwrap(), "databento_dbn");
+        m.add_class::<T>()
+    }
     // all functions exposed to Python need to be added here
     m.add_wrapped(wrap_pyfunction!(dbn::python::decode_metadata))?;
     m.add_wrapped(wrap_pyfunction!(dbn::python::encode_metadata))?;
     m.add_wrapped(wrap_pyfunction!(dbn::python::update_encoded_metadata))?;
     m.add_wrapped(wrap_pyfunction!(dbn::python::write_dbn_file))?;
-    m.add_class::<DbnDecoder>()?;
+    checked_add_class::<DbnDecoder>(m)?;
+    checked_add_class::<dbn::Metadata>(m)?;
+    checked_add_class::<RecordHeader>(m)?;
+    checked_add_class::<MboMsg>(m)?;
+    checked_add_class::<BidAskPair>(m)?;
+    checked_add_class::<TradeMsg>(m)?;
+    checked_add_class::<Mbp1Msg>(m)?;
+    checked_add_class::<Mbp10Msg>(m)?;
+    checked_add_class::<OhlcvMsg>(m)?;
+    checked_add_class::<InstrumentDefMsg>(m)?;
+    checked_add_class::<ErrorMsg>(m)?;
+    checked_add_class::<SymbolMappingMsg>(m)?;
     Ok(())
 }
 
-#[pyclass]
+#[pyclass(module = "databento_dbn")]
 struct DbnDecoder {
     buffer: io::Cursor<Vec<u8>>,
     has_decoded_metadata: bool,

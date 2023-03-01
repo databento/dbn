@@ -1,0 +1,13 @@
+[package]
+name = "dbn-macros"
+authors = ["Databento <support@databento.com>"]
+version = "0.3.2"
+edition = "2021"
+description = "Proc macros for dbn crate"
+license = "Apache-2.0"
+repository = "https://github.com/databento/dbn"
+
+[lib]
+proc-macro = true
+
+[dependencies]

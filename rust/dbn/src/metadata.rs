@@ -6,35 +6,53 @@ use serde::Serialize;
 
 use crate::enums::{rtype, SType, Schema};
 
+// Dummy derive macro to get around `cfg_attr` incompatibility of several
+// of pyo3's attribute macros. See https://github.com/PyO3/pyo3/issues/780
+#[cfg(not(feature = "python"))]
+pub use dbn_macros::MockPyo3;
+
 /// Information about the data contained in a DBN file or stream. DBN requires the
 /// Metadata to be included at the start of the encoded data.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[cfg_attr(feature = "python", pyo3::pyclass(get_all))]
+#[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
+#[cfg_attr(feature = "python", pyo3::pyclass(module = "databento_dbn"))]
 pub struct Metadata {
     /// The DBN schema version number. Newly-encoded DBN files will use [`crate::DBN_VERSION`].
+    #[pyo3(get)]
     pub version: u8,
     /// The dataset code.
+    #[pyo3(get)]
     pub dataset: String,
     /// The data record schema. Specifies which record type is stored in the Zstd-compressed DBN file.
+    #[pyo3(get)]
     pub schema: Schema,
     /// The UNIX nanosecond timestamp of the query start, or the first record if the file was split.
+    #[pyo3(get)]
     pub start: u64,
     /// The UNIX nanosecond timestamp of the query end, or the last record if the file was split.
+    #[pyo3(get)]
     pub end: Option<NonZeroU64>,
-    #[serde(serialize_with = "serialize_as_raw")]
     /// The optional maximum number of records for the query.
+    #[pyo3(get)]
+    #[serde(serialize_with = "serialize_as_raw")]
     pub limit: Option<NonZeroU64>,
     /// The total number of data records.
+    #[pyo3(get)]
     pub record_count: Option<u64>,
     /// The input symbology type to map from.
+    #[pyo3(get)]
     pub stype_in: SType,
     /// The output symbology type to map to.
+    #[pyo3(get)]
     pub stype_out: SType,
     /// The original query input symbols from the request.
+    #[pyo3(get)]
     pub symbols: Vec<String>,
     /// Symbols that did not resolve for _at least one day_ in the query time range.
+    #[pyo3(get)]
     pub partial: Vec<String>,
     /// Symbols that did not resolve for _any_ day in the query time range.
+    #[pyo3(get)]
     pub not_found: Vec<String>,
     /// Symbol mappings containing a native symbol and its mapping intervals.
     pub mappings: Vec<SymbolMapping>,

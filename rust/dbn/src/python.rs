@@ -1,6 +1,6 @@
 //! Python wrappers around dbn functions. These are implemented here instead of in `python/`
 //! to be able to implement [`pyo3`] traits for [`dbn`] types.
-use std::{ffi::c_char, fmt, io, io::SeekFrom, mem, num::NonZeroU64};
+use std::{collections::HashMap, ffi::c_char, fmt, io, io::SeekFrom, mem, num::NonZeroU64};
 
 use pyo3::{
     exceptions::{PyKeyError, PyTypeError, PyValueError},
@@ -34,7 +34,7 @@ pub fn decode_metadata(bytes: &PyBytes) -> PyResult<Metadata> {
     Ok(DynDecoder::inferred_with_buffer(reader)
         .map_err(to_val_err)?
         .metadata()
-        .to_owned())
+        .clone())
 }
 
 /// Encodes the given metadata into the DBN metadata binary format.
@@ -197,6 +197,22 @@ impl<'source> FromPyObject<'source> for PyFileLike {
     }
 }
 
+#[pymethods]
+impl Metadata {
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
+
+    #[getter]
+    fn get_mappings(&self) -> HashMap<String, Vec<MappingInterval>> {
+        let mut res = HashMap::new();
+        for mapping in self.mappings.iter() {
+            res.insert(mapping.native_symbol.clone(), mapping.intervals.clone());
+        }
+        res
+    }
+}
+
 impl IntoPy<PyObject> for SymbolMapping {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.to_object(py)
@@ -272,6 +288,12 @@ impl ToPyObject for MappingInterval {
         .expect("set end_date");
         dict.set_item("symbol", &self.symbol).expect("set symbol");
         dict.into_py(py)
+    }
+}
+
+impl IntoPy<PyObject> for MappingInterval {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        self.to_object(py)
     }
 }
 
@@ -492,7 +514,7 @@ impl<'source> FromPyObject<'source> for Schema {
 
 impl IntoPy<PyObject> for Schema {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        (self as u16).into_py(py)
+        (self.as_str()).into_py(py)
     }
 }
 
@@ -505,7 +527,7 @@ impl<'source> FromPyObject<'source> for SType {
 
 impl IntoPy<PyObject> for SType {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        (self as u8).into_py(py)
+        (self.as_str()).into_py(py)
     }
 }
 
