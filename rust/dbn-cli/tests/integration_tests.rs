@@ -1,5 +1,7 @@
-use std::fs;
-use std::io::Read;
+use std::{
+    fs,
+    io::{Read, Write},
+};
 
 use assert_cmd::Command;
 use predicates::str::{contains, ends_with, is_empty, starts_with};
@@ -187,6 +189,29 @@ fn force_overwrite() {
         .stdout(is_empty());
     let mut contents = String::new();
     output_file.as_file().read_to_string(&mut contents).unwrap();
+}
+
+#[test]
+fn force_truncates_file() {
+    let mut output_file = NamedTempFile::new().unwrap();
+    // Fill file with 10KB of bytes
+    for _ in 0..(10 * 1024) {
+        output_file.write_all(b"\0").unwrap();
+    }
+    let before_size = output_file.path().metadata().unwrap().len();
+    cmd()
+        .args(&[
+            &format!("{TEST_DATA_PATH}/test_data.ohlcv-1d.dbn.zst"),
+            "--output",
+            &output_file.path().to_str().unwrap(),
+            "-C", // CSV
+            "--force",
+        ])
+        .assert()
+        .success()
+        .stdout(is_empty());
+    let after_size = output_file.path().metadata().unwrap().len();
+    assert!(after_size < before_size);
 }
 
 #[test]

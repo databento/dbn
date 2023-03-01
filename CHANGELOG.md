@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.3.2 - TBD
+- Fixed bug where `dbn` CLI tool didn't truncate existing files
+
 ## 0.3.1 - 2023-02-27
 - Added improved Python bindings for decoding DBN
 - Fixed bug with `encode_metadata` Python function

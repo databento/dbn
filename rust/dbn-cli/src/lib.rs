@@ -172,6 +172,7 @@ pub fn output_from_args(args: &Args) -> anyhow::Result<Box<dyn io::Write>> {
 fn open_output_file(path: &PathBuf, force: bool) -> anyhow::Result<File> {
     let mut options = File::options();
     options.write(true);
+    options.truncate(true);
     if force {
         options.create(true);
     } else if path.exists() {
