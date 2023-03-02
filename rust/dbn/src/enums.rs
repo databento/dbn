@@ -147,8 +147,20 @@ pub mod rtype {
     pub const MBP_1: u8 = 0x01;
     /// Market by price with a book depth of 10.
     pub const MBP_10: u8 = 0x0a;
-    /// Open, high, low, close, and volume
-    pub const OHLCV: u8 = 0x11;
+    /// Open, high, low, close, and volume at an unspecified cadence.
+    #[deprecated(
+        since = "0.3.3",
+        note = "Separated into separate rtypes for each OHLCV schema."
+    )]
+    pub const OHLCV_DEPRECATED: u8 = 0x11;
+    /// Open, high, low, close, and volume at a 1-second cadence.
+    pub const OHLCV_1S: u8 = 0x20;
+    /// Open, high, low, close, and volume at a 1-minute cadence.
+    pub const OHLCV_1M: u8 = 0x21;
+    /// Open, high, low, close, and volume at an hourly cadence.
+    pub const OHLCV_1H: u8 = 0x22;
+    /// Open, high, low, close, and volume at a daily cadence.
+    pub const OHLCV_1D: u8 = 0x23;
     /// Exchange status.
     pub const STATUS: u8 = 0x12;
     /// Instrument definition.
@@ -170,10 +182,10 @@ pub mod rtype {
             super::Schema::Mbp10 => MBP_10,
             super::Schema::Tbbo => MBP_1,
             super::Schema::Trades => MBP_0,
-            super::Schema::Ohlcv1S => OHLCV,
-            super::Schema::Ohlcv1M => OHLCV,
-            super::Schema::Ohlcv1H => OHLCV,
-            super::Schema::Ohlcv1D => OHLCV,
+            super::Schema::Ohlcv1S => OHLCV_1S,
+            super::Schema::Ohlcv1M => OHLCV_1M,
+            super::Schema::Ohlcv1H => OHLCV_1H,
+            super::Schema::Ohlcv1D => OHLCV_1D,
             super::Schema::Definition => INSTRUMENT_DEF,
             super::Schema::Statistics => unimplemented!("Statistics is not yet supported"),
             super::Schema::Status => STATUS,
@@ -185,7 +197,10 @@ pub mod rtype {
             MBP_0 => Some(mem::size_of::<TradeMsg>()),
             MBP_1 => Some(mem::size_of::<Mbp1Msg>()),
             MBP_10 => Some(mem::size_of::<Mbp10Msg>()),
-            OHLCV => Some(mem::size_of::<OhlcvMsg>()),
+            #[allow(deprecated)]
+            OHLCV_DEPRECATED | OHLCV_1S | OHLCV_1M | OHLCV_1H | OHLCV_1D => {
+                Some(mem::size_of::<OhlcvMsg>())
+            }
             STATUS => Some(mem::size_of::<StatusMsg>()),
             INSTRUMENT_DEF => Some(mem::size_of::<InstrumentDefMsg>()),
             IMBALANCE => Some(mem::size_of::<ImbalanceMsg>()),

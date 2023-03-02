@@ -686,8 +686,16 @@ impl HasRType for Mbp10Msg {
 }
 
 impl HasRType for OhlcvMsg {
+    #[allow(deprecated)]
     fn has_rtype(rtype: u8) -> bool {
-        rtype == rtype::OHLCV
+        matches!(
+            rtype,
+            rtype::OHLCV_DEPRECATED
+                | rtype::OHLCV_1S
+                | rtype::OHLCV_1M
+                | rtype::OHLCV_1H
+                | rtype::OHLCV_1D
+        )
     }
 
     fn header(&self) -> &RecordHeader {
@@ -752,7 +760,7 @@ mod tests {
     const OHLCV_MSG: OhlcvMsg = OhlcvMsg {
         hd: RecordHeader {
             length: 56,
-            rtype: rtype::OHLCV,
+            rtype: rtype::OHLCV_1S,
             publisher_id: 1,
             product_id: 5482,
             ts_event: 1609160400000000000,

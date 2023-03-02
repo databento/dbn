@@ -612,7 +612,7 @@ mod tests {
         )
         .unwrap();
         const OHLCV_MSG: OhlcvMsg = OhlcvMsg {
-            hd: RecordHeader::new::<OhlcvMsg>(rtype::OHLCV, 1, 1, 0),
+            hd: RecordHeader::new::<OhlcvMsg>(rtype::OHLCV_1S, 1, 1, 0),
             open: 100,
             high: 200,
             low: 75,

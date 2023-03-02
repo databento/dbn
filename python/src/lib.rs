@@ -93,7 +93,14 @@ impl DbnDecoder {
                     rtype::MBP_0 => recs.push(rec.get::<TradeMsg>().unwrap().clone().into_py(py)),
                     rtype::MBP_1 => recs.push(rec.get::<Mbp1Msg>().unwrap().clone().into_py(py)),
                     rtype::MBP_10 => recs.push(rec.get::<Mbp10Msg>().unwrap().clone().into_py(py)),
-                    rtype::OHLCV => recs.push(rec.get::<OhlcvMsg>().unwrap().clone().into_py(py)),
+                    #[allow(deprecated)]
+                    rtype::OHLCV_DEPRECATED
+                    | rtype::OHLCV_1S
+                    | rtype::OHLCV_1M
+                    | rtype::OHLCV_1H
+                    | rtype::OHLCV_1D => {
+                        recs.push(rec.get::<OhlcvMsg>().unwrap().clone().into_py(py))
+                    }
                     rtype::INSTRUMENT_DEF => {
                         recs.push(rec.get::<InstrumentDefMsg>().unwrap().clone().into_py(py))
                     }

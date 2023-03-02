@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.3.3 - TBD
+- Introduced separate rtypes for each OHLCV schema
+
 ## 0.3.2 - 2023-03-01
 - Added records and `Metadata` as exports of `databento_dbn` Python package
 - Improved how `Metadata` appears in Python and added `__repr__`
