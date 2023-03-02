@@ -1,6 +1,6 @@
 //! Market data types for encoding different Databento [`Schema`](crate::enums::Schema)s and conversion functions.
 use crate::enums::rtype;
-use std::{mem, os::raw::c_char, ptr::NonNull};
+use std::{ffi::CStr, mem, os::raw::c_char, ptr::NonNull, str::Utf8Error};
 
 use serde::Serialize;
 
@@ -449,8 +449,7 @@ pub struct ImbalanceMsg {
     pub _dummy: [c_char; 4],
 }
 
-/// An error message from the Databento Live Subscription Gateway (LSG). This will never
-/// be present in historical data.
+/// An error message from the Databento Live Subscription Gateway (LSG).
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
@@ -482,6 +481,21 @@ pub struct SymbolMappingMsg {
     pub _dummy: [c_char; 4],
     pub start_ts: u64,
     pub end_ts: u64,
+}
+
+/// A non-error message from the Databento Live Subscription Gateway (LSG). Also used
+/// for heartbeating.
+#[repr(C)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(get_all, set_all, module = "databento_dbn")
+)]
+pub struct SystemMsg {
+    pub hd: RecordHeader,
+    #[serde(serialize_with = "serialize_c_char_arr")]
+    pub msg: [c_char; 64],
 }
 
 fn serialize_c_char_arr<S: serde::Serializer, const N: usize>(
@@ -551,6 +565,60 @@ impl ErrorMsg {
             error.err[i] = *byte as c_char;
         }
         error
+    }
+
+    /// Returns `err` as a `str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `err` contains invalid UTF-8.
+    pub fn err(&self) -> Result<&str, Utf8Error> {
+        // Safety: a pointer to `self.err` will always be valid
+        unsafe { CStr::from_ptr(&self.err as *const i8).to_str() }
+    }
+}
+
+impl SystemMsg {
+    const HEARTBEAT: &str = "Heartbeat";
+
+    /// Creates a new `SystemMsg`.
+    pub fn new(ts_event: u64, msg: &str) -> Self {
+        let mut rec = Self {
+            hd: RecordHeader::new::<Self>(rtype::SYSTEM, 0, 0, ts_event),
+            msg: [0; 64],
+        };
+        // leave at least one null byte
+        for (i, byte) in msg.as_bytes().iter().take(rec.msg.len() - 1).enumerate() {
+            rec.msg[i] = *byte as c_char;
+        }
+        rec
+    }
+
+    /// Creates a new heartbeat `SystemMsg`.
+    pub fn heartbeat(ts_event: u64) -> Self {
+        let mut rec = Self {
+            hd: RecordHeader::new::<Self>(rtype::SYSTEM, 0, 0, ts_event),
+            msg: [0; 64],
+        };
+        for (i, byte) in Self::HEARTBEAT.as_bytes().iter().enumerate() {
+            rec.msg[i] = *byte as c_char;
+        }
+        rec
+    }
+
+    /// Checks whether the message is a heartbeat from the gateway.
+    pub fn is_heartbeat(&self) -> bool {
+        self.msg()
+            .map(|msg| msg == Self::HEARTBEAT)
+            .unwrap_or_default()
+    }
+
+    /// Returns `msg` as a `str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `msg` contains invalid UTF-8.
+    pub fn msg(&self) -> Result<&str, Utf8Error> {
+        // Safety: a pointer to `self.err` will always be valid
+        unsafe { CStr::from_ptr(&self.msg as *const i8).to_str() }
     }
 }
 
@@ -746,6 +814,16 @@ impl HasRType for ErrorMsg {
 impl HasRType for SymbolMappingMsg {
     fn has_rtype(rtype: u8) -> bool {
         rtype == rtype::SYMBOL_MAPPING
+    }
+
+    fn header(&self) -> &RecordHeader {
+        &self.hd
+    }
+}
+
+impl HasRType for SystemMsg {
+    fn has_rtype(rtype: u8) -> bool {
+        rtype == rtype::SYSTEM
     }
 
     fn header(&self) -> &RecordHeader {

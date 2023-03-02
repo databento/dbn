@@ -138,7 +138,7 @@ pub mod rtype {
 
     use crate::record::{
         ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg,
-        SymbolMappingMsg, TradeMsg,
+        SymbolMappingMsg, SystemMsg, TradeMsg,
     };
 
     /// Market by price with a book depth of 0 (used for trades).
@@ -146,7 +146,7 @@ pub mod rtype {
     /// Market by price with a book depth of 1 (also used for TBBO).
     pub const MBP_1: u8 = 0x01;
     /// Market by price with a book depth of 10.
-    pub const MBP_10: u8 = 0x0a;
+    pub const MBP_10: u8 = 0x0A;
     /// Open, high, low, close, and volume at an unspecified cadence.
     #[deprecated(
         since = "0.3.3",
@@ -167,12 +167,14 @@ pub mod rtype {
     pub const INSTRUMENT_DEF: u8 = 0x13;
     /// Order imbalance.
     pub const IMBALANCE: u8 = 0x14;
-    /// Gateway error.
+    /// Error from gateway.
     pub const ERROR: u8 = 0x15;
     /// Symbol mapping.
     pub const SYMBOL_MAPPING: u8 = 0x16;
+    /// A non-error message. Also used for heartbeats.
+    pub const SYSTEM: u8 = 0x17;
     /// Market by order.
-    pub const MBO: u8 = 0xa0;
+    pub const MBO: u8 = 0xA0;
 
     /// Get the corresponding `rtype` for the given `schema`.
     pub fn from(schema: super::Schema) -> u8 {
@@ -206,6 +208,7 @@ pub mod rtype {
             IMBALANCE => Some(mem::size_of::<ImbalanceMsg>()),
             ERROR => Some(mem::size_of::<ErrorMsg>()),
             SYMBOL_MAPPING => Some(mem::size_of::<SymbolMappingMsg>()),
+            SYSTEM => Some(mem::size_of::<SystemMsg>()),
             MBO => Some(mem::size_of::<MboMsg>()),
             _ => None,
         }

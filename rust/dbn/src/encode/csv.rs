@@ -81,7 +81,7 @@ pub(crate) mod serialize {
 
     use crate::record::{
         ErrorMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg,
-        SymbolMappingMsg, TradeMsg,
+        SymbolMappingMsg, SystemMsg, TradeMsg,
     };
 
     /// Because of the flat nature of CSVs, there are several limitations in the
@@ -364,6 +364,11 @@ pub(crate) mod serialize {
     impl CsvSerialize for ErrorMsg {
         const HEADERS: &'static [&'static str] =
             &["rtype", "publisher_id", "product_id", "ts_event", "err"];
+    }
+
+    impl CsvSerialize for SystemMsg {
+        const HEADERS: &'static [&'static str] =
+            &["rtype", "publisher_id", "product_id", "ts_event", "msg"];
     }
 
     impl CsvSerialize for SymbolMappingMsg {
