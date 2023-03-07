@@ -15,10 +15,10 @@ use crate::enums::SecurityUpdateAction;
     pyo3::pyclass(get_all, set_all, module = "databento_dbn")
 )]
 pub struct RecordHeader {
-    /// The length of the message in 32-bit words.
+    /// The length of the record in 32-bit words.
     #[serde(skip)]
     pub(crate) length: u8,
-    /// The record type; with `0x00..0x0F` specifying MBP booklevel size.
+    /// The record type; with `0xe0..0x0F` specifying MBP booklevel size.
     /// Record types implement the trait [`HasRType`], and the [`has_rtype`][HasRType::has_rtype]
     /// function can be used to check if that type can be used to decode a message with a given rtype.
     /// The set of possible values is defined in [`rtype`].
@@ -27,7 +27,7 @@ pub struct RecordHeader {
     pub publisher_id: u16,
     /// The numeric product ID assigned to the instrument.
     pub product_id: u32,
-    /// The matching-engine-received timestamp expressed as number of nanoseconds since UNIX epoch.
+    /// The matching-engine-received timestamp expressed as number of nanoseconds since the UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub ts_event: u64,
 }
@@ -59,7 +59,7 @@ pub struct MboMsg {
     pub action: c_char,
     /// The order side. Can be **A**sk, **B**id or **N**one.
     pub side: c_char,
-    /// The capture-server-received timestamp expressed as number of nanoseconds since UNIX epoch.
+    /// The capture-server-received timestamp expressed as number of nanoseconds since the UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
@@ -116,7 +116,7 @@ pub struct TradeMsg {
     pub flags: u8,
     /// The depth of actual book change.
     pub depth: u8,
-    /// The capture-server-received timestamp expressed as number of nanoseconds since UNIX epoch.
+    /// The capture-server-received timestamp expressed as number of nanoseconds since the UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
@@ -152,7 +152,7 @@ pub struct Mbp1Msg {
     pub flags: u8,
     /// The depth of actual book change.
     pub depth: u8,
-    /// The capture-server-received timestamp expressed as number of nanoseconds since UNIX epoch.
+    /// The capture-server-received timestamp expressed as number of nanoseconds since the UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
@@ -187,7 +187,7 @@ pub struct Mbp10Msg {
     pub flags: u8,
     /// The depth of actual book change.
     pub depth: u8,
-    /// The capture-server-received timestamp expressed as number of nanoseconds since UNIX epoch.
+    /// The capture-server-received timestamp expressed as number of nanoseconds since the UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
@@ -236,7 +236,7 @@ pub struct OhlcvMsg {
 pub struct StatusMsg {
     /// The common header.
     pub hd: RecordHeader,
-    /// The capture-server-received timestamp expressed as number of nanoseconds since UNIX epoch.
+    /// The capture-server-received timestamp expressed as number of nanoseconds since the UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub ts_recv: u64,
     #[serde(serialize_with = "serialize_c_char_arr")]
@@ -258,7 +258,7 @@ pub struct StatusMsg {
 pub struct InstrumentDefMsg {
     /// The common header.
     pub hd: RecordHeader,
-    /// The capture-server-received timestamp expressed as number of nanoseconds since
+    /// The capture-server-received timestamp expressed as number of nanoseconds since the
     /// UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub ts_recv: u64,
@@ -267,10 +267,10 @@ pub struct InstrumentDefMsg {
     pub min_price_increment: i64,
     /// The multiplier to convert the venue’s display price to the conventional price.
     pub display_factor: i64,
-    /// The time of instrument activation expressed as a number of nanoseconds since UNIX epoch.
+    /// The time of instrument activation expressed as a number of nanoseconds since the UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub expiration: u64,
-    /// The last eligible trade time expressed as a number of nanoseconds since UNIX epoch.
+    /// The last eligible trade time expressed as a number of nanoseconds since the UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub activation: u64,
     /// The allowable high limit price for the trading day in units of 1e-9, i.e.
@@ -283,7 +283,7 @@ pub struct InstrumentDefMsg {
     /// or 0.000000001.
     pub max_price_variation: i64,
     /// The trading session date corresponding to the settlement price in
-    /// `trading_reference_price,` in number of days since the UNIX epoch.
+    /// `trading_reference_price`, in number of days since the UNIX epoch.
     pub trading_reference_price: i64,
     /// The contract size for each instrument, in combination with `unit_of_measure`.
     pub unit_of_measure_qty: i64,
