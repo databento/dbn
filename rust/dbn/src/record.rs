@@ -25,7 +25,7 @@ pub struct RecordHeader {
     pub rtype: u8,
     /// The publisher ID assigned by Databento.
     pub publisher_id: u16,
-    /// The product ID assigned by the venue.
+    /// The numeric product ID assigned to the instrument.
     pub product_id: u32,
     /// The matching-engine-received timestamp expressed as number of nanoseconds since UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
