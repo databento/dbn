@@ -55,10 +55,9 @@ pub struct MboMsg {
     pub flags: u8,
     /// A channel ID within the venue.
     pub channel_id: u8,
-    /// The event action. Can be M\[odify\], T\[rade\], C\[ancel\], A\[dd\]
-    /// or special: \[S\]tatus, \[U\]pdate.
+    /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or **T**rade.
     pub action: c_char,
-    /// The order side. Can be A\[sk\], B\[id\] or N\[one\].
+    /// The order side. Can be **A**sk, **B**id or **N**one.
     pub side: c_char,
     /// The capture-server-received timestamp expressed as number of nanoseconds since UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
@@ -109,10 +108,9 @@ pub struct TradeMsg {
     pub price: i64,
     /// The order quantity.
     pub size: u32,
-    /// The event action. Can be M\[odify\], T\[rade\], C\[ancel\], A\[dd\]
-    /// or special: \[S\]tatus, \[U\]pdate.
+    /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or **T**rade.
     pub action: c_char,
-    /// The order side. Can be A\[sk\], B\[id\] or N\[one\].
+    /// The order side. Can be **A**sk, **B**id or **N**one.
     pub side: c_char,
     /// A combination of packet end with matching engine status.
     pub flags: u8,
@@ -146,10 +144,9 @@ pub struct Mbp1Msg {
     pub price: i64,
     /// The order quantity.
     pub size: u32,
-    /// The event action. Can be M\[odify\], T\[rade\], C\[ancel\], A\[dd\]
-    /// or special: \[S\]tatus, \[U\]pdate.
+    /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or **T**rade.
     pub action: c_char,
-    /// The order side. Can be A\[sk\], B\[id\] or N\[one\].
+    /// The order side. Can be **A**sk, **B**id or **N**one.
     pub side: c_char,
     /// A combination of packet end with matching engine status.
     pub flags: u8,
@@ -182,10 +179,9 @@ pub struct Mbp10Msg {
     pub price: i64,
     /// The order quantity.
     pub size: u32,
-    /// The event action. Can be M\[odify\], T\[rade\], C\[ancel\], A\[dd\]
-    /// or special: \[S\]tatus, \[U\]pdate.
+    /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or **T**rade.
     pub action: c_char,
-    /// The order side. Can be A\[sk\], B\[id\] or N\[one\].
+    /// The order side. Can be **A**sk, **B**id or **N**one.
     pub side: c_char,
     /// A combination of packet end with matching engine status.
     pub flags: u8,
