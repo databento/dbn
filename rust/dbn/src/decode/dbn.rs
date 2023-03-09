@@ -9,7 +9,10 @@ use std::{
 
 use anyhow::{anyhow, Context};
 
-use super::{private::BufferSlice, DecodeDbn, FromLittleEndianSlice, StreamIterDecoder};
+use super::{
+    error_utils::silence_eof_error, private::BufferSlice, DecodeDbn, FromLittleEndianSlice,
+    StreamIterDecoder,
+};
 use crate::{
     enums::{SType, Schema},
     record::{transmute_record_bytes, HasRType},
@@ -132,11 +135,11 @@ where
         &self.metadata
     }
 
-    fn decode_record<T: HasRType>(&mut self) -> Option<&T> {
+    fn decode_record<T: HasRType>(&mut self) -> io::Result<Option<&T>> {
         self.decoder.decode_record()
     }
 
-    fn decode_record_ref(&mut self) -> Option<RecordRef> {
+    fn decode_record_ref(&mut self) -> io::Result<Option<RecordRef>> {
         self.decoder.decode_record_ref()
     }
 
@@ -186,33 +189,51 @@ where
         self.reader
     }
 
-    /// Decodes the next record if it's of type `T`. Returns `None` if
-    /// the reader is exhausted or the next record is of a different type.
-    pub fn decode_record<T: HasRType>(&mut self) -> Option<&T> {
+    /// Tries to decode the next record of type `T`. Returns `Ok(None)` if
+    /// the reader is exhausted.
+    ///
+    /// # Errors
+    /// This function returns an error if the underlying reader returns an
+    /// error of a kind other than `io::ErrorKind::UnexpectedEof` upon reading.
+    ///
+    /// If the next record is of a different type than `T`,
+    /// this function returns an error of kind `io::ErrorKind::InvalidData`.
+    pub fn decode_record<T: HasRType>(&mut self) -> io::Result<Option<&T>> {
         self.buffer.resize(mem::size_of::<T>(), 0);
-        if self.reader.read_exact(&mut self.buffer).is_ok() {
-            // Safety: `buffer` if specifically sized for `T` and
-            // `transmute_record_bytes` verifies the `rtype` is correct.
-            unsafe { transmute_record_bytes(self.buffer.as_slice()) }
-        } else {
-            None
+        if let Err(err) = self.reader.read_exact(&mut self.buffer) {
+            return silence_eof_error(err);
+        }
+        // Safety: `buffer` if specifically sized for `T` and
+        // `transmute_record_bytes` verifies the `rtype` is correct.
+        unsafe {
+            match transmute_record_bytes(self.buffer.as_slice()) {
+                Some(ret) => Ok(Some(ret)),
+                None => Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "Invalid data to represent record",
+                )),
+            }
         }
     }
 
     /// Tries to decode a generic reference a record.
-    pub fn decode_record_ref(&mut self) -> Option<RecordRef> {
-        if self.reader.read_exact(&mut self.buffer[..1]).is_err() {
-            return None;
+    ///
+    /// # Errors
+    /// This function returns an error if the underlying reader returns an
+    /// error of a kind other than `io::ErrorKind::UnexpectedEof` upon reading.
+    pub fn decode_record_ref(&mut self) -> io::Result<Option<RecordRef>> {
+        if let Err(err) = self.reader.read_exact(&mut self.buffer[..1]) {
+            return silence_eof_error(err);
         }
         let length = self.buffer[0] as usize * 4;
         if length > self.buffer.len() {
             self.buffer.resize(length, 0);
         }
-        if self.reader.read_exact(&mut self.buffer[1..length]).is_err() {
-            return None;
+        if let Err(err) = self.reader.read_exact(&mut self.buffer[1..length]) {
+            return silence_eof_error(err);
         }
         // Safety: `buffer` is resized to contain at least `length` bytes.
-        Some(unsafe { RecordRef::new(self.buffer.as_mut_slice()) })
+        Ok(Some(unsafe { RecordRef::new(self.buffer.as_mut_slice()) }))
     }
 }
 
@@ -624,11 +645,11 @@ mod tests {
         encoder.encode_record(&error_msg).unwrap();
 
         let mut decoder = Decoder::new(buffer.as_slice()).unwrap();
-        let ref1 = decoder.decode_record_ref().unwrap();
+        let ref1 = decoder.decode_record_ref().unwrap().unwrap();
         assert_eq!(*ref1.get::<OhlcvMsg>().unwrap(), OHLCV_MSG);
-        let ref2 = decoder.decode_record_ref().unwrap();
+        let ref2 = decoder.decode_record_ref().unwrap().unwrap();
         assert_eq!(*ref2.get::<ErrorMsg>().unwrap(), error_msg);
-        assert!(decoder.decode_record_ref().is_none());
+        assert!(decoder.decode_record_ref().unwrap().is_none());
     }
 }
 
@@ -644,7 +665,7 @@ mod r#async {
     use tokio::io::{self, BufReader};
 
     use crate::{
-        decode::FromLittleEndianSlice,
+        decode::{error_utils::silence_eof_error, FromLittleEndianSlice},
         record::{transmute_record_bytes, HasRType, RecordHeader},
         record_ref::RecordRef,
         Metadata, DBN_VERSION, METADATA_FIXED_LEN,
@@ -674,39 +695,52 @@ mod r#async {
 
         /// Tries to decode a single record and returns a reference to the record that
         /// lasts until the next method call. Returns `None` if `reader` has been
-        /// exhausted or the next record is not of type `T`.
-        pub async fn decode_record<'a, T: HasRType + 'a>(&'a mut self) -> Option<&'a T> {
+        /// exhausted.
+        ///
+        /// # Errors
+        /// This function returns an error if the underlying reader returns an
+        /// error of a kind other than `io::ErrorKind::UnexpectedEof` upon reading.
+        ///
+        /// If the next record is of a different type than `T`,
+        /// this function returns an error of kind `io::ErrorKind::InvalidData`.
+        pub async fn decode_record<'a, T: HasRType + 'a>(&'a mut self) -> io::Result<Option<&T>> {
             self.buffer.resize(mem::size_of::<T>(), 0);
-            if self.reader.read_exact(&mut self.buffer).await.is_ok() {
-                // Safety: `buffer` if specifically sized for `T` and
-                // `transmute_record_bytes` verifies the `rtype` is correct.
-                unsafe { transmute_record_bytes(self.buffer.as_slice()) }
-            } else {
-                None
+            if let Err(err) = self.reader.read_exact(&mut self.buffer).await {
+                return silence_eof_error(err);
+            }
+            // Safety: `buffer` if specifically sized for `T` and
+            // `transmute_record_bytes` verifies the `rtype` is correct.
+            unsafe {
+                match transmute_record_bytes(self.buffer.as_slice()) {
+                    Some(ret) => Ok(Some(ret)),
+                    None => Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "Invalid data to represent record",
+                    )),
+                }
             }
         }
 
         /// Tries to decode a single record and returns a reference to the record that
         /// lasts until the next method call. Returns `None` if `reader` has been
         /// exhausted.
-        pub async fn decode_record_ref(&mut self) -> Option<RecordRef> {
-            if self.reader.read_exact(&mut self.buffer[..1]).await.is_err() {
-                return None;
+        ///
+        /// # Errors
+        /// This function returns an error if the underlying reader returns an
+        /// error of a kind other than `io::ErrorKind::UnexpectedEof` upon reading.
+        pub async fn decode_record_ref(&mut self) -> io::Result<Option<RecordRef>> {
+            if let Err(err) = self.reader.read_exact(&mut self.buffer[..1]).await {
+                return silence_eof_error(err);
             }
             let length = self.buffer[0] as usize * RecordHeader::LENGTH_MULTIPLIER;
             if length > self.buffer.len() {
                 self.buffer.resize(length, 0);
             }
-            if self
-                .reader
-                .read_exact(&mut self.buffer[1..length])
-                .await
-                .is_err()
-            {
-                return None;
+            if let Err(err) = self.reader.read_exact(&mut self.buffer[1..length]).await {
+                return silence_eof_error(err);
             }
             // Safety: `buffer` is resized to contain at least `length` bytes.
-            Some(unsafe { RecordRef::new(self.buffer.as_mut_slice()) })
+            Ok(Some(unsafe { RecordRef::new(self.buffer.as_mut_slice()) }))
         }
 
         /// Returns a mutable reference to the inner reader.
@@ -836,7 +870,8 @@ mod r#async {
                     let file_metadata = MetadataDecoder::new(&mut file).decode().await.unwrap();
                     let mut file_decoder = RecordDecoder::new(&mut file);
                     let mut file_records = Vec::new();
-                    while let Some(record) = file_decoder.decode_record::<$record_type>().await {
+                    while let Ok(Some(record)) = file_decoder.decode_record::<$record_type>().await
+                    {
                         file_records.push(record.clone());
                     }
                     let mut buffer = Vec::new();
@@ -857,7 +892,7 @@ mod r#async {
                     assert_eq!(buf_metadata, file_metadata);
                     let mut buf_decoder = RecordDecoder::new(&mut buf_cursor);
                     let mut buf_records = Vec::new();
-                    while let Some(record) = buf_decoder.decode_record::<$record_type>().await {
+                    while let Ok(Some(record)) = buf_decoder.decode_record::<$record_type>().await {
                         buf_records.push(record.clone());
                     }
                     assert_eq!(buf_records, file_records);
@@ -879,7 +914,8 @@ mod r#async {
                     let file_metadata = file_meta_decoder.decode().await.unwrap();
                     let mut file_decoder = RecordDecoder::from(file_meta_decoder);
                     let mut file_records = Vec::new();
-                    while let Some(record) = file_decoder.decode_record::<$record_type>().await {
+                    while let Ok(Some(record)) = file_decoder.decode_record::<$record_type>().await
+                    {
                         file_records.push(record.clone());
                     }
                     let mut buffer = Vec::new();
@@ -897,7 +933,7 @@ mod r#async {
                     assert_eq!(buf_metadata, file_metadata);
                     let mut buf_decoder = RecordDecoder::from(buf_meta_decoder);
                     let mut buf_records = Vec::new();
-                    while let Some(record) = buf_decoder.decode_record::<$record_type>().await {
+                    while let Ok(Some(record)) = buf_decoder.decode_record::<$record_type>().await {
                         buf_records.push(record.clone());
                     }
                     assert_eq!(buf_records, file_records);

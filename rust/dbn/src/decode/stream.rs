@@ -19,6 +19,8 @@ where
     /// Number of element sthat have been decoded. Used for [`Iterator::size_hint()`].
     /// `None` indicates the end of the stream has been reached.
     i: Option<usize>,
+    /// Last error encountering when decoding.
+    last_err: Option<std::io::Error>,
     /// Required to associate this type with a specific record type `T`.
     _marker: PhantomData<T>,
 }
@@ -32,8 +34,14 @@ where
         Self {
             decoder,
             i: Some(0),
+            last_err: None,
             _marker: PhantomData,
         }
+    }
+
+    /// Last error encountering when decoding.
+    pub fn last_err(&self) -> Option<&std::io::Error> {
+        self.last_err.as_ref()
     }
 }
 
@@ -46,12 +54,19 @@ where
 
     fn advance(&mut self) {
         if let Some(i) = self.i.as_mut() {
-            if self.decoder.decode_record::<T>().is_none() {
-                // warn!("Failed to read from DBZ decoder: {e:?}");
-                // set error state sentinel
-                self.i = None;
-            } else {
-                *i += 1;
+            match self.decoder.decode_record::<T>() {
+                Err(err) => {
+                    self.last_err = Some(err);
+                    // set error state sentinel
+                    self.i = None;
+                }
+                Ok(None) => {
+                    // set error state sentinel
+                    self.i = None;
+                }
+                Ok(Some(_)) => {
+                    *i += 1;
+                }
             }
         }
     }
