@@ -48,7 +48,9 @@ where
     }
 
     fn encode_records<R: super::DbnEncodable>(&mut self, records: &[R]) -> anyhow::Result<()> {
-        self.writer.write_record(R::HEADERS)?;
+        R::serialize_headers(&mut self.writer)?;
+        // end of line
+        self.writer.write_record(None::<&[u8]>)?;
         for record in records {
             if self.encode_record(record)? {
                 return Ok(());
@@ -62,7 +64,9 @@ where
         &mut self,
         mut stream: impl StreamingIterator<Item = R>,
     ) -> anyhow::Result<()> {
-        self.writer.write_record(R::HEADERS)?;
+        R::serialize_headers(&mut self.writer)?;
+        // end of line
+        self.writer.write_record(None::<&[u8]>)?;
         while let Some(record) = stream.next() {
             if self.encode_record(record)? {
                 return Ok(());
@@ -80,16 +84,15 @@ pub(crate) mod serialize {
     use serde::Serialize;
 
     use crate::record::{
-        ErrorMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg,
-        SymbolMappingMsg, SystemMsg, TradeMsg,
+        ErrorMsg, HasRType, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg,
+        SymbolMappingMsg, SystemMsg, TradeMsg, WithTsOut,
     };
 
     /// Because of the flat nature of CSVs, there are several limitations in the
     /// Rust CSV serde serialization library. This trait helps work around them.
     pub trait CsvSerialize: Serialize + fmt::Debug {
-        /// The CSV header needs to be defined in a flat struct (no nested structs)
-        /// in order to work correctly and the library doesn't support `#[serde(flatten)]`.
-        const HEADERS: &'static [&'static str];
+        /// Write the headers to `csv_writer`.
+        fn serialize_headers<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()>;
 
         /// Serialize the object to `csv_writer`. Allows custom behavior that would otherwise
         /// cause a runtime error, e.g. serializing a struct with array field.
@@ -99,124 +102,136 @@ pub(crate) mod serialize {
     }
 
     impl CsvSerialize for MboMsg {
-        const HEADERS: &'static [&'static str] = &[
-            "rtype",
-            "publisher_id",
-            "product_id",
-            "ts_event",
-            "order_id",
-            "price",
-            "size",
-            "flags",
-            "channel_id",
-            "action",
-            "side",
-            "ts_recv",
-            "ts_in_delta",
-            "sequence",
-        ];
+        fn serialize_headers<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
+            [
+                "rtype",
+                "publisher_id",
+                "product_id",
+                "ts_event",
+                "order_id",
+                "price",
+                "size",
+                "flags",
+                "channel_id",
+                "action",
+                "side",
+                "ts_recv",
+                "ts_in_delta",
+                "sequence",
+            ]
+            .iter()
+            .try_for_each(|header| csv_writer.write_field(header))
+        }
     }
 
     impl CsvSerialize for Mbp1Msg {
-        const HEADERS: &'static [&'static str] = &[
-            "rtype",
-            "publisher_id",
-            "product_id",
-            "ts_event",
-            "price",
-            "size",
-            "action",
-            "side",
-            "flags",
-            "depth",
-            "ts_recv",
-            "ts_in_delta",
-            "sequence",
-            "bid_px_00",
-            "ask_px_00",
-            "bid_sz_00",
-            "ask_sz_00",
-            "bid_ct_00",
-            "ask_ct_00",
-        ];
+        fn serialize_headers<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
+            [
+                "rtype",
+                "publisher_id",
+                "product_id",
+                "ts_event",
+                "price",
+                "size",
+                "action",
+                "side",
+                "flags",
+                "depth",
+                "ts_recv",
+                "ts_in_delta",
+                "sequence",
+                "bid_px_00",
+                "ask_px_00",
+                "bid_sz_00",
+                "ask_sz_00",
+                "bid_ct_00",
+                "ask_ct_00",
+            ]
+            .iter()
+            .try_for_each(|header| csv_writer.write_field(header))
+        }
     }
 
     impl CsvSerialize for Mbp10Msg {
-        const HEADERS: &'static [&'static str] = &[
-            "rtype",
-            "publisher_id",
-            "product_id",
-            "ts_event",
-            "price",
-            "size",
-            "action",
-            "side",
-            "flags",
-            "depth",
-            "ts_recv",
-            "ts_in_delta",
-            "sequence",
-            "bid_px_00",
-            "ask_px_00",
-            "bid_sz_00",
-            "ask_sz_00",
-            "bid_ct_00",
-            "ask_ct_00",
-            "bid_px_01",
-            "ask_px_01",
-            "bid_sz_01",
-            "ask_sz_01",
-            "bid_ct_01",
-            "ask_ct_01",
-            "bid_px_02",
-            "ask_px_02",
-            "bid_sz_02",
-            "ask_sz_02",
-            "bid_ct_02",
-            "ask_ct_02",
-            "bid_px_03",
-            "ask_px_03",
-            "bid_sz_03",
-            "ask_sz_03",
-            "bid_ct_03",
-            "ask_ct_03",
-            "bid_px_04",
-            "ask_px_04",
-            "bid_sz_04",
-            "ask_sz_04",
-            "bid_ct_04",
-            "ask_ct_04",
-            "bid_px_05",
-            "ask_px_05",
-            "bid_sz_05",
-            "ask_sz_05",
-            "bid_ct_05",
-            "ask_ct_05",
-            "bid_px_06",
-            "ask_px_06",
-            "bid_sz_06",
-            "ask_sz_06",
-            "bid_ct_06",
-            "ask_ct_06",
-            "bid_px_07",
-            "ask_px_07",
-            "bid_sz_07",
-            "ask_sz_07",
-            "bid_ct_07",
-            "ask_ct_07",
-            "bid_px_08",
-            "ask_px_08",
-            "bid_sz_08",
-            "ask_sz_08",
-            "bid_ct_08",
-            "ask_ct_08",
-            "bid_px_09",
-            "ask_px_09",
-            "bid_sz_09",
-            "ask_sz_09",
-            "bid_ct_09",
-            "ask_ct_09",
-        ];
+        fn serialize_headers<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
+            [
+                "rtype",
+                "publisher_id",
+                "product_id",
+                "ts_event",
+                "price",
+                "size",
+                "action",
+                "side",
+                "flags",
+                "depth",
+                "ts_recv",
+                "ts_in_delta",
+                "sequence",
+                "bid_px_00",
+                "ask_px_00",
+                "bid_sz_00",
+                "ask_sz_00",
+                "bid_ct_00",
+                "ask_ct_00",
+                "bid_px_01",
+                "ask_px_01",
+                "bid_sz_01",
+                "ask_sz_01",
+                "bid_ct_01",
+                "ask_ct_01",
+                "bid_px_02",
+                "ask_px_02",
+                "bid_sz_02",
+                "ask_sz_02",
+                "bid_ct_02",
+                "ask_ct_02",
+                "bid_px_03",
+                "ask_px_03",
+                "bid_sz_03",
+                "ask_sz_03",
+                "bid_ct_03",
+                "ask_ct_03",
+                "bid_px_04",
+                "ask_px_04",
+                "bid_sz_04",
+                "ask_sz_04",
+                "bid_ct_04",
+                "ask_ct_04",
+                "bid_px_05",
+                "ask_px_05",
+                "bid_sz_05",
+                "ask_sz_05",
+                "bid_ct_05",
+                "ask_ct_05",
+                "bid_px_06",
+                "ask_px_06",
+                "bid_sz_06",
+                "ask_sz_06",
+                "bid_ct_06",
+                "ask_ct_06",
+                "bid_px_07",
+                "ask_px_07",
+                "bid_sz_07",
+                "ask_sz_07",
+                "bid_ct_07",
+                "ask_ct_07",
+                "bid_px_08",
+                "ask_px_08",
+                "bid_sz_08",
+                "ask_sz_08",
+                "bid_ct_08",
+                "ask_ct_08",
+                "bid_px_09",
+                "ask_px_09",
+                "bid_sz_09",
+                "ask_sz_09",
+                "bid_ct_09",
+                "ask_ct_09",
+            ]
+            .iter()
+            .try_for_each(|header| csv_writer.write_field(header))
+        }
 
         fn serialize_to<W: io::Write>(&self, csv_writer: &mut Writer<W>) -> csv::Result<()> {
             csv_writer.write_field(self.hd.rtype.to_string())?;
@@ -247,141 +262,179 @@ pub(crate) mod serialize {
     }
 
     impl CsvSerialize for TradeMsg {
-        const HEADERS: &'static [&'static str] = &[
-            "rtype",
-            "publisher_id",
-            "product_id",
-            "ts_event",
-            "price",
-            "size",
-            "action",
-            "side",
-            "flags",
-            "depth",
-            "ts_recv",
-            "ts_in_delta",
-            "sequence",
-        ];
+        fn serialize_headers<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
+            [
+                "rtype",
+                "publisher_id",
+                "product_id",
+                "ts_event",
+                "price",
+                "size",
+                "action",
+                "side",
+                "flags",
+                "depth",
+                "ts_recv",
+                "ts_in_delta",
+                "sequence",
+            ]
+            .iter()
+            .try_for_each(|header| csv_writer.write_field(header))
+        }
     }
 
     impl CsvSerialize for OhlcvMsg {
-        const HEADERS: &'static [&'static str] = &[
-            "rtype",
-            "publisher_id",
-            "product_id",
-            "ts_event",
-            "open",
-            "high",
-            "low",
-            "close",
-            "volume",
-        ];
+        fn serialize_headers<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
+            [
+                "rtype",
+                "publisher_id",
+                "product_id",
+                "ts_event",
+                "open",
+                "high",
+                "low",
+                "close",
+                "volume",
+            ]
+            .iter()
+            .try_for_each(|header| csv_writer.write_field(header))
+        }
     }
 
     impl CsvSerialize for StatusMsg {
-        const HEADERS: &'static [&'static str] = &[
-            "rtype",
-            "publisher_id",
-            "product_id",
-            "ts_event",
-            "ts_recv",
-            "group",
-            "trading_status",
-            "halt_reason",
-            "trading_event",
-        ];
+        fn serialize_headers<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
+            [
+                "rtype",
+                "publisher_id",
+                "product_id",
+                "ts_event",
+                "ts_recv",
+                "group",
+                "trading_status",
+                "halt_reason",
+                "trading_event",
+            ]
+            .iter()
+            .try_for_each(|header| csv_writer.write_field(header))
+        }
     }
 
     impl CsvSerialize for InstrumentDefMsg {
-        const HEADERS: &'static [&'static str] = &[
-            "rtype",
-            "publisher_id",
-            "product_id",
-            "ts_event",
-            "ts_recv",
-            "min_price_increment",
-            "display_factor",
-            "expiration",
-            "activation",
-            "high_limit_price",
-            "low_limit_price",
-            "max_price_variation",
-            "trading_reference_price",
-            "unit_of_measure_qty",
-            "min_price_increment_amount",
-            "price_ratio",
-            "inst_attrib_value",
-            "underlying_id",
-            "cleared_volume",
-            "market_depth_implied",
-            "market_depth",
-            "market_segment_id",
-            "max_trade_vol",
-            "min_lot_size",
-            "min_lot_size_block",
-            "min_lot_size_round_lot",
-            "min_trade_vol",
-            "open_interest_qty",
-            "contract_multiplier",
-            "decay_quantity",
-            "original_contract_size",
-            "related_security_id",
-            "trading_reference_date",
-            "appl_id",
-            "maturity_year",
-            "decay_start_date",
-            "channel_id",
-            "currency",
-            "settl_currency",
-            "secsubtype",
-            "symbol",
-            "group",
-            "exchange",
-            "asset",
-            "cfi",
-            "security_type",
-            "unit_of_measure",
-            "underlying",
-            "related",
-            "match_algorithm",
-            "md_security_trading_status",
-            "main_fraction",
-            "price_display_format",
-            "settl_price_type",
-            "sub_fraction",
-            "underlying_product",
-            "security_update_action",
-            "maturity_month",
-            "maturity_day",
-            "maturity_week",
-            "user_defined_instrument",
-            "contract_multiplier_unit",
-            "flow_schedule_type",
-            "tick_rule",
-        ];
+        fn serialize_headers<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
+            [
+                "rtype",
+                "publisher_id",
+                "product_id",
+                "ts_event",
+                "ts_recv",
+                "min_price_increment",
+                "display_factor",
+                "expiration",
+                "activation",
+                "high_limit_price",
+                "low_limit_price",
+                "max_price_variation",
+                "trading_reference_price",
+                "unit_of_measure_qty",
+                "min_price_increment_amount",
+                "price_ratio",
+                "inst_attrib_value",
+                "underlying_id",
+                "cleared_volume",
+                "market_depth_implied",
+                "market_depth",
+                "market_segment_id",
+                "max_trade_vol",
+                "min_lot_size",
+                "min_lot_size_block",
+                "min_lot_size_round_lot",
+                "min_trade_vol",
+                "open_interest_qty",
+                "contract_multiplier",
+                "decay_quantity",
+                "original_contract_size",
+                "related_security_id",
+                "trading_reference_date",
+                "appl_id",
+                "maturity_year",
+                "decay_start_date",
+                "channel_id",
+                "currency",
+                "settl_currency",
+                "secsubtype",
+                "symbol",
+                "group",
+                "exchange",
+                "asset",
+                "cfi",
+                "security_type",
+                "unit_of_measure",
+                "underlying",
+                "related",
+                "match_algorithm",
+                "md_security_trading_status",
+                "main_fraction",
+                "price_display_format",
+                "settl_price_type",
+                "sub_fraction",
+                "underlying_product",
+                "security_update_action",
+                "maturity_month",
+                "maturity_day",
+                "maturity_week",
+                "user_defined_instrument",
+                "contract_multiplier_unit",
+                "flow_schedule_type",
+                "tick_rule",
+            ]
+            .iter()
+            .try_for_each(|header| csv_writer.write_field(header))
+        }
     }
 
     impl CsvSerialize for ErrorMsg {
-        const HEADERS: &'static [&'static str] =
-            &["rtype", "publisher_id", "product_id", "ts_event", "err"];
+        fn serialize_headers<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
+            ["rtype", "publisher_id", "product_id", "ts_event", "err"]
+                .iter()
+                .try_for_each(|header| csv_writer.write_field(header))
+        }
     }
 
     impl CsvSerialize for SystemMsg {
-        const HEADERS: &'static [&'static str] =
-            &["rtype", "publisher_id", "product_id", "ts_event", "msg"];
+        fn serialize_headers<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
+            ["rtype", "publisher_id", "product_id", "ts_event", "msg"]
+                .iter()
+                .try_for_each(|header| csv_writer.write_field(header))
+        }
     }
 
     impl CsvSerialize for SymbolMappingMsg {
-        const HEADERS: &'static [&'static str] = &[
-            "rtype",
-            "publisher_id",
-            "product_id",
-            "ts_event",
-            "stype_in_symbol",
-            "stype_out_symbol",
-            "start_ts",
-            "end_ts",
-        ];
+        fn serialize_headers<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
+            [
+                "rtype",
+                "publisher_id",
+                "product_id",
+                "ts_event",
+                "stype_in_symbol",
+                "stype_out_symbol",
+                "start_ts",
+                "end_ts",
+            ]
+            .iter()
+            .try_for_each(|header| csv_writer.write_field(header))
+        }
+    }
+
+    impl<T: HasRType + CsvSerialize> CsvSerialize for WithTsOut<T> {
+        fn serialize_headers<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
+            csv_writer.write_field("ts_out")?;
+            T::serialize_headers(csv_writer)
+        }
+
+        fn serialize_to<W: io::Write>(&self, csv_writer: &mut Writer<W>) -> csv::Result<()> {
+            csv_writer.write_field(self.ts_out.to_string())?;
+            csv_writer.serialize(&self.rec)
+        }
     }
 }
 
@@ -395,7 +448,7 @@ mod tests {
         enums::SecurityUpdateAction,
         record::{
             str_to_c_chars, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg,
-            TradeMsg,
+            TradeMsg, WithTsOut,
         },
     };
 
@@ -641,5 +694,35 @@ mod tests {
             .unwrap();
         let line = extract_2nd_line(buffer);
         assert_eq!(line, format!("{HEADER_CSV},1658441891000000000,100,1000,1698450000000000000,1697350000000000000,1000000,-1000000,0,500000,5,5,10,10,256785,0,0,13,0,10000,1,1000,100,1,0,0,0,0,0,0,0,0,0,4,,USD,,,,,,,,,,,F,2,4,8,9,23,10,A,8,9,11,N,0,5,0"));
+    }
+
+    #[test]
+    fn test_encode_with_ts_out() {
+        let data = vec![WithTsOut {
+            rec: TradeMsg {
+                hd: RECORD_HEADER,
+                price: 5500,
+                size: 3,
+                action: 'T' as c_char,
+                side: 'A' as c_char,
+                flags: 128,
+                depth: 9,
+                ts_recv: 1658441891000000000,
+                ts_in_delta: 22_000,
+                sequence: 1_002_375,
+                booklevel: [],
+            },
+            ts_out: 1678480044000000000,
+        }];
+        let mut buffer = Vec::new();
+        let writer = BufWriter::new(&mut buffer);
+        Encoder::new(writer)
+            .encode_records(data.as_slice())
+            .unwrap();
+        let lines = String::from_utf8(buffer).expect("valid UTF-8");
+        assert_eq!(
+            lines,
+            format!("ts_out,rtype,publisher_id,product_id,ts_event,price,size,action,side,flags,depth,ts_recv,ts_in_delta,sequence\n1678480044000000000,{HEADER_CSV},5500,3,T,A,128,9,1658441891000000000,22000,1002375\n")
+        );
     }
 }

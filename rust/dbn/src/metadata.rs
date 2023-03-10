@@ -45,6 +45,10 @@ pub struct Metadata {
     /// The output symbology type to map to.
     #[pyo3(get)]
     pub stype_out: SType,
+    /// `true` if this store contains live data with send timestamps appended to each
+    /// record.
+    #[pyo3(get)]
+    pub ts_out: bool,
     /// The original query input symbols from the request.
     #[pyo3(get)]
     pub symbols: Vec<String>,
@@ -80,6 +84,7 @@ pub struct MetadataBuilder<D, Sch, Start, StIn, StOut> {
     record_count: Option<u64>,
     stype_in: StIn,
     stype_out: StOut,
+    ts_out: bool,
     symbols: Vec<String>,
     partial: Vec<String>,
     not_found: Vec<String>,
@@ -123,6 +128,7 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
             record_count: self.record_count,
             stype_in: self.stype_in,
             stype_out: self.stype_out,
+            ts_out: self.ts_out,
             symbols: self.symbols,
             partial: self.partial,
             not_found: self.not_found,
@@ -142,6 +148,7 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
             record_count: self.record_count,
             stype_in: self.stype_in,
             stype_out: self.stype_out,
+            ts_out: self.ts_out,
             symbols: self.symbols,
             partial: self.partial,
             not_found: self.not_found,
@@ -162,6 +169,7 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
             stype_in: self.stype_in,
             stype_out: self.stype_out,
             symbols: self.symbols,
+            ts_out: self.ts_out,
             partial: self.partial,
             not_found: self.not_found,
             mappings: self.mappings,
@@ -198,6 +206,7 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
             record_count: self.record_count,
             stype_in,
             stype_out: self.stype_out,
+            ts_out: self.ts_out,
             symbols: self.symbols,
             partial: self.partial,
             not_found: self.not_found,
@@ -217,11 +226,18 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
             record_count: self.record_count,
             stype_in: self.stype_in,
             stype_out,
+            ts_out: self.ts_out,
             symbols: self.symbols,
             partial: self.partial,
             not_found: self.not_found,
             mappings: self.mappings,
         }
+    }
+
+    /// Sets the [`ts_out`](Metadata::ts_out) and returns the builder.
+    pub fn ts_out(mut self, ts_out: bool) -> Self {
+        self.ts_out = ts_out;
+        self
     }
 
     /// Sets the [`symbols`](Metadata::symbols) and returns the builder.
@@ -263,6 +279,7 @@ impl MetadataBuilder<String, Schema, u64, SType, SType> {
             record_count: self.record_count,
             stype_in: self.stype_in,
             stype_out: self.stype_out,
+            ts_out: self.ts_out,
             symbols: self.symbols,
             partial: self.partial,
             not_found: self.not_found,
@@ -283,6 +300,7 @@ impl Default for MetadataBuilder<Unset, Unset, Unset, Unset, Unset> {
             record_count: None,
             stype_in: Unset {},
             stype_out: Unset {},
+            ts_out: false,
             symbols: vec![],
             partial: vec![],
             not_found: vec![],

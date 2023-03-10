@@ -1,11 +1,10 @@
 //! Market data types for encoding different Databento [`Schema`](crate::enums::Schema)s and conversion functions.
-use crate::enums::rtype;
 use std::{ffi::CStr, mem, os::raw::c_char, ptr::NonNull, str::Utf8Error};
 
 use anyhow::anyhow;
 use serde::Serialize;
 
-use crate::enums::SecurityUpdateAction;
+use crate::enums::{rtype, SecurityUpdateAction};
 
 /// Common data for all Databento records.
 #[repr(C)]
@@ -531,8 +530,13 @@ pub trait HasRType {
     /// Returns `true` if `rtype` matches the value associated with the implementing type.
     fn has_rtype(rtype: u8) -> bool;
 
-    /// Returns the `RecordHeader` that comes at the beginning of all record types.
+    /// Returns a reference to the `RecordHeader` that comes at the beginning of all
+    /// record types.
     fn header(&self) -> &RecordHeader;
+
+    /// Returns a mutable reference to the `RecordHeader` that comes at the beginning of
+    /// all record types.
+    fn header_mut(&mut self) -> &mut RecordHeader;
 
     /// Returns the size of the record in bytes.
     fn size(&self) -> usize {
@@ -625,6 +629,43 @@ impl SystemMsg {
     }
 }
 
+/// Wrapper object for records that include the live gateway send timestamp (`ts_out`).
+#[repr(C)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "trivial_copy", derive(Copy))]
+pub struct WithTsOut<T: HasRType> {
+    /// The inner record.
+    #[serde(flatten)]
+    pub rec: T,
+    /// The live gateway send timestamp expressed as number of nanoseconds since the UNIX epoch.
+    #[serde(serialize_with = "serialize_large_u64")]
+    pub ts_out: u64,
+}
+
+impl<T: HasRType> HasRType for WithTsOut<T> {
+    fn has_rtype(rtype: u8) -> bool {
+        T::has_rtype(rtype)
+    }
+
+    fn header(&self) -> &RecordHeader {
+        self.rec.header()
+    }
+
+    fn header_mut(&mut self) -> &mut RecordHeader {
+        self.rec.header_mut()
+    }
+}
+
+impl<T: HasRType> WithTsOut<T> {
+    /// Creates a new record with `ts_out`. Updates the `length` property in
+    /// [`RecordHeader`] to ensure the additional field is accounted for.
+    pub fn new(rec: T, ts_out: u64) -> Self {
+        let mut res = Self { rec, ts_out };
+        res.header_mut().length = (mem::size_of_val(&res) / RecordHeader::LENGTH_MULTIPLIER) as u8;
+        res
+    }
+}
+
 /// Provides a _relatively safe_ method for converting a reference to
 /// [`RecordHeader`] to a struct beginning with the header. Because it accepts a
 /// reference, the lifetime of the returned reference is tied to the input. This
@@ -636,11 +677,8 @@ impl SystemMsg {
 pub unsafe fn transmute_record_bytes<T: HasRType>(bytes: &[u8]) -> Option<&T> {
     assert!(
         bytes.len() >= mem::size_of::<T>(),
-        concat!(
-            "Passing a slice smaller than `",
-            stringify!(T),
-            "` to `transmute_record_bytes` is invalid"
-        )
+        "Passing a slice smaller than `{}` to `transmute_record_bytes` is invalid",
+        std::any::type_name::<T>()
     );
     let non_null = NonNull::new_unchecked(bytes.as_ptr() as *mut u8);
     if T::has_rtype(non_null.cast::<RecordHeader>().as_ref().rtype) {
@@ -669,7 +707,7 @@ pub unsafe fn transmute_header_bytes(bytes: &[u8]) -> Option<&RecordHeader> {
     );
     let non_null = NonNull::new_unchecked(bytes.as_ptr() as *mut u8);
     let header = non_null.cast::<RecordHeader>().as_ref();
-    if header.length as usize * 4 > bytes.len() {
+    if header.record_size() > bytes.len() {
         None
     } else {
         Some(header)
@@ -720,6 +758,10 @@ impl HasRType for MboMsg {
     fn header(&self) -> &RecordHeader {
         &self.hd
     }
+
+    fn header_mut(&mut self) -> &mut RecordHeader {
+        &mut self.hd
+    }
 }
 
 /// [TradeMsg]'s type ID is the size of its `booklevel` array (0) and is
@@ -732,6 +774,10 @@ impl HasRType for TradeMsg {
     fn header(&self) -> &RecordHeader {
         &self.hd
     }
+
+    fn header_mut(&mut self) -> &mut RecordHeader {
+        &mut self.hd
+    }
 }
 
 /// [Mbp1Msg]'s type ID is the size of its `booklevel` array.
@@ -743,6 +789,10 @@ impl HasRType for Mbp1Msg {
     fn header(&self) -> &RecordHeader {
         &self.hd
     }
+
+    fn header_mut(&mut self) -> &mut RecordHeader {
+        &mut self.hd
+    }
 }
 
 /// [Mbp10Msg]'s type ID is the size of its `booklevel` array.
@@ -753,6 +803,10 @@ impl HasRType for Mbp10Msg {
 
     fn header(&self) -> &RecordHeader {
         &self.hd
+    }
+
+    fn header_mut(&mut self) -> &mut RecordHeader {
+        &mut self.hd
     }
 }
 
@@ -772,6 +826,10 @@ impl HasRType for OhlcvMsg {
     fn header(&self) -> &RecordHeader {
         &self.hd
     }
+
+    fn header_mut(&mut self) -> &mut RecordHeader {
+        &mut self.hd
+    }
 }
 
 impl HasRType for StatusMsg {
@@ -781,6 +839,10 @@ impl HasRType for StatusMsg {
 
     fn header(&self) -> &RecordHeader {
         &self.hd
+    }
+
+    fn header_mut(&mut self) -> &mut RecordHeader {
+        &mut self.hd
     }
 }
 
@@ -792,6 +854,10 @@ impl HasRType for InstrumentDefMsg {
     fn header(&self) -> &RecordHeader {
         &self.hd
     }
+
+    fn header_mut(&mut self) -> &mut RecordHeader {
+        &mut self.hd
+    }
 }
 
 impl HasRType for ImbalanceMsg {
@@ -801,6 +867,10 @@ impl HasRType for ImbalanceMsg {
 
     fn header(&self) -> &RecordHeader {
         &self.hd
+    }
+
+    fn header_mut(&mut self) -> &mut RecordHeader {
+        &mut self.hd
     }
 }
 
@@ -812,6 +882,10 @@ impl HasRType for ErrorMsg {
     fn header(&self) -> &RecordHeader {
         &self.hd
     }
+
+    fn header_mut(&mut self) -> &mut RecordHeader {
+        &mut self.hd
+    }
 }
 
 impl HasRType for SymbolMappingMsg {
@@ -822,6 +896,10 @@ impl HasRType for SymbolMappingMsg {
     fn header(&self) -> &RecordHeader {
         &self.hd
     }
+
+    fn header_mut(&mut self) -> &mut RecordHeader {
+        &mut self.hd
+    }
 }
 
 impl HasRType for SystemMsg {
@@ -831,6 +909,10 @@ impl HasRType for SystemMsg {
 
     fn header(&self) -> &RecordHeader {
         &self.hd
+    }
+
+    fn header_mut(&mut self) -> &mut RecordHeader {
+        &mut self.hd
     }
 }
 

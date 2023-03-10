@@ -1,6 +1,7 @@
 //! Python wrappers around dbn functions. These are implemented here instead of in `python/`
 //! to be able to implement [`pyo3`] traits for [`dbn`] types.
 #![allow(clippy::too_many_arguments)]
+
 use std::{collections::HashMap, ffi::c_char, fmt, io, io::SeekFrom, num::NonZeroU64};
 
 use pyo3::{
@@ -750,14 +751,9 @@ mod tests {
     use streaming_iterator::StreamingIterator;
 
     use super::*;
-    use crate::{
-        decode::{dbn, DecodeDbn},
-        encode::json,
-    };
+    use crate::decode::{dbn, DecodeDbn};
 
     const DBN_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/data");
-
-    type JsonObj = serde_json::Map<String, serde_json::Value>;
 
     #[pyclass]
     struct MockPyFile {
@@ -802,49 +798,6 @@ mod tests {
 
         fn inner(&self) -> Arc<Mutex<Cursor<Vec<u8>>>> {
             self.buf.clone()
-        }
-    }
-
-    fn add_to_dict(py: Python<'_>, dict: &PyDict, key: &str, value: &serde_json::Value) {
-        match value {
-            serde_json::Value::Null => {
-                dict.set_item(key, ()).unwrap();
-            }
-            serde_json::Value::Bool(v) => {
-                dict.set_item(key, v).unwrap();
-            }
-            serde_json::Value::Number(n) => {
-                if n.is_u64() {
-                    dict.set_item(key, n.as_u64())
-                } else if n.is_i64() {
-                    dict.set_item(key, n.as_i64())
-                } else {
-                    dict.set_item(key, n.as_f64())
-                }
-                .unwrap();
-            }
-            serde_json::Value::String(s) if key.starts_with("ts_") => {
-                dict.set_item(key, s.parse::<u64>().unwrap()).unwrap();
-            }
-            serde_json::Value::String(s) => {
-                dict.set_item(key, s).unwrap();
-            }
-            serde_json::Value::Array(arr) => {
-                for (i, val) in arr.iter().enumerate() {
-                    let nested = PyDict::new(py);
-                    add_to_dict(py, nested, "", val);
-                    for (k, v) in nested.iter() {
-                        dict.set_item(format!("{}_0{i}", k.extract::<String>().unwrap()), v)
-                            .unwrap();
-                    }
-                }
-            }
-            serde_json::Value::Object(nested) => {
-                // flatten
-                nested.iter().for_each(|(n_k, n_v)| {
-                    add_to_dict(py, dict, n_k, n_v);
-                });
-            }
         }
     }
 

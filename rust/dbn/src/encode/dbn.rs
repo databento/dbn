@@ -145,9 +145,11 @@ where
             metadata.limit,
             metadata.record_count,
         )?;
-        // self.writer.write_all(&[metadata.compression as u8])?;
-        self.writer.write_all(&[metadata.stype_in as u8])?;
-        self.writer.write_all(&[metadata.stype_out as u8])?;
+        self.writer.write_all(&[
+            metadata.stype_in as u8,
+            metadata.stype_out as u8,
+            metadata.ts_out as u8,
+        ])?;
         // padding
         self.writer.write_all(&[0; crate::METADATA_RESERVED_LEN])?;
         // schema_definition_length
@@ -335,6 +337,7 @@ mod tests {
             end: NonZeroU64::new(1658960170000000000),
             limit: None,
             record_count: Some(14),
+            ts_out: true,
             symbols: vec!["ES".to_owned(), "NG".to_owned()],
             partial: vec!["ESM2".to_owned()],
             not_found: vec!["QQQQQ".to_owned()],
@@ -452,6 +455,7 @@ mod tests {
             end: NonZeroU64::new(1658960170000000000),
             limit: None,
             record_count: Some(1_450_000),
+            ts_out: true,
             symbols: vec![],
             partial: vec![],
             not_found: vec![],
@@ -513,7 +517,7 @@ pub use r#async::{MetadataEncoder as AsyncMetadataEncoder, RecordEncoder as Asyn
 
 #[cfg(feature = "async")]
 mod r#async {
-    use std::num::NonZeroU64;
+    use std::{fmt, num::NonZeroU64};
 
     use anyhow::{anyhow, Context};
     use async_compression::tokio::write::ZstdEncoder;
@@ -521,7 +525,7 @@ mod r#async {
 
     use super::as_u8_slice;
     use crate::{
-        encode::DbnEncodable, Metadata, SymbolMapping, DBN_VERSION, NULL_END, NULL_LIMIT,
+        record::HasRType, Metadata, SymbolMapping, DBN_VERSION, NULL_END, NULL_LIMIT,
         NULL_RECORD_COUNT,
     };
 
@@ -546,7 +550,10 @@ mod r#async {
         /// Encode a single DBN record of type `R`.
         ///
         /// Returns `true`if the pipe was closed.
-        pub async fn encode<R: DbnEncodable>(&mut self, record: &R) -> anyhow::Result<bool> {
+        pub async fn encode<R: HasRType + fmt::Debug>(
+            &mut self,
+            record: &R,
+        ) -> anyhow::Result<bool> {
             let bytes = unsafe {
                 // Safety: all records, types implementing `HasRType` are POD.
                 as_u8_slice(record)
@@ -616,6 +623,7 @@ mod r#async {
             // self.writer.write_all(&[metadata.compression as u8])?;
             self.writer.write_u8(metadata.stype_in as u8).await?;
             self.writer.write_u8(metadata.stype_out as u8).await?;
+            self.writer.write_u8(metadata.ts_out as u8).await?;
             // padding
             self.writer
                 .write_all(&[0; crate::METADATA_RESERVED_LEN])
@@ -778,6 +786,7 @@ mod r#async {
                 end: NonZeroU64::new(1658960170000000000),
                 limit: None,
                 record_count: Some(14),
+                ts_out: true,
                 symbols: vec!["ES".to_owned(), "NG".to_owned()],
                 partial: vec!["ESM2".to_owned()],
                 not_found: vec!["QQQQQ".to_owned()],

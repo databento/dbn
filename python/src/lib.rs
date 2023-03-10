@@ -86,7 +86,7 @@ impl DbnDecoder {
         let mut decoder = RecordDecoder::new(&mut self.buffer);
         Python::with_gil(|py| -> PyResult<()> {
             while let Some(rec) = decoder
-                .decode_record_ref()
+                .decode_ref()
                 .map_err(|err| PyIOError::new_err(format!("{err:?}")))?
             {
                 // Bug in clippy generates an error here. trivial_copy feature isn't enabled,
@@ -172,20 +172,21 @@ assert len(records) == 3"#
         let stype_out = SType::ProductId as u8;
         Python::with_gil(|py| {
             pyo3::py_run!(
-                py,
-                stype_in stype_out,
-                r#"from databento_dbn import decode_metadata, encode_metadata
+                  py,
+                  stype_in stype_out,
+                  r#"from databento_dbn import decode_metadata, encode_metadata
 
 metadata_bytes = encode_metadata("GLBX.MDP3", "mbo", 1, "native", "product_id", [], [], [], [], 2, None, 3)
 metadata = decode_metadata(metadata_bytes)
-# assert metadata["dataset"] == "GLBX.MDP3"
-# assert metadata["schema"] == "mbo"
-# assert metadata["start"] == 1
-# assert metadata["end"] == 2
-# assert metadata["limit"] is None
-# assert metadata["record_count"] == 3
-# assert metadata["stype_in"] == "native"
-# assert metadata["stype_out"] == "product_id""#
+assert metadata.dataset == "GLBX.MDP3"
+assert metadata.schema == "mbo"
+assert metadata.start == 1
+assert metadata.end == 2
+assert metadata.limit is None
+assert metadata.record_count == 3
+assert metadata.stype_in == "native"
+assert metadata.stype_out == "product_id"
+assert metadata.ts_out is False"#
             );
         });
     }

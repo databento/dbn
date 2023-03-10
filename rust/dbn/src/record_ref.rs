@@ -47,7 +47,7 @@ impl<'a> RecordRef<'a> {
     ///
     /// Note: for safety, this method calls [`has::<T>()`](Self::has). To avoid a
     /// duplicate check, use [`get_unchecked()`](Self::get_unchecked).
-    pub fn get<T: HasRType>(&self) -> Option<&T> {
+    pub fn get<T: HasRType>(&self) -> Option<&'a T> {
         if self.has::<T>() {
             // Safety: checked `rtype` in call to `has()`. Assumes the initial data based to
             // `RecordRef` is indeed a record.

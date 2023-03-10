@@ -1,9 +1,13 @@
 # Changelog
 
 ## 0.4.0 - TBD
-- Exposed constructors for DBN records to Python
-- Changed serialization of `c_char` fields to strings instead of ints
 - Introduced separate rtypes for each OHLCV schema
+- Added support for encoding and decoding `ts_out`
+- Added `ts_out` to `Metadata`
+- Changed serialization of `c_char` fields to strings instead of ints
+- Renamed `dbn::RecordDecoder::decode_record` to `decode`
+- Renamed `dbn::RecordDecoder::decode_record_ref` to `decode_ref`
+- Exposed constructors for DBN records to Python
 
 ## 0.3.2 - 2023-03-01
 - Added records and `Metadata` as exports of `databento_dbn` Python package

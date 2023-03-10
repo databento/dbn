@@ -128,7 +128,7 @@ mod tests {
         enums::{SType, Schema, SecurityUpdateAction},
         record::{
             str_to_c_chars, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg,
-            TradeMsg,
+            TradeMsg, WithTsOut,
         },
         MappingInterval, SymbolMapping,
     };
@@ -435,6 +435,7 @@ mod tests {
             record_count: Some(3),
             stype_in: SType::ProductId,
             stype_out: SType::Native,
+            ts_out: false,
             symbols: vec!["ESZ2".to_owned()],
             partial: Vec::new(),
             not_found: Vec::new(),
@@ -454,10 +455,33 @@ mod tests {
             res,
             "{\"version\":1,\"dataset\":\"GLBX.MDP3\",\"schema\":\"ohlcv-1h\",\"start\"\
             :1662734705128748281,\"end\":1662734720914876944,\"limit\":0,\"record_count\":3,\
-            \"stype_in\":\"product_id\",\"stype_out\":\"native\",\"symbols\"\
+            \"stype_in\":\"product_id\",\"stype_out\":\"native\",\"ts_out\":false,\"symbols\"\
             :[\"ESZ2\"],\"partial\":[],\"not_found\":[],\"mappings\":[{\"native_symbol\":\"ESZ2\",\
             \"intervals\":[{\"start_date\":\"2022-09-09\",\"end_date\":\"2022-09-10\",\"symbol\":\
             \"ESH2\"}]}]}\n"
+        );
+    }
+
+    #[test]
+    fn test_encode_with_ts_out() {
+        let records = vec![WithTsOut {
+            rec: OhlcvMsg {
+                hd: RECORD_HEADER,
+                open: 5000,
+                high: 8000,
+                low: 3000,
+                close: 6000,
+                volume: 55_000,
+            },
+            ts_out: 1678481869000000000,
+        }];
+        let res = write_json_to_string(records.as_slice(), false);
+        assert_eq!(
+            res,
+            format!(
+                "{{{HEADER_JSON},{}}}\n",
+                r#""open":5000,"high":8000,"low":3000,"close":6000,"volume":55000,"ts_out":"1678481869000000000""#,
+            )
         );
     }
 }

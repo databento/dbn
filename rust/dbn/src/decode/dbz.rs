@@ -12,7 +12,7 @@ use anyhow::{anyhow, Context};
 use crate::{
     decode::{dbn::decode_iso8601, FromLittleEndianSlice},
     enums::{Compression, SType, Schema},
-    record::{transmute_record_bytes, HasRType},
+    record::{transmute_record_bytes, HasRType, RecordHeader},
     record_ref::RecordRef,
     MappingInterval, Metadata, SymbolMapping,
 };
@@ -107,7 +107,7 @@ impl<R: io::BufRead> DecodeDbn for Decoder<R> {
         if let Err(err) = self.reader.read_exact(&mut self.buffer[..1]) {
             return silence_eof_error(err);
         }
-        let length = self.buffer[0] as usize * 4;
+        let length = self.buffer[0] as usize * RecordHeader::LENGTH_MULTIPLIER;
         if length > self.buffer.len() {
             self.buffer.resize(length, 0);
         }
@@ -250,8 +250,8 @@ impl MetadataDecoder {
             start,
             end: NonZeroU64::new(end),
             limit,
-            // compression,
             record_count: Some(record_count),
+            ts_out: false,
             symbols,
             partial,
             not_found,
