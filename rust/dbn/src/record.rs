@@ -2,6 +2,7 @@
 use crate::enums::rtype;
 use std::{ffi::CStr, mem, os::raw::c_char, ptr::NonNull, str::Utf8Error};
 
+use anyhow::anyhow;
 use serde::Serialize;
 
 use crate::enums::SecurityUpdateAction;
@@ -56,8 +57,10 @@ pub struct MboMsg {
     /// A channel ID within the venue.
     pub channel_id: u8,
     /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or **T**rade.
+    #[serde(serialize_with = "serialize_c_char")]
     pub action: c_char,
     /// The order side. Can be **A**sk, **B**id or **N**one.
+    #[serde(serialize_with = "serialize_c_char")]
     pub side: c_char,
     /// The capture-server-received timestamp expressed as number of nanoseconds since the UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
@@ -70,7 +73,7 @@ pub struct MboMsg {
 
 /// A book level.
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Default, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
@@ -109,8 +112,10 @@ pub struct TradeMsg {
     /// The order quantity.
     pub size: u32,
     /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or **T**rade.
+    #[serde(serialize_with = "serialize_c_char")]
     pub action: c_char,
     /// The order side. Can be **A**sk, **B**id or **N**one.
+    #[serde(serialize_with = "serialize_c_char")]
     pub side: c_char,
     /// A combination of packet end with matching engine status.
     pub flags: u8,
@@ -145,8 +150,10 @@ pub struct Mbp1Msg {
     /// The order quantity.
     pub size: u32,
     /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or **T**rade.
+    #[serde(serialize_with = "serialize_c_char")]
     pub action: c_char,
     /// The order side. Can be **A**sk, **B**id or **N**one.
+    #[serde(serialize_with = "serialize_c_char")]
     pub side: c_char,
     /// A combination of packet end with matching engine status.
     pub flags: u8,
@@ -180,8 +187,10 @@ pub struct Mbp10Msg {
     /// The order quantity.
     pub size: u32,
     /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or **T**rade.
+    #[serde(serialize_with = "serialize_c_char")]
     pub action: c_char,
     /// The order side. Can be **A**sk, **B**id or **N**one.
+    #[serde(serialize_with = "serialize_c_char")]
     pub side: c_char,
     /// A combination of packet end with matching engine status.
     pub flags: u8,
@@ -374,6 +383,7 @@ pub struct InstrumentDefMsg {
     #[serde(serialize_with = "serialize_c_char_arr")]
     pub related: [c_char; 21],
     /// The matching algorithm used for the instrument, typically **F**IFO.
+    #[serde(serialize_with = "serialize_c_char")]
     pub match_algorithm: c_char,
     /// The current trading state of the instrument.
     pub md_security_trading_status: u8,
@@ -396,6 +406,7 @@ pub struct InstrumentDefMsg {
     /// The calendar week reflected in the instrument symbol, or 0.
     pub maturity_week: u8,
     /// Indicates if the instrument is user defined: **Y**es or **N**o.
+    #[serde(serialize_with = "serialize_c_char")]
     pub user_defined_instrument: c_char,
     /// The type of `contract_multiplier`. Either `1` for hours, or `2` for days.
     pub contract_multiplier_unit: i8,
@@ -433,13 +444,17 @@ pub struct ImbalanceMsg {
     pub paired_qty: u32,
     pub total_imbalance_qty: u32,
     pub market_imbalance_qty: u32,
+    #[serde(serialize_with = "serialize_c_char")]
     pub auction_type: c_char,
+    #[serde(serialize_with = "serialize_c_char")]
     pub side: c_char,
     pub auction_status: u8,
     pub freeze_status: u8,
     pub num_extensions: u8,
     pub unpaired_qty: u8,
+    #[serde(serialize_with = "serialize_c_char")]
     pub unpaired_side: c_char,
+    #[serde(serialize_with = "serialize_c_char")]
     pub significant_imbalance: c_char,
     #[serde(skip)]
     pub _dummy: [c_char; 4],
@@ -498,9 +513,11 @@ fn serialize_c_char_arr<S: serde::Serializer, const N: usize>(
     arr: &[c_char; N],
     serializer: S,
 ) -> Result<S::Ok, S::Error> {
-    let cstr = unsafe { std::ffi::CStr::from_ptr(&arr[0]) };
-    let str = cstr.to_str().unwrap_or("<invalid UTF-8>");
-    serializer.serialize_str(str)
+    serializer.serialize_str(c_chars_to_str(arr).unwrap_or("<invalid UTF-8>"))
+}
+
+fn serialize_c_char<S: serde::Serializer>(cc: &c_char, serializer: S) -> Result<S::Ok, S::Error> {
+    serializer.serialize_char(*cc as u8 as char)
 }
 
 /// Serialize as a string to avoid any loss of precision with JSON serializers and parsers.
@@ -577,28 +594,19 @@ impl SystemMsg {
     const HEARTBEAT: &str = "Heartbeat";
 
     /// Creates a new `SystemMsg`.
-    pub fn new(ts_event: u64, msg: &str) -> Self {
-        let mut rec = Self {
+    pub fn new(ts_event: u64, msg: &str) -> anyhow::Result<Self> {
+        Ok(Self {
             hd: RecordHeader::new::<Self>(rtype::SYSTEM, 0, 0, ts_event),
-            msg: [0; 64],
-        };
-        // leave at least one null byte
-        for (i, byte) in msg.as_bytes().iter().take(rec.msg.len() - 1).enumerate() {
-            rec.msg[i] = *byte as c_char;
-        }
-        rec
+            msg: str_to_c_chars(msg)?,
+        })
     }
 
     /// Creates a new heartbeat `SystemMsg`.
     pub fn heartbeat(ts_event: u64) -> Self {
-        let mut rec = Self {
+        Self {
             hd: RecordHeader::new::<Self>(rtype::SYSTEM, 0, 0, ts_event),
-            msg: [0; 64],
-        };
-        for (i, byte) in Self::HEARTBEAT.as_bytes().iter().enumerate() {
-            rec.msg[i] = *byte as c_char;
+            msg: str_to_c_chars(Self::HEARTBEAT).unwrap(),
         }
-        rec
     }
 
     /// Checks whether the message is a heartbeat from the gateway.
@@ -613,8 +621,7 @@ impl SystemMsg {
     /// # Errors
     /// This function returns an error if `msg` contains invalid UTF-8.
     pub fn msg(&self) -> Result<&str, Utf8Error> {
-        // Safety: a pointer to `self.err` will always be valid
-        unsafe { CStr::from_ptr(&self.msg as *const i8).to_str() }
+        c_chars_to_str(&self.msg)
     }
 }
 
@@ -825,6 +832,41 @@ impl HasRType for SystemMsg {
     fn header(&self) -> &RecordHeader {
         &self.hd
     }
+}
+
+/// Tries to convert a str slice to fixed-length null-terminated C char array.
+///
+/// # Errors
+/// This function returns an error if `s` contains more than N - 1 characters. The last
+/// character is reserved for the null byte.
+pub fn str_to_c_chars<const N: usize>(s: &str) -> anyhow::Result<[c_char; N]> {
+    if s.len() > (N - 1) {
+        return Err(anyhow!(
+            "String cannot be longer than {}; received str of length {}",
+            N - 1,
+            s.len()
+        ));
+    }
+    let mut res = [0; N];
+    for (i, byte) in s.as_bytes().iter().enumerate() {
+        res[i] = *byte as c_char;
+    }
+    Ok(res)
+}
+
+/// Tries to convert a slice of `c_char`s to a UTF-8 `str`.
+///
+/// # Safety
+/// This should always be safe.
+///
+/// # Preconditions
+/// None.
+///
+/// # Errors
+/// This function returns an error if `chars` contains invalid UTF-8.
+pub fn c_chars_to_str<const N: usize>(chars: &[c_char; N]) -> Result<&str, Utf8Error> {
+    let cstr = unsafe { CStr::from_ptr(chars.as_ptr()) };
+    cstr.to_str()
 }
 
 #[cfg(test)]

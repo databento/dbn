@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.3.3 - TBD
+## 0.4.0 - TBD
+- Exposed constructors for DBN records to Python
+- Changed serialization of `c_char` fields to strings instead of ints
 - Introduced separate rtypes for each OHLCV schema
 
 ## 0.3.2 - 2023-03-01

@@ -1,11 +1,13 @@
 //! Python wrappers around dbn functions. These are implemented here instead of in `python/`
 //! to be able to implement [`pyo3`] traits for [`dbn`] types.
-use std::{collections::HashMap, ffi::c_char, fmt, io, io::SeekFrom, mem, num::NonZeroU64};
+#![allow(clippy::too_many_arguments)]
+use std::{collections::HashMap, ffi::c_char, fmt, io, io::SeekFrom, num::NonZeroU64};
 
 use pyo3::{
-    exceptions::{PyKeyError, PyTypeError, PyValueError},
+    exceptions::{PyTypeError, PyValueError},
     prelude::*,
     types::{PyBytes, PyDate, PyDateAccess, PyDict},
+    PyClass,
 };
 use time::Date;
 
@@ -15,10 +17,11 @@ use crate::{
         dbn::{self, MetadataEncoder},
         DbnEncodable, DynWriter, EncodeDbn,
     },
-    enums::{Compression, SType, Schema, SecurityUpdateAction},
+    enums::{rtype, Compression, SType, Schema, SecurityUpdateAction},
     metadata::MetadataBuilder,
     record::{
-        BidAskPair, HasRType, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader, TbboMsg, TradeMsg,
+        str_to_c_chars, BidAskPair, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
+        RecordHeader, TbboMsg, TradeMsg,
     },
 };
 use crate::{MappingInterval, Metadata, SymbolMapping};
@@ -109,13 +112,9 @@ pub struct PyFileLike {
     inner: PyObject,
 }
 
-/// Encodes the given data in the DBN encoding and writes it to `file`. Most
-/// metadata is inferred based on the arguments.
+/// Encodes the given data in the DBN encoding and writes it to `file`.
 ///
-/// `records` is a list of **flat** dicts where the field names match the
-/// record type corresponding with `schema`. For `Mbp1` and `Mbp10` schemas, the
-/// `booklevel` fields should be suffixed with `_0{level}`, e.g. the first book
-/// level ask price should be under the key `"ask_px_00"`.
+/// `records` is a list of record objects.
 ///
 /// # Errors
 /// This function returns an error if any of the enum arguments cannot be converted to
@@ -126,19 +125,25 @@ pub fn write_dbn_file(
     _py: Python<'_>,
     file: PyFileLike,
     compression: Compression,
-    schema: Schema,
     dataset: String,
-    records: Vec<&PyDict>,
-    stype: SType,
+    schema: Schema,
+    start: u64,
+    stype_in: SType,
+    stype_out: SType,
+    records: Vec<&PyAny>,
+    end: Option<u64>,
 ) -> PyResult<()> {
-    let metadata = MetadataBuilder::new()
+    let mut metadata_builder = MetadataBuilder::new()
         .schema(schema)
         .dataset(dataset)
-        .record_count(Some(records.len() as u64))
-        .stype_in(stype)
-        .stype_out(stype)
-        .start(0)
-        .build();
+        .stype_in(stype_in)
+        .stype_out(stype_out)
+        .start(start)
+        .record_count(Some(records.len() as u64));
+    if let Some(end) = end {
+        metadata_builder = metadata_builder.end(NonZeroU64::new(end))
+    }
+    let metadata = metadata_builder.build();
     let writer = DynWriter::new(file, compression).map_err(to_val_err)?;
     let encoder = dbn::Encoder::new(writer, &metadata).map_err(to_val_err)?;
     match schema {
@@ -147,25 +152,25 @@ pub fn write_dbn_file(
         Schema::Mbp10 => encode_pydicts::<Mbp10Msg>(encoder, &records),
         Schema::Tbbo => encode_pydicts::<TbboMsg>(encoder, &records),
         Schema::Trades => encode_pydicts::<TradeMsg>(encoder, &records),
-        Schema::Ohlcv1S => encode_pydicts::<OhlcvMsg>(encoder, &records),
-        Schema::Ohlcv1M => encode_pydicts::<OhlcvMsg>(encoder, &records),
-        Schema::Ohlcv1H => encode_pydicts::<OhlcvMsg>(encoder, &records),
-        Schema::Ohlcv1D => encode_pydicts::<OhlcvMsg>(encoder, &records),
-        Schema::Definition | Schema::Statistics | Schema::Status => Err(PyValueError::new_err(
+        Schema::Ohlcv1S | Schema::Ohlcv1M | Schema::Ohlcv1H | Schema::Ohlcv1D => {
+            encode_pydicts::<OhlcvMsg>(encoder, &records)
+        }
+        Schema::Definition => encode_pydicts::<InstrumentDefMsg>(encoder, &records),
+        Schema::Statistics | Schema::Status => Err(PyValueError::new_err(
             "Unsupported schema type for writing DBN files",
         )),
     }
 }
 
-fn encode_pydicts<T: DbnEncodable + FromPyDict>(
+fn encode_pydicts<T: Clone + DbnEncodable + PyClass>(
     mut encoder: dbn::Encoder<DynWriter<PyFileLike>>,
-    records: &[&PyDict],
+    records: &[&PyAny],
 ) -> PyResult<()> {
     encoder
         .encode_records(
             records
                 .iter()
-                .map(|dict| T::from_py_dict(dict))
+                .map(|obj| obj.extract())
                 .collect::<PyResult<Vec<T>>>()?
                 .iter()
                 .as_slice(),
@@ -358,146 +363,6 @@ impl io::Seek for PyFileLike {
     }
 }
 
-trait FromPyDict: Sized {
-    fn from_py_dict(dict: &PyDict) -> PyResult<Self>;
-}
-
-fn try_get_item<'a>(dict: &'a PyDict, key: &str) -> PyResult<&'a PyAny> {
-    dict.get_item(key)
-        .ok_or_else(|| PyKeyError::new_err(format!("Missing {key}")))
-}
-
-fn try_extract_item<'a, D>(dict: &'a PyDict, key: &str) -> PyResult<D>
-where
-    D: FromPyObject<'a>,
-{
-    try_get_item(dict, key)?.extract::<D>()
-}
-
-fn header_from_dict<T: HasRType>(dict: &PyDict) -> PyResult<RecordHeader> {
-    let rtype = try_extract_item::<u8>(dict, "rtype")?;
-    if T::has_rtype(rtype) {
-        Ok(RecordHeader {
-            length: (mem::size_of::<T>() / 4) as u8,
-            rtype,
-            publisher_id: try_extract_item::<u16>(dict, "publisher_id")?,
-            product_id: try_extract_item::<u32>(dict, "product_id")?,
-            ts_event: try_extract_item::<u64>(dict, "ts_event")?,
-        })
-    } else {
-        Err(PyValueError::new_err(format!(
-            "Incorrect rtype {rtype:?} for message"
-        )))
-    }
-}
-
-impl FromPyDict for MboMsg {
-    fn from_py_dict(dict: &PyDict) -> PyResult<Self> {
-        Ok(Self {
-            hd: header_from_dict::<Self>(dict)?,
-            order_id: try_extract_item::<u64>(dict, "order_id")?,
-            price: try_extract_item::<i64>(dict, "price")?,
-            size: try_extract_item::<u32>(dict, "size")?,
-            flags: try_extract_item::<u8>(dict, "flags")?,
-            channel_id: try_extract_item::<u8>(dict, "channel_id")?,
-            action: try_extract_item::<c_char>(dict, "action")?,
-            side: try_extract_item::<c_char>(dict, "side")?,
-            ts_recv: try_extract_item::<u64>(dict, "ts_recv")?,
-            ts_in_delta: try_extract_item::<i32>(dict, "ts_in_delta")?,
-            sequence: try_extract_item::<u32>(dict, "sequence")?,
-        })
-    }
-}
-
-fn ba_pair_from_dict<const LEVEL: u8>(dict: &PyDict) -> PyResult<BidAskPair> {
-    Ok(BidAskPair {
-        bid_px: try_extract_item::<i64>(dict, &format!("bid_px_0{LEVEL}"))?,
-        ask_px: try_extract_item::<i64>(dict, &format!("ask_px_0{LEVEL}"))?,
-        bid_sz: try_extract_item::<u32>(dict, &format!("bid_sz_0{LEVEL}"))?,
-        ask_sz: try_extract_item::<u32>(dict, &format!("ask_sz_0{LEVEL}"))?,
-        bid_ct: try_extract_item::<u32>(dict, &format!("bid_ct_0{LEVEL}"))?,
-        ask_ct: try_extract_item::<u32>(dict, &format!("ask_ct_0{LEVEL}"))?,
-    })
-}
-
-impl FromPyDict for TradeMsg {
-    fn from_py_dict(dict: &PyDict) -> PyResult<Self> {
-        Ok(Self {
-            hd: header_from_dict::<Self>(dict)?,
-            price: try_extract_item::<i64>(dict, "price")?,
-            size: try_extract_item::<u32>(dict, "size")?,
-            action: try_extract_item::<c_char>(dict, "action")?,
-            side: try_extract_item::<c_char>(dict, "side")?,
-            flags: try_extract_item::<u8>(dict, "flags")?,
-            depth: try_extract_item::<u8>(dict, "depth")?,
-            ts_recv: try_extract_item::<u64>(dict, "ts_recv")?,
-            ts_in_delta: try_extract_item::<i32>(dict, "ts_in_delta")?,
-            sequence: try_extract_item::<u32>(dict, "sequence")?,
-            booklevel: [],
-        })
-    }
-}
-
-impl FromPyDict for Mbp1Msg {
-    fn from_py_dict(dict: &PyDict) -> PyResult<Self> {
-        Ok(Self {
-            hd: header_from_dict::<Self>(dict)?,
-            price: try_extract_item::<i64>(dict, "price")?,
-            size: try_extract_item::<u32>(dict, "size")?,
-            action: try_extract_item::<c_char>(dict, "action")?,
-            side: try_extract_item::<c_char>(dict, "side")?,
-            flags: try_extract_item::<u8>(dict, "flags")?,
-            depth: try_extract_item::<u8>(dict, "depth")?,
-            ts_recv: try_extract_item::<u64>(dict, "ts_recv")?,
-            ts_in_delta: try_extract_item::<i32>(dict, "ts_in_delta")?,
-            sequence: try_extract_item::<u32>(dict, "sequence")?,
-            booklevel: [ba_pair_from_dict::<0>(dict)?],
-        })
-    }
-}
-
-impl FromPyDict for Mbp10Msg {
-    fn from_py_dict(dict: &PyDict) -> PyResult<Self> {
-        Ok(Self {
-            hd: header_from_dict::<Self>(dict)?,
-            price: try_extract_item::<i64>(dict, "price")?,
-            size: try_extract_item::<u32>(dict, "size")?,
-            action: try_extract_item::<c_char>(dict, "action")?,
-            side: try_extract_item::<c_char>(dict, "side")?,
-            flags: try_extract_item::<u8>(dict, "flags")?,
-            depth: try_extract_item::<u8>(dict, "depth")?,
-            ts_recv: try_extract_item::<u64>(dict, "ts_recv")?,
-            ts_in_delta: try_extract_item::<i32>(dict, "ts_in_delta")?,
-            sequence: try_extract_item::<u32>(dict, "sequence")?,
-            booklevel: [
-                ba_pair_from_dict::<0>(dict)?,
-                ba_pair_from_dict::<1>(dict)?,
-                ba_pair_from_dict::<2>(dict)?,
-                ba_pair_from_dict::<3>(dict)?,
-                ba_pair_from_dict::<4>(dict)?,
-                ba_pair_from_dict::<5>(dict)?,
-                ba_pair_from_dict::<6>(dict)?,
-                ba_pair_from_dict::<7>(dict)?,
-                ba_pair_from_dict::<8>(dict)?,
-                ba_pair_from_dict::<9>(dict)?,
-            ],
-        })
-    }
-}
-
-impl FromPyDict for OhlcvMsg {
-    fn from_py_dict(dict: &PyDict) -> PyResult<Self> {
-        Ok(Self {
-            hd: header_from_dict::<Self>(dict)?,
-            open: try_extract_item::<i64>(dict, "open")?,
-            high: try_extract_item::<i64>(dict, "high")?,
-            low: try_extract_item::<i64>(dict, "low")?,
-            close: try_extract_item::<i64>(dict, "close")?,
-            volume: try_extract_item::<u64>(dict, "volume")?,
-        })
-    }
-}
-
 impl<'source> FromPyObject<'source> for Compression {
     fn extract(any: &'source PyAny) -> PyResult<Self> {
         let str: &str = any.extract()?;
@@ -540,6 +405,340 @@ impl<'source> FromPyObject<'source> for SecurityUpdateAction {
 impl IntoPy<PyObject> for SecurityUpdateAction {
     fn into_py(self, py: Python<'_>) -> PyObject {
         (self as u8).into_py(py)
+    }
+}
+
+#[pymethods]
+impl MboMsg {
+    #[new]
+    fn py_new(
+        publisher_id: u16,
+        product_id: u32,
+        ts_event: u64,
+        order_id: u64,
+        price: i64,
+        size: u32,
+        channel_id: u8,
+        action: c_char,
+        side: c_char,
+        ts_recv: u64,
+        ts_in_delta: i32,
+        sequence: u32,
+        flags: Option<u8>,
+    ) -> Self {
+        Self {
+            hd: RecordHeader::new::<Self>(rtype::MBO, publisher_id, product_id, ts_event),
+            order_id,
+            price,
+            size,
+            flags: flags.unwrap_or_default(),
+            channel_id,
+            action,
+            side,
+            ts_recv,
+            ts_in_delta,
+            sequence,
+        }
+    }
+}
+
+#[pymethods]
+impl BidAskPair {
+    #[new]
+    fn py_new(
+        bid_px: Option<i64>,
+        ask_px: Option<i64>,
+        bid_sz: Option<u32>,
+        ask_sz: Option<u32>,
+        bid_ct: Option<u32>,
+        ask_ct: Option<u32>,
+    ) -> Self {
+        Self {
+            bid_px: bid_px.unwrap_or_default(),
+            ask_px: ask_px.unwrap_or_default(),
+            bid_sz: bid_sz.unwrap_or_default(),
+            ask_sz: ask_sz.unwrap_or_default(),
+            bid_ct: bid_ct.unwrap_or_default(),
+            ask_ct: ask_ct.unwrap_or_default(),
+        }
+    }
+}
+
+#[pymethods]
+impl TradeMsg {
+    #[new]
+    fn py_new(
+        publisher_id: u16,
+        product_id: u32,
+        ts_event: u64,
+        price: i64,
+        size: u32,
+        action: c_char,
+        side: c_char,
+        depth: u8,
+        ts_recv: u64,
+        ts_in_delta: i32,
+        sequence: u32,
+        flags: Option<u8>,
+    ) -> Self {
+        Self {
+            hd: RecordHeader::new::<Self>(rtype::MBP_0, publisher_id, product_id, ts_event),
+            price,
+            size,
+            action,
+            side,
+            flags: flags.unwrap_or_default(),
+            depth,
+            ts_recv,
+            ts_in_delta,
+            sequence,
+            booklevel: [],
+        }
+    }
+}
+
+#[pymethods]
+impl Mbp1Msg {
+    #[new]
+    fn py_new(
+        publisher_id: u16,
+        product_id: u32,
+        ts_event: u64,
+        price: i64,
+        size: u32,
+        action: c_char,
+        side: c_char,
+        flags: u8,
+        depth: u8,
+        ts_recv: u64,
+        ts_in_delta: i32,
+        sequence: u32,
+        booklevel: Option<BidAskPair>,
+    ) -> Self {
+        Self {
+            hd: RecordHeader::new::<Self>(rtype::MBP_1, publisher_id, product_id, ts_event),
+            price,
+            size,
+            action,
+            side,
+            flags,
+            depth,
+            ts_recv,
+            ts_in_delta,
+            sequence,
+            booklevel: [booklevel.unwrap_or_default()],
+        }
+    }
+}
+
+#[pymethods]
+impl Mbp10Msg {
+    #[new]
+    fn py_new(
+        publisher_id: u16,
+        product_id: u32,
+        ts_event: u64,
+        price: i64,
+        size: u32,
+        action: c_char,
+        side: c_char,
+        flags: u8,
+        depth: u8,
+        ts_recv: u64,
+        ts_in_delta: i32,
+        sequence: u32,
+        booklevel: Option<Vec<BidAskPair>>,
+    ) -> PyResult<Self> {
+        let booklevel = if let Some(booklevel) = booklevel {
+            let mut arr: [BidAskPair; 10] = Default::default();
+            if booklevel.len() > 10 {
+                return Err(to_val_err("Only 10 booklevels are allowed"));
+            }
+            for (i, level) in booklevel.into_iter().enumerate() {
+                arr[i] = level;
+            }
+            arr
+        } else {
+            Default::default()
+        };
+        Ok(Self {
+            hd: RecordHeader::new::<Self>(rtype::MBP_10, publisher_id, product_id, ts_event),
+            price,
+            size,
+            action,
+            side,
+            flags,
+            depth,
+            ts_recv,
+            ts_in_delta,
+            sequence,
+            booklevel,
+        })
+    }
+}
+
+#[pymethods]
+impl OhlcvMsg {
+    #[new]
+    fn py_new(
+        rtype: u8,
+        publisher_id: u16,
+        product_id: u32,
+        ts_event: u64,
+        open: i64,
+        high: i64,
+        low: i64,
+        close: i64,
+        volume: u64,
+    ) -> Self {
+        Self {
+            hd: RecordHeader::new::<Self>(rtype, publisher_id, product_id, ts_event),
+            open,
+            high,
+            low,
+            close,
+            volume,
+        }
+    }
+}
+
+#[pymethods]
+impl InstrumentDefMsg {
+    #[new]
+    fn py_new(
+        publisher_id: u16,
+        product_id: u32,
+        ts_event: u64,
+        ts_recv: u64,
+        min_price_increment: i64,
+        display_factor: i64,
+        min_lot_size_round_lot: i32,
+        symbol: &str,
+        group: &str,
+        exchange: &str,
+        match_algorithm: c_char,
+        md_security_trading_status: u8,
+        security_update_action: SecurityUpdateAction,
+        expiration: Option<u64>,
+        activation: Option<u64>,
+        high_limit_price: Option<i64>,
+        low_limit_price: Option<i64>,
+        max_price_variation: Option<i64>,
+        trading_reference_price: Option<i64>,
+        unit_of_measure_qty: Option<i64>,
+        min_price_increment_amount: Option<i64>,
+        price_ratio: Option<i64>,
+        inst_attrib_value: Option<i32>,
+        underlying_id: Option<u32>,
+        cleared_volume: Option<i32>,
+        market_depth_implied: Option<i32>,
+        market_depth: Option<i32>,
+        market_segment_id: Option<u32>,
+        max_trade_vol: Option<u32>,
+        min_lot_size: Option<i32>,
+        min_lot_size_block: Option<i32>,
+        min_trade_vol: Option<u32>,
+        open_interest_qty: Option<i32>,
+        contract_multiplier: Option<i32>,
+        decay_quantity: Option<i32>,
+        original_contract_size: Option<i32>,
+        trading_reference_date: Option<u16>,
+        appl_id: Option<i16>,
+        maturity_year: Option<u16>,
+        decay_start_date: Option<u16>,
+        channel_id: Option<u16>,
+        currency: Option<&str>,
+        settl_currency: Option<&str>,
+        secsubtype: Option<&str>,
+        asset: Option<&str>,
+        cfi: Option<&str>,
+        security_type: Option<&str>,
+        unit_of_measure: Option<&str>,
+        underlying: Option<&str>,
+        main_fraction: Option<u8>,
+        price_display_format: Option<u8>,
+        settl_price_type: Option<u8>,
+        sub_fraction: Option<u8>,
+        underlying_product: Option<u8>,
+        maturity_month: Option<u8>,
+        maturity_day: Option<u8>,
+        maturity_week: Option<u8>,
+        user_defined_instrument: Option<c_char>,
+        contract_multiplier_unit: Option<i8>,
+        flow_schedule_type: Option<i8>,
+        tick_rule: Option<u8>,
+    ) -> PyResult<Self> {
+        Ok(Self {
+            hd: RecordHeader::new::<Self>(
+                rtype::INSTRUMENT_DEF,
+                publisher_id,
+                product_id,
+                ts_event,
+            ),
+            ts_recv,
+            min_price_increment,
+            display_factor,
+            expiration: expiration.unwrap_or(u64::MAX),
+            activation: activation.unwrap_or(u64::MAX),
+            high_limit_price: high_limit_price.unwrap_or(i64::MAX),
+            low_limit_price: low_limit_price.unwrap_or(i64::MAX),
+            max_price_variation: max_price_variation.unwrap_or(i64::MAX),
+            trading_reference_price: trading_reference_price.unwrap_or(i64::MAX),
+            unit_of_measure_qty: unit_of_measure_qty.unwrap_or(i64::MAX),
+            min_price_increment_amount: min_price_increment_amount.unwrap_or(i64::MAX),
+            price_ratio: price_ratio.unwrap_or(i64::MAX),
+            inst_attrib_value: inst_attrib_value.unwrap_or(i32::MAX),
+            underlying_id: underlying_id.unwrap_or_default(),
+            cleared_volume: cleared_volume.unwrap_or(i32::MAX),
+            market_depth_implied: market_depth_implied.unwrap_or(i32::MAX),
+            market_depth: market_depth.unwrap_or(i32::MAX),
+            market_segment_id: market_segment_id.unwrap_or(u32::MAX),
+            max_trade_vol: max_trade_vol.unwrap_or(u32::MAX),
+            min_lot_size: min_lot_size.unwrap_or(i32::MAX),
+            min_lot_size_block: min_lot_size_block.unwrap_or(i32::MAX),
+            min_lot_size_round_lot,
+            min_trade_vol: min_trade_vol.unwrap_or(u32::MAX),
+            open_interest_qty: open_interest_qty.unwrap_or(i32::MAX),
+            contract_multiplier: contract_multiplier.unwrap_or(i32::MAX),
+            decay_quantity: decay_quantity.unwrap_or(i32::MAX),
+            original_contract_size: original_contract_size.unwrap_or(i32::MAX),
+            related_security_id: 0,
+            trading_reference_date: trading_reference_date.unwrap_or(u16::MAX),
+            appl_id: appl_id.unwrap_or(i16::MAX),
+            maturity_year: maturity_year.unwrap_or(u16::MAX),
+            decay_start_date: decay_start_date.unwrap_or(u16::MAX),
+            channel_id: channel_id.unwrap_or(u16::MAX),
+            currency: str_to_c_chars(currency.unwrap_or_default()).map_err(to_val_err)?,
+            settl_currency: str_to_c_chars(settl_currency.unwrap_or_default())
+                .map_err(to_val_err)?,
+            secsubtype: str_to_c_chars(secsubtype.unwrap_or_default()).map_err(to_val_err)?,
+            symbol: str_to_c_chars(symbol).map_err(to_val_err)?,
+            group: str_to_c_chars(group).map_err(to_val_err)?,
+            exchange: str_to_c_chars(exchange).map_err(to_val_err)?,
+            asset: str_to_c_chars(asset.unwrap_or_default()).map_err(to_val_err)?,
+            cfi: str_to_c_chars(cfi.unwrap_or_default()).map_err(to_val_err)?,
+            security_type: str_to_c_chars(security_type.unwrap_or_default()).map_err(to_val_err)?,
+            unit_of_measure: str_to_c_chars(unit_of_measure.unwrap_or_default())
+                .map_err(to_val_err)?,
+            underlying: str_to_c_chars(underlying.unwrap_or_default()).map_err(to_val_err)?,
+            related: Default::default(),
+            match_algorithm,
+            md_security_trading_status,
+            main_fraction: main_fraction.unwrap_or(u8::MAX),
+            price_display_format: price_display_format.unwrap_or(u8::MAX),
+            settl_price_type: settl_price_type.unwrap_or(u8::MAX),
+            sub_fraction: sub_fraction.unwrap_or(u8::MAX),
+            underlying_product: underlying_product.unwrap_or(u8::MAX),
+            security_update_action,
+            maturity_month: maturity_month.unwrap_or(u8::MAX),
+            maturity_day: maturity_day.unwrap_or(u8::MAX),
+            maturity_week: maturity_week.unwrap_or(u8::MAX),
+            user_defined_instrument: user_defined_instrument.unwrap_or('N' as c_char),
+            contract_multiplier_unit: contract_multiplier_unit.unwrap_or(i8::MAX),
+            flow_schedule_type: flow_schedule_type.unwrap_or(i8::MAX),
+            tick_rule: tick_rule.unwrap_or(u8::MAX),
+            _dummy: Default::default(),
+        })
     }
 }
 
@@ -649,15 +848,6 @@ mod tests {
         }
     }
 
-    /// Converts parsed JSON to a Python dict.
-    fn json_to_py_dict<'py>(py: Python<'py>, json: &JsonObj) -> &'py PyDict {
-        let res = PyDict::new(py);
-        json.iter().for_each(|(key, value)| {
-            add_to_dict(py, res, key, value);
-        });
-        res
-    }
-
     const DATASET: &str = "GLBX.MDP3";
     const STYPE: SType = SType::ProductId;
 
@@ -674,24 +864,12 @@ mod tests {
                     $schema.as_str()
                 ))
                 .unwrap();
-                // Serialize test data to JSON
-                let mut writer = Cursor::new(Vec::new());
-                let mut encoder = json::Encoder::new(&mut writer, true);
-                encoder
-                    .encode_stream(decoder.decode_stream::<$record_type>().unwrap())
-                    .unwrap();
-                // Read in JSON to generic serde JSON objects
-                let input_buf = writer.into_inner();
-                let json_input = String::from_utf8(input_buf).unwrap();
-                let json_recs = serde_json::Deserializer::from_str(&json_input)
-                    .into_iter()
-                    .collect::<serde_json::Result<Vec<JsonObj>>>()
-                    .unwrap();
+                let rs_recs = decoder.decode_records::<$record_type>().unwrap();
                 let output_buf = Python::with_gil(|py| -> PyResult<_> {
                     // Convert JSON objects to Python `dict`s
-                    let recs: Vec<_> = json_recs
+                    let recs: Vec<_> = rs_recs
                         .iter()
-                        .map(|json_rec| json_to_py_dict(py, json_rec))
+                        .map(|rs_rec| rs_rec.clone().into_py(py))
                         .collect();
                     let mock_file = MockPyFile::new();
                     let output_buf = mock_file.inner();
@@ -701,10 +879,13 @@ mod tests {
                         py,
                         mock_file.extract(py).unwrap(),
                         Compression::ZStd,
-                        $schema,
                         DATASET.to_owned(),
-                        recs,
+                        $schema,
+                        0,
                         STYPE,
+                        STYPE,
+                        recs.iter().map(|r| r.as_ref(py)).collect(),
+                        None,
                     )
                     .unwrap();
 
@@ -725,7 +906,7 @@ mod tests {
                 assert_eq!(metadata.dataset, DATASET);
                 assert_eq!(metadata.stype_in, STYPE);
                 assert_eq!(metadata.stype_out, STYPE);
-                assert_eq!(metadata.record_count.unwrap() as usize, json_recs.len());
+                assert_eq!(metadata.record_count.unwrap() as usize, rs_recs.len());
                 let decoder = dbn::Decoder::from_zstd_file(format!(
                     "{DBN_PATH}/test_data.{}.dbn.zst",
                     $schema.as_str()
