@@ -127,8 +127,8 @@ mod tests {
         encode::test_data::{VecStream, BID_ASK, RECORD_HEADER},
         enums::{SType, Schema, SecurityUpdateAction},
         record::{
-            str_to_c_chars, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg,
-            TradeMsg, WithTsOut,
+            str_to_c_chars, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
+            StatusMsg, TradeMsg, WithTsOut,
         },
         MappingInterval, SymbolMapping,
     };
@@ -418,6 +418,50 @@ mod tests {
                     r#""security_type":"","unit_of_measure":"","underlying":"","match_algorithm":"F","md_security_trading_status":2,"main_fraction":4,"price_display_format":8,"#,
                     r#""settl_price_type":9,"sub_fraction":23,"underlying_product":10,"security_update_action":"A","maturity_month":8,"maturity_day":9,"maturity_week":11,"#,
                     r#""user_defined_instrument":"N","contract_multiplier_unit":0,"flow_schedule_type":5,"tick_rule":0"#
+                )
+            )
+        );
+    }
+
+    #[test]
+    fn test_imbalance_write_json() {
+        let data = vec![ImbalanceMsg {
+            hd: RECORD_HEADER,
+            ts_recv: 1,
+            ref_price: 2,
+            auction_time: 3,
+            cont_book_clr_price: 4,
+            auct_interest_clr_price: 5,
+            ssr_filling_price: 6,
+            ind_match_price: 7,
+            upper_collar: 8,
+            lower_collar: 9,
+            paired_qty: 10,
+            total_imbalance_qty: 11,
+            market_imbalance_qty: 12,
+            unpaired_qty: 13,
+            auction_type: 'B' as c_char,
+            side: 'A' as c_char,
+            auction_status: 14,
+            freeze_status: 15,
+            num_extensions: 16,
+            unpaired_side: 'A' as c_char,
+            significant_imbalance: 'N' as c_char,
+            _dummy: [0],
+        }];
+        let slice_res = write_json_to_string(data.as_slice(), false);
+        let stream_res = write_json_stream_to_string(data, false);
+
+        assert_eq!(slice_res, stream_res);
+        assert_eq!(
+            slice_res,
+            format!(
+                "{{{HEADER_JSON},{}}}\n",
+                concat!(
+                    r#""ts_recv":"1","ref_price":2,"auction_time":"3","cont_book_clr_price":4,"auct_interest_clr_price":5,"#,
+                    r#""ssr_filling_price":6,"ind_match_price":7,"upper_collar":8,"lower_collar":9,"paired_qty":10,"#,
+                    r#""total_imbalance_qty":11,"market_imbalance_qty":12,"unpaired_qty":13,"auction_type":"B","side":"A","#,
+                    r#""auction_status":14,"freeze_status":15,"num_extensions":16,"unpaired_side":"A","significant_imbalance":"N""#,
                 )
             )
         );

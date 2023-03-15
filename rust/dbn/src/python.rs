@@ -21,8 +21,8 @@ use crate::{
     enums::{rtype, Compression, SType, Schema, SecurityUpdateAction},
     metadata::MetadataBuilder,
     record::{
-        str_to_c_chars, BidAskPair, HasRType, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg,
-        OhlcvMsg, RecordHeader, TbboMsg, TradeMsg,
+        str_to_c_chars, BidAskPair, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg,
+        Mbp1Msg, OhlcvMsg, RecordHeader, TbboMsg, TradeMsg,
     },
 };
 use crate::{MappingInterval, Metadata, SymbolMapping};
@@ -143,22 +143,23 @@ pub fn write_dbn_file(
     let writer = DynWriter::new(file, compression).map_err(to_val_err)?;
     let encoder = dbn::Encoder::new(writer, &metadata).map_err(to_val_err)?;
     match schema {
-        Schema::Mbo => encode_pydicts::<MboMsg>(encoder, &records),
-        Schema::Mbp1 => encode_pydicts::<Mbp1Msg>(encoder, &records),
-        Schema::Mbp10 => encode_pydicts::<Mbp10Msg>(encoder, &records),
-        Schema::Tbbo => encode_pydicts::<TbboMsg>(encoder, &records),
-        Schema::Trades => encode_pydicts::<TradeMsg>(encoder, &records),
+        Schema::Mbo => encode_pyrecs::<MboMsg>(encoder, &records),
+        Schema::Mbp1 => encode_pyrecs::<Mbp1Msg>(encoder, &records),
+        Schema::Mbp10 => encode_pyrecs::<Mbp10Msg>(encoder, &records),
+        Schema::Tbbo => encode_pyrecs::<TbboMsg>(encoder, &records),
+        Schema::Trades => encode_pyrecs::<TradeMsg>(encoder, &records),
         Schema::Ohlcv1S | Schema::Ohlcv1M | Schema::Ohlcv1H | Schema::Ohlcv1D => {
-            encode_pydicts::<OhlcvMsg>(encoder, &records)
+            encode_pyrecs::<OhlcvMsg>(encoder, &records)
         }
-        Schema::Definition => encode_pydicts::<InstrumentDefMsg>(encoder, &records),
+        Schema::Definition => encode_pyrecs::<InstrumentDefMsg>(encoder, &records),
+        Schema::Imbalance => encode_pyrecs::<ImbalanceMsg>(encoder, &records),
         Schema::Statistics | Schema::Status => Err(PyValueError::new_err(
             "Unsupported schema type for writing DBN files",
         )),
     }
 }
 
-fn encode_pydicts<T: Clone + DbnEncodable + PyClass>(
+fn encode_pyrecs<T: Clone + DbnEncodable + PyClass>(
     mut encoder: dbn::Encoder<DynWriter<PyFileLike>>,
     records: &[&PyAny],
 ) -> PyResult<()> {
@@ -804,6 +805,63 @@ impl InstrumentDefMsg {
             tick_rule: tick_rule.unwrap_or(u8::MAX),
             _dummy: Default::default(),
         })
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
+
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    #[pyo3(name = "record_size")]
+    fn py_record_size(&self) -> usize {
+        self.record_size()
+    }
+}
+
+#[pymethods]
+impl ImbalanceMsg {
+    #[new]
+    fn py_new(
+        publisher_id: u16,
+        product_id: u32,
+        ts_event: u64,
+        ts_recv: u64,
+        ref_price: i64,
+        cont_book_clr_price: i64,
+        auct_interest_clr_price: i64,
+        paired_qty: u32,
+        total_imbalance_qty: u32,
+        auction_type: c_char,
+        side: c_char,
+        significant_imbalance: c_char,
+    ) -> Self {
+        Self {
+            hd: RecordHeader::new::<Self>(rtype::IMBALANCE, publisher_id, product_id, ts_event),
+            ts_recv,
+            ref_price,
+            auction_time: 0,
+            cont_book_clr_price,
+            auct_interest_clr_price,
+            ssr_filling_price: i64::MAX,
+            ind_match_price: i64::MAX,
+            upper_collar: i64::MAX,
+            lower_collar: i64::MAX,
+            paired_qty,
+            total_imbalance_qty,
+            market_imbalance_qty: u32::MAX,
+            unpaired_qty: u32::MAX,
+            auction_type,
+            side,
+            auction_status: 0,
+            freeze_status: 0,
+            num_extensions: 0,
+            unpaired_side: 0,
+            significant_imbalance,
+            _dummy: [0],
+        }
     }
 
     fn __repr__(&self) -> String {

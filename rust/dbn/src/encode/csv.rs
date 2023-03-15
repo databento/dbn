@@ -84,8 +84,8 @@ pub(crate) mod serialize {
     use serde::Serialize;
 
     use crate::record::{
-        ErrorMsg, HasRType, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg,
-        SymbolMappingMsg, SystemMsg, TradeMsg, WithTsOut,
+        ErrorMsg, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
+        StatusMsg, SymbolMappingMsg, SystemMsg, TradeMsg, WithTsOut,
     };
 
     /// Because of the flat nature of CSVs, there are several limitations in the
@@ -390,6 +390,39 @@ pub(crate) mod serialize {
         }
     }
 
+    impl CsvSerialize for ImbalanceMsg {
+        fn serialize_headers<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
+            [
+                "rtype",
+                "publisher_id",
+                "product_id",
+                "ts_event",
+                "ts_recv",
+                "ref_price",
+                "auction_time",
+                "cont_book_clr_price",
+                "auct_interest_clr_price",
+                "ssr_filling_price",
+                "ind_match_price",
+                "upper_collar",
+                "lower_collar",
+                "paired_qty",
+                "total_imbalance_qty",
+                "market_imbalance_qty",
+                "unpaired_qty",
+                "auction_type",
+                "side",
+                "auction_status",
+                "freeze_status",
+                "num_extension",
+                "unpaired_side",
+                "significant_imbalance",
+            ]
+            .iter()
+            .try_for_each(|header| csv_writer.write_field(header))
+        }
+    }
+
     impl CsvSerialize for ErrorMsg {
         fn serialize_headers<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
             ["rtype", "publisher_id", "product_id", "ts_event", "err"]
@@ -445,8 +478,8 @@ mod tests {
         encode::test_data::{VecStream, BID_ASK, RECORD_HEADER},
         enums::SecurityUpdateAction,
         record::{
-            str_to_c_chars, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg,
-            TradeMsg, WithTsOut,
+            str_to_c_chars, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
+            StatusMsg, TradeMsg, WithTsOut,
         },
     };
 
@@ -721,6 +754,44 @@ mod tests {
         assert_eq!(
             lines,
             format!("ts_out,rtype,publisher_id,product_id,ts_event,price,size,action,side,flags,depth,ts_recv,ts_in_delta,sequence\n1678480044000000000,{HEADER_CSV},5500,3,T,A,128,9,1658441891000000000,22000,1002375\n")
+        );
+    }
+
+    #[test]
+    fn test_encode_imbalance_records() {
+        let data = vec![ImbalanceMsg {
+            hd: RECORD_HEADER,
+            ts_recv: 1,
+            ref_price: 2,
+            auction_time: 3,
+            cont_book_clr_price: 4,
+            auct_interest_clr_price: 5,
+            ssr_filling_price: 6,
+            ind_match_price: 7,
+            upper_collar: 8,
+            lower_collar: 9,
+            paired_qty: 10,
+            total_imbalance_qty: 11,
+            market_imbalance_qty: 12,
+            unpaired_qty: 13,
+            auction_type: 'B' as c_char,
+            side: 'A' as c_char,
+            auction_status: 14,
+            freeze_status: 15,
+            num_extensions: 16,
+            unpaired_side: 'A' as c_char,
+            significant_imbalance: 'N' as c_char,
+            _dummy: [0],
+        }];
+        let mut buffer = Vec::new();
+        let writer = BufWriter::new(&mut buffer);
+        Encoder::new(writer)
+            .encode_records(data.as_slice())
+            .unwrap();
+        let line = extract_2nd_line(buffer);
+        assert_eq!(
+            line,
+            format!("{HEADER_CSV},1,2,3,4,5,6,7,8,9,10,11,12,13,B,A,14,15,16,A,N")
         );
     }
 }

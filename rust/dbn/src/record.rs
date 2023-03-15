@@ -1,4 +1,6 @@
-//! Market data types for encoding different Databento [`Schema`](crate::enums::Schema)s and conversion functions.
+//! Market data types for encoding different Databento [`Schema`](crate::enums::Schema)s
+//! and conversion functions.
+
 use std::{ffi::CStr, mem, os::raw::c_char, ptr::NonNull, slice, str::Utf8Error};
 
 use anyhow::anyhow;
@@ -18,16 +20,17 @@ pub struct RecordHeader {
     /// The length of the record in 32-bit words.
     #[serde(skip)]
     pub(crate) length: u8,
-    /// The record type; with `0xe0..0x0F` specifying MBP booklevel size.
-    /// Record types implement the trait [`HasRType`], and the [`has_rtype`][HasRType::has_rtype]
-    /// function can be used to check if that type can be used to decode a message with a given rtype.
-    /// The set of possible values is defined in [`rtype`].
+    /// The record type; with `0xe0..0x0F` specifying MBP booklevel size. Record types
+    /// implement the trait [`HasRType`], and the [`has_rtype`][HasRType::has_rtype]
+    /// function can be used to check if that type can be used to decode a message with
+    /// a given rtype. The set of possible values is defined in [`rtype`].
     pub rtype: u8,
     /// The publisher ID assigned by Databento.
     pub publisher_id: u16,
     /// The numeric product ID assigned to the instrument.
     pub product_id: u32,
-    /// The matching-engine-received timestamp expressed as number of nanoseconds since the UNIX epoch.
+    /// The matching-engine-received timestamp expressed as number of nanoseconds since
+    /// the UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub ts_event: u64,
 }
@@ -56,13 +59,15 @@ pub struct MboMsg {
     pub flags: u8,
     /// A channel ID within the venue.
     pub channel_id: u8,
-    /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or **T**rade.
+    /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or
+    /// **T**rade.
     #[serde(serialize_with = "serialize_c_char")]
     pub action: c_char,
     /// The order side. Can be **A**sk, **B**id or **N**one.
     #[serde(serialize_with = "serialize_c_char")]
     pub side: c_char,
-    /// The capture-server-received timestamp expressed as number of nanoseconds since the UNIX epoch.
+    /// The capture-server-received timestamp expressed as number of nanoseconds since
+    /// the UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
@@ -111,7 +116,8 @@ pub struct TradeMsg {
     pub price: i64,
     /// The order quantity.
     pub size: u32,
-    /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or **T**rade.
+    /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or
+    /// **T**rade.
     #[serde(serialize_with = "serialize_c_char")]
     pub action: c_char,
     /// The order side. Can be **A**sk, **B**id or **N**one.
@@ -121,7 +127,8 @@ pub struct TradeMsg {
     pub flags: u8,
     /// The depth of actual book change.
     pub depth: u8,
-    /// The capture-server-received timestamp expressed as number of nanoseconds since the UNIX epoch.
+    /// The capture-server-received timestamp expressed as number of nanoseconds since
+    /// the UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
@@ -149,7 +156,8 @@ pub struct Mbp1Msg {
     pub price: i64,
     /// The order quantity.
     pub size: u32,
-    /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or **T**rade.
+    /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or
+    /// **T**rade.
     #[serde(serialize_with = "serialize_c_char")]
     pub action: c_char,
     /// The order side. Can be **A**sk, **B**id or **N**one.
@@ -159,7 +167,8 @@ pub struct Mbp1Msg {
     pub flags: u8,
     /// The depth of actual book change.
     pub depth: u8,
-    /// The capture-server-received timestamp expressed as number of nanoseconds since the UNIX epoch.
+    /// The capture-server-received timestamp expressed as number of nanoseconds since
+    /// the UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
@@ -186,7 +195,8 @@ pub struct Mbp10Msg {
     pub price: i64,
     /// The order quantity.
     pub size: u32,
-    /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or **T**rade.
+    /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or
+    /// **T**rade.
     #[serde(serialize_with = "serialize_c_char")]
     pub action: c_char,
     /// The order side. Can be **A**sk, **B**id or **N**one.
@@ -196,7 +206,8 @@ pub struct Mbp10Msg {
     pub flags: u8,
     /// The depth of actual book change.
     pub depth: u8,
-    /// The capture-server-received timestamp expressed as number of nanoseconds since the UNIX epoch.
+    /// The capture-server-received timestamp expressed as number of nanoseconds since
+    /// the UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
@@ -245,7 +256,8 @@ pub struct OhlcvMsg {
 pub struct StatusMsg {
     /// The common header.
     pub hd: RecordHeader,
-    /// The capture-server-received timestamp expressed as number of nanoseconds since the UNIX epoch.
+    /// The capture-server-received timestamp expressed as number of nanoseconds since
+    /// the UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub ts_recv: u64,
     #[serde(serialize_with = "serialize_c_char_arr")]
@@ -276,10 +288,12 @@ pub struct InstrumentDefMsg {
     pub min_price_increment: i64,
     /// The multiplier to convert the venue’s display price to the conventional price.
     pub display_factor: i64,
-    /// The time of instrument activation expressed as a number of nanoseconds since the UNIX epoch.
+    /// The time of instrument activation expressed as a number of nanoseconds since the
+    /// UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub expiration: u64,
-    /// The last eligible trade time expressed as a number of nanoseconds since the UNIX epoch.
+    /// The last eligible trade time expressed as a number of nanoseconds since the
+    /// UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub activation: u64,
     /// The allowable high limit price for the trading day in units of 1e-9, i.e.
@@ -320,8 +334,8 @@ pub struct InstrumentDefMsg {
     pub min_lot_size: i32,
     /// The minimum quantity required for a block trade of the instrument.
     pub min_lot_size_block: i32,
-    /// The minimum quantity required for a round lot of the instrument. Multiples of this quantity
-    /// are also round lots.
+    /// The minimum quantity required for a round lot of the instrument. Multiples of
+    /// this quantity are also round lots.
     pub min_lot_size_round_lot: i32,
     /// The minimum trading volume for the instrument.
     pub min_trade_vol: u32,
@@ -329,7 +343,8 @@ pub struct InstrumentDefMsg {
     pub open_interest_qty: i32,
     /// The number of deliverables per instrument, i.e. peak days.
     pub contract_multiplier: i32,
-    /// The quantity that a contract will decay daily, after `decay_start_date` has been reached.
+    /// The quantity that a contract will decay daily, after `decay_start_date` has
+    /// been reached.
     pub decay_quantity: i32,
     /// The fixed contract value assigned to each instrument.
     pub original_contract_size: i32,
@@ -415,19 +430,25 @@ pub struct InstrumentDefMsg {
     pub flow_schedule_type: i8,
     /// The tick rule of the spread.
     pub tick_rule: u8,
-    /// Adjust filler for alignment.
+    // Filler for alignment.
     #[serde(skip)]
+    #[doc(hidden)]
     pub _dummy: [c_char; 3],
 }
 
-/// Order imbalance message.
-#[doc(hidden)]
+/// An auction imbalance message.
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(get_all, set_all, module = "databento_dbn")
+)]
 pub struct ImbalanceMsg {
+    /// The common header.
     pub hd: RecordHeader,
-    /// The capture-server-received timestamp expressed as number of nanoseconds since the UNIX epoch.
+    /// The capture-server-received timestamp expressed as the number of nanoseconds
+    /// since the UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub ts_recv: u64,
     /// The price at which the imbalance shares are calculated, where every 1 unit corresponds to
@@ -474,7 +495,9 @@ pub struct ImbalanceMsg {
     /// Venue-specific character code. For Nasdaq, contains the raw Price Variation Indicator.
     #[serde(serialize_with = "serialize_c_char")]
     pub significant_imbalance: c_char,
+    // Filler for alignment.
     #[serde(skip)]
+    #[doc(hidden)]
     pub _dummy: [c_char; 1],
 }
 
@@ -487,7 +510,9 @@ pub struct ImbalanceMsg {
     pyo3::pyclass(get_all, set_all, module = "databento_dbn")
 )]
 pub struct ErrorMsg {
+    /// The common header.
     pub hd: RecordHeader,
+    /// The error message.
     #[serde(serialize_with = "serialize_c_char_arr")]
     pub err: [c_char; 64],
 }
@@ -501,11 +526,16 @@ pub struct ErrorMsg {
     pyo3::pyclass(get_all, set_all, module = "databento_dbn")
 )]
 pub struct SymbolMappingMsg {
+    /// The common header.
     pub hd: RecordHeader,
+    /// The input symbol.
     #[serde(serialize_with = "serialize_c_char_arr")]
     pub stype_in_symbol: [c_char; 22],
+    /// The output symbol.
     #[serde(serialize_with = "serialize_c_char_arr")]
     pub stype_out_symbol: [c_char; 22],
+    // Filler for alignment.
+    #[doc(hidden)]
     #[serde(skip)]
     pub _dummy: [c_char; 4],
     pub start_ts: u64,
@@ -522,7 +552,9 @@ pub struct SymbolMappingMsg {
     pyo3::pyclass(get_all, set_all, module = "databento_dbn")
 )]
 pub struct SystemMsg {
+    /// The common header.
     pub hd: RecordHeader,
+    /// The message from the Databento Live Subscription Gateway (LSG).
     #[serde(serialize_with = "serialize_c_char_arr")]
     pub msg: [c_char; 64],
 }
@@ -751,8 +783,8 @@ pub unsafe fn transmute_header_bytes(bytes: &[u8]) -> Option<&RecordHeader> {
 /// part of a larger `T` struct.
 pub unsafe fn transmute_record<T: HasRType>(header: &RecordHeader) -> Option<&T> {
     if T::has_rtype(header.rtype) {
-        // Safety: because it comes from a reference, `header` must not be null. It's ok to cast to `mut`
-        // because it's never mutated.
+        // Safety: because it comes from a reference, `header` must not be null. It's ok
+        // to cast to `mut` because it's never mutated.
         let non_null = NonNull::from(header);
         Some(non_null.cast::<T>().as_ref())
     } else {
@@ -777,8 +809,7 @@ unsafe fn as_u8_slice<T: Sized>(data: &T) -> &[u8] {
 /// part of a larger `T` struct.
 pub unsafe fn transmute_record_mut<T: HasRType>(header: &mut RecordHeader) -> Option<&mut T> {
     if T::has_rtype(header.rtype) {
-        // Safety: because it comes from a reference, `header` must not be null. It's ok to cast to `mut`
-        // because it's never mutated.
+        // Safety: because it comes from a reference, `header` must not be null.
         let non_null = NonNull::from(header);
         Some(non_null.cast::<T>().as_mut())
     } else {

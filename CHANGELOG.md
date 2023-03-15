@@ -1,6 +1,7 @@
 # Changelog
 
 ## 0.4.0 - TBD
+- Added support for Imbalance schema
 - Introduced separate rtypes for each OHLCV schema
 - Added support for encoding and decoding `ts_out`
 - Added `ts_out` to `Metadata`

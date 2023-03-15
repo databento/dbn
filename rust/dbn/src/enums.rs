@@ -134,13 +134,6 @@ impl Display for SType {
 
 /// Record types, possible values for [`RecordHeader::rtype`][crate::record::RecordHeader::rtype]
 pub mod rtype {
-    use std::mem;
-
-    use crate::record::{
-        ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg,
-        SymbolMappingMsg, SystemMsg, TradeMsg,
-    };
-
     /// Market by price with a book depth of 0 (used for trades).
     pub const MBP_0: u8 = 0x00;
     /// Market by price with a book depth of 1 (also used for TBBO).
@@ -191,26 +184,7 @@ pub mod rtype {
             super::Schema::Definition => INSTRUMENT_DEF,
             super::Schema::Statistics => unimplemented!("Statistics is not yet supported"),
             super::Schema::Status => STATUS,
-        }
-    }
-
-    pub fn record_size(rtype: u8) -> Option<usize> {
-        match rtype {
-            MBP_0 => Some(mem::size_of::<TradeMsg>()),
-            MBP_1 => Some(mem::size_of::<Mbp1Msg>()),
-            MBP_10 => Some(mem::size_of::<Mbp10Msg>()),
-            #[allow(deprecated)]
-            OHLCV_DEPRECATED | OHLCV_1S | OHLCV_1M | OHLCV_1H | OHLCV_1D => {
-                Some(mem::size_of::<OhlcvMsg>())
-            }
-            STATUS => Some(mem::size_of::<StatusMsg>()),
-            INSTRUMENT_DEF => Some(mem::size_of::<InstrumentDefMsg>()),
-            IMBALANCE => Some(mem::size_of::<ImbalanceMsg>()),
-            ERROR => Some(mem::size_of::<ErrorMsg>()),
-            SYMBOL_MAPPING => Some(mem::size_of::<SymbolMappingMsg>()),
-            SYSTEM => Some(mem::size_of::<SystemMsg>()),
-            MBO => Some(mem::size_of::<MboMsg>()),
-            _ => None,
+            super::Schema::Imbalance => IMBALANCE,
         }
     }
 }
@@ -245,6 +219,8 @@ pub enum Schema {
     /// Exchange status.
     #[doc(hidden)]
     Status = 11,
+    /// Auction imbalance events.
+    Imbalance = 12,
 }
 
 /// The number of [`Schema`]s.
@@ -267,6 +243,7 @@ impl std::str::FromStr for Schema {
             "definition" => Ok(Schema::Definition),
             "statistics" => Ok(Schema::Statistics),
             "status" => Ok(Schema::Status),
+            "imbalance" => Ok(Schema::Imbalance),
             _ => Err(ConversionError::TypeConversion(
                 "Value doesn't match a valid schema",
             )),
@@ -296,6 +273,7 @@ impl Schema {
             Schema::Definition => "definition",
             Schema::Statistics => "statistics",
             Schema::Status => "status",
+            Schema::Imbalance => "imbalance",
         }
     }
 }
