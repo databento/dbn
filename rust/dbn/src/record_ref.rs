@@ -2,8 +2,8 @@ use std::{marker::PhantomData, mem, ptr::NonNull};
 
 use crate::record::{HasRType, RecordHeader};
 
-/// A wrapper around a non-owning reference to a DBN record. This wrapper allows for mixing of
-/// record types and schemas, and runtime record polymorphism.
+/// A wrapper around a non-owning immutable reference to a DBN record. This wrapper
+/// allows for mixing of record types and schemas, and runtime record polymorphism.
 #[derive(Clone, Debug)]
 pub struct RecordRef<'a> {
     ptr: NonNull<RecordHeader>,
@@ -17,9 +17,14 @@ impl<'a> RecordRef<'a> {
     /// # Safety
     /// `buffer` should begin with a [`RecordHeader`] and contain a type implementing
     /// [`HasRType`].
-    pub unsafe fn new(buffer: &'a mut [u8]) -> Self {
+    pub unsafe fn new(buffer: &'a [u8]) -> Self {
         debug_assert!(buffer.len() >= mem::size_of::<RecordHeader>());
-        let ptr = NonNull::new_unchecked(buffer.as_mut_ptr().cast::<RecordHeader>());
+
+        // Safety: casting to `*mut` to use `NonNull`, but `ptr` is still treated internally
+        // as an immutable reference
+        let raw_ptr = buffer.as_ptr() as *mut RecordHeader;
+
+        let ptr = NonNull::new_unchecked(raw_ptr.cast::<RecordHeader>());
         Self {
             ptr,
             _marker: PhantomData,
