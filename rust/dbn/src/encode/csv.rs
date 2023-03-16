@@ -353,7 +353,6 @@ pub(crate) mod serialize {
                 "contract_multiplier",
                 "decay_quantity",
                 "original_contract_size",
-                "related_security_id",
                 "trading_reference_date",
                 "appl_id",
                 "maturity_year",
@@ -370,7 +369,6 @@ pub(crate) mod serialize {
                 "security_type",
                 "unit_of_measure",
                 "underlying",
-                "related",
                 "match_algorithm",
                 "md_security_trading_status",
                 "main_fraction",
@@ -693,7 +691,7 @@ mod tests {
             .encode_stream(VecStream::new(data))
             .unwrap();
         let line = extract_2nd_line(buffer);
-        assert_eq!(line, format!("{HEADER_CSV},1658441891000000000,100,1000,1698450000000000000,1697350000000000000,1000000,-1000000,0,500000,5,5,10,10,256785,0,0,13,0,10000,1,1000,100,1,0,0,0,0,0,0,0,0,0,4,,USD,,,,,,,,,,,F,2,4,8,9,23,10,A,8,9,11,N,0,5,0"));
+        assert_eq!(line, format!("{HEADER_CSV},1658441891000000000,100,1000,1698450000000000000,1697350000000000000,1000000,-1000000,0,500000,5,5,10,10,256785,0,0,13,0,10000,1,1000,100,1,0,0,0,0,0,0,0,0,4,,USD,,,,,,,,,,F,2,4,8,9,23,10,A,8,9,11,N,0,5,0"));
     }
 
     #[test]

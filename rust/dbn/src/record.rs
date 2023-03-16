@@ -45,6 +45,7 @@ pub struct MboMsg {
     /// The common header.
     pub hd: RecordHeader,
     /// The order ID assigned at the venue.
+    #[serde(serialize_with = "serialize_large_u64")]
     pub order_id: u64,
     /// The order price expressed as a signed integer where every 1 unit
     /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
@@ -333,6 +334,7 @@ pub struct InstrumentDefMsg {
     /// The fixed contract value assigned to each instrument.
     pub original_contract_size: i32,
     #[doc(hidden)]
+    #[serde(skip)]
     pub related_security_id: u32,
     /// The trading session date corresponding to the settlement price in
     /// `trading_reference_price`, in number of days since the UNIX epoch.
@@ -379,7 +381,7 @@ pub struct InstrumentDefMsg {
     #[serde(serialize_with = "serialize_c_char_arr")]
     pub underlying: [c_char; 21],
     #[doc(hidden)]
-    #[serde(serialize_with = "serialize_c_char_arr")]
+    #[serde(skip)]
     pub related: [c_char; 21],
     /// The matching algorithm used for the instrument, typically **F**IFO.
     #[serde(serialize_with = "serialize_c_char")]

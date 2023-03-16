@@ -193,7 +193,7 @@ mod tests {
             slice_res,
             format!(
                 "{{{HEADER_JSON},{}}}\n",
-                r#""order_id":16,"price":5500,"size":3,"flags":128,"channel_id":14,"action":"R","side":"N","ts_recv":"1658441891000000000","ts_in_delta":22000,"sequence":1002375"#
+                r#""order_id":"16","price":5500,"size":3,"flags":128,"channel_id":14,"action":"R","side":"N","ts_recv":"1658441891000000000","ts_in_delta":22000,"sequence":1002375"#
             )
         );
     }
@@ -413,9 +413,9 @@ mod tests {
                     r#""high_limit_price":1000000,"low_limit_price":-1000000,"max_price_variation":0,"trading_reference_price":500000,"unit_of_measure_qty":5,"#,
                     r#""min_price_increment_amount":5,"price_ratio":10,"inst_attrib_value":10,"underlying_id":256785,"cleared_volume":0,"market_depth_implied":0,"#,
                     r#""market_depth":13,"market_segment_id":0,"max_trade_vol":10000,"min_lot_size":1,"min_lot_size_block":1000,"min_lot_size_round_lot":100,"min_trade_vol":1,"#,
-                    r#""open_interest_qty":0,"contract_multiplier":0,"decay_quantity":0,"original_contract_size":0,"related_security_id":0,"trading_reference_date":0,"appl_id":0,"#,
+                    r#""open_interest_qty":0,"contract_multiplier":0,"decay_quantity":0,"original_contract_size":0,"trading_reference_date":0,"appl_id":0,"#,
                     r#""maturity_year":0,"decay_start_date":0,"channel_id":4,"currency":"","settl_currency":"USD","secsubtype":"","symbol":"","group":"","exchange":"","asset":"","cfi":"","#,
-                    r#""security_type":"","unit_of_measure":"","underlying":"","related":"","match_algorithm":"F","md_security_trading_status":2,"main_fraction":4,"price_display_format":8,"#,
+                    r#""security_type":"","unit_of_measure":"","underlying":"","match_algorithm":"F","md_security_trading_status":2,"main_fraction":4,"price_display_format":8,"#,
                     r#""settl_price_type":9,"sub_fraction":23,"underlying_product":10,"security_update_action":"A","maturity_month":8,"maturity_day":9,"maturity_week":11,"#,
                     r#""user_defined_instrument":"N","contract_multiplier_unit":0,"flow_schedule_type":5,"tick_rule":0"#
                 )
