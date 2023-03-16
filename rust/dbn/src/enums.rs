@@ -134,6 +134,8 @@ impl Display for SType {
 
 /// Record types, possible values for [`RecordHeader::rtype`][crate::record::RecordHeader::rtype]
 pub mod rtype {
+    use super::Schema;
+
     /// Market by price with a book depth of 0 (used for trades).
     pub const MBP_0: u8 = 0x00;
     /// Market by price with a book depth of 1 (also used for TBBO).
@@ -170,21 +172,42 @@ pub mod rtype {
     pub const MBO: u8 = 0xA0;
 
     /// Get the corresponding `rtype` for the given `schema`.
-    pub fn from(schema: super::Schema) -> u8 {
+    pub fn from(schema: Schema) -> u8 {
         match schema {
-            super::Schema::Mbo => MBO,
-            super::Schema::Mbp1 => MBP_1,
-            super::Schema::Mbp10 => MBP_10,
-            super::Schema::Tbbo => MBP_1,
-            super::Schema::Trades => MBP_0,
-            super::Schema::Ohlcv1S => OHLCV_1S,
-            super::Schema::Ohlcv1M => OHLCV_1M,
-            super::Schema::Ohlcv1H => OHLCV_1H,
-            super::Schema::Ohlcv1D => OHLCV_1D,
-            super::Schema::Definition => INSTRUMENT_DEF,
-            super::Schema::Statistics => unimplemented!("Statistics is not yet supported"),
-            super::Schema::Status => STATUS,
-            super::Schema::Imbalance => IMBALANCE,
+            Schema::Mbo => MBO,
+            Schema::Mbp1 => MBP_1,
+            Schema::Mbp10 => MBP_10,
+            Schema::Tbbo => MBP_1,
+            Schema::Trades => MBP_0,
+            Schema::Ohlcv1S => OHLCV_1S,
+            Schema::Ohlcv1M => OHLCV_1M,
+            Schema::Ohlcv1H => OHLCV_1H,
+            Schema::Ohlcv1D => OHLCV_1D,
+            Schema::Definition => INSTRUMENT_DEF,
+            Schema::Statistics => unimplemented!("Statistics is not yet supported"),
+            Schema::Status => STATUS,
+            Schema::Imbalance => IMBALANCE,
+        }
+    }
+
+    /// Tries to convert the given rtype to a [`Schema`].
+    ///
+    /// Returns `None` if there's no corresponding `Schema` for the given rtype or
+    /// in the case of [`OHLCV_DEPRECATED`], it doesn't map to a single `Schema`.
+    pub fn try_into_schema(rtype: u8) -> Option<Schema> {
+        match rtype {
+            MBP_0 => Some(Schema::Trades),
+            MBP_1 => Some(Schema::Mbp1),
+            MBP_10 => Some(Schema::Mbp10),
+            OHLCV_1S => Some(Schema::Ohlcv1S),
+            OHLCV_1M => Some(Schema::Ohlcv1M),
+            OHLCV_1H => Some(Schema::Ohlcv1H),
+            OHLCV_1D => Some(Schema::Ohlcv1D),
+            STATUS => Some(Schema::Status),
+            INSTRUMENT_DEF => Some(Schema::Definition),
+            IMBALANCE => Some(Schema::Imbalance),
+            MBO => Some(Schema::Mbo),
+            _ => None,
         }
     }
 }

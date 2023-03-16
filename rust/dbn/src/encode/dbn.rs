@@ -111,6 +111,12 @@ impl<W> MetadataEncoder<W>
 where
     W: io::Write,
 {
+    /// The minimum size in bytes of encoded metadata.
+    pub const MIN_ENCODED_SIZE: usize = 128;
+    /// The offset of `start` in encoded metadata.
+    pub const START_OFFSET: usize =
+        (8 + crate::METADATA_DATASET_CSTR_LEN + mem::size_of::<Schema>());
+
     /// Creates a new [`MetadataEncoder`] that will write to `writer`.
     pub fn new(writer: W) -> Self {
         Self { writer }
@@ -271,9 +277,8 @@ where
         limit: Option<NonZeroU64>,
     ) -> anyhow::Result<()> {
         /// Byte position of the field `start`
-        const START_SEEK_FROM: SeekFrom = SeekFrom::Start(
-            (8 + crate::METADATA_DATASET_CSTR_LEN + mem::size_of::<Schema>()) as u64,
-        );
+        const START_SEEK_FROM: SeekFrom =
+            SeekFrom::Start(MetadataEncoder::<Vec<u8>>::START_OFFSET as u64);
 
         self.writer
             .seek(START_SEEK_FROM)
@@ -480,6 +485,24 @@ mod tests {
         let decoded = MetadataDecoder::new(buffer.as_slice()).decode().unwrap();
         assert!(decoded.end.is_none());
         assert!(decoded.limit.is_none());
+    }
+
+    #[test]
+    fn test_metadata_min_encoded_size() {
+        let metadata = MetadataBuilder::new()
+            .dataset("XNAS.ITCH".to_owned())
+            .schema(Schema::Mbo)
+            .start(1697240529000000000)
+            .stype_in(SType::Native)
+            .stype_out(SType::ProductId)
+            .build();
+        let calc_length = MetadataEncoder::<Vec<u8>>::calc_length(&metadata);
+        let mut buffer = Vec::new();
+        let mut encoder = MetadataEncoder::new(&mut buffer);
+        encoder.encode(&metadata).unwrap();
+        // plus 8 for prefix
+        assert_eq!(calc_length as usize + 8, buffer.len());
+        assert_eq!(MetadataEncoder::<Vec<u8>>::MIN_ENCODED_SIZE, buffer.len());
     }
 }
 
