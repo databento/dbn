@@ -4,6 +4,7 @@
 - Introduced separate rtypes for each OHLCV schema
 - Added support for encoding and decoding `ts_out`
 - Added `ts_out` to `Metadata`
+- Removed `ts_out` from `Metadata`
 - Changed serialization of `c_char` fields to strings instead of ints
 - Dropped required for slice passed to `RecordRef::new` to be mutable
 - Added error forwarding during `DbnDecoding`

@@ -4,7 +4,7 @@ use std::num::NonZeroU64;
 
 use serde::Serialize;
 
-use crate::enums::{rtype, SType, Schema};
+use crate::enums::{SType, Schema};
 
 // Dummy derive macro to get around `cfg_attr` incompatibility of several
 // of pyo3's attribute macros. See https://github.com/PyO3/pyo3/issues/780
@@ -36,9 +36,6 @@ pub struct Metadata {
     #[pyo3(get)]
     #[serde(serialize_with = "serialize_as_raw")]
     pub limit: Option<NonZeroU64>,
-    /// The total number of data records.
-    #[pyo3(get)]
-    pub record_count: Option<u64>,
     /// The input symbology type to map from.
     #[pyo3(get)]
     pub stype_in: SType,
@@ -81,7 +78,6 @@ pub struct MetadataBuilder<D, Sch, Start, StIn, StOut> {
     start: Start,
     end: Option<NonZeroU64>,
     limit: Option<NonZeroU64>,
-    record_count: Option<u64>,
     stype_in: StIn,
     stype_out: StOut,
     ts_out: bool,
@@ -89,20 +85,6 @@ pub struct MetadataBuilder<D, Sch, Start, StIn, StOut> {
     partial: Vec<String>,
     not_found: Vec<String>,
     mappings: Vec<SymbolMapping>,
-}
-
-impl Metadata {
-    /// Returns the billable size of the stream being decoded if known. Billable
-    /// size is the uncompressed size of all the records and excludes metadata.
-    pub fn billable_size(&self) -> Option<usize> {
-        match (
-            rtype::record_size(rtype::from(self.schema)),
-            self.record_count,
-        ) {
-            (Some(record_size), Some(record_count)) => Some(record_size * record_count as usize),
-            _ => None,
-        }
-    }
 }
 
 /// Sentinel type for a required field that has not yet been set.
@@ -125,7 +107,6 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
             start: self.start,
             end: self.end,
             limit: self.limit,
-            record_count: self.record_count,
             stype_in: self.stype_in,
             stype_out: self.stype_out,
             ts_out: self.ts_out,
@@ -145,7 +126,6 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
             start: self.start,
             end: self.end,
             limit: self.limit,
-            record_count: self.record_count,
             stype_in: self.stype_in,
             stype_out: self.stype_out,
             ts_out: self.ts_out,
@@ -165,7 +145,6 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
             start,
             end: self.end,
             limit: self.limit,
-            record_count: self.record_count,
             stype_in: self.stype_in,
             stype_out: self.stype_out,
             symbols: self.symbols,
@@ -188,12 +167,6 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
         self
     }
 
-    /// Sets the [`record_count`](Metadata::record_count) and returns the builder.
-    pub fn record_count(mut self, record_count: Option<u64>) -> Self {
-        self.record_count = record_count;
-        self
-    }
-
     /// Sets the [`stype_in`](Metadata::stype_in) and returns the builder.
     pub fn stype_in(self, stype_in: SType) -> MetadataBuilder<D, Sch, Start, SType, StOut> {
         MetadataBuilder {
@@ -203,7 +176,6 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
             start: self.start,
             end: self.end,
             limit: self.limit,
-            record_count: self.record_count,
             stype_in,
             stype_out: self.stype_out,
             ts_out: self.ts_out,
@@ -223,7 +195,6 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
             start: self.start,
             end: self.end,
             limit: self.limit,
-            record_count: self.record_count,
             stype_in: self.stype_in,
             stype_out,
             ts_out: self.ts_out,
@@ -276,7 +247,6 @@ impl MetadataBuilder<String, Schema, u64, SType, SType> {
             start: self.start,
             end: self.end,
             limit: self.limit,
-            record_count: self.record_count,
             stype_in: self.stype_in,
             stype_out: self.stype_out,
             ts_out: self.ts_out,
@@ -297,7 +267,6 @@ impl Default for MetadataBuilder<Unset, Unset, Unset, Unset, Unset> {
             start: Unset {},
             end: None,
             limit: None,
-            record_count: None,
             stype_in: Unset {},
             stype_out: Unset {},
             ts_out: false,
@@ -345,37 +314,4 @@ fn serialize_as_raw<S: serde::Serializer>(
     serializer: S,
 ) -> Result<S::Ok, S::Error> {
     serializer.serialize_u64(val.map(|n| n.get()).unwrap_or(0))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_billable_size() {
-        let target = MetadataBuilder::new()
-            .schema(Schema::Mbp10)
-            .dataset("XNAS.ITCH".to_owned())
-            .start(1674856533000000000)
-            .stype_in(SType::Native)
-            .stype_out(SType::ProductId)
-            .record_count(Some(100))
-            .build();
-        assert_eq!(
-            target.billable_size(),
-            Some(100 * rtype::record_size(rtype::MBP_10).unwrap())
-        );
-    }
-
-    #[test]
-    fn test_billable_size_none() {
-        let target = MetadataBuilder::new()
-            .schema(Schema::Mbp10)
-            .dataset("XNAS.ITCH".to_owned())
-            .start(1674856533000000000)
-            .stype_in(SType::Native)
-            .stype_out(SType::ProductId)
-            .build();
-        assert!(target.billable_size().is_none());
-    }
 }

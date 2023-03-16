@@ -8,17 +8,6 @@ use dbn::{
 use dbn_cli::{infer_encoding_and_compression, output_from_args, Args};
 
 fn write_dbn<R: io::BufRead>(decoder: DynDecoder<R>, args: &Args) -> anyhow::Result<()> {
-    if args.should_output_billable_size {
-        println!(
-            "{}",
-            decoder
-                .metadata()
-                .billable_size()
-                .map(|size| format!("{size}"))
-                .unwrap_or_else(|| "-".to_owned())
-        );
-        return Ok(());
-    }
     let writer = output_from_args(args)?;
     let (encoding, compression) = infer_encoding_and_compression(args)?;
     if args.should_output_metadata {

@@ -203,7 +203,7 @@ impl MetadataDecoder {
         pos += U64_SIZE;
         let limit = NonZeroU64::new(u64::from_le_slice(&metadata_buffer[pos..]));
         pos += U64_SIZE;
-        let record_count = u64::from_le_slice(&metadata_buffer[pos..]);
+        // skip over deprecated record_count
         pos += U64_SIZE;
         // Unused in new Metadata
         let _compression = Compression::try_from(metadata_buffer[pos])
@@ -250,7 +250,6 @@ impl MetadataDecoder {
             start,
             end: NonZeroU64::new(end),
             limit,
-            record_count: Some(record_count),
             ts_out: false,
             symbols,
             partial,
@@ -381,10 +380,9 @@ mod tests {
                     $schema.as_str()
                 ))
                 .unwrap();
-                let exp_row_count = target.metadata().record_count;
-                assert_eq!(target.metadata().schema, $schema);
-                let actual_row_count = target.decode_stream::<$record_type>().unwrap().count();
-                assert_eq!(exp_row_count.unwrap() as usize, actual_row_count);
+                let exp_rec_count = if $schema == Schema::Ohlcv1D { 0 } else { 2 };
+                let actual_rec_count = target.decode_stream::<$record_type>().unwrap().count();
+                assert_eq!(exp_rec_count, actual_rec_count);
             }
         };
     }

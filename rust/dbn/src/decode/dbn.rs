@@ -18,7 +18,6 @@ use crate::{
     record::{HasRType, RecordHeader},
     record_ref::RecordRef,
     MappingInterval, Metadata, SymbolMapping, DBN_VERSION, METADATA_FIXED_LEN, NULL_END,
-    NULL_RECORD_COUNT,
 };
 
 const DBN_PREFIX: &[u8] = b"DBN";
@@ -306,7 +305,7 @@ where
         pos += U64_SIZE;
         let limit = NonZeroU64::new(u64::from_le_slice(&buffer[pos..]));
         pos += U64_SIZE;
-        let record_count = u64::from_le_slice(&buffer[pos..]);
+        // skip deprecated record_count
         pos += U64_SIZE;
         let stype_in = SType::try_from(buffer[pos])
             .with_context(|| format!("Failed to read stype_in: '{}'", buffer[pos]))?;
@@ -346,11 +345,6 @@ where
                 NonZeroU64::new(end)
             },
             limit,
-            record_count: if record_count == NULL_RECORD_COUNT {
-                None
-            } else {
-                Some(record_count)
-            },
             ts_out,
             symbols,
             partial,

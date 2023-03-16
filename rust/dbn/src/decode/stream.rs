@@ -80,16 +80,4 @@ where
             None
         }
     }
-
-    /// Returns the lower bound and upper bounds of remaining length of iterator.
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        if let Some(record_count) = self.decoder.metadata().record_count {
-            let remaining = record_count as usize - self.i.unwrap_or(record_count as usize);
-            // assumes `record_count` is accurate. If it is not, the program won't crash but
-            // performance will be suboptimal
-            (remaining, Some(remaining))
-        } else {
-            (0, None)
-        }
-    }
 }

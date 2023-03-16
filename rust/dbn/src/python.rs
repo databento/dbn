@@ -63,14 +63,12 @@ pub fn encode_metadata(
     mappings: Vec<SymbolMapping>,
     end: Option<u64>,
     limit: Option<u64>,
-    record_count: Option<u64>,
 ) -> PyResult<Py<PyBytes>> {
     let metadata = MetadataBuilder::new()
         .dataset(dataset)
         .schema(schema)
         .start(start)
         .end(NonZeroU64::new(end.unwrap_or(0)))
-        .record_count(record_count)
         .limit(NonZeroU64::new(limit.unwrap_or(0)))
         .stype_in(stype_in)
         .stype_out(stype_out)
@@ -97,14 +95,12 @@ pub fn update_encoded_metadata(
     start: u64,
     end: Option<u64>,
     limit: Option<u64>,
-    record_count: Option<u64>,
 ) -> PyResult<()> {
     MetadataEncoder::new(file)
         .update_encoded(
             start,
             end.and_then(NonZeroU64::new),
             limit.and_then(NonZeroU64::new),
-            record_count,
         )
         .map_err(to_val_err)
 }
@@ -139,8 +135,7 @@ pub fn write_dbn_file(
         .dataset(dataset)
         .stype_in(stype_in)
         .stype_out(stype_out)
-        .start(start)
-        .record_count(Some(records.len() as u64));
+        .start(start);
     if let Some(end) = end {
         metadata_builder = metadata_builder.end(NonZeroU64::new(end))
     }
@@ -859,7 +854,6 @@ mod tests {
                 assert_eq!(metadata.dataset, DATASET);
                 assert_eq!(metadata.stype_in, STYPE);
                 assert_eq!(metadata.stype_out, STYPE);
-                assert_eq!(metadata.record_count.unwrap() as usize, rs_recs.len());
                 let decoder = dbn::Decoder::from_zstd_file(format!(
                     "{DBN_PATH}/test_data.{}.dbn.zst",
                     $schema.as_str()
@@ -876,7 +870,7 @@ mod tests {
                     assert_eq!(py_rec, exp_rec);
                     count += 1;
                 }
-                assert_eq!(count, metadata.record_count.unwrap());
+                assert_eq!(count, if $schema == Schema::Ohlcv1D { 0 } else { 2 });
             }
         };
     }

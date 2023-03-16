@@ -432,7 +432,6 @@ mod tests {
             start: 1662734705128748281,
             end: NonZeroU64::new(1662734720914876944),
             limit: None,
-            record_count: Some(3),
             stype_in: SType::ProductId,
             stype_out: SType::Native,
             ts_out: false,
@@ -454,7 +453,7 @@ mod tests {
         assert_eq!(
             res,
             "{\"version\":1,\"dataset\":\"GLBX.MDP3\",\"schema\":\"ohlcv-1h\",\"start\"\
-            :1662734705128748281,\"end\":1662734720914876944,\"limit\":0,\"record_count\":3,\
+            :1662734705128748281,\"end\":1662734720914876944,\"limit\":0,\
             \"stype_in\":\"product_id\",\"stype_out\":\"native\",\"ts_out\":false,\"symbols\"\
             :[\"ESZ2\"],\"partial\":[],\"not_found\":[],\"mappings\":[{\"native_symbol\":\"ESZ2\",\
             \"intervals\":[{\"start_date\":\"2022-09-09\",\"end_date\":\"2022-09-10\",\"symbol\":\

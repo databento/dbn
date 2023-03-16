@@ -176,14 +176,13 @@ assert len(records) == 3"#
                   stype_in stype_out,
                   r#"from databento_dbn import decode_metadata, encode_metadata
 
-metadata_bytes = encode_metadata("GLBX.MDP3", "mbo", 1, "native", "product_id", [], [], [], [], 2, None, 3)
+metadata_bytes = encode_metadata("GLBX.MDP3", "mbo", 1, "native", "product_id", [], [], [], [], 2, None)
 metadata = decode_metadata(metadata_bytes)
 assert metadata.dataset == "GLBX.MDP3"
 assert metadata.schema == "mbo"
 assert metadata.start == 1
 assert metadata.end == 2
 assert metadata.limit is None
-assert metadata.record_count == 3
 assert metadata.stype_in == "native"
 assert metadata.stype_out == "product_id"
 assert metadata.ts_out is False"#
@@ -220,7 +219,7 @@ except Exception:
             py.run(
                 r#"from databento_dbn import DbnDecoder, encode_metadata
 
-metadata_bytes = encode_metadata("GLBX.MDP3", "mbo", 1, "native", "product_id", [], [], [], [], 2, None, 3)
+metadata_bytes = encode_metadata("GLBX.MDP3", "mbo", 1, "native", "product_id", [], [], [], [], 2, None)
 decoder = DbnDecoder()
 decoder.write(metadata_bytes)
 decoder.write(bytes([0x04, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]))

@@ -75,11 +75,7 @@ pub trait DecodeDbn: private::BufferSlice {
     where
         Self: Sized,
     {
-        let mut res = if let Some(record_count) = self.metadata().record_count {
-            Vec::with_capacity(record_count as usize)
-        } else {
-            Vec::new()
-        };
+        let mut res = Vec::new();
         while let Some(rec) = self.decode_record::<T>()? {
             res.push(rec.clone());
         }
