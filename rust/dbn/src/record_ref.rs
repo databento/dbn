@@ -11,6 +11,12 @@ pub struct RecordRef<'a> {
     _marker: PhantomData<&'a RecordHeader>,
 }
 
+// Safety: RecordRef exhibits immutable reference semantics similar to &T.
+// It should be safe to both send it across threads or access it simultaneously
+// (since the data is immutable).
+unsafe impl Send for RecordRef<'_> {}
+unsafe impl Sync for RecordRef<'_> {}
+
 impl<'a> RecordRef<'a> {
     /// Constructs a new reference to the DBN record in `buffer`.
     ///

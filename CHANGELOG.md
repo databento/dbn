@@ -13,6 +13,7 @@
 - Renamed `dbn::RecordDecoder::decode_record_ref` to `decode_ref`
 - Stopped serializing `related` and `related_security_id` fields in `InstrumentDefMsg`
 - Exposed constructors for DBN records to Python
+- Made `RecordRef` implement Sync and Send
 
 ## 0.3.2 - 2023-03-01
 - Added records and `Metadata` as exports of `databento_dbn` Python package
