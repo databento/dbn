@@ -427,34 +427,51 @@ pub struct InstrumentDefMsg {
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 pub struct ImbalanceMsg {
     pub hd: RecordHeader,
+    /// The capture-server-received timestamp expressed as number of nanoseconds since the UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub ts_recv: u64,
+    /// The price at which the imbalance shares are calculated, where every 1 unit corresponds to
+    /// 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
     pub ref_price: i64,
+    /// Reserved for future use.
     #[serde(serialize_with = "serialize_large_u64")]
     pub auction_time: u64,
-    /// Continuous book clearing price.
+    /// The hypothetical auction-clearing price for both cross and continuous orders.
     pub cont_book_clr_price: i64,
-    /// Auction interest clearing price.
+    /// The hypothetical auction-clearing price for cross orders only.
     pub auct_interest_clr_price: i64,
-    // Short-selling restriction filling price.
+    /// Reserved for future use.
     pub ssr_filling_price: i64,
-    /// Indicative match price.
+    /// Reserved for future use.
     pub ind_match_price: i64,
+    /// Reserved for future use.
     pub upper_collar: i64,
+    /// Reserved for future use.
     pub lower_collar: i64,
+    /// The quantity of shares that are eligible to be matched at `ref_price`.
     pub paired_qty: u32,
+    /// The quantity of shares that are not paired at `ref_price`.
     pub total_imbalance_qty: u32,
+    /// Reserved for future use.
     pub market_imbalance_qty: u32,
+    /// Reserved for future use.
     pub unpaired_qty: u32,
+    /// Venue-specific character code indicating the auction type.
     #[serde(serialize_with = "serialize_c_char")]
     pub auction_type: c_char,
+    /// The market side of the `total_imbalance_qty`. Can be **A**sk, **B**id, or **N**one.
     #[serde(serialize_with = "serialize_c_char")]
     pub side: c_char,
+    /// Reserved for future use.
     pub auction_status: u8,
+    /// Reserved for future use.
     pub freeze_status: u8,
+    /// Reserved for future use.
     pub num_extensions: u8,
+    /// Reserved for future use.
     #[serde(serialize_with = "serialize_c_char")]
     pub unpaired_side: c_char,
+    /// Venue-specific character code. For Nasdaq, contains the raw Price Variation Indicator.
     #[serde(serialize_with = "serialize_c_char")]
     pub significant_imbalance: c_char,
     #[serde(skip)]
