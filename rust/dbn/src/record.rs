@@ -445,6 +445,7 @@ pub struct ImbalanceMsg {
     pub paired_qty: u32,
     pub total_imbalance_qty: u32,
     pub market_imbalance_qty: u32,
+    pub unpaired_qty: u32,
     #[serde(serialize_with = "serialize_c_char")]
     pub auction_type: c_char,
     #[serde(serialize_with = "serialize_c_char")]
@@ -452,13 +453,12 @@ pub struct ImbalanceMsg {
     pub auction_status: u8,
     pub freeze_status: u8,
     pub num_extensions: u8,
-    pub unpaired_qty: u8,
     #[serde(serialize_with = "serialize_c_char")]
     pub unpaired_side: c_char,
     #[serde(serialize_with = "serialize_c_char")]
     pub significant_imbalance: c_char,
     #[serde(skip)]
-    pub _dummy: [c_char; 4],
+    pub _dummy: [c_char; 1],
 }
 
 /// An error message from the Databento Live Subscription Gateway (LSG).
