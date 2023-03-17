@@ -4,16 +4,17 @@
 - Introduced separate rtypes for each OHLCV schema
 - Added support for encoding and decoding `ts_out`
 - Added `ts_out` to `Metadata`
-- Removed `ts_out` from `Metadata`
+- Removed `record_count` from `Metadata`
 - Changed serialization of `c_char` fields to strings instead of ints
-- Dropped required for slice passed to `RecordRef::new` to be mutable
-- Added error forwarding during `DbnDecoding`
+- Dropped requirement for slice passed to `RecordRef::new` to be mutable
+- Added error forwarding from `DecodeDbn` methods
 - Added `SystemMsg` record
 - Renamed `dbn::RecordDecoder::decode_record` to `decode`
 - Renamed `dbn::RecordDecoder::decode_record_ref` to `decode_ref`
+- Renamed `HasRType::size` to `record_size` to avoid confusion with order size fields
 - Stopped serializing `related` and `related_security_id` fields in `InstrumentDefMsg`
-- Exposed constructors for DBN records to Python
-- Made `RecordRef` implement Sync and Send
+- Exposed constructor and additional methods for DBN records to Python
+- Made `RecordRef` implement `Sync` and `Send`
 
 ## 0.3.2 - 2023-03-01
 - Added records and `Metadata` as exports of `databento_dbn` Python package

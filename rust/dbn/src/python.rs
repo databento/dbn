@@ -21,8 +21,8 @@ use crate::{
     enums::{rtype, Compression, SType, Schema, SecurityUpdateAction},
     metadata::MetadataBuilder,
     record::{
-        str_to_c_chars, BidAskPair, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
-        RecordHeader, TbboMsg, TradeMsg,
+        str_to_c_chars, BidAskPair, HasRType, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg,
+        OhlcvMsg, RecordHeader, TbboMsg, TradeMsg,
     },
 };
 use crate::{MappingInterval, Metadata, SymbolMapping};
@@ -436,6 +436,19 @@ impl MboMsg {
             sequence,
         }
     }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
+
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    #[pyo3(name = "record_size")]
+    fn py_record_size(&self) -> usize {
+        self.record_size()
+    }
 }
 
 #[pymethods]
@@ -457,6 +470,10 @@ impl BidAskPair {
             bid_ct: bid_ct.unwrap_or_default(),
             ask_ct: ask_ct.unwrap_or_default(),
         }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
     }
 }
 
@@ -491,6 +508,19 @@ impl TradeMsg {
             booklevel: [],
         }
     }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
+
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    #[pyo3(name = "record_size")]
+    fn py_record_size(&self) -> usize {
+        self.record_size()
+    }
 }
 
 #[pymethods]
@@ -524,6 +554,19 @@ impl Mbp1Msg {
             sequence,
             booklevel: [booklevel.unwrap_or_default()],
         }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
+
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    #[pyo3(name = "record_size")]
+    fn py_record_size(&self) -> usize {
+        self.record_size()
     }
 }
 
@@ -571,6 +614,19 @@ impl Mbp10Msg {
             booklevel,
         })
     }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
+
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    #[pyo3(name = "record_size")]
+    fn py_record_size(&self) -> usize {
+        self.record_size()
+    }
 }
 
 #[pymethods]
@@ -595,6 +651,19 @@ impl OhlcvMsg {
             close,
             volume,
         }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
+
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    #[pyo3(name = "record_size")]
+    fn py_record_size(&self) -> usize {
+        self.record_size()
     }
 }
 
@@ -735,6 +804,19 @@ impl InstrumentDefMsg {
             tick_rule: tick_rule.unwrap_or(u8::MAX),
             _dummy: Default::default(),
         })
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
+
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    #[pyo3(name = "record_size")]
+    fn py_record_size(&self) -> usize {
+        self.record_size()
     }
 }
 

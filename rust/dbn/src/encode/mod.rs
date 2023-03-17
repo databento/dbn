@@ -23,8 +23,8 @@ use crate::{
 use self::csv::serialize::CsvSerialize;
 
 /// Trait alias for [`HasRType`], `csv::serialize::CsvSerialize`, [`fmt::Debug`], and [`serde::Serialize`].
-pub trait DbnEncodable: HasRType + CsvSerialize + fmt::Debug + Serialize {}
-impl<T> DbnEncodable for T where T: HasRType + CsvSerialize + fmt::Debug + Serialize {}
+pub trait DbnEncodable: HasRType + AsRef<[u8]> + CsvSerialize + fmt::Debug + Serialize {}
+impl<T> DbnEncodable for T where T: HasRType + AsRef<[u8]> + CsvSerialize + fmt::Debug + Serialize {}
 
 /// Trait for types that encode DBN records.
 pub trait EncodeDbn {

@@ -3,7 +3,6 @@ use std::{
     io::{self, SeekFrom},
     mem,
     num::NonZeroU64,
-    slice,
 };
 
 use anyhow::{anyhow, Context};
@@ -67,11 +66,7 @@ where
     W: io::Write,
 {
     fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> anyhow::Result<bool> {
-        let bytes = unsafe {
-            // Safety: all records, types implementing `HasRType` are POD.
-            as_u8_slice(record)
-        };
-        match self.writer.write_all(bytes) {
+        match self.writer.write_all(record.as_ref()) {
             Ok(_) => Ok(false),
             Err(e) if e.kind() == io::ErrorKind::BrokenPipe => Ok(true),
             Err(e) => {
@@ -102,14 +97,6 @@ where
         self.writer.flush()?;
         Ok(())
     }
-}
-
-/// Aliases `data` as a slice of raw bytes.
-///
-/// # Safety
-/// `data` must be sized and plain old data (POD), i.e. no pointers.
-unsafe fn as_u8_slice<T: Sized>(data: &T) -> &[u8] {
-    slice::from_raw_parts(data as *const T as *const u8, mem::size_of::<T>())
 }
 
 /// Type for encoding [`Metadata`](crate::Metadata) into Databento Binary Encoding (DBN).
@@ -507,7 +494,6 @@ mod r#async {
     use async_compression::tokio::write::ZstdEncoder;
     use tokio::io;
 
-    use super::as_u8_slice;
     use crate::{
         record::HasRType, Metadata, SymbolMapping, DBN_VERSION, NULL_END, NULL_LIMIT,
         NULL_RECORD_COUNT,
@@ -534,15 +520,11 @@ mod r#async {
         /// Encode a single DBN record of type `R`.
         ///
         /// Returns `true`if the pipe was closed.
-        pub async fn encode<R: HasRType + fmt::Debug>(
+        pub async fn encode<R: AsRef<[u8]> + HasRType + fmt::Debug>(
             &mut self,
             record: &R,
         ) -> anyhow::Result<bool> {
-            let bytes = unsafe {
-                // Safety: all records, types implementing `HasRType` are POD.
-                as_u8_slice(record)
-            };
-            match self.writer.write_all(bytes).await {
+            match self.writer.write_all(record.as_ref()).await {
                 Ok(_) => Ok(false),
                 Err(e) if e.kind() == io::ErrorKind::BrokenPipe => Ok(true),
                 Err(e) => {

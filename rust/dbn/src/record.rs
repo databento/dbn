@@ -1,5 +1,5 @@
 //! Market data types for encoding different Databento [`Schema`](crate::enums::Schema)s and conversion functions.
-use std::{ffi::CStr, mem, os::raw::c_char, ptr::NonNull, str::Utf8Error};
+use std::{ffi::CStr, mem, os::raw::c_char, ptr::NonNull, slice, str::Utf8Error};
 
 use anyhow::anyhow;
 use serde::Serialize;
@@ -39,7 +39,7 @@ pub struct RecordHeader {
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(get_all, set_all, module = "databento_dbn")
+    pyo3::pyclass(get_all, set_all, module = "databento_dbn", name = "MBOMsg")
 )]
 pub struct MboMsg {
     /// The common header.
@@ -139,7 +139,7 @@ pub struct TradeMsg {
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(get_all, set_all, module = "databento_dbn")
+    pyo3::pyclass(get_all, set_all, module = "databento_dbn", name = "MBP1Msg")
 )]
 pub struct Mbp1Msg {
     /// The common header.
@@ -176,7 +176,7 @@ pub struct Mbp1Msg {
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(get_all, set_all, module = "databento_dbn")
+    pyo3::pyclass(get_all, set_all, module = "databento_dbn", name = "MBP10Msg")
 )]
 pub struct Mbp10Msg {
     /// The common header.
@@ -219,7 +219,7 @@ pub type TbboMsg = Mbp1Msg;
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(get_all, set_all, module = "databento_dbn")
+    pyo3::pyclass(get_all, set_all, module = "databento_dbn", name = "OHLCVMsg")
 )]
 pub struct OhlcvMsg {
     /// The common header.
@@ -558,7 +558,7 @@ pub trait HasRType {
     fn header_mut(&mut self) -> &mut RecordHeader;
 
     /// Returns the size of the record in bytes.
-    fn size(&self) -> usize {
+    fn record_size(&self) -> usize {
         self.header().record_size()
     }
 }
@@ -675,6 +675,15 @@ impl<T: HasRType> HasRType for WithTsOut<T> {
     }
 }
 
+impl<T> AsRef<[u8]> for WithTsOut<T>
+where
+    T: HasRType + AsRef<[u8]>,
+{
+    fn as_ref(&self) -> &[u8] {
+        unsafe { as_u8_slice(self) }
+    }
+}
+
 impl<T: HasRType> WithTsOut<T> {
     /// Creates a new record with `ts_out`. Updates the `length` property in
     /// [`RecordHeader`] to ensure the additional field is accounted for.
@@ -751,6 +760,14 @@ pub unsafe fn transmute_record<T: HasRType>(header: &RecordHeader) -> Option<&T>
     }
 }
 
+/// Aliases `data` as a slice of raw bytes.
+///
+/// # Safety
+/// `data` must be sized and plain old data (POD), i.e. no pointers.
+unsafe fn as_u8_slice<T: Sized>(data: &T) -> &[u8] {
+    slice::from_raw_parts(data as *const T as *const u8, mem::size_of::<T>())
+}
+
 /// Provides a _relatively safe_ method for converting a mut reference to a
 /// [`RecordHeader`] to a struct beginning with the header. Because it accepts a reference,
 /// the lifetime of the returned reference is tied to the input.
@@ -783,8 +800,12 @@ impl HasRType for MboMsg {
     }
 }
 
-/// [TradeMsg]'s type ID is the size of its `booklevel` array (0) and is
-/// equivalent to MBP-0.
+impl AsRef<[u8]> for MboMsg {
+    fn as_ref(&self) -> &[u8] {
+        unsafe { as_u8_slice(self) }
+    }
+}
+
 impl HasRType for TradeMsg {
     fn has_rtype(rtype: u8) -> bool {
         rtype == rtype::MBP_0
@@ -796,6 +817,12 @@ impl HasRType for TradeMsg {
 
     fn header_mut(&mut self) -> &mut RecordHeader {
         &mut self.hd
+    }
+}
+
+impl AsRef<[u8]> for TradeMsg {
+    fn as_ref(&self) -> &[u8] {
+        unsafe { as_u8_slice(self) }
     }
 }
 
@@ -814,6 +841,12 @@ impl HasRType for Mbp1Msg {
     }
 }
 
+impl AsRef<[u8]> for Mbp1Msg {
+    fn as_ref(&self) -> &[u8] {
+        unsafe { as_u8_slice(self) }
+    }
+}
+
 /// [Mbp10Msg]'s type ID is the size of its `booklevel` array.
 impl HasRType for Mbp10Msg {
     fn has_rtype(rtype: u8) -> bool {
@@ -826,6 +859,12 @@ impl HasRType for Mbp10Msg {
 
     fn header_mut(&mut self) -> &mut RecordHeader {
         &mut self.hd
+    }
+}
+
+impl AsRef<[u8]> for Mbp10Msg {
+    fn as_ref(&self) -> &[u8] {
+        unsafe { as_u8_slice(self) }
     }
 }
 
@@ -851,6 +890,12 @@ impl HasRType for OhlcvMsg {
     }
 }
 
+impl AsRef<[u8]> for OhlcvMsg {
+    fn as_ref(&self) -> &[u8] {
+        unsafe { as_u8_slice(self) }
+    }
+}
+
 impl HasRType for StatusMsg {
     fn has_rtype(rtype: u8) -> bool {
         rtype == rtype::STATUS
@@ -862,6 +907,12 @@ impl HasRType for StatusMsg {
 
     fn header_mut(&mut self) -> &mut RecordHeader {
         &mut self.hd
+    }
+}
+
+impl AsRef<[u8]> for StatusMsg {
+    fn as_ref(&self) -> &[u8] {
+        unsafe { as_u8_slice(self) }
     }
 }
 
@@ -879,6 +930,12 @@ impl HasRType for InstrumentDefMsg {
     }
 }
 
+impl AsRef<[u8]> for InstrumentDefMsg {
+    fn as_ref(&self) -> &[u8] {
+        unsafe { as_u8_slice(self) }
+    }
+}
+
 impl HasRType for ImbalanceMsg {
     fn has_rtype(rtype: u8) -> bool {
         rtype == rtype::IMBALANCE
@@ -890,6 +947,12 @@ impl HasRType for ImbalanceMsg {
 
     fn header_mut(&mut self) -> &mut RecordHeader {
         &mut self.hd
+    }
+}
+
+impl AsRef<[u8]> for ImbalanceMsg {
+    fn as_ref(&self) -> &[u8] {
+        unsafe { as_u8_slice(self) }
     }
 }
 
@@ -907,6 +970,12 @@ impl HasRType for ErrorMsg {
     }
 }
 
+impl AsRef<[u8]> for ErrorMsg {
+    fn as_ref(&self) -> &[u8] {
+        unsafe { as_u8_slice(self) }
+    }
+}
+
 impl HasRType for SymbolMappingMsg {
     fn has_rtype(rtype: u8) -> bool {
         rtype == rtype::SYMBOL_MAPPING
@@ -921,6 +990,12 @@ impl HasRType for SymbolMappingMsg {
     }
 }
 
+impl AsRef<[u8]> for SymbolMappingMsg {
+    fn as_ref(&self) -> &[u8] {
+        unsafe { as_u8_slice(self) }
+    }
+}
+
 impl HasRType for SystemMsg {
     fn has_rtype(rtype: u8) -> bool {
         rtype == rtype::SYSTEM
@@ -932,6 +1007,12 @@ impl HasRType for SystemMsg {
 
     fn header_mut(&mut self) -> &mut RecordHeader {
         &mut self.hd
+    }
+}
+
+impl AsRef<[u8]> for SystemMsg {
+    fn as_ref(&self) -> &[u8] {
+        unsafe { as_u8_slice(self) }
     }
 }
 
