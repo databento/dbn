@@ -1,6 +1,5 @@
 //! Enums used in Databento APIs.
 use std::fmt::{self, Display, Formatter};
-use std::os::raw::c_char;
 
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::Serialize;
@@ -9,29 +8,20 @@ use crate::error::ConversionError;
 
 /// A side of the market. The side of the market for resting orders, or the side
 /// of the aggressor for trades.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive)]
+#[repr(u8)]
 pub enum Side {
     /// A sell order.
-    Ask,
+    Ask = b'A',
     /// A buy order.
-    Bid,
+    Bid = b'B',
     /// None or unknown.
     None,
 }
 
 impl From<Side> for char {
     fn from(side: Side) -> Self {
-        match side {
-            Side::Ask => 'A',
-            Side::Bid => 'B',
-            Side::None => 'N',
-        }
-    }
-}
-
-impl From<Side> for c_char {
-    fn from(side: Side) -> Self {
-        char::from(side) as c_char
+        u8::from(side) as char
     }
 }
 
@@ -42,39 +32,54 @@ impl Serialize for Side {
 }
 
 /// A tick action.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive)]
+#[repr(u8)]
 pub enum Action {
     /// An existing order was modified.
-    Modify,
+    Modify = b'M',
     /// A trade executed.
-    Trade,
+    Trade = b'T',
     /// An order was cancelled.
-    Cancel,
+    Cancel = b'C',
     /// A new order was added.
-    Add,
+    Add = b'A',
     /// Reset the book; clear all orders for an instrument.
-    Clear,
+    Clear = b'R',
 }
 
 impl From<Action> for char {
     fn from(action: Action) -> Self {
-        match action {
-            Action::Modify => 'M',
-            Action::Trade => 'T',
-            Action::Cancel => 'C',
-            Action::Add => 'A',
-            Action::Clear => 'R',
-        }
-    }
-}
-
-impl From<Action> for c_char {
-    fn from(action: Action) -> Self {
-        char::from(action) as c_char
+        u8::from(action) as char
     }
 }
 
 impl serde::Serialize for Action {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_char(char::from(*self))
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive)]
+#[repr(u8)]
+pub enum InstrumentClass {
+    Bond = b'B',
+    Call = b'C',
+    Future = b'F',
+    Stock = b'K',
+    MixedSpread = b'M',
+    Put = b'P',
+    FutureSpread = b'S',
+    OptionSpread = b'T',
+    FxSpot = b'X',
+}
+
+impl From<InstrumentClass> for char {
+    fn from(class: InstrumentClass) -> Self {
+        u8::from(class) as char
+    }
+}
+
+impl serde::Serialize for InstrumentClass {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.serialize_char(char::from(*self))
     }
@@ -409,6 +414,22 @@ impl Display for Compression {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_str())
     }
+}
+
+/// Constants for the bit flag record fields.
+pub mod flags {
+    /// Indicates it's the last message in the packet from the venue for a given
+    /// `product_id`.
+    pub const LAST: u8 = 1 << 7;
+    /// Indicates the message was sourced from a replay, such as a snapshot server.
+    pub const SNAPSHOT: u8 = 1 << 5;
+    /// Indicates an aggregated price level message, not an individual order.
+    pub const MBP: u8 = 1 << 4;
+    /// Indicates the `ts_recv` value is inaccurate due to clock issues or packet
+    /// reordering.
+    pub const BAD_TS_RECV: u8 = 1 << 3;
+    /// Indicates an unrecoverable gap was detected in the channel.
+    pub const MAYBE_BAD_BOOK: u8 = 1 << 2;
 }
 
 #[repr(u8)]

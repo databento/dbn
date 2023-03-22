@@ -6,7 +6,10 @@ use std::{ffi::CStr, mem, os::raw::c_char, ptr::NonNull, slice, str::Utf8Error};
 use anyhow::anyhow;
 use serde::Serialize;
 
-use crate::enums::{rtype, SecurityUpdateAction};
+use crate::{
+    enums::{rtype, Action, SecurityUpdateAction, Side},
+    error::ConversionError,
+};
 
 /// Common data for all Databento records.
 #[repr(C)]
@@ -55,7 +58,8 @@ pub struct MboMsg {
     pub price: i64,
     /// The order quantity.
     pub size: u32,
-    /// A combination of packet end with matching engine status.
+    /// A combination of packet end with matching engine status. See
+    /// [`enums::flags`](crate::enums::flags) for possible values.
     pub flags: u8,
     /// A channel ID within the venue.
     pub channel_id: u8,
@@ -123,7 +127,8 @@ pub struct TradeMsg {
     /// The order side. Can be **A**sk, **B**id or **N**one.
     #[serde(serialize_with = "serialize_c_char")]
     pub side: c_char,
-    /// A combination of packet end with matching engine status.
+    /// A combination of packet end with matching engine status. See
+    /// [`enums::flags`](crate::enums::flags) for possible values.
     pub flags: u8,
     /// The depth of actual book change.
     pub depth: u8,
@@ -163,7 +168,8 @@ pub struct Mbp1Msg {
     /// The order side. Can be **A**sk, **B**id or **N**one.
     #[serde(serialize_with = "serialize_c_char")]
     pub side: c_char,
-    /// A combination of packet end with matching engine status.
+    /// A combination of packet end with matching engine status. See
+    /// [`enums::flags`](crate::enums::flags) for possible values.
     pub flags: u8,
     /// The depth of actual book change.
     pub depth: u8,
@@ -202,7 +208,8 @@ pub struct Mbp10Msg {
     /// The order side. Can be **A**sk, **B**id or **N**one.
     #[serde(serialize_with = "serialize_c_char")]
     pub side: c_char,
-    /// A combination of packet end with matching engine status.
+    /// A combination of packet end with matching engine status. See
+    /// [`enums::flags`](crate::enums::flags) for possible values.
     pub flags: u8,
     /// The depth of actual book change.
     pub depth: u8,
@@ -620,6 +627,65 @@ impl RecordHeader {
         self.length as usize * Self::LENGTH_MULTIPLIER
     }
 }
+
+impl MboMsg {
+    /// Tries to convert the raw `side` to an enum.
+    pub fn side(&self) -> crate::error::Result<Side> {
+        Side::try_from(self.side as u8).map_err(|_| ConversionError::TypeConversion("Invalid side"))
+    }
+
+    /// Tries to convert the raw `action` to an enum.
+    pub fn action(&self) -> crate::error::Result<Action> {
+        Action::try_from(self.side as u8)
+            .map_err(|_| ConversionError::TypeConversion("Invalid action"))
+    }
+}
+
+impl TradeMsg {
+    /// Tries to convert the raw `side` to an enum.
+    pub fn side(&self) -> crate::error::Result<Side> {
+        Side::try_from(self.side as u8).map_err(|_| ConversionError::TypeConversion("Invalid side"))
+    }
+
+    /// Tries to convert the raw `action` to an enum.
+    pub fn action(&self) -> crate::error::Result<Action> {
+        Action::try_from(self.side as u8)
+            .map_err(|_| ConversionError::TypeConversion("Invalid action"))
+    }
+}
+
+impl Mbp1Msg {
+    /// Tries to convert the raw `side` to an enum.
+    pub fn side(&self) -> crate::error::Result<Side> {
+        Side::try_from(self.side as u8).map_err(|_| ConversionError::TypeConversion("Invalid side"))
+    }
+
+    /// Tries to convert the raw `action` to an enum.
+    pub fn action(&self) -> crate::error::Result<Action> {
+        Action::try_from(self.side as u8)
+            .map_err(|_| ConversionError::TypeConversion("Invalid action"))
+    }
+}
+
+impl Mbp10Msg {
+    /// Tries to convert the raw `side` to an enum.
+    pub fn side(&self) -> crate::error::Result<Side> {
+        Side::try_from(self.side as u8).map_err(|_| ConversionError::TypeConversion("Invalid side"))
+    }
+
+    /// Tries to convert the raw `action` to an enum.
+    pub fn action(&self) -> crate::error::Result<Action> {
+        Action::try_from(self.side as u8)
+            .map_err(|_| ConversionError::TypeConversion("Invalid action"))
+    }
+}
+
+// impl InstrumentDefMsg {
+//     pub fn instrument_class(&self) -> crate::error::Result<InstrumentClass> {
+//         InstrumentClass::try_from(self.instrument_class as u8)
+//             .map_err(|_| ConversionError::TypeConversion("Invalid instrument_class"))
+//     }
+// }
 
 impl ErrorMsg {
     /// Creates a new `ErrorMsg`.
