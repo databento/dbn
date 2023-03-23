@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.0 - TBD
+## 0.4.0 - 2023-03-24
 - Added support for Imbalance schema
 - Updated `InstrumentDefMsg` to include options-related fields and `instrument_class`
 - Added support for encoding and decoding `ts_out`
@@ -16,7 +16,7 @@
 - Renamed `dbn::RecordDecoder::decode_record_ref` to `decode_ref`
 - Renamed `HasRType::size` to `record_size` to avoid confusion with order size fields
 - Stopped serializing `related` and `related_security_id` fields in `InstrumentDefMsg`
-- Exposed constructor and additional methods for DBN records to Python
+- Exposed constructor and additional methods for DBN records and `Metadata` to Python
 - Made `RecordRef` implement `Sync` and `Send`
 
 ## 0.3.2 - 2023-03-01
