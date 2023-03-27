@@ -874,7 +874,7 @@ pub unsafe fn transmute_record<T: HasRType>(header: &RecordHeader) -> Option<&T>
 ///
 /// # Safety
 /// `data` must be sized and plain old data (POD), i.e. no pointers.
-unsafe fn as_u8_slice<T: Sized>(data: &T) -> &[u8] {
+pub(crate) unsafe fn as_u8_slice<T: Sized>(data: &T) -> &[u8] {
     slice::from_raw_parts(data as *const T as *const u8, mem::size_of::<T>())
 }
 

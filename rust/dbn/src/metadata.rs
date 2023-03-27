@@ -5,6 +5,7 @@ use std::num::NonZeroU64;
 use serde::Serialize;
 
 use crate::enums::{SType, Schema};
+use crate::record::as_u8_slice;
 
 // Dummy derive macro to get around `cfg_attr` incompatibility of several
 // of pyo3's attribute macros. See https://github.com/PyO3/pyo3/issues/780
@@ -94,6 +95,12 @@ impl MetadataBuilder<Unset, Unset, Unset, Unset, Unset> {
     /// Creates a new instance of the builder.
     pub fn new() -> Self {
         Self::default()
+    }
+}
+
+impl AsRef<[u8]> for Metadata {
+    fn as_ref(&self) -> &[u8] {
+        unsafe { as_u8_slice(self) }
     }
 }
 

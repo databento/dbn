@@ -205,6 +205,10 @@ impl Metadata {
         format!("{self:?}")
     }
 
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
     #[getter]
     fn get_mappings(&self) -> HashMap<String, Vec<MappingInterval>> {
         let mut res = HashMap::new();
