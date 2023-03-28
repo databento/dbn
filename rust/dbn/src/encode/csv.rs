@@ -369,6 +369,9 @@ pub(crate) mod serialize {
                 "security_type",
                 "unit_of_measure",
                 "underlying",
+                "strike_price_currency",
+                "instrument_class",
+                "strike_price",
                 "match_algorithm",
                 "md_security_trading_status",
                 "main_fraction",
@@ -476,7 +479,7 @@ mod tests {
     use super::*;
     use crate::{
         encode::test_data::{VecStream, BID_ASK, RECORD_HEADER},
-        enums::SecurityUpdateAction,
+        enums::{InstrumentClass, SecurityUpdateAction},
         record::{
             str_to_c_chars, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
             StatusMsg, TradeMsg, WithTsOut,
@@ -683,7 +686,7 @@ mod tests {
             contract_multiplier: 0,
             decay_quantity: 0,
             original_contract_size: 0,
-            related_security_id: 0,
+            reserved1: Default::default(),
             trading_reference_date: 0,
             appl_id: 0,
             maturity_year: 0,
@@ -700,7 +703,11 @@ mod tests {
             security_type: [0; 7],
             unit_of_measure: [0; 31],
             underlying: [0; 21],
-            related: [0; 21],
+            strike_price_currency: Default::default(),
+            instrument_class: InstrumentClass::Future as u8 as c_char,
+            reserved2: Default::default(),
+            strike_price: 0,
+            reserved3: Default::default(),
             match_algorithm: 'F' as c_char,
             md_security_trading_status: 2,
             main_fraction: 4,
@@ -724,7 +731,7 @@ mod tests {
             .encode_stream(VecStream::new(data))
             .unwrap();
         let line = extract_2nd_line(buffer);
-        assert_eq!(line, format!("{HEADER_CSV},1658441891000000000,100,1000,1698450000000000000,1697350000000000000,1000000,-1000000,0,500000,5,5,10,10,256785,0,0,13,0,10000,1,1000,100,1,0,0,0,0,0,0,0,0,4,,USD,,,,,,,,,,F,2,4,8,9,23,10,A,8,9,11,N,0,5,0"));
+        assert_eq!(line, format!("{HEADER_CSV},1658441891000000000,100,1000,1698450000000000000,1697350000000000000,1000000,-1000000,0,500000,5,5,10,10,256785,0,0,13,0,10000,1,1000,100,1,0,0,0,0,0,0,0,0,4,,USD,,,,,,,,,,,F,0,F,2,4,8,9,23,10,A,8,9,11,N,0,5,0"));
     }
 
     #[test]

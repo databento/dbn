@@ -7,7 +7,7 @@ use anyhow::anyhow;
 use serde::Serialize;
 
 use crate::{
-    enums::{rtype, Action, SecurityUpdateAction, Side},
+    enums::{rtype, Action, InstrumentClass, SecurityUpdateAction, Side},
     error::ConversionError,
 };
 
@@ -357,7 +357,7 @@ pub struct InstrumentDefMsg {
     pub original_contract_size: i32,
     #[doc(hidden)]
     #[serde(skip)]
-    pub related_security_id: u32,
+    pub reserved1: [c_char; 4],
     /// The trading session date corresponding to the settlement price in
     /// `trading_reference_price`, in number of days since the UNIX epoch.
     pub trading_reference_date: u16,
@@ -402,9 +402,21 @@ pub struct InstrumentDefMsg {
     /// The symbol of the first underlying instrument.
     #[serde(serialize_with = "serialize_c_char_arr")]
     pub underlying: [c_char; 21],
+    /// The currency of [`strike_price`](Self::strike_price).
+    #[serde(serialize_with = "serialize_c_char_arr")]
+    pub strike_price_currency: [c_char; 4],
+    /// The classification of the instrument.
+    #[serde(serialize_with = "serialize_c_char")]
+    pub instrument_class: c_char,
     #[doc(hidden)]
     #[serde(skip)]
-    pub related: [c_char; 21],
+    pub reserved2: [c_char; 2],
+    /// The strike price of the option. Converted to units of 1e-9, i.e. 1/1,000,000,000
+    /// or 0.000000001.
+    pub strike_price: i64,
+    #[doc(hidden)]
+    #[serde(skip)]
+    pub reserved3: [c_char; 6],
     /// The matching algorithm used for the instrument, typically **F**IFO.
     #[serde(serialize_with = "serialize_c_char")]
     pub match_algorithm: c_char,
@@ -680,12 +692,12 @@ impl Mbp10Msg {
     }
 }
 
-// impl InstrumentDefMsg {
-//     pub fn instrument_class(&self) -> crate::error::Result<InstrumentClass> {
-//         InstrumentClass::try_from(self.instrument_class as u8)
-//             .map_err(|_| ConversionError::TypeConversion("Invalid instrument_class"))
-//     }
-// }
+impl InstrumentDefMsg {
+    pub fn instrument_class(&self) -> crate::error::Result<InstrumentClass> {
+        InstrumentClass::try_from(self.instrument_class as u8)
+            .map_err(|_| ConversionError::TypeConversion("Invalid instrument_class"))
+    }
+}
 
 impl ErrorMsg {
     /// Creates a new `ErrorMsg`.

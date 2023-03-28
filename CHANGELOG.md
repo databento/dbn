@@ -2,9 +2,11 @@
 
 ## 0.4.0 - TBD
 - Added support for Imbalance schema
-- Introduced separate rtypes for each OHLCV schema
+- Updated `InstrumentDefMsg` to include options-related fields and `instrument_class`
 - Added support for encoding and decoding `ts_out`
 - Added `ts_out` to `Metadata`
+- Improved enum API
+- Introduced separate rtypes for each OHLCV schema
 - Removed `record_count` from `Metadata`
 - Changed serialization of `c_char` fields to strings instead of ints
 - Dropped requirement for slice passed to `RecordRef::new` to be mutable

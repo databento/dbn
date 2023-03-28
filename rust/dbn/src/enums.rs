@@ -59,6 +59,7 @@ impl serde::Serialize for Action {
     }
 }
 
+/// The class of instrument.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive)]
 #[repr(u8)]
 pub enum InstrumentClass {
