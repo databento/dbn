@@ -11,6 +11,7 @@ pub mod dbn;
     )
 )]
 pub mod dbz;
+mod error_utils;
 mod stream;
 mod zstd;
 
@@ -37,12 +38,23 @@ pub trait DecodeDbn: private::BufferSlice {
     /// Returns a reference to the decoded [`Metadata`].
     fn metadata(&self) -> &Metadata;
 
-    /// Tries to decode a reference to a single record of type `T`. Returns `None` if
-    /// the input has been exhausted or the next record is not of type `T`.
-    fn decode_record<T: HasRType>(&mut self) -> Option<&T>;
+    /// Tries to decode a reference to a single record of type `T`. Returns
+    /// `Ok(None)` if the input has been exhausted.
+    ///
+    /// # Errors
+    /// This function returns an error if the underlying reader returns an
+    /// error of a kind other than `io::ErrorKind::UnexpectedEof` upon reading.
+    ///
+    /// If the next record is of a different type than `T`,
+    /// `io::ErrorKind::InvalidData` will be returned.
+    fn decode_record<T: HasRType>(&mut self) -> io::Result<Option<&T>>;
 
     /// Tries to decode a generic reference a record.
-    fn decode_record_ref(&mut self) -> Option<RecordRef>;
+    ///
+    /// # Errors
+    /// This function returns an error if the underlying reader returns an
+    /// error of a kind other than `io::ErrorKind::UnexpectedEof` upon reading.
+    fn decode_record_ref(&mut self) -> io::Result<Option<RecordRef>>;
 
     /// Tries to convert the decoder into a streaming iterator. This lazily decodes the
     /// data.
@@ -63,12 +75,8 @@ pub trait DecodeDbn: private::BufferSlice {
     where
         Self: Sized,
     {
-        let mut res = if let Some(record_count) = self.metadata().record_count {
-            Vec::with_capacity(record_count as usize)
-        } else {
-            Vec::new()
-        };
-        while let Some(rec) = self.decode_record::<T>() {
+        let mut res = Vec::new();
+        while let Some(rec) = self.decode_record::<T>()? {
             res.push(rec.clone());
         }
         Ok(res)
@@ -190,7 +198,7 @@ where
         }
     }
 
-    fn decode_record_ref(&mut self) -> Option<RecordRef> {
+    fn decode_record_ref(&mut self) -> io::Result<Option<RecordRef>> {
         match &mut self.0 {
             DynDecoderImpl::Dbn(decoder) => decoder.decode_record_ref(),
             DynDecoderImpl::ZstdDbn(decoder) => decoder.decode_record_ref(),
@@ -198,7 +206,7 @@ where
         }
     }
 
-    fn decode_record<T: HasRType>(&mut self) -> Option<&T> {
+    fn decode_record<T: HasRType>(&mut self) -> io::Result<Option<&T>> {
         match &mut self.0 {
             DynDecoderImpl::Dbn(decoder) => decoder.decode_record(),
             DynDecoderImpl::ZstdDbn(decoder) => decoder.decode_record(),

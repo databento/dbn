@@ -125,8 +125,11 @@ mod tests {
     use super::*;
     use crate::{
         encode::test_data::{VecStream, BID_ASK, RECORD_HEADER},
-        enums::{SType, Schema, SecurityUpdateAction},
-        record::{InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, TradeMsg},
+        enums::{InstrumentClass, SType, Schema, SecurityUpdateAction},
+        record::{
+            str_to_c_chars, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
+            StatusMsg, TradeMsg, WithTsOut,
+        },
         MappingInterval, SymbolMapping,
     };
 
@@ -168,7 +171,7 @@ mod tests {
     const BID_ASK_JSON: &str = r#"{"bid_px":372000000000000,"ask_px":372500000000000,"bid_sz":10,"ask_sz":5,"bid_ct":5,"ask_ct":2}"#;
 
     #[test]
-    fn test_tick_write_json() {
+    fn test_mbo_write_json() {
         let data = vec![MboMsg {
             hd: RECORD_HEADER,
             order_id: 16,
@@ -176,8 +179,8 @@ mod tests {
             size: 3,
             flags: 128,
             channel_id: 14,
-            action: 'B' as i8,
-            side: 67,
+            action: 'R' as c_char,
+            side: 'N' as c_char,
             ts_recv: 1658441891000000000,
             ts_in_delta: 22_000,
             sequence: 1_002_375,
@@ -190,19 +193,19 @@ mod tests {
             slice_res,
             format!(
                 "{{{HEADER_JSON},{}}}\n",
-                r#""order_id":16,"price":5500,"size":3,"flags":128,"channel_id":14,"action":66,"side":67,"ts_recv":"1658441891000000000","ts_in_delta":22000,"sequence":1002375"#
+                r#""order_id":"16","price":5500,"size":3,"flags":128,"channel_id":14,"action":"R","side":"N","ts_recv":"1658441891000000000","ts_in_delta":22000,"sequence":1002375"#
             )
         );
     }
 
     #[test]
-    fn test_mbo1_write_json() {
+    fn test_mbp1_write_json() {
         let data = vec![Mbp1Msg {
             hd: RECORD_HEADER,
             price: 5500,
             size: 3,
-            action: 'B' as i8,
-            side: 67,
+            action: 'B' as c_char,
+            side: 'B' as c_char,
             flags: 128,
             depth: 9,
             ts_recv: 1658441891000000000,
@@ -218,7 +221,7 @@ mod tests {
             slice_res,
             format!(
                 "{{{HEADER_JSON},{},{}}}\n",
-                r#""price":5500,"size":3,"action":66,"side":67,"flags":128,"depth":9,"ts_recv":"1658441891000000000","ts_in_delta":22000,"sequence":1002375"#,
+                r#""price":5500,"size":3,"action":"B","side":"B","flags":128,"depth":9,"ts_recv":"1658441891000000000","ts_in_delta":22000,"sequence":1002375"#,
                 format_args!("\"booklevel\":[{BID_ASK_JSON}]")
             )
         );
@@ -230,8 +233,8 @@ mod tests {
             hd: RECORD_HEADER,
             price: 5500,
             size: 3,
-            action: 'B' as i8,
-            side: 67,
+            action: 'T' as c_char,
+            side: 'N' as c_char,
             flags: 128,
             depth: 9,
             ts_recv: 1658441891000000000,
@@ -247,7 +250,7 @@ mod tests {
             slice_res,
             format!(
                 "{{{HEADER_JSON},{},{}}}\n",
-                r#""price":5500,"size":3,"action":66,"side":67,"flags":128,"depth":9,"ts_recv":"1658441891000000000","ts_in_delta":22000,"sequence":1002375"#,
+                r#""price":5500,"size":3,"action":"T","side":"N","flags":128,"depth":9,"ts_recv":"1658441891000000000","ts_in_delta":22000,"sequence":1002375"#,
                 format_args!("\"booklevel\":[{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON}]")
             )
         );
@@ -259,8 +262,8 @@ mod tests {
             hd: RECORD_HEADER,
             price: 5500,
             size: 3,
-            action: 'B' as i8,
-            side: 67,
+            action: 'C' as c_char,
+            side: 'B' as c_char,
             flags: 128,
             depth: 9,
             ts_recv: 1658441891000000000,
@@ -276,7 +279,7 @@ mod tests {
             slice_res,
             format!(
                 "{{{HEADER_JSON},{}}}\n",
-                r#""price":5500,"size":3,"action":66,"side":67,"flags":128,"depth":9,"ts_recv":"1658441891000000000","ts_in_delta":22000,"sequence":1002375"#,
+                r#""price":5500,"size":3,"action":"C","side":"B","flags":128,"depth":9,"ts_recv":"1658441891000000000","ts_in_delta":22000,"sequence":1002375"#,
             )
         );
     }
@@ -362,14 +365,14 @@ mod tests {
             contract_multiplier: 0,
             decay_quantity: 0,
             original_contract_size: 0,
-            related_security_id: 0,
+            reserved1: Default::default(),
             trading_reference_date: 0,
             appl_id: 0,
             maturity_year: 0,
             decay_start_date: 0,
             channel_id: 4,
             currency: [0; 4],
-            settl_currency: ['U' as c_char, 'S' as c_char, 'D' as c_char, 0],
+            settl_currency: str_to_c_chars("USD").unwrap(),
             secsubtype: [0; 6],
             symbol: [0; 22],
             group: [0; 21],
@@ -379,8 +382,12 @@ mod tests {
             security_type: [0; 7],
             unit_of_measure: [0; 31],
             underlying: [0; 21],
-            related: [0; 21],
-            match_algorithm: 1,
+            strike_price_currency: Default::default(),
+            instrument_class: InstrumentClass::Future as u8 as c_char,
+            reserved2: Default::default(),
+            strike_price: 0,
+            reserved3: Default::default(),
+            match_algorithm: 'F' as c_char,
             md_security_trading_status: 2,
             main_fraction: 4,
             price_display_format: 8,
@@ -391,7 +398,7 @@ mod tests {
             maturity_month: 8,
             maturity_day: 9,
             maturity_week: 11,
-            user_defined_instrument: 1,
+            user_defined_instrument: 'N' as c_char,
             contract_multiplier_unit: 0,
             flow_schedule_type: 5,
             tick_rule: 0,
@@ -410,11 +417,55 @@ mod tests {
                     r#""high_limit_price":1000000,"low_limit_price":-1000000,"max_price_variation":0,"trading_reference_price":500000,"unit_of_measure_qty":5,"#,
                     r#""min_price_increment_amount":5,"price_ratio":10,"inst_attrib_value":10,"underlying_id":256785,"cleared_volume":0,"market_depth_implied":0,"#,
                     r#""market_depth":13,"market_segment_id":0,"max_trade_vol":10000,"min_lot_size":1,"min_lot_size_block":1000,"min_lot_size_round_lot":100,"min_trade_vol":1,"#,
-                    r#""open_interest_qty":0,"contract_multiplier":0,"decay_quantity":0,"original_contract_size":0,"related_security_id":0,"trading_reference_date":0,"appl_id":0,"#,
+                    r#""open_interest_qty":0,"contract_multiplier":0,"decay_quantity":0,"original_contract_size":0,"trading_reference_date":0,"appl_id":0,"#,
                     r#""maturity_year":0,"decay_start_date":0,"channel_id":4,"currency":"","settl_currency":"USD","secsubtype":"","symbol":"","group":"","exchange":"","asset":"","cfi":"","#,
-                    r#""security_type":"","unit_of_measure":"","underlying":"","related":"","match_algorithm":1,"md_security_trading_status":2,"main_fraction":4,"price_display_format":8,"#,
+                    r#""security_type":"","unit_of_measure":"","underlying":"","strike_price_currency":"","instrument_class":"F","strike_price":0,"match_algorithm":"F","md_security_trading_status":2,"main_fraction":4,"price_display_format":8,"#,
                     r#""settl_price_type":9,"sub_fraction":23,"underlying_product":10,"security_update_action":"A","maturity_month":8,"maturity_day":9,"maturity_week":11,"#,
-                    r#""user_defined_instrument":1,"contract_multiplier_unit":0,"flow_schedule_type":5,"tick_rule":0"#
+                    r#""user_defined_instrument":"N","contract_multiplier_unit":0,"flow_schedule_type":5,"tick_rule":0"#
+                )
+            )
+        );
+    }
+
+    #[test]
+    fn test_imbalance_write_json() {
+        let data = vec![ImbalanceMsg {
+            hd: RECORD_HEADER,
+            ts_recv: 1,
+            ref_price: 2,
+            auction_time: 3,
+            cont_book_clr_price: 4,
+            auct_interest_clr_price: 5,
+            ssr_filling_price: 6,
+            ind_match_price: 7,
+            upper_collar: 8,
+            lower_collar: 9,
+            paired_qty: 10,
+            total_imbalance_qty: 11,
+            market_imbalance_qty: 12,
+            unpaired_qty: 13,
+            auction_type: 'B' as c_char,
+            side: 'A' as c_char,
+            auction_status: 14,
+            freeze_status: 15,
+            num_extensions: 16,
+            unpaired_side: 'A' as c_char,
+            significant_imbalance: 'N' as c_char,
+            _dummy: [0],
+        }];
+        let slice_res = write_json_to_string(data.as_slice(), false);
+        let stream_res = write_json_stream_to_string(data, false);
+
+        assert_eq!(slice_res, stream_res);
+        assert_eq!(
+            slice_res,
+            format!(
+                "{{{HEADER_JSON},{}}}\n",
+                concat!(
+                    r#""ts_recv":"1","ref_price":2,"auction_time":"3","cont_book_clr_price":4,"auct_interest_clr_price":5,"#,
+                    r#""ssr_filling_price":6,"ind_match_price":7,"upper_collar":8,"lower_collar":9,"paired_qty":10,"#,
+                    r#""total_imbalance_qty":11,"market_imbalance_qty":12,"unpaired_qty":13,"auction_type":"B","side":"A","#,
+                    r#""auction_status":14,"freeze_status":15,"num_extensions":16,"unpaired_side":"A","significant_imbalance":"N""#,
                 )
             )
         );
@@ -429,9 +480,9 @@ mod tests {
             start: 1662734705128748281,
             end: NonZeroU64::new(1662734720914876944),
             limit: None,
-            record_count: Some(3),
             stype_in: SType::ProductId,
             stype_out: SType::Native,
+            ts_out: false,
             symbols: vec!["ESZ2".to_owned()],
             partial: Vec::new(),
             not_found: Vec::new(),
@@ -450,11 +501,34 @@ mod tests {
         assert_eq!(
             res,
             "{\"version\":1,\"dataset\":\"GLBX.MDP3\",\"schema\":\"ohlcv-1h\",\"start\"\
-            :1662734705128748281,\"end\":1662734720914876944,\"limit\":0,\"record_count\":3,\
-            \"stype_in\":\"product_id\",\"stype_out\":\"native\",\"symbols\"\
+            :1662734705128748281,\"end\":1662734720914876944,\"limit\":0,\
+            \"stype_in\":\"product_id\",\"stype_out\":\"native\",\"ts_out\":false,\"symbols\"\
             :[\"ESZ2\"],\"partial\":[],\"not_found\":[],\"mappings\":[{\"native_symbol\":\"ESZ2\",\
             \"intervals\":[{\"start_date\":\"2022-09-09\",\"end_date\":\"2022-09-10\",\"symbol\":\
             \"ESH2\"}]}]}\n"
+        );
+    }
+
+    #[test]
+    fn test_encode_with_ts_out() {
+        let records = vec![WithTsOut {
+            rec: OhlcvMsg {
+                hd: RECORD_HEADER,
+                open: 5000,
+                high: 8000,
+                low: 3000,
+                close: 6000,
+                volume: 55_000,
+            },
+            ts_out: 1678481869000000000,
+        }];
+        let res = write_json_to_string(records.as_slice(), false);
+        assert_eq!(
+            res,
+            format!(
+                "{{{HEADER_JSON},{}}}\n",
+                r#""open":5000,"high":8000,"low":3000,"close":6000,"volume":55000,"ts_out":"1678481869000000000""#,
+            )
         );
     }
 }

@@ -13,15 +13,18 @@ use streaming_iterator::StreamingIterator;
 use crate::{
     decode::DecodeDbn,
     enums::{Compression, Encoding, Schema},
-    record::{HasRType, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, TbboMsg, TradeMsg},
+    record::{
+        HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, TbboMsg,
+        TradeMsg, WithTsOut,
+    },
     Metadata,
 };
 
 use self::csv::serialize::CsvSerialize;
 
 /// Trait alias for [`HasRType`], `csv::serialize::CsvSerialize`, [`fmt::Debug`], and [`serde::Serialize`].
-pub trait DbnEncodable: HasRType + CsvSerialize + fmt::Debug + Serialize {}
-impl<T> DbnEncodable for T where T: HasRType + CsvSerialize + fmt::Debug + Serialize {}
+pub trait DbnEncodable: HasRType + AsRef<[u8]> + CsvSerialize + fmt::Debug + Serialize {}
+impl<T> DbnEncodable for T where T: HasRType + AsRef<[u8]> + CsvSerialize + fmt::Debug + Serialize {}
 
 /// Trait for types that encode DBN records.
 pub trait EncodeDbn {
@@ -39,17 +42,46 @@ pub trait EncodeDbn {
 
     /// Encode DBN records directly from a DBN decoder.
     fn encode_decoded<D: DecodeDbn>(&mut self, decoder: D) -> anyhow::Result<()> {
-        match decoder.metadata().schema {
-            Schema::Mbo => self.encode_stream(decoder.decode_stream::<MboMsg>()?),
-            Schema::Mbp1 => self.encode_stream(decoder.decode_stream::<Mbp1Msg>()?),
-            Schema::Mbp10 => self.encode_stream(decoder.decode_stream::<Mbp10Msg>()?),
-            Schema::Tbbo => self.encode_stream(decoder.decode_stream::<TbboMsg>()?),
-            Schema::Trades => self.encode_stream(decoder.decode_stream::<TradeMsg>()?),
-            Schema::Ohlcv1S | Schema::Ohlcv1M | Schema::Ohlcv1H | Schema::Ohlcv1D => {
+        match (decoder.metadata().schema, decoder.metadata().ts_out) {
+            (Schema::Mbo, true) => {
+                self.encode_stream(decoder.decode_stream::<WithTsOut<MboMsg>>()?)
+            }
+            (Schema::Mbo, false) => self.encode_stream(decoder.decode_stream::<MboMsg>()?),
+            (Schema::Mbp1, true) => {
+                self.encode_stream(decoder.decode_stream::<WithTsOut<Mbp1Msg>>()?)
+            }
+            (Schema::Mbp1, false) => self.encode_stream(decoder.decode_stream::<Mbp1Msg>()?),
+            (Schema::Mbp10, true) => {
+                self.encode_stream(decoder.decode_stream::<WithTsOut<Mbp10Msg>>()?)
+            }
+            (Schema::Mbp10, false) => self.encode_stream(decoder.decode_stream::<Mbp10Msg>()?),
+            (Schema::Tbbo, true) => {
+                self.encode_stream(decoder.decode_stream::<WithTsOut<TbboMsg>>()?)
+            }
+            (Schema::Tbbo, false) => self.encode_stream(decoder.decode_stream::<TbboMsg>()?),
+            (Schema::Trades, true) => {
+                self.encode_stream(decoder.decode_stream::<WithTsOut<TradeMsg>>()?)
+            }
+            (Schema::Trades, false) => self.encode_stream(decoder.decode_stream::<TradeMsg>()?),
+            (Schema::Ohlcv1S | Schema::Ohlcv1M | Schema::Ohlcv1H | Schema::Ohlcv1D, true) => {
+                self.encode_stream(decoder.decode_stream::<WithTsOut<OhlcvMsg>>()?)
+            }
+            (Schema::Ohlcv1S | Schema::Ohlcv1M | Schema::Ohlcv1H | Schema::Ohlcv1D, false) => {
                 self.encode_stream(decoder.decode_stream::<OhlcvMsg>()?)
             }
-            Schema::Definition => self.encode_stream(decoder.decode_stream::<InstrumentDefMsg>()?),
-            Schema::Statistics | Schema::Status => Err(anyhow!("Not implemented")),
+            (Schema::Definition, true) => {
+                self.encode_stream(decoder.decode_stream::<WithTsOut<InstrumentDefMsg>>()?)
+            }
+            (Schema::Definition, false) => {
+                self.encode_stream(decoder.decode_stream::<InstrumentDefMsg>()?)
+            }
+            (Schema::Imbalance, true) => {
+                self.encode_stream(decoder.decode_stream::<WithTsOut<ImbalanceMsg>>()?)
+            }
+            (Schema::Imbalance, false) => {
+                self.encode_stream(decoder.decode_stream::<ImbalanceMsg>()?)
+            }
+            (Schema::Statistics | Schema::Status, _) => Err(anyhow!("Not implemented")),
         }
     }
 }
@@ -344,7 +376,7 @@ mod r#async {
             mut self: Pin<&mut Self>,
             cx: &mut Context<'_>,
             buf: &[u8],
-        ) -> Poll<Result<usize, io::Error>> {
+        ) -> Poll<io::Result<usize>> {
             match &mut self.0 {
                 DynWriterImpl::Uncompressed(w) => io::AsyncWrite::poll_write(Pin::new(w), cx, buf),
                 DynWriterImpl::ZStd(enc) => io::AsyncWrite::poll_write(Pin::new(enc), cx, buf),

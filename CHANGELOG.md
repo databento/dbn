@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.4.0 - 2023-03-24
+- Added support for Imbalance schema
+- Updated `InstrumentDefMsg` to include options-related fields and `instrument_class`
+- Added support for encoding and decoding `ts_out`
+- Added `ts_out` to `Metadata`
+- Improved enum API
+- Introduced separate rtypes for each OHLCV schema
+- Removed `record_count` from `Metadata`
+- Changed serialization of `c_char` fields to strings instead of ints
+- Dropped requirement for slice passed to `RecordRef::new` to be mutable
+- Added error forwarding from `DecodeDbn` methods
+- Added `SystemMsg` record
+- Renamed `dbn::RecordDecoder::decode_record` to `decode`
+- Renamed `dbn::RecordDecoder::decode_record_ref` to `decode_ref`
+- Renamed `HasRType::size` to `record_size` to avoid confusion with order size fields
+- Stopped serializing `related` and `related_security_id` fields in `InstrumentDefMsg`
+- Exposed constructor and additional methods for DBN records and `Metadata` to Python
+- Made `RecordRef` implement `Sync` and `Send`
+
 ## 0.3.2 - 2023-03-01
 - Added records and `Metadata` as exports of `databento_dbn` Python package
 - Improved how `Metadata` appears in Python and added `__repr__`

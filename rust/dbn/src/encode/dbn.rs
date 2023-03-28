@@ -3,7 +3,6 @@ use std::{
     io::{self, SeekFrom},
     mem,
     num::NonZeroU64,
-    slice,
 };
 
 use anyhow::{anyhow, Context};
@@ -67,11 +66,7 @@ where
     W: io::Write,
 {
     fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> anyhow::Result<bool> {
-        let bytes = unsafe {
-            // Safety: all records, types implementing `HasRType` are POD.
-            as_u8_slice(record)
-        };
-        match self.writer.write_all(bytes) {
+        match self.writer.write_all(record.as_ref()) {
             Ok(_) => Ok(false),
             Err(e) if e.kind() == io::ErrorKind::BrokenPipe => Ok(true),
             Err(e) => {
@@ -104,14 +99,6 @@ where
     }
 }
 
-/// Aliases `data` as a slice of raw bytes.
-///
-/// # Safety
-/// `data` must be sized and plain old data (POD), i.e. no pointers.
-unsafe fn as_u8_slice<T: Sized>(data: &T) -> &[u8] {
-    slice::from_raw_parts(data as *const T as *const u8, mem::size_of::<T>())
-}
-
 /// Type for encoding [`Metadata`](crate::Metadata) into Databento Binary Encoding (DBN).
 pub struct MetadataEncoder<W>
 where
@@ -124,6 +111,12 @@ impl<W> MetadataEncoder<W>
 where
     W: io::Write,
 {
+    /// The minimum size in bytes of encoded metadata.
+    pub const MIN_ENCODED_SIZE: usize = 128;
+    /// The offset of `start` in encoded metadata.
+    pub const START_OFFSET: usize =
+        (8 + crate::METADATA_DATASET_CSTR_LEN + mem::size_of::<Schema>());
+
     /// Creates a new [`MetadataEncoder`] that will write to `writer`.
     pub fn new(writer: W) -> Self {
         Self { writer }
@@ -139,15 +132,12 @@ where
         self.encode_fixed_len_cstr::<{ crate::METADATA_DATASET_CSTR_LEN }>(&metadata.dataset)?;
         self.writer
             .write_all((metadata.schema as u16).to_le_bytes().as_slice())?;
-        self.encode_range_and_counts(
-            metadata.start,
-            metadata.end,
-            metadata.limit,
-            metadata.record_count,
-        )?;
-        // self.writer.write_all(&[metadata.compression as u8])?;
-        self.writer.write_all(&[metadata.stype_in as u8])?;
-        self.writer.write_all(&[metadata.stype_out as u8])?;
+        self.encode_range_and_counts(metadata.start, metadata.end, metadata.limit)?;
+        self.writer.write_all(&[
+            metadata.stype_in as u8,
+            metadata.stype_out as u8,
+            metadata.ts_out as u8,
+        ])?;
         // padding
         self.writer.write_all(&[0; crate::METADATA_RESERVED_LEN])?;
         // schema_definition_length
@@ -190,7 +180,6 @@ where
         start: u64,
         end: Option<NonZeroU64>,
         limit: Option<NonZeroU64>,
-        record_count: Option<u64>,
     ) -> anyhow::Result<()> {
         self.writer.write_all(start.to_le_bytes().as_slice())?;
         self.writer.write_all(
@@ -206,12 +195,9 @@ where
                 .to_le_bytes()
                 .as_slice(),
         )?;
-        self.writer.write_all(
-            record_count
-                .unwrap_or(NULL_RECORD_COUNT)
-                .to_le_bytes()
-                .as_slice(),
-        )?;
+        // backwards compatibility for record_count
+        self.writer
+            .write_all(NULL_RECORD_COUNT.to_le_bytes().as_slice())?;
         Ok(())
     }
 
@@ -289,17 +275,15 @@ where
         start: u64,
         end: Option<NonZeroU64>,
         limit: Option<NonZeroU64>,
-        record_count: Option<u64>,
     ) -> anyhow::Result<()> {
         /// Byte position of the field `start`
-        const START_SEEK_FROM: SeekFrom = SeekFrom::Start(
-            (8 + crate::METADATA_DATASET_CSTR_LEN + mem::size_of::<Schema>()) as u64,
-        );
+        const START_SEEK_FROM: SeekFrom =
+            SeekFrom::Start(MetadataEncoder::<Vec<u8>>::START_OFFSET as u64);
 
         self.writer
             .seek(START_SEEK_FROM)
             .with_context(|| "Failed to seek to write position".to_owned())?;
-        self.encode_range_and_counts(start, end, limit, record_count)?;
+        self.encode_range_and_counts(start, end, limit)?;
         self.writer
             .seek(SeekFrom::End(0))
             .with_context(|| "Failed to seek back to end".to_owned())?;
@@ -334,7 +318,7 @@ mod tests {
             start: 1657230820000000000,
             end: NonZeroU64::new(1658960170000000000),
             limit: None,
-            record_count: Some(14),
+            ts_out: true,
             symbols: vec!["ES".to_owned(), "NG".to_owned()],
             partial: vec!["ESM2".to_owned()],
             not_found: vec!["QQQQQ".to_owned()],
@@ -451,7 +435,7 @@ mod tests {
             start: 1657230820000000000,
             end: NonZeroU64::new(1658960170000000000),
             limit: None,
-            record_count: Some(1_450_000),
+            ts_out: true,
             symbols: vec![],
             partial: vec![],
             not_found: vec![],
@@ -472,9 +456,8 @@ mod tests {
         let new_start = 1697240529000000000;
         let new_end = NonZeroU64::new(17058980170000000000);
         let new_limit = NonZeroU64::new(10);
-        let new_record_count = Some(100_678);
         MetadataEncoder::new(&mut cursor)
-            .update_encoded(new_start, new_end, new_limit, new_record_count)
+            .update_encoded(new_start, new_end, new_limit)
             .unwrap();
         assert_eq!(before_pos, cursor.position());
         let res = MetadataDecoder::new(&mut buffer.as_slice())
@@ -484,7 +467,6 @@ mod tests {
         assert_eq!(res.start, new_start);
         assert_eq!(res.end, new_end);
         assert_eq!(res.limit, new_limit);
-        assert_eq!(res.record_count, new_record_count);
     }
 
     #[test]
@@ -498,13 +480,29 @@ mod tests {
             .build();
         assert!(metadata.end.is_none());
         assert!(metadata.limit.is_none());
-        assert!(metadata.record_count.is_none());
         let mut buffer = Vec::new();
         MetadataEncoder::new(&mut buffer).encode(&metadata).unwrap();
         let decoded = MetadataDecoder::new(buffer.as_slice()).decode().unwrap();
         assert!(decoded.end.is_none());
         assert!(decoded.limit.is_none());
-        assert!(decoded.record_count.is_none());
+    }
+
+    #[test]
+    fn test_metadata_min_encoded_size() {
+        let metadata = MetadataBuilder::new()
+            .dataset("XNAS.ITCH".to_owned())
+            .schema(Schema::Mbo)
+            .start(1697240529000000000)
+            .stype_in(SType::Native)
+            .stype_out(SType::ProductId)
+            .build();
+        let calc_length = MetadataEncoder::<Vec<u8>>::calc_length(&metadata);
+        let mut buffer = Vec::new();
+        let mut encoder = MetadataEncoder::new(&mut buffer);
+        encoder.encode(&metadata).unwrap();
+        // plus 8 for prefix
+        assert_eq!(calc_length as usize + 8, buffer.len());
+        assert_eq!(MetadataEncoder::<Vec<u8>>::MIN_ENCODED_SIZE, buffer.len());
     }
 }
 
@@ -513,15 +511,14 @@ pub use r#async::{MetadataEncoder as AsyncMetadataEncoder, RecordEncoder as Asyn
 
 #[cfg(feature = "async")]
 mod r#async {
-    use std::num::NonZeroU64;
+    use std::{fmt, num::NonZeroU64};
 
     use anyhow::{anyhow, Context};
     use async_compression::tokio::write::ZstdEncoder;
     use tokio::io;
 
-    use super::as_u8_slice;
     use crate::{
-        encode::DbnEncodable, Metadata, SymbolMapping, DBN_VERSION, NULL_END, NULL_LIMIT,
+        record::HasRType, Metadata, SymbolMapping, DBN_VERSION, NULL_END, NULL_LIMIT,
         NULL_RECORD_COUNT,
     };
 
@@ -546,12 +543,11 @@ mod r#async {
         /// Encode a single DBN record of type `R`.
         ///
         /// Returns `true`if the pipe was closed.
-        pub async fn encode<R: DbnEncodable>(&mut self, record: &R) -> anyhow::Result<bool> {
-            let bytes = unsafe {
-                // Safety: all records, types implementing `HasRType` are POD.
-                as_u8_slice(record)
-            };
-            match self.writer.write_all(bytes).await {
+        pub async fn encode<R: AsRef<[u8]> + HasRType + fmt::Debug>(
+            &mut self,
+            record: &R,
+        ) -> anyhow::Result<bool> {
+            match self.writer.write_all(record.as_ref()).await {
                 Ok(_) => Ok(false),
                 Err(e) if e.kind() == io::ErrorKind::BrokenPipe => Ok(true),
                 Err(e) => {
@@ -606,16 +602,12 @@ mod r#async {
             self.encode_fixed_len_cstr::<{ crate::METADATA_DATASET_CSTR_LEN }>(&metadata.dataset)
                 .await?;
             self.writer.write_u16_le(metadata.schema as u16).await?;
-            self.encode_range_and_counts(
-                metadata.start,
-                metadata.end,
-                metadata.limit,
-                metadata.record_count,
-            )
-            .await?;
+            self.encode_range_and_counts(metadata.start, metadata.end, metadata.limit)
+                .await?;
             // self.writer.write_all(&[metadata.compression as u8])?;
             self.writer.write_u8(metadata.stype_in as u8).await?;
             self.writer.write_u8(metadata.stype_out as u8).await?;
+            self.writer.write_u8(metadata.ts_out as u8).await?;
             // padding
             self.writer
                 .write_all(&[0; crate::METADATA_RESERVED_LEN])
@@ -652,7 +644,6 @@ mod r#async {
             start: u64,
             end: Option<NonZeroU64>,
             limit: Option<NonZeroU64>,
-            record_count: Option<u64>,
         ) -> anyhow::Result<()> {
             self.writer.write_u64_le(start).await?;
             self.writer
@@ -661,9 +652,8 @@ mod r#async {
             self.writer
                 .write_u64_le(limit.map(|l| l.get()).unwrap_or(NULL_LIMIT))
                 .await?;
-            self.writer
-                .write_u64_le(record_count.unwrap_or(NULL_RECORD_COUNT))
-                .await?;
+            // Backwards compatibility with removed metadata field `record_count`
+            self.writer.write_u64_le(NULL_RECORD_COUNT).await?;
             Ok(())
         }
 
@@ -777,7 +767,7 @@ mod r#async {
                 start: 1657230820000000000,
                 end: NonZeroU64::new(1658960170000000000),
                 limit: None,
-                record_count: Some(14),
+                ts_out: true,
                 symbols: vec!["ES".to_owned(), "NG".to_owned()],
                 partial: vec!["ESM2".to_owned()],
                 not_found: vec!["QQQQQ".to_owned()],
@@ -908,7 +898,6 @@ mod r#async {
                 .build();
             assert!(metadata.end.is_none());
             assert!(metadata.limit.is_none());
-            assert!(metadata.record_count.is_none());
             let mut buffer = Vec::new();
             MetadataEncoder::new(&mut buffer)
                 .encode(&metadata)
@@ -917,7 +906,6 @@ mod r#async {
             let decoded = MetadataDecoder::new(buffer.as_slice()).decode().unwrap();
             assert!(decoded.end.is_none());
             assert!(decoded.limit.is_none());
-            assert!(decoded.record_count.is_none());
         }
     }
 }

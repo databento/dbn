@@ -82,19 +82,6 @@ pub struct Args {
     )]
     pub should_output_metadata: bool,
     #[clap(
-        short = 'b',
-        long = "billable-size",
-        action = ArgAction::SetTrue,
-        default_value = "false",
-        conflicts_with = "should-output-metadata",
-        conflicts_with = "csv",
-        conflicts_with = "dbn",
-        conflicts_with = "json",
-        conflicts_with = "output",
-        help = "Output the billable size of the DBN file, i.e. uncompressed file size excluding metadata"
-    )]
-    pub should_output_billable_size: bool,
-    #[clap(
          short = 'p',
          long = "pretty-json",
          action = ArgAction::SetTrue,

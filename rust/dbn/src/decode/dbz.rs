@@ -12,12 +12,15 @@ use anyhow::{anyhow, Context};
 use crate::{
     decode::{dbn::decode_iso8601, FromLittleEndianSlice},
     enums::{Compression, SType, Schema},
-    record::{transmute_record_bytes, HasRType},
+    record::{transmute_record_bytes, HasRType, RecordHeader},
     record_ref::RecordRef,
     MappingInterval, Metadata, SymbolMapping,
 };
 
-use super::{private::BufferSlice, zstd::ZSTD_SKIPPABLE_MAGIC_RANGE, DecodeDbn, StreamIterDecoder};
+use super::{
+    error_utils::silence_eof_error, private::BufferSlice, zstd::ZSTD_SKIPPABLE_MAGIC_RANGE,
+    DecodeDbn, StreamIterDecoder,
+};
 
 /// Object for reading, parsing, and serializing a legacy Databento Binary Encoding (DBZ) file.
 pub struct Decoder<R: io::BufRead> {
@@ -82,30 +85,37 @@ impl<R: io::BufRead> DecodeDbn for Decoder<R> {
         &self.metadata
     }
 
-    fn decode_record<T: HasRType>(&mut self) -> Option<&T> {
+    fn decode_record<T: HasRType>(&mut self) -> io::Result<Option<&T>> {
         self.buffer.resize(mem::size_of::<T>(), 0);
-        if self.reader.read_exact(&mut self.buffer).is_ok() {
-            // Safety: `buffer` if specifically sized for `T` and
-            // `transmute_record_bytes` verifies the `rtype` is correct.
-            unsafe { transmute_record_bytes(self.buffer.as_slice()) }
-        } else {
-            None
+        if let Err(err) = self.reader.read_exact(&mut self.buffer) {
+            return silence_eof_error(err);
+        }
+        // Safety: `buffer` if specifically sized for `T` and
+        // `transmute_record_bytes` verifies the `rtype` is correct.
+        unsafe {
+            match transmute_record_bytes(self.buffer.as_slice()) {
+                Some(ret) => Ok(Some(ret)),
+                None => Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "Invalid data to represent record",
+                )),
+            }
         }
     }
 
-    fn decode_record_ref(&mut self) -> Option<RecordRef> {
-        if self.reader.read_exact(&mut self.buffer[..1]).is_err() {
-            return None;
+    fn decode_record_ref(&mut self) -> io::Result<Option<RecordRef>> {
+        if let Err(err) = self.reader.read_exact(&mut self.buffer[..1]) {
+            return silence_eof_error(err);
         }
-        let length = self.buffer[0] as usize * 4;
+        let length = self.buffer[0] as usize * RecordHeader::LENGTH_MULTIPLIER;
         if length > self.buffer.len() {
             self.buffer.resize(length, 0);
         }
-        if self.reader.read_exact(&mut self.buffer[1..length]).is_err() {
-            return None;
+        if let Err(err) = self.reader.read_exact(&mut self.buffer[1..length]) {
+            return silence_eof_error(err);
         }
         // Safety: `buffer` is resized to contain at least `length` bytes.
-        Some(unsafe { RecordRef::new(self.buffer.as_mut_slice()) })
+        Ok(Some(unsafe { RecordRef::new(self.buffer.as_mut_slice()) }))
     }
 
     /// Try to decode the DBZ file into a streaming iterator. This decodes the
@@ -193,7 +203,7 @@ impl MetadataDecoder {
         pos += U64_SIZE;
         let limit = NonZeroU64::new(u64::from_le_slice(&metadata_buffer[pos..]));
         pos += U64_SIZE;
-        let record_count = u64::from_le_slice(&metadata_buffer[pos..]);
+        // skip over deprecated record_count
         pos += U64_SIZE;
         // Unused in new Metadata
         let _compression = Compression::try_from(metadata_buffer[pos])
@@ -240,8 +250,7 @@ impl MetadataDecoder {
             start,
             end: NonZeroU64::new(end),
             limit,
-            // compression,
-            record_count: Some(record_count),
+            ts_out: false,
             symbols,
             partial,
             not_found,
@@ -371,10 +380,9 @@ mod tests {
                     $schema.as_str()
                 ))
                 .unwrap();
-                let exp_row_count = target.metadata().record_count;
-                assert_eq!(target.metadata().schema, $schema);
-                let actual_row_count = target.decode_stream::<$record_type>().unwrap().count();
-                assert_eq!(exp_row_count.unwrap() as usize, actual_row_count);
+                let exp_rec_count = if $schema == Schema::Ohlcv1D { 0 } else { 2 };
+                let actual_rec_count = target.decode_stream::<$record_type>().unwrap().count();
+                assert_eq!(exp_rec_count, actual_rec_count);
             }
         };
     }

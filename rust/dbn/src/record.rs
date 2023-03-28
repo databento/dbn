@@ -1,10 +1,15 @@
-//! Market data types for encoding different Databento [`Schema`](crate::enums::Schema)s and conversion functions.
-use crate::enums::rtype;
-use std::{mem, os::raw::c_char, ptr::NonNull};
+//! Market data types for encoding different Databento [`Schema`](crate::enums::Schema)s
+//! and conversion functions.
 
+use std::{ffi::CStr, mem, os::raw::c_char, ptr::NonNull, slice, str::Utf8Error};
+
+use anyhow::anyhow;
 use serde::Serialize;
 
-use crate::enums::SecurityUpdateAction;
+use crate::{
+    enums::{rtype, Action, InstrumentClass, SecurityUpdateAction, Side},
+    error::ConversionError,
+};
 
 /// Common data for all Databento records.
 #[repr(C)]
@@ -15,19 +20,20 @@ use crate::enums::SecurityUpdateAction;
     pyo3::pyclass(get_all, set_all, module = "databento_dbn")
 )]
 pub struct RecordHeader {
-    /// The length of the message in 32-bit words.
+    /// The length of the record in 32-bit words.
     #[serde(skip)]
     pub(crate) length: u8,
-    /// The record type; with `0x00..0x0F` specifying MBP booklevel size.
-    /// Record types implement the trait [`HasRType`], and the [`has_rtype`][HasRType::has_rtype]
-    /// function can be used to check if that type can be used to decode a message with a given rtype.
-    /// The set of possible values is defined in [`rtype`].
+    /// The record type; with `0xe0..0x0F` specifying MBP booklevel size. Record types
+    /// implement the trait [`HasRType`], and the [`has_rtype`][HasRType::has_rtype]
+    /// function can be used to check if that type can be used to decode a message with
+    /// a given rtype. The set of possible values is defined in [`rtype`].
     pub rtype: u8,
     /// The publisher ID assigned by Databento.
     pub publisher_id: u16,
-    /// The product ID assigned by the venue.
+    /// The numeric product ID assigned to the instrument.
     pub product_id: u32,
-    /// The matching-engine-received timestamp expressed as number of nanoseconds since UNIX epoch.
+    /// The matching-engine-received timestamp expressed as number of nanoseconds since
+    /// the UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub ts_event: u64,
 }
@@ -39,28 +45,33 @@ pub struct RecordHeader {
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(get_all, set_all, module = "databento_dbn")
+    pyo3::pyclass(get_all, set_all, module = "databento_dbn", name = "MBOMsg")
 )]
 pub struct MboMsg {
     /// The common header.
     pub hd: RecordHeader,
     /// The order ID assigned at the venue.
+    #[serde(serialize_with = "serialize_large_u64")]
     pub order_id: u64,
     /// The order price expressed as a signed integer where every 1 unit
     /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
     pub price: i64,
     /// The order quantity.
     pub size: u32,
-    /// A combination of packet end with matching engine status.
+    /// A combination of packet end with matching engine status. See
+    /// [`enums::flags`](crate::enums::flags) for possible values.
     pub flags: u8,
     /// A channel ID within the venue.
     pub channel_id: u8,
-    /// The event action. Can be M\[odify\], T\[rade\], C\[ancel\], A\[dd\]
-    /// or special: \[S\]tatus, \[U\]pdate.
+    /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or
+    /// **T**rade.
+    #[serde(serialize_with = "serialize_c_char")]
     pub action: c_char,
-    /// The order side. Can be A\[sk\], B\[id\] or N\[one\].
+    /// The order side. Can be **A**sk, **B**id or **N**one.
+    #[serde(serialize_with = "serialize_c_char")]
     pub side: c_char,
-    /// The capture-server-received timestamp expressed as number of nanoseconds since UNIX epoch.
+    /// The capture-server-received timestamp expressed as number of nanoseconds since
+    /// the UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
@@ -71,7 +82,7 @@ pub struct MboMsg {
 
 /// A book level.
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Default, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
@@ -109,16 +120,20 @@ pub struct TradeMsg {
     pub price: i64,
     /// The order quantity.
     pub size: u32,
-    /// The event action. Can be M\[odify\], T\[rade\], C\[ancel\], A\[dd\]
-    /// or special: \[S\]tatus, \[U\]pdate.
+    /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or
+    /// **T**rade.
+    #[serde(serialize_with = "serialize_c_char")]
     pub action: c_char,
-    /// The order side. Can be A\[sk\], B\[id\] or N\[one\].
+    /// The order side. Can be **A**sk, **B**id or **N**one.
+    #[serde(serialize_with = "serialize_c_char")]
     pub side: c_char,
-    /// A combination of packet end with matching engine status.
+    /// A combination of packet end with matching engine status. See
+    /// [`enums::flags`](crate::enums::flags) for possible values.
     pub flags: u8,
     /// The depth of actual book change.
     pub depth: u8,
-    /// The capture-server-received timestamp expressed as number of nanoseconds since UNIX epoch.
+    /// The capture-server-received timestamp expressed as number of nanoseconds since
+    /// the UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
@@ -136,7 +151,7 @@ pub struct TradeMsg {
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(get_all, set_all, module = "databento_dbn")
+    pyo3::pyclass(get_all, set_all, module = "databento_dbn", name = "MBP1Msg")
 )]
 pub struct Mbp1Msg {
     /// The common header.
@@ -146,16 +161,20 @@ pub struct Mbp1Msg {
     pub price: i64,
     /// The order quantity.
     pub size: u32,
-    /// The event action. Can be M\[odify\], T\[rade\], C\[ancel\], A\[dd\]
-    /// or special: \[S\]tatus, \[U\]pdate.
+    /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or
+    /// **T**rade.
+    #[serde(serialize_with = "serialize_c_char")]
     pub action: c_char,
-    /// The order side. Can be A\[sk\], B\[id\] or N\[one\].
+    /// The order side. Can be **A**sk, **B**id or **N**one.
+    #[serde(serialize_with = "serialize_c_char")]
     pub side: c_char,
-    /// A combination of packet end with matching engine status.
+    /// A combination of packet end with matching engine status. See
+    /// [`enums::flags`](crate::enums::flags) for possible values.
     pub flags: u8,
     /// The depth of actual book change.
     pub depth: u8,
-    /// The capture-server-received timestamp expressed as number of nanoseconds since UNIX epoch.
+    /// The capture-server-received timestamp expressed as number of nanoseconds since
+    /// the UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
@@ -172,7 +191,7 @@ pub struct Mbp1Msg {
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(get_all, set_all, module = "databento_dbn")
+    pyo3::pyclass(get_all, set_all, module = "databento_dbn", name = "MBP10Msg")
 )]
 pub struct Mbp10Msg {
     /// The common header.
@@ -182,16 +201,20 @@ pub struct Mbp10Msg {
     pub price: i64,
     /// The order quantity.
     pub size: u32,
-    /// The event action. Can be M\[odify\], T\[rade\], C\[ancel\], A\[dd\]
-    /// or special: \[S\]tatus, \[U\]pdate.
+    /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or
+    /// **T**rade.
+    #[serde(serialize_with = "serialize_c_char")]
     pub action: c_char,
-    /// The order side. Can be A\[sk\], B\[id\] or N\[one\].
+    /// The order side. Can be **A**sk, **B**id or **N**one.
+    #[serde(serialize_with = "serialize_c_char")]
     pub side: c_char,
-    /// A combination of packet end with matching engine status.
+    /// A combination of packet end with matching engine status. See
+    /// [`enums::flags`](crate::enums::flags) for possible values.
     pub flags: u8,
     /// The depth of actual book change.
     pub depth: u8,
-    /// The capture-server-received timestamp expressed as number of nanoseconds since UNIX epoch.
+    /// The capture-server-received timestamp expressed as number of nanoseconds since
+    /// the UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
@@ -214,7 +237,7 @@ pub type TbboMsg = Mbp1Msg;
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(get_all, set_all, module = "databento_dbn")
+    pyo3::pyclass(get_all, set_all, module = "databento_dbn", name = "OHLCVMsg")
 )]
 pub struct OhlcvMsg {
     /// The common header.
@@ -240,7 +263,8 @@ pub struct OhlcvMsg {
 pub struct StatusMsg {
     /// The common header.
     pub hd: RecordHeader,
-    /// The capture-server-received timestamp expressed as number of nanoseconds since UNIX epoch.
+    /// The capture-server-received timestamp expressed as number of nanoseconds since
+    /// the UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub ts_recv: u64,
     #[serde(serialize_with = "serialize_c_char_arr")]
@@ -262,7 +286,7 @@ pub struct StatusMsg {
 pub struct InstrumentDefMsg {
     /// The common header.
     pub hd: RecordHeader,
-    /// The capture-server-received timestamp expressed as number of nanoseconds since
+    /// The capture-server-received timestamp expressed as number of nanoseconds since the
     /// UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub ts_recv: u64,
@@ -271,10 +295,12 @@ pub struct InstrumentDefMsg {
     pub min_price_increment: i64,
     /// The multiplier to convert the venue’s display price to the conventional price.
     pub display_factor: i64,
-    /// The time of instrument activation expressed as a number of nanoseconds since UNIX epoch.
+    /// The time of instrument activation expressed as a number of nanoseconds since the
+    /// UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub expiration: u64,
-    /// The last eligible trade time expressed as a number of nanoseconds since UNIX epoch.
+    /// The last eligible trade time expressed as a number of nanoseconds since the
+    /// UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub activation: u64,
     /// The allowable high limit price for the trading day in units of 1e-9, i.e.
@@ -287,7 +313,7 @@ pub struct InstrumentDefMsg {
     /// or 0.000000001.
     pub max_price_variation: i64,
     /// The trading session date corresponding to the settlement price in
-    /// `trading_reference_price,` in number of days since the UNIX epoch.
+    /// `trading_reference_price`, in number of days since the UNIX epoch.
     pub trading_reference_price: i64,
     /// The contract size for each instrument, in combination with `unit_of_measure`.
     pub unit_of_measure_qty: i64,
@@ -315,8 +341,8 @@ pub struct InstrumentDefMsg {
     pub min_lot_size: i32,
     /// The minimum quantity required for a block trade of the instrument.
     pub min_lot_size_block: i32,
-    /// The minimum quantity required for a round lot of the instrument. Multiples of this quantity
-    /// are also round lots.
+    /// The minimum quantity required for a round lot of the instrument. Multiples of
+    /// this quantity are also round lots.
     pub min_lot_size_round_lot: i32,
     /// The minimum trading volume for the instrument.
     pub min_trade_vol: u32,
@@ -324,12 +350,14 @@ pub struct InstrumentDefMsg {
     pub open_interest_qty: i32,
     /// The number of deliverables per instrument, i.e. peak days.
     pub contract_multiplier: i32,
-    /// The quantity that a contract will decay daily, after `decay_start_date` has been reached.
+    /// The quantity that a contract will decay daily, after `decay_start_date` has
+    /// been reached.
     pub decay_quantity: i32,
     /// The fixed contract value assigned to each instrument.
     pub original_contract_size: i32,
     #[doc(hidden)]
-    pub related_security_id: u32,
+    #[serde(skip)]
+    pub reserved1: [c_char; 4],
     /// The trading session date corresponding to the settlement price in
     /// `trading_reference_price`, in number of days since the UNIX epoch.
     pub trading_reference_date: u16,
@@ -374,10 +402,23 @@ pub struct InstrumentDefMsg {
     /// The symbol of the first underlying instrument.
     #[serde(serialize_with = "serialize_c_char_arr")]
     pub underlying: [c_char; 21],
-    #[doc(hidden)]
+    /// The currency of [`strike_price`](Self::strike_price).
     #[serde(serialize_with = "serialize_c_char_arr")]
-    pub related: [c_char; 21],
+    pub strike_price_currency: [c_char; 4],
+    /// The classification of the instrument.
+    #[serde(serialize_with = "serialize_c_char")]
+    pub instrument_class: c_char,
+    #[doc(hidden)]
+    #[serde(skip)]
+    pub reserved2: [c_char; 2],
+    /// The strike price of the option. Converted to units of 1e-9, i.e. 1/1,000,000,000
+    /// or 0.000000001.
+    pub strike_price: i64,
+    #[doc(hidden)]
+    #[serde(skip)]
+    pub reserved3: [c_char; 6],
     /// The matching algorithm used for the instrument, typically **F**IFO.
+    #[serde(serialize_with = "serialize_c_char")]
     pub match_algorithm: c_char,
     /// The current trading state of the instrument.
     pub md_security_trading_status: u8,
@@ -400,6 +441,7 @@ pub struct InstrumentDefMsg {
     /// The calendar week reflected in the instrument symbol, or 0.
     pub maturity_week: u8,
     /// Indicates if the instrument is user defined: **Y**es or **N**o.
+    #[serde(serialize_with = "serialize_c_char")]
     pub user_defined_instrument: c_char,
     /// The type of `contract_multiplier`. Either `1` for hours, or `2` for days.
     pub contract_multiplier_unit: i8,
@@ -407,50 +449,78 @@ pub struct InstrumentDefMsg {
     pub flow_schedule_type: i8,
     /// The tick rule of the spread.
     pub tick_rule: u8,
-    /// Adjust filler for alignment.
+    // Filler for alignment.
     #[serde(skip)]
+    #[doc(hidden)]
     pub _dummy: [c_char; 3],
 }
 
-/// Order imbalance message.
-#[doc(hidden)]
+/// An auction imbalance message.
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(get_all, set_all, module = "databento_dbn")
+)]
 pub struct ImbalanceMsg {
+    /// The common header.
     pub hd: RecordHeader,
+    /// The capture-server-received timestamp expressed as the number of nanoseconds
+    /// since the UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub ts_recv: u64,
+    /// The price at which the imbalance shares are calculated, where every 1 unit corresponds to
+    /// 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
     pub ref_price: i64,
+    /// Reserved for future use.
     #[serde(serialize_with = "serialize_large_u64")]
     pub auction_time: u64,
-    /// Continuous book clearing price.
+    /// The hypothetical auction-clearing price for both cross and continuous orders.
     pub cont_book_clr_price: i64,
-    /// Auction interest clearing price.
+    /// The hypothetical auction-clearing price for cross orders only.
     pub auct_interest_clr_price: i64,
-    // Short-selling restriction filling price.
+    /// Reserved for future use.
     pub ssr_filling_price: i64,
-    /// Indicative match price.
+    /// Reserved for future use.
     pub ind_match_price: i64,
+    /// Reserved for future use.
     pub upper_collar: i64,
+    /// Reserved for future use.
     pub lower_collar: i64,
+    /// The quantity of shares that are eligible to be matched at `ref_price`.
     pub paired_qty: u32,
+    /// The quantity of shares that are not paired at `ref_price`.
     pub total_imbalance_qty: u32,
+    /// Reserved for future use.
     pub market_imbalance_qty: u32,
+    /// Reserved for future use.
+    pub unpaired_qty: u32,
+    /// Venue-specific character code indicating the auction type.
+    #[serde(serialize_with = "serialize_c_char")]
     pub auction_type: c_char,
+    /// The market side of the `total_imbalance_qty`. Can be **A**sk, **B**id, or **N**one.
+    #[serde(serialize_with = "serialize_c_char")]
     pub side: c_char,
+    /// Reserved for future use.
     pub auction_status: u8,
+    /// Reserved for future use.
     pub freeze_status: u8,
+    /// Reserved for future use.
     pub num_extensions: u8,
-    pub unpaired_qty: u8,
+    /// Reserved for future use.
+    #[serde(serialize_with = "serialize_c_char")]
     pub unpaired_side: c_char,
+    /// Venue-specific character code. For Nasdaq, contains the raw Price Variation Indicator.
+    #[serde(serialize_with = "serialize_c_char")]
     pub significant_imbalance: c_char,
+    // Filler for alignment.
     #[serde(skip)]
-    pub _dummy: [c_char; 4],
+    #[doc(hidden)]
+    pub _dummy: [c_char; 1],
 }
 
-/// An error message from the Databento Live Subscription Gateway (LSG). This will never
-/// be present in historical data.
+/// An error message from the Databento Live Subscription Gateway (LSG).
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
@@ -459,7 +529,9 @@ pub struct ImbalanceMsg {
     pyo3::pyclass(get_all, set_all, module = "databento_dbn")
 )]
 pub struct ErrorMsg {
+    /// The common header.
     pub hd: RecordHeader,
+    /// The error message.
     #[serde(serialize_with = "serialize_c_char_arr")]
     pub err: [c_char; 64],
 }
@@ -473,24 +545,48 @@ pub struct ErrorMsg {
     pyo3::pyclass(get_all, set_all, module = "databento_dbn")
 )]
 pub struct SymbolMappingMsg {
+    /// The common header.
     pub hd: RecordHeader,
+    /// The input symbol.
     #[serde(serialize_with = "serialize_c_char_arr")]
     pub stype_in_symbol: [c_char; 22],
+    /// The output symbol.
     #[serde(serialize_with = "serialize_c_char_arr")]
     pub stype_out_symbol: [c_char; 22],
+    // Filler for alignment.
+    #[doc(hidden)]
     #[serde(skip)]
     pub _dummy: [c_char; 4],
     pub start_ts: u64,
     pub end_ts: u64,
 }
 
+/// A non-error message from the Databento Live Subscription Gateway (LSG). Also used
+/// for heartbeating.
+#[repr(C)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(get_all, set_all, module = "databento_dbn")
+)]
+pub struct SystemMsg {
+    /// The common header.
+    pub hd: RecordHeader,
+    /// The message from the Databento Live Subscription Gateway (LSG).
+    #[serde(serialize_with = "serialize_c_char_arr")]
+    pub msg: [c_char; 64],
+}
+
 fn serialize_c_char_arr<S: serde::Serializer, const N: usize>(
     arr: &[c_char; N],
     serializer: S,
 ) -> Result<S::Ok, S::Error> {
-    let cstr = unsafe { std::ffi::CStr::from_ptr(&arr[0]) };
-    let str = cstr.to_str().unwrap_or("<invalid UTF-8>");
-    serializer.serialize_str(str)
+    serializer.serialize_str(c_chars_to_str(arr).unwrap_or("<invalid UTF-8>"))
+}
+
+fn serialize_c_char<S: serde::Serializer>(cc: &c_char, serializer: S) -> Result<S::Ok, S::Error> {
+    serializer.serialize_char(*cc as u8 as char)
 }
 
 /// Serialize as a string to avoid any loss of precision with JSON serializers and parsers.
@@ -504,11 +600,16 @@ pub trait HasRType {
     /// Returns `true` if `rtype` matches the value associated with the implementing type.
     fn has_rtype(rtype: u8) -> bool;
 
-    /// Returns the `RecordHeader` that comes at the beginning of all record types.
+    /// Returns a reference to the `RecordHeader` that comes at the beginning of all
+    /// record types.
     fn header(&self) -> &RecordHeader;
 
+    /// Returns a mutable reference to the `RecordHeader` that comes at the beginning of
+    /// all record types.
+    fn header_mut(&mut self) -> &mut RecordHeader;
+
     /// Returns the size of the record in bytes.
-    fn size(&self) -> usize {
+    fn record_size(&self) -> usize {
         self.header().record_size()
     }
 }
@@ -539,6 +640,65 @@ impl RecordHeader {
     }
 }
 
+impl MboMsg {
+    /// Tries to convert the raw `side` to an enum.
+    pub fn side(&self) -> crate::error::Result<Side> {
+        Side::try_from(self.side as u8).map_err(|_| ConversionError::TypeConversion("Invalid side"))
+    }
+
+    /// Tries to convert the raw `action` to an enum.
+    pub fn action(&self) -> crate::error::Result<Action> {
+        Action::try_from(self.side as u8)
+            .map_err(|_| ConversionError::TypeConversion("Invalid action"))
+    }
+}
+
+impl TradeMsg {
+    /// Tries to convert the raw `side` to an enum.
+    pub fn side(&self) -> crate::error::Result<Side> {
+        Side::try_from(self.side as u8).map_err(|_| ConversionError::TypeConversion("Invalid side"))
+    }
+
+    /// Tries to convert the raw `action` to an enum.
+    pub fn action(&self) -> crate::error::Result<Action> {
+        Action::try_from(self.side as u8)
+            .map_err(|_| ConversionError::TypeConversion("Invalid action"))
+    }
+}
+
+impl Mbp1Msg {
+    /// Tries to convert the raw `side` to an enum.
+    pub fn side(&self) -> crate::error::Result<Side> {
+        Side::try_from(self.side as u8).map_err(|_| ConversionError::TypeConversion("Invalid side"))
+    }
+
+    /// Tries to convert the raw `action` to an enum.
+    pub fn action(&self) -> crate::error::Result<Action> {
+        Action::try_from(self.side as u8)
+            .map_err(|_| ConversionError::TypeConversion("Invalid action"))
+    }
+}
+
+impl Mbp10Msg {
+    /// Tries to convert the raw `side` to an enum.
+    pub fn side(&self) -> crate::error::Result<Side> {
+        Side::try_from(self.side as u8).map_err(|_| ConversionError::TypeConversion("Invalid side"))
+    }
+
+    /// Tries to convert the raw `action` to an enum.
+    pub fn action(&self) -> crate::error::Result<Action> {
+        Action::try_from(self.side as u8)
+            .map_err(|_| ConversionError::TypeConversion("Invalid action"))
+    }
+}
+
+impl InstrumentDefMsg {
+    pub fn instrument_class(&self) -> crate::error::Result<InstrumentClass> {
+        InstrumentClass::try_from(self.instrument_class as u8)
+            .map_err(|_| ConversionError::TypeConversion("Invalid instrument_class"))
+    }
+}
+
 impl ErrorMsg {
     /// Creates a new `ErrorMsg`.
     pub fn new(ts_event: u64, msg: &str) -> Self {
@@ -551,6 +711,96 @@ impl ErrorMsg {
             error.err[i] = *byte as c_char;
         }
         error
+    }
+
+    /// Returns `err` as a `str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `err` contains invalid UTF-8.
+    pub fn err(&self) -> Result<&str, Utf8Error> {
+        // Safety: a pointer to `self.err` will always be valid
+        unsafe { CStr::from_ptr(&self.err as *const i8).to_str() }
+    }
+}
+
+impl SystemMsg {
+    const HEARTBEAT: &str = "Heartbeat";
+
+    /// Creates a new `SystemMsg`.
+    pub fn new(ts_event: u64, msg: &str) -> anyhow::Result<Self> {
+        Ok(Self {
+            hd: RecordHeader::new::<Self>(rtype::SYSTEM, 0, 0, ts_event),
+            msg: str_to_c_chars(msg)?,
+        })
+    }
+
+    /// Creates a new heartbeat `SystemMsg`.
+    pub fn heartbeat(ts_event: u64) -> Self {
+        Self {
+            hd: RecordHeader::new::<Self>(rtype::SYSTEM, 0, 0, ts_event),
+            msg: str_to_c_chars(Self::HEARTBEAT).unwrap(),
+        }
+    }
+
+    /// Checks whether the message is a heartbeat from the gateway.
+    pub fn is_heartbeat(&self) -> bool {
+        self.msg()
+            .map(|msg| msg == Self::HEARTBEAT)
+            .unwrap_or_default()
+    }
+
+    /// Returns `msg` as a `str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `msg` contains invalid UTF-8.
+    pub fn msg(&self) -> Result<&str, Utf8Error> {
+        c_chars_to_str(&self.msg)
+    }
+}
+
+/// Wrapper object for records that include the live gateway send timestamp (`ts_out`).
+#[repr(C)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "trivial_copy", derive(Copy))]
+pub struct WithTsOut<T: HasRType> {
+    /// The inner record.
+    #[serde(flatten)]
+    pub rec: T,
+    /// The live gateway send timestamp expressed as number of nanoseconds since the UNIX epoch.
+    #[serde(serialize_with = "serialize_large_u64")]
+    pub ts_out: u64,
+}
+
+impl<T: HasRType> HasRType for WithTsOut<T> {
+    fn has_rtype(rtype: u8) -> bool {
+        T::has_rtype(rtype)
+    }
+
+    fn header(&self) -> &RecordHeader {
+        self.rec.header()
+    }
+
+    fn header_mut(&mut self) -> &mut RecordHeader {
+        self.rec.header_mut()
+    }
+}
+
+impl<T> AsRef<[u8]> for WithTsOut<T>
+where
+    T: HasRType + AsRef<[u8]>,
+{
+    fn as_ref(&self) -> &[u8] {
+        unsafe { as_u8_slice(self) }
+    }
+}
+
+impl<T: HasRType> WithTsOut<T> {
+    /// Creates a new record with `ts_out`. Updates the `length` property in
+    /// [`RecordHeader`] to ensure the additional field is accounted for.
+    pub fn new(rec: T, ts_out: u64) -> Self {
+        let mut res = Self { rec, ts_out };
+        res.header_mut().length = (mem::size_of_val(&res) / RecordHeader::LENGTH_MULTIPLIER) as u8;
+        res
     }
 }
 
@@ -565,11 +815,8 @@ impl ErrorMsg {
 pub unsafe fn transmute_record_bytes<T: HasRType>(bytes: &[u8]) -> Option<&T> {
     assert!(
         bytes.len() >= mem::size_of::<T>(),
-        concat!(
-            "Passing a slice smaller than `",
-            stringify!(T),
-            "` to `transmute_record_bytes` is invalid"
-        )
+        "Passing a slice smaller than `{}` to `transmute_record_bytes` is invalid",
+        std::any::type_name::<T>()
     );
     let non_null = NonNull::new_unchecked(bytes.as_ptr() as *mut u8);
     if T::has_rtype(non_null.cast::<RecordHeader>().as_ref().rtype) {
@@ -598,7 +845,7 @@ pub unsafe fn transmute_header_bytes(bytes: &[u8]) -> Option<&RecordHeader> {
     );
     let non_null = NonNull::new_unchecked(bytes.as_ptr() as *mut u8);
     let header = non_null.cast::<RecordHeader>().as_ref();
-    if header.length as usize * 4 > bytes.len() {
+    if header.record_size() > bytes.len() {
         None
     } else {
         Some(header)
@@ -614,13 +861,21 @@ pub unsafe fn transmute_header_bytes(bytes: &[u8]) -> Option<&RecordHeader> {
 /// part of a larger `T` struct.
 pub unsafe fn transmute_record<T: HasRType>(header: &RecordHeader) -> Option<&T> {
     if T::has_rtype(header.rtype) {
-        // Safety: because it comes from a reference, `header` must not be null. It's ok to cast to `mut`
-        // because it's never mutated.
+        // Safety: because it comes from a reference, `header` must not be null. It's ok
+        // to cast to `mut` because it's never mutated.
         let non_null = NonNull::from(header);
         Some(non_null.cast::<T>().as_ref())
     } else {
         None
     }
+}
+
+/// Aliases `data` as a slice of raw bytes.
+///
+/// # Safety
+/// `data` must be sized and plain old data (POD), i.e. no pointers.
+pub(crate) unsafe fn as_u8_slice<T: Sized>(data: &T) -> &[u8] {
+    slice::from_raw_parts(data as *const T as *const u8, mem::size_of::<T>())
 }
 
 /// Provides a _relatively safe_ method for converting a mut reference to a
@@ -632,8 +887,7 @@ pub unsafe fn transmute_record<T: HasRType>(header: &RecordHeader) -> Option<&T>
 /// part of a larger `T` struct.
 pub unsafe fn transmute_record_mut<T: HasRType>(header: &mut RecordHeader) -> Option<&mut T> {
     if T::has_rtype(header.rtype) {
-        // Safety: because it comes from a reference, `header` must not be null. It's ok to cast to `mut`
-        // because it's never mutated.
+        // Safety: because it comes from a reference, `header` must not be null.
         let non_null = NonNull::from(header);
         Some(non_null.cast::<T>().as_mut())
     } else {
@@ -649,10 +903,18 @@ impl HasRType for MboMsg {
     fn header(&self) -> &RecordHeader {
         &self.hd
     }
+
+    fn header_mut(&mut self) -> &mut RecordHeader {
+        &mut self.hd
+    }
 }
 
-/// [TradeMsg]'s type ID is the size of its `booklevel` array (0) and is
-/// equivalent to MBP-0.
+impl AsRef<[u8]> for MboMsg {
+    fn as_ref(&self) -> &[u8] {
+        unsafe { as_u8_slice(self) }
+    }
+}
+
 impl HasRType for TradeMsg {
     fn has_rtype(rtype: u8) -> bool {
         rtype == rtype::MBP_0
@@ -660,6 +922,16 @@ impl HasRType for TradeMsg {
 
     fn header(&self) -> &RecordHeader {
         &self.hd
+    }
+
+    fn header_mut(&mut self) -> &mut RecordHeader {
+        &mut self.hd
+    }
+}
+
+impl AsRef<[u8]> for TradeMsg {
+    fn as_ref(&self) -> &[u8] {
+        unsafe { as_u8_slice(self) }
     }
 }
 
@@ -672,6 +944,16 @@ impl HasRType for Mbp1Msg {
     fn header(&self) -> &RecordHeader {
         &self.hd
     }
+
+    fn header_mut(&mut self) -> &mut RecordHeader {
+        &mut self.hd
+    }
+}
+
+impl AsRef<[u8]> for Mbp1Msg {
+    fn as_ref(&self) -> &[u8] {
+        unsafe { as_u8_slice(self) }
+    }
 }
 
 /// [Mbp10Msg]'s type ID is the size of its `booklevel` array.
@@ -683,15 +965,43 @@ impl HasRType for Mbp10Msg {
     fn header(&self) -> &RecordHeader {
         &self.hd
     }
+
+    fn header_mut(&mut self) -> &mut RecordHeader {
+        &mut self.hd
+    }
+}
+
+impl AsRef<[u8]> for Mbp10Msg {
+    fn as_ref(&self) -> &[u8] {
+        unsafe { as_u8_slice(self) }
+    }
 }
 
 impl HasRType for OhlcvMsg {
+    #[allow(deprecated)]
     fn has_rtype(rtype: u8) -> bool {
-        rtype == rtype::OHLCV
+        matches!(
+            rtype,
+            rtype::OHLCV_DEPRECATED
+                | rtype::OHLCV_1S
+                | rtype::OHLCV_1M
+                | rtype::OHLCV_1H
+                | rtype::OHLCV_1D
+        )
     }
 
     fn header(&self) -> &RecordHeader {
         &self.hd
+    }
+
+    fn header_mut(&mut self) -> &mut RecordHeader {
+        &mut self.hd
+    }
+}
+
+impl AsRef<[u8]> for OhlcvMsg {
+    fn as_ref(&self) -> &[u8] {
+        unsafe { as_u8_slice(self) }
     }
 }
 
@@ -703,6 +1013,16 @@ impl HasRType for StatusMsg {
     fn header(&self) -> &RecordHeader {
         &self.hd
     }
+
+    fn header_mut(&mut self) -> &mut RecordHeader {
+        &mut self.hd
+    }
+}
+
+impl AsRef<[u8]> for StatusMsg {
+    fn as_ref(&self) -> &[u8] {
+        unsafe { as_u8_slice(self) }
+    }
 }
 
 impl HasRType for InstrumentDefMsg {
@@ -712,6 +1032,16 @@ impl HasRType for InstrumentDefMsg {
 
     fn header(&self) -> &RecordHeader {
         &self.hd
+    }
+
+    fn header_mut(&mut self) -> &mut RecordHeader {
+        &mut self.hd
+    }
+}
+
+impl AsRef<[u8]> for InstrumentDefMsg {
+    fn as_ref(&self) -> &[u8] {
+        unsafe { as_u8_slice(self) }
     }
 }
 
@@ -723,6 +1053,16 @@ impl HasRType for ImbalanceMsg {
     fn header(&self) -> &RecordHeader {
         &self.hd
     }
+
+    fn header_mut(&mut self) -> &mut RecordHeader {
+        &mut self.hd
+    }
+}
+
+impl AsRef<[u8]> for ImbalanceMsg {
+    fn as_ref(&self) -> &[u8] {
+        unsafe { as_u8_slice(self) }
+    }
 }
 
 impl HasRType for ErrorMsg {
@@ -732,6 +1072,16 @@ impl HasRType for ErrorMsg {
 
     fn header(&self) -> &RecordHeader {
         &self.hd
+    }
+
+    fn header_mut(&mut self) -> &mut RecordHeader {
+        &mut self.hd
+    }
+}
+
+impl AsRef<[u8]> for ErrorMsg {
+    fn as_ref(&self) -> &[u8] {
+        unsafe { as_u8_slice(self) }
     }
 }
 
@@ -743,6 +1093,71 @@ impl HasRType for SymbolMappingMsg {
     fn header(&self) -> &RecordHeader {
         &self.hd
     }
+
+    fn header_mut(&mut self) -> &mut RecordHeader {
+        &mut self.hd
+    }
+}
+
+impl AsRef<[u8]> for SymbolMappingMsg {
+    fn as_ref(&self) -> &[u8] {
+        unsafe { as_u8_slice(self) }
+    }
+}
+
+impl HasRType for SystemMsg {
+    fn has_rtype(rtype: u8) -> bool {
+        rtype == rtype::SYSTEM
+    }
+
+    fn header(&self) -> &RecordHeader {
+        &self.hd
+    }
+
+    fn header_mut(&mut self) -> &mut RecordHeader {
+        &mut self.hd
+    }
+}
+
+impl AsRef<[u8]> for SystemMsg {
+    fn as_ref(&self) -> &[u8] {
+        unsafe { as_u8_slice(self) }
+    }
+}
+
+/// Tries to convert a str slice to fixed-length null-terminated C char array.
+///
+/// # Errors
+/// This function returns an error if `s` contains more than N - 1 characters. The last
+/// character is reserved for the null byte.
+pub fn str_to_c_chars<const N: usize>(s: &str) -> anyhow::Result<[c_char; N]> {
+    if s.len() > (N - 1) {
+        return Err(anyhow!(
+            "String cannot be longer than {}; received str of length {}",
+            N - 1,
+            s.len()
+        ));
+    }
+    let mut res = [0; N];
+    for (i, byte) in s.as_bytes().iter().enumerate() {
+        res[i] = *byte as c_char;
+    }
+    Ok(res)
+}
+
+/// Tries to convert a slice of `c_char`s to a UTF-8 `str`.
+///
+/// # Safety
+/// This should always be safe.
+///
+/// # Preconditions
+/// None.
+///
+/// # Errors
+/// This function returns an error if `chars` contains invalid UTF-8.
+pub fn c_chars_to_str<const N: usize>(chars: &[c_char; N]) -> Result<&str, Utf8Error> {
+    let cstr = unsafe { CStr::from_ptr(chars.as_ptr()) };
+    cstr.to_str()
 }
 
 #[cfg(test)]
@@ -752,7 +1167,7 @@ mod tests {
     const OHLCV_MSG: OhlcvMsg = OhlcvMsg {
         hd: RecordHeader {
             length: 56,
-            rtype: rtype::OHLCV,
+            rtype: rtype::OHLCV_1S,
             publisher_id: 1,
             product_id: 5482,
             ts_event: 1609160400000000000,

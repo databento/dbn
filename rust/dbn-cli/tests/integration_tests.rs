@@ -320,51 +320,6 @@ fn convert_dbz_to_dbn() {
 }
 
 #[test]
-fn billable_size() {
-    cmd()
-        .args(&[
-            &format!("{TEST_DATA_PATH}/test_data.ohlcv-1h.dbn"),
-            "--billable-size",
-        ])
-        .assert()
-        .success()
-        .stderr(is_empty());
-}
-
-#[test]
-fn billable_size_encoding_conflicts() {
-    ["--csv", "--dbn", "--json"].iter().for_each(|extra_arg| {
-        cmd()
-            .args(&[
-                &format!("{TEST_DATA_PATH}/test_data.ohlcv-1m.dbn"),
-                "--billable-size",
-                extra_arg,
-            ])
-            .assert()
-            .failure()
-            .stderr(contains(format!(
-                "'--billable-size' cannot be used with '{extra_arg}'"
-            )));
-    });
-}
-
-#[test]
-fn billable_size_output_conflict() {
-    let output_dir = tempdir().unwrap();
-    let output_path = format!("{}/a.json", output_dir.path().to_str().unwrap());
-    cmd()
-        .args(&[
-            &format!("{TEST_DATA_PATH}/test_data.ohlcv-1m.dbn"),
-            "--billable-size",
-            "--output",
-            &output_path,
-        ])
-        .assert()
-        .failure()
-        .stderr(contains("'--billable-size' cannot be used with '--output"));
-}
-
-#[test]
 fn help() {
     cmd()
         .arg("--help")

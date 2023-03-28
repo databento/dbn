@@ -1,6 +1,5 @@
 //! Enums used in Databento APIs.
 use std::fmt::{self, Display, Formatter};
-use std::os::raw::c_char;
 
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::Serialize;
@@ -9,29 +8,20 @@ use crate::error::ConversionError;
 
 /// A side of the market. The side of the market for resting orders, or the side
 /// of the aggressor for trades.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive)]
+#[repr(u8)]
 pub enum Side {
     /// A sell order.
-    Ask,
+    Ask = b'A',
     /// A buy order.
-    Bid,
+    Bid = b'B',
     /// None or unknown.
     None,
 }
 
 impl From<Side> for char {
     fn from(side: Side) -> Self {
-        match side {
-            Side::Ask => 'A',
-            Side::Bid => 'B',
-            Side::None => 'N',
-        }
-    }
-}
-
-impl From<Side> for c_char {
-    fn from(side: Side) -> Self {
-        char::from(side) as c_char
+        u8::from(side) as char
     }
 }
 
@@ -42,39 +32,55 @@ impl Serialize for Side {
 }
 
 /// A tick action.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive)]
+#[repr(u8)]
 pub enum Action {
     /// An existing order was modified.
-    Modify,
+    Modify = b'M',
     /// A trade executed.
-    Trade,
+    Trade = b'T',
     /// An order was cancelled.
-    Cancel,
+    Cancel = b'C',
     /// A new order was added.
-    Add,
+    Add = b'A',
     /// Reset the book; clear all orders for an instrument.
-    Clear,
+    Clear = b'R',
 }
 
 impl From<Action> for char {
     fn from(action: Action) -> Self {
-        match action {
-            Action::Modify => 'M',
-            Action::Trade => 'T',
-            Action::Cancel => 'C',
-            Action::Add => 'A',
-            Action::Clear => 'R',
-        }
-    }
-}
-
-impl From<Action> for c_char {
-    fn from(action: Action) -> Self {
-        char::from(action) as c_char
+        u8::from(action) as char
     }
 }
 
 impl serde::Serialize for Action {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_char(char::from(*self))
+    }
+}
+
+/// The class of instrument.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive)]
+#[repr(u8)]
+pub enum InstrumentClass {
+    Bond = b'B',
+    Call = b'C',
+    Future = b'F',
+    Stock = b'K',
+    MixedSpread = b'M',
+    Put = b'P',
+    FutureSpread = b'S',
+    OptionSpread = b'T',
+    FxSpot = b'X',
+}
+
+impl From<InstrumentClass> for char {
+    fn from(class: InstrumentClass) -> Self {
+        u8::from(class) as char
+    }
+}
+
+impl serde::Serialize for InstrumentClass {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.serialize_char(char::from(*self))
     }
@@ -134,64 +140,79 @@ impl Display for SType {
 
 /// Record types, possible values for [`RecordHeader::rtype`][crate::record::RecordHeader::rtype]
 pub mod rtype {
-    use std::mem;
-
-    use crate::record::{
-        ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg,
-        SymbolMappingMsg, TbboMsg,
-    };
+    use super::Schema;
 
     /// Market by price with a book depth of 0 (used for trades).
     pub const MBP_0: u8 = 0x00;
     /// Market by price with a book depth of 1 (also used for TBBO).
     pub const MBP_1: u8 = 0x01;
     /// Market by price with a book depth of 10.
-    pub const MBP_10: u8 = 0x0a;
-    /// Open, high, low, close, and volume
-    pub const OHLCV: u8 = 0x11;
+    pub const MBP_10: u8 = 0x0A;
+    /// Open, high, low, close, and volume at an unspecified cadence.
+    #[deprecated(
+        since = "0.3.3",
+        note = "Separated into separate rtypes for each OHLCV schema."
+    )]
+    pub const OHLCV_DEPRECATED: u8 = 0x11;
+    /// Open, high, low, close, and volume at a 1-second cadence.
+    pub const OHLCV_1S: u8 = 0x20;
+    /// Open, high, low, close, and volume at a 1-minute cadence.
+    pub const OHLCV_1M: u8 = 0x21;
+    /// Open, high, low, close, and volume at an hourly cadence.
+    pub const OHLCV_1H: u8 = 0x22;
+    /// Open, high, low, close, and volume at a daily cadence.
+    pub const OHLCV_1D: u8 = 0x23;
     /// Exchange status.
     pub const STATUS: u8 = 0x12;
     /// Instrument definition.
     pub const INSTRUMENT_DEF: u8 = 0x13;
     /// Order imbalance.
     pub const IMBALANCE: u8 = 0x14;
-    /// Gateway error.
+    /// Error from gateway.
     pub const ERROR: u8 = 0x15;
     /// Symbol mapping.
     pub const SYMBOL_MAPPING: u8 = 0x16;
+    /// A non-error message. Also used for heartbeats.
+    pub const SYSTEM: u8 = 0x17;
     /// Market by order.
-    pub const MBO: u8 = 0xa0;
+    pub const MBO: u8 = 0xA0;
 
     /// Get the corresponding `rtype` for the given `schema`.
-    pub fn from(schema: super::Schema) -> u8 {
+    pub fn from(schema: Schema) -> u8 {
         match schema {
-            super::Schema::Mbo => MBO,
-            super::Schema::Mbp1 => MBP_1,
-            super::Schema::Mbp10 => MBP_10,
-            super::Schema::Tbbo => MBP_0,
-            super::Schema::Trades => MBP_0,
-            super::Schema::Ohlcv1S => OHLCV,
-            super::Schema::Ohlcv1M => OHLCV,
-            super::Schema::Ohlcv1H => OHLCV,
-            super::Schema::Ohlcv1D => OHLCV,
-            super::Schema::Definition => INSTRUMENT_DEF,
-            super::Schema::Statistics => unimplemented!("Statistics is not yet supported"),
-            super::Schema::Status => STATUS,
+            Schema::Mbo => MBO,
+            Schema::Mbp1 => MBP_1,
+            Schema::Mbp10 => MBP_10,
+            Schema::Tbbo => MBP_1,
+            Schema::Trades => MBP_0,
+            Schema::Ohlcv1S => OHLCV_1S,
+            Schema::Ohlcv1M => OHLCV_1M,
+            Schema::Ohlcv1H => OHLCV_1H,
+            Schema::Ohlcv1D => OHLCV_1D,
+            Schema::Definition => INSTRUMENT_DEF,
+            Schema::Statistics => unimplemented!("Statistics is not yet supported"),
+            Schema::Status => STATUS,
+            Schema::Imbalance => IMBALANCE,
         }
     }
 
-    pub fn record_size(rtype: u8) -> Option<usize> {
+    /// Tries to convert the given rtype to a [`Schema`].
+    ///
+    /// Returns `None` if there's no corresponding `Schema` for the given rtype or
+    /// in the case of [`OHLCV_DEPRECATED`], it doesn't map to a single `Schema`.
+    pub fn try_into_schema(rtype: u8) -> Option<Schema> {
         match rtype {
-            MBP_0 => Some(mem::size_of::<TbboMsg>()),
-            MBP_1 => Some(mem::size_of::<Mbp1Msg>()),
-            MBP_10 => Some(mem::size_of::<Mbp10Msg>()),
-            OHLCV => Some(mem::size_of::<OhlcvMsg>()),
-            STATUS => Some(mem::size_of::<StatusMsg>()),
-            INSTRUMENT_DEF => Some(mem::size_of::<InstrumentDefMsg>()),
-            IMBALANCE => Some(mem::size_of::<ImbalanceMsg>()),
-            ERROR => Some(mem::size_of::<ErrorMsg>()),
-            SYMBOL_MAPPING => Some(mem::size_of::<SymbolMappingMsg>()),
-            MBO => Some(mem::size_of::<MboMsg>()),
+            MBP_0 => Some(Schema::Trades),
+            MBP_1 => Some(Schema::Mbp1),
+            MBP_10 => Some(Schema::Mbp10),
+            OHLCV_1S => Some(Schema::Ohlcv1S),
+            OHLCV_1M => Some(Schema::Ohlcv1M),
+            OHLCV_1H => Some(Schema::Ohlcv1H),
+            OHLCV_1D => Some(Schema::Ohlcv1D),
+            STATUS => Some(Schema::Status),
+            INSTRUMENT_DEF => Some(Schema::Definition),
+            IMBALANCE => Some(Schema::Imbalance),
+            MBO => Some(Schema::Mbo),
             _ => None,
         }
     }
@@ -207,7 +228,8 @@ pub enum Schema {
     Mbp1 = 1,
     /// Market by price with a book depth of 10.
     Mbp10 = 2,
-    /// Combination of [Self::Trades] and [Self::Mbp1].
+    /// All trade events with the best bid and offer (BBO) immediately **before** the
+    /// effect of the trade.
     Tbbo = 3,
     /// All trade events.
     Trades = 4,
@@ -226,6 +248,8 @@ pub enum Schema {
     /// Exchange status.
     #[doc(hidden)]
     Status = 11,
+    /// Auction imbalance events.
+    Imbalance = 12,
 }
 
 /// The number of [`Schema`]s.
@@ -248,6 +272,7 @@ impl std::str::FromStr for Schema {
             "definition" => Ok(Schema::Definition),
             "statistics" => Ok(Schema::Statistics),
             "status" => Ok(Schema::Status),
+            "imbalance" => Ok(Schema::Imbalance),
             _ => Err(ConversionError::TypeConversion(
                 "Value doesn't match a valid schema",
             )),
@@ -277,6 +302,7 @@ impl Schema {
             Schema::Definition => "definition",
             Schema::Statistics => "statistics",
             Schema::Status => "status",
+            Schema::Imbalance => "imbalance",
         }
     }
 }
@@ -389,6 +415,22 @@ impl Display for Compression {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_str())
     }
+}
+
+/// Constants for the bit flag record fields.
+pub mod flags {
+    /// Indicates it's the last message in the packet from the venue for a given
+    /// `product_id`.
+    pub const LAST: u8 = 1 << 7;
+    /// Indicates the message was sourced from a replay, such as a snapshot server.
+    pub const SNAPSHOT: u8 = 1 << 5;
+    /// Indicates an aggregated price level message, not an individual order.
+    pub const MBP: u8 = 1 << 4;
+    /// Indicates the `ts_recv` value is inaccurate due to clock issues or packet
+    /// reordering.
+    pub const BAD_TS_RECV: u8 = 1 << 3;
+    /// Indicates an unrecoverable gap was detected in the channel.
+    pub const MAYBE_BAD_BOOK: u8 = 1 << 2;
 }
 
 #[repr(u8)]

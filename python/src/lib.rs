@@ -1,7 +1,7 @@
 //! Python bindings for the [`dbn`] crate using [`pyo3`].
 use std::io::{self, Write};
 
-use pyo3::{prelude::*, wrap_pyfunction, PyClass};
+use pyo3::{exceptions::PyIOError, prelude::*, wrap_pyfunction, PyClass};
 
 use dbn::{
     decode::dbn::{MetadataDecoder, RecordDecoder},
@@ -9,7 +9,7 @@ use dbn::{
     python::to_val_err,
     record::{
         BidAskPair, ErrorMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader,
-        SymbolMappingMsg, TradeMsg,
+        SymbolMappingMsg, SystemMsg, TradeMsg,
     },
 };
 
@@ -38,6 +38,7 @@ fn databento_dbn(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     checked_add_class::<InstrumentDefMsg>(m)?;
     checked_add_class::<ErrorMsg>(m)?;
     checked_add_class::<SymbolMappingMsg>(m)?;
+    checked_add_class::<SystemMsg>(m)?;
     Ok(())
 }
 
@@ -65,7 +66,7 @@ impl DbnDecoder {
         self.buffer.get_ref().as_slice()
     }
 
-    fn decode(&mut self) -> Vec<PyObject> {
+    fn decode(&mut self) -> PyResult<Vec<PyObject>> {
         let mut recs = Vec::new();
         let position = self.buffer.position();
         self.buffer.set_position(0);
@@ -75,17 +76,19 @@ impl DbnDecoder {
                     Python::with_gil(|py| recs.push(metadata.into_py(py)));
                     self.has_decoded_metadata = true;
                 }
-                Err(e) => {
-                    println!("{e}");
+                Err(err) => {
                     self.buffer.set_position(position);
                     // haven't read enough data for metadata
-                    return Vec::new();
+                    return Err(to_val_err(err));
                 }
             }
         }
         let mut decoder = RecordDecoder::new(&mut self.buffer);
-        Python::with_gil(|py| {
-            while let Some(rec) = decoder.decode_record_ref() {
+        Python::with_gil(|py| -> PyResult<()> {
+            while let Some(rec) = decoder
+                .decode_ref()
+                .map_err(|err| PyIOError::new_err(format!("{err:?}")))?
+            {
                 // Bug in clippy generates an error here. trivial_copy feature isn't enabled,
                 // but clippy thinks these records are `Copy`
                 #[allow(clippy::clone_on_copy)]
@@ -93,7 +96,14 @@ impl DbnDecoder {
                     rtype::MBP_0 => recs.push(rec.get::<TradeMsg>().unwrap().clone().into_py(py)),
                     rtype::MBP_1 => recs.push(rec.get::<Mbp1Msg>().unwrap().clone().into_py(py)),
                     rtype::MBP_10 => recs.push(rec.get::<Mbp10Msg>().unwrap().clone().into_py(py)),
-                    rtype::OHLCV => recs.push(rec.get::<OhlcvMsg>().unwrap().clone().into_py(py)),
+                    #[allow(deprecated)]
+                    rtype::OHLCV_DEPRECATED
+                    | rtype::OHLCV_1S
+                    | rtype::OHLCV_1M
+                    | rtype::OHLCV_1H
+                    | rtype::OHLCV_1D => {
+                        recs.push(rec.get::<OhlcvMsg>().unwrap().clone().into_py(py))
+                    }
                     rtype::INSTRUMENT_DEF => {
                         recs.push(rec.get::<InstrumentDefMsg>().unwrap().clone().into_py(py))
                     }
@@ -102,13 +112,16 @@ impl DbnDecoder {
                         recs.push(rec.get::<SymbolMappingMsg>().unwrap().clone().into_py(py))
                     }
                     rtype::MBO => recs.push(rec.get::<MboMsg>().unwrap().clone().into_py(py)),
-                    _ => {}
+                    rtype => {
+                        return Err(to_val_err(format!("Invalid rtype {rtype} found in record")))
+                    }
                 };
             }
-        });
+            Ok(())
+        })?;
         let read_position = self.buffer.position() as usize;
         self.buffer.get_mut().drain(..read_position);
-        recs
+        Ok(recs)
     }
 }
 
@@ -120,8 +133,10 @@ mod tests {
     use super::*;
 
     fn setup() {
-        // add to available modules
-        pyo3::append_to_inittab!(databento_dbn);
+        if unsafe { pyo3::ffi::Py_IsInitialized() } == 0 {
+            // add to available modules
+            pyo3::append_to_inittab!(databento_dbn);
+        }
         // initialize interpreter
         pyo3::prepare_freethreaded_python();
     }
@@ -154,26 +169,72 @@ assert len(records) == 3"#
     #[test]
     fn test_metadata_identity() {
         // initialize interpreter
-        pyo3::prepare_freethreaded_python();
+        setup();
         let stype_in = SType::Native as u8;
         let stype_out = SType::ProductId as u8;
         Python::with_gil(|py| {
             pyo3::py_run!(
-                py,
-                stype_in stype_out,
-                r#"from databento_dbn import decode_metadata, encode_metadata
+                  py,
+                  stype_in stype_out,
+                  r#"from databento_dbn import decode_metadata, encode_metadata
 
-metadata_bytes = encode_metadata("GLBX.MDP3", "mbo", 1, "native", "product_id", [], [], [], [], 2, None, 3)
+metadata_bytes = encode_metadata("GLBX.MDP3", "mbo", 1, "native", "product_id", [], [], [], [], 2, None)
 metadata = decode_metadata(metadata_bytes)
-# assert metadata["dataset"] == "GLBX.MDP3"
-# assert metadata["schema"] == "mbo"
-# assert metadata["start"] == 1
-# assert metadata["end"] == 2
-# assert metadata["limit"] is None
-# assert metadata["record_count"] == 3
-# assert metadata["stype_in"] == "native"
-# assert metadata["stype_out"] == "product_id""#
+assert metadata.dataset == "GLBX.MDP3"
+assert metadata.schema == "mbo"
+assert metadata.start == 1
+assert metadata.end == 2
+assert metadata.limit is None
+assert metadata.stype_in == "native"
+assert metadata.stype_out == "product_id"
+assert metadata.ts_out is False"#
             );
         });
+    }
+
+    #[test]
+    fn test_dbn_decoder_metadata_error() {
+        setup();
+        Python::with_gil(|py| {
+            py.run(
+                r#"from databento_dbn import DbnDecoder
+
+decoder = DbnDecoder()
+try:
+    records = decoder.decode()
+    # If this code is called, the test will fail
+    assert 1 == 0
+except Exception:
+    pass
+"#,
+                None,
+                None,
+            )
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn test_dbn_decoder_decoding_error() {
+        setup();
+        Python::with_gil(|py| {
+            py.run(
+                r#"from databento_dbn import DbnDecoder, encode_metadata
+
+metadata_bytes = encode_metadata("GLBX.MDP3", "mbo", 1, "native", "product_id", [], [], [], [], 2, None)
+decoder = DbnDecoder()
+decoder.write(metadata_bytes)
+decoder.write(bytes([0x04, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]))
+try:
+    records = decoder.decode()
+    # If this code is called, the test will fail
+    assert 1 == 0
+except Exception as ex:
+    assert "Invalid rtype" in str(ex)
+"#,
+                None,
+                None,
+            )
+        }).unwrap();
     }
 }

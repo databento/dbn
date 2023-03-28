@@ -2,7 +2,7 @@
 
 [![build](https://github.com/databento/dbn/actions/workflows/build.yaml/badge.svg)](https://github.com/databento/dbn/actions/workflows/build.yaml)
 ![license](https://img.shields.io/github/license/databento/dbn?color=blue)
-![pypi-version](https://img.shields.io/pypi/v/databento_dbn)
+[![pypi-version](https://img.shields.io/pypi/v/databento_dbn)](https://pypi.org/project/databento-dbn)
 
 Python bindings for the `dbn` Rust library.
 Used by the [Databento Python client library](https://github.com/databento/databento-python).

@@ -2,8 +2,8 @@ use std::{marker::PhantomData, mem, ptr::NonNull};
 
 use crate::record::{HasRType, RecordHeader};
 
-/// A wrapper around a non-owning reference to a DBN record. This wrapper allows for mixing of
-/// record types and schemas, and runtime record polymorphism.
+/// A wrapper around a non-owning immutable reference to a DBN record. This wrapper
+/// allows for mixing of record types and schemas, and runtime record polymorphism.
 #[derive(Clone, Debug)]
 pub struct RecordRef<'a> {
     ptr: NonNull<RecordHeader>,
@@ -11,15 +11,26 @@ pub struct RecordRef<'a> {
     _marker: PhantomData<&'a RecordHeader>,
 }
 
+// Safety: RecordRef exhibits immutable reference semantics similar to &T.
+// It should be safe to both send it across threads or access it simultaneously
+// (since the data is immutable).
+unsafe impl Send for RecordRef<'_> {}
+unsafe impl Sync for RecordRef<'_> {}
+
 impl<'a> RecordRef<'a> {
     /// Constructs a new reference to the DBN record in `buffer`.
     ///
     /// # Safety
     /// `buffer` should begin with a [`RecordHeader`] and contain a type implementing
     /// [`HasRType`].
-    pub unsafe fn new(buffer: &'a mut [u8]) -> Self {
+    pub unsafe fn new(buffer: &'a [u8]) -> Self {
         debug_assert!(buffer.len() >= mem::size_of::<RecordHeader>());
-        let ptr = NonNull::new_unchecked(buffer.as_mut_ptr().cast::<RecordHeader>());
+
+        // Safety: casting to `*mut` to use `NonNull`, but `ptr` is still treated internally
+        // as an immutable reference
+        let raw_ptr = buffer.as_ptr() as *mut RecordHeader;
+
+        let ptr = NonNull::new_unchecked(raw_ptr.cast::<RecordHeader>());
         Self {
             ptr,
             _marker: PhantomData,
@@ -42,7 +53,7 @@ impl<'a> RecordRef<'a> {
     ///
     /// Note: for safety, this method calls [`has::<T>()`](Self::has). To avoid a
     /// duplicate check, use [`get_unchecked()`](Self::get_unchecked).
-    pub fn get<T: HasRType>(&self) -> Option<&T> {
+    pub fn get<T: HasRType>(&self) -> Option<&'a T> {
         if self.has::<T>() {
             // Safety: checked `rtype` in call to `has()`. Assumes the initial data based to
             // `RecordRef` is indeed a record.

@@ -1,10 +1,6 @@
 //! A crate for reading DBN and legacy DBZ files and converting them to other
 //! [`Encoding`](enums::Encoding)s.
 
-// #[cfg_attr(not(feature = "python"), macro_use)]
-// #[cfg(not(feature = "python"))]
-// extern crate dbn_macros;
-
 #[deny(missing_docs)]
 #[deny(rustdoc::broken_intra_doc_links)]
 #[deny(clippy::missing_errors_doc)]
@@ -24,7 +20,7 @@ pub use crate::metadata::{MappingInterval, Metadata, MetadataBuilder, SymbolMapp
 /// The current version of the DBN encoding, which is different from the crate version.
 pub const DBN_VERSION: u8 = 1;
 const METADATA_DATASET_CSTR_LEN: usize = 16;
-const METADATA_RESERVED_LEN: usize = 48;
+const METADATA_RESERVED_LEN: usize = 47;
 /// Excludes magic string, version, and length.
 const METADATA_FIXED_LEN: usize = 100;
 const SYMBOL_CSTR_LEN: usize = 22;
