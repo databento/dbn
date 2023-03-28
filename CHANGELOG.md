@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.1 - TBD
+- Added enums `MatchAlgorithm`, `UserDefinedInstrument`
+- Added constants `UNDEF_PRICE` and `UNDEF_ORDER_SIZE`
+
 ## 0.4.0 - 2023-03-24
 - Added support for Imbalance schema
 - Updated `InstrumentDefMsg` to include options-related fields and `instrument_class`

@@ -7,7 +7,10 @@ use anyhow::anyhow;
 use serde::Serialize;
 
 use crate::{
-    enums::{rtype, Action, InstrumentClass, SecurityUpdateAction, Side},
+    enums::{
+        rtype, Action, InstrumentClass, MatchAlgorithm, SecurityUpdateAction, Side,
+        UserDefinedInstrument,
+    },
     error::ConversionError,
 };
 
@@ -441,8 +444,7 @@ pub struct InstrumentDefMsg {
     /// The calendar week reflected in the instrument symbol, or 0.
     pub maturity_week: u8,
     /// Indicates if the instrument is user defined: **Y**es or **N**o.
-    #[serde(serialize_with = "serialize_c_char")]
-    pub user_defined_instrument: c_char,
+    pub user_defined_instrument: UserDefinedInstrument,
     /// The type of `contract_multiplier`. Either `1` for hours, or `2` for days.
     pub contract_multiplier_unit: i8,
     /// The schedule for delivering electricity.
@@ -693,9 +695,16 @@ impl Mbp10Msg {
 }
 
 impl InstrumentDefMsg {
+    /// Tries to convert the raw `instrument_class` to an enum.
     pub fn instrument_class(&self) -> crate::error::Result<InstrumentClass> {
         InstrumentClass::try_from(self.instrument_class as u8)
             .map_err(|_| ConversionError::TypeConversion("Invalid instrument_class"))
+    }
+
+    /// Tries to convert the raw `match_algorithm` to an enum.
+    pub fn match_algorithm(&self) -> crate::error::Result<MatchAlgorithm> {
+        MatchAlgorithm::try_from(self.match_algorithm as u8)
+            .map_err(|_| ConversionError::TypeConversion("Invalid match_algorithm"))
     }
 }
 

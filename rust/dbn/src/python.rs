@@ -18,12 +18,13 @@ use crate::{
         dbn::{self, MetadataEncoder},
         DbnEncodable, DynWriter, EncodeDbn,
     },
-    enums::{rtype, Compression, SType, Schema, SecurityUpdateAction},
+    enums::{rtype, Compression, SType, Schema, SecurityUpdateAction, UserDefinedInstrument},
     metadata::MetadataBuilder,
     record::{
         str_to_c_chars, BidAskPair, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg,
         Mbp1Msg, OhlcvMsg, RecordHeader, TbboMsg, TradeMsg,
     },
+    UNDEF_ORDER_SIZE, UNDEF_PRICE,
 };
 use crate::{MappingInterval, Metadata, SymbolMapping};
 
@@ -409,6 +410,18 @@ impl IntoPy<PyObject> for SecurityUpdateAction {
     }
 }
 
+impl<'source> FromPyObject<'source> for UserDefinedInstrument {
+    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+        u8::extract(ob).and_then(|num| Self::try_from(num).map_err(to_val_err))
+    }
+}
+
+impl IntoPy<PyObject> for UserDefinedInstrument {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        (self as u8).into_py(py)
+    }
+}
+
 #[pymethods]
 impl MboMsg {
     #[new]
@@ -736,7 +749,7 @@ impl InstrumentDefMsg {
         maturity_month: Option<u8>,
         maturity_day: Option<u8>,
         maturity_week: Option<u8>,
-        user_defined_instrument: Option<c_char>,
+        user_defined_instrument: Option<UserDefinedInstrument>,
         contract_multiplier_unit: Option<i8>,
         flow_schedule_type: Option<i8>,
         tick_rule: Option<u8>,
@@ -753,8 +766,8 @@ impl InstrumentDefMsg {
             display_factor,
             expiration: expiration.unwrap_or(u64::MAX),
             activation: activation.unwrap_or(u64::MAX),
-            high_limit_price: high_limit_price.unwrap_or(i64::MAX),
-            low_limit_price: low_limit_price.unwrap_or(i64::MAX),
+            high_limit_price: high_limit_price.unwrap_or(UNDEF_PRICE),
+            low_limit_price: low_limit_price.unwrap_or(UNDEF_PRICE),
             max_price_variation: max_price_variation.unwrap_or(i64::MAX),
             trading_reference_price: trading_reference_price.unwrap_or(i64::MAX),
             unit_of_measure_qty: unit_of_measure_qty.unwrap_or(i64::MAX),
@@ -798,7 +811,7 @@ impl InstrumentDefMsg {
                 .map_err(to_val_err)?,
             instrument_class,
             reserved2: Default::default(),
-            strike_price: strike_price.unwrap_or(i64::MAX),
+            strike_price: strike_price.unwrap_or(UNDEF_PRICE),
             reserved3: Default::default(),
             match_algorithm,
             md_security_trading_status,
@@ -811,7 +824,7 @@ impl InstrumentDefMsg {
             maturity_month: maturity_month.unwrap_or(u8::MAX),
             maturity_day: maturity_day.unwrap_or(u8::MAX),
             maturity_week: maturity_week.unwrap_or(u8::MAX),
-            user_defined_instrument: user_defined_instrument.unwrap_or('N' as c_char),
+            user_defined_instrument: user_defined_instrument.unwrap_or_default(),
             contract_multiplier_unit: contract_multiplier_unit.unwrap_or(i8::MAX),
             flow_schedule_type: flow_schedule_type.unwrap_or(i8::MAX),
             tick_rule: tick_rule.unwrap_or(u8::MAX),
@@ -857,14 +870,14 @@ impl ImbalanceMsg {
             auction_time: 0,
             cont_book_clr_price,
             auct_interest_clr_price,
-            ssr_filling_price: i64::MAX,
-            ind_match_price: i64::MAX,
-            upper_collar: i64::MAX,
-            lower_collar: i64::MAX,
+            ssr_filling_price: UNDEF_PRICE,
+            ind_match_price: UNDEF_PRICE,
+            upper_collar: UNDEF_PRICE,
+            lower_collar: UNDEF_PRICE,
             paired_qty,
             total_imbalance_qty,
-            market_imbalance_qty: u32::MAX,
-            unpaired_qty: u32::MAX,
+            market_imbalance_qty: UNDEF_ORDER_SIZE,
+            unpaired_qty: UNDEF_ORDER_SIZE,
             auction_type,
             side,
             auction_status: 0,

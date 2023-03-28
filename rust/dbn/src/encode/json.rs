@@ -125,7 +125,7 @@ mod tests {
     use super::*;
     use crate::{
         encode::test_data::{VecStream, BID_ASK, RECORD_HEADER},
-        enums::{InstrumentClass, SType, Schema, SecurityUpdateAction},
+        enums::{InstrumentClass, SType, Schema, SecurityUpdateAction, UserDefinedInstrument},
         record::{
             str_to_c_chars, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
             StatusMsg, TradeMsg, WithTsOut,
@@ -398,7 +398,7 @@ mod tests {
             maturity_month: 8,
             maturity_day: 9,
             maturity_week: 11,
-            user_defined_instrument: 'N' as c_char,
+            user_defined_instrument: UserDefinedInstrument::No,
             contract_multiplier_unit: 0,
             flow_schedule_type: 5,
             tick_rule: 0,

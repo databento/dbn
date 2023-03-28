@@ -86,6 +86,53 @@ impl serde::Serialize for InstrumentClass {
     }
 }
 
+/// The type of matching algorithm used for the instrument at the exchange.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive)]
+#[repr(u8)]
+pub enum MatchAlgorithm {
+    Fifo = b'F',
+    Configurable = b'K',
+    ProRata = b'C',
+    FifoLmm = b'T',
+    ThresholdProRata = b'O',
+    FifoTopLmm = b'S',
+    ThresholdProRataLmm = b'Q',
+    EurodollarOptions = b'Y',
+}
+
+impl From<MatchAlgorithm> for char {
+    fn from(algo: MatchAlgorithm) -> Self {
+        u8::from(algo) as char
+    }
+}
+
+impl serde::Serialize for MatchAlgorithm {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_char(char::from(*self))
+    }
+}
+
+/// Whether the instrument is user-defined.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive, Default)]
+#[repr(u8)]
+pub enum UserDefinedInstrument {
+    #[default]
+    No = b'N',
+    Yes = b'Y',
+}
+
+impl From<UserDefinedInstrument> for char {
+    fn from(user_defined_instrument: UserDefinedInstrument) -> Self {
+        u8::from(user_defined_instrument) as char
+    }
+}
+
+impl serde::Serialize for UserDefinedInstrument {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_char(char::from(*self))
+    }
+}
+
 /// A symbology type. Refer to the [symbology documentation](https://docs.databento.com/api-reference-historical/basics/symbology)
 /// for more information.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, TryFromPrimitive)]

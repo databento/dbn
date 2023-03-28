@@ -27,3 +27,6 @@ const SYMBOL_CSTR_LEN: usize = 22;
 const NULL_END: u64 = u64::MAX;
 const NULL_LIMIT: u64 = 0;
 const NULL_RECORD_COUNT: u64 = u64::MAX;
+
+pub const UNDEF_PRICE: i64 = i64::MAX;
+pub const UNDEF_ORDER_SIZE: u32 = u32::MAX;
