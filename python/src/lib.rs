@@ -133,8 +133,10 @@ mod tests {
     use super::*;
 
     fn setup() {
-        // add to available modules
-        pyo3::append_to_inittab!(databento_dbn);
+        if unsafe { pyo3::ffi::Py_IsInitialized() } == 0 {
+            // add to available modules
+            pyo3::append_to_inittab!(databento_dbn);
+        }
         // initialize interpreter
         pyo3::prepare_freethreaded_python();
     }
@@ -167,7 +169,7 @@ assert len(records) == 3"#
     #[test]
     fn test_metadata_identity() {
         // initialize interpreter
-        pyo3::prepare_freethreaded_python();
+        setup();
         let stype_in = SType::Native as u8;
         let stype_out = SType::ProductId as u8;
         Python::with_gil(|py| {
