@@ -719,7 +719,7 @@ impl ErrorMsg {
     /// This function returns an error if `err` contains invalid UTF-8.
     pub fn err(&self) -> Result<&str, Utf8Error> {
         // Safety: a pointer to `self.err` will always be valid
-        unsafe { CStr::from_ptr(&self.err as *const i8).to_str() }
+        unsafe { CStr::from_ptr(&self.err as *const c_char).to_str() }
     }
 }
 
