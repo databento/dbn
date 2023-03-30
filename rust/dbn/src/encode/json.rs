@@ -269,7 +269,6 @@ mod tests {
             ts_recv: 1658441891000000000,
             ts_in_delta: 22_000,
             sequence: 1_002_375,
-            booklevel: [],
         }];
         let slice_res = write_json_to_string(data.as_slice(), false);
         let stream_res = write_json_stream_to_string(data, false);

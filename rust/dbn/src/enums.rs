@@ -63,14 +63,23 @@ impl serde::Serialize for Action {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive)]
 #[repr(u8)]
 pub enum InstrumentClass {
+    /// A bond.
     Bond = b'B',
+    /// A call option.
     Call = b'C',
+    /// A future.
     Future = b'F',
+    /// A stock.
     Stock = b'K',
+    /// A spread composed of multiple instrument classes.
     MixedSpread = b'M',
+    /// A put option.
     Put = b'P',
+    /// A spread composed of futures.
     FutureSpread = b'S',
+    /// A spread composed of options.
     OptionSpread = b'T',
+    /// A foreign exchange spot.
     FxSpot = b'X',
 }
 
@@ -90,14 +99,26 @@ impl serde::Serialize for InstrumentClass {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive)]
 #[repr(u8)]
 pub enum MatchAlgorithm {
+    /// First-in-first-out matching.
     Fifo = b'F',
+    /// A configurable match algorithm.
     Configurable = b'K',
+    /// Trade quantity is allocated to resting orders based on a pro-rata percentage:
+    /// resting order quantity divided by total quantity.
     ProRata = b'C',
+    /// Like [`Self::Fifo`] but with LMM allocations prior to FIFO allocations.
     FifoLmm = b'T',
+    /// Like [`Self::ProRata`] but includes a configurable allocation to the first order that
+    /// improves the market.
     ThresholdProRata = b'O',
+    /// Like [`Self::FifoLmm`] but includes a configurable allocation to the first order that
+    /// improves the market.
     FifoTopLmm = b'S',
+    /// Like [`Self::ThresholdProRata`] but includes a special priority to LMMs.
     ThresholdProRataLmm = b'Q',
-    EurodollarOptions = b'Y',
+    /// Special variant used only for Eurodollar futures on CME. See
+    /// [CME documentation](https://www.cmegroup.com/confluence/display/EPICSANDBOX/Supported+Matching+Algorithms#SupportedMatchingAlgorithms-Pro-RataAllocationforEurodollarFutures).
+    EurodollarFutures = b'Y',
 }
 
 impl From<MatchAlgorithm> for char {
@@ -116,8 +137,10 @@ impl serde::Serialize for MatchAlgorithm {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive, Default)]
 #[repr(u8)]
 pub enum UserDefinedInstrument {
+    /// The instrument is not user-defined.
     #[default]
     No = b'N',
+    /// The instrument is user-defined.
     Yes = b'Y',
 }
 

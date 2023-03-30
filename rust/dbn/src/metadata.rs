@@ -298,10 +298,10 @@ pub struct SymbolMapping {
 /// The resolved symbol for a date range.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct MappingInterval {
-    /// UTC start date of interval.
+    /// The UTC start date of interval.
     #[serde(serialize_with = "serialize_date")]
     pub start_date: time::Date,
-    /// UTC end date of interval.
+    /// The UTC end date of interval.
     #[serde(serialize_with = "serialize_date")]
     pub end_date: time::Date,
     /// The resolved symbol for this interval.

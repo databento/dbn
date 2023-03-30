@@ -644,7 +644,7 @@ mod tests {
     }
 }
 
-#[cfg(feature = "async")]
+#[cfg(any(doc, feature = "async"))]
 pub use r#async::{MetadataDecoder as AsyncMetadataDecoder, RecordDecoder as AsyncRecordDecoder};
 
 #[cfg(feature = "async")]

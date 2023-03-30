@@ -596,7 +596,6 @@ mod tests {
             ts_recv: 1658441891000000000,
             ts_in_delta: 22_000,
             sequence: 1_002_375,
-            booklevel: [],
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
@@ -748,7 +747,6 @@ mod tests {
                 ts_recv: 1658441891000000000,
                 ts_in_delta: 22_000,
                 sequence: 1_002_375,
-                booklevel: [],
             },
             ts_out: 1678480044000000000,
         }];

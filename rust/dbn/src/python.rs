@@ -106,6 +106,7 @@ pub fn update_encoded_metadata(
         .map_err(to_val_err)
 }
 
+/// A Python object that implements the Python file interface.
 pub struct PyFileLike {
     inner: PyObject,
 }
@@ -304,6 +305,8 @@ impl IntoPy<PyObject> for MappingInterval {
     }
 }
 
+/// A helper function for converting any type that implements `Debug` to a Python
+/// `ValueError`.
 pub fn to_val_err(e: impl fmt::Debug) -> PyErr {
     PyValueError::new_err(format!("{e:?}"))
 }
@@ -523,7 +526,6 @@ impl TradeMsg {
             ts_recv,
             ts_in_delta,
             sequence,
-            booklevel: [],
         }
     }
 
