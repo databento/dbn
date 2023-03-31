@@ -298,11 +298,11 @@ pub struct InstrumentDefMsg {
     pub min_price_increment: i64,
     /// The multiplier to convert the venue’s display price to the conventional price.
     pub display_factor: i64,
-    /// The time of instrument activation expressed as a number of nanoseconds since the
+    /// The last eligible trade time expressed as a number of nanoseconds since the
     /// UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub expiration: u64,
-    /// The last eligible trade time expressed as a number of nanoseconds since the
+    /// The time of instrument activation expressed as a number of nanoseconds since the
     /// UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub activation: u64,
@@ -315,8 +315,7 @@ pub struct InstrumentDefMsg {
     /// The differential value for price banding in units of 1e-9, i.e. 1/1,000,000,000
     /// or 0.000000001.
     pub max_price_variation: i64,
-    /// The trading session date corresponding to the settlement price in
-    /// `trading_reference_price`, in number of days since the UNIX epoch.
+    /// The trading session settlement price on `trading_reference_date`.
     pub trading_reference_price: i64,
     /// The contract size for each instrument, in combination with `unit_of_measure`.
     pub unit_of_measure_qty: i64,
