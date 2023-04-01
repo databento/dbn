@@ -8,8 +8,8 @@ use dbn::{
     enums::rtype,
     python::to_val_err,
     record::{
-        BidAskPair, ErrorMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader,
-        SymbolMappingMsg, SystemMsg, TradeMsg,
+        BidAskPair, ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
+        RecordHeader, SymbolMappingMsg, SystemMsg, TradeMsg,
     },
 };
 
@@ -35,6 +35,7 @@ fn databento_dbn(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     checked_add_class::<Mbp1Msg>(m)?;
     checked_add_class::<Mbp10Msg>(m)?;
     checked_add_class::<OhlcvMsg>(m)?;
+    checked_add_class::<ImbalanceMsg>(m)?;
     checked_add_class::<InstrumentDefMsg>(m)?;
     checked_add_class::<ErrorMsg>(m)?;
     checked_add_class::<SymbolMappingMsg>(m)?;
