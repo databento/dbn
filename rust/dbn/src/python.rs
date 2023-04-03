@@ -50,7 +50,6 @@ pub fn decode_metadata(bytes: &PyBytes) -> PyResult<Metadata> {
 /// their Rust equivalents. It will also return an error if there's an issue writing
 /// the encoded metadata to bytes.
 #[pyfunction]
-#[allow(clippy::too_many_arguments)]
 pub fn encode_metadata(
     py: Python<'_>,
     dataset: String,
@@ -207,8 +206,12 @@ impl Metadata {
         format!("{self:?}")
     }
 
-    fn __bytes__(&self) -> &[u8] {
-        self.as_ref()
+    /// Encodes Metadata back into DBN format.
+    fn __bytes__(&self, py: Python<'_>) -> PyResult<Py<PyBytes>> {
+        let mut buffer = Vec::new();
+        let mut encoder = MetadataEncoder::new(&mut buffer);
+        encoder.encode(self).map_err(to_val_err)?;
+        Ok(PyBytes::new(py, buffer.as_slice()).into())
     }
 
     #[getter]
