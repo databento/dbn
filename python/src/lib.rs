@@ -105,6 +105,9 @@ impl DbnDecoder {
                     | rtype::OHLCV_1D => {
                         recs.push(rec.get::<OhlcvMsg>().unwrap().clone().into_py(py))
                     }
+                    rtype::IMBALANCE => {
+                        recs.push(rec.get::<ImbalanceMsg>().unwrap().clone().into_py(py))
+                    }
                     rtype::INSTRUMENT_DEF => {
                         recs.push(rec.get::<InstrumentDefMsg>().unwrap().clone().into_py(py))
                     }
