@@ -14,8 +14,15 @@ fi
 OLD_VERSION="$("${SCRIPTS_DIR}/get_version.sh")"
 NEW_VERSION="$1"
 
+# Replace package versions
 find \
     "${PROJECT_ROOT_DIR}" \
     -type f \
     -name "*.toml" \
-    -exec sed -Ei "s/^version\s+=\s+\"${OLD_VERSION}\"/version = \"${NEW_VERSION}\"/" {} \;
+    -exec sed -Ei "s/^version\s*=\s*\"${OLD_VERSION}\"/version = \"${NEW_VERSION}\"/" {} \;
+# Replace dependency versions
+find \
+    "${PROJECT_ROOT_DIR}" \
+    -type f \
+    -name "*.toml" \
+    -exec sed -Ei "s/version\s*=\s*\"=${OLD_VERSION}\"/version = \"=${NEW_VERSION}\"/" {} \;

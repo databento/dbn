@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.1 - TBD
+## 0.4.1 - 2023-04-05
 - Added enums `MatchAlgorithm`, `UserDefinedInstrument`
 - Added constants `UNDEF_PRICE` and `UNDEF_ORDER_SIZE`
 - Added Python type stubs for `databento_dbn` package
