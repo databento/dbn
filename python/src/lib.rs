@@ -1,7 +1,7 @@
 //! Python bindings for the [`dbn`] crate using [`pyo3`].
 use std::io::{self, Write};
 
-use pyo3::{exceptions::PyIOError, prelude::*, wrap_pyfunction, PyClass};
+use pyo3::{prelude::*, wrap_pyfunction, PyClass};
 
 use dbn::{
     decode::dbn::{MetadataDecoder, RecordDecoder},
@@ -86,10 +86,7 @@ impl DbnDecoder {
         }
         let mut decoder = RecordDecoder::new(&mut self.buffer);
         Python::with_gil(|py| -> PyResult<()> {
-            while let Some(rec) = decoder
-                .decode_ref()
-                .map_err(|err| PyIOError::new_err(format!("{err:?}")))?
-            {
+            while let Some(rec) = decoder.decode_ref().map_err(to_val_err)? {
                 // Bug in clippy generates an error here. trivial_copy feature isn't enabled,
                 // but clippy thinks these records are `Copy`
                 #[allow(clippy::clone_on_copy)]
@@ -122,17 +119,42 @@ impl DbnDecoder {
                 };
             }
             Ok(())
+        })
+        .map_err(|e| {
+            self.buffer.set_position(position);
+            e
         })?;
-        let read_position = self.buffer.position() as usize;
-        self.buffer.get_mut().drain(..read_position);
+        if recs.is_empty() {
+            self.buffer.set_position(position);
+        } else {
+            self.shift_buffer();
+        }
         Ok(recs)
+    }
+}
+
+impl DbnDecoder {
+    fn shift_buffer(&mut self) {
+        let read_position = self.buffer.position() as usize;
+        let inner_buf = self.buffer.get_mut();
+        let length = inner_buf.len();
+        let new_length = length - read_position;
+        inner_buf.drain(..read_position);
+        debug_assert_eq!(inner_buf.len(), new_length);
+        self.buffer.set_position(new_length as u64);
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use dbn::enums::SType;
+    use dbn::encode::EncodeDbn;
     use pyo3::{py_run, types::PyString};
+
+    use ::dbn::{
+        encode::dbn::Encoder,
+        enums::{SType, Schema},
+        MetadataBuilder,
+    };
 
     use super::*;
 
@@ -143,6 +165,45 @@ mod tests {
         }
         // initialize interpreter
         pyo3::prepare_freethreaded_python();
+    }
+
+    #[test]
+    fn test_partial_records() {
+        setup();
+        let mut decoder = DbnDecoder::new();
+        let buffer = Vec::new();
+        let mut encoder = Encoder::new(
+            buffer,
+            &MetadataBuilder::new()
+                .dataset("XNAS.ITCH".to_owned())
+                .schema(Schema::Trades)
+                .stype_in(SType::Native)
+                .stype_out(SType::ProductId)
+                .start(0)
+                .build(),
+        )
+        .unwrap();
+        decoder.write(encoder.get_ref().as_slice()).unwrap();
+        let metadata_pos = encoder.get_ref().len() as usize;
+        assert!(matches!(decoder.decode(), Ok(recs) if recs.len() == 1));
+        assert!(decoder.has_decoded_metadata);
+        let rec = ErrorMsg::new(1680708278000000000, "Python");
+        encoder.encode_record(&rec).unwrap();
+        assert!(decoder.buffer.get_ref().is_empty());
+        let record_pos = encoder.get_ref().len() as usize;
+        for i in metadata_pos..record_pos {
+            decoder.write(&encoder.get_ref()[i..i + 1]).unwrap();
+            assert_eq!(decoder.buffer.get_ref().len(), i + 1 - metadata_pos);
+            // wrote last byte
+            if i == record_pos - 1 {
+                let res = decoder.decode();
+                assert_eq!(record_pos - metadata_pos, std::mem::size_of_val(&rec));
+                assert!(matches!(res, Ok(recs) if recs.len() == 1));
+            } else {
+                let res = decoder.decode();
+                assert!(matches!(res, Ok(recs) if recs.is_empty()));
+            }
+        }
     }
 
     #[test]
@@ -207,7 +268,7 @@ decoder = DbnDecoder()
 try:
     records = decoder.decode()
     # If this code is called, the test will fail
-    assert 1 == 0
+    assert False
 except Exception:
     pass
 "#,
@@ -232,7 +293,7 @@ decoder.write(bytes([0x04, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 try:
     records = decoder.decode()
     # If this code is called, the test will fail
-    assert 1 == 0
+    assert False
 except Exception as ex:
     assert "Invalid rtype" in str(ex)
 "#,

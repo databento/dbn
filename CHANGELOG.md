@@ -3,10 +3,11 @@
 ## 0.4.1 - TBD
 - Added enums `MatchAlgorithm`, `UserDefinedInstrument`
 - Added constants `UNDEF_PRICE` and `UNDEF_ORDER_SIZE`
+- Added Python type stubs for `databento_dbn` package
 - Fixed `Metadata.__bytes__` method to return valid DBN
 - Fixed panics when decoding invalid records
-- Added support for `ImbalanceMsg` in Python `DbnDecoder`
-- Added Python type stubs for `databento_dbn` package
+- Fixed issue with attempting to decode partial records in Python `DbnDecoder`
+- Fixed support for `ImbalanceMsg` in Python `DbnDecoder`
 
 ## 0.4.0 - 2023-03-24
 - Added support for Imbalance schema
