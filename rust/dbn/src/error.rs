@@ -1,7 +1,7 @@
 //! Types for errors that can occur in databento-defs and dependent crates.
 use std::{ffi::NulError, fmt::Display, num::TryFromIntError};
 
-/// Simple error type for failed conversions.
+/// A simple error type for failed conversions.
 #[derive(Debug, Clone)]
 pub enum ConversionError {
     /// Received an unexpected `NULL` back from an FFI function.
@@ -10,6 +10,7 @@ pub enum ConversionError {
     TypeConversion(&'static str),
 }
 
+/// A result of a fallible operation.
 pub type Result<T> = std::result::Result<T, ConversionError>;
 
 impl Display for ConversionError {

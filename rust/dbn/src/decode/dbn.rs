@@ -214,11 +214,18 @@ where
     /// # Errors
     /// This function returns an error if the underlying reader returns an
     /// error of a kind other than `io::ErrorKind::UnexpectedEof` upon reading.
+    /// It will also return an error if it encounters an invalid record.
     pub fn decode_ref(&mut self) -> io::Result<Option<RecordRef>> {
         if let Err(err) = self.reader.read_exact(&mut self.buffer[..1]) {
             return silence_eof_error(err);
         }
         let length = self.buffer[0] as usize * RecordHeader::LENGTH_MULTIPLIER;
+        if length < mem::size_of::<RecordHeader>() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("Invalid record with length {length} shorter than header"),
+            ));
+        }
         if length > self.buffer.len() {
             self.buffer.resize(length, 0);
         }
@@ -642,6 +649,29 @@ mod tests {
         assert_eq!(*ref2.get::<ErrorMsg>().unwrap(), error_msg);
         assert!(decoder.decode_record_ref().unwrap().is_none());
     }
+
+    #[test]
+    fn test_decode_record_0_length() {
+        let buf = vec![0];
+        let mut target = RecordDecoder::new(buf.as_slice());
+        assert!(matches!(target.decode_ref(), Err(e) if e.kind() == io::ErrorKind::InvalidData));
+    }
+
+    #[test]
+    fn test_decode_record_length_less_than_header() {
+        let buf = vec![3u8, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+        assert_eq!(buf[0] as usize * RecordHeader::LENGTH_MULTIPLIER, buf.len());
+
+        let mut target = RecordDecoder::new(buf.as_slice());
+        assert!(matches!(target.decode_ref(), Err(e) if e.kind() == io::ErrorKind::InvalidData));
+    }
+
+    #[test]
+    fn test_decode_record_length_longer_than_buffer() {
+        let rec = ErrorMsg::new(1680703198000000000, "Test");
+        let mut target = RecordDecoder::new(&rec.as_ref()[..rec.record_size() - 1]);
+        assert!(matches!(target.decode_ref(), Ok(None)));
+    }
 }
 
 #[cfg(feature = "async")]
@@ -707,6 +737,7 @@ mod r#async {
         /// # Errors
         /// This function returns an error if the underlying reader returns an
         /// error of a kind other than `io::ErrorKind::UnexpectedEof` upon reading.
+        /// It will also return an error if it encounters an invalid record.
         pub async fn decode_ref(&mut self) -> io::Result<Option<RecordRef>> {
             if let Err(err) = self.reader.read_exact(&mut self.buffer[..1]).await {
                 return silence_eof_error(err);
@@ -714,6 +745,12 @@ mod r#async {
             let length = self.buffer[0] as usize * RecordHeader::LENGTH_MULTIPLIER;
             if length > self.buffer.len() {
                 self.buffer.resize(length, 0);
+            }
+            if length < std::mem::size_of::<RecordHeader>() {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("Invalid record with length {length} shorter than header"),
+                ));
             }
             if let Err(err) = self.reader.read_exact(&mut self.buffer[1..length]).await {
                 return silence_eof_error(err);
@@ -834,8 +871,8 @@ mod r#async {
             encode::dbn::{AsyncMetadataEncoder, AsyncRecordEncoder},
             enums::{rtype, Schema},
             record::{
-                InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader, TbboMsg,
-                TradeMsg, WithTsOut,
+                ErrorMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader,
+                TbboMsg, TradeMsg, WithTsOut,
             },
         };
 
@@ -1005,6 +1042,33 @@ mod r#async {
                 .clone();
             assert_eq!(rec1.rec, res1_without);
             assert_eq!(rec2.rec, res2_without);
+        }
+
+        #[tokio::test]
+        async fn test_decode_record_0_length() {
+            let buf = vec![0];
+            let mut target = RecordDecoder::new(buf.as_slice());
+            assert!(
+                matches!(target.decode_ref().await, Err(e) if e.kind() == io::ErrorKind::InvalidData)
+            );
+        }
+
+        #[tokio::test]
+        async fn test_decode_record_length_less_than_header() {
+            let buf = vec![3u8, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+            assert_eq!(buf[0] as usize * RecordHeader::LENGTH_MULTIPLIER, buf.len());
+
+            let mut target = RecordDecoder::new(buf.as_slice());
+            assert!(
+                matches!(target.decode_ref().await, Err(e) if e.kind() == io::ErrorKind::InvalidData)
+            );
+        }
+
+        #[tokio::test]
+        async fn test_decode_record_length_longer_than_buffer() {
+            let rec = ErrorMsg::new(1680703198000000000, "Test");
+            let mut target = RecordDecoder::new(&rec.as_ref()[..rec.record_size() - 1]);
+            assert!(matches!(target.decode_ref().await, Ok(None)));
         }
     }
 }

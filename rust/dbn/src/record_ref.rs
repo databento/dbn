@@ -1,3 +1,5 @@
+//! The [`RecordRef`] struct for non-owning references to DBN records.
+
 use std::{marker::PhantomData, mem, ptr::NonNull};
 
 use crate::record::{HasRType, RecordHeader};

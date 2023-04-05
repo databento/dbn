@@ -31,16 +31,32 @@ pub trait EncodeDbn {
     /// Encode a single DBN record of type `R`.
     ///
     /// Returns `true`if the pipe was closed.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to write to the underlying writer
+    /// or there's a serialization error.
     fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> anyhow::Result<bool>;
     /// Encode a slice of DBN records.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to write to the underlying writer
+    /// or there's a serialization error.
     fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> anyhow::Result<()>;
     /// Encode a stream of DBN records.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to write to the underlying writer
+    /// or there's a serialization error.
     fn encode_stream<R: DbnEncodable>(
         &mut self,
         stream: impl StreamingIterator<Item = R>,
     ) -> anyhow::Result<()>;
 
     /// Encode DBN records directly from a DBN decoder.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to write to the underlying writer
+    /// or there's a serialization error.
     fn encode_decoded<D: DecodeDbn>(&mut self, decoder: D) -> anyhow::Result<()> {
         match (decoder.metadata().schema, decoder.metadata().ts_out) {
             (Schema::Mbo, true) => {
@@ -95,7 +111,9 @@ pub enum DynWriter<'a, W>
 where
     W: io::Write,
 {
+    /// For writing uncompressed records.
     Uncompressed(W),
+    /// For writing Zstandard-compressed records.
     ZStd(zstd::stream::AutoFinishEncoder<'a, W>),
 }
 
@@ -104,6 +122,9 @@ where
     W: io::Write,
 {
     /// Create a new instance of [`DynWriter`] which will wrap `writer` with `compression`.
+    ///
+    /// # Errors
+    /// This function returns an error if it fails to initialize the Zstd compression.
     pub fn new(writer: W, compression: Compression) -> anyhow::Result<Self> {
         match compression {
             Compression::None => Ok(Self::Uncompressed(writer)),
@@ -111,6 +132,7 @@ where
         }
     }
 
+    /// Returns a mutable reference to the underlying writer.
     pub fn get_mut(&mut self) -> &mut W {
         match self {
             DynWriter::Uncompressed(w) => w,
@@ -191,6 +213,10 @@ where
     /// Constructs a new instance of [`DynEncoder`].
     ///
     /// Note: `should_pretty_print` is ignored unless `encoding` is [`Encoding::Json`].
+    ///
+    /// # Errors
+    /// This function returns an error if it fails to encode the DBN metadata or
+    /// it fails to initialize the Zstd compression.
     pub fn new(
         writer: W,
         encoding: Encoding,
@@ -360,6 +386,7 @@ mod r#async {
             })
         }
 
+        /// Returns a mutable reference to the underlying writer.
         pub fn get_mut(&mut self) -> &mut W {
             match &mut self.0 {
                 DynWriterImpl::Uncompressed(w) => w,

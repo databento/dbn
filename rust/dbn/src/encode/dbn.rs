@@ -123,6 +123,9 @@ where
     }
 
     /// Encodes `metadata` into DBN.
+    ///
+    /// # Errors
+    /// This function returns an error if it fails to write to the underlying writer.
     pub fn encode(&mut self, metadata: &Metadata) -> anyhow::Result<()> {
         self.writer.write_all(b"DBN")?;
         // regardless of version in metadata, should encode crate version
@@ -270,6 +273,10 @@ where
     W: io::Write + io::Seek,
 {
     /// Updates the given metadata properties in an existing DBN buffer.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to seek to the position
+    /// to update the metadata or it fails to write to the underlying writer.
     pub fn update_encoded(
         &mut self,
         start: u64,
@@ -543,6 +550,10 @@ mod r#async {
         /// Encode a single DBN record of type `R`.
         ///
         /// Returns `true`if the pipe was closed.
+        ///
+        /// # Errors
+        /// This function returns an error if it's unable to write to the underlying
+        /// writer.
         pub async fn encode<R: AsRef<[u8]> + HasRType + fmt::Debug>(
             &mut self,
             record: &R,
@@ -592,7 +603,12 @@ mod r#async {
         pub fn new(writer: W) -> Self {
             Self { writer }
         }
+
         /// Encodes `metadata` into DBN.
+        ///
+        /// # Errors
+        /// This function returns an error if it's unable to write to the underlying
+        /// writer.
         pub async fn encode(&mut self, metadata: &Metadata) -> anyhow::Result<()> {
             self.writer.write_all(b"DBN").await?;
             // regardless of version in metadata, should encode crate version
@@ -735,6 +751,8 @@ mod r#async {
     where
         W: io::AsyncWriteExt + Unpin,
     {
+        /// Creates a new [`MetadataEncoder`] that will Zstandard compress the DBN data
+        /// written to `writer`.
         pub fn with_zstd(writer: W) -> Self {
             Self::new(ZstdEncoder::new(writer))
         }

@@ -7,7 +7,10 @@ use anyhow::anyhow;
 use serde::Serialize;
 
 use crate::{
-    enums::{rtype, Action, InstrumentClass, SecurityUpdateAction, Side},
+    enums::{
+        rtype, Action, InstrumentClass, MatchAlgorithm, SecurityUpdateAction, Side,
+        UserDefinedInstrument,
+    },
     error::ConversionError,
 };
 
@@ -140,8 +143,6 @@ pub struct TradeMsg {
     pub ts_in_delta: i32,
     /// The message sequence number assigned at the venue.
     pub sequence: u32,
-    #[serde(skip)]
-    pub booklevel: [BidAskPair; 0],
 }
 
 /// Market by price implementation with a known book depth of 1. The record of the
@@ -181,6 +182,7 @@ pub struct Mbp1Msg {
     pub ts_in_delta: i32,
     /// The message sequence number assigned at the venue.
     pub sequence: u32,
+    /// The top of the order book.
     pub booklevel: [BidAskPair; 1],
 }
 
@@ -221,6 +223,7 @@ pub struct Mbp10Msg {
     pub ts_in_delta: i32,
     /// The message sequence number assigned at the venue.
     pub sequence: u32,
+    /// The top 10 levels of the order book.
     pub booklevel: [BidAskPair; 10],
 }
 
@@ -295,11 +298,11 @@ pub struct InstrumentDefMsg {
     pub min_price_increment: i64,
     /// The multiplier to convert the venue’s display price to the conventional price.
     pub display_factor: i64,
-    /// The time of instrument activation expressed as a number of nanoseconds since the
+    /// The last eligible trade time expressed as a number of nanoseconds since the
     /// UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub expiration: u64,
-    /// The last eligible trade time expressed as a number of nanoseconds since the
+    /// The time of instrument activation expressed as a number of nanoseconds since the
     /// UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
     pub activation: u64,
@@ -312,8 +315,7 @@ pub struct InstrumentDefMsg {
     /// The differential value for price banding in units of 1e-9, i.e. 1/1,000,000,000
     /// or 0.000000001.
     pub max_price_variation: i64,
-    /// The trading session date corresponding to the settlement price in
-    /// `trading_reference_price`, in number of days since the UNIX epoch.
+    /// The trading session settlement price on `trading_reference_date`.
     pub trading_reference_price: i64,
     /// The contract size for each instrument, in combination with `unit_of_measure`.
     pub unit_of_measure_qty: i64,
@@ -441,8 +443,7 @@ pub struct InstrumentDefMsg {
     /// The calendar week reflected in the instrument symbol, or 0.
     pub maturity_week: u8,
     /// Indicates if the instrument is user defined: **Y**es or **N**o.
-    #[serde(serialize_with = "serialize_c_char")]
-    pub user_defined_instrument: c_char,
+    pub user_defined_instrument: UserDefinedInstrument,
     /// The type of `contract_multiplier`. Either `1` for hours, or `2` for days.
     pub contract_multiplier_unit: i8,
     /// The schedule for delivering electricity.
@@ -536,7 +537,8 @@ pub struct ErrorMsg {
     pub err: [c_char; 64],
 }
 
-/// A symbol mapping message.
+/// A symbol mapping message which maps a symbol of one [`SType`](crate::enums::SType)
+/// to another.
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
@@ -557,7 +559,11 @@ pub struct SymbolMappingMsg {
     #[doc(hidden)]
     #[serde(skip)]
     pub _dummy: [c_char; 4],
+    /// The start of the mapping interval expressed as the number of nanoseconds since
+    /// the UNIX epoch.
     pub start_ts: u64,
+    /// The end of the mapping interval expressed as the number of nanoseconds since
+    /// the UNIX epoch.
     pub end_ts: u64,
 }
 
@@ -615,6 +621,7 @@ pub trait HasRType {
 }
 
 impl RecordHeader {
+    /// The multiplier for converting the `length` field to the number of bytes.
     pub const LENGTH_MULTIPLIER: usize = 4;
 
     /// Creates a new `RecordHeader`. `R` and `rtype` should be compatible.
@@ -642,11 +649,19 @@ impl RecordHeader {
 
 impl MboMsg {
     /// Tries to convert the raw `side` to an enum.
+    ///
+    /// # Errors
+    /// This function returns an error if the `side` field does not
+    /// contain a valid [`Side`](crate::enums::Side).
     pub fn side(&self) -> crate::error::Result<Side> {
         Side::try_from(self.side as u8).map_err(|_| ConversionError::TypeConversion("Invalid side"))
     }
 
     /// Tries to convert the raw `action` to an enum.
+    ///
+    /// # Errors
+    /// This function returns an error if the `action` field does not
+    /// contain a valid [`Action`](crate::enums::Action).
     pub fn action(&self) -> crate::error::Result<Action> {
         Action::try_from(self.side as u8)
             .map_err(|_| ConversionError::TypeConversion("Invalid action"))
@@ -655,11 +670,19 @@ impl MboMsg {
 
 impl TradeMsg {
     /// Tries to convert the raw `side` to an enum.
+    ///
+    /// # Errors
+    /// This function returns an error if the `side` field does not
+    /// contain a valid [`Side`](crate::enums::Side).
     pub fn side(&self) -> crate::error::Result<Side> {
         Side::try_from(self.side as u8).map_err(|_| ConversionError::TypeConversion("Invalid side"))
     }
 
     /// Tries to convert the raw `action` to an enum.
+    ///
+    /// # Errors
+    /// This function returns an error if the `action` field does not
+    /// contain a valid [`Action`](crate::enums::Action).
     pub fn action(&self) -> crate::error::Result<Action> {
         Action::try_from(self.side as u8)
             .map_err(|_| ConversionError::TypeConversion("Invalid action"))
@@ -668,11 +691,19 @@ impl TradeMsg {
 
 impl Mbp1Msg {
     /// Tries to convert the raw `side` to an enum.
+    ///
+    /// # Errors
+    /// This function returns an error if the `side` field does not
+    /// contain a valid [`Side`](crate::enums::Side).
     pub fn side(&self) -> crate::error::Result<Side> {
         Side::try_from(self.side as u8).map_err(|_| ConversionError::TypeConversion("Invalid side"))
     }
 
     /// Tries to convert the raw `action` to an enum.
+    ///
+    /// # Errors
+    /// This function returns an error if the `action` field does not
+    /// contain a valid [`Action`](crate::enums::Action).
     pub fn action(&self) -> crate::error::Result<Action> {
         Action::try_from(self.side as u8)
             .map_err(|_| ConversionError::TypeConversion("Invalid action"))
@@ -681,11 +712,19 @@ impl Mbp1Msg {
 
 impl Mbp10Msg {
     /// Tries to convert the raw `side` to an enum.
+    ///
+    /// # Errors
+    /// This function returns an error if the `side` field does not
+    /// contain a valid [`Side`](crate::enums::Side).
     pub fn side(&self) -> crate::error::Result<Side> {
         Side::try_from(self.side as u8).map_err(|_| ConversionError::TypeConversion("Invalid side"))
     }
 
     /// Tries to convert the raw `action` to an enum.
+    ///
+    /// # Errors
+    /// This function returns an error if the `action` field does not
+    /// contain a valid [`Action`](crate::enums::Action).
     pub fn action(&self) -> crate::error::Result<Action> {
         Action::try_from(self.side as u8)
             .map_err(|_| ConversionError::TypeConversion("Invalid action"))
@@ -693,14 +732,32 @@ impl Mbp10Msg {
 }
 
 impl InstrumentDefMsg {
+    /// Tries to convert the raw `instrument_class` to an enum.
+    ///
+    /// # Errors
+    /// This function returns an error if the `instrument_class` field does not
+    /// contain a valid [`InstrumentClass`](crate::enums::InstrumentClass).
     pub fn instrument_class(&self) -> crate::error::Result<InstrumentClass> {
         InstrumentClass::try_from(self.instrument_class as u8)
             .map_err(|_| ConversionError::TypeConversion("Invalid instrument_class"))
+    }
+
+    /// Tries to convert the raw `match_algorithm` to an enum.
+    ///
+    /// # Errors
+    /// This function returns an error if the `match_algorithm` field does not
+    /// contain a valid [`MatchAlgorithm`](crate::enums::MatchAlgorithm).
+    pub fn match_algorithm(&self) -> crate::error::Result<MatchAlgorithm> {
+        MatchAlgorithm::try_from(self.match_algorithm as u8)
+            .map_err(|_| ConversionError::TypeConversion("Invalid match_algorithm"))
     }
 }
 
 impl ErrorMsg {
     /// Creates a new `ErrorMsg`.
+    ///
+    /// # Errors
+    /// This function returns an error if `msg` is too long.
     pub fn new(ts_event: u64, msg: &str) -> Self {
         let mut error = Self {
             hd: RecordHeader::new::<Self>(rtype::ERROR, 0, 0, ts_event),
@@ -727,6 +784,9 @@ impl SystemMsg {
     const HEARTBEAT: &str = "Heartbeat";
 
     /// Creates a new `SystemMsg`.
+    ///
+    /// # Errors
+    /// This function returns an error if `msg` is too long.
     pub fn new(ts_event: u64, msg: &str) -> anyhow::Result<Self> {
         Ok(Self {
             hd: RecordHeader::new::<Self>(rtype::SYSTEM, 0, 0, ts_event),

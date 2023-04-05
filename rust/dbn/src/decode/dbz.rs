@@ -108,6 +108,12 @@ impl<R: io::BufRead> DecodeDbn for Decoder<R> {
             return silence_eof_error(err);
         }
         let length = self.buffer[0] as usize * RecordHeader::LENGTH_MULTIPLIER;
+        if length < mem::size_of::<RecordHeader>() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("Invalid record with length {length} shorter than header"),
+            ));
+        }
         if length > self.buffer.len() {
             self.buffer.resize(length, 0);
         }
