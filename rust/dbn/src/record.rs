@@ -263,6 +263,10 @@ pub struct OhlcvMsg {
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(get_all, set_all, module = "databento_dbn")
+)]
 pub struct StatusMsg {
     /// The common header.
     pub hd: RecordHeader,

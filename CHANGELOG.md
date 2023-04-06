@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.4.2 - 2023-04-06
+- Fixed support for `SystemMsg` in Python
+
 ## 0.4.1 - 2023-04-05
 - Added enums `MatchAlgorithm`, `UserDefinedInstrument`
 - Added constants `UNDEF_PRICE` and `UNDEF_ORDER_SIZE`

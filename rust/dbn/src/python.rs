@@ -22,7 +22,7 @@ use crate::{
     metadata::MetadataBuilder,
     record::{
         str_to_c_chars, BidAskPair, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg,
-        Mbp1Msg, OhlcvMsg, RecordHeader, TbboMsg, TradeMsg,
+        Mbp1Msg, OhlcvMsg, RecordHeader, StatusMsg, TbboMsg, TradeMsg,
     },
     UNDEF_ORDER_SIZE, UNDEF_PRICE,
 };
@@ -674,6 +674,43 @@ impl OhlcvMsg {
             close,
             volume,
         }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
+
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    #[pyo3(name = "record_size")]
+    fn py_record_size(&self) -> usize {
+        self.record_size()
+    }
+}
+
+#[pymethods]
+impl StatusMsg {
+    #[new]
+    fn py_new(
+        publisher_id: u16,
+        product_id: u32,
+        ts_event: u64,
+        ts_recv: u64,
+        group: &str,
+        trading_status: u8,
+        halt_reason: u8,
+        trading_event: u8,
+    ) -> PyResult<Self> {
+        Ok(Self {
+            hd: RecordHeader::new::<Self>(rtype::STATUS, publisher_id, product_id, ts_event),
+            ts_recv,
+            group: str_to_c_chars(group).map_err(to_val_err)?,
+            trading_status,
+            halt_reason,
+            trading_event,
+        })
     }
 
     fn __repr__(&self) -> String {

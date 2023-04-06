@@ -14,8 +14,8 @@ use crate::{
     decode::DecodeDbn,
     enums::{Compression, Encoding, Schema},
     record::{
-        HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, TbboMsg,
-        TradeMsg, WithTsOut,
+        HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg,
+        TbboMsg, TradeMsg, WithTsOut,
     },
     Metadata,
 };
@@ -97,7 +97,9 @@ pub trait EncodeDbn {
             (Schema::Imbalance, false) => {
                 self.encode_stream(decoder.decode_stream::<ImbalanceMsg>()?)
             }
-            (Schema::Statistics | Schema::Status, _) => Err(anyhow!("Not implemented")),
+            (Schema::Status, true) => self.encode_stream(decoder.decode_stream::<StatusMsg>()?),
+            (Schema::Status, false) => self.encode_stream(decoder.decode_stream::<StatusMsg>()?),
+            (Schema::Statistics, _) => Err(anyhow!("Not implemented")),
         }
     }
 }
