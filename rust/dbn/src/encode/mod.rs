@@ -36,12 +36,14 @@ pub trait EncodeDbn {
     /// This function returns an error if it's unable to write to the underlying writer
     /// or there's a serialization error.
     fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> anyhow::Result<bool>;
+
     /// Encode a slice of DBN records.
     ///
     /// # Errors
     /// This function returns an error if it's unable to write to the underlying writer
     /// or there's a serialization error.
     fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> anyhow::Result<()>;
+
     /// Encode a stream of DBN records.
     ///
     /// # Errors

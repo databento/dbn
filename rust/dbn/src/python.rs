@@ -7,7 +7,7 @@ use std::{collections::HashMap, ffi::c_char, fmt, io, io::SeekFrom, num::NonZero
 use pyo3::{
     exceptions::{PyTypeError, PyValueError},
     prelude::*,
-    types::{PyBytes, PyDate, PyDateAccess, PyDict},
+    types::{PyBytes, PyDate, PyDateAccess, PyDict, PyTuple},
     PyClass,
 };
 use time::Date;
@@ -23,7 +23,7 @@ use crate::{
     record::{
         str_to_c_chars, BidAskPair, ErrorMsg, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg,
         Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader, StatusMsg, SymbolMappingMsg, SystemMsg, TbboMsg,
-        TradeMsg,
+        TradeMsg, WithTsOut,
     },
     UNDEF_ORDER_SIZE, UNDEF_PRICE,
 };
@@ -240,6 +240,13 @@ impl ToPyObject for SymbolMapping {
         dict.set_item("intervals", &self.intervals)
             .expect("set intervals");
         dict.into_py(py)
+    }
+}
+
+// `WithTsOut` is converted to a 2-tuple in Python
+impl<R: HasRType + IntoPy<Py<PyAny>>> IntoPy<PyObject> for WithTsOut<R> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        PyTuple::new(py, [self.rec.into_py(py), self.ts_out.into_py(py)]).into_py(py)
     }
 }
 

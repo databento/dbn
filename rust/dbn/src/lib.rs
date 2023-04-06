@@ -9,6 +9,7 @@ pub mod decode;
 pub mod encode;
 pub mod enums;
 pub mod error;
+mod macros;
 pub mod metadata;
 pub mod record;
 pub mod record_ref;

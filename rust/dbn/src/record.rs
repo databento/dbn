@@ -8,8 +8,8 @@ use serde::Serialize;
 
 use crate::{
     enums::{
-        rtype, Action, InstrumentClass, MatchAlgorithm, SecurityUpdateAction, Side,
-        UserDefinedInstrument,
+        rtype::{self, RType},
+        Action, InstrumentClass, MatchAlgorithm, SecurityUpdateAction, Side, UserDefinedInstrument,
     },
     error::ConversionError,
 };
@@ -622,6 +622,16 @@ pub trait HasRType {
     fn record_size(&self) -> usize {
         self.header().record_size()
     }
+
+    /// Tries to convert the raw `rtype` into an enum which is useful for exhaustive
+    /// pattern matching.
+    ///
+    /// # Errors
+    /// This function returns an error if the `rtype` field does not
+    /// contain a valid, known [`RType`](crate::enums::RType).
+    fn rtype(&self) -> crate::error::Result<RType> {
+        self.header().rtype()
+    }
 }
 
 impl RecordHeader {
@@ -648,6 +658,15 @@ impl RecordHeader {
     /// is constant.
     pub const fn record_size(&self) -> usize {
         self.length as usize * Self::LENGTH_MULTIPLIER
+    }
+
+    /// Tries to convert the raw `rtype` into an enum.
+    ///
+    /// # Errors
+    /// This function returns an error if the `rtype` field does not
+    /// contain a valid, known [`RType`](crate::enums::RType).
+    pub fn rtype(&self) -> crate::error::Result<RType> {
+        RType::try_from(self.rtype).map_err(|_| ConversionError::TypeConversion("Invalid rtype"))
     }
 }
 

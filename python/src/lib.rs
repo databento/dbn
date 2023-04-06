@@ -5,12 +5,12 @@ use pyo3::{prelude::*, wrap_pyfunction, PyClass};
 
 use dbn::{
     decode::dbn::{MetadataDecoder, RecordDecoder},
-    enums::rtype,
     python::to_val_err,
     record::{
-        BidAskPair, ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
-        RecordHeader, StatusMsg, SymbolMappingMsg, SystemMsg, TradeMsg,
+        BidAskPair, ErrorMsg, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg,
+        OhlcvMsg, RecordHeader, StatusMsg, SymbolMappingMsg, SystemMsg, TradeMsg,
     },
+    rtype_ts_out_dispatch,
 };
 
 /// A Python module wrapping dbn functions
@@ -48,6 +48,7 @@ fn databento_dbn(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
 struct DbnDecoder {
     buffer: io::Cursor<Vec<u8>>,
     has_decoded_metadata: bool,
+    ts_out: bool,
 }
 
 #[pymethods]
@@ -57,6 +58,7 @@ impl DbnDecoder {
         Self {
             buffer: io::Cursor::default(),
             has_decoded_metadata: false,
+            ts_out: false,
         }
     }
 
@@ -75,6 +77,7 @@ impl DbnDecoder {
         if !self.has_decoded_metadata {
             match MetadataDecoder::new(&mut self.buffer).decode() {
                 Ok(metadata) => {
+                    self.ts_out = metadata.ts_out;
                     Python::with_gil(|py| recs.push(metadata.into_py(py)));
                     self.has_decoded_metadata = true;
                 }
@@ -91,36 +94,24 @@ impl DbnDecoder {
             while let Some(rec) = decoder.decode_ref().map_err(to_val_err)? {
                 // Bug in clippy generates an error here. trivial_copy feature isn't enabled,
                 // but clippy thinks these records are `Copy`
-                #[allow(clippy::clone_on_copy)]
-                match rec.header().rtype {
-                    rtype::MBP_0 => recs.push(rec.get::<TradeMsg>().unwrap().clone().into_py(py)),
-                    rtype::MBP_1 => recs.push(rec.get::<Mbp1Msg>().unwrap().clone().into_py(py)),
-                    rtype::MBP_10 => recs.push(rec.get::<Mbp10Msg>().unwrap().clone().into_py(py)),
-                    #[allow(deprecated)]
-                    rtype::OHLCV_DEPRECATED
-                    | rtype::OHLCV_1S
-                    | rtype::OHLCV_1M
-                    | rtype::OHLCV_1H
-                    | rtype::OHLCV_1D => {
-                        recs.push(rec.get::<OhlcvMsg>().unwrap().clone().into_py(py))
-                    }
-                    rtype::STATUS => recs.push(rec.get::<StatusMsg>().unwrap().clone().into_py(py)),
-                    rtype::IMBALANCE => {
-                        recs.push(rec.get::<ImbalanceMsg>().unwrap().clone().into_py(py))
-                    }
-                    rtype::INSTRUMENT_DEF => {
-                        recs.push(rec.get::<InstrumentDefMsg>().unwrap().clone().into_py(py))
-                    }
-                    rtype::ERROR => recs.push(rec.get::<ErrorMsg>().unwrap().clone().into_py(py)),
-                    rtype::SYMBOL_MAPPING => {
-                        recs.push(rec.get::<SymbolMappingMsg>().unwrap().clone().into_py(py))
-                    }
-                    rtype::SYSTEM => recs.push(rec.get::<SystemMsg>().unwrap().clone().into_py(py)),
-                    rtype::MBO => recs.push(rec.get::<MboMsg>().unwrap().clone().into_py(py)),
-                    rtype => {
-                        return Err(to_val_err(format!("Invalid rtype {rtype} found in record")))
-                    }
-                };
+                fn push_rec<R: Clone + HasRType + IntoPy<Py<PyAny>>>(
+                    rec: &R,
+                    py: Python,
+                    recs: &mut Vec<Py<PyAny>>,
+                ) {
+                    recs.push(rec.clone().into_py(py))
+                }
+
+                // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
+                // from the metadata header.
+                if unsafe { rtype_ts_out_dispatch!(rec, self.ts_out, push_rec, py, &mut recs) }
+                    .is_err()
+                {
+                    return Err(to_val_err(format!(
+                        "Invalid rtype {} found in record",
+                        rec.header().rtype,
+                    )));
+                }
                 // keep track of position after last _successful_ decoding to ensure
                 // buffer is left in correct state in the case where one or more
                 // successful decodings is followed by a partial one, i.e. `decode_ref`

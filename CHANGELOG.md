@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.0 - TBD
+- Added `RType` enum for exhaustive pattern matching
+- Fixed issue with decoding partial records in Python `DbnDecoder`
+
 ## 0.4.3 - 2023-04-07
 - Fixed typo in Python type stubs
 

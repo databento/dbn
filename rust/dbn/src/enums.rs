@@ -208,9 +208,55 @@ impl Display for SType {
     }
 }
 
+pub use rtype::RType;
+
 /// Record types, possible values for [`RecordHeader::rtype`][crate::record::RecordHeader::rtype]
+#[allow(deprecated)]
 pub mod rtype {
+    use num_enum::TryFromPrimitive;
+    use serde::Serialize;
+
     use super::Schema;
+
+    /// A type of record, i.e. a struct implementing [`HasRType`](crate::record::HasRType).
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, TryFromPrimitive)]
+    #[repr(u8)]
+    pub enum RType {
+        /// Market by price with a book depth of 0 (used for trades).
+        Mbp0 = MBP_0,
+        /// Market by price with a book depth of 1 (also used for TBBO).
+        Mbp1 = MBP_1,
+        /// Market by price with a book depth of 10.
+        Mbp10 = MBP_10,
+        /// Open, high, low, close, and volume at an unspecified cadence.
+        #[deprecated(
+            since = "0.3.3",
+            note = "Separated into separate rtypes for each OHLCV schema."
+        )]
+        OhlcvDeprecated = OHLCV_DEPRECATED,
+        /// Open, high, low, close, and volume at a 1-second cadence.
+        Ohlcv1S = OHLCV_1S,
+        /// Open, high, low, close, and volume at a 1-minute cadence.
+        Ohlcv1M = OHLCV_1M,
+        /// Open, high, low, close, and volume at a daily cadence.
+        Ohlcv1H = OHLCV_1H,
+        /// Open, high, low, close, and volume at a daily cadence.
+        Ohlcv1D = OHLCV_1D,
+        /// Exchange status.
+        Status = STATUS,
+        /// Instrument definition.
+        InstrumentDef = INSTRUMENT_DEF,
+        /// Order imbalance.
+        Imbalance = IMBALANCE,
+        /// Error from gateway.
+        Error = ERROR,
+        /// Symbol mapping.
+        SymbolMapping = SYMBOL_MAPPING,
+        /// A non-error message. Also used for heartbeats.
+        System = SYSTEM,
+        /// Market by order.
+        Mbo = MBO,
+    }
 
     /// Market by price with a book depth of 0 (used for trades).
     pub const MBP_0: u8 = 0x00;
