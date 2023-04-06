@@ -1,7 +1,7 @@
 # Changelog
 
 ## 0.4.2 - 2023-04-06
-- Fixed support for `SystemMsg` in Python
+- Fixed support for `ErrorMsg`, `SystemMsg`, and `SymbolMappingMsg` in Python
 
 ## 0.4.1 - 2023-04-05
 - Added enums `MatchAlgorithm`, `UserDefinedInstrument`
