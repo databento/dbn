@@ -21,8 +21,9 @@ use crate::{
     enums::{rtype, Compression, SType, Schema, SecurityUpdateAction, UserDefinedInstrument},
     metadata::MetadataBuilder,
     record::{
-        str_to_c_chars, BidAskPair, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg,
-        Mbp1Msg, OhlcvMsg, RecordHeader, StatusMsg, TbboMsg, TradeMsg,
+        str_to_c_chars, BidAskPair, ErrorMsg, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg,
+        Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader, StatusMsg, SymbolMappingMsg, SystemMsg, TbboMsg,
+        TradeMsg,
     },
     UNDEF_ORDER_SIZE, UNDEF_PRICE,
 };
@@ -929,6 +930,89 @@ impl ImbalanceMsg {
             significant_imbalance,
             _dummy: [0],
         }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
+
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    #[pyo3(name = "record_size")]
+    fn py_record_size(&self) -> usize {
+        self.record_size()
+    }
+}
+
+#[pymethods]
+impl ErrorMsg {
+    #[new]
+    fn py_new(ts_event: u64, err: &str) -> PyResult<Self> {
+        Ok(ErrorMsg::new(ts_event, err))
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
+
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    #[pyo3(name = "record_size")]
+    fn py_record_size(&self) -> usize {
+        self.record_size()
+    }
+}
+
+#[pymethods]
+impl SymbolMappingMsg {
+    #[new]
+    fn py_new(
+        publisher_id: u16,
+        product_id: u32,
+        ts_event: u64,
+        stype_in_symbol: &str,
+        stype_out_symbol: &str,
+        start_ts: u64,
+        end_ts: u64,
+    ) -> PyResult<Self> {
+        Ok(Self {
+            hd: RecordHeader::new::<Self>(
+                rtype::SYMBOL_MAPPING,
+                publisher_id,
+                product_id,
+                ts_event,
+            ),
+            stype_in_symbol: str_to_c_chars(stype_in_symbol).map_err(to_val_err)?,
+            stype_out_symbol: str_to_c_chars(stype_out_symbol).map_err(to_val_err)?,
+            start_ts,
+            _dummy: [0; 4],
+            end_ts,
+        })
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
+
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    #[pyo3(name = "record_size")]
+    fn py_record_size(&self) -> usize {
+        self.record_size()
+    }
+}
+
+#[pymethods]
+impl SystemMsg {
+    #[new]
+    fn py_new(ts_event: u64, msg: &str) -> PyResult<Self> {
+        SystemMsg::new(ts_event, msg).map_err(to_val_err)
     }
 
     fn __repr__(&self) -> String {
