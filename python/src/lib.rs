@@ -9,7 +9,7 @@ use dbn::{
     python::to_val_err,
     record::{
         BidAskPair, ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
-        RecordHeader, SymbolMappingMsg, SystemMsg, TradeMsg,
+        RecordHeader, StatusMsg, SymbolMappingMsg, SystemMsg, TradeMsg,
     },
 };
 
@@ -36,6 +36,7 @@ fn databento_dbn(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     checked_add_class::<Mbp10Msg>(m)?;
     checked_add_class::<OhlcvMsg>(m)?;
     checked_add_class::<ImbalanceMsg>(m)?;
+    checked_add_class::<StatusMsg>(m)?;
     checked_add_class::<InstrumentDefMsg>(m)?;
     checked_add_class::<ErrorMsg>(m)?;
     checked_add_class::<SymbolMappingMsg>(m)?;
@@ -102,6 +103,7 @@ impl DbnDecoder {
                     | rtype::OHLCV_1D => {
                         recs.push(rec.get::<OhlcvMsg>().unwrap().clone().into_py(py))
                     }
+                    rtype::STATUS => recs.push(rec.get::<StatusMsg>().unwrap().clone().into_py(py)),
                     rtype::IMBALANCE => {
                         recs.push(rec.get::<ImbalanceMsg>().unwrap().clone().into_py(py))
                     }
@@ -112,6 +114,7 @@ impl DbnDecoder {
                     rtype::SYMBOL_MAPPING => {
                         recs.push(rec.get::<SymbolMappingMsg>().unwrap().clone().into_py(py))
                     }
+                    rtype::SYSTEM => recs.push(rec.get::<SystemMsg>().unwrap().clone().into_py(py)),
                     rtype::MBO => recs.push(rec.get::<MboMsg>().unwrap().clone().into_py(py)),
                     rtype => {
                         return Err(to_val_err(format!("Invalid rtype {rtype} found in record")))

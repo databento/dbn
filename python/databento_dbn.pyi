@@ -1,19 +1,5 @@
 """Type stubs for databento_dbn"""
-from typing import Any, BinaryIO, Dict, Optional, Sequence, Union
-
-DBNRecord = Union[
-    "Metadata",
-    "MBOMsg",
-    "TradeMsg",
-    "MBP1Msg",
-    "MBP10Msg",
-    "OhlcvMsg",
-    "InstrumentDefMsg",
-    "ImbalanceMsg",
-    "ErrorMsg",
-    "SymbolMappingMsg",
-    "SystemMsg",
-]
+from typing import Any, BinaryIO, Dict, Optional, Sequence, SupportsBytes
 
 class Metadata:
     """
@@ -215,7 +201,7 @@ class RecordHeader:
 
         """
 
-class _Record:
+class Record(SupportsBytes):
     """
     Base class for DBN records.
     """
@@ -347,7 +333,7 @@ class _MBOBase:
 
         """
 
-class MBOMsg(_Record, _MBOBase):
+class MBOMsg(Record, _MBOBase):
     """
     A market-by-order (MBO) tick message.
     """
@@ -515,13 +501,13 @@ class _MBPBase:
 
         """
 
-class TradeMsg(_Record, _MBPBase):
+class TradeMsg(Record, _MBPBase):
     """
     Market by price implementation with a book depth of 0. Equivalent to
     MBP-0. The record of the `Trades` schema.
     """
 
-class MBP1Msg(_Record, _MBPBase):
+class MBP1Msg(Record, _MBPBase):
     """
     Market by price implementation with a known book depth of 1.
     """
@@ -541,7 +527,7 @@ class MBP1Msg(_Record, _MBPBase):
 
         """
 
-class MBP10Msg(_Record, _MBPBase):
+class MBP10Msg(Record, _MBPBase):
     """
     Market by price implementation with a known book depth of 10.
     """
@@ -561,7 +547,7 @@ class MBP10Msg(_Record, _MBPBase):
 
         """
 
-class OhlcvMsg(_Record):
+class OHLCVMsg(Record):
     """
     Open, high, low, close, and volume message.
     """
@@ -617,7 +603,7 @@ class OhlcvMsg(_Record):
 
         """
 
-class InstrumentDefMsg(_Record):
+class InstrumentDefMsg(Record):
     """
     Definition of an instrument.
     """
@@ -1246,7 +1232,7 @@ class InstrumentDefMsg(_Record):
 
         """
 
-class ImbalanceMsg(_Record):
+class ImbalanceMsg(Record):
     """
     An auction imbalance message.
     """
@@ -1454,7 +1440,7 @@ class ImbalanceMsg(_Record):
 
         """
 
-class ErrorMsg(_Record):
+class ErrorMsg(Record):
     """
     An error message from the Databento Live Subscription Gateway (LSG).
     """
@@ -1470,7 +1456,7 @@ class ErrorMsg(_Record):
 
         """
 
-class SymbolMappingMsg(_Record):
+class SymbolMappingMsg(Record):
     """
     A symbol mapping message which maps a symbol of one `SType` to another.
     """
@@ -1518,7 +1504,7 @@ class SymbolMappingMsg(_Record):
 
         """
 
-class SystemMsg(_Record):
+class SystemMsg(Record):
     """
     A non-error message from the Databento Live Subscription Gateway (LSG). Also used
     for heartbeating.
@@ -1552,13 +1538,13 @@ class DbnDecoder:
         """
     def decode(
         self,
-    ) -> Sequence[DBNRecord]:
+    ) -> Sequence[Record]:
         """
         Decode the buffered data into DBN records.
 
         Returns
         -------
-        Sequence[DBNRecord]
+        Sequence[Record]
 
         Raises
         ------
@@ -1693,7 +1679,7 @@ def write_dbn_file(
     start: int,
     stype_in: int,
     stype_out: int,
-    records: Sequence[DBNRecord],
+    records: Sequence[Record],
     end: Optional[int] = None,
 ) -> None:
     """
