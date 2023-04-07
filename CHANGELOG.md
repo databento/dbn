@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.4.3 - 2023-04-07
+- Fixed typo in Python type stubs
+
 ## 0.4.2 - 2023-04-06
 - Fixed support for `ErrorMsg`, `SystemMsg`, and `SymbolMappingMsg` in Python
 
