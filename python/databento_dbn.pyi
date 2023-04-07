@@ -1,5 +1,5 @@
 """Type stubs for databento_dbn"""
-from typing import Any, BinaryIO, Dict, Optional, Sequence, SupportsBytes
+from typing import BinaryIO, Optional, Sequence, SupportsBytes
 
 class Metadata:
     """
@@ -135,13 +135,13 @@ class Metadata:
 
         """
     @property
-    def mappings(self) -> Sequence[Dict[str, Any]]:
+    def mappings(self) -> Sequence[SymbolMapping]:
         """
         Symbol mappings containing a native symbol and its mapping intervals.
 
         Returns
         -------
-        Sequence[Dict[str, Any]]
+        Sequence[SymbolMapping]
 
         """
 
@@ -1592,14 +1592,14 @@ def decode_metadata(bytes: bytes) -> Metadata:
 
 def encode_metadata(
     dataset: str,
-    schema: int,
+    schema: str,
     start: int,
-    stype_in: int,
-    stype_out: int,
+    stype_in: str,
+    stype_out: str,
     symbols: Sequence[str],
     partial: Sequence[str],
-    not_fonud: Sequence[str],
-    mappings: Sequence[Dict[str, Any]],
+    not_found: Sequence[str],
+    mappings: Sequence[SymbolMapping],
     end: Optional[int] = None,
     limit: Optional[int] = None,
 ) -> bytes:
@@ -1611,13 +1611,13 @@ def encode_metadata(
     ----------
     dataset : str
        The dataset code.
-    schema : int
+    schema : str
         The data record schema.
     start : int
         The UNIX nanosecond timestamp of the query start, or the first record if the file was split.
-    stype_in : int
+    stype_in : str
         The input symbology type to map from.
-    stype_out: int
+    stype_out: str
         The output symbology type to map to.
     symbols : Sequence[str]
         The original query input symbols from the request.
@@ -1625,7 +1625,7 @@ def encode_metadata(
         Symbols that did not resolve for _at least one day_ in the query time range.
     not_found : Sequence[str]
         Symbols that did not resolve for _any_ day in the query time range.
-    mappings : Sequence[Dict[str, Any]]
+    mappings : Sequence[SymbolMapping]
         Symbol mappings containing a native symbol and its mapping intervals.
     end : Optional[int]
         The UNIX nanosecond timestamp of the query end, or the last record if the file was split.
@@ -1673,12 +1673,12 @@ def update_encoded_metadata(
 
 def write_dbn_file(
     file: BinaryIO,
-    compression: int,
+    compression: str,
     dataset: str,
-    schema: int,
+    schema: str,
     start: int,
-    stype_in: int,
-    stype_out: int,
+    stype_in: str,
+    stype_out: str,
     records: Sequence[Record],
     end: Optional[int] = None,
 ) -> None:
@@ -1689,17 +1689,17 @@ def write_dbn_file(
     ----------
     file : BinaryIO
         The file handle to update.
-    compression : int
+    compression : str
         The DBN compression format.
     dataset : str
        The dataset code.
-    schema : int
+    schema : str
         The data record schema.
     start : int
         The UNIX nanosecond timestamp of the query start, or the first record if the file was split.
-    stype_in : int
+    stype_in : str
         The input symbology type to map from.
-    stype_out : int
+    stype_out : str
         The output symbology type to map to.
     records : Sequence[object]
         A sequence of DBN record objects.
