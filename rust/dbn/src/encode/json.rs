@@ -116,6 +116,10 @@ where
         self.writer.flush()?;
         Ok(())
     }
+
+    fn flush(&mut self) -> anyhow::Result<()> {
+        Ok(self.writer.flush()?)
+    }
 }
 
 #[cfg(test)]
@@ -475,11 +479,11 @@ mod tests {
         let metadata = Metadata {
             version: 1,
             dataset: "GLBX.MDP3".to_owned(),
-            schema: Schema::Ohlcv1H,
+            schema: Some(Schema::Ohlcv1H),
             start: 1662734705128748281,
             end: NonZeroU64::new(1662734720914876944),
             limit: None,
-            stype_in: SType::ProductId,
+            stype_in: Some(SType::ProductId),
             stype_out: SType::Native,
             ts_out: false,
             symbols: vec!["ESZ2".to_owned()],

@@ -10,7 +10,7 @@ use dbn::{
         BidAskPair, ErrorMsg, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg,
         OhlcvMsg, RecordHeader, StatusMsg, SymbolMappingMsg, SystemMsg, TradeMsg,
     },
-    rtype_ts_out_dispatch,
+    rtype_ts_out_dispatch, Metadata,
 };
 
 /// A Python module wrapping dbn functions
@@ -22,12 +22,10 @@ fn databento_dbn(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
         m.add_class::<T>()
     }
     // all functions exposed to Python need to be added here
-    m.add_wrapped(wrap_pyfunction!(dbn::python::decode_metadata))?;
-    m.add_wrapped(wrap_pyfunction!(dbn::python::encode_metadata))?;
     m.add_wrapped(wrap_pyfunction!(dbn::python::update_encoded_metadata))?;
     m.add_wrapped(wrap_pyfunction!(dbn::python::write_dbn_file))?;
     checked_add_class::<DbnDecoder>(m)?;
-    checked_add_class::<dbn::Metadata>(m)?;
+    checked_add_class::<Metadata>(m)?;
     checked_add_class::<RecordHeader>(m)?;
     checked_add_class::<MboMsg>(m)?;
     checked_add_class::<BidAskPair>(m)?;
@@ -188,8 +186,8 @@ mod tests {
             buffer,
             &MetadataBuilder::new()
                 .dataset("XNAS.ITCH".to_owned())
-                .schema(Schema::Trades)
-                .stype_in(SType::Native)
+                .schema(Some(Schema::Trades))
+                .stype_in(Some(SType::Native))
                 .stype_out(SType::ProductId)
                 .start(0)
                 .build(),
@@ -227,8 +225,8 @@ mod tests {
             buffer,
             &MetadataBuilder::new()
                 .dataset("XNAS.ITCH".to_owned())
-                .schema(Schema::Ohlcv1S)
-                .stype_in(SType::Native)
+                .schema(Some(Schema::Ohlcv1S))
+                .stype_in(Some(SType::Native))
                 .stype_out(SType::ProductId)
                 .start(0)
                 .build(),
@@ -305,10 +303,22 @@ for _, ts_out in records[1:]:
             pyo3::py_run!(
                   py,
                   stype_in stype_out,
-                  r#"from databento_dbn import decode_metadata, encode_metadata
+                  r#"from databento_dbn import Metadata
 
-metadata_bytes = encode_metadata("GLBX.MDP3", "mbo", 1, "native", "product_id", [], [], [], [], 2, None)
-metadata = decode_metadata(metadata_bytes)
+metadata = Metadata(
+    dataset="GLBX.MDP3",
+    schema="mbo",
+    start=1,
+    stype_in="native",
+    stype_out="product_id",
+    end=2,
+    symbols=[],
+    partial=[],
+    not_found=[],
+    mappings=[]
+)
+metadata_bytes = metadata.encode()
+metadata = Metadata.decode(metadata_bytes)
 assert metadata.dataset == "GLBX.MDP3"
 assert metadata.schema == "mbo"
 assert metadata.start == 1
@@ -348,9 +358,21 @@ except Exception:
         setup();
         Python::with_gil(|py| {
             py.run(
-                r#"from databento_dbn import DbnDecoder, encode_metadata
+                r#"from databento_dbn import DbnDecoder, Metadata
 
-metadata_bytes = encode_metadata("GLBX.MDP3", "mbo", 1, "native", "product_id", [], [], [], [], 2, None)
+metadata = Metadata(
+    dataset="GLBX.MDP3",
+    schema="mbo",
+    start=1,
+    stype_in="native",
+    stype_out="product_id",
+    end=2,
+    symbols=[],
+    partial=[],
+    not_found=[],
+    mappings=[]
+)
+metadata_bytes = bytes(metadata)
 decoder = DbnDecoder()
 decoder.write(metadata_bytes)
 decoder.write(bytes([0x04, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]))

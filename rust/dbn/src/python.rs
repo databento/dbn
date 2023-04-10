@@ -29,65 +29,6 @@ use crate::{
 };
 use crate::{MappingInterval, Metadata, SymbolMapping};
 
-/// Decodes the given Python `bytes` to `Metadata`. Returns a `Metadata` object with
-/// all the DBN metadata attributes.
-///
-/// # Errors
-/// This function returns an error if the metadata cannot be parsed from `bytes`.
-#[pyfunction]
-pub fn decode_metadata(bytes: &PyBytes) -> PyResult<Metadata> {
-    let reader = io::BufReader::new(bytes.as_bytes());
-    Ok(DynDecoder::inferred_with_buffer(reader)
-        .map_err(to_val_err)?
-        .metadata()
-        .clone())
-}
-
-/// Encodes the given metadata into the DBN metadata binary format.
-/// Returns Python `bytes`.
-///
-/// # Errors
-/// This function returns an error if any of the enum arguments cannot be converted to
-/// their Rust equivalents. It will also return an error if there's an issue writing
-/// the encoded metadata to bytes.
-#[pyfunction]
-pub fn encode_metadata(
-    py: Python<'_>,
-    dataset: String,
-    schema: Schema,
-    start: u64,
-    stype_in: SType,
-    stype_out: SType,
-    symbols: Vec<String>,
-    partial: Vec<String>,
-    not_found: Vec<String>,
-    mappings: Vec<SymbolMapping>,
-    end: Option<u64>,
-    limit: Option<u64>,
-) -> PyResult<Py<PyBytes>> {
-    let metadata = MetadataBuilder::new()
-        .dataset(dataset)
-        .schema(schema)
-        .start(start)
-        .end(NonZeroU64::new(end.unwrap_or(0)))
-        .limit(NonZeroU64::new(limit.unwrap_or(0)))
-        .stype_in(stype_in)
-        .stype_out(stype_out)
-        .symbols(symbols)
-        .partial(partial)
-        .not_found(not_found)
-        .mappings(mappings)
-        .build();
-    let mut encoded = Vec::with_capacity(1024);
-    MetadataEncoder::new(&mut encoded)
-        .encode(&metadata)
-        .map_err(|e| {
-            println!("{e:?}");
-            to_val_err(e)
-        })?;
-    Ok(PyBytes::new(py, encoded.as_slice()).into())
-}
-
 /// Updates existing fields that have already been written to the given file.
 #[pyfunction]
 pub fn update_encoded_metadata(
@@ -124,38 +65,24 @@ pub fn write_dbn_file(
     _py: Python<'_>,
     file: PyFileLike,
     compression: Compression,
-    dataset: String,
-    schema: Schema,
-    start: u64,
-    stype_in: SType,
-    stype_out: SType,
+    metadata: &Metadata,
     records: Vec<&PyAny>,
-    end: Option<u64>,
 ) -> PyResult<()> {
-    let mut metadata_builder = MetadataBuilder::new()
-        .schema(schema)
-        .dataset(dataset)
-        .stype_in(stype_in)
-        .stype_out(stype_out)
-        .start(start);
-    if let Some(end) = end {
-        metadata_builder = metadata_builder.end(NonZeroU64::new(end))
-    }
-    let metadata = metadata_builder.build();
     let writer = DynWriter::new(file, compression).map_err(to_val_err)?;
-    let encoder = dbn::Encoder::new(writer, &metadata).map_err(to_val_err)?;
-    match schema {
-        Schema::Mbo => encode_pyrecs::<MboMsg>(encoder, &records),
-        Schema::Mbp1 => encode_pyrecs::<Mbp1Msg>(encoder, &records),
-        Schema::Mbp10 => encode_pyrecs::<Mbp10Msg>(encoder, &records),
-        Schema::Tbbo => encode_pyrecs::<TbboMsg>(encoder, &records),
-        Schema::Trades => encode_pyrecs::<TradeMsg>(encoder, &records),
-        Schema::Ohlcv1S | Schema::Ohlcv1M | Schema::Ohlcv1H | Schema::Ohlcv1D => {
-            encode_pyrecs::<OhlcvMsg>(encoder, &records)
-        }
-        Schema::Definition => encode_pyrecs::<InstrumentDefMsg>(encoder, &records),
-        Schema::Imbalance => encode_pyrecs::<ImbalanceMsg>(encoder, &records),
-        Schema::Statistics | Schema::Status => Err(PyValueError::new_err(
+    let encoder = dbn::Encoder::new(writer, metadata).map_err(to_val_err)?;
+    match metadata.schema {
+        Some(Schema::Mbo) => encode_pyrecs::<MboMsg>(encoder, &records),
+        Some(Schema::Mbp1) => encode_pyrecs::<Mbp1Msg>(encoder, &records),
+        Some(Schema::Mbp10) => encode_pyrecs::<Mbp10Msg>(encoder, &records),
+        Some(Schema::Tbbo) => encode_pyrecs::<TbboMsg>(encoder, &records),
+        Some(Schema::Trades) => encode_pyrecs::<TradeMsg>(encoder, &records),
+        Some(Schema::Ohlcv1S)
+        | Some(Schema::Ohlcv1M)
+        | Some(Schema::Ohlcv1H)
+        | Some(Schema::Ohlcv1D) => encode_pyrecs::<OhlcvMsg>(encoder, &records),
+        Some(Schema::Definition) => encode_pyrecs::<InstrumentDefMsg>(encoder, &records),
+        Some(Schema::Imbalance) => encode_pyrecs::<ImbalanceMsg>(encoder, &records),
+        _ => Err(PyValueError::new_err(
             "Unsupported schema type for writing DBN files",
         )),
     }
@@ -203,16 +130,44 @@ impl<'source> FromPyObject<'source> for PyFileLike {
 
 #[pymethods]
 impl Metadata {
+    #[new]
+    fn py_new(
+        dataset: String,
+        start: u64,
+        stype_out: SType,
+        symbols: Vec<String>,
+        partial: Vec<String>,
+        not_found: Vec<String>,
+        mappings: Vec<SymbolMapping>,
+        schema: Option<Schema>,
+        stype_in: Option<SType>,
+        end: Option<u64>,
+        limit: Option<u64>,
+        ts_out: Option<bool>,
+    ) -> Metadata {
+        MetadataBuilder::new()
+            .dataset(dataset)
+            .start(start)
+            .stype_out(stype_out)
+            .symbols(symbols)
+            .partial(partial)
+            .not_found(not_found)
+            .mappings(mappings)
+            .schema(schema)
+            .stype_in(stype_in)
+            .end(NonZeroU64::new(end.unwrap_or_default()))
+            .limit(NonZeroU64::new(limit.unwrap_or_default()))
+            .ts_out(ts_out.unwrap_or_default())
+            .build()
+    }
+
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
 
     /// Encodes Metadata back into DBN format.
     fn __bytes__(&self, py: Python<'_>) -> PyResult<Py<PyBytes>> {
-        let mut buffer = Vec::new();
-        let mut encoder = MetadataEncoder::new(&mut buffer);
-        encoder.encode(self).map_err(to_val_err)?;
-        Ok(PyBytes::new(py, buffer.as_slice()).into())
+        self.py_encode(py)
     }
 
     #[getter]
@@ -222,6 +177,24 @@ impl Metadata {
             res.insert(mapping.native_symbol.clone(), mapping.intervals.clone());
         }
         res
+    }
+
+    #[pyo3(name = "decode")]
+    #[staticmethod]
+    fn py_decode(bytes: &PyBytes) -> PyResult<Metadata> {
+        let reader = io::BufReader::new(bytes.as_bytes());
+        Ok(DynDecoder::inferred_with_buffer(reader)
+            .map_err(to_val_err)?
+            .metadata()
+            .clone())
+    }
+
+    #[pyo3(name = "encode")]
+    fn py_encode(&self, py: Python<'_>) -> PyResult<Py<PyBytes>> {
+        let mut buffer = Vec::new();
+        let mut encoder = MetadataEncoder::new(&mut buffer);
+        encoder.encode(self).map_err(to_val_err)?;
+        Ok(PyBytes::new(py, buffer.as_slice()).into())
     }
 }
 
@@ -1141,6 +1114,7 @@ mod tests {
 
     use super::*;
     use crate::decode::{dbn, DecodeDbn};
+    use crate::metadata::MetadataBuilder;
 
     const DBN_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/data");
 
@@ -1216,18 +1190,20 @@ mod tests {
                     let mock_file = MockPyFile::new();
                     let output_buf = mock_file.inner();
                     let mock_file = Py::new(py, mock_file).unwrap().into_py(py);
+                    let metadata = MetadataBuilder::new()
+                        .dataset(DATASET.to_owned())
+                        .schema(Some($schema))
+                        .start(0)
+                        .stype_in(Some(STYPE))
+                        .stype_out(STYPE)
+                        .build();
                     // Call target function
                     write_dbn_file(
                         py,
                         mock_file.extract(py).unwrap(),
                         Compression::ZStd,
-                        DATASET.to_owned(),
-                        $schema,
-                        0,
-                        STYPE,
-                        STYPE,
+                        &metadata,
                         recs.iter().map(|r| r.as_ref(py)).collect(),
-                        None,
                     )
                     .unwrap();
 
@@ -1244,9 +1220,9 @@ mod tests {
                 // contents
                 let py_decoder = dbn::Decoder::with_zstd(Cursor::new(&output_buf)).unwrap();
                 let metadata = py_decoder.metadata().clone();
-                assert_eq!(metadata.schema, $schema);
+                assert_eq!(metadata.schema, Some($schema));
                 assert_eq!(metadata.dataset, DATASET);
-                assert_eq!(metadata.stype_in, STYPE);
+                assert_eq!(metadata.stype_in, Some(STYPE));
                 assert_eq!(metadata.stype_out, STYPE);
                 let decoder = dbn::Decoder::from_zstd_file(format!(
                     "{DBN_PATH}/test_data.{}.dbn.zst",

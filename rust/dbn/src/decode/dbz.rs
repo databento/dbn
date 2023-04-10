@@ -250,8 +250,8 @@ impl MetadataDecoder {
         Ok(Metadata {
             version: 0,
             dataset,
-            schema,
-            stype_in,
+            schema: Some(schema),
+            stype_in: Some(stype_in),
             stype_out,
             start,
             end: NonZeroU64::new(end),

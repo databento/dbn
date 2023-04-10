@@ -1,6 +1,7 @@
 # Changelog
 
 ## 0.5.0 - TBD
+- Changed `schema` and `stype_in` to optional in `Metadata` to support live data
 - Added `RType` enum for exhaustive pattern matching
 - Added `&str` getters for more `c_char` array record fields
 - Changed `DbnDecoder.decode` to always return a list of tuples

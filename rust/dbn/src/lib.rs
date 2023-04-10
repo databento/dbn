@@ -29,6 +29,8 @@ const SYMBOL_CSTR_LEN: usize = 22;
 const NULL_END: u64 = u64::MAX;
 const NULL_LIMIT: u64 = 0;
 const NULL_RECORD_COUNT: u64 = u64::MAX;
+const NULL_SCHEMA: u16 = u16::MAX;
+const NULL_STYPE: u8 = u8::MAX;
 
 /// The sentinel value for an unset or null price.
 pub const UNDEF_PRICE: i64 = i64::MAX;

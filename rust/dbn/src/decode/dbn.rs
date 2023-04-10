@@ -18,6 +18,7 @@ use crate::{
     record::{HasRType, RecordHeader},
     record_ref::RecordRef,
     MappingInterval, Metadata, SymbolMapping, DBN_VERSION, METADATA_FIXED_LEN, NULL_END,
+    NULL_SCHEMA, NULL_STYPE,
 };
 
 const DBN_PREFIX: &[u8] = b"DBN";
@@ -303,8 +304,16 @@ where
             .trim_end_matches('\0')
             .to_owned();
         pos += crate::METADATA_DATASET_CSTR_LEN;
-        let schema = Schema::try_from(u16::from_le_slice(&buffer[pos..]))
-            .with_context(|| format!("Failed to read schema: '{}'", buffer[pos]))?;
+
+        let raw_schema = u16::from_le_slice(&buffer[pos..]);
+        let schema = if raw_schema == NULL_SCHEMA {
+            None
+        } else {
+            Some(
+                Schema::try_from(raw_schema)
+                    .with_context(|| format!("Failed to read schema: '{}'", buffer[pos]))?,
+            )
+        };
         pos += mem::size_of::<Schema>();
         let start = u64::from_le_slice(&buffer[pos..]);
         pos += U64_SIZE;
@@ -314,8 +323,14 @@ where
         pos += U64_SIZE;
         // skip deprecated record_count
         pos += U64_SIZE;
-        let stype_in = SType::try_from(buffer[pos])
-            .with_context(|| format!("Failed to read stype_in: '{}'", buffer[pos]))?;
+        let stype_in = if buffer[pos] == NULL_STYPE {
+            None
+        } else {
+            Some(
+                SType::try_from(buffer[pos])
+                    .with_context(|| format!("Failed to read stype_in: '{}'", buffer[pos]))?,
+            )
+        };
         pos += mem::size_of::<SType>();
         let stype_out = SType::try_from(buffer[pos])
             .with_context(|| format!("Failed to read stype_out: '{}'", buffer[pos]))?;
@@ -623,9 +638,9 @@ mod tests {
             &mut buffer,
             &MetadataBuilder::new()
                 .dataset("XNAS.ITCH".to_owned())
-                .schema(Schema::Mbo)
+                .schema(Some(Schema::Mbo))
                 .start(0)
-                .stype_in(SType::ProductId)
+                .stype_in(Some(SType::ProductId))
                 .stype_out(SType::ProductId)
                 .build(),
         )

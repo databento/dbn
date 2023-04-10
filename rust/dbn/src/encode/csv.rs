@@ -1,9 +1,18 @@
 //! Encoding of DBN records into comma-separated values (CSV).
 use std::io;
 
+use anyhow::anyhow;
 use streaming_iterator::StreamingIterator;
 
 use super::EncodeDbn;
+use crate::{
+    decode::DecodeDbn,
+    enums::{RType, Schema},
+    record::{
+        ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, TbboMsg,
+        TradeMsg,
+    },
+};
 
 /// Type for encoding files and streams of DBN records in CSV.
 ///
@@ -25,6 +34,13 @@ where
             .has_headers(false) // need to write our own custom header
             .from_writer(writer);
         Self { writer: csv_writer }
+    }
+
+    fn encode_header<R: super::DbnEncodable>(&mut self) -> anyhow::Result<()> {
+        R::serialize_header(&mut self.writer)?;
+        // end of line
+        self.writer.write_record(None::<&[u8]>)?;
+        Ok(())
     }
 }
 
@@ -48,32 +64,80 @@ where
     }
 
     fn encode_records<R: super::DbnEncodable>(&mut self, records: &[R]) -> anyhow::Result<()> {
-        R::serialize_headers(&mut self.writer)?;
-        // end of line
-        self.writer.write_record(None::<&[u8]>)?;
+        self.encode_header::<R>()?;
         for record in records {
             if self.encode_record(record)? {
-                return Ok(());
+                break;
             }
         }
-        self.writer.flush()?;
+        self.flush()?;
         Ok(())
     }
 
+    /// Encodes a stream of DBN records.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to write to the underlying writer
+    /// or there's a serialization error.
     fn encode_stream<R: super::DbnEncodable>(
         &mut self,
         mut stream: impl StreamingIterator<Item = R>,
     ) -> anyhow::Result<()> {
-        R::serialize_headers(&mut self.writer)?;
-        // end of line
-        self.writer.write_record(None::<&[u8]>)?;
+        self.encode_header::<R>()?;
         while let Some(record) = stream.next() {
             if self.encode_record(record)? {
-                return Ok(());
+                break;
             }
         }
-        self.writer.flush()?;
+        self.flush()?;
         Ok(())
+    }
+
+    fn flush(&mut self) -> anyhow::Result<()> {
+        Ok(self.writer.flush()?)
+    }
+
+    /// Encode DBN records directly from a DBN decoder. This implemented outside [`EncodeDbn`](super::EncodeDbn)
+    /// because the CSV encoder has the additional constraint of only being able to encode a single schema in
+    /// a stream.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to write to the underlying writer
+    /// or there's a serialization error.
+    fn encode_decoded<D: DecodeDbn>(&mut self, mut decoder: D) -> anyhow::Result<()> {
+        let ts_out = decoder.metadata().ts_out;
+        if let Some(schema) = decoder.metadata().schema {
+            match schema {
+                Schema::Mbo => self.encode_header::<MboMsg>(),
+                Schema::Mbp1 => self.encode_header::<Mbp1Msg>(),
+                Schema::Mbp10 => self.encode_header::<Mbp10Msg>(),
+                Schema::Tbbo => self.encode_header::<TbboMsg>(),
+                Schema::Trades => self.encode_header::<TradeMsg>(),
+                Schema::Ohlcv1S => self.encode_header::<OhlcvMsg>(),
+                Schema::Ohlcv1M => self.encode_header::<OhlcvMsg>(),
+                Schema::Ohlcv1H => self.encode_header::<OhlcvMsg>(),
+                Schema::Ohlcv1D => self.encode_header::<OhlcvMsg>(),
+                Schema::Definition => self.encode_header::<InstrumentDefMsg>(),
+                Schema::Statistics => return Err(anyhow!("Unsupported schema: statistics")),
+                Schema::Status => self.encode_header::<StatusMsg>(),
+                Schema::Imbalance => self.encode_header::<ImbalanceMsg>(),
+            }?;
+            let rtype = RType::from(schema);
+            while let Some(record) = decoder.decode_record_ref()? {
+                if record.rtype().map_or(true, |r| r != rtype) {
+                    return Err(anyhow!("Schema indicated {rtype:?}, but found record with rtype {:?}. Mixed schemas cannot be encoded in CSV.", record.rtype()));
+                }
+                // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
+                // from the metadata header.
+                if unsafe { self.encode_record_ref(record, ts_out)? } {
+                    break;
+                }
+            }
+            self.flush()?;
+            Ok(())
+        } else {
+            Err(anyhow!("Can't encode a DBN with mixed schemas in CSV"))
+        }
     }
 }
 
@@ -91,8 +155,8 @@ pub(crate) mod serialize {
     /// Because of the flat nature of CSVs, there are several limitations in the
     /// Rust CSV serde serialization library. This trait helps work around them.
     pub trait CsvSerialize: Serialize + fmt::Debug {
-        /// Write the headers to `csv_writer`.
-        fn serialize_headers<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()>;
+        /// Encode the header to `csv_writer`.
+        fn serialize_header<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()>;
 
         /// Serialize the object to `csv_writer`. Allows custom behavior that would otherwise
         /// cause a runtime error, e.g. serializing a struct with array field.
@@ -102,7 +166,7 @@ pub(crate) mod serialize {
     }
 
     impl CsvSerialize for MboMsg {
-        fn serialize_headers<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
+        fn serialize_header<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
             [
                 "rtype",
                 "publisher_id",
@@ -125,7 +189,7 @@ pub(crate) mod serialize {
     }
 
     impl CsvSerialize for Mbp1Msg {
-        fn serialize_headers<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
+        fn serialize_header<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
             [
                 "rtype",
                 "publisher_id",
@@ -153,7 +217,7 @@ pub(crate) mod serialize {
     }
 
     impl CsvSerialize for Mbp10Msg {
-        fn serialize_headers<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
+        fn serialize_header<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
             [
                 "rtype",
                 "publisher_id",
@@ -262,7 +326,7 @@ pub(crate) mod serialize {
     }
 
     impl CsvSerialize for TradeMsg {
-        fn serialize_headers<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
+        fn serialize_header<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
             [
                 "rtype",
                 "publisher_id",
@@ -284,7 +348,7 @@ pub(crate) mod serialize {
     }
 
     impl CsvSerialize for OhlcvMsg {
-        fn serialize_headers<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
+        fn serialize_header<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
             [
                 "rtype",
                 "publisher_id",
@@ -302,7 +366,7 @@ pub(crate) mod serialize {
     }
 
     impl CsvSerialize for StatusMsg {
-        fn serialize_headers<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
+        fn serialize_header<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
             [
                 "rtype",
                 "publisher_id",
@@ -320,7 +384,7 @@ pub(crate) mod serialize {
     }
 
     impl CsvSerialize for InstrumentDefMsg {
-        fn serialize_headers<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
+        fn serialize_header<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
             [
                 "rtype",
                 "publisher_id",
@@ -394,7 +458,7 @@ pub(crate) mod serialize {
     }
 
     impl CsvSerialize for ImbalanceMsg {
-        fn serialize_headers<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
+        fn serialize_header<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
             [
                 "rtype",
                 "publisher_id",
@@ -427,7 +491,7 @@ pub(crate) mod serialize {
     }
 
     impl CsvSerialize for ErrorMsg {
-        fn serialize_headers<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
+        fn serialize_header<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
             ["rtype", "publisher_id", "product_id", "ts_event", "err"]
                 .iter()
                 .try_for_each(|header| csv_writer.write_field(header))
@@ -435,7 +499,7 @@ pub(crate) mod serialize {
     }
 
     impl CsvSerialize for SystemMsg {
-        fn serialize_headers<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
+        fn serialize_header<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
             ["rtype", "publisher_id", "product_id", "ts_event", "msg"]
                 .iter()
                 .try_for_each(|header| csv_writer.write_field(header))
@@ -443,7 +507,7 @@ pub(crate) mod serialize {
     }
 
     impl CsvSerialize for SymbolMappingMsg {
-        fn serialize_headers<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
+        fn serialize_header<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
             [
                 "rtype",
                 "publisher_id",
@@ -460,9 +524,9 @@ pub(crate) mod serialize {
     }
 
     impl<T: HasRType + CsvSerialize> CsvSerialize for WithTsOut<T> {
-        fn serialize_headers<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
+        fn serialize_header<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
             csv_writer.write_field("ts_out")?;
-            T::serialize_headers(csv_writer)
+            T::serialize_header(csv_writer)
         }
 
         fn serialize_to<W: io::Write>(&self, csv_writer: &mut Writer<W>) -> csv::Result<()> {
@@ -492,10 +556,9 @@ mod tests {
 
     fn extract_2nd_line(buffer: Vec<u8>) -> String {
         let output = String::from_utf8(buffer).expect("valid UTF-8");
-        output
-            .split_once('\n')
-            .expect("two lines")
-            .1
+        let (first, second) = output.split_once('\n').expect("two lines");
+        assert!(!first.trim().is_empty());
+        second
             .trim_end() // remove newline
             .to_owned()
     }

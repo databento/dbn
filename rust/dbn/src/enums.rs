@@ -294,21 +294,22 @@ pub mod rtype {
     pub const MBO: u8 = 0xA0;
 
     /// Get the corresponding `rtype` for the given `schema`.
-    pub fn from(schema: Schema) -> u8 {
-        match schema {
-            Schema::Mbo => MBO,
-            Schema::Mbp1 => MBP_1,
-            Schema::Mbp10 => MBP_10,
-            Schema::Tbbo => MBP_1,
-            Schema::Trades => MBP_0,
-            Schema::Ohlcv1S => OHLCV_1S,
-            Schema::Ohlcv1M => OHLCV_1M,
-            Schema::Ohlcv1H => OHLCV_1H,
-            Schema::Ohlcv1D => OHLCV_1D,
-            Schema::Definition => INSTRUMENT_DEF,
-            Schema::Statistics => unimplemented!("Statistics is not yet supported"),
-            Schema::Status => STATUS,
-            Schema::Imbalance => IMBALANCE,
+    impl From<Schema> for RType {
+        fn from(schema: Schema) -> Self {
+            match schema {
+                Schema::Mbo => RType::Mbo,
+                Schema::Mbp1 | Schema::Tbbo => RType::Mbp1,
+                Schema::Mbp10 => RType::Mbp10,
+                Schema::Trades => RType::Mbp0,
+                Schema::Ohlcv1S => RType::Ohlcv1S,
+                Schema::Ohlcv1M => RType::Ohlcv1M,
+                Schema::Ohlcv1H => RType::Ohlcv1H,
+                Schema::Ohlcv1D => RType::Ohlcv1D,
+                Schema::Definition => RType::InstrumentDef,
+                Schema::Statistics => unimplemented!("Statistics is not yet supported"),
+                Schema::Status => RType::Status,
+                Schema::Imbalance => RType::Imbalance,
+            }
         }
     }
 

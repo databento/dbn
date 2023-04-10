@@ -58,6 +58,27 @@ macro_rules! rtype_ts_out_dispatch {
     }};
 }
 
+/// Specializes a generic async function to all record types and dispatches based
+/// `rtype` and `ts_out`.
+///
+/// # Errors
+/// This macro returns an error if the rtype is not recognized.
+#[macro_export]
+macro_rules! rtype_ts_out_async_dispatch {
+    ($rec_ref:expr, $ts_out:expr, $generic_fn:expr $(,$arg:expr)*) => {{
+        macro_rules! maybe_ts_out {
+            ($r:ty) => {{
+                if $ts_out {
+                    $generic_fn($rec_ref.get_unchecked::<WithTsOut<$r>>() $(, $arg)*).await
+                } else {
+                    $generic_fn(unsafe { $rec_ref.get_unchecked::<$r>() } $(, $arg)*).await
+                }
+            }};
+        }
+        $crate::rtype_dispatch_base!($rec_ref, maybe_ts_out)
+    }};
+}
+
 /// Specializes a generic function to all record types and dispatches based `rtype`.
 ///
 /// # Errors
