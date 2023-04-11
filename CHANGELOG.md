@@ -2,6 +2,7 @@
 
 ## 0.5.0 - TBD
 - Added `RType` enum for exhaustive pattern matching
+- Changed `DbnDecoder.decode` to always return a list of tuples
 - Fixed issue with decoding partial records in Python `DbnDecoder`
 
 ## 0.4.3 - 2023-04-07

@@ -1,7 +1,7 @@
 //! Python bindings for the [`dbn`] crate using [`pyo3`].
 use std::io::{self, Write};
 
-use pyo3::{prelude::*, wrap_pyfunction, PyClass};
+use pyo3::{prelude::*, types::PyTuple, wrap_pyfunction, PyClass};
 
 use dbn::{
     decode::dbn::{MetadataDecoder, RecordDecoder},
@@ -99,7 +99,20 @@ impl DbnDecoder {
                     py: Python,
                     recs: &mut Vec<Py<PyAny>>,
                 ) {
-                    recs.push(rec.clone().into_py(py))
+                    let pyrec = rec.clone().into_py(py);
+                    recs.push(
+                        // Convert non `WithTsOut` records to a (rec, None)
+                        // for consistent typing
+                        if pyrec
+                            .as_ref(py)
+                            .is_instance_of::<PyTuple>()
+                            .unwrap_or_default()
+                        {
+                            pyrec
+                        } else {
+                            (pyrec, py.None()).into_py(py)
+                        },
+                    )
                 }
 
                 // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
@@ -271,7 +284,13 @@ decoder = DbnDecoder()
 with open(path, 'rb') as fin:
     decoder.write(fin.read())
 records = decoder.decode()
-assert len(records) == 3"#
+assert len(records) == 3
+metadata = records[0]
+for _, ts_out in records[1:]:
+    if metadata.ts_out:
+        assert ts_out is not None
+    else:
+        assert ts_out is None"#
             )
         });
     }
