@@ -70,7 +70,7 @@ impl DbnDecoder {
 
     fn decode(&mut self) -> PyResult<Vec<PyObject>> {
         let mut recs = Vec::new();
-        let position = self.buffer.position();
+        let orig_position = self.buffer.position();
         self.buffer.set_position(0);
         if !self.has_decoded_metadata {
             match MetadataDecoder::new(&mut self.buffer).decode() {
@@ -79,12 +79,13 @@ impl DbnDecoder {
                     self.has_decoded_metadata = true;
                 }
                 Err(err) => {
-                    self.buffer.set_position(position);
+                    self.buffer.set_position(orig_position);
                     // haven't read enough data for metadata
                     return Err(to_val_err(err));
                 }
             }
         }
+        let mut read_position = self.buffer.position() as usize;
         let mut decoder = RecordDecoder::new(&mut self.buffer);
         Python::with_gil(|py| -> PyResult<()> {
             while let Some(rec) = decoder.decode_ref().map_err(to_val_err)? {
@@ -120,25 +121,29 @@ impl DbnDecoder {
                         return Err(to_val_err(format!("Invalid rtype {rtype} found in record")))
                     }
                 };
+                // keep track of position after last _successful_ decoding to ensure
+                // buffer is left in correct state in the case where one or more
+                // successful decodings is followed by a partial one, i.e. `decode_ref`
+                // returning `Ok(None)`
+                read_position = decoder.get_mut().position() as usize;
             }
             Ok(())
         })
         .map_err(|e| {
-            self.buffer.set_position(position);
+            self.buffer.set_position(orig_position);
             e
         })?;
         if recs.is_empty() {
-            self.buffer.set_position(position);
+            self.buffer.set_position(orig_position);
         } else {
-            self.shift_buffer();
+            self.shift_buffer(read_position);
         }
         Ok(recs)
     }
 }
 
 impl DbnDecoder {
-    fn shift_buffer(&mut self) {
-        let read_position = self.buffer.position() as usize;
+    fn shift_buffer(&mut self, read_position: usize) {
         let inner_buf = self.buffer.get_mut();
         let length = inner_buf.len();
         let new_length = length - read_position;
@@ -150,7 +155,7 @@ impl DbnDecoder {
 
 #[cfg(test)]
 mod tests {
-    use dbn::encode::EncodeDbn;
+    use dbn::{encode::EncodeDbn, enums::rtype::OHLCV_1S};
     use pyo3::{py_run, types::PyString};
 
     use ::dbn::{
@@ -207,6 +212,52 @@ mod tests {
                 assert!(matches!(res, Ok(recs) if recs.is_empty()));
             }
         }
+    }
+
+    #[test]
+    fn test_full_with_partial_record() {
+        setup();
+        let mut decoder = DbnDecoder::new();
+        let buffer = Vec::new();
+        let mut encoder = Encoder::new(
+            buffer,
+            &MetadataBuilder::new()
+                .dataset("XNAS.ITCH".to_owned())
+                .schema(Schema::Ohlcv1S)
+                .stype_in(SType::Native)
+                .stype_out(SType::ProductId)
+                .start(0)
+                .build(),
+        )
+        .unwrap();
+        decoder.write(encoder.get_ref().as_slice()).unwrap();
+        let metadata_pos = encoder.get_ref().len() as usize;
+        assert!(matches!(decoder.decode(), Ok(recs) if recs.len() == 1));
+        assert!(decoder.has_decoded_metadata);
+        let rec1 = ErrorMsg::new(1680708278000000000, "Python");
+        let rec2 = OhlcvMsg {
+            hd: RecordHeader::new::<OhlcvMsg>(OHLCV_1S, 1, 1, 1681228173000000000),
+            open: 100,
+            high: 200,
+            low: 50,
+            close: 150,
+            volume: 1000,
+        };
+        encoder.encode_record(&rec1).unwrap();
+        let rec1_pos = encoder.get_ref().len() as usize;
+        encoder.encode_record(&rec2).unwrap();
+        assert!(decoder.buffer.get_ref().is_empty());
+        // Write first record and part of second
+        decoder
+            .write(&encoder.get_ref()[metadata_pos..rec1_pos + 4])
+            .unwrap();
+        // Read first record
+        let res1 = decoder.decode();
+        assert!(matches!(res1, Ok(recs) if recs.len() == 1));
+        // Write rest of second record
+        decoder.write(&encoder.get_ref()[rec1_pos + 4..]).unwrap();
+        let res2 = decoder.decode();
+        assert!(matches!(res2, Ok(recs) if recs.len() == 1));
     }
 
     #[test]
