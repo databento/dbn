@@ -5,6 +5,7 @@
 - Added `&str` getters for more `c_char` array record fields
 - Changed `DbnDecoder.decode` to always return a list of tuples
 - Fixed issue with decoding partial records in Python `DbnDecoder`
+- Fixed missing type hint for Metadata bytes support
 
 ## 0.4.3 - 2023-04-07
 - Fixed typo in Python type stubs
