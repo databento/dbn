@@ -2,6 +2,7 @@
 
 ## 0.5.0 - TBD
 - Added `RType` enum for exhaustive pattern matching
+- Added `&str` getters for more `c_char` array record fields
 - Changed `DbnDecoder.decode` to always return a list of tuples
 - Fixed issue with decoding partial records in Python `DbnDecoder`
 

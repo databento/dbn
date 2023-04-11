@@ -6,6 +6,11 @@ use std::{ffi::CStr, mem, os::raw::c_char, ptr::NonNull, slice, str::Utf8Error};
 use anyhow::anyhow;
 use serde::Serialize;
 
+// Dummy derive macro to get around `cfg_attr` incompatibility of several
+// of pyo3's attribute macros. See https://github.com/PyO3/pyo3/issues/780
+#[cfg(not(feature = "python"))]
+pub use dbn_macros::MockPyo3;
+
 use crate::{
     enums::{
         rtype::{self, RType},
@@ -263,21 +268,24 @@ pub struct OhlcvMsg {
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(get_all, set_all, module = "databento_dbn")
-)]
+#[cfg_attr(feature = "python", pyo3::pyclass(module = "databento_dbn"))]
+#[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 pub struct StatusMsg {
     /// The common header.
+    #[pyo3(get, set)]
     pub hd: RecordHeader,
     /// The capture-server-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
+    #[pyo3(get, set)]
     pub ts_recv: u64,
     #[serde(serialize_with = "serialize_c_char_arr")]
     pub group: [c_char; 21],
+    #[pyo3(get, set)]
     pub trading_status: u8,
+    #[pyo3(get, set)]
     pub halt_reason: u8,
+    #[pyo3(get, set)]
     pub trading_event: u8,
 }
 
@@ -286,94 +294,125 @@ pub struct StatusMsg {
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(get_all, set_all, module = "databento_dbn")
-)]
+#[cfg_attr(feature = "python", pyo3::pyclass(module = "databento_dbn"))]
+#[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 pub struct InstrumentDefMsg {
     /// The common header.
+    #[pyo3(get, set)]
     pub hd: RecordHeader,
     /// The capture-server-received timestamp expressed as number of nanoseconds since the
     /// UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
+    #[pyo3(get, set)]
     pub ts_recv: u64,
     /// The minimum constant tick for the instrument in units of 1e-9, i.e.
     /// 1/1,000,000,000 or 0.000000001.
+    #[pyo3(get, set)]
     pub min_price_increment: i64,
     /// The multiplier to convert the venue’s display price to the conventional price.
+    #[pyo3(get, set)]
     pub display_factor: i64,
     /// The last eligible trade time expressed as a number of nanoseconds since the
     /// UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
+    #[pyo3(get, set)]
     pub expiration: u64,
     /// The time of instrument activation expressed as a number of nanoseconds since the
     /// UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
+    #[pyo3(get, set)]
     pub activation: u64,
     /// The allowable high limit price for the trading day in units of 1e-9, i.e.
     /// 1/1,000,000,000 or 0.000000001.
+    #[pyo3(get, set)]
     pub high_limit_price: i64,
     /// The allowable low limit price for the trading day in units of 1e-9, i.e.
     /// 1/1,000,000,000 or 0.000000001.
+    #[pyo3(get, set)]
     pub low_limit_price: i64,
     /// The differential value for price banding in units of 1e-9, i.e. 1/1,000,000,000
     /// or 0.000000001.
+    #[pyo3(get, set)]
     pub max_price_variation: i64,
     /// The trading session settlement price on `trading_reference_date`.
+    #[pyo3(get, set)]
     pub trading_reference_price: i64,
     /// The contract size for each instrument, in combination with `unit_of_measure`.
+    #[pyo3(get, set)]
     pub unit_of_measure_qty: i64,
     /// The value currently under development by the venue. Converted to units of 1e-9, i.e.
     /// 1/1,000,000,000 or 0.000000001.
+    #[pyo3(get, set)]
     pub min_price_increment_amount: i64,
     /// The value used for price calculation in spread and leg pricing in units of 1e-9,
     /// i.e. 1/1,000,000,000 or 0.000000001.
+    #[pyo3(get, set)]
     pub price_ratio: i64,
     /// A bitmap of instrument eligibility attributes.
+    #[pyo3(get, set)]
     pub inst_attrib_value: i32,
     /// The `product_id` of the first underlying instrument.
+    #[pyo3(get, set)]
     pub underlying_id: u32,
     /// The total cleared volume of the instrument traded during the prior trading session.
+    #[pyo3(get, set)]
     pub cleared_volume: i32,
     /// The implied book depth on the price level data feed.
+    #[pyo3(get, set)]
     pub market_depth_implied: i32,
     /// The (outright) book depth on the price level data feed.
+    #[pyo3(get, set)]
     pub market_depth: i32,
     /// The market segment of the instrument.
+    #[pyo3(get, set)]
     pub market_segment_id: u32,
     /// The maximum trading volume for the instrument.
+    #[pyo3(get, set)]
     pub max_trade_vol: u32,
     /// The minimum order entry quantity for the instrument.
+    #[pyo3(get, set)]
     pub min_lot_size: i32,
     /// The minimum quantity required for a block trade of the instrument.
+    #[pyo3(get, set)]
     pub min_lot_size_block: i32,
     /// The minimum quantity required for a round lot of the instrument. Multiples of
     /// this quantity are also round lots.
+    #[pyo3(get, set)]
     pub min_lot_size_round_lot: i32,
     /// The minimum trading volume for the instrument.
+    #[pyo3(get, set)]
     pub min_trade_vol: u32,
     /// The total open interest for the market at the close of the prior trading session.
+    #[pyo3(get, set)]
     pub open_interest_qty: i32,
     /// The number of deliverables per instrument, i.e. peak days.
+    #[pyo3(get, set)]
     pub contract_multiplier: i32,
     /// The quantity that a contract will decay daily, after `decay_start_date` has
     /// been reached.
+    #[pyo3(get, set)]
     pub decay_quantity: i32,
     /// The fixed contract value assigned to each instrument.
+    #[pyo3(get, set)]
     pub original_contract_size: i32,
     #[doc(hidden)]
     #[serde(skip)]
     pub reserved1: [c_char; 4],
     /// The trading session date corresponding to the settlement price in
     /// `trading_reference_price`, in number of days since the UNIX epoch.
+    #[pyo3(get, set)]
     pub trading_reference_date: u16,
     /// The channel ID assigned at the venue.
+    #[pyo3(get, set)]
     pub appl_id: i16,
     /// The calendar year reflected in the instrument symbol.
+    #[pyo3(get, set)]
     pub maturity_year: u16,
     /// The date at which a contract will begin to decay.
+    #[pyo3(get, set)]
     pub decay_start_date: u16,
     /// The channel ID assigned by Databento as an incrementing integer starting at zero.
+    #[pyo3(get, set)]
     pub channel_id: u16,
     /// The currency used for price fields.
     #[serde(serialize_with = "serialize_c_char_arr")]
@@ -413,46 +452,63 @@ pub struct InstrumentDefMsg {
     pub strike_price_currency: [c_char; 4],
     /// The classification of the instrument.
     #[serde(serialize_with = "serialize_c_char")]
+    #[pyo3(get, set)]
     pub instrument_class: c_char,
     #[doc(hidden)]
     #[serde(skip)]
     pub reserved2: [c_char; 2],
     /// The strike price of the option. Converted to units of 1e-9, i.e. 1/1,000,000,000
     /// or 0.000000001.
+    #[pyo3(get, set)]
     pub strike_price: i64,
     #[doc(hidden)]
     #[serde(skip)]
     pub reserved3: [c_char; 6],
     /// The matching algorithm used for the instrument, typically **F**IFO.
     #[serde(serialize_with = "serialize_c_char")]
+    #[pyo3(get, set)]
     pub match_algorithm: c_char,
     /// The current trading state of the instrument.
+    #[pyo3(get, set)]
     pub md_security_trading_status: u8,
     /// The price denominator of the main fraction.
+    #[pyo3(get, set)]
     pub main_fraction: u8,
     ///  The number of digits to the right of the tick mark, to display fractional prices.
+    #[pyo3(get, set)]
     pub price_display_format: u8,
     /// The type indicators for the settlement price, as a bitmap.
+    #[pyo3(get, set)]
     pub settl_price_type: u8,
     /// The price denominator of the sub fraction.
+    #[pyo3(get, set)]
     pub sub_fraction: u8,
     /// The product complex of the instrument.
+    #[pyo3(get, set)]
     pub underlying_product: u8,
     /// Indicates if the instrument definition has been added, modified, or deleted.
+    #[pyo3(get, set)]
     pub security_update_action: SecurityUpdateAction,
     /// The calendar month reflected in the instrument symbol.
+    #[pyo3(get, set)]
     pub maturity_month: u8,
     /// The calendar day reflected in the instrument symbol, or 0.
+    #[pyo3(get, set)]
     pub maturity_day: u8,
     /// The calendar week reflected in the instrument symbol, or 0.
+    #[pyo3(get, set)]
     pub maturity_week: u8,
     /// Indicates if the instrument is user defined: **Y**es or **N**o.
+    #[pyo3(get, set)]
     pub user_defined_instrument: UserDefinedInstrument,
     /// The type of `contract_multiplier`. Either `1` for hours, or `2` for days.
+    #[pyo3(get, set)]
     pub contract_multiplier_unit: i8,
     /// The schedule for delivering electricity.
+    #[pyo3(get, set)]
     pub flow_schedule_type: i8,
     /// The tick rule of the spread.
+    #[pyo3(get, set)]
     pub tick_rule: u8,
     // Filler for alignment.
     #[serde(skip)]
@@ -529,12 +585,11 @@ pub struct ImbalanceMsg {
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(get_all, set_all, module = "databento_dbn")
-)]
+#[cfg_attr(feature = "python", pyo3::pyclass(module = "databento_dbn"))]
+#[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 pub struct ErrorMsg {
     /// The common header.
+    #[pyo3(get, set)]
     pub hd: RecordHeader,
     /// The error message.
     #[serde(serialize_with = "serialize_c_char_arr")]
@@ -546,12 +601,11 @@ pub struct ErrorMsg {
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(get_all, set_all, module = "databento_dbn")
-)]
+#[cfg_attr(feature = "python", pyo3::pyclass(module = "databento_dbn"))]
+#[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 pub struct SymbolMappingMsg {
     /// The common header.
+    #[pyo3(get, set)]
     pub hd: RecordHeader,
     /// The input symbol.
     #[serde(serialize_with = "serialize_c_char_arr")]
@@ -565,9 +619,11 @@ pub struct SymbolMappingMsg {
     pub _dummy: [c_char; 4],
     /// The start of the mapping interval expressed as the number of nanoseconds since
     /// the UNIX epoch.
+    #[pyo3(get, set)]
     pub start_ts: u64,
     /// The end of the mapping interval expressed as the number of nanoseconds since
     /// the UNIX epoch.
+    #[pyo3(get, set)]
     pub end_ts: u64,
 }
 
@@ -576,12 +632,11 @@ pub struct SymbolMappingMsg {
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(get_all, set_all, module = "databento_dbn")
-)]
+#[cfg_attr(feature = "python", pyo3::pyclass(module = "databento_dbn"))]
+#[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 pub struct SystemMsg {
     /// The common header.
+    #[pyo3(get, set)]
     pub hd: RecordHeader,
     /// The message from the Databento Live Subscription Gateway (LSG).
     #[serde(serialize_with = "serialize_c_char_arr")]
@@ -754,7 +809,113 @@ impl Mbp10Msg {
     }
 }
 
+impl StatusMsg {
+    /// Returns `group` as a `&str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `group` contains invalid UTF-8.
+    pub fn group(&self) -> Result<&str, Utf8Error> {
+        c_chars_to_str(&self.group)
+    }
+}
+
 impl InstrumentDefMsg {
+    /// Returns `currency` as a `&str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `currency` contains invalid UTF-8.
+    pub fn currency(&self) -> Result<&str, Utf8Error> {
+        c_chars_to_str(&self.currency)
+    }
+
+    /// Returns `settl_currency` as a `&str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `settl_currency` contains invalid UTF-8.
+    pub fn settl_currency(&self) -> Result<&str, Utf8Error> {
+        c_chars_to_str(&self.settl_currency)
+    }
+
+    /// Returns `secsubtype` as a `&str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `secsubtype` contains invalid UTF-8.
+    pub fn secsubtype(&self) -> Result<&str, Utf8Error> {
+        c_chars_to_str(&self.secsubtype)
+    }
+
+    /// Returns `symbol` as a `&str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `symbol` contains invalid UTF-8.
+    pub fn symbol(&self) -> Result<&str, Utf8Error> {
+        c_chars_to_str(&self.symbol)
+    }
+
+    /// Returns `exchange` as a `&str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `exchange` contains invalid UTF-8.
+    pub fn exchange(&self) -> Result<&str, Utf8Error> {
+        c_chars_to_str(&self.exchange)
+    }
+
+    /// Returns `asset` as a `&str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `asset` contains invalid UTF-8.
+    pub fn asset(&self) -> Result<&str, Utf8Error> {
+        c_chars_to_str(&self.asset)
+    }
+
+    /// Returns `cfi` as a `&str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `cfi` contains invalid UTF-8.
+    pub fn cfi(&self) -> Result<&str, Utf8Error> {
+        c_chars_to_str(&self.cfi)
+    }
+
+    /// Returns `security_type` as a `&str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `security_type` contains invalid UTF-8.
+    pub fn security_type(&self) -> Result<&str, Utf8Error> {
+        c_chars_to_str(&self.security_type)
+    }
+
+    /// Returns `unit_of_measure` as a `&str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `unit_of_measure` contains invalid UTF-8.
+    pub fn unit_of_measure(&self) -> Result<&str, Utf8Error> {
+        c_chars_to_str(&self.unit_of_measure)
+    }
+
+    /// Returns `underlying` as a `&str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `underlying` contains invalid UTF-8.
+    pub fn underlying(&self) -> Result<&str, Utf8Error> {
+        c_chars_to_str(&self.underlying)
+    }
+
+    /// Returns `strike_price_currency` as a `&str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `strike_price_currency` contains invalid UTF-8.
+    pub fn strike_price_currency(&self) -> Result<&str, Utf8Error> {
+        c_chars_to_str(&self.strike_price_currency)
+    }
+
+    /// Returns `group` as a `&str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `group` contains invalid UTF-8.
+    pub fn group(&self) -> Result<&str, Utf8Error> {
+        c_chars_to_str(&self.group)
+    }
+
     /// Tries to convert the raw `instrument_class` to an enum.
     ///
     /// # Errors
@@ -793,13 +954,31 @@ impl ErrorMsg {
         error
     }
 
-    /// Returns `err` as a `str`.
+    /// Returns `err` as a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `err` contains invalid UTF-8.
     pub fn err(&self) -> Result<&str, Utf8Error> {
         // Safety: a pointer to `self.err` will always be valid
         unsafe { CStr::from_ptr(&self.err as *const c_char).to_str() }
+    }
+}
+
+impl SymbolMappingMsg {
+    /// Returns `stype_in_symbol` as a `&str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `stype_in_symbol` contains invalid UTF-8.
+    pub fn stype_in_symbol(&self) -> Result<&str, Utf8Error> {
+        c_chars_to_str(&self.stype_in_symbol)
+    }
+
+    /// Returns `stype_out_symbol` as a `&str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `stype_out_symbol` contains invalid UTF-8.
+    pub fn stype_out_symbol(&self) -> Result<&str, Utf8Error> {
+        c_chars_to_str(&self.stype_out_symbol)
     }
 }
 
@@ -832,7 +1011,7 @@ impl SystemMsg {
             .unwrap_or_default()
     }
 
-    /// Returns `msg` as a `str`.
+    /// Returns `msg` as a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `msg` contains invalid UTF-8.

@@ -4,19 +4,19 @@ use std::num::NonZeroU64;
 
 use serde::Serialize;
 
-use crate::enums::{SType, Schema};
-use crate::record::as_u8_slice;
-
 // Dummy derive macro to get around `cfg_attr` incompatibility of several
 // of pyo3's attribute macros. See https://github.com/PyO3/pyo3/issues/780
 #[cfg(not(feature = "python"))]
 pub use dbn_macros::MockPyo3;
 
+use crate::enums::{SType, Schema};
+use crate::record::as_u8_slice;
+
 /// Information about the data contained in a DBN file or stream. DBN requires the
 /// Metadata to be included at the start of the encoded data.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[cfg_attr(feature = "python", pyo3::pyclass(module = "databento_dbn"))]
+#[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 pub struct Metadata {
     /// The DBN schema version number. Newly-encoded DBN files will use [`crate::DBN_VERSION`].
     #[pyo3(get)]

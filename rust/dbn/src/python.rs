@@ -733,6 +733,12 @@ impl StatusMsg {
     fn py_record_size(&self) -> usize {
         self.record_size()
     }
+
+    #[getter]
+    #[pyo3(name = "group")]
+    fn py_group(&self) -> PyResult<&str> {
+        self.group().map_err(to_val_err)
+    }
 }
 
 #[pymethods]
@@ -894,6 +900,72 @@ impl InstrumentDefMsg {
     fn py_record_size(&self) -> usize {
         self.record_size()
     }
+
+    #[getter]
+    #[pyo3(name = "currency")]
+    fn py_currency(&self) -> PyResult<&str> {
+        self.currency().map_err(to_val_err)
+    }
+
+    #[getter]
+    #[pyo3(name = "settl_currency")]
+    fn py_settl_currency(&self) -> PyResult<&str> {
+        self.settl_currency().map_err(to_val_err)
+    }
+
+    #[getter]
+    #[pyo3(name = "secsubtype")]
+    fn py_secsubtype(&self) -> PyResult<&str> {
+        self.secsubtype().map_err(to_val_err)
+    }
+
+    #[getter]
+    #[pyo3(name = "symbol")]
+    fn py_symbol(&self) -> PyResult<&str> {
+        self.symbol().map_err(to_val_err)
+    }
+
+    #[getter]
+    #[pyo3(name = "exchange")]
+    fn py_exchange(&self) -> PyResult<&str> {
+        self.exchange().map_err(to_val_err)
+    }
+
+    #[getter]
+    #[pyo3(name = "asset")]
+    fn py_asset(&self) -> PyResult<&str> {
+        self.asset().map_err(to_val_err)
+    }
+
+    #[getter]
+    #[pyo3(name = "cfi")]
+    fn py_cfi(&self) -> PyResult<&str> {
+        self.cfi().map_err(to_val_err)
+    }
+
+    #[getter]
+    #[pyo3(name = "security_type")]
+    fn py_security_type(&self) -> PyResult<&str> {
+        self.security_type().map_err(to_val_err)
+    }
+
+    #[getter]
+    #[pyo3(name = "unit_of_measure")]
+    fn py_unit_of_measure(&self) -> PyResult<&str> {
+        self.unit_of_measure().map_err(to_val_err)
+    }
+
+    #[getter]
+    #[pyo3(name = "underlying")]
+    fn py_underlying(&self) -> PyResult<&str> {
+        self.underlying().map_err(to_val_err)
+    }
+
+    #[getter]
+    #[pyo3(name = "strike_price_currency")]
+    fn py_strike_price_currency(&self) -> PyResult<&str> {
+        self.strike_price_currency().map_err(to_val_err)
+    }
 }
 
 #[pymethods]
@@ -972,6 +1044,12 @@ impl ErrorMsg {
     fn py_record_size(&self) -> usize {
         self.record_size()
     }
+
+    #[getter]
+    #[pyo3(name = "err")]
+    fn py_err(&self) -> PyResult<&str> {
+        self.err().map_err(to_val_err)
+    }
 }
 
 #[pymethods]
@@ -1013,6 +1091,18 @@ impl SymbolMappingMsg {
     fn py_record_size(&self) -> usize {
         self.record_size()
     }
+
+    #[getter]
+    #[pyo3(name = "stype_in_symbol")]
+    fn py_stype_in_symbol(&self) -> PyResult<&str> {
+        self.stype_in_symbol().map_err(to_val_err)
+    }
+
+    #[getter]
+    #[pyo3(name = "stype_out_symbol")]
+    fn py_stype_out_symbol(&self) -> PyResult<&str> {
+        self.stype_out_symbol().map_err(to_val_err)
+    }
 }
 
 #[pymethods]
@@ -1033,6 +1123,12 @@ impl SystemMsg {
     #[pyo3(name = "record_size")]
     fn py_record_size(&self) -> usize {
         self.record_size()
+    }
+
+    #[getter]
+    #[pyo3(name = "msg")]
+    fn py_msg(&self) -> PyResult<&str> {
+        self.msg().map_err(to_val_err)
     }
 }
 
