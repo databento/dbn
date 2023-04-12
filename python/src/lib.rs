@@ -78,7 +78,7 @@ impl DbnDecoder {
             match MetadataDecoder::new(&mut self.buffer).decode() {
                 Ok(metadata) => {
                     self.ts_out = metadata.ts_out;
-                    Python::with_gil(|py| recs.push(metadata.into_py(py)));
+                    Python::with_gil(|py| recs.push((metadata, py.None()).into_py(py)));
                     self.has_decoded_metadata = true;
                 }
                 Err(err) => {
@@ -285,7 +285,7 @@ with open(path, 'rb') as fin:
     decoder.write(fin.read())
 records = decoder.decode()
 assert len(records) == 3
-metadata = records[0]
+metadata, _ = records[0]
 for _, ts_out in records[1:]:
     if metadata.ts_out:
         assert ts_out is not None
