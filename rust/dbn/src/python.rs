@@ -18,12 +18,15 @@ use crate::{
         dbn::{self, MetadataEncoder},
         DbnEncodable, DynWriter, EncodeDbn,
     },
-    enums::{rtype, Compression, SType, Schema, SecurityUpdateAction, UserDefinedInstrument},
+    enums::{
+        rtype, Compression, SType, Schema, SecurityUpdateAction, StatUpdateAction,
+        UserDefinedInstrument,
+    },
     metadata::MetadataBuilder,
     record::{
         str_to_c_chars, BidAskPair, ErrorMsg, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg,
-        Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader, StatusMsg, SymbolMappingMsg, SystemMsg, TbboMsg,
-        TradeMsg, WithTsOut,
+        Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader, StatMsg, StatusMsg, SymbolMappingMsg, SystemMsg,
+        TbboMsg, TradeMsg, WithTsOut,
     },
     UNDEF_ORDER_SIZE, UNDEF_PRICE,
 };
@@ -82,7 +85,8 @@ pub fn write_dbn_file(
         | Some(Schema::Ohlcv1D) => encode_pyrecs::<OhlcvMsg>(encoder, &records),
         Some(Schema::Definition) => encode_pyrecs::<InstrumentDefMsg>(encoder, &records),
         Some(Schema::Imbalance) => encode_pyrecs::<ImbalanceMsg>(encoder, &records),
-        _ => Err(PyValueError::new_err(
+        Some(Schema::Statistics) => encode_pyrecs::<StatMsg>(encoder, &records),
+        Some(Schema::Status) | None => Err(PyValueError::new_err(
             "Unsupported schema type for writing DBN files",
         )),
     }
@@ -981,6 +985,54 @@ impl ImbalanceMsg {
             unpaired_side: 0,
             significant_imbalance,
             _dummy: [0],
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
+
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    #[pyo3(name = "record_size")]
+    fn py_record_size(&self) -> usize {
+        self.record_size()
+    }
+}
+
+#[pymethods]
+impl StatMsg {
+    #[new]
+    fn py_new(
+        publisher_id: u16,
+        product_id: u32,
+        ts_event: u64,
+        ts_recv: u64,
+        ts_ref: u64,
+        price: i64,
+        quantity: i32,
+        sequence: u32,
+        ts_in_delta: i32,
+        stat_type: u16,
+        channel_id: u16,
+        update_action: Option<u8>,
+        stat_flags: Option<u8>,
+    ) -> Self {
+        Self {
+            hd: RecordHeader::new::<Self>(rtype::STATISTICS, publisher_id, product_id, ts_event),
+            ts_recv,
+            ts_ref,
+            price,
+            quantity,
+            sequence,
+            ts_in_delta,
+            stat_type,
+            channel_id,
+            update_action: update_action.unwrap_or(StatUpdateAction::New as u8),
+            stat_flags: stat_flags.unwrap_or_default(),
+            _dummy: Default::default(),
         }
     }
 

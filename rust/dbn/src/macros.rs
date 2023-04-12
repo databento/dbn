@@ -26,6 +26,7 @@ macro_rules! rtype_dispatch_base {
                 RType::Error => $handler!(ErrorMsg),
                 RType::SymbolMapping => $handler!(SymbolMappingMsg),
                 RType::System => $handler!(SystemMsg),
+                RType::Statistics => $handler!(StatMsg),
                 RType::Mbo => $handler!(MboMsg),
             }),
             Err(e) => Err(e),

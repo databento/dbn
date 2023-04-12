@@ -129,10 +129,13 @@ mod tests {
     use super::*;
     use crate::{
         encode::test_data::{VecStream, BID_ASK, RECORD_HEADER},
-        enums::{InstrumentClass, SType, Schema, SecurityUpdateAction, UserDefinedInstrument},
+        enums::{
+            InstrumentClass, SType, Schema, SecurityUpdateAction, StatType, StatUpdateAction,
+            UserDefinedInstrument,
+        },
         record::{
             str_to_c_chars, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
-            StatusMsg, TradeMsg, WithTsOut,
+            StatMsg, StatusMsg, TradeMsg, WithTsOut,
         },
         MappingInterval, SymbolMapping,
     };
@@ -469,6 +472,38 @@ mod tests {
                     r#""ssr_filling_price":6,"ind_match_price":7,"upper_collar":8,"lower_collar":9,"paired_qty":10,"#,
                     r#""total_imbalance_qty":11,"market_imbalance_qty":12,"unpaired_qty":13,"auction_type":"B","side":"A","#,
                     r#""auction_status":14,"freeze_status":15,"num_extensions":16,"unpaired_side":"A","significant_imbalance":"N""#,
+                )
+            )
+        );
+    }
+
+    #[test]
+    fn test_stat_write_json() {
+        let data = vec![StatMsg {
+            hd: RECORD_HEADER,
+            ts_recv: 1,
+            ts_ref: 2,
+            price: 3,
+            quantity: 0,
+            sequence: 4,
+            ts_in_delta: 5,
+            stat_type: StatType::OpeningPrice as u16,
+            channel_id: 7,
+            update_action: StatUpdateAction::New as u8,
+            stat_flags: 0,
+            _dummy: Default::default(),
+        }];
+        let slice_res = write_json_to_string(data.as_slice(), false);
+        let stream_res = write_json_stream_to_string(data, false);
+
+        assert_eq!(slice_res, stream_res);
+        assert_eq!(
+            slice_res,
+            format!(
+                "{{{HEADER_JSON},{}}}\n",
+                concat!(
+                    r#""ts_recv":"1","ts_ref":"2","price":3,"quantity":0,"sequence":4,"#,
+                    r#""ts_in_delta":5,"stat_type":1,"channel_id":7,"update_action":1,"stat_flags":0"#,
                 )
             )
         );

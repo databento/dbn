@@ -8,7 +8,7 @@ use dbn::{
     python::to_val_err,
     record::{
         BidAskPair, ErrorMsg, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg,
-        OhlcvMsg, RecordHeader, StatusMsg, SymbolMappingMsg, SystemMsg, TradeMsg,
+        OhlcvMsg, RecordHeader, StatMsg, StatusMsg, SymbolMappingMsg, SystemMsg, TradeMsg,
     },
     rtype_ts_out_dispatch, Metadata,
 };
@@ -39,6 +39,7 @@ fn databento_dbn(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     checked_add_class::<ErrorMsg>(m)?;
     checked_add_class::<SymbolMappingMsg>(m)?;
     checked_add_class::<SystemMsg>(m)?;
+    checked_add_class::<StatMsg>(m)?;
     Ok(())
 }
 

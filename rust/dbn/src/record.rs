@@ -14,7 +14,8 @@ pub use dbn_macros::MockPyo3;
 use crate::{
     enums::{
         rtype::{self, RType},
-        Action, InstrumentClass, MatchAlgorithm, SecurityUpdateAction, Side, UserDefinedInstrument,
+        Action, InstrumentClass, MatchAlgorithm, SecurityUpdateAction, Side, StatType,
+        StatUpdateAction, UserDefinedInstrument,
     },
     error::ConversionError,
 };
@@ -581,6 +582,50 @@ pub struct ImbalanceMsg {
     pub _dummy: [c_char; 1],
 }
 
+/// A statistics message. A catchall for various data disseminated by publishers.
+/// The [`stat_type`](Self::stat_type) indicates the statistic contained in the message.
+#[repr(C)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(get_all, set_all, module = "databento_dbn")
+)]
+pub struct StatMsg {
+    /// The common header.
+    pub hd: RecordHeader,
+    /// The capture-server-received timestamp expressed as the number of nanoseconds
+    /// since the UNIX epoch.
+    #[serde(serialize_with = "serialize_large_u64")]
+    pub ts_recv: u64,
+    /// Reference timestamp expressed as the number of nanoseconds since the UNIX epoch.
+    #[serde(serialize_with = "serialize_large_u64")]
+    pub ts_ref: u64,
+    /// The value for price statistics expressed as a signed integer where every 1 unit
+    /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    pub price: i64,
+    /// The value for non-price statistics.
+    pub quantity: i32,
+    /// The message sequence number assigned at the venue.
+    pub sequence: u32,
+    /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
+    pub ts_in_delta: i32,
+    /// The type of statistic value contained in the message. Refer to the
+    /// [`StatType`](crate::enums::StatType) for variants.
+    pub stat_type: u16,
+    /// A channel ID within the venue.
+    pub channel_id: u16,
+    /// Indicates if the statistic is new added or deleted. Deleted is only used for a
+    /// couple stat types.
+    pub update_action: u8,
+    /// Additional flags associate with certain stat types.
+    pub stat_flags: u8,
+    // Filler for alignment
+    #[serde(skip)]
+    #[doc(hidden)]
+    pub _dummy: [c_char; 6],
+}
+
 /// An error message from the Databento Live Subscription Gateway (LSG).
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -934,6 +979,28 @@ impl InstrumentDefMsg {
     pub fn match_algorithm(&self) -> crate::error::Result<MatchAlgorithm> {
         MatchAlgorithm::try_from(self.match_algorithm as u8)
             .map_err(|_| ConversionError::TypeConversion("Invalid match_algorithm"))
+    }
+}
+
+impl StatMsg {
+    /// Tries to convert the raw `stat_type` to an enum.
+    ///
+    /// # Errors
+    /// This function returns an error if the `stat_type` field does not
+    /// contain a valid [`StatType`](crate::enums::StatType).
+    pub fn stat_type(&self) -> crate::error::Result<StatType> {
+        StatType::try_from(self.stat_type)
+            .map_err(|_| ConversionError::TypeConversion("Invalid stat_type"))
+    }
+
+    /// Tries to convert the raw `update_action` to an enum.
+    ///
+    /// # Errors
+    /// This function returns an error if the `update_action` field does not
+    /// contain a valid [`StatUpdateAction`](crate::enums::StatUpdateAction).
+    pub fn update_action(&self) -> crate::error::Result<StatUpdateAction> {
+        StatUpdateAction::try_from(self.update_action)
+            .map_err(|_| ConversionError::TypeConversion("Invalid update_action"))
     }
 }
 
@@ -1322,6 +1389,26 @@ impl HasRType for ImbalanceMsg {
 }
 
 impl AsRef<[u8]> for ImbalanceMsg {
+    fn as_ref(&self) -> &[u8] {
+        unsafe { as_u8_slice(self) }
+    }
+}
+
+impl HasRType for StatMsg {
+    fn has_rtype(rtype: u8) -> bool {
+        rtype == rtype::STATISTICS
+    }
+
+    fn header(&self) -> &RecordHeader {
+        &self.hd
+    }
+
+    fn header_mut(&mut self) -> &mut RecordHeader {
+        &mut self.hd
+    }
+}
+
+impl AsRef<[u8]> for StatMsg {
     fn as_ref(&self) -> &[u8] {
         unsafe { as_u8_slice(self) }
     }

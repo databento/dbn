@@ -16,7 +16,7 @@ pub enum Side {
     /// A buy order.
     Bid = b'B',
     /// None or unknown.
-    None,
+    None = b'N',
 }
 
 impl From<Side> for char {
@@ -254,6 +254,8 @@ pub mod rtype {
         SymbolMapping = SYMBOL_MAPPING,
         /// A non-error message. Also used for heartbeats.
         System = SYSTEM,
+        /// Statistics from the publisher (not calculated by Databento).
+        Statistics = STATISTICS,
         /// Market by order.
         Mbo = MBO,
     }
@@ -290,6 +292,8 @@ pub mod rtype {
     pub const SYMBOL_MAPPING: u8 = 0x16;
     /// A non-error message. Also used for heartbeats.
     pub const SYSTEM: u8 = 0x17;
+    /// Statistics from the publisher (not calculated by Databento).
+    pub const STATISTICS: u8 = 0x18;
     /// Market by order.
     pub const MBO: u8 = 0xA0;
 
@@ -306,7 +310,7 @@ pub mod rtype {
                 Schema::Ohlcv1H => RType::Ohlcv1H,
                 Schema::Ohlcv1D => RType::Ohlcv1D,
                 Schema::Definition => RType::InstrumentDef,
-                Schema::Statistics => unimplemented!("Statistics is not yet supported"),
+                Schema::Statistics => RType::Statistics,
                 Schema::Status => RType::Status,
                 Schema::Imbalance => RType::Imbalance,
             }
@@ -329,6 +333,7 @@ pub mod rtype {
             STATUS => Some(Schema::Status),
             INSTRUMENT_DEF => Some(Schema::Definition),
             IMBALANCE => Some(Schema::Imbalance),
+            STATISTICS => Some(Schema::Statistics),
             MBO => Some(Schema::Mbo),
             _ => None,
         }
@@ -360,7 +365,7 @@ pub enum Schema {
     Ohlcv1D = 8,
     /// Instrument definitions.
     Definition = 9,
-    #[doc(hidden)]
+    /// Additional data disseminated by publishers.
     Statistics = 10,
     /// Exchange status.
     #[doc(hidden)]
@@ -370,7 +375,7 @@ pub enum Schema {
 }
 
 /// The number of [`Schema`]s.
-pub const SCHEMA_COUNT: usize = 12;
+pub const SCHEMA_COUNT: usize = 13;
 
 impl std::str::FromStr for Schema {
     type Err = ConversionError;
@@ -550,13 +555,17 @@ pub mod flags {
     pub const MAYBE_BAD_BOOK: u8 = 1 << 2;
 }
 
+/// The type of [`InstrumentDefMsg`](crate::record::InstrumentDefMsg) update.
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, IntoPrimitive, TryFromPrimitive)]
-#[doc(hidden)]
 pub enum SecurityUpdateAction {
+    /// A new instrument definition.
     Add = b'A',
+    /// A modified instrument definition of an existing one.
     Modify = b'M',
+    /// Removal of an instrument definition.
     Delete = b'D',
+    #[doc(hidden)]
     #[deprecated = "Still present in legacy files."]
     Invalid = b'~',
 }
@@ -565,4 +574,46 @@ impl Serialize for SecurityUpdateAction {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.serialize_char(char::from(*self as u8))
     }
+}
+
+/// The type of [`StatMsg`](crate::record::StatMsg) update.
+#[repr(u16)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoPrimitive, TryFromPrimitive)]
+pub enum StatType {
+    /// The price of the first trade of an instrument. `price` will be set.
+    OpeningPrice = 1,
+    /// The settlement price of an instrument. `price` will be set and `flags` indicate
+    /// whether the price is final or preliminary and actual or theoretical.
+    SettlementPrice = 2,
+    /// The lowest trade price of an instrument during the trading session. `price` will
+    /// be set.
+    TradingSessionLowPrice = 3,
+    /// The highest trade price of an instrument during the trading session. `price` will
+    /// be set.
+    TradingSessionHighPrice = 4,
+    /// The number of contracts cleared for an instrument on the previous trading date.
+    /// `quantity` will be set.
+    ClearedVolume = 5,
+    /// The lowest offer price for an instrument during the trading session. `price`
+    /// will be set.
+    LowestOffer = 6,
+    /// The highest bid price for an instrument during the trading session. `price`
+    /// will be set.
+    HighestBid = 7,
+    /// The current number of outstanding contracts of an instrument. `quantity` will
+    // be set.
+    OpenInterest = 8,
+    /// The volume-weighted average price (VWAP) for a fixing period. `price` will be
+    /// set.
+    FixingPrice = 9,
+}
+
+/// The type of [`StatMsg`](crate::record::StatMsg) update.
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoPrimitive, TryFromPrimitive)]
+pub enum StatUpdateAction {
+    ///
+    New = 1,
+    ///
+    Delete = 2,
 }

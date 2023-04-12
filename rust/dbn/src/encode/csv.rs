@@ -9,8 +9,8 @@ use crate::{
     decode::DecodeDbn,
     enums::{RType, Schema},
     record::{
-        ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, TbboMsg,
-        TradeMsg,
+        ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatMsg, StatusMsg,
+        TbboMsg, TradeMsg,
     },
 };
 
@@ -113,12 +113,11 @@ where
                 Schema::Mbp10 => self.encode_header::<Mbp10Msg>(),
                 Schema::Tbbo => self.encode_header::<TbboMsg>(),
                 Schema::Trades => self.encode_header::<TradeMsg>(),
-                Schema::Ohlcv1S => self.encode_header::<OhlcvMsg>(),
-                Schema::Ohlcv1M => self.encode_header::<OhlcvMsg>(),
-                Schema::Ohlcv1H => self.encode_header::<OhlcvMsg>(),
-                Schema::Ohlcv1D => self.encode_header::<OhlcvMsg>(),
+                Schema::Ohlcv1S | Schema::Ohlcv1M | Schema::Ohlcv1H | Schema::Ohlcv1D => {
+                    self.encode_header::<OhlcvMsg>()
+                }
                 Schema::Definition => self.encode_header::<InstrumentDefMsg>(),
-                Schema::Statistics => return Err(anyhow!("Unsupported schema: statistics")),
+                Schema::Statistics => self.encode_header::<StatMsg>(),
                 Schema::Status => self.encode_header::<StatusMsg>(),
                 Schema::Imbalance => self.encode_header::<ImbalanceMsg>(),
             }?;
@@ -149,7 +148,7 @@ pub(crate) mod serialize {
 
     use crate::record::{
         ErrorMsg, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
-        StatusMsg, SymbolMappingMsg, SystemMsg, TradeMsg, WithTsOut,
+        StatMsg, StatusMsg, SymbolMappingMsg, SystemMsg, TradeMsg, WithTsOut,
     };
 
     /// Because of the flat nature of CSVs, there are several limitations in the
@@ -490,6 +489,29 @@ pub(crate) mod serialize {
         }
     }
 
+    impl CsvSerialize for StatMsg {
+        fn serialize_header<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
+            [
+                "rtype",
+                "publisher_id",
+                "product_id",
+                "ts_event",
+                "ts_recv",
+                "ts_ref",
+                "price",
+                "quantity",
+                "sequence",
+                "ts_in_delta",
+                "stat_type",
+                "channel_id",
+                "update_action",
+                "stat_flags",
+            ]
+            .iter()
+            .try_for_each(|header| csv_writer.write_field(header))
+        }
+    }
+
     impl CsvSerialize for ErrorMsg {
         fn serialize_header<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
             ["rtype", "publisher_id", "product_id", "ts_event", "err"]
@@ -543,10 +565,13 @@ mod tests {
     use super::*;
     use crate::{
         encode::test_data::{VecStream, BID_ASK, RECORD_HEADER},
-        enums::{InstrumentClass, SecurityUpdateAction, UserDefinedInstrument},
+        enums::{
+            InstrumentClass, SecurityUpdateAction, StatType, StatUpdateAction,
+            UserDefinedInstrument,
+        },
         record::{
             str_to_c_chars, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
-            StatusMsg, TradeMsg, WithTsOut,
+            StatMsg, StatusMsg, TradeMsg, WithTsOut,
         },
     };
 
@@ -826,7 +851,7 @@ mod tests {
     }
 
     #[test]
-    fn test_encode_imbalance_records() {
+    fn test_imbalance_encode_records() {
         let data = vec![ImbalanceMsg {
             hd: RECORD_HEADER,
             ts_recv: 1,
@@ -861,5 +886,30 @@ mod tests {
             line,
             format!("{HEADER_CSV},1,2,3,4,5,6,7,8,9,10,11,12,13,B,A,14,15,16,A,N")
         );
+    }
+
+    #[test]
+    fn test_stat_encode_stream() {
+        let data = vec![StatMsg {
+            hd: RECORD_HEADER,
+            ts_recv: 1,
+            ts_ref: 2,
+            price: 3,
+            quantity: 0,
+            sequence: 4,
+            ts_in_delta: 5,
+            stat_type: StatType::OpeningPrice as u16,
+            channel_id: 7,
+            update_action: StatUpdateAction::New as u8,
+            stat_flags: 0,
+            _dummy: Default::default(),
+        }];
+        let mut buffer = Vec::new();
+        let writer = BufWriter::new(&mut buffer);
+        Encoder::new(writer)
+            .encode_stream(VecStream::new(data))
+            .unwrap();
+        let line = extract_2nd_line(buffer);
+        assert_eq!(line, format!("{HEADER_CSV},1,2,3,0,4,5,1,7,1,0"));
     }
 }
