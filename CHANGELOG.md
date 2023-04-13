@@ -9,6 +9,7 @@
 - Fixed value associated with `Side::None`
 - Fixed issue with decoding partial records in Python `DbnDecoder`
 - Fixed missing type hint for Metadata bytes support
+- Added support for equality comparisons in Python classes
 
 ## 0.4.3 - 2023-04-07
 - Fixed typo in Python type stubs

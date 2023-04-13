@@ -38,6 +38,7 @@ class Metadata(SupportsBytes):
     """
 
     def __bytes__(self) -> bytes: ...
+    def __richcmp__(self) -> bool: ...
     @property
     def version(self) -> int:
         """
@@ -133,34 +134,34 @@ class Metadata(SupportsBytes):
 
         """
     @property
-    def symbols(self) -> Sequence[str]:
+    def symbols(self) -> List[str]:
         """
         The original query input symbols from the request.
 
         Returns
         -------
-        Sequence[str]
+        List[str]
 
         """
     @property
-    def partial(self) -> Sequence[str]:
+    def partial(self) -> List[str]:
         """
         Symbols that did not resolve for at least one day in the query time
         range.
 
         Returns
         -------
-        str
+        List[str]
 
         """
     @property
-    def not_found(self) -> Sequence[str]:
+    def not_found(self) -> List[str]:
         """
         Symbols that did not resolve for any day in the query time range.
 
         Returns
         -------
-        Sequence[str]
+        List[str]
 
         """
     @property
@@ -171,6 +172,41 @@ class Metadata(SupportsBytes):
         Returns
         -------
         Dict[str, List[Dict[str, Any]]]:
+
+        """
+    @classmethod
+    def decode(cls, data: bytes) -> "Metadata":
+        """
+        Decodes the given Python `bytes` to `Metadata`. Returns a `Metadata`
+        object with all the DBN metadata attributes.
+
+        Parameters
+        ----------
+        data : bytes
+            The bytes to decode from.
+
+        Returns
+        -------
+        Metadata
+
+        Raises
+        ------
+        ValueError
+            When a Metadata instance cannot be parsed from `data`.
+
+        """
+    def encode(self) -> bytes:
+        """
+        Encodes the Metadata to bytes.
+
+        Returns
+        -------
+        bytes
+
+        Raises
+        ------
+        ValueError
+            When the Metadata object cannot be encoded.
 
         """
 
@@ -233,6 +269,7 @@ class Record(SupportsBytes):
     """Base class for DBN records."""
 
     def __bytes__(self) -> bytes: ...
+    def __richcmp__(self) -> bool: ...
     @property
     def hd(self) -> RecordHeader:
         """
@@ -536,13 +573,13 @@ class MBP1Msg(Record, _MBPBase):
     """Market by price implementation with a known book depth of 1."""
 
     @property
-    def booklevel(self) -> Sequence[BidAskPair]:
+    def booklevel(self) -> List[BidAskPair]:
         """
         The top of the order book.
 
         Returns
         -------
-        Sequence[BidAskPair]
+        List[BidAskPair]
 
         Notes
         -----
@@ -554,13 +591,13 @@ class MBP10Msg(Record, _MBPBase):
     """Market by price implementation with a known book depth of 10."""
 
     @property
-    def booklevel(self) -> Sequence[BidAskPair]:
+    def booklevel(self) -> List[BidAskPair]:
         """
         The top of the order book.
 
         Returns
         -------
-        Sequence[BidAskPair]
+        List[BidAskPair]
 
         Notes
         -----
@@ -1550,10 +1587,9 @@ class SystemMsg(Record):
 class DbnDecoder:
     """A class for decoding DBN data to Python objects."""
 
-    @property
     def buffer(self) -> bytes:
         """
-        The internal buffer.
+        Return the internal buffer of the decoder.
 
         Returns
         -------
@@ -1597,78 +1633,6 @@ class DbnDecoder:
         decode
 
         """
-
-def decode_metadata(bytes: bytes) -> Metadata:
-    """
-    Decodes the given Python `bytes` to `Metadata`. Returns a `Metadata` object
-    with all the DBN metadata attributes.
-
-    Parameters
-    ----------
-    bytes
-
-    Raises
-    ------
-    ValueError
-        When the metadata cannot be parsed from `bytes`.
-
-    """
-
-def encode_metadata(
-    dataset: str,
-    schema: str,
-    start: int,
-    stype_in: str,
-    stype_out: str,
-    symbols: Sequence[str],
-    partial: Sequence[str],
-    not_found: Sequence[str],
-    mappings: Sequence[object],
-    end: Optional[int] = None,
-    limit: Optional[int] = None,
-) -> bytes:
-    """
-    Encodes the given metadata into the DBN metadata binary format. Returns
-    Python `bytes`.
-
-    Parameters
-    ----------
-    dataset : str
-       The dataset code.
-    schema : str
-        The data record schema.
-    start : int
-        The UNIX nanosecond timestamp of the query start, or the first record
-        if the file was split.
-    stype_in : str
-        The input symbology type to map from.
-    stype_out: str
-        The output symbology type to map to.
-    symbols : Sequence[str]
-        The original query input symbols from the request.
-    partial : Sequence[str]
-        Symbols that did not resolve for _at least one day_ in the query time range.
-    not_found : Sequence[str]
-        Symbols that did not resolve for _any_ day in the query time range.
-    mappings : Sequence[Dict[str, Any]]
-        Symbol mappings containing a native symbol and its mapping intervals.
-    end : Optional[int]
-        The UNIX nanosecond timestamp of the query end, or the last record
-        if the file was split.
-    limit : Optional[int]
-        The optional maximum number of records for the query.
-
-    Returns
-    -------
-    bytes
-
-    Raises
-    ------
-    ValueError
-        When any of the arguments cannot be converted to their Rust equivalents.
-        When there's an issue writing the encoded metadata to bytes.
-
-    """
 
 def update_encoded_metadata(
     file: BinaryIO,

@@ -7,7 +7,8 @@ use std::{collections::HashMap, ffi::c_char, fmt, io, num::NonZeroU64};
 use pyo3::{
     exceptions::PyValueError,
     prelude::*,
-    types::{PyBytes, PyDate, PyDateAccess, PyDict, PyTuple},
+    pyclass::CompareOp,
+    types::{PyBytes, PyDate, PyDateAccess, PyDict, PyTuple, PyType},
 };
 use time::Date;
 
@@ -61,6 +62,14 @@ impl Metadata {
             .build()
     }
 
+    fn __richcmp__(&self, other: &Metadata, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
@@ -80,9 +89,9 @@ impl Metadata {
     }
 
     #[pyo3(name = "decode")]
-    #[staticmethod]
-    fn py_decode(bytes: &PyBytes) -> PyResult<Metadata> {
-        let reader = io::BufReader::new(bytes.as_bytes());
+    #[classmethod]
+    fn py_decode(_cls: &PyType, data: &PyBytes) -> PyResult<Metadata> {
+        let reader = io::BufReader::new(data.as_bytes());
         Ok(DynDecoder::inferred_with_buffer(reader)
             .map_err(to_val_err)?
             .metadata()
@@ -285,6 +294,14 @@ impl MboMsg {
         }
     }
 
+    fn __richcmp__(&self, other: &MboMsg, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
@@ -356,6 +373,14 @@ impl TradeMsg {
         }
     }
 
+    fn __richcmp__(&self, other: &TradeMsg, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
@@ -400,6 +425,14 @@ impl Mbp1Msg {
             ts_in_delta,
             sequence,
             booklevel: [booklevel.unwrap_or_default()],
+        }
+    }
+
+    fn __richcmp__(&self, other: &Mbp1Msg, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
         }
     }
 
@@ -462,6 +495,14 @@ impl Mbp10Msg {
         })
     }
 
+    fn __richcmp__(&self, other: &Mbp10Msg, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
@@ -500,6 +541,14 @@ impl OhlcvMsg {
         }
     }
 
+    fn __richcmp__(&self, other: &OhlcvMsg, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
@@ -535,6 +584,14 @@ impl StatusMsg {
             halt_reason,
             trading_event,
         })
+    }
+
+    fn __richcmp__(&self, other: &StatusMsg, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
     }
 
     fn __repr__(&self) -> String {
@@ -704,6 +761,14 @@ impl InstrumentDefMsg {
         })
     }
 
+    fn __richcmp__(&self, other: &InstrumentDefMsg, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
@@ -827,6 +892,14 @@ impl ImbalanceMsg {
         }
     }
 
+    fn __richcmp__(&self, other: &ImbalanceMsg, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
@@ -875,6 +948,14 @@ impl StatMsg {
         }
     }
 
+    fn __richcmp__(&self, other: &StatMsg, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
@@ -894,6 +975,14 @@ impl ErrorMsg {
     #[new]
     fn py_new(ts_event: u64, err: &str) -> PyResult<Self> {
         Ok(ErrorMsg::new(ts_event, err))
+    }
+
+    fn __richcmp__(&self, other: &ErrorMsg, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
     }
 
     fn __repr__(&self) -> String {
@@ -943,6 +1032,14 @@ impl SymbolMappingMsg {
         })
     }
 
+    fn __richcmp__(&self, other: &SymbolMappingMsg, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
@@ -974,6 +1071,14 @@ impl SystemMsg {
     #[new]
     fn py_new(ts_event: u64, msg: &str) -> PyResult<Self> {
         SystemMsg::new(ts_event, msg).map_err(to_val_err)
+    }
+
+    fn __richcmp__(&self, other: &SystemMsg, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
     }
 
     fn __repr__(&self) -> String {
