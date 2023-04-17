@@ -354,7 +354,7 @@ mod test_data {
         length: 30,
         rtype: 4,
         publisher_id: 1,
-        product_id: 323,
+        instrument_id: 323,
         ts_event: 1658441851000000000,
     };
 

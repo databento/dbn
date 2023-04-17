@@ -1,3 +1,5 @@
+#![allow(deprecated)] // TODO: remove with SType::Smart
+
 //! Enums used in Databento APIs.
 use std::fmt::{self, Display, Formatter};
 
@@ -163,11 +165,19 @@ impl serde::Serialize for UserDefinedInstrument {
 #[repr(u8)]
 pub enum SType {
     /// Symbology using a unique numeric ID.
-    ProductId = 0,
+    InstrumentId = 0,
     /// Symbology using the original symbols provided by the publisher.
-    Native = 1,
+    RawSymbol = 1,
     /// A set of Databento-specific symbologies for referring to groups of symbols.
+    #[deprecated(since = "0.5.0", note = "Smart was split into Continuous and Parent.")]
     Smart = 2,
+    /// A Databento-specific symbology where one symbol may point to different
+    /// instruments at different points of time, e.g. to always refer to the front month
+    /// future.
+    Continuous = 3,
+    /// A Databento-specific symbology for referring to a group of symbols by one
+    /// "parent" symbol, e.g. ES.FUT to refer to all ES futures.
+    Parent = 4,
 }
 
 impl std::str::FromStr for SType {
@@ -175,9 +185,11 @@ impl std::str::FromStr for SType {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "product_id" => Ok(SType::ProductId),
-            "native" => Ok(SType::Native),
+            "instrument_id" | "product_id" => Ok(SType::InstrumentId),
+            "raw_symbol" | "native" => Ok(SType::RawSymbol),
             "smart" => Ok(SType::Smart),
+            "continuous" => Ok(SType::Continuous),
+            "parent" => Ok(SType::Parent),
             _ => Err(ConversionError::TypeConversion(
                 "Value doesn't match a valid symbol type",
             )),
@@ -195,9 +207,12 @@ impl SType {
     /// Convert the symbology type to its `str` representation.
     pub const fn as_str(&self) -> &'static str {
         match self {
-            SType::Native => "native",
+            SType::InstrumentId => "instrument_id",
+            SType::RawSymbol => "raw_symbol",
+            #[allow(deprecated)]
             SType::Smart => "smart",
-            SType::ProductId => "product_id",
+            SType::Continuous => "continuous",
+            SType::Parent => "parent",
         }
     }
 }

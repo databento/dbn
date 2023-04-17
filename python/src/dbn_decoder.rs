@@ -145,8 +145,8 @@ mod tests {
             &MetadataBuilder::new()
                 .dataset("XNAS.ITCH".to_owned())
                 .schema(Some(Schema::Trades))
-                .stype_in(Some(SType::Native))
-                .stype_out(SType::ProductId)
+                .stype_in(Some(SType::RawSymbol))
+                .stype_out(SType::InstrumentId)
                 .start(0)
                 .build(),
         )
@@ -184,8 +184,8 @@ mod tests {
             &MetadataBuilder::new()
                 .dataset("XNAS.ITCH".to_owned())
                 .schema(Some(Schema::Ohlcv1S))
-                .stype_in(Some(SType::Native))
-                .stype_out(SType::ProductId)
+                .stype_in(Some(SType::RawSymbol))
+                .stype_out(SType::InstrumentId)
                 .start(0)
                 .build(),
         )
@@ -263,7 +263,7 @@ metadata = Metadata(
     schema="mbo",
     start=1,
     stype_in="native",
-    stype_out="product_id",
+    stype_out="instrument_id",
     end=2,
     symbols=[],
     partial=[],

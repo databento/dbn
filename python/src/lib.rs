@@ -62,8 +62,8 @@ mod tests {
     fn test_metadata_identity() {
         // initialize interpreter
         setup();
-        let stype_in = SType::Native as u8;
-        let stype_out = SType::ProductId as u8;
+        let stype_in = SType::RawSymbol as u8;
+        let stype_out = SType::InstrumentId as u8;
         Python::with_gil(|py| {
             pyo3::py_run!(
                   py,
@@ -74,8 +74,8 @@ metadata = Metadata(
     dataset="GLBX.MDP3",
     schema="mbo",
     start=1,
-    stype_in="native",
-    stype_out="product_id",
+    stype_in="raw_symbol",
+    stype_out="instrument_id",
     end=2,
     symbols=[],
     partial=[],
@@ -89,8 +89,8 @@ assert metadata.schema == "mbo"
 assert metadata.start == 1
 assert metadata.end == 2
 assert metadata.limit is None
-assert metadata.stype_in == "native"
-assert metadata.stype_out == "product_id"
+assert metadata.stype_in == "raw_symbol"
+assert metadata.stype_out == "instrument_id"
 assert metadata.ts_out is False"#
             );
         });

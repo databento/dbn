@@ -241,7 +241,7 @@ mod tests {
     }
 
     const DATASET: &str = "GLBX.MDP3";
-    const STYPE: SType = SType::ProductId;
+    const STYPE: SType = SType::InstrumentId;
 
     macro_rules! test_writing_dbn_from_python {
         ($test_name:ident, $record_type:ident, $schema:expr) => {

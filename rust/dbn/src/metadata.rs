@@ -61,7 +61,7 @@ pub struct Metadata {
     /// Symbols that did not resolve for _any_ day in the query time range.
     #[pyo3(get)]
     pub not_found: Vec<String>,
-    /// Symbol mappings containing a native symbol and its mapping intervals.
+    /// Symbol mappings containing a raw symbol and its mapping intervals.
     pub mappings: Vec<SymbolMapping>,
 }
 
@@ -294,12 +294,12 @@ impl Default for MetadataBuilder<Unset, Unset, Unset, Unset, Unset> {
     }
 }
 
-/// A native symbol and its symbol mappings for different time ranges within the query range.
+/// A raw symbol and its symbol mappings for different time ranges within the query range.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "python", derive(pyo3::FromPyObject))]
 pub struct SymbolMapping {
-    /// The native symbol.
-    pub native_symbol: String,
+    /// The symbol assigned by publisher.
+    pub raw_symbol: String,
     /// The mappings of `native` for different date ranges.
     pub intervals: Vec<MappingInterval>,
 }

@@ -245,7 +245,7 @@ class RecordHeader:
 
         """
     @property
-    def product_id(self) -> int:
+    def instrument_id(self) -> int:
         """
         The numeric product ID assigned to the instrument.
 
@@ -808,7 +808,7 @@ class InstrumentDefMsg(Record):
     @property
     def underlying_id(self) -> int:
         """
-        The `product_id` of the first underlying instrument.
+        The `instrument_id` of the first underlying instrument.
 
         Returns
         -------
@@ -1032,7 +1032,7 @@ class InstrumentDefMsg(Record):
 
         """
     @property
-    def symbol(self) -> str:
+    def raw_symbol(self) -> str:
         """
         The instrument name (symbol).
 

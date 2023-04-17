@@ -314,8 +314,8 @@ impl MetadataDecoder {
                 "Unexpected end of metadata buffer while parsing symbol mapping"
             ));
         }
-        let native_symbol =
-            Self::decode_symbol(buffer, pos).with_context(|| "Couldn't parse native symbol")?;
+        let raw_symbol =
+            Self::decode_symbol(buffer, pos).with_context(|| "Couldn't parse raw symbol")?;
         let interval_count = u32::from_le_slice(&buffer[*pos..]) as usize;
         *pos += Self::U32_SIZE;
         let read_size = interval_count * MAPPING_INTERVAL_ENCODED_SIZE;
@@ -348,7 +348,7 @@ impl MetadataDecoder {
             });
         }
         Ok(SymbolMapping {
-            native_symbol,
+            raw_symbol,
             intervals,
         })
     }

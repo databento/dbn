@@ -39,8 +39,8 @@ pub struct RecordHeader {
     pub rtype: u8,
     /// The publisher ID assigned by Databento.
     pub publisher_id: u16,
-    /// The numeric product ID assigned to the instrument.
-    pub product_id: u32,
+    /// The numeric ID assigned to the instrument.
+    pub instrument_id: u32,
     /// The matching-engine-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
     #[serde(serialize_with = "serialize_large_u64")]
@@ -352,7 +352,7 @@ pub struct InstrumentDefMsg {
     /// A bitmap of instrument eligibility attributes.
     #[pyo3(get, set)]
     pub inst_attrib_value: i32,
-    /// The `product_id` of the first underlying instrument.
+    /// The `instrument_id` of the first underlying instrument.
     #[pyo3(get, set)]
     pub underlying_id: u32,
     /// The total cleared volume of the instrument traded during the prior trading session.
@@ -424,9 +424,9 @@ pub struct InstrumentDefMsg {
     /// The strategy type of the spread.
     #[serde(serialize_with = "serialize_c_char_arr")]
     pub secsubtype: [c_char; 6],
-    /// The instrument name (symbol).
+    /// The instrument raw symbol assigned by the publisher.
     #[serde(serialize_with = "serialize_c_char_arr")]
-    pub symbol: [c_char; 22],
+    pub raw_symbol: [c_char; 22],
     /// The security group code of the instrument.
     #[serde(serialize_with = "serialize_c_char_arr")]
     pub group: [c_char; 21],
@@ -742,14 +742,14 @@ impl RecordHeader {
     pub const fn new<R: HasRType>(
         rtype: u8,
         publisher_id: u16,
-        product_id: u32,
+        instrument_id: u32,
         ts_event: u64,
     ) -> Self {
         Self {
             length: (mem::size_of::<R>() / Self::LENGTH_MULTIPLIER) as u8,
             rtype,
             publisher_id,
-            product_id,
+            instrument_id,
             ts_event,
         }
     }
@@ -889,12 +889,12 @@ impl InstrumentDefMsg {
         c_chars_to_str(&self.secsubtype)
     }
 
-    /// Returns `symbol` as a `&str`.
+    /// Returns `raw_symbol` as a `&str`.
     ///
     /// # Errors
-    /// This function returns an error if `symbol` contains invalid UTF-8.
-    pub fn symbol(&self) -> Result<&str, Utf8Error> {
-        c_chars_to_str(&self.symbol)
+    /// This function returns an error if `raw_symbol` contains invalid UTF-8.
+    pub fn raw_symbol(&self) -> Result<&str, Utf8Error> {
+        c_chars_to_str(&self.raw_symbol)
     }
 
     /// Returns `exchange` as a `&str`.
@@ -1518,7 +1518,7 @@ mod tests {
             length: 56,
             rtype: rtype::OHLCV_1S,
             publisher_id: 1,
-            product_id: 5482,
+            instrument_id: 5482,
             ts_event: 1609160400000000000,
         },
         open: 372025000000000,
@@ -1579,7 +1579,7 @@ mod tests {
         let json = serde_json::to_string(&error).unwrap();
         assert_eq!(
             json,
-            r#"{"hd":{"rtype":21,"publisher_id":0,"product_id":0,"ts_event":"0"},"err":"\"A test"}"#
+            r#"{"hd":{"rtype":21,"publisher_id":0,"instrument_id":0,"ts_event":"0"},"err":"\"A test"}"#
         );
     }
 }

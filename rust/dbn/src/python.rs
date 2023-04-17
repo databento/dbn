@@ -83,7 +83,7 @@ impl Metadata {
     fn get_mappings(&self) -> HashMap<String, Vec<MappingInterval>> {
         let mut res = HashMap::new();
         for mapping in self.mappings.iter() {
-            res.insert(mapping.native_symbol.clone(), mapping.intervals.clone());
+            res.insert(mapping.raw_symbol.clone(), mapping.intervals.clone());
         }
         res
     }
@@ -117,8 +117,8 @@ impl IntoPy<PyObject> for SymbolMapping {
 impl ToPyObject for SymbolMapping {
     fn to_object(&self, py: Python<'_>) -> PyObject {
         let dict = PyDict::new(py);
-        dict.set_item("native_symbol", &self.native_symbol)
-            .expect("set native_symbol");
+        dict.set_item("raw_symbol", &self.raw_symbol)
+            .expect("set raw_symbol");
         dict.set_item("intervals", &self.intervals)
             .expect("set intervals");
         dict.into_py(py)
@@ -266,7 +266,7 @@ impl MboMsg {
     #[new]
     fn py_new(
         publisher_id: u16,
-        product_id: u32,
+        instrument_id: u32,
         ts_event: u64,
         order_id: u64,
         price: i64,
@@ -280,7 +280,7 @@ impl MboMsg {
         flags: Option<u8>,
     ) -> Self {
         Self {
-            hd: RecordHeader::new::<Self>(rtype::MBO, publisher_id, product_id, ts_event),
+            hd: RecordHeader::new::<Self>(rtype::MBO, publisher_id, instrument_id, ts_event),
             order_id,
             price,
             size,
@@ -347,7 +347,7 @@ impl TradeMsg {
     #[new]
     fn py_new(
         publisher_id: u16,
-        product_id: u32,
+        instrument_id: u32,
         ts_event: u64,
         price: i64,
         size: u32,
@@ -360,7 +360,7 @@ impl TradeMsg {
         flags: Option<u8>,
     ) -> Self {
         Self {
-            hd: RecordHeader::new::<Self>(rtype::MBP_0, publisher_id, product_id, ts_event),
+            hd: RecordHeader::new::<Self>(rtype::MBP_0, publisher_id, instrument_id, ts_event),
             price,
             size,
             action,
@@ -400,7 +400,7 @@ impl Mbp1Msg {
     #[new]
     fn py_new(
         publisher_id: u16,
-        product_id: u32,
+        instrument_id: u32,
         ts_event: u64,
         price: i64,
         size: u32,
@@ -414,7 +414,7 @@ impl Mbp1Msg {
         booklevel: Option<BidAskPair>,
     ) -> Self {
         Self {
-            hd: RecordHeader::new::<Self>(rtype::MBP_1, publisher_id, product_id, ts_event),
+            hd: RecordHeader::new::<Self>(rtype::MBP_1, publisher_id, instrument_id, ts_event),
             price,
             size,
             action,
@@ -455,7 +455,7 @@ impl Mbp10Msg {
     #[new]
     fn py_new(
         publisher_id: u16,
-        product_id: u32,
+        instrument_id: u32,
         ts_event: u64,
         price: i64,
         size: u32,
@@ -481,7 +481,7 @@ impl Mbp10Msg {
             Default::default()
         };
         Ok(Self {
-            hd: RecordHeader::new::<Self>(rtype::MBP_10, publisher_id, product_id, ts_event),
+            hd: RecordHeader::new::<Self>(rtype::MBP_10, publisher_id, instrument_id, ts_event),
             price,
             size,
             action,
@@ -523,7 +523,7 @@ impl OhlcvMsg {
     fn py_new(
         rtype: u8,
         publisher_id: u16,
-        product_id: u32,
+        instrument_id: u32,
         ts_event: u64,
         open: i64,
         high: i64,
@@ -532,7 +532,7 @@ impl OhlcvMsg {
         volume: u64,
     ) -> Self {
         Self {
-            hd: RecordHeader::new::<Self>(rtype, publisher_id, product_id, ts_event),
+            hd: RecordHeader::new::<Self>(rtype, publisher_id, instrument_id, ts_event),
             open,
             high,
             low,
@@ -568,7 +568,7 @@ impl StatusMsg {
     #[new]
     fn py_new(
         publisher_id: u16,
-        product_id: u32,
+        instrument_id: u32,
         ts_event: u64,
         ts_recv: u64,
         group: &str,
@@ -577,7 +577,7 @@ impl StatusMsg {
         trading_event: u8,
     ) -> PyResult<Self> {
         Ok(Self {
-            hd: RecordHeader::new::<Self>(rtype::STATUS, publisher_id, product_id, ts_event),
+            hd: RecordHeader::new::<Self>(rtype::STATUS, publisher_id, instrument_id, ts_event),
             ts_recv,
             group: str_to_c_chars(group).map_err(to_val_err)?,
             trading_status,
@@ -619,13 +619,13 @@ impl InstrumentDefMsg {
     #[new]
     fn py_new(
         publisher_id: u16,
-        product_id: u32,
+        instrument_id: u32,
         ts_event: u64,
         ts_recv: u64,
         min_price_increment: i64,
         display_factor: i64,
         min_lot_size_round_lot: i32,
-        symbol: &str,
+        raw_symbol: &str,
         group: &str,
         exchange: &str,
         instrument_class: c_char,
@@ -687,7 +687,7 @@ impl InstrumentDefMsg {
             hd: RecordHeader::new::<Self>(
                 rtype::INSTRUMENT_DEF,
                 publisher_id,
-                product_id,
+                instrument_id,
                 ts_event,
             ),
             ts_recv,
@@ -727,7 +727,7 @@ impl InstrumentDefMsg {
             settl_currency: str_to_c_chars(settl_currency.unwrap_or_default())
                 .map_err(to_val_err)?,
             secsubtype: str_to_c_chars(secsubtype.unwrap_or_default()).map_err(to_val_err)?,
-            symbol: str_to_c_chars(symbol).map_err(to_val_err)?,
+            raw_symbol: str_to_c_chars(raw_symbol).map_err(to_val_err)?,
             group: str_to_c_chars(group).map_err(to_val_err)?,
             exchange: str_to_c_chars(exchange).map_err(to_val_err)?,
             asset: str_to_c_chars(asset.unwrap_or_default()).map_err(to_val_err)?,
@@ -801,9 +801,9 @@ impl InstrumentDefMsg {
     }
 
     #[getter]
-    #[pyo3(name = "symbol")]
-    fn py_symbol(&self) -> PyResult<&str> {
-        self.symbol().map_err(to_val_err)
+    #[pyo3(name = "raw_symbol")]
+    fn py_raw_symbol(&self) -> PyResult<&str> {
+        self.raw_symbol().map_err(to_val_err)
     }
 
     #[getter]
@@ -854,7 +854,7 @@ impl ImbalanceMsg {
     #[new]
     fn py_new(
         publisher_id: u16,
-        product_id: u32,
+        instrument_id: u32,
         ts_event: u64,
         ts_recv: u64,
         ref_price: i64,
@@ -867,7 +867,7 @@ impl ImbalanceMsg {
         significant_imbalance: c_char,
     ) -> Self {
         Self {
-            hd: RecordHeader::new::<Self>(rtype::IMBALANCE, publisher_id, product_id, ts_event),
+            hd: RecordHeader::new::<Self>(rtype::IMBALANCE, publisher_id, instrument_id, ts_event),
             ts_recv,
             ref_price,
             auction_time: 0,
@@ -919,7 +919,7 @@ impl StatMsg {
     #[new]
     fn py_new(
         publisher_id: u16,
-        product_id: u32,
+        instrument_id: u32,
         ts_event: u64,
         ts_recv: u64,
         ts_ref: u64,
@@ -933,7 +933,7 @@ impl StatMsg {
         stat_flags: Option<u8>,
     ) -> Self {
         Self {
-            hd: RecordHeader::new::<Self>(rtype::STATISTICS, publisher_id, product_id, ts_event),
+            hd: RecordHeader::new::<Self>(rtype::STATISTICS, publisher_id, instrument_id, ts_event),
             ts_recv,
             ts_ref,
             price,
@@ -1010,7 +1010,7 @@ impl SymbolMappingMsg {
     #[new]
     fn py_new(
         publisher_id: u16,
-        product_id: u32,
+        instrument_id: u32,
         ts_event: u64,
         stype_in_symbol: &str,
         stype_out_symbol: &str,
@@ -1021,7 +1021,7 @@ impl SymbolMappingMsg {
             hd: RecordHeader::new::<Self>(
                 rtype::SYMBOL_MAPPING,
                 publisher_id,
-                product_id,
+                instrument_id,
                 ts_event,
             ),
             stype_in_symbol: str_to_c_chars(stype_in_symbol).map_err(to_val_err)?,

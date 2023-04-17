@@ -169,7 +169,7 @@ pub(crate) mod serialize {
             [
                 "rtype",
                 "publisher_id",
-                "product_id",
+                "instrument_id",
                 "ts_event",
                 "order_id",
                 "price",
@@ -192,7 +192,7 @@ pub(crate) mod serialize {
             [
                 "rtype",
                 "publisher_id",
-                "product_id",
+                "instrument_id",
                 "ts_event",
                 "price",
                 "size",
@@ -220,7 +220,7 @@ pub(crate) mod serialize {
             [
                 "rtype",
                 "publisher_id",
-                "product_id",
+                "instrument_id",
                 "ts_event",
                 "price",
                 "size",
@@ -299,7 +299,7 @@ pub(crate) mod serialize {
         fn serialize_to<W: io::Write>(&self, csv_writer: &mut Writer<W>) -> csv::Result<()> {
             csv_writer.write_field(self.hd.rtype.to_string())?;
             csv_writer.write_field(self.hd.publisher_id.to_string())?;
-            csv_writer.write_field(self.hd.product_id.to_string())?;
+            csv_writer.write_field(self.hd.instrument_id.to_string())?;
             csv_writer.write_field(self.hd.ts_event.to_string())?;
             csv_writer.write_field(self.price.to_string())?;
             csv_writer.write_field(self.size.to_string())?;
@@ -329,7 +329,7 @@ pub(crate) mod serialize {
             [
                 "rtype",
                 "publisher_id",
-                "product_id",
+                "instrument_id",
                 "ts_event",
                 "price",
                 "size",
@@ -351,7 +351,7 @@ pub(crate) mod serialize {
             [
                 "rtype",
                 "publisher_id",
-                "product_id",
+                "instrument_id",
                 "ts_event",
                 "open",
                 "high",
@@ -369,7 +369,7 @@ pub(crate) mod serialize {
             [
                 "rtype",
                 "publisher_id",
-                "product_id",
+                "instrument_id",
                 "ts_event",
                 "ts_recv",
                 "group",
@@ -387,7 +387,7 @@ pub(crate) mod serialize {
             [
                 "rtype",
                 "publisher_id",
-                "product_id",
+                "instrument_id",
                 "ts_event",
                 "ts_recv",
                 "min_price_increment",
@@ -424,7 +424,7 @@ pub(crate) mod serialize {
                 "currency",
                 "settl_currency",
                 "secsubtype",
-                "symbol",
+                "raw_symbol",
                 "group",
                 "exchange",
                 "asset",
@@ -461,7 +461,7 @@ pub(crate) mod serialize {
             [
                 "rtype",
                 "publisher_id",
-                "product_id",
+                "instrument_id",
                 "ts_event",
                 "ts_recv",
                 "ref_price",
@@ -494,7 +494,7 @@ pub(crate) mod serialize {
             [
                 "rtype",
                 "publisher_id",
-                "product_id",
+                "instrument_id",
                 "ts_event",
                 "ts_recv",
                 "ts_ref",
@@ -514,7 +514,7 @@ pub(crate) mod serialize {
 
     impl CsvSerialize for ErrorMsg {
         fn serialize_header<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
-            ["rtype", "publisher_id", "product_id", "ts_event", "err"]
+            ["rtype", "publisher_id", "instrument_id", "ts_event", "err"]
                 .iter()
                 .try_for_each(|header| csv_writer.write_field(header))
         }
@@ -522,7 +522,7 @@ pub(crate) mod serialize {
 
     impl CsvSerialize for SystemMsg {
         fn serialize_header<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
-            ["rtype", "publisher_id", "product_id", "ts_event", "msg"]
+            ["rtype", "publisher_id", "instrument_id", "ts_event", "msg"]
                 .iter()
                 .try_for_each(|header| csv_writer.write_field(header))
         }
@@ -533,7 +533,7 @@ pub(crate) mod serialize {
             [
                 "rtype",
                 "publisher_id",
-                "product_id",
+                "instrument_id",
                 "ts_event",
                 "stype_in_symbol",
                 "stype_out_symbol",
@@ -782,7 +782,7 @@ mod tests {
             currency: [0; 4],
             settl_currency: str_to_c_chars("USD").unwrap(),
             secsubtype: [0; 6],
-            symbol: [0; 22],
+            raw_symbol: [0; 22],
             group: [0; 21],
             exchange: [0; 5],
             asset: [0; 7],
@@ -846,7 +846,7 @@ mod tests {
         let lines = String::from_utf8(buffer).expect("valid UTF-8");
         assert_eq!(
             lines,
-            format!("ts_out,rtype,publisher_id,product_id,ts_event,price,size,action,side,flags,depth,ts_recv,ts_in_delta,sequence\n1678480044000000000,{HEADER_CSV},5500,3,T,A,128,9,1658441891000000000,22000,1002375\n")
+            format!("ts_out,rtype,publisher_id,instrument_id,ts_event,price,size,action,side,flags,depth,ts_recv,ts_in_delta,sequence\n1678480044000000000,{HEADER_CSV},5500,3,T,A,128,9,1658441891000000000,22000,1002375\n")
         );
     }
 

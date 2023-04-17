@@ -209,7 +209,7 @@ where
     }
 
     fn encode_symbol_mapping(&mut self, symbol_mapping: &SymbolMapping) -> anyhow::Result<()> {
-        self.encode_fixed_len_cstr::<{ crate::SYMBOL_CSTR_LEN }>(&symbol_mapping.native_symbol)?;
+        self.encode_fixed_len_cstr::<{ crate::SYMBOL_CSTR_LEN }>(&symbol_mapping.raw_symbol)?;
         // encode interval_count
         self.writer.write_all(
             (symbol_mapping.intervals.len() as u32)
@@ -304,8 +304,8 @@ mod tests {
             version: crate::DBN_VERSION,
             dataset: "GLBX.MDP3".to_owned(),
             schema: Some(Schema::Mbp10),
-            stype_in: Some(SType::Native),
-            stype_out: SType::ProductId,
+            stype_in: Some(SType::RawSymbol),
+            stype_out: SType::InstrumentId,
             start: 1657230820000000000,
             end: NonZeroU64::new(1658960170000000000),
             limit: None,
@@ -315,7 +315,7 @@ mod tests {
             not_found: vec!["QQQQQ".to_owned()],
             mappings: vec![
                 SymbolMapping {
-                    native_symbol: "ES.0".to_owned(),
+                    raw_symbol: "ES.0".to_owned(),
                     intervals: vec![MappingInterval {
                         start_date: time::Date::from_calendar_date(2022, time::Month::July, 26)
                             .unwrap(),
@@ -325,7 +325,7 @@ mod tests {
                     }],
                 },
                 SymbolMapping {
-                    native_symbol: "NG.0".to_owned(),
+                    raw_symbol: "NG.0".to_owned(),
                     intervals: vec![
                         MappingInterval {
                             start_date: time::Date::from_calendar_date(2022, time::Month::July, 26)
@@ -421,8 +421,8 @@ mod tests {
             version: crate::DBN_VERSION,
             dataset: "GLBX.MDP3".to_owned(),
             schema: Some(Schema::Mbo),
-            stype_in: Some(SType::Smart),
-            stype_out: SType::Native,
+            stype_in: Some(SType::Parent),
+            stype_out: SType::RawSymbol,
             start: 1657230820000000000,
             end: NonZeroU64::new(1658960170000000000),
             limit: None,
@@ -466,8 +466,8 @@ mod tests {
             .dataset("XNAS.ITCH".to_owned())
             .schema(Some(Schema::Mbo))
             .start(1697240529000000000)
-            .stype_in(Some(SType::Native))
-            .stype_out(SType::ProductId)
+            .stype_in(Some(SType::RawSymbol))
+            .stype_out(SType::InstrumentId)
             .build();
         assert!(metadata.end.is_none());
         assert!(metadata.limit.is_none());
@@ -484,8 +484,8 @@ mod tests {
             .dataset("XNAS.ITCH".to_owned())
             .schema(Some(Schema::Mbo))
             .start(1697240529000000000)
-            .stype_in(Some(SType::Native))
-            .stype_out(SType::ProductId)
+            .stype_in(Some(SType::RawSymbol))
+            .stype_out(SType::InstrumentId)
             .build();
         let calc_length = MetadataEncoder::<Vec<u8>>::calc_length(&metadata);
         let mut buffer = Vec::new();
@@ -709,7 +709,7 @@ mod r#async {
             &mut self,
             symbol_mapping: &SymbolMapping,
         ) -> anyhow::Result<()> {
-            self.encode_fixed_len_cstr::<{ crate::SYMBOL_CSTR_LEN }>(&symbol_mapping.native_symbol)
+            self.encode_fixed_len_cstr::<{ crate::SYMBOL_CSTR_LEN }>(&symbol_mapping.raw_symbol)
                 .await?;
             // encode interval_count
             self.writer
@@ -788,8 +788,8 @@ mod r#async {
                 version: crate::DBN_VERSION,
                 dataset: "GLBX.MDP3".to_owned(),
                 schema: Some(Schema::Mbp10),
-                stype_in: Some(SType::Native),
-                stype_out: SType::ProductId,
+                stype_in: Some(SType::RawSymbol),
+                stype_out: SType::InstrumentId,
                 start: 1657230820000000000,
                 end: NonZeroU64::new(1658960170000000000),
                 limit: None,
@@ -799,7 +799,7 @@ mod r#async {
                 not_found: vec!["QQQQQ".to_owned()],
                 mappings: vec![
                     SymbolMapping {
-                        native_symbol: "ES.0".to_owned(),
+                        raw_symbol: "ES.0".to_owned(),
                         intervals: vec![MappingInterval {
                             start_date: time::Date::from_calendar_date(2022, time::Month::July, 26)
                                 .unwrap(),
@@ -813,7 +813,7 @@ mod r#async {
                         }],
                     },
                     SymbolMapping {
-                        native_symbol: "NG.0".to_owned(),
+                        raw_symbol: "NG.0".to_owned(),
                         intervals: vec![
                             MappingInterval {
                                 start_date: time::Date::from_calendar_date(
@@ -919,8 +919,8 @@ mod r#async {
                 .dataset("XNAS.ITCH".to_owned())
                 .schema(Some(Schema::Mbo))
                 .start(1697240529000000000)
-                .stype_in(Some(SType::Native))
-                .stype_out(SType::ProductId)
+                .stype_in(Some(SType::RawSymbol))
+                .stype_out(SType::InstrumentId)
                 .build();
             assert!(metadata.end.is_none());
             assert!(metadata.limit.is_none());

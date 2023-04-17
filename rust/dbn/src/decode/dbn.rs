@@ -426,8 +426,8 @@ where
                 "Unexpected end of metadata buffer while parsing symbol mapping"
             ));
         }
-        let native_symbol =
-            Self::decode_symbol(buffer, pos).with_context(|| "Couldn't parse native symbol")?;
+        let raw_symbol =
+            Self::decode_symbol(buffer, pos).with_context(|| "Couldn't parse raw symbol")?;
         let interval_count = u32::from_le_slice(&buffer[*pos..]) as usize;
         *pos += Self::U32_SIZE;
         let read_size = interval_count * MAPPING_INTERVAL_ENCODED_LEN;
@@ -460,7 +460,7 @@ where
             });
         }
         Ok(SymbolMapping {
-            native_symbol,
+            raw_symbol,
             intervals,
         })
     }
@@ -640,8 +640,8 @@ mod tests {
                 .dataset("XNAS.ITCH".to_owned())
                 .schema(Some(Schema::Mbo))
                 .start(0)
-                .stype_in(Some(SType::ProductId))
-                .stype_out(SType::ProductId)
+                .stype_in(Some(SType::InstrumentId))
+                .stype_out(SType::InstrumentId)
                 .build(),
         )
         .unwrap();
@@ -1021,7 +1021,7 @@ mod r#async {
                 ts_out: 1678486110,
             };
             let mut rec2 = rec1.clone();
-            rec2.rec.hd.product_id += 1;
+            rec2.rec.hd.instrument_id += 1;
             rec2.ts_out = 1678486827;
             let mut buffer = Vec::new();
             let mut encoder = AsyncRecordEncoder::new(&mut buffer);
