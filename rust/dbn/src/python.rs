@@ -1099,4 +1099,10 @@ impl SystemMsg {
     fn py_msg(&self) -> PyResult<&str> {
         self.msg().map_err(to_val_err)
     }
+
+    #[getter]
+    #[pyo3(name = "is_heartbeat")]
+    fn py_is_heartbeat(&self) -> bool {
+        self.is_heartbeat()
+    }
 }

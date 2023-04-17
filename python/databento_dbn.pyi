@@ -1585,6 +1585,17 @@ class SystemMsg(Record):
         str
 
         """
+    @property
+    def is_heartbeat(self) -> bool:
+        """
+        `true` if this message is a heartbeat, used to indicate the connection with the gateway
+        is still open.
+
+        Returns
+        -------
+        bool
+
+        """
 
 class DbnDecoder:
     """A class for decoding DBN data to Python objects."""
