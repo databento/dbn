@@ -61,14 +61,14 @@ class Metadata(SupportsBytes):
 
         """
     @property
-    def schema(self) -> int:
+    def schema(self) -> Optional[str]:
         """
         The data record schema. Specifies which record type is stored in the
         Zstd-compressed DBN file.
 
         Returns
         -------
-        int
+        Optional[str]
 
         """
     @property
@@ -104,23 +104,23 @@ class Metadata(SupportsBytes):
 
         """
     @property
-    def stype_in(self) -> int:
+    def stype_in(self) -> Optional[str]:
         """
         The input symbology type to map from.
 
         Returns
         -------
-        int
+        Optional[str]
 
         """
     @property
-    def stype_out(self) -> int:
+    def stype_out(self) -> str:
         """
         The output symbology type to map to.
 
         Returns
         -------
-        int
+        str
 
         """
     @property
