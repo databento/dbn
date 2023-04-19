@@ -16,7 +16,7 @@ name = "databento_dbn" # Python modules can't contain dashes
 # DBN library
 dbn = { path = "../rust/dbn", features = ["python"] }
 # Python bindings for Rust
-pyo3 = { version = "0.18.2", features = [] }
+pyo3 = { version = "0.18.3", features = [] }
 
 [build-dependencies]
-pyo3-build-config = { version = "0.18.2" }
+pyo3-build-config = { version = "0.18.3" }

@@ -27,9 +27,9 @@ async-compression = { version = "0.3.15", features = ["tokio", "zstd"], optional
 # CSV serialization
 csv = "1.2"
 # Deriving translation between integers and enums
-num_enum = "0.5"
+num_enum = "0.6"
 # Python bindings for Rust
-pyo3 = { version = "0.18.2", optional = true }
+pyo3 = { version = "0.18.3", optional = true }
 # Derialization
 serde = { version = "1.0", features = ["derive"] }
 # JSON serialization
@@ -39,9 +39,9 @@ streaming-iterator = "0.1.9"
 # date and datetime support
 time = { version = "0.3", features = ["serde"] }
 # async traits
-tokio = { version = "1.25", features = ["io-util"], optional = true }
+tokio = { version = "1.27", features = ["io-util"], optional = true }
 # (de)compression
-zstd = "=0.11.2"
+zstd = "=0.12.3"
 
 [dev-dependencies]
-tokio = { version = "1.25", features = ["fs", "io-util", "macros", "rt-multi-thread"] }
+tokio = { version = "1.27", features = ["fs", "io-util", "macros", "rt-multi-thread"] }

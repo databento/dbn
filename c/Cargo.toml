@@ -16,7 +16,7 @@ crate-type = ["cdylib"]
 [dependencies]
 # DBN library
 dbn = { path = "../rust/dbn", features = [] }
-libc = "0.2.140"
+libc = "0.2.141"
 
 [build-dependencies]
 cbindgen = { version = "0.24.3", default_features = false }
