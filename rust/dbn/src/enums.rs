@@ -582,30 +582,33 @@ impl Serialize for SecurityUpdateAction {
 pub enum StatType {
     /// The price of the first trade of an instrument. `price` will be set.
     OpeningPrice = 1,
+    /// The probable price of the first trade of an instrument published during pre-
+    /// open. Both `price` and `quantity` will be set.
+    IndicativeOpeningPrice = 2,
     /// The settlement price of an instrument. `price` will be set and `flags` indicate
     /// whether the price is final or preliminary and actual or theoretical.
-    SettlementPrice = 2,
+    SettlementPrice = 3,
     /// The lowest trade price of an instrument during the trading session. `price` will
     /// be set.
-    TradingSessionLowPrice = 3,
+    TradingSessionLowPrice = 4,
     /// The highest trade price of an instrument during the trading session. `price` will
     /// be set.
-    TradingSessionHighPrice = 4,
+    TradingSessionHighPrice = 5,
     /// The number of contracts cleared for an instrument on the previous trading date.
     /// `quantity` will be set.
-    ClearedVolume = 5,
+    ClearedVolume = 6,
     /// The lowest offer price for an instrument during the trading session. `price`
     /// will be set.
-    LowestOffer = 6,
+    LowestOffer = 7,
     /// The highest bid price for an instrument during the trading session. `price`
     /// will be set.
-    HighestBid = 7,
+    HighestBid = 8,
     /// The current number of outstanding contracts of an instrument. `quantity` will
     // be set.
-    OpenInterest = 8,
+    OpenInterest = 9,
     /// The volume-weighted average price (VWAP) for a fixing period. `price` will be
     /// set.
-    FixingPrice = 9,
+    FixingPrice = 10,
 }
 
 /// The type of [`StatMsg`](crate::record::StatMsg) update.
