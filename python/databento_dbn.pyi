@@ -291,6 +291,47 @@ class Record(SupportsBytes):
         int
 
         """
+    @property
+    def rtype(self) -> int:
+        """
+        The record type.
+
+        Returns
+        -------
+        int
+
+        """
+    @property
+    def publisher_id(self) -> int:
+        """
+        The publisher ID assigned by Databento.
+
+        Returns
+        -------
+        int
+
+        """
+    @property
+    def product_id(self) -> int:
+        """
+        The numeric product ID assigned to the instrument.
+
+        Returns
+        -------
+        int
+
+        """
+    @property
+    def ts_event(self) -> int:
+        """
+        The matching-engine-received timestamp expressed as number of
+        nanoseconds since the UNIX epoch.
+
+        Returns
+        -------
+        int
+
+        """
 
 class _MBOBase:
     """Base for market-by-order messages."""

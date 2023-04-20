@@ -29,6 +29,34 @@ use crate::{
 };
 use crate::{MappingInterval, Metadata, SymbolMapping};
 
+macro_rules! impl_repr {
+    () => {
+        fn __repr__(&self) -> String {
+            format!("{self:?}")
+        }
+    };
+}
+
+macro_rules! impl_richcmp {
+    () => {
+        fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+            match op {
+                CompareOp::Eq => self.eq(other).into_py(py),
+                CompareOp::Ne => self.ne(other).into_py(py),
+                _ => py.NotImplemented(),
+            }
+        }
+    };
+}
+
+macro_rules! impl_bytes {
+    () => {
+        fn __bytes__(&self) -> &[u8] {
+            self.as_ref()
+        }
+    };
+}
+
 #[pymethods]
 impl Metadata {
     #[new]
@@ -62,17 +90,8 @@ impl Metadata {
             .build()
     }
 
-    fn __richcmp__(&self, other: &Metadata, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
-    fn __repr__(&self) -> String {
-        format!("{self:?}")
-    }
+    impl_richcmp! {}
+    impl_repr! {}
 
     /// Encodes Metadata back into DBN format.
     fn __bytes__(&self, py: Python<'_>) -> PyResult<Py<PyBytes>> {
@@ -294,20 +313,28 @@ impl MboMsg {
         }
     }
 
-    fn __richcmp__(&self, other: &MboMsg, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
+    impl_richcmp! {}
+    impl_repr! {}
+    impl_bytes! {}
+
+    #[getter]
+    fn rtype(&self) -> u8 {
+        self.hd.rtype
     }
 
-    fn __repr__(&self) -> String {
-        format!("{self:?}")
+    #[getter]
+    fn publisher_id(&self) -> u16 {
+        self.hd.publisher_id
     }
 
-    fn __bytes__(&self) -> &[u8] {
-        self.as_ref()
+    #[getter]
+    fn product_id(&self) -> u32 {
+        self.hd.product_id
+    }
+
+    #[getter]
+    fn ts_event(&self) -> u64 {
+        self.hd.ts_event
     }
 
     #[pyo3(name = "record_size")]
@@ -373,20 +400,28 @@ impl TradeMsg {
         }
     }
 
-    fn __richcmp__(&self, other: &TradeMsg, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
+    impl_richcmp! {}
+    impl_repr! {}
+    impl_bytes! {}
+
+    #[getter]
+    fn rtype(&self) -> u8 {
+        self.hd.rtype
     }
 
-    fn __repr__(&self) -> String {
-        format!("{self:?}")
+    #[getter]
+    fn publisher_id(&self) -> u16 {
+        self.hd.publisher_id
     }
 
-    fn __bytes__(&self) -> &[u8] {
-        self.as_ref()
+    #[getter]
+    fn product_id(&self) -> u32 {
+        self.hd.product_id
+    }
+
+    #[getter]
+    fn ts_event(&self) -> u64 {
+        self.hd.ts_event
     }
 
     #[pyo3(name = "record_size")]
@@ -428,20 +463,28 @@ impl Mbp1Msg {
         }
     }
 
-    fn __richcmp__(&self, other: &Mbp1Msg, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
+    impl_richcmp! {}
+    impl_repr! {}
+    impl_bytes! {}
+
+    #[getter]
+    fn rtype(&self) -> u8 {
+        self.hd.rtype
     }
 
-    fn __repr__(&self) -> String {
-        format!("{self:?}")
+    #[getter]
+    fn publisher_id(&self) -> u16 {
+        self.hd.publisher_id
     }
 
-    fn __bytes__(&self) -> &[u8] {
-        self.as_ref()
+    #[getter]
+    fn product_id(&self) -> u32 {
+        self.hd.product_id
+    }
+
+    #[getter]
+    fn ts_event(&self) -> u64 {
+        self.hd.ts_event
     }
 
     #[pyo3(name = "record_size")]
@@ -495,20 +538,28 @@ impl Mbp10Msg {
         })
     }
 
-    fn __richcmp__(&self, other: &Mbp10Msg, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
+    impl_richcmp! {}
+    impl_repr! {}
+    impl_bytes! {}
+
+    #[getter]
+    fn rtype(&self) -> u8 {
+        self.hd.rtype
     }
 
-    fn __repr__(&self) -> String {
-        format!("{self:?}")
+    #[getter]
+    fn publisher_id(&self) -> u16 {
+        self.hd.publisher_id
     }
 
-    fn __bytes__(&self) -> &[u8] {
-        self.as_ref()
+    #[getter]
+    fn product_id(&self) -> u32 {
+        self.hd.product_id
+    }
+
+    #[getter]
+    fn ts_event(&self) -> u64 {
+        self.hd.ts_event
     }
 
     #[pyo3(name = "record_size")]
@@ -541,20 +592,28 @@ impl OhlcvMsg {
         }
     }
 
-    fn __richcmp__(&self, other: &OhlcvMsg, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
+    impl_richcmp! {}
+    impl_repr! {}
+    impl_bytes! {}
+
+    #[getter]
+    fn rtype(&self) -> u8 {
+        self.hd.rtype
     }
 
-    fn __repr__(&self) -> String {
-        format!("{self:?}")
+    #[getter]
+    fn publisher_id(&self) -> u16 {
+        self.hd.publisher_id
     }
 
-    fn __bytes__(&self) -> &[u8] {
-        self.as_ref()
+    #[getter]
+    fn product_id(&self) -> u32 {
+        self.hd.product_id
+    }
+
+    #[getter]
+    fn ts_event(&self) -> u64 {
+        self.hd.ts_event
     }
 
     #[pyo3(name = "record_size")]
@@ -586,20 +645,28 @@ impl StatusMsg {
         })
     }
 
-    fn __richcmp__(&self, other: &StatusMsg, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
+    impl_richcmp! {}
+    impl_repr! {}
+    impl_bytes! {}
+
+    #[getter]
+    fn rtype(&self) -> u8 {
+        self.hd.rtype
     }
 
-    fn __repr__(&self) -> String {
-        format!("{self:?}")
+    #[getter]
+    fn publisher_id(&self) -> u16 {
+        self.hd.publisher_id
     }
 
-    fn __bytes__(&self) -> &[u8] {
-        self.as_ref()
+    #[getter]
+    fn product_id(&self) -> u32 {
+        self.hd.product_id
+    }
+
+    #[getter]
+    fn ts_event(&self) -> u64 {
+        self.hd.ts_event
     }
 
     #[pyo3(name = "record_size")]
@@ -761,20 +828,28 @@ impl InstrumentDefMsg {
         })
     }
 
-    fn __richcmp__(&self, other: &InstrumentDefMsg, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
+    impl_richcmp! {}
+    impl_repr! {}
+    impl_bytes! {}
+
+    #[getter]
+    fn rtype(&self) -> u8 {
+        self.hd.rtype
     }
 
-    fn __repr__(&self) -> String {
-        format!("{self:?}")
+    #[getter]
+    fn publisher_id(&self) -> u16 {
+        self.hd.publisher_id
     }
 
-    fn __bytes__(&self) -> &[u8] {
-        self.as_ref()
+    #[getter]
+    fn product_id(&self) -> u32 {
+        self.hd.product_id
+    }
+
+    #[getter]
+    fn ts_event(&self) -> u64 {
+        self.hd.ts_event
     }
 
     #[pyo3(name = "record_size")]
@@ -892,20 +967,28 @@ impl ImbalanceMsg {
         }
     }
 
-    fn __richcmp__(&self, other: &ImbalanceMsg, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
+    impl_richcmp! {}
+    impl_repr! {}
+    impl_bytes! {}
+
+    #[getter]
+    fn rtype(&self) -> u8 {
+        self.hd.rtype
     }
 
-    fn __repr__(&self) -> String {
-        format!("{self:?}")
+    #[getter]
+    fn publisher_id(&self) -> u16 {
+        self.hd.publisher_id
     }
 
-    fn __bytes__(&self) -> &[u8] {
-        self.as_ref()
+    #[getter]
+    fn product_id(&self) -> u32 {
+        self.hd.product_id
+    }
+
+    #[getter]
+    fn ts_event(&self) -> u64 {
+        self.hd.ts_event
     }
 
     #[pyo3(name = "record_size")]
@@ -948,20 +1031,28 @@ impl StatMsg {
         }
     }
 
-    fn __richcmp__(&self, other: &StatMsg, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
+    impl_richcmp! {}
+    impl_repr! {}
+    impl_bytes! {}
+
+    #[getter]
+    fn rtype(&self) -> u8 {
+        self.hd.rtype
     }
 
-    fn __repr__(&self) -> String {
-        format!("{self:?}")
+    #[getter]
+    fn publisher_id(&self) -> u16 {
+        self.hd.publisher_id
     }
 
-    fn __bytes__(&self) -> &[u8] {
-        self.as_ref()
+    #[getter]
+    fn product_id(&self) -> u32 {
+        self.hd.product_id
+    }
+
+    #[getter]
+    fn ts_event(&self) -> u64 {
+        self.hd.ts_event
     }
 
     #[pyo3(name = "record_size")]
@@ -977,20 +1068,28 @@ impl ErrorMsg {
         Ok(ErrorMsg::new(ts_event, err))
     }
 
-    fn __richcmp__(&self, other: &ErrorMsg, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
+    impl_richcmp! {}
+    impl_repr! {}
+    impl_bytes! {}
+
+    #[getter]
+    fn rtype(&self) -> u8 {
+        self.hd.rtype
     }
 
-    fn __repr__(&self) -> String {
-        format!("{self:?}")
+    #[getter]
+    fn publisher_id(&self) -> u16 {
+        self.hd.publisher_id
     }
 
-    fn __bytes__(&self) -> &[u8] {
-        self.as_ref()
+    #[getter]
+    fn product_id(&self) -> u32 {
+        self.hd.product_id
+    }
+
+    #[getter]
+    fn ts_event(&self) -> u64 {
+        self.hd.ts_event
     }
 
     #[pyo3(name = "record_size")]
@@ -1032,20 +1131,28 @@ impl SymbolMappingMsg {
         })
     }
 
-    fn __richcmp__(&self, other: &SymbolMappingMsg, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
+    impl_richcmp! {}
+    impl_repr! {}
+    impl_bytes! {}
+
+    #[getter]
+    fn rtype(&self) -> u8 {
+        self.hd.rtype
     }
 
-    fn __repr__(&self) -> String {
-        format!("{self:?}")
+    #[getter]
+    fn publisher_id(&self) -> u16 {
+        self.hd.publisher_id
     }
 
-    fn __bytes__(&self) -> &[u8] {
-        self.as_ref()
+    #[getter]
+    fn product_id(&self) -> u32 {
+        self.hd.product_id
+    }
+
+    #[getter]
+    fn ts_event(&self) -> u64 {
+        self.hd.ts_event
     }
 
     #[pyo3(name = "record_size")]
@@ -1073,20 +1180,28 @@ impl SystemMsg {
         SystemMsg::new(ts_event, msg).map_err(to_val_err)
     }
 
-    fn __richcmp__(&self, other: &SystemMsg, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
+    impl_richcmp! {}
+    impl_repr! {}
+    impl_bytes! {}
+
+    #[getter]
+    fn rtype(&self) -> u8 {
+        self.hd.rtype
     }
 
-    fn __repr__(&self) -> String {
-        format!("{self:?}")
+    #[getter]
+    fn publisher_id(&self) -> u16 {
+        self.hd.publisher_id
     }
 
-    fn __bytes__(&self) -> &[u8] {
-        self.as_ref()
+    #[getter]
+    fn product_id(&self) -> u32 {
+        self.hd.product_id
+    }
+
+    #[getter]
+    fn ts_event(&self) -> u64 {
+        self.hd.ts_event
     }
 
     #[pyo3(name = "record_size")]
@@ -1100,7 +1215,6 @@ impl SystemMsg {
         self.msg().map_err(to_val_err)
     }
 
-    #[getter]
     #[pyo3(name = "is_heartbeat")]
     fn py_is_heartbeat(&self) -> bool {
         self.is_heartbeat()

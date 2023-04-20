@@ -26,7 +26,7 @@ use crate::{
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(get_all, set_all, module = "databento_dbn")
+    pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn")
 )]
 pub struct RecordHeader {
     /// The length of the record in 32-bit words.
@@ -54,7 +54,7 @@ pub struct RecordHeader {
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(get_all, set_all, module = "databento_dbn", name = "MBOMsg")
+    pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn", name = "MBOMsg")
 )]
 pub struct MboMsg {
     /// The common header.
@@ -95,7 +95,7 @@ pub struct MboMsg {
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(get_all, set_all, module = "databento_dbn")
+    pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn")
 )]
 pub struct BidAskPair {
     /// The bid price.
@@ -119,7 +119,7 @@ pub struct BidAskPair {
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(get_all, set_all, module = "databento_dbn")
+    pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn", name = "TradeMsg")
 )]
 pub struct TradeMsg {
     /// The common header.
@@ -158,7 +158,7 @@ pub struct TradeMsg {
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(get_all, set_all, module = "databento_dbn", name = "MBP1Msg")
+    pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn", name = "MBP1Msg")
 )]
 pub struct Mbp1Msg {
     /// The common header.
@@ -199,7 +199,7 @@ pub struct Mbp1Msg {
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(get_all, set_all, module = "databento_dbn", name = "MBP10Msg")
+    pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn", name = "MBP10Msg")
 )]
 pub struct Mbp10Msg {
     /// The common header.
@@ -246,7 +246,7 @@ pub type TbboMsg = Mbp1Msg;
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(get_all, set_all, module = "databento_dbn", name = "OHLCVMsg")
+    pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn", name = "OHLCVMsg")
 )]
 pub struct OhlcvMsg {
     /// The common header.
@@ -269,7 +269,7 @@ pub struct OhlcvMsg {
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
-#[cfg_attr(feature = "python", pyo3::pyclass(module = "databento_dbn"))]
+#[cfg_attr(feature = "python", pyo3::pyclass(dict, module = "databento_dbn"))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 pub struct StatusMsg {
     /// The common header.
@@ -295,7 +295,7 @@ pub struct StatusMsg {
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
-#[cfg_attr(feature = "python", pyo3::pyclass(module = "databento_dbn"))]
+#[cfg_attr(feature = "python", pyo3::pyclass(dict, module = "databento_dbn"))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 pub struct InstrumentDefMsg {
     /// The common header.
@@ -523,7 +523,7 @@ pub struct InstrumentDefMsg {
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(get_all, set_all, module = "databento_dbn")
+    pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn")
 )]
 pub struct ImbalanceMsg {
     /// The common header.
@@ -589,7 +589,7 @@ pub struct ImbalanceMsg {
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(get_all, set_all, module = "databento_dbn")
+    pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn")
 )]
 pub struct StatMsg {
     /// The common header.
@@ -632,7 +632,7 @@ pub struct StatMsg {
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
-#[cfg_attr(feature = "python", pyo3::pyclass(module = "databento_dbn"))]
+#[cfg_attr(feature = "python", pyo3::pyclass(dict, module = "databento_dbn"))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 pub struct ErrorMsg {
     /// The common header.
@@ -648,7 +648,7 @@ pub struct ErrorMsg {
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
-#[cfg_attr(feature = "python", pyo3::pyclass(module = "databento_dbn"))]
+#[cfg_attr(feature = "python", pyo3::pyclass(dict, module = "databento_dbn"))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 pub struct SymbolMappingMsg {
     /// The common header.
@@ -679,7 +679,7 @@ pub struct SymbolMappingMsg {
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
-#[cfg_attr(feature = "python", pyo3::pyclass(module = "databento_dbn"))]
+#[cfg_attr(feature = "python", pyo3::pyclass(dict, module = "databento_dbn"))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 pub struct SystemMsg {
     /// The common header.
