@@ -602,9 +602,11 @@ pub struct StatMsg {
     #[serde(serialize_with = "serialize_large_u64")]
     pub ts_ref: u64,
     /// The value for price statistics expressed as a signed integer where every 1 unit
-    /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be
+    /// [`crate::UNDEF_PRICE`] when unused.
     pub price: i64,
-    /// The value for non-price statistics.
+    /// The value for non-price statistics. Will be [`crate::UNDEF_STAT_QUANTITY`] when
+    /// unused.
     pub quantity: i32,
     /// The message sequence number assigned at the venue.
     pub sequence: u32,
