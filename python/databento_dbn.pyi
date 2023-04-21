@@ -247,7 +247,7 @@ class RecordHeader:
     @property
     def instrument_id(self) -> int:
         """
-        The numeric product ID assigned to the instrument.
+        The numeric ID assigned to the instrument.
 
         Returns
         -------
@@ -312,9 +312,9 @@ class Record(SupportsBytes):
 
         """
     @property
-    def product_id(self) -> int:
+    def instrument_id(self) -> int:
         """
-        The numeric product ID assigned to the instrument.
+        The numeric ID assigned to the instrument.
 
         Returns
         -------

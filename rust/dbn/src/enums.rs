@@ -557,7 +557,7 @@ impl Display for Compression {
 /// Constants for the bit flag record fields.
 pub mod flags {
     /// Indicates it's the last message in the packet from the venue for a given
-    /// `product_id`.
+    /// `instrument_id`.
     pub const LAST: u8 = 1 << 7;
     /// Indicates the message was sourced from a replay, such as a snapshot server.
     pub const SNAPSHOT: u8 = 1 << 5;

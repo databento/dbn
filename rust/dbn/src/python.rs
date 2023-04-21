@@ -328,8 +328,8 @@ impl MboMsg {
     }
 
     #[getter]
-    fn product_id(&self) -> u32 {
-        self.hd.product_id
+    fn instrument_id(&self) -> u32 {
+        self.hd.instrument_id
     }
 
     #[getter]
@@ -415,8 +415,8 @@ impl TradeMsg {
     }
 
     #[getter]
-    fn product_id(&self) -> u32 {
-        self.hd.product_id
+    fn instrument_id(&self) -> u32 {
+        self.hd.instrument_id
     }
 
     #[getter]
@@ -478,8 +478,8 @@ impl Mbp1Msg {
     }
 
     #[getter]
-    fn product_id(&self) -> u32 {
-        self.hd.product_id
+    fn instrument_id(&self) -> u32 {
+        self.hd.instrument_id
     }
 
     #[getter]
@@ -553,8 +553,8 @@ impl Mbp10Msg {
     }
 
     #[getter]
-    fn product_id(&self) -> u32 {
-        self.hd.product_id
+    fn instrument_id(&self) -> u32 {
+        self.hd.instrument_id
     }
 
     #[getter]
@@ -607,8 +607,8 @@ impl OhlcvMsg {
     }
 
     #[getter]
-    fn product_id(&self) -> u32 {
-        self.hd.product_id
+    fn instrument_id(&self) -> u32 {
+        self.hd.instrument_id
     }
 
     #[getter]
@@ -660,8 +660,8 @@ impl StatusMsg {
     }
 
     #[getter]
-    fn product_id(&self) -> u32 {
-        self.hd.product_id
+    fn instrument_id(&self) -> u32 {
+        self.hd.instrument_id
     }
 
     #[getter]
@@ -843,8 +843,8 @@ impl InstrumentDefMsg {
     }
 
     #[getter]
-    fn product_id(&self) -> u32 {
-        self.hd.product_id
+    fn instrument_id(&self) -> u32 {
+        self.hd.instrument_id
     }
 
     #[getter]
@@ -982,8 +982,8 @@ impl ImbalanceMsg {
     }
 
     #[getter]
-    fn product_id(&self) -> u32 {
-        self.hd.product_id
+    fn instrument_id(&self) -> u32 {
+        self.hd.instrument_id
     }
 
     #[getter]
@@ -1046,8 +1046,8 @@ impl StatMsg {
     }
 
     #[getter]
-    fn product_id(&self) -> u32 {
-        self.hd.product_id
+    fn instrument_id(&self) -> u32 {
+        self.hd.instrument_id
     }
 
     #[getter]
@@ -1083,8 +1083,8 @@ impl ErrorMsg {
     }
 
     #[getter]
-    fn product_id(&self) -> u32 {
-        self.hd.product_id
+    fn instrument_id(&self) -> u32 {
+        self.hd.instrument_id
     }
 
     #[getter]
@@ -1146,8 +1146,8 @@ impl SymbolMappingMsg {
     }
 
     #[getter]
-    fn product_id(&self) -> u32 {
-        self.hd.product_id
+    fn instrument_id(&self) -> u32 {
+        self.hd.instrument_id
     }
 
     #[getter]
@@ -1195,8 +1195,8 @@ impl SystemMsg {
     }
 
     #[getter]
-    fn product_id(&self) -> u32 {
-        self.hd.product_id
+    fn instrument_id(&self) -> u32 {
+        self.hd.instrument_id
     }
 
     #[getter]
