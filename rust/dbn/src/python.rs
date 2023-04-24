@@ -29,34 +29,6 @@ use crate::{
 };
 use crate::{MappingInterval, Metadata, SymbolMapping};
 
-macro_rules! impl_repr {
-    () => {
-        fn __repr__(&self) -> String {
-            format!("{self:?}")
-        }
-    };
-}
-
-macro_rules! impl_richcmp {
-    () => {
-        fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-            match op {
-                CompareOp::Eq => self.eq(other).into_py(py),
-                CompareOp::Ne => self.ne(other).into_py(py),
-                _ => py.NotImplemented(),
-            }
-        }
-    };
-}
-
-macro_rules! impl_bytes {
-    () => {
-        fn __bytes__(&self) -> &[u8] {
-            self.as_ref()
-        }
-    };
-}
-
 #[pymethods]
 impl Metadata {
     #[new]
@@ -90,8 +62,17 @@ impl Metadata {
             .build()
     }
 
-    impl_richcmp! {}
-    impl_repr! {}
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
 
     /// Encodes Metadata back into DBN format.
     fn __bytes__(&self, py: Python<'_>) -> PyResult<Py<PyBytes>> {
@@ -313,9 +294,21 @@ impl MboMsg {
         }
     }
 
-    impl_richcmp! {}
-    impl_repr! {}
-    impl_bytes! {}
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
 
     #[getter]
     fn rtype(&self) -> u8 {
@@ -400,9 +393,21 @@ impl TradeMsg {
         }
     }
 
-    impl_richcmp! {}
-    impl_repr! {}
-    impl_bytes! {}
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
 
     #[getter]
     fn rtype(&self) -> u8 {
@@ -463,9 +468,21 @@ impl Mbp1Msg {
         }
     }
 
-    impl_richcmp! {}
-    impl_repr! {}
-    impl_bytes! {}
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
 
     #[getter]
     fn rtype(&self) -> u8 {
@@ -538,9 +555,21 @@ impl Mbp10Msg {
         })
     }
 
-    impl_richcmp! {}
-    impl_repr! {}
-    impl_bytes! {}
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
 
     #[getter]
     fn rtype(&self) -> u8 {
@@ -592,9 +621,21 @@ impl OhlcvMsg {
         }
     }
 
-    impl_richcmp! {}
-    impl_repr! {}
-    impl_bytes! {}
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
 
     #[getter]
     fn rtype(&self) -> u8 {
@@ -645,9 +686,21 @@ impl StatusMsg {
         })
     }
 
-    impl_richcmp! {}
-    impl_repr! {}
-    impl_bytes! {}
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
 
     #[getter]
     fn rtype(&self) -> u8 {
@@ -828,9 +881,21 @@ impl InstrumentDefMsg {
         })
     }
 
-    impl_richcmp! {}
-    impl_repr! {}
-    impl_bytes! {}
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
 
     #[getter]
     fn rtype(&self) -> u8 {
@@ -967,9 +1032,21 @@ impl ImbalanceMsg {
         }
     }
 
-    impl_richcmp! {}
-    impl_repr! {}
-    impl_bytes! {}
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
 
     #[getter]
     fn rtype(&self) -> u8 {
@@ -1031,10 +1108,21 @@ impl StatMsg {
         }
     }
 
-    impl_richcmp! {}
-    impl_repr! {}
-    impl_bytes! {}
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
 
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
     #[getter]
     fn rtype(&self) -> u8 {
         self.hd.rtype
@@ -1068,9 +1156,21 @@ impl ErrorMsg {
         Ok(ErrorMsg::new(ts_event, err))
     }
 
-    impl_richcmp! {}
-    impl_repr! {}
-    impl_bytes! {}
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
 
     #[getter]
     fn rtype(&self) -> u8 {
@@ -1131,9 +1231,21 @@ impl SymbolMappingMsg {
         })
     }
 
-    impl_richcmp! {}
-    impl_repr! {}
-    impl_bytes! {}
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
 
     #[getter]
     fn rtype(&self) -> u8 {
@@ -1180,9 +1292,21 @@ impl SystemMsg {
         SystemMsg::new(ts_event, msg).map_err(to_val_err)
     }
 
-    impl_richcmp! {}
-    impl_repr! {}
-    impl_bytes! {}
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
 
     #[getter]
     fn rtype(&self) -> u8 {
