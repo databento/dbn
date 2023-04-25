@@ -2,7 +2,10 @@
 
 use std::{marker::PhantomData, mem, ptr::NonNull};
 
-use crate::record::{HasRType, RecordHeader};
+use crate::{
+    enums::RType,
+    record::{HasRType, RecordHeader},
+};
 
 /// A wrapper around a non-owning immutable reference to a DBN record. This wrapper
 /// allows for mixing of record types and schemas, and runtime record polymorphism.
@@ -50,6 +53,21 @@ impl<'a> RecordRef<'a> {
         T::has_rtype(self.header().rtype)
     }
 
+    /// Returns the size of the record in bytes.
+    pub fn record_size(&self) -> usize {
+        self.header().record_size()
+    }
+
+    /// Tries to convert the raw `rtype` into an enum which is useful for exhaustive
+    /// pattern matching.
+    ///
+    /// # Errors
+    /// This function returns an error if the `rtype` field does not
+    /// contain a valid, known [`RType`](crate::enums::RType).
+    pub fn rtype(&self) -> crate::error::Result<RType> {
+        self.header().rtype()
+    }
+
     /// Returns a reference to the underlying record of type `T` or `None` if it points
     /// to another record type.
     ///
@@ -89,10 +107,6 @@ mod tests {
 
     use super::*;
 
-    unsafe fn as_mut_u8_slice<T: Sized + 'static>(data: &mut T) -> &mut [u8] {
-        std::slice::from_raw_parts_mut(data as *mut T as *mut u8, mem::size_of::<T>())
-    }
-
     const SOURCE_RECORD: MboMsg = MboMsg {
         hd: RecordHeader::new::<MboMsg>(rtype::MBO, 1, 1, 0),
         order_id: 17,
@@ -109,15 +123,13 @@ mod tests {
 
     #[test]
     fn test_header() {
-        let mut source = SOURCE_RECORD;
-        let target = unsafe { RecordRef::new(as_mut_u8_slice(&mut source)) };
+        let target = unsafe { RecordRef::new(SOURCE_RECORD.as_ref()) };
         assert_eq!(*target.header(), SOURCE_RECORD.hd);
     }
 
     #[test]
     fn test_has_and_get() {
-        let mut source = SOURCE_RECORD;
-        let target = unsafe { RecordRef::new(as_mut_u8_slice(&mut source)) };
+        let target = unsafe { RecordRef::new(SOURCE_RECORD.as_ref()) };
         assert!(!target.has::<Mbp1Msg>());
         assert!(!target.has::<Mbp10Msg>());
         assert!(!target.has::<TradeMsg>());

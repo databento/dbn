@@ -4,42 +4,47 @@ use std::num::NonZeroU64;
 
 use serde::Serialize;
 
-use crate::enums::{SType, Schema};
-use crate::record::as_u8_slice;
-
 // Dummy derive macro to get around `cfg_attr` incompatibility of several
 // of pyo3's attribute macros. See https://github.com/PyO3/pyo3/issues/780
 #[cfg(not(feature = "python"))]
 pub use dbn_macros::MockPyo3;
 
+use crate::enums::{SType, Schema};
+use crate::record::as_u8_slice;
+
 /// Information about the data contained in a DBN file or stream. DBN requires the
 /// Metadata to be included at the start of the encoded data.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[cfg_attr(feature = "python", pyo3::pyclass(module = "databento_dbn"))]
+#[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 pub struct Metadata {
-    /// The DBN schema version number. Newly-encoded DBN files will use [`crate::DBN_VERSION`].
+    /// The DBN schema version number. Newly-encoded DBN files will use
+    /// [`crate::DBN_VERSION`].
     #[pyo3(get)]
     pub version: u8,
     /// The dataset code.
     #[pyo3(get)]
     pub dataset: String,
-    /// The data record schema. Specifies which record type is stored in the Zstd-compressed DBN file.
+    /// The data record schema. Specifies which record types are in the DBN stream.
+    /// `None` indicates the DBN stream _may_ contain more than one record type.
     #[pyo3(get)]
-    pub schema: Schema,
-    /// The UNIX nanosecond timestamp of the query start, or the first record if the file was split.
+    pub schema: Option<Schema>,
+    /// The UNIX nanosecond timestamp of the query start, or the first record if the
+    /// file was split.
     #[pyo3(get)]
     pub start: u64,
-    /// The UNIX nanosecond timestamp of the query end, or the last record if the file was split.
+    /// The UNIX nanosecond timestamp of the query end, or the last record if the file
+    /// was split.
     #[pyo3(get)]
     pub end: Option<NonZeroU64>,
     /// The optional maximum number of records for the query.
     #[pyo3(get)]
     #[serde(serialize_with = "serialize_as_raw")]
     pub limit: Option<NonZeroU64>,
-    /// The input symbology type to map from.
+    /// The input symbology type to map from. `None` indicates a mix, such as in the
+    /// case of live data.
     #[pyo3(get)]
-    pub stype_in: SType,
+    pub stype_in: Option<SType>,
     /// The output symbology type to map to.
     #[pyo3(get)]
     pub stype_out: SType,
@@ -56,7 +61,7 @@ pub struct Metadata {
     /// Symbols that did not resolve for _any_ day in the query time range.
     #[pyo3(get)]
     pub not_found: Vec<String>,
-    /// Symbol mappings containing a native symbol and its mapping intervals.
+    /// Symbol mappings containing a raw symbol and its mapping intervals.
     pub mappings: Vec<SymbolMapping>,
 }
 
@@ -67,9 +72,7 @@ pub struct Metadata {
 ///
 /// # Required fields
 /// - [`dataset`](Metadata::dataset)
-/// - [`schema`](Metadata::schema)
 /// - [`start`](Metadata::start)
-/// - [`stype_in`](Metadata::stype_in)
 /// - [`stype_out`](Metadata::stype_out)
 #[derive(Debug)]
 pub struct MetadataBuilder<D, Sch, Start, StIn, StOut> {
@@ -125,7 +128,10 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
     }
 
     /// Sets the [`schema`](Metadata::schema) and returns the builder.
-    pub fn schema(self, schema: Schema) -> MetadataBuilder<D, Schema, Start, StIn, StOut> {
+    pub fn schema(
+        self,
+        schema: Option<Schema>,
+    ) -> MetadataBuilder<D, Option<Schema>, Start, StIn, StOut> {
         MetadataBuilder {
             version: self.version,
             dataset: self.dataset,
@@ -175,7 +181,10 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
     }
 
     /// Sets the [`stype_in`](Metadata::stype_in) and returns the builder.
-    pub fn stype_in(self, stype_in: SType) -> MetadataBuilder<D, Sch, Start, SType, StOut> {
+    pub fn stype_in(
+        self,
+        stype_in: Option<SType>,
+    ) -> MetadataBuilder<D, Sch, Start, Option<SType>, StOut> {
         MetadataBuilder {
             version: self.version,
             dataset: self.dataset,
@@ -243,7 +252,7 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
     }
 }
 
-impl MetadataBuilder<String, Schema, u64, SType, SType> {
+impl MetadataBuilder<String, Option<Schema>, u64, Option<SType>, SType> {
     /// Constructs a [`Metadata`] object. The availability of this method indicates all
     /// required fields have been set.
     pub fn build(self) -> Metadata {
@@ -285,12 +294,12 @@ impl Default for MetadataBuilder<Unset, Unset, Unset, Unset, Unset> {
     }
 }
 
-/// A native symbol and its symbol mappings for different time ranges within the query range.
+/// A raw symbol and its symbol mappings for different time ranges within the query range.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "python", derive(pyo3::FromPyObject))]
 pub struct SymbolMapping {
-    /// The native symbol.
-    pub native_symbol: String,
+    /// The symbol assigned by publisher.
+    pub raw_symbol: String,
     /// The mappings of `native` for different date ranges.
     pub intervals: Vec<MappingInterval>,
 }

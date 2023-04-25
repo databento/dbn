@@ -1,3 +1,5 @@
+#![allow(deprecated)] // TODO: remove with SType::Smart
+
 //! Enums used in Databento APIs.
 use std::fmt::{self, Display, Formatter};
 
@@ -16,7 +18,7 @@ pub enum Side {
     /// A buy order.
     Bid = b'B',
     /// None or unknown.
-    None,
+    None = b'N',
 }
 
 impl From<Side> for char {
@@ -163,11 +165,19 @@ impl serde::Serialize for UserDefinedInstrument {
 #[repr(u8)]
 pub enum SType {
     /// Symbology using a unique numeric ID.
-    ProductId = 0,
+    InstrumentId = 0,
     /// Symbology using the original symbols provided by the publisher.
-    Native = 1,
+    RawSymbol = 1,
     /// A set of Databento-specific symbologies for referring to groups of symbols.
+    #[deprecated(since = "0.5.0", note = "Smart was split into Continuous and Parent.")]
     Smart = 2,
+    /// A Databento-specific symbology where one symbol may point to different
+    /// instruments at different points of time, e.g. to always refer to the front month
+    /// future.
+    Continuous = 3,
+    /// A Databento-specific symbology for referring to a group of symbols by one
+    /// "parent" symbol, e.g. ES.FUT to refer to all ES futures.
+    Parent = 4,
 }
 
 impl std::str::FromStr for SType {
@@ -175,9 +185,11 @@ impl std::str::FromStr for SType {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "product_id" => Ok(SType::ProductId),
-            "native" => Ok(SType::Native),
+            "instrument_id" | "product_id" => Ok(SType::InstrumentId),
+            "raw_symbol" | "native" => Ok(SType::RawSymbol),
             "smart" => Ok(SType::Smart),
+            "continuous" => Ok(SType::Continuous),
+            "parent" => Ok(SType::Parent),
             _ => Err(ConversionError::TypeConversion(
                 "Value doesn't match a valid symbol type",
             )),
@@ -195,9 +207,12 @@ impl SType {
     /// Convert the symbology type to its `str` representation.
     pub const fn as_str(&self) -> &'static str {
         match self {
-            SType::Native => "native",
+            SType::InstrumentId => "instrument_id",
+            SType::RawSymbol => "raw_symbol",
+            #[allow(deprecated)]
             SType::Smart => "smart",
-            SType::ProductId => "product_id",
+            SType::Continuous => "continuous",
+            SType::Parent => "parent",
         }
     }
 }
@@ -208,9 +223,57 @@ impl Display for SType {
     }
 }
 
+pub use rtype::RType;
+
 /// Record types, possible values for [`RecordHeader::rtype`][crate::record::RecordHeader::rtype]
+#[allow(deprecated)]
 pub mod rtype {
+    use num_enum::TryFromPrimitive;
+    use serde::Serialize;
+
     use super::Schema;
+
+    /// A type of record, i.e. a struct implementing [`HasRType`](crate::record::HasRType).
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, TryFromPrimitive)]
+    #[repr(u8)]
+    pub enum RType {
+        /// Market by price with a book depth of 0 (used for trades).
+        Mbp0 = MBP_0,
+        /// Market by price with a book depth of 1 (also used for TBBO).
+        Mbp1 = MBP_1,
+        /// Market by price with a book depth of 10.
+        Mbp10 = MBP_10,
+        /// Open, high, low, close, and volume at an unspecified cadence.
+        #[deprecated(
+            since = "0.3.3",
+            note = "Separated into separate rtypes for each OHLCV schema."
+        )]
+        OhlcvDeprecated = OHLCV_DEPRECATED,
+        /// Open, high, low, close, and volume at a 1-second cadence.
+        Ohlcv1S = OHLCV_1S,
+        /// Open, high, low, close, and volume at a 1-minute cadence.
+        Ohlcv1M = OHLCV_1M,
+        /// Open, high, low, close, and volume at a daily cadence.
+        Ohlcv1H = OHLCV_1H,
+        /// Open, high, low, close, and volume at a daily cadence.
+        Ohlcv1D = OHLCV_1D,
+        /// Exchange status.
+        Status = STATUS,
+        /// Instrument definition.
+        InstrumentDef = INSTRUMENT_DEF,
+        /// Order imbalance.
+        Imbalance = IMBALANCE,
+        /// Error from gateway.
+        Error = ERROR,
+        /// Symbol mapping.
+        SymbolMapping = SYMBOL_MAPPING,
+        /// A non-error message. Also used for heartbeats.
+        System = SYSTEM,
+        /// Statistics from the publisher (not calculated by Databento).
+        Statistics = STATISTICS,
+        /// Market by order.
+        Mbo = MBO,
+    }
 
     /// Market by price with a book depth of 0 (used for trades).
     pub const MBP_0: u8 = 0x00;
@@ -244,25 +307,28 @@ pub mod rtype {
     pub const SYMBOL_MAPPING: u8 = 0x16;
     /// A non-error message. Also used for heartbeats.
     pub const SYSTEM: u8 = 0x17;
+    /// Statistics from the publisher (not calculated by Databento).
+    pub const STATISTICS: u8 = 0x18;
     /// Market by order.
     pub const MBO: u8 = 0xA0;
 
     /// Get the corresponding `rtype` for the given `schema`.
-    pub fn from(schema: Schema) -> u8 {
-        match schema {
-            Schema::Mbo => MBO,
-            Schema::Mbp1 => MBP_1,
-            Schema::Mbp10 => MBP_10,
-            Schema::Tbbo => MBP_1,
-            Schema::Trades => MBP_0,
-            Schema::Ohlcv1S => OHLCV_1S,
-            Schema::Ohlcv1M => OHLCV_1M,
-            Schema::Ohlcv1H => OHLCV_1H,
-            Schema::Ohlcv1D => OHLCV_1D,
-            Schema::Definition => INSTRUMENT_DEF,
-            Schema::Statistics => unimplemented!("Statistics is not yet supported"),
-            Schema::Status => STATUS,
-            Schema::Imbalance => IMBALANCE,
+    impl From<Schema> for RType {
+        fn from(schema: Schema) -> Self {
+            match schema {
+                Schema::Mbo => RType::Mbo,
+                Schema::Mbp1 | Schema::Tbbo => RType::Mbp1,
+                Schema::Mbp10 => RType::Mbp10,
+                Schema::Trades => RType::Mbp0,
+                Schema::Ohlcv1S => RType::Ohlcv1S,
+                Schema::Ohlcv1M => RType::Ohlcv1M,
+                Schema::Ohlcv1H => RType::Ohlcv1H,
+                Schema::Ohlcv1D => RType::Ohlcv1D,
+                Schema::Definition => RType::InstrumentDef,
+                Schema::Statistics => RType::Statistics,
+                Schema::Status => RType::Status,
+                Schema::Imbalance => RType::Imbalance,
+            }
         }
     }
 
@@ -282,6 +348,7 @@ pub mod rtype {
             STATUS => Some(Schema::Status),
             INSTRUMENT_DEF => Some(Schema::Definition),
             IMBALANCE => Some(Schema::Imbalance),
+            STATISTICS => Some(Schema::Statistics),
             MBO => Some(Schema::Mbo),
             _ => None,
         }
@@ -313,7 +380,7 @@ pub enum Schema {
     Ohlcv1D = 8,
     /// Instrument definitions.
     Definition = 9,
-    #[doc(hidden)]
+    /// Additional data disseminated by publishers.
     Statistics = 10,
     /// Exchange status.
     #[doc(hidden)]
@@ -323,7 +390,7 @@ pub enum Schema {
 }
 
 /// The number of [`Schema`]s.
-pub const SCHEMA_COUNT: usize = 12;
+pub const SCHEMA_COUNT: usize = 13;
 
 impl std::str::FromStr for Schema {
     type Err = ConversionError;
@@ -490,7 +557,7 @@ impl Display for Compression {
 /// Constants for the bit flag record fields.
 pub mod flags {
     /// Indicates it's the last message in the packet from the venue for a given
-    /// `product_id`.
+    /// `instrument_id`.
     pub const LAST: u8 = 1 << 7;
     /// Indicates the message was sourced from a replay, such as a snapshot server.
     pub const SNAPSHOT: u8 = 1 << 5;
@@ -503,13 +570,17 @@ pub mod flags {
     pub const MAYBE_BAD_BOOK: u8 = 1 << 2;
 }
 
+/// The type of [`InstrumentDefMsg`](crate::record::InstrumentDefMsg) update.
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, IntoPrimitive, TryFromPrimitive)]
-#[doc(hidden)]
 pub enum SecurityUpdateAction {
+    /// A new instrument definition.
     Add = b'A',
+    /// A modified instrument definition of an existing one.
     Modify = b'M',
+    /// Removal of an instrument definition.
     Delete = b'D',
+    #[doc(hidden)]
     #[deprecated = "Still present in legacy files."]
     Invalid = b'~',
 }
@@ -518,4 +589,49 @@ impl Serialize for SecurityUpdateAction {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.serialize_char(char::from(*self as u8))
     }
+}
+
+/// The type of statistic contained in a [`StatMsg`](crate::record::StatMsg).
+#[repr(u16)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoPrimitive, TryFromPrimitive)]
+pub enum StatType {
+    /// The price of the first trade of an instrument. `price` will be set.
+    OpeningPrice = 1,
+    /// The probable price of the first trade of an instrument published during pre-
+    /// open. Both `price` and `quantity` will be set.
+    IndicativeOpeningPrice = 2,
+    /// The settlement price of an instrument. `price` will be set and `flags` indicate
+    /// whether the price is final or preliminary and actual or theoretical.
+    SettlementPrice = 3,
+    /// The lowest trade price of an instrument during the trading session. `price` will
+    /// be set.
+    TradingSessionLowPrice = 4,
+    /// The highest trade price of an instrument during the trading session. `price` will
+    /// be set.
+    TradingSessionHighPrice = 5,
+    /// The number of contracts cleared for an instrument on the previous trading date.
+    /// `quantity` will be set.
+    ClearedVolume = 6,
+    /// The lowest offer price for an instrument during the trading session. `price`
+    /// will be set.
+    LowestOffer = 7,
+    /// The highest bid price for an instrument during the trading session. `price`
+    /// will be set.
+    HighestBid = 8,
+    /// The current number of outstanding contracts of an instrument. `quantity` will
+    // be set.
+    OpenInterest = 9,
+    /// The volume-weighted average price (VWAP) for a fixing period. `price` will be
+    /// set.
+    FixingPrice = 10,
+}
+
+/// The type of [`StatMsg`](crate::record::StatMsg) update.
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoPrimitive, TryFromPrimitive)]
+pub enum StatUpdateAction {
+    /// A new statistic.
+    New = 1,
+    /// A removal of a statistic.
+    Delete = 2,
 }

@@ -1,10 +1,34 @@
-"""Type stubs for databento_dbn"""
-from typing import BinaryIO, Optional, Sequence, SupportsBytes
+"""Type stubs for databento_dbn."""
+from typing import (
+    Any,
+    BinaryIO,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    SupportsBytes,
+    Tuple,
+    Union,
+)
 
-class Metadata:
+_DBNRecord = Union[
+    Metadata,
+    MBOMsg,
+    MBP1Msg,
+    MBP10Msg,
+    OHLCVMsg,
+    TradeMsg,
+    InstrumentDefMsg,
+    ImbalanceMsg,
+    ErrorMsg,
+    SymbolMappingMsg,
+    SystemMsg,
+]
+
+class Metadata(SupportsBytes):
     """
-    Information about the data contained in a DBN file or stream. DBN requires the
-    Metadata to be included at the start of the encoded data.
+    Information about the data contained in a DBN file or stream. DBN requires
+    the Metadata to be included at the start of the encoded data.
 
     See Also
     ---------
@@ -13,10 +37,13 @@ class Metadata:
 
     """
 
+    def __bytes__(self) -> bytes: ...
+    def __eq__(self, other) -> bool: ...
+    def __ne__(self, other) -> bool: ...
     @property
     def version(self) -> int:
         """
-        The DBN schema version number. Newly-encoded DBN files will use [`crate::DBN_VERSION`].
+        The DBN schema version number.
 
         Returns
         -------
@@ -34,19 +61,21 @@ class Metadata:
 
         """
     @property
-    def schema(self) -> int:
+    def schema(self) -> Optional[str]:
         """
-        The data record schema. Specifies which record type is stored in the Zstd-compressed DBN file.
+        The data record schema. Specifies which record type is stored in the
+        Zstd-compressed DBN file.
 
         Returns
         -------
-        int
+        Optional[str]
 
         """
     @property
     def start(self) -> int:
         """
-        The UNIX nanosecond timestamp of the query start, or the first record if the file was split.
+        The UNIX nanosecond timestamp of the query start, or the first record
+        if the file was split.
 
         Returns
         -------
@@ -56,7 +85,8 @@ class Metadata:
     @property
     def end(self) -> int:
         """
-        The UNIX nanosecond timestamp of the query end, or the last record if the file was split.
+        The UNIX nanosecond timestamp of the query end, or the last record if
+        the file was split.
 
         Returns
         -------
@@ -74,50 +104,19 @@ class Metadata:
 
         """
     @property
-    def stype_in(self) -> int:
+    def stype_in(self) -> Optional[str]:
         """
         The input symbology type to map from.
 
         Returns
         -------
-        int
+        Optional[str]
 
         """
     @property
-    def stype_out(self) -> int:
+    def stype_out(self) -> str:
         """
         The output symbology type to map to.
-
-        Returns
-        -------
-        int
-
-        """
-    @property
-    def ts_out(self) -> bool:
-        """
-        `true` if this store contains live data with send timestamps appended to each
-        record.
-
-        Returns
-        -------
-        bool
-
-        """
-    @property
-    def symbols(self) -> Sequence[str]:
-        """
-        The original query input symbols from the request.
-
-        Returns
-        -------
-        Sequence[str]
-
-        """
-    @property
-    def partial(self) -> Sequence[str]:
-        """
-        Symbols that did not resolve for _at least one day_ in the query time range.
 
         Returns
         -------
@@ -125,30 +124,95 @@ class Metadata:
 
         """
     @property
-    def not_found(self) -> Sequence[str]:
+    def ts_out(self) -> bool:
         """
-        Symbols that did not resolve for _any_ day in the query time range.
+        `true` if this store contains live data with send timestamps appended
+        to each record.
 
         Returns
         -------
-        Sequence[str]
+        bool
 
         """
     @property
-    def mappings(self) -> Sequence[SymbolMapping]:
+    def symbols(self) -> List[str]:
+        """
+        The original query input symbols from the request.
+
+        Returns
+        -------
+        List[str]
+
+        """
+    @property
+    def partial(self) -> List[str]:
+        """
+        Symbols that did not resolve for at least one day in the query time
+        range.
+
+        Returns
+        -------
+        List[str]
+
+        """
+    @property
+    def not_found(self) -> List[str]:
+        """
+        Symbols that did not resolve for any day in the query time range.
+
+        Returns
+        -------
+        List[str]
+
+        """
+    @property
+    def mappings(self) -> Dict[str, List[Dict[str, Any]]]:
         """
         Symbol mappings containing a native symbol and its mapping intervals.
 
         Returns
         -------
-        Sequence[SymbolMapping]
+        Dict[str, List[Dict[str, Any]]]:
+
+        """
+    @classmethod
+    def decode(cls, data: bytes) -> "Metadata":
+        """
+        Decodes the given Python `bytes` to `Metadata`. Returns a `Metadata`
+        object with all the DBN metadata attributes.
+
+        Parameters
+        ----------
+        data : bytes
+            The bytes to decode from.
+
+        Returns
+        -------
+        Metadata
+
+        Raises
+        ------
+        ValueError
+            When a Metadata instance cannot be parsed from `data`.
+
+        """
+    def encode(self) -> bytes:
+        """
+        Encodes the Metadata to bytes.
+
+        Returns
+        -------
+        bytes
+
+        Raises
+        ------
+        ValueError
+            When the Metadata object cannot be encoded.
 
         """
 
 class RecordHeader:
-    """
-    DBN Record Header
-    """
+    """DBN Record Header."""
 
     @property
     def length(self) -> int:
@@ -181,9 +245,9 @@ class RecordHeader:
 
         """
     @property
-    def product_id(self) -> int:
+    def instrument_id(self) -> int:
         """
-        The numeric product ID assigned to the instrument.
+        The numeric ID assigned to the instrument.
 
         Returns
         -------
@@ -193,7 +257,8 @@ class RecordHeader:
     @property
     def ts_event(self) -> int:
         """
-        The matching-engine-received timestamp expressed as number of nanoseconds since the UNIX epoch.
+        The matching-engine-received timestamp expressed as number of
+        nanoseconds since the UNIX epoch.
 
         Returns
         -------
@@ -202,11 +267,11 @@ class RecordHeader:
         """
 
 class Record(SupportsBytes):
-    """
-    Base class for DBN records.
-    """
+    """Base class for DBN records."""
 
     def __bytes__(self) -> bytes: ...
+    def __eq__(self, other) -> bool: ...
+    def __ne__(self, other) -> bool: ...
     @property
     def hd(self) -> RecordHeader:
         """
@@ -226,11 +291,50 @@ class Record(SupportsBytes):
         int
 
         """
+    @property
+    def rtype(self) -> int:
+        """
+        The record type.
+
+        Returns
+        -------
+        int
+
+        """
+    @property
+    def publisher_id(self) -> int:
+        """
+        The publisher ID assigned by Databento.
+
+        Returns
+        -------
+        int
+
+        """
+    @property
+    def instrument_id(self) -> int:
+        """
+        The numeric ID assigned to the instrument.
+
+        Returns
+        -------
+        int
+
+        """
+    @property
+    def ts_event(self) -> int:
+        """
+        The matching-engine-received timestamp expressed as number of
+        nanoseconds since the UNIX epoch.
+
+        Returns
+        -------
+        int
+
+        """
 
 class _MBOBase:
-    """
-    Base for market-by-order messages.
-    """
+    """Base for market-by-order messages."""
 
     @property
     def order_id(self) -> int:
@@ -286,11 +390,13 @@ class _MBOBase:
     @property
     def action(self) -> str:
         """
-        The event action. Can be `A`dd, `C`ancel, `M`odify, clea`R`, or `T`rade.
+        The event action. Can be `A`dd, `C`ancel, `M`odify, clea`R`, or
+        `T`rade.
 
         Returns
         -------
         str
+
         """
     @property
     def side(self) -> str:
@@ -305,12 +411,13 @@ class _MBOBase:
     @property
     def ts_recv(self) -> int:
         """
-        The capture-server-received timestamp expressed as number of nanoseconds since
-        the UNIX epoch.
+        The capture-server-received timestamp expressed as number of
+        nanoseconds since the UNIX epoch.
 
         Returns
         -------
         int
+
         """
     @property
     def ts_in_delta(self) -> int:
@@ -334,14 +441,10 @@ class _MBOBase:
         """
 
 class MBOMsg(Record, _MBOBase):
-    """
-    A market-by-order (MBO) tick message.
-    """
+    """A market-by-order (MBO) tick message."""
 
 class BidAskPair:
-    """
-    A book level.
-    """
+    """A book level."""
 
     @property
     def bid_px(self) -> int:
@@ -405,9 +508,7 @@ class BidAskPair:
         """
 
 class _MBPBase:
-    """
-    Base for market-by-price messages.
-    """
+    """Base for market-by-price messages."""
 
     @property
     def price(self) -> int:
@@ -433,7 +534,8 @@ class _MBPBase:
     @property
     def action(self) -> str:
         """
-        The event action. Can be `A`dd, `C`ancel, `M`odify, clea`R`, or `T`rade.
+        The event action. Can be `A`dd, `C`ancel, `M`odify, clea`R`, or
+        `T`rade.
 
         Returns
         -------
@@ -473,7 +575,8 @@ class _MBPBase:
     @property
     def ts_recv(self) -> int:
         """
-        The capture-server-received timestamp expressed as number of nanoseconds since the UNIX epoch.
+        The capture-server-received timestamp expressed as number of
+        nanoseconds since the UNIX epoch.
 
         Returns
         -------
@@ -503,23 +606,23 @@ class _MBPBase:
 
 class TradeMsg(Record, _MBPBase):
     """
-    Market by price implementation with a book depth of 0. Equivalent to
-    MBP-0. The record of the `Trades` schema.
+    Market by price implementation with a book depth of 0.
+
+    Equivalent to MBP-0. The record of the `Trades` schema.
+
     """
 
 class MBP1Msg(Record, _MBPBase):
-    """
-    Market by price implementation with a known book depth of 1.
-    """
+    """Market by price implementation with a known book depth of 1."""
 
     @property
-    def booklevel(self) -> Sequence[BidAskPair]:
+    def booklevel(self) -> List[BidAskPair]:
         """
         The top of the order book.
 
         Returns
         -------
-        Sequence[BidAskPair]
+        List[BidAskPair]
 
         Notes
         -----
@@ -528,18 +631,16 @@ class MBP1Msg(Record, _MBPBase):
         """
 
 class MBP10Msg(Record, _MBPBase):
-    """
-    Market by price implementation with a known book depth of 10.
-    """
+    """Market by price implementation with a known book depth of 10."""
 
     @property
-    def booklevel(self) -> Sequence[BidAskPair]:
+    def booklevel(self) -> List[BidAskPair]:
         """
         The top of the order book.
 
         Returns
         -------
-        Sequence[BidAskPair]
+        List[BidAskPair]
 
         Notes
         -----
@@ -548,9 +649,7 @@ class MBP10Msg(Record, _MBPBase):
         """
 
 class OHLCVMsg(Record):
-    """
-    Open, high, low, close, and volume message.
-    """
+    """Open, high, low, close, and volume message."""
 
     @property
     def open(self) -> int:
@@ -604,15 +703,13 @@ class OHLCVMsg(Record):
         """
 
 class InstrumentDefMsg(Record):
-    """
-    Definition of an instrument.
-    """
+    """Definition of an instrument."""
 
     @property
     def ts_recv(self) -> int:
         """
-        The capture-server-received timestamp expressed as number of nanoseconds since the
-        UNIX epoch.
+        The capture-server-received timestamp expressed as number of
+        nanoseconds since the UNIX epoch.
 
         Returns
         -------
@@ -633,7 +730,8 @@ class InstrumentDefMsg(Record):
     @property
     def display_factor(self) -> int:
         """
-        The multiplier to convert the venue’s display price to the conventional price.
+        The multiplier to convert the venue’s display price to the conventional
+        price.
 
         Returns
         -------
@@ -643,8 +741,8 @@ class InstrumentDefMsg(Record):
     @property
     def expiration(self) -> int:
         """
-        The last eligible trade time expressed as a number of nanoseconds since the
-        UNIX epoch.
+        The last eligible trade time expressed as a number of nanoseconds since
+        the UNIX epoch.
 
         Returns
         -------
@@ -654,8 +752,8 @@ class InstrumentDefMsg(Record):
     @property
     def activation(self) -> int:
         """
-        The time of instrument activation expressed as a number of nanoseconds since the
-        UNIX epoch.
+        The time of instrument activation expressed as a number of nanoseconds
+        since the UNIX epoch.
 
         Returns
         -------
@@ -665,8 +763,8 @@ class InstrumentDefMsg(Record):
     @property
     def high_limit_price(self) -> int:
         """
-        The allowable high limit price for the trading day in units of 1e-9, i.e.
-        1/1,000,000,000 or 0.000000001.
+        The allowable high limit price for the trading day in units of 1e-9,
+        i.e. 1/1,000,000,000 or 0.000000001.
 
         Returns
         -------
@@ -676,8 +774,8 @@ class InstrumentDefMsg(Record):
     @property
     def low_limit_price(self) -> int:
         """
-        The allowable low limit price for the trading day in units of 1e-9, i.e.
-        1/1,000,000,000 or 0.000000001.
+        The allowable low limit price for the trading day in units of 1e-9,
+        i.e. 1/1,000,000,000 or 0.000000001.
 
         Returns
         -------
@@ -687,8 +785,8 @@ class InstrumentDefMsg(Record):
     @property
     def max_price_variation(self) -> int:
         """
-        The differential value for price banding in units of 1e-9, i.e. 1/1,000,000,000
-        or 0.000000001.
+        The differential value for price banding in units of 1e-9, i.e.
+        1/1,000,000,000 or 0.000000001.
 
         Returns
         -------
@@ -708,7 +806,8 @@ class InstrumentDefMsg(Record):
     @property
     def unit_of_measure_qty(self) -> int:
         """
-        The contract size for each instrument, in combination with `unit_of_measure`.
+        The contract size for each instrument, in combination with
+        `unit_of_measure`.
 
         Returns
         -------
@@ -718,8 +817,8 @@ class InstrumentDefMsg(Record):
     @property
     def min_price_increment_amount(self) -> int:
         """
-        The value currently under development by the venue. Converted to units of 1e-9, i.e.
-        1/1,000,000,000 or 0.000000001.
+        The value currently under development by the venue. Converted to units
+        of 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 
         Returns
         -------
@@ -729,8 +828,8 @@ class InstrumentDefMsg(Record):
     @property
     def price_ratio(self) -> int:
         """
-        The value used for price calculation in spread and leg pricing in units of 1e-9,
-        i.e. 1/1,000,000,000 or 0.000000001.
+        The value used for price calculation in spread and leg pricing in units
+        of 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 
         Returns
         -------
@@ -750,7 +849,7 @@ class InstrumentDefMsg(Record):
     @property
     def underlying_id(self) -> int:
         """
-        The `product_id` of the first underlying instrument.
+        The `instrument_id` of the first underlying instrument.
 
         Returns
         -------
@@ -760,7 +859,8 @@ class InstrumentDefMsg(Record):
     @property
     def cleared_volume(self) -> int:
         """
-        The total cleared volume of the instrument traded during the prior trading session.
+        The total cleared volume of the instrument traded during the prior
+        trading session.
 
         Returns
         -------
@@ -830,8 +930,8 @@ class InstrumentDefMsg(Record):
     @property
     def min_lot_size_round_lot(self) -> int:
         """
-        The minimum quantity required for a round lot of the instrument. Multiples of
-        this quantity are also round lots.
+        The minimum quantity required for a round lot of the instrument.
+        Multiples of this quantity are also round lots.
 
         Returns
         -------
@@ -851,7 +951,8 @@ class InstrumentDefMsg(Record):
     @property
     def open_interest_qty(self) -> int:
         """
-        The total open interest for the market at the close of the prior trading session.
+        The total open interest for the market at the close of the prior
+        trading session.
 
         Returns
         -------
@@ -871,8 +972,8 @@ class InstrumentDefMsg(Record):
     @property
     def decay_quantity(self) -> int:
         """
-        The quantity that a contract will decay daily, after `decay_start_date` has
-        been reached.
+        The quantity that a contract will decay daily, after `decay_start_date`
+        has been reached.
 
         Retruns
         -------
@@ -933,7 +1034,8 @@ class InstrumentDefMsg(Record):
     @property
     def channel_id(self) -> int:
         """
-        The channel ID assigned by Databento as an incrementing integer starting at zero.
+        The channel ID assigned by Databento as an incrementing integer
+        starting at zero.
 
         Returns
         -------
@@ -971,7 +1073,7 @@ class InstrumentDefMsg(Record):
 
         """
     @property
-    def symbol(self) -> str:
+    def raw_symbol(self) -> str:
         """
         The instrument name (symbol).
 
@@ -1033,7 +1135,8 @@ class InstrumentDefMsg(Record):
     @property
     def unit_of_measure(self) -> str:
         """
-        The unit of measure for the instrument’s original contract size, e.g. USD or LBS.
+        The unit of measure for the instrument’s original contract size, e.g.
+        USD or LBS.
 
         Returns
         -------
@@ -1073,8 +1176,8 @@ class InstrumentDefMsg(Record):
     @property
     def strike_price(self) -> int:
         """
-        The strike price of the option. Converted to units of 1e-9, i.e. 1/1,000,000,000
-        or 0.000000001.
+        The strike price of the option. Converted to units of 1e-9, i.e.
+        1/1,000,000,000 or 0.000000001.
 
         Returns
         -------
@@ -1114,7 +1217,8 @@ class InstrumentDefMsg(Record):
     @property
     def price_display_format(self) -> int:
         """
-        The number of digits to the right of the tick mark, to display fractional prices.
+        The number of digits to the right of the tick mark, to display
+        fractional prices.
 
         Returns
         -------
@@ -1154,7 +1258,8 @@ class InstrumentDefMsg(Record):
     @property
     def security_update_action(self) -> str:
         """
-        Indicates if the instrument definition has been added, modified, or deleted.
+        Indicates if the instrument definition has been added, modified, or
+        deleted.
 
         Returns
         -------
@@ -1204,7 +1309,8 @@ class InstrumentDefMsg(Record):
     @property
     def contract_multiplier_unit(self) -> int:
         """
-        The type of `contract_multiplier`. Either `1` for hours, or `2` for days.
+        The type of `contract_multiplier`. Either `1` for hours, or `2` for
+        days.
 
         Returns
         -------
@@ -1233,15 +1339,13 @@ class InstrumentDefMsg(Record):
         """
 
 class ImbalanceMsg(Record):
-    """
-    An auction imbalance message.
-    """
+    """An auction imbalance message."""
 
     @property
     def ts_recv(self) -> int:
         """
-        The capture-server-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+        The capture-server-received timestamp expressed as the number of
+        nanoseconds since the UNIX epoch.
 
         Returns
         -------
@@ -1251,8 +1355,8 @@ class ImbalanceMsg(Record):
     @property
     def ref_price(self) -> int:
         """
-        The price at which the imbalance shares are calculated, where every 1 unit corresponds to
-        1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+        The price at which the imbalance shares are calculated, where every 1
+        unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 
         Returns
         -------
@@ -1272,7 +1376,8 @@ class ImbalanceMsg(Record):
     @property
     def cont_book_clr_price(self) -> int:
         """
-        The hypothetical auction-clearing price for both cross and continuous orders.
+        The hypothetical auction-clearing price for both cross and continuous
+        orders.
 
         Returns
         -------
@@ -1382,7 +1487,8 @@ class ImbalanceMsg(Record):
     @property
     def side(self) -> str:
         """
-        The market side of the `total_imbalance_qty`. Can be `A`sk, `B`id, or `N`one.
+        The market side of the `total_imbalance_qty`. Can be `A`sk, `B`id, or
+        `N`one.
 
         Returns
         -------
@@ -1432,7 +1538,8 @@ class ImbalanceMsg(Record):
     @property
     def significant_imbalance(self) -> str:
         """
-        Venue-specific character code. For Nasdaq, contains the raw Price Variation Indicator.
+        Venue-specific character code. For Nasdaq, contains the raw Price
+        Variation Indicator.
 
         Returns
         -------
@@ -1441,9 +1548,7 @@ class ImbalanceMsg(Record):
         """
 
 class ErrorMsg(Record):
-    """
-    An error message from the Databento Live Subscription Gateway (LSG).
-    """
+    """An error message from the Databento Live Subscription Gateway (LSG)."""
 
     @property
     def err(self) -> str:
@@ -1457,9 +1562,8 @@ class ErrorMsg(Record):
         """
 
 class SymbolMappingMsg(Record):
-    """
-    A symbol mapping message which maps a symbol of one `SType` to another.
-    """
+    """A symbol mapping message which maps a symbol of one `SType` to
+    another."""
 
     @property
     def stype_in_symbol(self) -> str:
@@ -1484,8 +1588,8 @@ class SymbolMappingMsg(Record):
     @property
     def start_ts(self) -> int:
         """
-        The start of the mapping interval expressed as the number of nanoseconds since
-        the UNIX epoch.
+        The start of the mapping interval expressed as the number of
+        nanoseconds since the UNIX epoch.
 
         Returns
         -------
@@ -1495,8 +1599,8 @@ class SymbolMappingMsg(Record):
     @property
     def end_ts(self) -> int:
         """
-        The end of the mapping interval expressed as the number of nanoseconds since
-        the UNIX epoch.
+        The end of the mapping interval expressed as the number of nanoseconds
+        since the UNIX epoch.
 
         Returns
         -------
@@ -1506,8 +1610,10 @@ class SymbolMappingMsg(Record):
 
 class SystemMsg(Record):
     """
-    A non-error message from the Databento Live Subscription Gateway (LSG). Also used
-    for heartbeating.
+    A non-error message from the Databento Live Subscription Gateway (LSG).
+
+    Also used for heartbeating.
+
     """
 
     @property
@@ -1520,16 +1626,24 @@ class SystemMsg(Record):
         str
 
         """
+    @property
+    def is_heartbeat(self) -> bool:
+        """
+        `true` if this message is a heartbeat, used to indicate the connection with the gateway
+        is still open.
+
+        Returns
+        -------
+        bool
+
+        """
 
 class DbnDecoder:
-    """
-    A class for decoding DBN data to Python objects.
-    """
+    """A class for decoding DBN data to Python objects."""
 
-    @property
     def buffer(self) -> bytes:
         """
-        The internal buffer.
+        Return the internal buffer of the decoder.
 
         Returns
         -------
@@ -1538,13 +1652,13 @@ class DbnDecoder:
         """
     def decode(
         self,
-    ) -> Sequence[Record]:
+    ) -> List[Tuple[_DBNRecord, Optional[int]]]:
         """
         Decode the buffered data into DBN records.
 
         Returns
         -------
-        Sequence[Record]
+        List[Tuple[DBNRecord, Optional[int]]]
 
         Raises
         ------
@@ -1574,76 +1688,6 @@ class DbnDecoder:
 
         """
 
-def decode_metadata(bytes: bytes) -> Metadata:
-    """
-    Decodes the given Python `bytes` to `Metadata`. Returns a `Metadata` object with
-    all the DBN metadata attributes.
-
-    Parameters
-    ----------
-    bytes
-
-    Raises
-    ------
-    ValueError
-        When the metadata cannot be parsed from `bytes`.
-
-    """
-
-def encode_metadata(
-    dataset: str,
-    schema: str,
-    start: int,
-    stype_in: str,
-    stype_out: str,
-    symbols: Sequence[str],
-    partial: Sequence[str],
-    not_found: Sequence[str],
-    mappings: Sequence[SymbolMapping],
-    end: Optional[int] = None,
-    limit: Optional[int] = None,
-) -> bytes:
-    """
-    Encodes the given metadata into the DBN metadata binary format.
-    Returns Python `bytes`.
-
-    Parameters
-    ----------
-    dataset : str
-       The dataset code.
-    schema : str
-        The data record schema.
-    start : int
-        The UNIX nanosecond timestamp of the query start, or the first record if the file was split.
-    stype_in : str
-        The input symbology type to map from.
-    stype_out: str
-        The output symbology type to map to.
-    symbols : Sequence[str]
-        The original query input symbols from the request.
-    partial : Sequence[str]
-        Symbols that did not resolve for _at least one day_ in the query time range.
-    not_found : Sequence[str]
-        Symbols that did not resolve for _any_ day in the query time range.
-    mappings : Sequence[SymbolMapping]
-        Symbol mappings containing a native symbol and its mapping intervals.
-    end : Optional[int]
-        The UNIX nanosecond timestamp of the query end, or the last record if the file was split.
-    limit : Optional[int]
-        The optional maximum number of records for the query.
-
-    Returns
-    -------
-    bytes
-
-    Raises
-    ------
-    ValueError
-        When any of the arguments cannot be converted to their Rust equivalents.
-        When there's an issue writing the encoded metadata to bytes.
-
-    """
-
 def update_encoded_metadata(
     file: BinaryIO,
     start: int,
@@ -1658,9 +1702,11 @@ def update_encoded_metadata(
     file : BinaryIO
         The file handle to update.
     start : int
-        The UNIX nanosecond timestamp of the query start, or the first record if the file was split.
+        The UNIX nanosecond timestamp of the query start, or the
+        first record if the file was split.
     end : Optional[int]
-        The UNIX nanosecond timestamp of the query end, or the last record if the file was split.
+        The UNIX nanosecond timestamp of the query end, or the
+        last record if the file was split.
     limit : Optional[int]
         The optional maximum number of records for the query.
 
@@ -1696,7 +1742,8 @@ def write_dbn_file(
     schema : str
         The data record schema.
     start : int
-        The UNIX nanosecond timestamp of the query start, or the first record if the file was split.
+        The UNIX nanosecond timestamp of the query start, or the
+        first record if the file was split.
     stype_in : str
         The input symbology type to map from.
     stype_out : str
@@ -1704,7 +1751,8 @@ def write_dbn_file(
     records : Sequence[object]
         A sequence of DBN record objects.
     end : Optional[int]
-        The UNIX nanosecond timestamp of the query end, or the last record if the file was split.
+        The UNIX nanosecond timestamp of the query end, or the
+        last record if the file was split.
 
     Raises
     ------

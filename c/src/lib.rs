@@ -44,9 +44,9 @@ pub unsafe extern "C" fn encode_metadata(
     let metadata = MetadataBuilder::new()
         .dataset(dataset)
         .start(start)
-        .stype_in(SType::ProductId)
-        .stype_out(SType::ProductId)
-        .schema(schema)
+        .stype_in(Some(SType::InstrumentId))
+        .stype_out(SType::InstrumentId)
+        .schema(Some(schema))
         .build();
     let buffer: &mut [u8] = slice::from_raw_parts_mut(buffer as *mut u8, length);
     let mut cursor = io::Cursor::new(buffer);

@@ -6,18 +6,15 @@ pub mod json;
 
 use std::{fmt, io};
 
-use anyhow::anyhow;
 use serde::Serialize;
 use streaming_iterator::StreamingIterator;
 
 use crate::{
     decode::DecodeDbn,
-    enums::{Compression, Encoding, Schema},
-    record::{
-        HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg,
-        TbboMsg, TradeMsg, WithTsOut,
-    },
-    Metadata,
+    enums::{Compression, Encoding},
+    record::HasRType,
+    record_ref::RecordRef,
+    rtype_ts_out_dispatch, Metadata,
 };
 
 use self::csv::serialize::CsvSerialize;
@@ -26,9 +23,9 @@ use self::csv::serialize::CsvSerialize;
 pub trait DbnEncodable: HasRType + AsRef<[u8]> + CsvSerialize + fmt::Debug + Serialize {}
 impl<T> DbnEncodable for T where T: HasRType + AsRef<[u8]> + CsvSerialize + fmt::Debug + Serialize {}
 
-/// Trait for types that encode DBN records.
+/// Trait for types that encode DBN records with mixed schemas.
 pub trait EncodeDbn {
-    /// Encode a single DBN record of type `R`.
+    /// Encodes a single DBN record of type `R`.
     ///
     /// Returns `true`if the pipe was closed.
     ///
@@ -36,71 +33,80 @@ pub trait EncodeDbn {
     /// This function returns an error if it's unable to write to the underlying writer
     /// or there's a serialization error.
     fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> anyhow::Result<bool>;
-    /// Encode a slice of DBN records.
+
+    /// Encodes a slice of DBN records.
     ///
     /// # Errors
     /// This function returns an error if it's unable to write to the underlying writer
     /// or there's a serialization error.
-    fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> anyhow::Result<()>;
-    /// Encode a stream of DBN records.
+    fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> anyhow::Result<()> {
+        for record in records {
+            if self.encode_record(record)? {
+                break;
+            }
+        }
+        self.flush()?;
+        Ok(())
+    }
+
+    /// Encodes a stream of DBN records.
     ///
     /// # Errors
     /// This function returns an error if it's unable to write to the underlying writer
     /// or there's a serialization error.
     fn encode_stream<R: DbnEncodable>(
         &mut self,
-        stream: impl StreamingIterator<Item = R>,
-    ) -> anyhow::Result<()>;
+        mut stream: impl StreamingIterator<Item = R>,
+    ) -> anyhow::Result<()> {
+        while let Some(record) = stream.next() {
+            if self.encode_record(record)? {
+                break;
+            }
+        }
+        self.flush()?;
+        Ok(())
+    }
 
-    /// Encode DBN records directly from a DBN decoder.
+    /// Flushes any buffered content to the true output.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to flush the underlying writer.
+    fn flush(&mut self) -> anyhow::Result<()>;
+
+    /// Encodes a single DBN record of type `R`.
+    ///
+    /// Returns `true`if the pipe was closed.
+    ///
+    /// # Safety
+    /// `ts_out` must be `false` if `record` does not have an appended `ts_out
     ///
     /// # Errors
     /// This function returns an error if it's unable to write to the underlying writer
     /// or there's a serialization error.
-    fn encode_decoded<D: DecodeDbn>(&mut self, decoder: D) -> anyhow::Result<()> {
-        match (decoder.metadata().schema, decoder.metadata().ts_out) {
-            (Schema::Mbo, true) => {
-                self.encode_stream(decoder.decode_stream::<WithTsOut<MboMsg>>()?)
+    unsafe fn encode_record_ref(
+        &mut self,
+        record: RecordRef,
+        ts_out: bool,
+    ) -> anyhow::Result<bool> {
+        rtype_ts_out_dispatch!(record, ts_out, |rec| self.encode_record(rec))?
+    }
+
+    /// Encodes DBN records directly from a DBN decoder.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to write to the underlying writer
+    /// or there's a serialization error.
+    fn encode_decoded<D: DecodeDbn>(&mut self, mut decoder: D) -> anyhow::Result<()> {
+        let ts_out = decoder.metadata().ts_out;
+        while let Some(record) = decoder.decode_record_ref()? {
+            // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
+            // from the metadata header.
+            if unsafe { self.encode_record_ref(record, ts_out)? } {
+                break;
             }
-            (Schema::Mbo, false) => self.encode_stream(decoder.decode_stream::<MboMsg>()?),
-            (Schema::Mbp1, true) => {
-                self.encode_stream(decoder.decode_stream::<WithTsOut<Mbp1Msg>>()?)
-            }
-            (Schema::Mbp1, false) => self.encode_stream(decoder.decode_stream::<Mbp1Msg>()?),
-            (Schema::Mbp10, true) => {
-                self.encode_stream(decoder.decode_stream::<WithTsOut<Mbp10Msg>>()?)
-            }
-            (Schema::Mbp10, false) => self.encode_stream(decoder.decode_stream::<Mbp10Msg>()?),
-            (Schema::Tbbo, true) => {
-                self.encode_stream(decoder.decode_stream::<WithTsOut<TbboMsg>>()?)
-            }
-            (Schema::Tbbo, false) => self.encode_stream(decoder.decode_stream::<TbboMsg>()?),
-            (Schema::Trades, true) => {
-                self.encode_stream(decoder.decode_stream::<WithTsOut<TradeMsg>>()?)
-            }
-            (Schema::Trades, false) => self.encode_stream(decoder.decode_stream::<TradeMsg>()?),
-            (Schema::Ohlcv1S | Schema::Ohlcv1M | Schema::Ohlcv1H | Schema::Ohlcv1D, true) => {
-                self.encode_stream(decoder.decode_stream::<WithTsOut<OhlcvMsg>>()?)
-            }
-            (Schema::Ohlcv1S | Schema::Ohlcv1M | Schema::Ohlcv1H | Schema::Ohlcv1D, false) => {
-                self.encode_stream(decoder.decode_stream::<OhlcvMsg>()?)
-            }
-            (Schema::Definition, true) => {
-                self.encode_stream(decoder.decode_stream::<WithTsOut<InstrumentDefMsg>>()?)
-            }
-            (Schema::Definition, false) => {
-                self.encode_stream(decoder.decode_stream::<InstrumentDefMsg>()?)
-            }
-            (Schema::Imbalance, true) => {
-                self.encode_stream(decoder.decode_stream::<WithTsOut<ImbalanceMsg>>()?)
-            }
-            (Schema::Imbalance, false) => {
-                self.encode_stream(decoder.decode_stream::<ImbalanceMsg>()?)
-            }
-            (Schema::Status, true) => self.encode_stream(decoder.decode_stream::<StatusMsg>()?),
-            (Schema::Status, false) => self.encode_stream(decoder.decode_stream::<StatusMsg>()?),
-            (Schema::Statistics, _) => Err(anyhow!("Not implemented")),
         }
+        self.flush()?;
+        Ok(())
     }
 }
 
@@ -258,6 +264,22 @@ where
     ) -> anyhow::Result<()> {
         self.0.encode_stream(stream)
     }
+
+    fn flush(&mut self) -> anyhow::Result<()> {
+        self.0.flush()
+    }
+
+    unsafe fn encode_record_ref(
+        &mut self,
+        record: RecordRef,
+        ts_out: bool,
+    ) -> anyhow::Result<bool> {
+        self.0.encode_record_ref(record, ts_out)
+    }
+
+    fn encode_decoded<D: DecodeDbn>(&mut self, decoder: D) -> anyhow::Result<()> {
+        self.0.encode_decoded(decoder)
+    }
 }
 
 impl<'a, W> EncodeDbn for DynEncoderImpl<'a, W>
@@ -291,6 +313,31 @@ macro_rules! encoder_enum_dispatch {
                 $(Self::$variant(v) => v.encode_stream(stream),)*
             }
         }
+
+        fn flush(&mut self) -> anyhow::Result<()> {
+            match self {
+                $(Self::$variant(v) => v.flush(),)*
+            }
+        }
+
+        unsafe fn encode_record_ref(
+            &mut self,
+            record: RecordRef,
+            ts_out: bool,
+        ) -> anyhow::Result<bool> {
+            match self {
+                $(Self::$variant(v) => v.encode_record_ref(record, ts_out),)*
+            }
+        }
+
+        fn encode_decoded<D: DecodeDbn>(
+            &mut self,
+            decoder: D,
+        ) -> anyhow::Result<()> {
+            match self {
+                $(Self::$variant(v) => v.encode_decoded(decoder),)*
+            }
+        }
     };
 }
 
@@ -307,7 +354,7 @@ mod test_data {
         length: 30,
         rtype: 4,
         publisher_id: 1,
-        product_id: 323,
+        instrument_id: 323,
         ts_event: 1658441851000000000,
     };
 

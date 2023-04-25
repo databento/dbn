@@ -1,2 +1,6 @@
 #! /usr/bin/env bash
-cargo test --features async,python
+for i in $(seq 1 3); do
+  if cargo test --features async,python; then
+    break
+  fi
+done

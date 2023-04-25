@@ -325,7 +325,7 @@ fn help() {
         .arg("--help")
         .assert()
         .success()
-        .stdout(contains("USAGE:"));
+        .stdout(contains("Usage:"));
 }
 
 #[test]

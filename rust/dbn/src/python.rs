@@ -1,227 +1,109 @@
 //! Python wrappers around dbn functions. These are implemented here instead of in `python/`
-//! to be able to implement [`pyo3`] traits for [`dbn`] types.
+//! to be able to implement [`pyo3`] traits for DBN types.
 #![allow(clippy::too_many_arguments)]
 
-use std::{collections::HashMap, ffi::c_char, fmt, io, io::SeekFrom, num::NonZeroU64};
+use std::{collections::HashMap, ffi::c_char, fmt, io, num::NonZeroU64};
 
 use pyo3::{
-    exceptions::{PyTypeError, PyValueError},
+    exceptions::PyValueError,
     prelude::*,
-    types::{PyBytes, PyDate, PyDateAccess, PyDict},
-    PyClass,
+    pyclass::CompareOp,
+    types::{PyBytes, PyDate, PyDateAccess, PyDict, PyTuple, PyType},
 };
 use time::Date;
 
 use crate::{
     decode::{DecodeDbn, DynDecoder},
-    encode::{
-        dbn::{self, MetadataEncoder},
-        DbnEncodable, DynWriter, EncodeDbn,
+    encode::dbn::MetadataEncoder,
+    enums::{
+        rtype, Compression, SType, Schema, SecurityUpdateAction, StatUpdateAction,
+        UserDefinedInstrument,
     },
-    enums::{rtype, Compression, SType, Schema, SecurityUpdateAction, UserDefinedInstrument},
     metadata::MetadataBuilder,
     record::{
         str_to_c_chars, BidAskPair, ErrorMsg, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg,
-        Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader, StatusMsg, SymbolMappingMsg, SystemMsg, TbboMsg,
-        TradeMsg,
+        Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader, StatMsg, StatusMsg, SymbolMappingMsg, SystemMsg,
+        TradeMsg, WithTsOut,
     },
     UNDEF_ORDER_SIZE, UNDEF_PRICE,
 };
 use crate::{MappingInterval, Metadata, SymbolMapping};
 
-/// Decodes the given Python `bytes` to `Metadata`. Returns a `Metadata` object with
-/// all the DBN metadata attributes.
-///
-/// # Errors
-/// This function returns an error if the metadata cannot be parsed from `bytes`.
-#[pyfunction]
-pub fn decode_metadata(bytes: &PyBytes) -> PyResult<Metadata> {
-    let reader = io::BufReader::new(bytes.as_bytes());
-    Ok(DynDecoder::inferred_with_buffer(reader)
-        .map_err(to_val_err)?
-        .metadata()
-        .clone())
-}
-
-/// Encodes the given metadata into the DBN metadata binary format.
-/// Returns Python `bytes`.
-///
-/// # Errors
-/// This function returns an error if any of the enum arguments cannot be converted to
-/// their Rust equivalents. It will also return an error if there's an issue writing
-/// the encoded metadata to bytes.
-#[pyfunction]
-pub fn encode_metadata(
-    py: Python<'_>,
-    dataset: String,
-    schema: Schema,
-    start: u64,
-    stype_in: SType,
-    stype_out: SType,
-    symbols: Vec<String>,
-    partial: Vec<String>,
-    not_found: Vec<String>,
-    mappings: Vec<SymbolMapping>,
-    end: Option<u64>,
-    limit: Option<u64>,
-) -> PyResult<Py<PyBytes>> {
-    let metadata = MetadataBuilder::new()
-        .dataset(dataset)
-        .schema(schema)
-        .start(start)
-        .end(NonZeroU64::new(end.unwrap_or(0)))
-        .limit(NonZeroU64::new(limit.unwrap_or(0)))
-        .stype_in(stype_in)
-        .stype_out(stype_out)
-        .symbols(symbols)
-        .partial(partial)
-        .not_found(not_found)
-        .mappings(mappings)
-        .build();
-    let mut encoded = Vec::with_capacity(1024);
-    MetadataEncoder::new(&mut encoded)
-        .encode(&metadata)
-        .map_err(|e| {
-            println!("{e:?}");
-            to_val_err(e)
-        })?;
-    Ok(PyBytes::new(py, encoded.as_slice()).into())
-}
-
-/// Updates existing fields that have already been written to the given file.
-#[pyfunction]
-pub fn update_encoded_metadata(
-    _py: Python<'_>,
-    file: PyFileLike,
-    start: u64,
-    end: Option<u64>,
-    limit: Option<u64>,
-) -> PyResult<()> {
-    MetadataEncoder::new(file)
-        .update_encoded(
-            start,
-            end.and_then(NonZeroU64::new),
-            limit.and_then(NonZeroU64::new),
-        )
-        .map_err(to_val_err)
-}
-
-/// A Python object that implements the Python file interface.
-pub struct PyFileLike {
-    inner: PyObject,
-}
-
-/// Encodes the given data in the DBN encoding and writes it to `file`.
-///
-/// `records` is a list of record objects.
-///
-/// # Errors
-/// This function returns an error if any of the enum arguments cannot be converted to
-/// their Rust equivalents. It will also return an error if there's an issue writing
-/// the encoded to bytes or an expected field is missing from one of the dicts.
-#[pyfunction]
-pub fn write_dbn_file(
-    _py: Python<'_>,
-    file: PyFileLike,
-    compression: Compression,
-    dataset: String,
-    schema: Schema,
-    start: u64,
-    stype_in: SType,
-    stype_out: SType,
-    records: Vec<&PyAny>,
-    end: Option<u64>,
-) -> PyResult<()> {
-    let mut metadata_builder = MetadataBuilder::new()
-        .schema(schema)
-        .dataset(dataset)
-        .stype_in(stype_in)
-        .stype_out(stype_out)
-        .start(start);
-    if let Some(end) = end {
-        metadata_builder = metadata_builder.end(NonZeroU64::new(end))
-    }
-    let metadata = metadata_builder.build();
-    let writer = DynWriter::new(file, compression).map_err(to_val_err)?;
-    let encoder = dbn::Encoder::new(writer, &metadata).map_err(to_val_err)?;
-    match schema {
-        Schema::Mbo => encode_pyrecs::<MboMsg>(encoder, &records),
-        Schema::Mbp1 => encode_pyrecs::<Mbp1Msg>(encoder, &records),
-        Schema::Mbp10 => encode_pyrecs::<Mbp10Msg>(encoder, &records),
-        Schema::Tbbo => encode_pyrecs::<TbboMsg>(encoder, &records),
-        Schema::Trades => encode_pyrecs::<TradeMsg>(encoder, &records),
-        Schema::Ohlcv1S | Schema::Ohlcv1M | Schema::Ohlcv1H | Schema::Ohlcv1D => {
-            encode_pyrecs::<OhlcvMsg>(encoder, &records)
-        }
-        Schema::Definition => encode_pyrecs::<InstrumentDefMsg>(encoder, &records),
-        Schema::Imbalance => encode_pyrecs::<ImbalanceMsg>(encoder, &records),
-        Schema::Statistics | Schema::Status => Err(PyValueError::new_err(
-            "Unsupported schema type for writing DBN files",
-        )),
-    }
-}
-
-fn encode_pyrecs<T: Clone + DbnEncodable + PyClass>(
-    mut encoder: dbn::Encoder<DynWriter<PyFileLike>>,
-    records: &[&PyAny],
-) -> PyResult<()> {
-    encoder
-        .encode_records(
-            records
-                .iter()
-                .map(|obj| obj.extract())
-                .collect::<PyResult<Vec<T>>>()?
-                .iter()
-                .as_slice(),
-        )
-        .map_err(to_val_err)
-}
-
-impl<'source> FromPyObject<'source> for PyFileLike {
-    fn extract(any: &'source PyAny) -> PyResult<Self> {
-        Python::with_gil(|py| {
-            let obj: PyObject = any.extract()?;
-            if obj.getattr(py, "read").is_err() {
-                return Err(PyTypeError::new_err(
-                    "object is missing a `read()` method".to_owned(),
-                ));
-            }
-            if obj.getattr(py, "write").is_err() {
-                return Err(PyTypeError::new_err(
-                    "object is missing a `write()` method".to_owned(),
-                ));
-            }
-            if obj.getattr(py, "seek").is_err() {
-                return Err(PyTypeError::new_err(
-                    "object is missing a `seek()` method".to_owned(),
-                ));
-            }
-            Ok(PyFileLike { inner: obj })
-        })
-    }
-}
-
 #[pymethods]
 impl Metadata {
+    #[new]
+    fn py_new(
+        dataset: String,
+        start: u64,
+        stype_out: SType,
+        symbols: Vec<String>,
+        partial: Vec<String>,
+        not_found: Vec<String>,
+        mappings: Vec<SymbolMapping>,
+        schema: Option<Schema>,
+        stype_in: Option<SType>,
+        end: Option<u64>,
+        limit: Option<u64>,
+        ts_out: Option<bool>,
+    ) -> Metadata {
+        MetadataBuilder::new()
+            .dataset(dataset)
+            .start(start)
+            .stype_out(stype_out)
+            .symbols(symbols)
+            .partial(partial)
+            .not_found(not_found)
+            .mappings(mappings)
+            .schema(schema)
+            .stype_in(stype_in)
+            .end(NonZeroU64::new(end.unwrap_or_default()))
+            .limit(NonZeroU64::new(limit.unwrap_or_default()))
+            .ts_out(ts_out.unwrap_or_default())
+            .build()
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
 
     /// Encodes Metadata back into DBN format.
     fn __bytes__(&self, py: Python<'_>) -> PyResult<Py<PyBytes>> {
-        let mut buffer = Vec::new();
-        let mut encoder = MetadataEncoder::new(&mut buffer);
-        encoder.encode(self).map_err(to_val_err)?;
-        Ok(PyBytes::new(py, buffer.as_slice()).into())
+        self.py_encode(py)
     }
 
     #[getter]
     fn get_mappings(&self) -> HashMap<String, Vec<MappingInterval>> {
         let mut res = HashMap::new();
         for mapping in self.mappings.iter() {
-            res.insert(mapping.native_symbol.clone(), mapping.intervals.clone());
+            res.insert(mapping.raw_symbol.clone(), mapping.intervals.clone());
         }
         res
+    }
+
+    #[pyo3(name = "decode")]
+    #[classmethod]
+    fn py_decode(_cls: &PyType, data: &PyBytes) -> PyResult<Metadata> {
+        let reader = io::BufReader::new(data.as_bytes());
+        Ok(DynDecoder::inferred_with_buffer(reader)
+            .map_err(to_val_err)?
+            .metadata()
+            .clone())
+    }
+
+    #[pyo3(name = "encode")]
+    fn py_encode(&self, py: Python<'_>) -> PyResult<Py<PyBytes>> {
+        let mut buffer = Vec::new();
+        let mut encoder = MetadataEncoder::new(&mut buffer);
+        encoder.encode(self).map_err(to_val_err)?;
+        Ok(PyBytes::new(py, buffer.as_slice()).into())
     }
 }
 
@@ -235,11 +117,18 @@ impl IntoPy<PyObject> for SymbolMapping {
 impl ToPyObject for SymbolMapping {
     fn to_object(&self, py: Python<'_>) -> PyObject {
         let dict = PyDict::new(py);
-        dict.set_item("native_symbol", &self.native_symbol)
-            .expect("set native_symbol");
+        dict.set_item("raw_symbol", &self.raw_symbol)
+            .expect("set raw_symbol");
         dict.set_item("intervals", &self.intervals)
             .expect("set intervals");
         dict.into_py(py)
+    }
+}
+
+// `WithTsOut` is converted to a 2-tuple in Python
+impl<R: HasRType + IntoPy<Py<PyAny>>> IntoPy<PyObject> for WithTsOut<R> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        PyTuple::new(py, [self.rec.into_py(py), self.ts_out.into_py(py)]).into_py(py)
     }
 }
 
@@ -315,63 +204,6 @@ pub fn to_val_err(e: impl fmt::Debug) -> PyErr {
     PyValueError::new_err(format!("{e:?}"))
 }
 
-fn py_to_rs_io_err(e: PyErr) -> io::Error {
-    Python::with_gil(|py| {
-        let e_as_object: PyObject = e.into_py(py);
-
-        match e_as_object.call_method(py, "__str__", (), None) {
-            Ok(repr) => match repr.extract::<String>(py) {
-                Ok(s) => io::Error::new(io::ErrorKind::Other, s),
-                Err(_e) => io::Error::new(io::ErrorKind::Other, "An unknown error has occurred"),
-            },
-            Err(_) => io::Error::new(io::ErrorKind::Other, "Err doesn't have __str__"),
-        }
-    })
-}
-
-impl io::Write for PyFileLike {
-    fn write(&mut self, buf: &[u8]) -> Result<usize, io::Error> {
-        Python::with_gil(|py| {
-            let bytes = PyBytes::new(py, buf).to_object(py);
-            let number_bytes_written = self
-                .inner
-                .call_method(py, "write", (bytes,), None)
-                .map_err(py_to_rs_io_err)?;
-
-            number_bytes_written.extract(py).map_err(py_to_rs_io_err)
-        })
-    }
-
-    fn flush(&mut self) -> Result<(), io::Error> {
-        Python::with_gil(|py| {
-            self.inner
-                .call_method(py, "flush", (), None)
-                .map_err(py_to_rs_io_err)?;
-
-            Ok(())
-        })
-    }
-}
-
-impl io::Seek for PyFileLike {
-    fn seek(&mut self, pos: SeekFrom) -> Result<u64, io::Error> {
-        Python::with_gil(|py| {
-            let (whence, offset) = match pos {
-                SeekFrom::Start(i) => (0, i as i64),
-                SeekFrom::Current(i) => (1, i),
-                SeekFrom::End(i) => (2, i),
-            };
-
-            let new_position = self
-                .inner
-                .call_method(py, "seek", (offset, whence), None)
-                .map_err(py_to_rs_io_err)?;
-
-            new_position.extract(py).map_err(py_to_rs_io_err)
-        })
-    }
-}
-
 impl<'source> FromPyObject<'source> for Compression {
     fn extract(any: &'source PyAny) -> PyResult<Self> {
         let str: &str = any.extract()?;
@@ -434,7 +266,7 @@ impl MboMsg {
     #[new]
     fn py_new(
         publisher_id: u16,
-        product_id: u32,
+        instrument_id: u32,
         ts_event: u64,
         order_id: u64,
         price: i64,
@@ -448,7 +280,7 @@ impl MboMsg {
         flags: Option<u8>,
     ) -> Self {
         Self {
-            hd: RecordHeader::new::<Self>(rtype::MBO, publisher_id, product_id, ts_event),
+            hd: RecordHeader::new::<Self>(rtype::MBO, publisher_id, instrument_id, ts_event),
             order_id,
             price,
             size,
@@ -462,12 +294,40 @@ impl MboMsg {
         }
     }
 
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
 
-    fn __bytes__(&self) -> &[u8] {
-        self.as_ref()
+    #[getter]
+    fn rtype(&self) -> u8 {
+        self.hd.rtype
+    }
+
+    #[getter]
+    fn publisher_id(&self) -> u16 {
+        self.hd.publisher_id
+    }
+
+    #[getter]
+    fn instrument_id(&self) -> u32 {
+        self.hd.instrument_id
+    }
+
+    #[getter]
+    fn ts_event(&self) -> u64 {
+        self.hd.ts_event
     }
 
     #[pyo3(name = "record_size")]
@@ -507,7 +367,7 @@ impl TradeMsg {
     #[new]
     fn py_new(
         publisher_id: u16,
-        product_id: u32,
+        instrument_id: u32,
         ts_event: u64,
         price: i64,
         size: u32,
@@ -520,7 +380,7 @@ impl TradeMsg {
         flags: Option<u8>,
     ) -> Self {
         Self {
-            hd: RecordHeader::new::<Self>(rtype::MBP_0, publisher_id, product_id, ts_event),
+            hd: RecordHeader::new::<Self>(rtype::MBP_0, publisher_id, instrument_id, ts_event),
             price,
             size,
             action,
@@ -533,12 +393,40 @@ impl TradeMsg {
         }
     }
 
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
 
-    fn __bytes__(&self) -> &[u8] {
-        self.as_ref()
+    #[getter]
+    fn rtype(&self) -> u8 {
+        self.hd.rtype
+    }
+
+    #[getter]
+    fn publisher_id(&self) -> u16 {
+        self.hd.publisher_id
+    }
+
+    #[getter]
+    fn instrument_id(&self) -> u32 {
+        self.hd.instrument_id
+    }
+
+    #[getter]
+    fn ts_event(&self) -> u64 {
+        self.hd.ts_event
     }
 
     #[pyo3(name = "record_size")]
@@ -552,7 +440,7 @@ impl Mbp1Msg {
     #[new]
     fn py_new(
         publisher_id: u16,
-        product_id: u32,
+        instrument_id: u32,
         ts_event: u64,
         price: i64,
         size: u32,
@@ -566,7 +454,7 @@ impl Mbp1Msg {
         booklevel: Option<BidAskPair>,
     ) -> Self {
         Self {
-            hd: RecordHeader::new::<Self>(rtype::MBP_1, publisher_id, product_id, ts_event),
+            hd: RecordHeader::new::<Self>(rtype::MBP_1, publisher_id, instrument_id, ts_event),
             price,
             size,
             action,
@@ -580,12 +468,40 @@ impl Mbp1Msg {
         }
     }
 
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
 
-    fn __bytes__(&self) -> &[u8] {
-        self.as_ref()
+    #[getter]
+    fn rtype(&self) -> u8 {
+        self.hd.rtype
+    }
+
+    #[getter]
+    fn publisher_id(&self) -> u16 {
+        self.hd.publisher_id
+    }
+
+    #[getter]
+    fn instrument_id(&self) -> u32 {
+        self.hd.instrument_id
+    }
+
+    #[getter]
+    fn ts_event(&self) -> u64 {
+        self.hd.ts_event
     }
 
     #[pyo3(name = "record_size")]
@@ -599,7 +515,7 @@ impl Mbp10Msg {
     #[new]
     fn py_new(
         publisher_id: u16,
-        product_id: u32,
+        instrument_id: u32,
         ts_event: u64,
         price: i64,
         size: u32,
@@ -625,7 +541,7 @@ impl Mbp10Msg {
             Default::default()
         };
         Ok(Self {
-            hd: RecordHeader::new::<Self>(rtype::MBP_10, publisher_id, product_id, ts_event),
+            hd: RecordHeader::new::<Self>(rtype::MBP_10, publisher_id, instrument_id, ts_event),
             price,
             size,
             action,
@@ -639,12 +555,40 @@ impl Mbp10Msg {
         })
     }
 
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
 
-    fn __bytes__(&self) -> &[u8] {
-        self.as_ref()
+    #[getter]
+    fn rtype(&self) -> u8 {
+        self.hd.rtype
+    }
+
+    #[getter]
+    fn publisher_id(&self) -> u16 {
+        self.hd.publisher_id
+    }
+
+    #[getter]
+    fn instrument_id(&self) -> u32 {
+        self.hd.instrument_id
+    }
+
+    #[getter]
+    fn ts_event(&self) -> u64 {
+        self.hd.ts_event
     }
 
     #[pyo3(name = "record_size")]
@@ -659,7 +603,7 @@ impl OhlcvMsg {
     fn py_new(
         rtype: u8,
         publisher_id: u16,
-        product_id: u32,
+        instrument_id: u32,
         ts_event: u64,
         open: i64,
         high: i64,
@@ -668,7 +612,7 @@ impl OhlcvMsg {
         volume: u64,
     ) -> Self {
         Self {
-            hd: RecordHeader::new::<Self>(rtype, publisher_id, product_id, ts_event),
+            hd: RecordHeader::new::<Self>(rtype, publisher_id, instrument_id, ts_event),
             open,
             high,
             low,
@@ -677,12 +621,40 @@ impl OhlcvMsg {
         }
     }
 
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
 
-    fn __bytes__(&self) -> &[u8] {
-        self.as_ref()
+    #[getter]
+    fn rtype(&self) -> u8 {
+        self.hd.rtype
+    }
+
+    #[getter]
+    fn publisher_id(&self) -> u16 {
+        self.hd.publisher_id
+    }
+
+    #[getter]
+    fn instrument_id(&self) -> u32 {
+        self.hd.instrument_id
+    }
+
+    #[getter]
+    fn ts_event(&self) -> u64 {
+        self.hd.ts_event
     }
 
     #[pyo3(name = "record_size")]
@@ -696,7 +668,7 @@ impl StatusMsg {
     #[new]
     fn py_new(
         publisher_id: u16,
-        product_id: u32,
+        instrument_id: u32,
         ts_event: u64,
         ts_recv: u64,
         group: &str,
@@ -705,7 +677,7 @@ impl StatusMsg {
         trading_event: u8,
     ) -> PyResult<Self> {
         Ok(Self {
-            hd: RecordHeader::new::<Self>(rtype::STATUS, publisher_id, product_id, ts_event),
+            hd: RecordHeader::new::<Self>(rtype::STATUS, publisher_id, instrument_id, ts_event),
             ts_recv,
             group: str_to_c_chars(group).map_err(to_val_err)?,
             trading_status,
@@ -714,17 +686,51 @@ impl StatusMsg {
         })
     }
 
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
 
-    fn __bytes__(&self) -> &[u8] {
-        self.as_ref()
+    #[getter]
+    fn rtype(&self) -> u8 {
+        self.hd.rtype
+    }
+
+    #[getter]
+    fn publisher_id(&self) -> u16 {
+        self.hd.publisher_id
+    }
+
+    #[getter]
+    fn instrument_id(&self) -> u32 {
+        self.hd.instrument_id
+    }
+
+    #[getter]
+    fn ts_event(&self) -> u64 {
+        self.hd.ts_event
     }
 
     #[pyo3(name = "record_size")]
     fn py_record_size(&self) -> usize {
         self.record_size()
+    }
+
+    #[getter]
+    #[pyo3(name = "group")]
+    fn py_group(&self) -> PyResult<&str> {
+        self.group().map_err(to_val_err)
     }
 }
 
@@ -733,13 +739,13 @@ impl InstrumentDefMsg {
     #[new]
     fn py_new(
         publisher_id: u16,
-        product_id: u32,
+        instrument_id: u32,
         ts_event: u64,
         ts_recv: u64,
         min_price_increment: i64,
         display_factor: i64,
         min_lot_size_round_lot: i32,
-        symbol: &str,
+        raw_symbol: &str,
         group: &str,
         exchange: &str,
         instrument_class: c_char,
@@ -801,7 +807,7 @@ impl InstrumentDefMsg {
             hd: RecordHeader::new::<Self>(
                 rtype::INSTRUMENT_DEF,
                 publisher_id,
-                product_id,
+                instrument_id,
                 ts_event,
             ),
             ts_recv,
@@ -841,7 +847,7 @@ impl InstrumentDefMsg {
             settl_currency: str_to_c_chars(settl_currency.unwrap_or_default())
                 .map_err(to_val_err)?,
             secsubtype: str_to_c_chars(secsubtype.unwrap_or_default()).map_err(to_val_err)?,
-            symbol: str_to_c_chars(symbol).map_err(to_val_err)?,
+            raw_symbol: str_to_c_chars(raw_symbol).map_err(to_val_err)?,
             group: str_to_c_chars(group).map_err(to_val_err)?,
             exchange: str_to_c_chars(exchange).map_err(to_val_err)?,
             asset: str_to_c_chars(asset.unwrap_or_default()).map_err(to_val_err)?,
@@ -875,17 +881,111 @@ impl InstrumentDefMsg {
         })
     }
 
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
 
-    fn __bytes__(&self) -> &[u8] {
-        self.as_ref()
+    #[getter]
+    fn rtype(&self) -> u8 {
+        self.hd.rtype
+    }
+
+    #[getter]
+    fn publisher_id(&self) -> u16 {
+        self.hd.publisher_id
+    }
+
+    #[getter]
+    fn instrument_id(&self) -> u32 {
+        self.hd.instrument_id
+    }
+
+    #[getter]
+    fn ts_event(&self) -> u64 {
+        self.hd.ts_event
     }
 
     #[pyo3(name = "record_size")]
     fn py_record_size(&self) -> usize {
         self.record_size()
+    }
+
+    #[getter]
+    #[pyo3(name = "currency")]
+    fn py_currency(&self) -> PyResult<&str> {
+        self.currency().map_err(to_val_err)
+    }
+
+    #[getter]
+    #[pyo3(name = "settl_currency")]
+    fn py_settl_currency(&self) -> PyResult<&str> {
+        self.settl_currency().map_err(to_val_err)
+    }
+
+    #[getter]
+    #[pyo3(name = "secsubtype")]
+    fn py_secsubtype(&self) -> PyResult<&str> {
+        self.secsubtype().map_err(to_val_err)
+    }
+
+    #[getter]
+    #[pyo3(name = "raw_symbol")]
+    fn py_raw_symbol(&self) -> PyResult<&str> {
+        self.raw_symbol().map_err(to_val_err)
+    }
+
+    #[getter]
+    #[pyo3(name = "exchange")]
+    fn py_exchange(&self) -> PyResult<&str> {
+        self.exchange().map_err(to_val_err)
+    }
+
+    #[getter]
+    #[pyo3(name = "asset")]
+    fn py_asset(&self) -> PyResult<&str> {
+        self.asset().map_err(to_val_err)
+    }
+
+    #[getter]
+    #[pyo3(name = "cfi")]
+    fn py_cfi(&self) -> PyResult<&str> {
+        self.cfi().map_err(to_val_err)
+    }
+
+    #[getter]
+    #[pyo3(name = "security_type")]
+    fn py_security_type(&self) -> PyResult<&str> {
+        self.security_type().map_err(to_val_err)
+    }
+
+    #[getter]
+    #[pyo3(name = "unit_of_measure")]
+    fn py_unit_of_measure(&self) -> PyResult<&str> {
+        self.unit_of_measure().map_err(to_val_err)
+    }
+
+    #[getter]
+    #[pyo3(name = "underlying")]
+    fn py_underlying(&self) -> PyResult<&str> {
+        self.underlying().map_err(to_val_err)
+    }
+
+    #[getter]
+    #[pyo3(name = "strike_price_currency")]
+    fn py_strike_price_currency(&self) -> PyResult<&str> {
+        self.strike_price_currency().map_err(to_val_err)
     }
 }
 
@@ -894,7 +994,7 @@ impl ImbalanceMsg {
     #[new]
     fn py_new(
         publisher_id: u16,
-        product_id: u32,
+        instrument_id: u32,
         ts_event: u64,
         ts_recv: u64,
         ref_price: i64,
@@ -907,7 +1007,7 @@ impl ImbalanceMsg {
         significant_imbalance: c_char,
     ) -> Self {
         Self {
-            hd: RecordHeader::new::<Self>(rtype::IMBALANCE, publisher_id, product_id, ts_event),
+            hd: RecordHeader::new::<Self>(rtype::IMBALANCE, publisher_id, instrument_id, ts_event),
             ts_recv,
             ref_price,
             auction_time: 0,
@@ -932,12 +1032,115 @@ impl ImbalanceMsg {
         }
     }
 
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
 
+    #[getter]
+    fn rtype(&self) -> u8 {
+        self.hd.rtype
+    }
+
+    #[getter]
+    fn publisher_id(&self) -> u16 {
+        self.hd.publisher_id
+    }
+
+    #[getter]
+    fn instrument_id(&self) -> u32 {
+        self.hd.instrument_id
+    }
+
+    #[getter]
+    fn ts_event(&self) -> u64 {
+        self.hd.ts_event
+    }
+
+    #[pyo3(name = "record_size")]
+    fn py_record_size(&self) -> usize {
+        self.record_size()
+    }
+}
+
+#[pymethods]
+impl StatMsg {
+    #[new]
+    fn py_new(
+        publisher_id: u16,
+        instrument_id: u32,
+        ts_event: u64,
+        ts_recv: u64,
+        ts_ref: u64,
+        price: i64,
+        quantity: i32,
+        sequence: u32,
+        ts_in_delta: i32,
+        stat_type: u16,
+        channel_id: u16,
+        update_action: Option<u8>,
+        stat_flags: Option<u8>,
+    ) -> Self {
+        Self {
+            hd: RecordHeader::new::<Self>(rtype::STATISTICS, publisher_id, instrument_id, ts_event),
+            ts_recv,
+            ts_ref,
+            price,
+            quantity,
+            sequence,
+            ts_in_delta,
+            stat_type,
+            channel_id,
+            update_action: update_action.unwrap_or(StatUpdateAction::New as u8),
+            stat_flags: stat_flags.unwrap_or_default(),
+            _dummy: Default::default(),
+        }
+    }
+
     fn __bytes__(&self) -> &[u8] {
         self.as_ref()
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
+    #[getter]
+    fn rtype(&self) -> u8 {
+        self.hd.rtype
+    }
+
+    #[getter]
+    fn publisher_id(&self) -> u16 {
+        self.hd.publisher_id
+    }
+
+    #[getter]
+    fn instrument_id(&self) -> u32 {
+        self.hd.instrument_id
+    }
+
+    #[getter]
+    fn ts_event(&self) -> u64 {
+        self.hd.ts_event
     }
 
     #[pyo3(name = "record_size")]
@@ -953,17 +1156,51 @@ impl ErrorMsg {
         Ok(ErrorMsg::new(ts_event, err))
     }
 
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
 
-    fn __bytes__(&self) -> &[u8] {
-        self.as_ref()
+    #[getter]
+    fn rtype(&self) -> u8 {
+        self.hd.rtype
+    }
+
+    #[getter]
+    fn publisher_id(&self) -> u16 {
+        self.hd.publisher_id
+    }
+
+    #[getter]
+    fn instrument_id(&self) -> u32 {
+        self.hd.instrument_id
+    }
+
+    #[getter]
+    fn ts_event(&self) -> u64 {
+        self.hd.ts_event
     }
 
     #[pyo3(name = "record_size")]
     fn py_record_size(&self) -> usize {
         self.record_size()
+    }
+
+    #[getter]
+    #[pyo3(name = "err")]
+    fn py_err(&self) -> PyResult<&str> {
+        self.err().map_err(to_val_err)
     }
 }
 
@@ -972,7 +1209,7 @@ impl SymbolMappingMsg {
     #[new]
     fn py_new(
         publisher_id: u16,
-        product_id: u32,
+        instrument_id: u32,
         ts_event: u64,
         stype_in_symbol: &str,
         stype_out_symbol: &str,
@@ -983,7 +1220,7 @@ impl SymbolMappingMsg {
             hd: RecordHeader::new::<Self>(
                 rtype::SYMBOL_MAPPING,
                 publisher_id,
-                product_id,
+                instrument_id,
                 ts_event,
             ),
             stype_in_symbol: str_to_c_chars(stype_in_symbol).map_err(to_val_err)?,
@@ -994,17 +1231,57 @@ impl SymbolMappingMsg {
         })
     }
 
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
 
-    fn __bytes__(&self) -> &[u8] {
-        self.as_ref()
+    #[getter]
+    fn rtype(&self) -> u8 {
+        self.hd.rtype
+    }
+
+    #[getter]
+    fn publisher_id(&self) -> u16 {
+        self.hd.publisher_id
+    }
+
+    #[getter]
+    fn instrument_id(&self) -> u32 {
+        self.hd.instrument_id
+    }
+
+    #[getter]
+    fn ts_event(&self) -> u64 {
+        self.hd.ts_event
     }
 
     #[pyo3(name = "record_size")]
     fn py_record_size(&self) -> usize {
         self.record_size()
+    }
+
+    #[getter]
+    #[pyo3(name = "stype_in_symbol")]
+    fn py_stype_in_symbol(&self) -> PyResult<&str> {
+        self.stype_in_symbol().map_err(to_val_err)
+    }
+
+    #[getter]
+    #[pyo3(name = "stype_out_symbol")]
+    fn py_stype_out_symbol(&self) -> PyResult<&str> {
+        self.stype_out_symbol().map_err(to_val_err)
     }
 }
 
@@ -1015,164 +1292,55 @@ impl SystemMsg {
         SystemMsg::new(ts_event, msg).map_err(to_val_err)
     }
 
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
 
-    fn __bytes__(&self) -> &[u8] {
-        self.as_ref()
+    #[getter]
+    fn rtype(&self) -> u8 {
+        self.hd.rtype
+    }
+
+    #[getter]
+    fn publisher_id(&self) -> u16 {
+        self.hd.publisher_id
+    }
+
+    #[getter]
+    fn instrument_id(&self) -> u32 {
+        self.hd.instrument_id
+    }
+
+    #[getter]
+    fn ts_event(&self) -> u64 {
+        self.hd.ts_event
     }
 
     #[pyo3(name = "record_size")]
     fn py_record_size(&self) -> usize {
         self.record_size()
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use std::io::{Cursor, Seek, Write};
-    use std::sync::{Arc, Mutex};
-
-    use streaming_iterator::StreamingIterator;
-
-    use super::*;
-    use crate::decode::{dbn, DecodeDbn};
-
-    const DBN_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/data");
-
-    #[pyclass]
-    struct MockPyFile {
-        buf: Arc<Mutex<Cursor<Vec<u8>>>>,
+    #[getter]
+    #[pyo3(name = "msg")]
+    fn py_msg(&self) -> PyResult<&str> {
+        self.msg().map_err(to_val_err)
     }
 
-    #[pymethods]
-    impl MockPyFile {
-        fn read(&self) {
-            unimplemented!();
-        }
-
-        fn write(&mut self, bytes: &[u8]) -> usize {
-            self.buf.lock().unwrap().write_all(bytes).unwrap();
-            bytes.len()
-        }
-
-        fn flush(&mut self) {
-            self.buf.lock().unwrap().flush().unwrap();
-        }
-
-        fn seek(&self, offset: i64, whence: i32) -> u64 {
-            self.buf
-                .lock()
-                .unwrap()
-                .seek(match whence {
-                    0 => SeekFrom::Start(offset as u64),
-                    1 => SeekFrom::Current(offset),
-                    2 => SeekFrom::End(offset),
-                    _ => unimplemented!("whence value"),
-                })
-                .unwrap()
-        }
+    #[pyo3(name = "is_heartbeat")]
+    fn py_is_heartbeat(&self) -> bool {
+        self.is_heartbeat()
     }
-
-    impl MockPyFile {
-        fn new() -> Self {
-            Self {
-                buf: Arc::new(Mutex::new(Cursor::new(Vec::new()))),
-            }
-        }
-
-        fn inner(&self) -> Arc<Mutex<Cursor<Vec<u8>>>> {
-            self.buf.clone()
-        }
-    }
-
-    const DATASET: &str = "GLBX.MDP3";
-    const STYPE: SType = SType::ProductId;
-
-    macro_rules! test_writing_dbn_from_python {
-        ($test_name:ident, $record_type:ident, $schema:expr) => {
-            #[test]
-            fn $test_name() {
-                // Required one-time setup
-                pyo3::prepare_freethreaded_python();
-
-                // Read in test data
-                let decoder = dbn::Decoder::from_zstd_file(format!(
-                    "{DBN_PATH}/test_data.{}.dbn.zst",
-                    $schema.as_str()
-                ))
-                .unwrap();
-                let rs_recs = decoder.decode_records::<$record_type>().unwrap();
-                let output_buf = Python::with_gil(|py| -> PyResult<_> {
-                    // Convert JSON objects to Python `dict`s
-                    let recs: Vec<_> = rs_recs
-                        .iter()
-                        .map(|rs_rec| rs_rec.clone().into_py(py))
-                        .collect();
-                    let mock_file = MockPyFile::new();
-                    let output_buf = mock_file.inner();
-                    let mock_file = Py::new(py, mock_file).unwrap().into_py(py);
-                    // Call target function
-                    write_dbn_file(
-                        py,
-                        mock_file.extract(py).unwrap(),
-                        Compression::ZStd,
-                        DATASET.to_owned(),
-                        $schema,
-                        0,
-                        STYPE,
-                        STYPE,
-                        recs.iter().map(|r| r.as_ref(py)).collect(),
-                        None,
-                    )
-                    .unwrap();
-
-                    Ok(output_buf.clone())
-                })
-                .unwrap();
-                let output_buf = output_buf.lock().unwrap().clone().into_inner();
-
-                assert!(!output_buf.is_empty());
-
-                dbg!(&output_buf);
-                dbg!(output_buf.len());
-                // Reread output written with `write_dbn_file` and compare to original
-                // contents
-                let py_decoder = dbn::Decoder::with_zstd(Cursor::new(&output_buf)).unwrap();
-                let metadata = py_decoder.metadata().clone();
-                assert_eq!(metadata.schema, $schema);
-                assert_eq!(metadata.dataset, DATASET);
-                assert_eq!(metadata.stype_in, STYPE);
-                assert_eq!(metadata.stype_out, STYPE);
-                let decoder = dbn::Decoder::from_zstd_file(format!(
-                    "{DBN_PATH}/test_data.{}.dbn.zst",
-                    $schema.as_str()
-                ))
-                .unwrap();
-
-                let mut py_iter = py_decoder.decode_stream::<$record_type>().unwrap();
-                let mut expected_iter = decoder.decode_stream::<$record_type>().unwrap();
-                let mut count = 0;
-                while let Some((py_rec, exp_rec)) = py_iter
-                    .next()
-                    .and_then(|py_rec| expected_iter.next().map(|exp_rec| (py_rec, exp_rec)))
-                {
-                    assert_eq!(py_rec, exp_rec);
-                    count += 1;
-                }
-                assert_eq!(count, if $schema == Schema::Ohlcv1D { 0 } else { 2 });
-            }
-        };
-    }
-
-    test_writing_dbn_from_python!(test_writing_mbo_from_python, MboMsg, Schema::Mbo);
-    test_writing_dbn_from_python!(test_writing_mbp1_from_python, Mbp1Msg, Schema::Mbp1);
-    test_writing_dbn_from_python!(test_writing_mbp10_from_python, Mbp10Msg, Schema::Mbp10);
-    test_writing_dbn_from_python!(test_writing_ohlcv1d_from_python, OhlcvMsg, Schema::Ohlcv1D);
-    test_writing_dbn_from_python!(test_writing_ohlcv1h_from_python, OhlcvMsg, Schema::Ohlcv1H);
-    test_writing_dbn_from_python!(test_writing_ohlcv1m_from_python, OhlcvMsg, Schema::Ohlcv1M);
-    test_writing_dbn_from_python!(test_writing_ohlcv1s_from_python, OhlcvMsg, Schema::Ohlcv1S);
-    test_writing_dbn_from_python!(test_writing_tbbo_from_python, TbboMsg, Schema::Tbbo);
-    test_writing_dbn_from_python!(test_writing_trades_from_python, TradeMsg, Schema::Trades);
 }

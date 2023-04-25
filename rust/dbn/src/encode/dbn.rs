@@ -6,11 +6,11 @@ use std::{
 };
 
 use anyhow::{anyhow, Context};
-use streaming_iterator::StreamingIterator;
 
 use super::{zstd_encoder, DbnEncodable, EncodeDbn};
 use crate::{
     enums::Schema, Metadata, SymbolMapping, DBN_VERSION, NULL_END, NULL_LIMIT, NULL_RECORD_COUNT,
+    NULL_SCHEMA, NULL_STYPE,
 };
 
 /// Type for encoding files and streams in Databento Binary Encoding (DBN).
@@ -75,27 +75,8 @@ where
         }
     }
 
-    fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> anyhow::Result<()> {
-        for record in records {
-            if self.encode_record(record)? {
-                break;
-            }
-        }
-        self.writer.flush()?;
-        Ok(())
-    }
-
-    fn encode_stream<R: DbnEncodable>(
-        &mut self,
-        mut stream: impl StreamingIterator<Item = R>,
-    ) -> anyhow::Result<()> {
-        while let Some(record) = stream.next() {
-            if self.encode_record(record)? {
-                break;
-            }
-        }
-        self.writer.flush()?;
-        Ok(())
+    fn flush(&mut self) -> anyhow::Result<()> {
+        Ok(self.writer.flush()?)
     }
 }
 
@@ -133,11 +114,14 @@ where
         let length = Self::calc_length(metadata);
         self.writer.write_all(length.to_le_bytes().as_slice())?;
         self.encode_fixed_len_cstr::<{ crate::METADATA_DATASET_CSTR_LEN }>(&metadata.dataset)?;
-        self.writer
-            .write_all((metadata.schema as u16).to_le_bytes().as_slice())?;
+        self.writer.write_all(
+            (metadata.schema.map(|s| s as u16).unwrap_or(NULL_SCHEMA))
+                .to_le_bytes()
+                .as_slice(),
+        )?;
         self.encode_range_and_counts(metadata.start, metadata.end, metadata.limit)?;
         self.writer.write_all(&[
-            metadata.stype_in as u8,
+            metadata.stype_in.map(|s| s as u8).unwrap_or(NULL_STYPE),
             metadata.stype_out as u8,
             metadata.ts_out as u8,
         ])?;
@@ -225,7 +209,7 @@ where
     }
 
     fn encode_symbol_mapping(&mut self, symbol_mapping: &SymbolMapping) -> anyhow::Result<()> {
-        self.encode_fixed_len_cstr::<{ crate::SYMBOL_CSTR_LEN }>(&symbol_mapping.native_symbol)?;
+        self.encode_fixed_len_cstr::<{ crate::SYMBOL_CSTR_LEN }>(&symbol_mapping.raw_symbol)?;
         // encode interval_count
         self.writer.write_all(
             (symbol_mapping.intervals.len() as u32)
@@ -319,9 +303,9 @@ mod tests {
         let metadata = Metadata {
             version: crate::DBN_VERSION,
             dataset: "GLBX.MDP3".to_owned(),
-            schema: Schema::Mbp10,
-            stype_in: SType::Native,
-            stype_out: SType::ProductId,
+            schema: Some(Schema::Mbp10),
+            stype_in: Some(SType::RawSymbol),
+            stype_out: SType::InstrumentId,
             start: 1657230820000000000,
             end: NonZeroU64::new(1658960170000000000),
             limit: None,
@@ -331,7 +315,7 @@ mod tests {
             not_found: vec!["QQQQQ".to_owned()],
             mappings: vec![
                 SymbolMapping {
-                    native_symbol: "ES.0".to_owned(),
+                    raw_symbol: "ES.0".to_owned(),
                     intervals: vec![MappingInterval {
                         start_date: time::Date::from_calendar_date(2022, time::Month::July, 26)
                             .unwrap(),
@@ -341,7 +325,7 @@ mod tests {
                     }],
                 },
                 SymbolMapping {
-                    native_symbol: "NG.0".to_owned(),
+                    raw_symbol: "NG.0".to_owned(),
                     intervals: vec![
                         MappingInterval {
                             start_date: time::Date::from_calendar_date(2022, time::Month::July, 26)
@@ -436,9 +420,9 @@ mod tests {
         let orig_metadata = Metadata {
             version: crate::DBN_VERSION,
             dataset: "GLBX.MDP3".to_owned(),
-            schema: Schema::Mbo,
-            stype_in: SType::Smart,
-            stype_out: SType::Native,
+            schema: Some(Schema::Mbo),
+            stype_in: Some(SType::Parent),
+            stype_out: SType::RawSymbol,
             start: 1657230820000000000,
             end: NonZeroU64::new(1658960170000000000),
             limit: None,
@@ -480,10 +464,10 @@ mod tests {
     fn test_encode_decode_nulls() {
         let metadata = MetadataBuilder::new()
             .dataset("XNAS.ITCH".to_owned())
-            .schema(Schema::Mbo)
+            .schema(Some(Schema::Mbo))
             .start(1697240529000000000)
-            .stype_in(SType::Native)
-            .stype_out(SType::ProductId)
+            .stype_in(Some(SType::RawSymbol))
+            .stype_out(SType::InstrumentId)
             .build();
         assert!(metadata.end.is_none());
         assert!(metadata.limit.is_none());
@@ -498,10 +482,10 @@ mod tests {
     fn test_metadata_min_encoded_size() {
         let metadata = MetadataBuilder::new()
             .dataset("XNAS.ITCH".to_owned())
-            .schema(Schema::Mbo)
+            .schema(Some(Schema::Mbo))
             .start(1697240529000000000)
-            .stype_in(SType::Native)
-            .stype_out(SType::ProductId)
+            .stype_in(Some(SType::RawSymbol))
+            .stype_out(SType::InstrumentId)
             .build();
         let calc_length = MetadataEncoder::<Vec<u8>>::calc_length(&metadata);
         let mut buffer = Vec::new();
@@ -525,8 +509,9 @@ mod r#async {
     use tokio::io;
 
     use crate::{
-        record::HasRType, Metadata, SymbolMapping, DBN_VERSION, NULL_END, NULL_LIMIT,
-        NULL_RECORD_COUNT,
+        record::HasRType, record_ref::RecordRef, rtype_ts_out_async_dispatch, Metadata,
+        SymbolMapping, DBN_VERSION, NULL_END, NULL_LIMIT, NULL_RECORD_COUNT, NULL_SCHEMA,
+        NULL_STYPE,
     };
 
     /// An async encoder of DBN records.
@@ -565,6 +550,26 @@ mod r#async {
                     Err(anyhow::Error::new(e).context(format!("Failed to serialize {record:#?}")))
                 }
             }
+        }
+
+        /// Encodes a single DBN record of type `R`.
+        ///
+        /// Returns `true`if the pipe was closed.
+        ///
+        /// # Safety
+        /// `ts_out` must be `false` if `record` does not have an appended `ts_out
+        ///
+        /// # Errors
+        /// This function returns an error if it's unable to write to the underlying writer
+        /// or there's a serialization error.
+        pub async unsafe fn encode_ref(
+            &mut self,
+            record_ref: RecordRef<'_>,
+            ts_out: bool,
+        ) -> anyhow::Result<bool> {
+            rtype_ts_out_async_dispatch!(record_ref, ts_out, |rec| async move {
+                self.encode(rec).await
+            })?
         }
 
         /// Returns a mutable reference to the underlying writer.
@@ -617,11 +622,14 @@ mod r#async {
             self.writer.write_u32_le(length).await?;
             self.encode_fixed_len_cstr::<{ crate::METADATA_DATASET_CSTR_LEN }>(&metadata.dataset)
                 .await?;
-            self.writer.write_u16_le(metadata.schema as u16).await?;
+            self.writer
+                .write_u16_le(metadata.schema.map(|s| s as u16).unwrap_or(NULL_SCHEMA))
+                .await?;
             self.encode_range_and_counts(metadata.start, metadata.end, metadata.limit)
                 .await?;
-            // self.writer.write_all(&[metadata.compression as u8])?;
-            self.writer.write_u8(metadata.stype_in as u8).await?;
+            self.writer
+                .write_u8(metadata.stype_in.map(|s| s as u8).unwrap_or(NULL_STYPE))
+                .await?;
             self.writer.write_u8(metadata.stype_out as u8).await?;
             self.writer.write_u8(metadata.ts_out as u8).await?;
             // padding
@@ -701,7 +709,7 @@ mod r#async {
             &mut self,
             symbol_mapping: &SymbolMapping,
         ) -> anyhow::Result<()> {
-            self.encode_fixed_len_cstr::<{ crate::SYMBOL_CSTR_LEN }>(&symbol_mapping.native_symbol)
+            self.encode_fixed_len_cstr::<{ crate::SYMBOL_CSTR_LEN }>(&symbol_mapping.raw_symbol)
                 .await?;
             // encode interval_count
             self.writer
@@ -779,9 +787,9 @@ mod r#async {
             let metadata = Metadata {
                 version: crate::DBN_VERSION,
                 dataset: "GLBX.MDP3".to_owned(),
-                schema: Schema::Mbp10,
-                stype_in: SType::Native,
-                stype_out: SType::ProductId,
+                schema: Some(Schema::Mbp10),
+                stype_in: Some(SType::RawSymbol),
+                stype_out: SType::InstrumentId,
                 start: 1657230820000000000,
                 end: NonZeroU64::new(1658960170000000000),
                 limit: None,
@@ -791,7 +799,7 @@ mod r#async {
                 not_found: vec!["QQQQQ".to_owned()],
                 mappings: vec![
                     SymbolMapping {
-                        native_symbol: "ES.0".to_owned(),
+                        raw_symbol: "ES.0".to_owned(),
                         intervals: vec![MappingInterval {
                             start_date: time::Date::from_calendar_date(2022, time::Month::July, 26)
                                 .unwrap(),
@@ -805,7 +813,7 @@ mod r#async {
                         }],
                     },
                     SymbolMapping {
-                        native_symbol: "NG.0".to_owned(),
+                        raw_symbol: "NG.0".to_owned(),
                         intervals: vec![
                             MappingInterval {
                                 start_date: time::Date::from_calendar_date(
@@ -909,10 +917,10 @@ mod r#async {
         async fn test_encode_decode_nulls() {
             let metadata = MetadataBuilder::new()
                 .dataset("XNAS.ITCH".to_owned())
-                .schema(Schema::Mbo)
+                .schema(Some(Schema::Mbo))
                 .start(1697240529000000000)
-                .stype_in(SType::Native)
-                .stype_out(SType::ProductId)
+                .stype_in(Some(SType::RawSymbol))
+                .stype_out(SType::InstrumentId)
                 .build();
             assert!(metadata.end.is_none());
             assert!(metadata.limit.is_none());

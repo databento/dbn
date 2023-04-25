@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.5.0 - 2023-04-25
+- Added support for Statistics schema
+- Changed `schema` and `stype_in` to optional in `Metadata` to support live data
+- Renamed `SType::ProductId` to `SType::InstrumentId` and `SType::Native` to `SType::RawSymbol`
+- Renamed `RecordHeader::product_id` to `instrument_id`
+- Renamed `InstrumentDefMsg::symbol` to `raw_symbol`
+- Renamed `SymbolMapping::native_symbol` to `raw_symbol`
+- Deprecated `SType::Smart` to split into `SType::Parent` and `SType::Continuous`
+- Added `RType` enum for exhaustive pattern matching
+- Added `&str` getters for more `c_char` array record fields
+- Changed `DbnDecoder.decode` to always return a list of tuples
+- Fixed value associated with `Side::None`
+- Fixed issue with decoding partial records in Python `DbnDecoder`
+- Fixed missing type hint for Metadata bytes support
+- Added support for equality comparisons in Python classes
+
 ## 0.4.3 - 2023-04-07
 - Fixed typo in Python type stubs
 
