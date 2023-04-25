@@ -591,7 +591,7 @@ impl Serialize for SecurityUpdateAction {
     }
 }
 
-/// The type of [`StatMsg`](crate::record::StatMsg) update.
+/// The type of statistic contained in a [`StatMsg`](crate::record::StatMsg).
 #[repr(u16)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, IntoPrimitive, TryFromPrimitive)]
 pub enum StatType {
@@ -630,8 +630,8 @@ pub enum StatType {
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, IntoPrimitive, TryFromPrimitive)]
 pub enum StatUpdateAction {
-    ///
+    /// A new statistic.
     New = 1,
-    ///
+    /// A removal of a statistic.
     Delete = 2,
 }

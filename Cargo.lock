@@ -229,7 +229,7 @@ dependencies = [
 
 [[package]]
 name = "databento-dbn"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "dbn",
  "pyo3",
@@ -238,7 +238,7 @@ dependencies = [
 
 [[package]]
 name = "dbn"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "async-compression",
@@ -256,7 +256,7 @@ dependencies = [
 
 [[package]]
 name = "dbn-c"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "cbindgen",
  "dbn",
@@ -265,7 +265,7 @@ dependencies = [
 
 [[package]]
 name = "dbn-cli"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -278,7 +278,7 @@ dependencies = [
 
 [[package]]
 name = "dbn-macros"
-version = "0.4.3"
+version = "0.5.0"
 
 [[package]]
 name = "difflib"
@@ -444,9 +444,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.141"
+version = "0.2.142"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3304a64d199bb964be99741b7a14d26972741915b3649639149b2479bb46f4b5"
+checksum = "6a987beff54b60ffa6d51982e1aa1146bc42f19bd26be28b0586f252fccf5317"
 
 [[package]]
 name = "linux-raw-sys"
