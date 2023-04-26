@@ -72,8 +72,8 @@ pub struct MboMsg {
     pub flags: u8,
     /// A channel ID within the venue.
     pub channel_id: u8,
-    /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or
-    /// **T**rade.
+    /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**,
+    /// **T**rade, or **F**ill.
     #[serde(serialize_with = "serialize_c_char")]
     pub action: c_char,
     /// The order side. Can be **A**sk, **B**id or **N**one.
@@ -129,8 +129,7 @@ pub struct TradeMsg {
     pub price: i64,
     /// The order quantity.
     pub size: u32,
-    /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or
-    /// **T**rade.
+    /// The event action. Always **T**rade in the trades schema.
     #[serde(serialize_with = "serialize_c_char")]
     pub action: c_char,
     /// The order side. Can be **A**sk, **B**id or **N**one.

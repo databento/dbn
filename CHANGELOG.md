@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.5.1 - TBD
+- Added `F`ill action type for MBO messages
+
 ## 0.5.0 - 2023-04-25
 - Added support for Statistics schema
 - Changed `schema` and `stype_in` to optional in `Metadata` to support live data

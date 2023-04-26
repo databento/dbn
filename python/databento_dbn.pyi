@@ -390,8 +390,8 @@ class _MBOBase:
     @property
     def action(self) -> str:
         """
-        The event action. Can be `A`dd, `C`ancel, `M`odify, clea`R`, or
-        `T`rade.
+        The event action. Can be `A`dd, `C`ancel, `M`odify, clea`R`,
+        `T`rade, or `F`ill.
 
         Returns
         -------
