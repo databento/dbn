@@ -32,6 +32,8 @@ const NULL_RECORD_COUNT: u64 = u64::MAX;
 const NULL_SCHEMA: u16 = u16::MAX;
 const NULL_STYPE: u8 = u8::MAX;
 
+/// The denominator of fixed prices in DBN.
+const FIXED_PRICE_SCALE: i64 = 1_000_000_000;
 /// The sentinel value for an unset or null price.
 pub const UNDEF_PRICE: i64 = i64::MAX;
 /// The sentinel value for an unset or null order quantity.

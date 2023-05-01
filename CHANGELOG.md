@@ -1,6 +1,12 @@
 # Changelog
 
-## 0.5.1 - 2023-05-04
+## 0.5.2 - TBD
+- Added `use_pretty_px` for price formatting and `use_pretty_ts` for datetime formatting
+  to CSV and JSON encoders
+- Renamed `--pretty-json` CLI flag to `--pretty` and added support for CSV. Passing this
+  flag now also enables `use_pretty_px` and `use_pretty_ts`
+
+## 0.5.1 - 2023-05-05
 - Added `F`ill action type for MBO messages
 - Added Python type stub for `StatMsg`
 

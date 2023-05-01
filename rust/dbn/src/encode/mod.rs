@@ -6,22 +6,25 @@ pub mod json;
 
 use std::{fmt, io};
 
-use serde::Serialize;
 use streaming_iterator::StreamingIterator;
+use time::format_description::FormatItem;
 
 use crate::{
     decode::DecodeDbn,
     enums::{Compression, Encoding},
     record::HasRType,
     record_ref::RecordRef,
-    rtype_ts_out_dispatch, Metadata,
+    rtype_ts_out_dispatch, Metadata, FIXED_PRICE_SCALE,
 };
 
-use self::csv::serialize::CsvSerialize;
+use self::{csv::serialize::CsvSerialize, json::serialize::JsonSerialize};
 
-/// Trait alias for [`HasRType`], `csv::serialize::CsvSerialize`, [`fmt::Debug`], and [`serde::Serialize`].
-pub trait DbnEncodable: HasRType + AsRef<[u8]> + CsvSerialize + fmt::Debug + Serialize {}
-impl<T> DbnEncodable for T where T: HasRType + AsRef<[u8]> + CsvSerialize + fmt::Debug + Serialize {}
+/// Trait alias for [`HasRType`], `AsRef<[u8]>`, `CsvSerialize`, [`fmt::Debug`], and `JsonSerialize`.
+pub trait DbnEncodable: HasRType + AsRef<[u8]> + CsvSerialize + fmt::Debug + JsonSerialize {}
+impl<T> DbnEncodable for T where
+    T: HasRType + AsRef<[u8]> + CsvSerialize + fmt::Debug + JsonSerialize
+{
+}
 
 /// Trait for types that encode DBN records with mixed schemas.
 pub trait EncodeDbn {
@@ -220,7 +223,8 @@ where
 {
     /// Constructs a new instance of [`DynEncoder`].
     ///
-    /// Note: `should_pretty_print` is ignored unless `encoding` is [`Encoding::Json`].
+    /// Note: `should_pretty_print`, `user_pretty_px`, and `use_pretty_ts` are ignored
+    /// if `encoding` is `Dbn`.
     ///
     /// # Errors
     /// This function returns an error if it fails to encode the DBN metadata or
@@ -231,16 +235,24 @@ where
         compression: Compression,
         metadata: &Metadata,
         should_pretty_print: bool,
+        use_pretty_px: bool,
+        use_pretty_ts: bool,
     ) -> anyhow::Result<Self> {
         let writer = DynWriter::new(writer, compression)?;
         match encoding {
             Encoding::Dbn => {
                 dbn::Encoder::new(writer, metadata).map(|e| Self(DynEncoderImpl::Dbn(e)))
             }
-            Encoding::Csv => Ok(Self(DynEncoderImpl::Csv(csv::Encoder::new(writer)))),
+            Encoding::Csv => Ok(Self(DynEncoderImpl::Csv(csv::Encoder::new(
+                writer,
+                use_pretty_px,
+                use_pretty_ts,
+            )))),
             Encoding::Json => Ok(Self(DynEncoderImpl::Json(json::Encoder::new(
                 writer,
                 should_pretty_print,
+                use_pretty_px,
+                use_pretty_ts,
             )))),
         }
     }
@@ -394,6 +406,31 @@ mod test_data {
     }
 }
 
+fn format_px(px: i64) -> String {
+    if px == crate::UNDEF_PRICE {
+        "UNDEF_PRICE".to_owned()
+    } else {
+        let (sign, px_abs) = if px < 0 { ("-", -px) } else { ("", px) };
+        let px_integer = px_abs / FIXED_PRICE_SCALE;
+        let px_fraction = px_abs % FIXED_PRICE_SCALE;
+        format!("{sign}{px_integer}.{px_fraction:09}")
+    }
+}
+
+fn format_ts(ts: u64) -> String {
+    const TS_FORMAT: &[FormatItem<'static>] = time::macros::format_description!(
+        "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:9]"
+    );
+    if ts == 0 {
+        String::new()
+    } else {
+        time::OffsetDateTime::from_unix_timestamp_nanos(ts as i128)
+            .map_err(|_| ())
+            .and_then(|dt| dt.format(TS_FORMAT).map_err(|_| ()))
+            .unwrap_or_else(|_| ts.to_string())
+    }
+}
+
 #[cfg(feature = "async")]
 pub use r#async::DynWriter as DynAsyncWriter;
 
@@ -472,5 +509,50 @@ mod r#async {
                 DynWriterImpl::ZStd(enc) => io::AsyncWrite::poll_shutdown(Pin::new(enc), cx),
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::UNDEF_PRICE;
+
+    use super::*;
+
+    #[test]
+    fn test_format_px_negative() {
+        assert_eq!(format_px(-100_000), "-0.000100000");
+    }
+
+    #[test]
+    fn test_format_px_positive() {
+        assert_eq!(format_px(32_500_000_000), "32.500000000");
+    }
+
+    #[test]
+    fn test_format_px_zero() {
+        assert_eq!(format_px(0), "0.000000000");
+    }
+
+    #[test]
+    fn test_format_px_undef() {
+        assert_eq!(format_px(UNDEF_PRICE), "UNDEF_PRICE");
+    }
+
+    #[test]
+    fn format_ts_0() {
+        assert!(format_ts(0).is_empty());
+    }
+
+    #[test]
+    fn format_ts_1() {
+        assert_eq!(format_ts(1), "1970-01-01T00:00:00.000000001");
+    }
+
+    #[test]
+    fn format_ts_future() {
+        assert_eq!(
+            format_ts(1622838300000000000),
+            "2021-06-04T20:25:00.000000000"
+        );
     }
 }

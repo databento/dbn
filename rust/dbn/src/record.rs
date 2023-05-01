@@ -4,7 +4,6 @@
 use std::{ffi::CStr, mem, os::raw::c_char, ptr::NonNull, slice, str::Utf8Error};
 
 use anyhow::anyhow;
-use serde::Serialize;
 
 // Dummy derive macro to get around `cfg_attr` incompatibility of several
 // of pyo3's attribute macros. See https://github.com/PyO3/pyo3/issues/780
@@ -22,7 +21,7 @@ use crate::{
 
 /// Common data for all Databento records.
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
@@ -30,7 +29,6 @@ use crate::{
 )]
 pub struct RecordHeader {
     /// The length of the record in 32-bit words.
-    #[serde(skip)]
     pub(crate) length: u8,
     /// The record type; with `0xe0..0x0F` specifying MBP booklevel size. Record types
     /// implement the trait [`HasRType`], and the [`has_rtype`][HasRType::has_rtype]
@@ -43,14 +41,13 @@ pub struct RecordHeader {
     pub instrument_id: u32,
     /// The matching-engine-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
-    #[serde(serialize_with = "serialize_large_u64")]
     pub ts_event: u64,
 }
 
 /// A market-by-order (MBO) tick message. The record of the
 /// [`Mbo`](crate::enums::Schema::Mbo) schema.
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
@@ -60,7 +57,6 @@ pub struct MboMsg {
     /// The common header.
     pub hd: RecordHeader,
     /// The order ID assigned at the venue.
-    #[serde(serialize_with = "serialize_large_u64")]
     pub order_id: u64,
     /// The order price expressed as a signed integer where every 1 unit
     /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
@@ -74,14 +70,11 @@ pub struct MboMsg {
     pub channel_id: u8,
     /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**,
     /// **T**rade, or **F**ill.
-    #[serde(serialize_with = "serialize_c_char")]
     pub action: c_char,
     /// The order side. Can be **A**sk, **B**id or **N**one.
-    #[serde(serialize_with = "serialize_c_char")]
     pub side: c_char,
     /// The capture-server-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
-    #[serde(serialize_with = "serialize_large_u64")]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
     pub ts_in_delta: i32,
@@ -91,7 +84,7 @@ pub struct MboMsg {
 
 /// A book level.
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Eq, Default, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
@@ -115,7 +108,7 @@ pub struct BidAskPair {
 /// Market by price implementation with a book depth of 0. Equivalent to
 /// MBP-0. The record of the [`Trades`](crate::enums::Schema::Trades) schema.
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
@@ -130,10 +123,8 @@ pub struct TradeMsg {
     /// The order quantity.
     pub size: u32,
     /// The event action. Always **T**rade in the trades schema.
-    #[serde(serialize_with = "serialize_c_char")]
     pub action: c_char,
     /// The aggressing order's side in the trade. Can be **A**sk, **B**id or **N**one.
-    #[serde(serialize_with = "serialize_c_char")]
     pub side: c_char,
     /// A combination of packet end with matching engine status. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
@@ -142,7 +133,6 @@ pub struct TradeMsg {
     pub depth: u8,
     /// The capture-server-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
-    #[serde(serialize_with = "serialize_large_u64")]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
     pub ts_in_delta: i32,
@@ -153,7 +143,7 @@ pub struct TradeMsg {
 /// Market by price implementation with a known book depth of 1. The record of the
 /// [`Mbp1`](crate::enums::Schema::Mbp1) schema.
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
@@ -169,10 +159,8 @@ pub struct Mbp1Msg {
     pub size: u32,
     /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or
     /// **T**rade.
-    #[serde(serialize_with = "serialize_c_char")]
     pub action: c_char,
     /// The order side. Can be **A**sk, **B**id or **N**one.
-    #[serde(serialize_with = "serialize_c_char")]
     pub side: c_char,
     /// A combination of packet end with matching engine status. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
@@ -181,7 +169,6 @@ pub struct Mbp1Msg {
     pub depth: u8,
     /// The capture-server-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
-    #[serde(serialize_with = "serialize_large_u64")]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
     pub ts_in_delta: i32,
@@ -194,7 +181,7 @@ pub struct Mbp1Msg {
 /// Market by price implementation with a known book depth of 10. The record of the
 /// [`Mbp10`](crate::enums::Schema::Mbp10) schema.
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
@@ -210,10 +197,8 @@ pub struct Mbp10Msg {
     pub size: u32,
     /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or
     /// **T**rade.
-    #[serde(serialize_with = "serialize_c_char")]
     pub action: c_char,
     /// The order side. Can be **A**sk, **B**id or **N**one.
-    #[serde(serialize_with = "serialize_c_char")]
     pub side: c_char,
     /// A combination of packet end with matching engine status. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
@@ -222,7 +207,6 @@ pub struct Mbp10Msg {
     pub depth: u8,
     /// The capture-server-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
-    #[serde(serialize_with = "serialize_large_u64")]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
     pub ts_in_delta: i32,
@@ -241,7 +225,7 @@ pub type TbboMsg = Mbp1Msg;
 /// - [`Ohlcv1H`](crate::enums::Schema::Ohlcv1H)
 /// - [`Ohlcv1D`](crate::enums::Schema::Ohlcv1D)
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
@@ -266,7 +250,7 @@ pub struct OhlcvMsg {
 /// [`Status`](crate::enums::Schema::Status) schema.
 #[doc(hidden)]
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "python", pyo3::pyclass(dict, module = "databento_dbn"))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -276,10 +260,8 @@ pub struct StatusMsg {
     pub hd: RecordHeader,
     /// The capture-server-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
-    #[serde(serialize_with = "serialize_large_u64")]
     #[pyo3(get, set)]
     pub ts_recv: u64,
-    #[serde(serialize_with = "serialize_c_char_arr")]
     pub group: [c_char; 21],
     #[pyo3(get, set)]
     pub trading_status: u8,
@@ -292,7 +274,7 @@ pub struct StatusMsg {
 /// Definition of an instrument. The record of the
 /// [`Definition`](crate::enums::Schema::Definition) schema.
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "python", pyo3::pyclass(dict, module = "databento_dbn"))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -302,7 +284,6 @@ pub struct InstrumentDefMsg {
     pub hd: RecordHeader,
     /// The capture-server-received timestamp expressed as number of nanoseconds since the
     /// UNIX epoch.
-    #[serde(serialize_with = "serialize_large_u64")]
     #[pyo3(get, set)]
     pub ts_recv: u64,
     /// The minimum constant tick for the instrument in units of 1e-9, i.e.
@@ -314,12 +295,10 @@ pub struct InstrumentDefMsg {
     pub display_factor: i64,
     /// The last eligible trade time expressed as a number of nanoseconds since the
     /// UNIX epoch.
-    #[serde(serialize_with = "serialize_large_u64")]
     #[pyo3(get, set)]
     pub expiration: u64,
     /// The time of instrument activation expressed as a number of nanoseconds since the
     /// UNIX epoch.
-    #[serde(serialize_with = "serialize_large_u64")]
     #[pyo3(get, set)]
     pub activation: u64,
     /// The allowable high limit price for the trading day in units of 1e-9, i.e.
@@ -396,7 +375,6 @@ pub struct InstrumentDefMsg {
     #[pyo3(get, set)]
     pub original_contract_size: i32,
     #[doc(hidden)]
-    #[serde(skip)]
     pub reserved1: [c_char; 4],
     /// The trading session date corresponding to the settlement price in
     /// `trading_reference_price`, in number of days since the UNIX epoch.
@@ -415,57 +393,41 @@ pub struct InstrumentDefMsg {
     #[pyo3(get, set)]
     pub channel_id: u16,
     /// The currency used for price fields.
-    #[serde(serialize_with = "serialize_c_char_arr")]
     pub currency: [c_char; 4],
     /// The currency used for settlement, if different from `currency`.
-    #[serde(serialize_with = "serialize_c_char_arr")]
     pub settl_currency: [c_char; 4],
     /// The strategy type of the spread.
-    #[serde(serialize_with = "serialize_c_char_arr")]
     pub secsubtype: [c_char; 6],
     /// The instrument raw symbol assigned by the publisher.
-    #[serde(serialize_with = "serialize_c_char_arr")]
     pub raw_symbol: [c_char; 22],
     /// The security group code of the instrument.
-    #[serde(serialize_with = "serialize_c_char_arr")]
     pub group: [c_char; 21],
     /// The exchange used to identify the instrument.
-    #[serde(serialize_with = "serialize_c_char_arr")]
     pub exchange: [c_char; 5],
     /// The underlying asset code (product code) of the instrument.
-    #[serde(serialize_with = "serialize_c_char_arr")]
     pub asset: [c_char; 7],
     /// The ISO standard instrument categorization code.
-    #[serde(serialize_with = "serialize_c_char_arr")]
     pub cfi: [c_char; 7],
     /// The type of the instrument, e.g. FUT for future or future spread.
-    #[serde(serialize_with = "serialize_c_char_arr")]
     pub security_type: [c_char; 7],
     /// The unit of measure for the instrument’s original contract size, e.g. USD or LBS.
-    #[serde(serialize_with = "serialize_c_char_arr")]
     pub unit_of_measure: [c_char; 31],
     /// The symbol of the first underlying instrument.
-    #[serde(serialize_with = "serialize_c_char_arr")]
     pub underlying: [c_char; 21],
     /// The currency of [`strike_price`](Self::strike_price).
-    #[serde(serialize_with = "serialize_c_char_arr")]
     pub strike_price_currency: [c_char; 4],
     /// The classification of the instrument.
-    #[serde(serialize_with = "serialize_c_char")]
     #[pyo3(get, set)]
     pub instrument_class: c_char,
     #[doc(hidden)]
-    #[serde(skip)]
     pub reserved2: [c_char; 2],
     /// The strike price of the option. Converted to units of 1e-9, i.e. 1/1,000,000,000
     /// or 0.000000001.
     #[pyo3(get, set)]
     pub strike_price: i64,
     #[doc(hidden)]
-    #[serde(skip)]
     pub reserved3: [c_char; 6],
     /// The matching algorithm used for the instrument, typically **F**IFO.
-    #[serde(serialize_with = "serialize_c_char")]
     #[pyo3(get, set)]
     pub match_algorithm: c_char,
     /// The current trading state of the instrument.
@@ -511,14 +473,13 @@ pub struct InstrumentDefMsg {
     #[pyo3(get, set)]
     pub tick_rule: u8,
     // Filler for alignment.
-    #[serde(skip)]
     #[doc(hidden)]
     pub _dummy: [c_char; 3],
 }
 
 /// An auction imbalance message.
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
@@ -529,13 +490,11 @@ pub struct ImbalanceMsg {
     pub hd: RecordHeader,
     /// The capture-server-received timestamp expressed as the number of nanoseconds
     /// since the UNIX epoch.
-    #[serde(serialize_with = "serialize_large_u64")]
     pub ts_recv: u64,
     /// The price at which the imbalance shares are calculated, where every 1 unit corresponds to
     /// 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
     pub ref_price: i64,
     /// Reserved for future use.
-    #[serde(serialize_with = "serialize_large_u64")]
     pub auction_time: u64,
     /// The hypothetical auction-clearing price for both cross and continuous orders.
     pub cont_book_clr_price: i64,
@@ -558,10 +517,8 @@ pub struct ImbalanceMsg {
     /// Reserved for future use.
     pub unpaired_qty: u32,
     /// Venue-specific character code indicating the auction type.
-    #[serde(serialize_with = "serialize_c_char")]
     pub auction_type: c_char,
     /// The market side of the `total_imbalance_qty`. Can be **A**sk, **B**id, or **N**one.
-    #[serde(serialize_with = "serialize_c_char")]
     pub side: c_char,
     /// Reserved for future use.
     pub auction_status: u8,
@@ -570,13 +527,10 @@ pub struct ImbalanceMsg {
     /// Reserved for future use.
     pub num_extensions: u8,
     /// Reserved for future use.
-    #[serde(serialize_with = "serialize_c_char")]
     pub unpaired_side: c_char,
     /// Venue-specific character code. For Nasdaq, contains the raw Price Variation Indicator.
-    #[serde(serialize_with = "serialize_c_char")]
     pub significant_imbalance: c_char,
     // Filler for alignment.
-    #[serde(skip)]
     #[doc(hidden)]
     pub _dummy: [c_char; 1],
 }
@@ -584,7 +538,7 @@ pub struct ImbalanceMsg {
 /// A statistics message. A catchall for various data disseminated by publishers.
 /// The [`stat_type`](Self::stat_type) indicates the statistic contained in the message.
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
@@ -595,10 +549,8 @@ pub struct StatMsg {
     pub hd: RecordHeader,
     /// The capture-server-received timestamp expressed as the number of nanoseconds
     /// since the UNIX epoch.
-    #[serde(serialize_with = "serialize_large_u64")]
     pub ts_recv: u64,
     /// Reference timestamp expressed as the number of nanoseconds since the UNIX epoch.
-    #[serde(serialize_with = "serialize_large_u64")]
     pub ts_ref: u64,
     /// The value for price statistics expressed as a signed integer where every 1 unit
     /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be
@@ -622,14 +574,13 @@ pub struct StatMsg {
     /// Additional flags associate with certain stat types.
     pub stat_flags: u8,
     // Filler for alignment
-    #[serde(skip)]
     #[doc(hidden)]
     pub _dummy: [c_char; 6],
 }
 
 /// An error message from the Databento Live Subscription Gateway (LSG).
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "python", pyo3::pyclass(dict, module = "databento_dbn"))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -638,14 +589,13 @@ pub struct ErrorMsg {
     #[pyo3(get, set)]
     pub hd: RecordHeader,
     /// The error message.
-    #[serde(serialize_with = "serialize_c_char_arr")]
     pub err: [c_char; 64],
 }
 
 /// A symbol mapping message which maps a symbol of one [`SType`](crate::enums::SType)
 /// to another.
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "python", pyo3::pyclass(dict, module = "databento_dbn"))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -654,14 +604,11 @@ pub struct SymbolMappingMsg {
     #[pyo3(get, set)]
     pub hd: RecordHeader,
     /// The input symbol.
-    #[serde(serialize_with = "serialize_c_char_arr")]
     pub stype_in_symbol: [c_char; 22],
     /// The output symbol.
-    #[serde(serialize_with = "serialize_c_char_arr")]
     pub stype_out_symbol: [c_char; 22],
     // Filler for alignment.
     #[doc(hidden)]
-    #[serde(skip)]
     pub _dummy: [c_char; 4],
     /// The start of the mapping interval expressed as the number of nanoseconds since
     /// the UNIX epoch.
@@ -676,7 +623,7 @@ pub struct SymbolMappingMsg {
 /// A non-error message from the Databento Live Subscription Gateway (LSG). Also used
 /// for heartbeating.
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "python", pyo3::pyclass(dict, module = "databento_dbn"))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -685,24 +632,7 @@ pub struct SystemMsg {
     #[pyo3(get, set)]
     pub hd: RecordHeader,
     /// The message from the Databento Live Subscription Gateway (LSG).
-    #[serde(serialize_with = "serialize_c_char_arr")]
     pub msg: [c_char; 64],
-}
-
-fn serialize_c_char_arr<S: serde::Serializer, const N: usize>(
-    arr: &[c_char; N],
-    serializer: S,
-) -> Result<S::Ok, S::Error> {
-    serializer.serialize_str(c_chars_to_str(arr).unwrap_or("<invalid UTF-8>"))
-}
-
-fn serialize_c_char<S: serde::Serializer>(cc: &c_char, serializer: S) -> Result<S::Ok, S::Error> {
-    serializer.serialize_char(*cc as u8 as char)
-}
-
-/// Serialize as a string to avoid any loss of precision with JSON serializers and parsers.
-fn serialize_large_u64<S: serde::Serializer>(num: &u64, serializer: S) -> Result<S::Ok, S::Error> {
-    serializer.serialize_str(&num.to_string())
 }
 
 /// A trait for objects with polymorphism based around [`RecordHeader::rtype`]. All implementing
@@ -1090,14 +1020,12 @@ impl SystemMsg {
 
 /// Wrapper object for records that include the live gateway send timestamp (`ts_out`).
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 pub struct WithTsOut<T: HasRType> {
     /// The inner record.
-    #[serde(flatten)]
     pub rec: T,
     /// The live gateway send timestamp expressed as number of nanoseconds since the UNIX epoch.
-    #[serde(serialize_with = "serialize_large_u64")]
     pub ts_out: u64,
 }
 
@@ -1572,15 +1500,5 @@ mod tests {
     #[test]
     fn test_symbol_mapping_size() {
         assert_eq!(mem::size_of::<SymbolMappingMsg>(), 80);
-    }
-
-    #[test]
-    fn test_serialize_quoted_str_to_json() {
-        let error = ErrorMsg::new(0, "\"A test");
-        let json = serde_json::to_string(&error).unwrap();
-        assert_eq!(
-            json,
-            r#"{"hd":{"rtype":21,"publisher_id":0,"instrument_id":0,"ts_event":"0"},"err":"\"A test"}"#
-        );
     }
 }

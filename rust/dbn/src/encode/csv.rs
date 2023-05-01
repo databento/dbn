@@ -22,18 +22,26 @@ where
     W: io::Write,
 {
     writer: csv::Writer<W>,
+    use_pretty_px: bool,
+    use_pretty_ts: bool,
 }
 
 impl<W> Encoder<W>
 where
     W: io::Write,
 {
-    /// Creates a new [`Encoder`] that will write to `writer`.
-    pub fn new(writer: W) -> Self {
+    /// Creates a new [`Encoder`] that will write to `writer`. If `use_pretty_px`
+    /// is `true`, price fields will be serialized as a decimal. If `pretty_ts` is
+    /// `true`, timestamp fields will be serialized in a ISO8601 datetime string.
+    pub fn new(writer: W, use_pretty_px: bool, use_pretty_ts: bool) -> Self {
         let csv_writer = csv::WriterBuilder::new()
             .has_headers(false) // need to write our own custom header
             .from_writer(writer);
-        Self { writer: csv_writer }
+        Self {
+            writer: csv_writer,
+            use_pretty_px,
+            use_pretty_ts,
+        }
     }
 
     fn encode_header<R: super::DbnEncodable>(&mut self) -> anyhow::Result<()> {
@@ -49,7 +57,16 @@ where
     W: io::Write,
 {
     fn encode_record<R: super::DbnEncodable>(&mut self, record: &R) -> anyhow::Result<bool> {
-        match record.serialize_to(&mut self.writer) {
+        let serialize_res = match (self.use_pretty_px, self.use_pretty_ts) {
+            (true, true) => record.serialize_to::<_, true, true>(&mut self.writer),
+            (true, false) => record.serialize_to::<_, true, false>(&mut self.writer),
+            (false, true) => record.serialize_to::<_, false, true>(&mut self.writer),
+            (false, false) => record.serialize_to::<_, false, false>(&mut self.writer),
+        };
+        match serialize_res
+            // write new line
+            .and_then(|_| self.writer.write_record(None::<&[u8]>))
+        {
             Ok(_) => Ok(false),
             Err(e) => {
                 if matches!(e.kind(), csv::ErrorKind::Io(io_err) if io_err.kind() == io::ErrorKind::BrokenPipe)
@@ -141,36 +158,56 @@ where
 }
 
 pub(crate) mod serialize {
-    use std::{fmt, io};
+    use std::io;
 
     use csv::Writer;
-    use serde::Serialize;
 
-    use crate::record::{
-        ErrorMsg, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
-        StatMsg, StatusMsg, SymbolMappingMsg, SystemMsg, TradeMsg, WithTsOut,
+    use crate::{
+        encode::{format_px, format_ts},
+        record::{
+            BidAskPair, ErrorMsg, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg,
+            Mbp1Msg, OhlcvMsg, RecordHeader, StatMsg, StatusMsg, SymbolMappingMsg, SystemMsg,
+            TradeMsg, WithTsOut,
+        },
+        UNDEF_PRICE,
     };
 
     /// Because of the flat nature of CSVs, there are several limitations in the
     /// Rust CSV serde serialization library. This trait helps work around them.
-    pub trait CsvSerialize: Serialize + fmt::Debug {
+    pub trait CsvSerialize {
         /// Encode the header to `csv_writer`.
         fn serialize_header<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()>;
 
         /// Serialize the object to `csv_writer`. Allows custom behavior that would otherwise
         /// cause a runtime error, e.g. serializing a struct with array field.
-        fn serialize_to<W: io::Write>(&self, csv_writer: &mut Writer<W>) -> csv::Result<()> {
-            csv_writer.serialize(self)
+        fn serialize_to<W: io::Write, const PRETTY_PX: bool, const PRETTY_TS: bool>(
+            &self,
+            csv_writer: &mut Writer<W>,
+        ) -> csv::Result<()>;
+    }
+
+    impl CsvSerialize for RecordHeader {
+        fn serialize_header<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
+            ["rtype", "publisher_id", "instrument_id", "ts_event"]
+                .iter()
+                .try_for_each(|header| csv_writer.write_field(header))
+        }
+
+        fn serialize_to<W: io::Write, const PRETTY_PX: bool, const PRETTY_TS: bool>(
+            &self,
+            csv_writer: &mut Writer<W>,
+        ) -> csv::Result<()> {
+            csv_writer.write_field(self.rtype.to_string())?;
+            csv_writer.write_field(self.publisher_id.to_string())?;
+            csv_writer.write_field(self.instrument_id.to_string())?;
+            write_ts_field::<W, PRETTY_TS>(csv_writer, self.ts_event)
         }
     }
 
     impl CsvSerialize for MboMsg {
         fn serialize_header<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
+            RecordHeader::serialize_header(csv_writer)?;
             [
-                "rtype",
-                "publisher_id",
-                "instrument_id",
-                "ts_event",
                 "order_id",
                 "price",
                 "size",
@@ -185,15 +222,30 @@ pub(crate) mod serialize {
             .iter()
             .try_for_each(|header| csv_writer.write_field(header))
         }
+
+        fn serialize_to<W: io::Write, const PRETTY_PX: bool, const PRETTY_TS: bool>(
+            &self,
+            csv_writer: &mut Writer<W>,
+        ) -> csv::Result<()> {
+            self.hd
+                .serialize_to::<W, PRETTY_PX, PRETTY_TS>(csv_writer)?;
+            csv_writer.write_field(self.order_id.to_string())?;
+            write_px_field::<W, PRETTY_PX>(csv_writer, self.price)?;
+            csv_writer.write_field(self.size.to_string())?;
+            csv_writer.write_field(self.flags.to_string())?;
+            csv_writer.write_field(self.channel_id.to_string())?;
+            csv_writer.write_field((self.action as u8 as char).to_string())?;
+            csv_writer.write_field((self.side as u8 as char).to_string())?;
+            write_ts_field::<W, PRETTY_TS>(csv_writer, self.ts_recv)?;
+            csv_writer.write_field(self.ts_in_delta.to_string())?;
+            csv_writer.write_field(self.sequence.to_string())
+        }
     }
 
     impl CsvSerialize for Mbp1Msg {
         fn serialize_header<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
+            RecordHeader::serialize_header(csv_writer)?;
             [
-                "rtype",
-                "publisher_id",
-                "instrument_id",
-                "ts_event",
                 "price",
                 "size",
                 "action",
@@ -213,15 +265,30 @@ pub(crate) mod serialize {
             .iter()
             .try_for_each(|header| csv_writer.write_field(header))
         }
+
+        fn serialize_to<W: io::Write, const PRETTY_PX: bool, const PRETTY_TS: bool>(
+            &self,
+            csv_writer: &mut Writer<W>,
+        ) -> csv::Result<()> {
+            self.hd
+                .serialize_to::<W, PRETTY_PX, PRETTY_TS>(csv_writer)?;
+            write_px_field::<W, PRETTY_PX>(csv_writer, self.price)?;
+            csv_writer.write_field(self.size.to_string())?;
+            csv_writer.write_field((self.action as u8 as char).to_string())?;
+            csv_writer.write_field((self.side as u8 as char).to_string())?;
+            csv_writer.write_field(self.flags.to_string())?;
+            csv_writer.write_field(self.depth.to_string())?;
+            write_ts_field::<W, PRETTY_TS>(csv_writer, self.ts_recv)?;
+            csv_writer.write_field(self.ts_in_delta.to_string())?;
+            csv_writer.write_field(self.sequence.to_string())?;
+            write_ba_pair::<W, PRETTY_PX>(csv_writer, &self.booklevel[0])
+        }
     }
 
     impl CsvSerialize for Mbp10Msg {
         fn serialize_header<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
+            RecordHeader::serialize_header(csv_writer)?;
             [
-                "rtype",
-                "publisher_id",
-                "instrument_id",
-                "ts_event",
                 "price",
                 "size",
                 "action",
@@ -296,41 +363,32 @@ pub(crate) mod serialize {
             .try_for_each(|header| csv_writer.write_field(header))
         }
 
-        fn serialize_to<W: io::Write>(&self, csv_writer: &mut Writer<W>) -> csv::Result<()> {
-            csv_writer.write_field(self.hd.rtype.to_string())?;
-            csv_writer.write_field(self.hd.publisher_id.to_string())?;
-            csv_writer.write_field(self.hd.instrument_id.to_string())?;
-            csv_writer.write_field(self.hd.ts_event.to_string())?;
-            csv_writer.write_field(self.price.to_string())?;
+        fn serialize_to<W: io::Write, const PRETTY_PX: bool, const PRETTY_TS: bool>(
+            &self,
+            csv_writer: &mut Writer<W>,
+        ) -> csv::Result<()> {
+            self.hd
+                .serialize_to::<W, PRETTY_PX, PRETTY_TS>(csv_writer)?;
+            write_px_field::<W, PRETTY_PX>(csv_writer, self.price)?;
             csv_writer.write_field(self.size.to_string())?;
             csv_writer.write_field((self.action as u8 as char).to_string())?;
             csv_writer.write_field((self.side as u8 as char).to_string())?;
             csv_writer.write_field(self.flags.to_string())?;
             csv_writer.write_field(self.depth.to_string())?;
-            csv_writer.write_field(self.ts_recv.to_string())?;
+            write_ts_field::<W, PRETTY_TS>(csv_writer, self.ts_recv)?;
             csv_writer.write_field(self.ts_in_delta.to_string())?;
             csv_writer.write_field(self.sequence.to_string())?;
             for level in self.booklevel.iter() {
-                csv_writer.write_field(level.bid_px.to_string())?;
-                csv_writer.write_field(level.ask_px.to_string())?;
-                csv_writer.write_field(level.bid_sz.to_string())?;
-                csv_writer.write_field(level.ask_sz.to_string())?;
-                csv_writer.write_field(level.bid_ct.to_string())?;
-                csv_writer.write_field(level.ask_ct.to_string())?;
+                write_ba_pair::<W, PRETTY_PX>(csv_writer, level)?;
             }
-            // end of line
-            csv_writer.write_record(None::<&[u8]>)?;
             Ok(())
         }
     }
 
     impl CsvSerialize for TradeMsg {
         fn serialize_header<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
+            RecordHeader::serialize_header(csv_writer)?;
             [
-                "rtype",
-                "publisher_id",
-                "instrument_id",
-                "ts_event",
                 "price",
                 "size",
                 "action",
@@ -344,33 +402,51 @@ pub(crate) mod serialize {
             .iter()
             .try_for_each(|header| csv_writer.write_field(header))
         }
+
+        fn serialize_to<W: io::Write, const PRETTY_PX: bool, const PRETTY_TS: bool>(
+            &self,
+            csv_writer: &mut Writer<W>,
+        ) -> csv::Result<()> {
+            self.hd
+                .serialize_to::<W, PRETTY_PX, PRETTY_TS>(csv_writer)?;
+            write_px_field::<W, PRETTY_PX>(csv_writer, self.price)?;
+            csv_writer.write_field(self.size.to_string())?;
+            csv_writer.write_field((self.action as u8 as char).to_string())?;
+            csv_writer.write_field((self.side as u8 as char).to_string())?;
+            csv_writer.write_field(self.flags.to_string())?;
+            csv_writer.write_field(self.depth.to_string())?;
+            write_ts_field::<W, PRETTY_TS>(csv_writer, self.ts_recv)?;
+            csv_writer.write_field(self.ts_in_delta.to_string())?;
+            csv_writer.write_field(self.sequence.to_string())
+        }
     }
 
     impl CsvSerialize for OhlcvMsg {
         fn serialize_header<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
-            [
-                "rtype",
-                "publisher_id",
-                "instrument_id",
-                "ts_event",
-                "open",
-                "high",
-                "low",
-                "close",
-                "volume",
-            ]
-            .iter()
-            .try_for_each(|header| csv_writer.write_field(header))
+            RecordHeader::serialize_header(csv_writer)?;
+            ["open", "high", "low", "close", "volume"]
+                .iter()
+                .try_for_each(|header| csv_writer.write_field(header))
+        }
+
+        fn serialize_to<W: io::Write, const PRETTY_PX: bool, const PRETTY_TS: bool>(
+            &self,
+            csv_writer: &mut Writer<W>,
+        ) -> csv::Result<()> {
+            self.hd
+                .serialize_to::<W, PRETTY_PX, PRETTY_TS>(csv_writer)?;
+            write_px_field::<W, PRETTY_PX>(csv_writer, self.open)?;
+            write_px_field::<W, PRETTY_PX>(csv_writer, self.high)?;
+            write_px_field::<W, PRETTY_PX>(csv_writer, self.low)?;
+            write_px_field::<W, PRETTY_PX>(csv_writer, self.close)?;
+            csv_writer.write_field(self.volume.to_string())
         }
     }
 
     impl CsvSerialize for StatusMsg {
         fn serialize_header<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
+            RecordHeader::serialize_header(csv_writer)?;
             [
-                "rtype",
-                "publisher_id",
-                "instrument_id",
-                "ts_event",
                 "ts_recv",
                 "group",
                 "trading_status",
@@ -380,15 +456,25 @@ pub(crate) mod serialize {
             .iter()
             .try_for_each(|header| csv_writer.write_field(header))
         }
+
+        fn serialize_to<W: io::Write, const PRETTY_PX: bool, const PRETTY_TS: bool>(
+            &self,
+            csv_writer: &mut Writer<W>,
+        ) -> csv::Result<()> {
+            self.hd
+                .serialize_to::<W, PRETTY_PX, PRETTY_TS>(csv_writer)?;
+            write_ts_field::<W, PRETTY_TS>(csv_writer, self.ts_recv)?;
+            csv_writer.write_field(self.group().unwrap_or_default())?;
+            csv_writer.write_field(self.trading_status.to_string())?;
+            csv_writer.write_field(self.halt_reason.to_string())?;
+            csv_writer.write_field(self.trading_event.to_string())
+        }
     }
 
     impl CsvSerialize for InstrumentDefMsg {
         fn serialize_header<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
+            RecordHeader::serialize_header(csv_writer)?;
             [
-                "rtype",
-                "publisher_id",
-                "instrument_id",
-                "ts_event",
                 "ts_recv",
                 "min_price_increment",
                 "display_factor",
@@ -454,15 +540,81 @@ pub(crate) mod serialize {
             .iter()
             .try_for_each(|header| csv_writer.write_field(header))
         }
+
+        fn serialize_to<W: io::Write, const PRETTY_PX: bool, const PRETTY_TS: bool>(
+            &self,
+            csv_writer: &mut Writer<W>,
+        ) -> csv::Result<()> {
+            self.hd
+                .serialize_to::<W, PRETTY_PX, PRETTY_TS>(csv_writer)?;
+            write_ts_field::<W, PRETTY_TS>(csv_writer, self.ts_recv)?;
+            write_px_field::<W, PRETTY_PX>(csv_writer, self.min_price_increment)?;
+            write_px_field::<W, PRETTY_PX>(csv_writer, self.display_factor)?;
+            write_ts_field::<W, PRETTY_TS>(csv_writer, self.expiration)?;
+            write_ts_field::<W, PRETTY_TS>(csv_writer, self.activation)?;
+            write_px_field::<W, PRETTY_PX>(csv_writer, self.high_limit_price)?;
+            write_px_field::<W, PRETTY_PX>(csv_writer, self.low_limit_price)?;
+            write_px_field::<W, PRETTY_PX>(csv_writer, self.max_price_variation)?;
+            write_px_field::<W, PRETTY_PX>(csv_writer, self.trading_reference_price)?;
+            csv_writer.write_field(self.unit_of_measure_qty.to_string())?;
+            write_px_field::<W, PRETTY_PX>(csv_writer, self.min_price_increment_amount)?;
+            write_px_field::<W, PRETTY_PX>(csv_writer, self.price_ratio)?;
+            csv_writer.write_field(self.inst_attrib_value.to_string())?;
+            csv_writer.write_field(self.underlying_id.to_string())?;
+            csv_writer.write_field(self.cleared_volume.to_string())?;
+            csv_writer.write_field(self.market_depth_implied.to_string())?;
+            csv_writer.write_field(self.market_depth.to_string())?;
+            csv_writer.write_field(self.market_segment_id.to_string())?;
+            csv_writer.write_field(self.max_trade_vol.to_string())?;
+            csv_writer.write_field(self.min_lot_size.to_string())?;
+            csv_writer.write_field(self.min_lot_size_block.to_string())?;
+            csv_writer.write_field(self.min_lot_size_round_lot.to_string())?;
+            csv_writer.write_field(self.min_trade_vol.to_string())?;
+            csv_writer.write_field(self.open_interest_qty.to_string())?;
+            csv_writer.write_field(self.contract_multiplier.to_string())?;
+            csv_writer.write_field(self.decay_quantity.to_string())?;
+            csv_writer.write_field(self.original_contract_size.to_string())?;
+            csv_writer.write_field(self.trading_reference_date.to_string())?;
+            csv_writer.write_field(self.appl_id.to_string())?;
+            csv_writer.write_field(self.maturity_year.to_string())?;
+            csv_writer.write_field(self.decay_start_date.to_string())?;
+            csv_writer.write_field(self.channel_id.to_string())?;
+            csv_writer.write_field(self.currency().unwrap_or_default())?;
+            csv_writer.write_field(self.settl_currency().unwrap_or_default())?;
+            csv_writer.write_field(self.secsubtype().unwrap_or_default())?;
+            csv_writer.write_field(self.raw_symbol().unwrap_or_default())?;
+            csv_writer.write_field(self.group().unwrap_or_default())?;
+            csv_writer.write_field(self.exchange().unwrap_or_default())?;
+            csv_writer.write_field(self.asset().unwrap_or_default())?;
+            csv_writer.write_field(self.cfi().unwrap_or_default())?;
+            csv_writer.write_field(self.security_type().unwrap_or_default())?;
+            csv_writer.write_field(self.unit_of_measure().unwrap_or_default())?;
+            csv_writer.write_field(self.underlying().unwrap_or_default())?;
+            csv_writer.write_field(self.strike_price_currency().unwrap_or_default())?;
+            csv_writer.write_field((self.instrument_class as u8 as char).to_string())?;
+            write_px_field::<W, PRETTY_PX>(csv_writer, self.strike_price)?;
+            csv_writer.write_field((self.match_algorithm as u8 as char).to_string())?;
+            csv_writer.write_field(self.md_security_trading_status.to_string())?;
+            csv_writer.write_field(self.main_fraction.to_string())?;
+            csv_writer.write_field(self.price_display_format.to_string())?;
+            csv_writer.write_field(self.settl_price_type.to_string())?;
+            csv_writer.write_field(self.sub_fraction.to_string())?;
+            csv_writer.write_field(self.underlying_product.to_string())?;
+            csv_writer.write_field((self.security_update_action as u8 as char).to_string())?;
+            csv_writer.write_field(self.maturity_month.to_string())?;
+            csv_writer.write_field(self.maturity_day.to_string())?;
+            csv_writer.write_field(self.maturity_week.to_string())?;
+            csv_writer.write_field((self.user_defined_instrument as u8 as char).to_string())?;
+            csv_writer.write_field(self.contract_multiplier_unit.to_string())?;
+            csv_writer.write_field(self.flow_schedule_type.to_string())?;
+            csv_writer.write_field(self.tick_rule.to_string())
+        }
     }
 
     impl CsvSerialize for ImbalanceMsg {
         fn serialize_header<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
+            RecordHeader::serialize_header(csv_writer)?;
             [
-                "rtype",
-                "publisher_id",
-                "instrument_id",
-                "ts_event",
                 "ts_recv",
                 "ref_price",
                 "auction_time",
@@ -487,15 +639,40 @@ pub(crate) mod serialize {
             .iter()
             .try_for_each(|header| csv_writer.write_field(header))
         }
+
+        fn serialize_to<W: io::Write, const PRETTY_PX: bool, const PRETTY_TS: bool>(
+            &self,
+            csv_writer: &mut Writer<W>,
+        ) -> csv::Result<()> {
+            self.hd
+                .serialize_to::<W, PRETTY_PX, PRETTY_TS>(csv_writer)?;
+            write_ts_field::<W, PRETTY_TS>(csv_writer, self.ts_recv)?;
+            write_px_field::<W, PRETTY_PX>(csv_writer, self.ref_price)?;
+            csv_writer.write_field(self.auction_time.to_string())?;
+            write_px_field::<W, PRETTY_PX>(csv_writer, self.cont_book_clr_price)?;
+            write_px_field::<W, PRETTY_PX>(csv_writer, self.auct_interest_clr_price)?;
+            write_px_field::<W, PRETTY_PX>(csv_writer, self.ssr_filling_price)?;
+            write_px_field::<W, PRETTY_PX>(csv_writer, self.ind_match_price)?;
+            write_px_field::<W, PRETTY_PX>(csv_writer, self.upper_collar)?;
+            write_px_field::<W, PRETTY_PX>(csv_writer, self.lower_collar)?;
+            csv_writer.write_field(self.paired_qty.to_string())?;
+            csv_writer.write_field(self.total_imbalance_qty.to_string())?;
+            csv_writer.write_field(self.market_imbalance_qty.to_string())?;
+            csv_writer.write_field(self.unpaired_qty.to_string())?;
+            csv_writer.write_field((self.auction_type as u8 as char).to_string())?;
+            csv_writer.write_field((self.side as u8 as char).to_string())?;
+            csv_writer.write_field(self.auction_status.to_string())?;
+            csv_writer.write_field(self.freeze_status.to_string())?;
+            csv_writer.write_field(self.num_extensions.to_string())?;
+            csv_writer.write_field((self.unpaired_side as u8 as char).to_string())?;
+            csv_writer.write_field((self.significant_imbalance as u8 as char).to_string())
+        }
     }
 
     impl CsvSerialize for StatMsg {
         fn serialize_header<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
+            RecordHeader::serialize_header(csv_writer)?;
             [
-                "rtype",
-                "publisher_id",
-                "instrument_id",
-                "ts_event",
                 "ts_recv",
                 "ts_ref",
                 "price",
@@ -510,51 +687,135 @@ pub(crate) mod serialize {
             .iter()
             .try_for_each(|header| csv_writer.write_field(header))
         }
+
+        fn serialize_to<W: io::Write, const PRETTY_PX: bool, const PRETTY_TS: bool>(
+            &self,
+            csv_writer: &mut Writer<W>,
+        ) -> csv::Result<()> {
+            self.hd
+                .serialize_to::<W, PRETTY_PX, PRETTY_TS>(csv_writer)?;
+            write_ts_field::<W, PRETTY_TS>(csv_writer, self.ts_recv)?;
+            write_ts_field::<W, PRETTY_TS>(csv_writer, self.ts_ref)?;
+            write_px_field::<W, PRETTY_TS>(csv_writer, self.price)?;
+            csv_writer.write_field(self.quantity.to_string())?;
+            csv_writer.write_field(self.sequence.to_string())?;
+            csv_writer.write_field(self.ts_in_delta.to_string())?;
+            csv_writer.write_field(self.stat_type.to_string())?;
+            csv_writer.write_field(self.channel_id.to_string())?;
+            csv_writer.write_field(self.update_action.to_string())?;
+            csv_writer.write_field(self.stat_flags.to_string())
+        }
     }
 
     impl CsvSerialize for ErrorMsg {
         fn serialize_header<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
-            ["rtype", "publisher_id", "instrument_id", "ts_event", "err"]
-                .iter()
-                .try_for_each(|header| csv_writer.write_field(header))
+            RecordHeader::serialize_header(csv_writer)?;
+            csv_writer.write_field("err")
+        }
+
+        fn serialize_to<W: io::Write, const PRETTY_PX: bool, const PRETTY_TS: bool>(
+            &self,
+            csv_writer: &mut Writer<W>,
+        ) -> csv::Result<()> {
+            self.hd
+                .serialize_to::<W, PRETTY_PX, PRETTY_TS>(csv_writer)?;
+            csv_writer.write_field(self.err().unwrap_or_default())
         }
     }
 
     impl CsvSerialize for SystemMsg {
         fn serialize_header<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
-            ["rtype", "publisher_id", "instrument_id", "ts_event", "msg"]
-                .iter()
-                .try_for_each(|header| csv_writer.write_field(header))
+            RecordHeader::serialize_header(csv_writer)?;
+            csv_writer.write_field("msg")
+        }
+
+        fn serialize_to<W: io::Write, const PRETTY_PX: bool, const PRETTY_TS: bool>(
+            &self,
+            csv_writer: &mut Writer<W>,
+        ) -> csv::Result<()> {
+            self.hd
+                .serialize_to::<W, PRETTY_PX, PRETTY_TS>(csv_writer)?;
+            csv_writer.write_field(self.msg().unwrap_or_default())
         }
     }
 
     impl CsvSerialize for SymbolMappingMsg {
         fn serialize_header<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
-            [
-                "rtype",
-                "publisher_id",
-                "instrument_id",
-                "ts_event",
-                "stype_in_symbol",
-                "stype_out_symbol",
-                "start_ts",
-                "end_ts",
-            ]
-            .iter()
-            .try_for_each(|header| csv_writer.write_field(header))
+            RecordHeader::serialize_header(csv_writer)?;
+            ["stype_in_symbol", "stype_out_symbol", "start_ts", "end_ts"]
+                .iter()
+                .try_for_each(|header| csv_writer.write_field(header))
+        }
+
+        fn serialize_to<W: io::Write, const PRETTY_PX: bool, const PRETTY_TS: bool>(
+            &self,
+            csv_writer: &mut Writer<W>,
+        ) -> csv::Result<()> {
+            self.hd
+                .serialize_to::<W, PRETTY_PX, PRETTY_TS>(csv_writer)?;
+            csv_writer.write_field(self.stype_in_symbol().unwrap_or_default())?;
+            csv_writer.write_field(self.stype_out_symbol().unwrap_or_default())?;
+            write_ts_field::<W, PRETTY_TS>(csv_writer, self.start_ts)?;
+            write_ts_field::<W, PRETTY_TS>(csv_writer, self.end_ts)
         }
     }
 
     impl<T: HasRType + CsvSerialize> CsvSerialize for WithTsOut<T> {
         fn serialize_header<W: io::Write>(csv_writer: &mut Writer<W>) -> csv::Result<()> {
-            csv_writer.write_field("ts_out")?;
-            T::serialize_header(csv_writer)
+            T::serialize_header(csv_writer)?;
+            csv_writer.write_field("ts_out")
         }
 
-        fn serialize_to<W: io::Write>(&self, csv_writer: &mut Writer<W>) -> csv::Result<()> {
-            csv_writer.write_field(self.ts_out.to_string())?;
-            csv_writer.serialize(&self.rec)
+        fn serialize_to<W: io::Write, const PRETTY_PX: bool, const PRETTY_TS: bool>(
+            &self,
+            csv_writer: &mut Writer<W>,
+        ) -> csv::Result<()> {
+            self.rec
+                .serialize_to::<W, PRETTY_PX, PRETTY_TS>(csv_writer)?;
+            write_ts_field::<W, PRETTY_TS>(csv_writer, self.ts_out)
         }
+    }
+
+    fn write_px_field<W: io::Write, const PRETTY_PX: bool>(
+        csv_writer: &mut Writer<W>,
+        px: i64,
+    ) -> csv::Result<()> {
+        if PRETTY_PX {
+            if px == UNDEF_PRICE {
+                csv_writer.write_field("")
+            } else {
+                csv_writer.write_field(format_px(px))
+            }
+        } else {
+            csv_writer.write_field(px.to_string())
+        }
+    }
+
+    fn write_ts_field<W: io::Write, const PRETTY_TS: bool>(
+        csv_writer: &mut Writer<W>,
+        ts: u64,
+    ) -> csv::Result<()> {
+        if PRETTY_TS {
+            if ts == 0 {
+                csv_writer.write_field("")
+            } else {
+                csv_writer.write_field(format_ts(ts))
+            }
+        } else {
+            csv_writer.write_field(ts.to_string())
+        }
+    }
+
+    fn write_ba_pair<W: io::Write, const PRETTY_PX: bool>(
+        csv_writer: &mut Writer<W>,
+        ba_pair: &BidAskPair,
+    ) -> csv::Result<()> {
+        write_px_field::<W, PRETTY_PX>(csv_writer, ba_pair.bid_px)?;
+        write_px_field::<W, PRETTY_PX>(csv_writer, ba_pair.ask_px)?;
+        csv_writer.write_field(ba_pair.bid_sz.to_string())?;
+        csv_writer.write_field(ba_pair.ask_sz.to_string())?;
+        csv_writer.write_field(ba_pair.bid_ct.to_string())?;
+        csv_writer.write_field(ba_pair.ask_ct.to_string())
     }
 }
 
@@ -605,7 +866,7 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        Encoder::new(writer)
+        Encoder::new(writer, false, false)
             .encode_stream(VecStream::new(data))
             .unwrap();
         let line = extract_2nd_line(buffer);
@@ -632,7 +893,7 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        Encoder::new(writer)
+        Encoder::new(writer, false, false)
             .encode_records(data.as_slice())
             .unwrap();
         let line = extract_2nd_line(buffer);
@@ -661,7 +922,7 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        Encoder::new(writer)
+        Encoder::new(writer, false, false)
             .encode_stream(VecStream::new(data))
             .unwrap();
         let line = extract_2nd_line(buffer);
@@ -687,7 +948,7 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        Encoder::new(writer)
+        Encoder::new(writer, false, false)
             .encode_records(data.as_slice())
             .unwrap();
         let line = extract_2nd_line(buffer);
@@ -709,7 +970,7 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        Encoder::new(writer)
+        Encoder::new(writer, false, false)
             .encode_stream(VecStream::new(data))
             .unwrap();
         let line = extract_2nd_line(buffer);
@@ -732,7 +993,7 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        Encoder::new(writer)
+        Encoder::new(writer, false, false)
             .encode_records(data.as_slice())
             .unwrap();
         let line = extract_2nd_line(buffer);
@@ -814,7 +1075,7 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        Encoder::new(writer)
+        Encoder::new(writer, false, false)
             .encode_stream(VecStream::new(data))
             .unwrap();
         let line = extract_2nd_line(buffer);
@@ -840,13 +1101,13 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        Encoder::new(writer)
+        Encoder::new(writer, false, false)
             .encode_records(data.as_slice())
             .unwrap();
         let lines = String::from_utf8(buffer).expect("valid UTF-8");
         assert_eq!(
             lines,
-            format!("ts_out,rtype,publisher_id,instrument_id,ts_event,price,size,action,side,flags,depth,ts_recv,ts_in_delta,sequence\n1678480044000000000,{HEADER_CSV},5500,3,T,A,128,9,1658441891000000000,22000,1002375\n")
+            format!("rtype,publisher_id,instrument_id,ts_event,price,size,action,side,flags,depth,ts_recv,ts_in_delta,sequence,ts_out\n{HEADER_CSV},5500,3,T,A,128,9,1658441891000000000,22000,1002375,1678480044000000000\n")
         );
     }
 
@@ -878,7 +1139,7 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        Encoder::new(writer)
+        Encoder::new(writer, false, false)
             .encode_records(data.as_slice())
             .unwrap();
         let line = extract_2nd_line(buffer);
@@ -906,7 +1167,7 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        Encoder::new(writer)
+        Encoder::new(writer, false, false)
             .encode_stream(VecStream::new(data))
             .unwrap();
         let line = extract_2nd_line(buffer);

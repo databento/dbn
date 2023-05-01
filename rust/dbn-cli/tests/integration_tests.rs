@@ -4,7 +4,7 @@ use std::{
 };
 
 use assert_cmd::Command;
-use predicates::str::{contains, ends_with, is_empty, starts_with};
+use predicates::str::{contains, ends_with, is_empty, is_match, starts_with};
 use tempfile::{tempdir, NamedTempFile};
 
 fn cmd() -> Command {
@@ -257,19 +257,41 @@ fn no_csv_metadata() {
 }
 
 #[test]
-fn pretty_print_data() {
+fn pretty_print_json_data() {
     cmd()
         .args(&[
             &format!("{TEST_DATA_PATH}/test_data.mbo.dbn.zst"),
             "--json",
-            "--pretty-json",
+            "--pretty",
         ])
         .assert()
         .success()
         .stdout(contains("    "))
         .stdout(contains(",\n"))
+        .stdout(contains(": "))
+        .stdout(is_match(format!(".*\\s\"{PRETTY_TS_REGEX}\".*")).unwrap())
+        // prices should also be quoted
+        .stdout(is_match(format!(".*\\s\"{PRETTY_PX_REGEX}\".*")).unwrap())
         .stderr(is_empty());
 }
+
+#[test]
+fn pretty_print_csv_data() {
+    cmd()
+        .args(&[
+            &format!("{TEST_DATA_PATH}/test_data.mbo.dbn.zst"),
+            "--csv",
+            "--pretty",
+        ])
+        .assert()
+        .success()
+        .stdout(is_match(format!(".*{PRETTY_TS_REGEX},.*")).unwrap())
+        .stdout(is_match(format!(".*,{PRETTY_PX_REGEX},.*")).unwrap())
+        .stderr(is_empty());
+}
+
+const PRETTY_TS_REGEX: &str = r#"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{9}"#;
+const PRETTY_PX_REGEX: &str = r#"\d+\.\d{9}"#;
 
 #[test]
 fn pretty_print_data_metadata() {

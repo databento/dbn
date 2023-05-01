@@ -4,7 +4,6 @@
 use std::fmt::{self, Display, Formatter};
 
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use serde::Serialize;
 
 use crate::error::ConversionError;
 
@@ -24,12 +23,6 @@ pub enum Side {
 impl From<Side> for char {
     fn from(side: Side) -> Self {
         u8::from(side) as char
-    }
-}
-
-impl Serialize for Side {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_char(char::from(*self))
     }
 }
 
@@ -54,12 +47,6 @@ pub enum Action {
 impl From<Action> for char {
     fn from(action: Action) -> Self {
         u8::from(action) as char
-    }
-}
-
-impl serde::Serialize for Action {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_char(char::from(*self))
     }
 }
 
@@ -90,12 +77,6 @@ pub enum InstrumentClass {
 impl From<InstrumentClass> for char {
     fn from(class: InstrumentClass) -> Self {
         u8::from(class) as char
-    }
-}
-
-impl serde::Serialize for InstrumentClass {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_char(char::from(*self))
     }
 }
 
@@ -131,12 +112,6 @@ impl From<MatchAlgorithm> for char {
     }
 }
 
-impl serde::Serialize for MatchAlgorithm {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_char(char::from(*self))
-    }
-}
-
 /// Whether the instrument is user-defined.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive, Default)]
 #[repr(u8)]
@@ -154,16 +129,9 @@ impl From<UserDefinedInstrument> for char {
     }
 }
 
-impl serde::Serialize for UserDefinedInstrument {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_char(char::from(*self))
-    }
-}
-
 /// A symbology type. Refer to the [symbology documentation](https://docs.databento.com/api-reference-historical/basics/symbology)
 /// for more information.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, TryFromPrimitive)]
-#[serde(rename_all = "snake_case")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
 #[repr(u8)]
 pub enum SType {
     /// Symbology using a unique numeric ID.
@@ -231,12 +199,11 @@ pub use rtype::RType;
 #[allow(deprecated)]
 pub mod rtype {
     use num_enum::TryFromPrimitive;
-    use serde::Serialize;
 
     use super::Schema;
 
     /// A type of record, i.e. a struct implementing [`HasRType`](crate::record::HasRType).
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, TryFromPrimitive)]
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
     #[repr(u8)]
     pub enum RType {
         /// Market by price with a book depth of 0 (used for trades).
@@ -446,12 +413,6 @@ impl Schema {
     }
 }
 
-impl Serialize for Schema {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(self.as_str())
-    }
-}
-
 impl Display for Schema {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_str())
@@ -459,8 +420,7 @@ impl Display for Schema {
 }
 
 /// A data encoding format.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, TryFromPrimitive)]
-#[serde(rename_all = "lowercase")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
 #[repr(u8)]
 pub enum Encoding {
     /// Databento Binary Encoding.
@@ -510,8 +470,7 @@ impl Display for Encoding {
 }
 
 /// A compression format or none if uncompressed.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, TryFromPrimitive)]
-#[serde(rename_all = "lowercase")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
 #[repr(u8)]
 pub enum Compression {
     /// Uncompressed.
@@ -585,12 +544,6 @@ pub enum SecurityUpdateAction {
     #[doc(hidden)]
     #[deprecated = "Still present in legacy files."]
     Invalid = b'~',
-}
-
-impl Serialize for SecurityUpdateAction {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_char(char::from(*self as u8))
-    }
 }
 
 /// The type of statistic contained in a [`StatMsg`](crate::record::StatMsg).
