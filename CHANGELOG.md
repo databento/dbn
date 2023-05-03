@@ -2,6 +2,7 @@
 
 ## 0.5.1 - TBD
 - Added `F`ill action type for MBO messages
+- Added Python type stub for `StatMsg`
 
 ## 0.5.0 - 2023-04-25
 - Added support for Statistics schema

@@ -23,6 +23,7 @@ _DBNRecord = Union[
     ErrorMsg,
     SymbolMappingMsg,
     SystemMsg,
+    StatMsg,
 ]
 
 class Metadata(SupportsBytes):
@@ -390,8 +391,8 @@ class _MBOBase:
     @property
     def action(self) -> str:
         """
-        The event action. Can be `A`dd, `C`ancel, `M`odify, clea`R`,
-        `T`rade, or `F`ill.
+        The event action. Can be `A`dd, `C`ancel, `M`odify, clea`R`, `T`rade,
+        or `F`ill.
 
         Returns
         -------
@@ -1547,6 +1548,121 @@ class ImbalanceMsg(Record):
 
         """
 
+class StatMsg(Record):
+    """
+    A statistics message.
+
+    A catchall for various data disseminated by publishers. The
+    `stat_type` field indicates the statistic contained in the message.
+
+    """
+
+    @property
+    def ts_recv(self) -> int:
+        """
+        The capture-server-received timestamp expressed as the number of
+        nanoseconds since the UNIX epoch.
+
+        Returns
+        -------
+        int
+
+        """
+    @property
+    def ts_ref(self) -> int:
+        """
+        Reference timestamp expressed as the number of nanoseconds since the
+        UNIX epoch.
+
+        Returns
+        -------
+        int
+
+        """
+    @property
+    def price(self) -> int:
+        """
+        The value for price statistics expressed as a signed integer where
+        every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+        Will be undefined when unused.
+
+        Returns
+        -------
+        int
+
+        """
+    @property
+    def quantity(self) -> int:
+        """
+        The value for non-price statistics. Will be undefined when unused.
+
+        Returns
+        -------
+        int
+
+        """
+    @property
+    def sequence(self) -> int:
+        """
+        The message sequence number assigned at the venue.
+
+        Returns
+        -------
+        int
+
+        """
+    @property
+    def ts_in_delta(self) -> int:
+        """
+        The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
+
+        Returns
+        -------
+        int
+
+        """
+    @property
+    def stat_type(self) -> int:
+        """
+        The type of statistic value contained in the message.
+
+        Returns
+        -------
+        int
+
+        """
+    @property
+    def channel_id(self) -> int:
+        """
+        A channel ID within the venue.
+
+        Returns
+        -------
+        int
+
+        """
+    @property
+    def update_action(self) -> int:
+        """
+        Indicates if the statistic is new added or deleted. Deleted is only
+        used for a couple stat types.
+
+        Returns
+        -------
+        int
+
+        """
+    @property
+    def stat_flags(self) -> int:
+        """
+        Additional flags associate with certain stat types.
+
+        Returns
+        -------
+        int
+
+        """
+
 class ErrorMsg(Record):
     """An error message from the Databento Live Subscription Gateway (LSG)."""
 
@@ -1629,8 +1745,8 @@ class SystemMsg(Record):
     @property
     def is_heartbeat(self) -> bool:
         """
-        `true` if this message is a heartbeat, used to indicate the connection with the gateway
-        is still open.
+        `true` if this message is a heartbeat, used to indicate the connection
+        with the gateway is still open.
 
         Returns
         -------
