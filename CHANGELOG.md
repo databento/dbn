@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.5.1 - TBD
+## 0.5.1 - 2023-05-04
 - Added `F`ill action type for MBO messages
 - Added Python type stub for `StatMsg`
 
