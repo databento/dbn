@@ -41,6 +41,8 @@ pub enum Action {
     Modify = b'M',
     /// A trade executed.
     Trade = b'T',
+    /// An existing order was filled.
+    Fill = b'F',
     /// An order was cancelled.
     Cancel = b'C',
     /// A new order was added.
