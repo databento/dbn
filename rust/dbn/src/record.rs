@@ -8,7 +8,8 @@ use anyhow::anyhow;
 // Dummy derive macro to get around `cfg_attr` incompatibility of several
 // of pyo3's attribute macros. See https://github.com/PyO3/pyo3/issues/780
 #[cfg(not(feature = "python"))]
-pub use dbn_macros::MockPyo3;
+use dbn_macros::MockPyo3;
+use dbn_macros::{CsvSerialize, JsonSerialize};
 
 use crate::{
     enums::{
@@ -47,7 +48,7 @@ pub struct RecordHeader {
 /// A market-by-order (MBO) tick message. The record of the
 /// [`Mbo`](crate::enums::Schema::Mbo) schema.
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
@@ -60,6 +61,7 @@ pub struct MboMsg {
     pub order_id: u64,
     /// The order price expressed as a signed integer where every 1 unit
     /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    #[dbn(fixed_price)]
     pub price: i64,
     /// The order quantity.
     pub size: u32,
@@ -70,11 +72,14 @@ pub struct MboMsg {
     pub channel_id: u8,
     /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**,
     /// **T**rade, or **F**ill.
+    #[dbn(c_char)]
     pub action: c_char,
     /// The order side. Can be **A**sk, **B**id or **N**one.
+    #[dbn(c_char)]
     pub side: c_char,
     /// The capture-server-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
+    #[dbn(unix_nanos)]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
     pub ts_in_delta: i32,
@@ -108,7 +113,7 @@ pub struct BidAskPair {
 /// Market by price implementation with a book depth of 0. Equivalent to
 /// MBP-0. The record of the [`Trades`](crate::enums::Schema::Trades) schema.
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
@@ -119,12 +124,15 @@ pub struct TradeMsg {
     pub hd: RecordHeader,
     /// The order price expressed as a signed integer where every 1 unit
     /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    #[dbn(fixed_price)]
     pub price: i64,
     /// The order quantity.
     pub size: u32,
     /// The event action. Always **T**rade in the trades schema.
+    #[dbn(c_char)]
     pub action: c_char,
     /// The aggressing order's side in the trade. Can be **A**sk, **B**id or **N**one.
+    #[dbn(c_char)]
     pub side: c_char,
     /// A combination of packet end with matching engine status. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
@@ -133,6 +141,7 @@ pub struct TradeMsg {
     pub depth: u8,
     /// The capture-server-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
+    #[dbn(unix_nanos)]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
     pub ts_in_delta: i32,
@@ -143,7 +152,7 @@ pub struct TradeMsg {
 /// Market by price implementation with a known book depth of 1. The record of the
 /// [`Mbp1`](crate::enums::Schema::Mbp1) schema.
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
@@ -154,13 +163,16 @@ pub struct Mbp1Msg {
     pub hd: RecordHeader,
     /// The order price expressed as a signed integer where every 1 unit
     /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    #[dbn(fixed_price)]
     pub price: i64,
     /// The order quantity.
     pub size: u32,
     /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or
     /// **T**rade.
+    #[dbn(c_char)]
     pub action: c_char,
     /// The order side. Can be **A**sk, **B**id or **N**one.
+    #[dbn(c_char)]
     pub side: c_char,
     /// A combination of packet end with matching engine status. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
@@ -169,6 +181,7 @@ pub struct Mbp1Msg {
     pub depth: u8,
     /// The capture-server-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
+    #[dbn(unix_nanos)]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
     pub ts_in_delta: i32,
@@ -181,7 +194,7 @@ pub struct Mbp1Msg {
 /// Market by price implementation with a known book depth of 10. The record of the
 /// [`Mbp10`](crate::enums::Schema::Mbp10) schema.
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
@@ -192,13 +205,16 @@ pub struct Mbp10Msg {
     pub hd: RecordHeader,
     /// The order price expressed as a signed integer where every 1 unit
     /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    #[dbn(fixed_price)]
     pub price: i64,
     /// The order quantity.
     pub size: u32,
     /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or
     /// **T**rade.
+    #[dbn(c_char)]
     pub action: c_char,
     /// The order side. Can be **A**sk, **B**id or **N**one.
+    #[dbn(c_char)]
     pub side: c_char,
     /// A combination of packet end with matching engine status. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
@@ -207,6 +223,7 @@ pub struct Mbp10Msg {
     pub depth: u8,
     /// The capture-server-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
+    #[dbn(unix_nanos)]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
     pub ts_in_delta: i32,
@@ -225,7 +242,7 @@ pub type TbboMsg = Mbp1Msg;
 /// - [`Ohlcv1H`](crate::enums::Schema::Ohlcv1H)
 /// - [`Ohlcv1D`](crate::enums::Schema::Ohlcv1D)
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
@@ -235,12 +252,16 @@ pub struct OhlcvMsg {
     /// The common header.
     pub hd: RecordHeader,
     /// The open price for the bar.
+    #[dbn(fixed_price)]
     pub open: i64,
     /// The high price for the bar.
+    #[dbn(fixed_price)]
     pub high: i64,
     /// The low price for the bar.
+    #[dbn(fixed_price)]
     pub low: i64,
     /// The close price for the bar.
+    #[dbn(fixed_price)]
     pub close: i64,
     /// The total volume traded during the aggregation period.
     pub volume: u64,
@@ -250,7 +271,7 @@ pub struct OhlcvMsg {
 /// [`Status`](crate::enums::Schema::Status) schema.
 #[doc(hidden)]
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "python", pyo3::pyclass(dict, module = "databento_dbn"))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -260,6 +281,7 @@ pub struct StatusMsg {
     pub hd: RecordHeader,
     /// The capture-server-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
+    #[dbn(unix_nanos)]
     #[pyo3(get, set)]
     pub ts_recv: u64,
     pub group: [c_char; 21],
@@ -274,7 +296,7 @@ pub struct StatusMsg {
 /// Definition of an instrument. The record of the
 /// [`Definition`](crate::enums::Schema::Definition) schema.
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "python", pyo3::pyclass(dict, module = "databento_dbn"))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -284,10 +306,12 @@ pub struct InstrumentDefMsg {
     pub hd: RecordHeader,
     /// The capture-server-received timestamp expressed as number of nanoseconds since the
     /// UNIX epoch.
+    #[dbn(unix_nanos)]
     #[pyo3(get, set)]
     pub ts_recv: u64,
     /// The minimum constant tick for the instrument in units of 1e-9, i.e.
     /// 1/1,000,000,000 or 0.000000001.
+    #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub min_price_increment: i64,
     /// The multiplier to convert the venue’s display price to the conventional price.
@@ -295,25 +319,31 @@ pub struct InstrumentDefMsg {
     pub display_factor: i64,
     /// The last eligible trade time expressed as a number of nanoseconds since the
     /// UNIX epoch.
+    #[dbn(unix_nanos)]
     #[pyo3(get, set)]
     pub expiration: u64,
     /// The time of instrument activation expressed as a number of nanoseconds since the
     /// UNIX epoch.
+    #[dbn(unix_nanos)]
     #[pyo3(get, set)]
     pub activation: u64,
     /// The allowable high limit price for the trading day in units of 1e-9, i.e.
     /// 1/1,000,000,000 or 0.000000001.
+    #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub high_limit_price: i64,
     /// The allowable low limit price for the trading day in units of 1e-9, i.e.
     /// 1/1,000,000,000 or 0.000000001.
+    #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub low_limit_price: i64,
     /// The differential value for price banding in units of 1e-9, i.e. 1/1,000,000,000
     /// or 0.000000001.
+    #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub max_price_variation: i64,
     /// The trading session settlement price on `trading_reference_date`.
+    #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub trading_reference_price: i64,
     /// The contract size for each instrument, in combination with `unit_of_measure`.
@@ -321,10 +351,12 @@ pub struct InstrumentDefMsg {
     pub unit_of_measure_qty: i64,
     /// The value currently under development by the venue. Converted to units of 1e-9, i.e.
     /// 1/1,000,000,000 or 0.000000001.
+    #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub min_price_increment_amount: i64,
     /// The value used for price calculation in spread and leg pricing in units of 1e-9,
     /// i.e. 1/1,000,000,000 or 0.000000001.
+    #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub price_ratio: i64,
     /// A bitmap of instrument eligibility attributes.
@@ -375,7 +407,7 @@ pub struct InstrumentDefMsg {
     #[pyo3(get, set)]
     pub original_contract_size: i32,
     #[doc(hidden)]
-    pub reserved1: [c_char; 4],
+    pub _reserved1: [c_char; 4],
     /// The trading session date corresponding to the settlement price in
     /// `trading_reference_price`, in number of days since the UNIX epoch.
     #[pyo3(get, set)]
@@ -417,17 +449,20 @@ pub struct InstrumentDefMsg {
     /// The currency of [`strike_price`](Self::strike_price).
     pub strike_price_currency: [c_char; 4],
     /// The classification of the instrument.
+    #[dbn(c_char)]
     #[pyo3(get, set)]
     pub instrument_class: c_char,
     #[doc(hidden)]
-    pub reserved2: [c_char; 2],
+    pub _reserved2: [c_char; 2],
     /// The strike price of the option. Converted to units of 1e-9, i.e. 1/1,000,000,000
     /// or 0.000000001.
+    #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub strike_price: i64,
     #[doc(hidden)]
-    pub reserved3: [c_char; 6],
+    pub _reserved3: [c_char; 6],
     /// The matching algorithm used for the instrument, typically **F**IFO.
+    #[dbn(c_char)]
     #[pyo3(get, set)]
     pub match_algorithm: c_char,
     /// The current trading state of the instrument.
@@ -479,7 +514,7 @@ pub struct InstrumentDefMsg {
 
 /// An auction imbalance message.
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
@@ -490,23 +525,31 @@ pub struct ImbalanceMsg {
     pub hd: RecordHeader,
     /// The capture-server-received timestamp expressed as the number of nanoseconds
     /// since the UNIX epoch.
+    #[dbn(unix_nanos)]
     pub ts_recv: u64,
     /// The price at which the imbalance shares are calculated, where every 1 unit corresponds to
     /// 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    #[dbn(fixed_price)]
     pub ref_price: i64,
     /// Reserved for future use.
     pub auction_time: u64,
     /// The hypothetical auction-clearing price for both cross and continuous orders.
+    #[dbn(fixed_price)]
     pub cont_book_clr_price: i64,
     /// The hypothetical auction-clearing price for cross orders only.
+    #[dbn(fixed_price)]
     pub auct_interest_clr_price: i64,
     /// Reserved for future use.
+    #[dbn(fixed_price)]
     pub ssr_filling_price: i64,
     /// Reserved for future use.
+    #[dbn(fixed_price)]
     pub ind_match_price: i64,
     /// Reserved for future use.
+    #[dbn(fixed_price)]
     pub upper_collar: i64,
     /// Reserved for future use.
+    #[dbn(fixed_price)]
     pub lower_collar: i64,
     /// The quantity of shares that are eligible to be matched at `ref_price`.
     pub paired_qty: u32,
@@ -517,8 +560,10 @@ pub struct ImbalanceMsg {
     /// Reserved for future use.
     pub unpaired_qty: u32,
     /// Venue-specific character code indicating the auction type.
+    #[dbn(c_char)]
     pub auction_type: c_char,
     /// The market side of the `total_imbalance_qty`. Can be **A**sk, **B**id, or **N**one.
+    #[dbn(c_char)]
     pub side: c_char,
     /// Reserved for future use.
     pub auction_status: u8,
@@ -527,8 +572,10 @@ pub struct ImbalanceMsg {
     /// Reserved for future use.
     pub num_extensions: u8,
     /// Reserved for future use.
+    #[dbn(c_char)]
     pub unpaired_side: c_char,
     /// Venue-specific character code. For Nasdaq, contains the raw Price Variation Indicator.
+    #[dbn(c_char)]
     pub significant_imbalance: c_char,
     // Filler for alignment.
     #[doc(hidden)]
@@ -538,7 +585,7 @@ pub struct ImbalanceMsg {
 /// A statistics message. A catchall for various data disseminated by publishers.
 /// The [`stat_type`](Self::stat_type) indicates the statistic contained in the message.
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
@@ -549,12 +596,15 @@ pub struct StatMsg {
     pub hd: RecordHeader,
     /// The capture-server-received timestamp expressed as the number of nanoseconds
     /// since the UNIX epoch.
+    #[dbn(unix_nanos)]
     pub ts_recv: u64,
     /// Reference timestamp expressed as the number of nanoseconds since the UNIX epoch.
+    #[dbn(unix_nanos)]
     pub ts_ref: u64,
     /// The value for price statistics expressed as a signed integer where every 1 unit
     /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be
     /// [`crate::UNDEF_PRICE`] when unused.
+    #[dbn(fixed_price)]
     pub price: i64,
     /// The value for non-price statistics. Will be [`crate::UNDEF_STAT_QUANTITY`] when
     /// unused.
@@ -580,7 +630,7 @@ pub struct StatMsg {
 
 /// An error message from the Databento Live Subscription Gateway (LSG).
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "python", pyo3::pyclass(dict, module = "databento_dbn"))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -595,7 +645,7 @@ pub struct ErrorMsg {
 /// A symbol mapping message which maps a symbol of one [`SType`](crate::enums::SType)
 /// to another.
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "python", pyo3::pyclass(dict, module = "databento_dbn"))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -612,10 +662,12 @@ pub struct SymbolMappingMsg {
     pub _dummy: [c_char; 4],
     /// The start of the mapping interval expressed as the number of nanoseconds since
     /// the UNIX epoch.
+    #[dbn(unix_nanos)]
     #[pyo3(get, set)]
     pub start_ts: u64,
     /// The end of the mapping interval expressed as the number of nanoseconds since
     /// the UNIX epoch.
+    #[dbn(unix_nanos)]
     #[pyo3(get, set)]
     pub end_ts: u64,
 }
@@ -623,7 +675,7 @@ pub struct SymbolMappingMsg {
 /// A non-error message from the Databento Live Subscription Gateway (LSG). Also used
 /// for heartbeating.
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "python", pyo3::pyclass(dict, module = "databento_dbn"))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope

@@ -120,16 +120,15 @@ where
 }
 
 pub(crate) mod serialize {
-    use json_writer::{JSONArrayWriter, JSONObjectWriter, NULL};
+    use std::ffi::c_char;
+
+    use json_writer::{JSONObjectWriter, NULL};
     use time::format_description::FormatItem;
 
     use crate::{
         encode::{format_px, format_ts},
-        record::{
-            BidAskPair, ErrorMsg, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg,
-            Mbp1Msg, OhlcvMsg, RecordHeader, StatMsg, StatusMsg, SymbolMappingMsg, SystemMsg,
-            TradeMsg, WithTsOut,
-        },
+        enums::{SecurityUpdateAction, UserDefinedInstrument},
+        record::{c_chars_to_str, BidAskPair, HasRType, RecordHeader, WithTsOut},
         Metadata, UNDEF_PRICE,
     };
 
@@ -156,311 +155,6 @@ pub(crate) mod serialize {
             &self,
             writer: &mut JSONObjectWriter,
         );
-    }
-
-    impl JsonSerialize for MboMsg {
-        fn to_json<const PRETTY_PX: bool, const PRETTY_TS: bool>(
-            &self,
-            writer: &mut JSONObjectWriter,
-        ) {
-            write_header::<PRETTY_TS>(writer, &self.hd);
-            writer.value("order_id", &self.order_id.to_string());
-            write_px_field::<PRETTY_PX>(writer, "price", self.price);
-            writer.value("size", self.size);
-            writer.value("flags", self.flags);
-            writer.value("channel_id", self.channel_id);
-            writer.value("action", &(self.action as u8 as char).to_string());
-            writer.value("side", &(self.side as u8 as char).to_string());
-            write_ts_field::<PRETTY_TS>(writer, "ts_recv", self.ts_recv);
-            writer.value("ts_in_delta", self.ts_in_delta);
-            writer.value("sequence", self.sequence);
-        }
-    }
-
-    impl JsonSerialize for Mbp1Msg {
-        fn to_json<const PRETTY_PX: bool, const PRETTY_TS: bool>(
-            &self,
-            writer: &mut JSONObjectWriter,
-        ) {
-            write_header::<PRETTY_TS>(writer, &self.hd);
-            write_px_field::<PRETTY_PX>(writer, "price", self.price);
-            writer.value("size", self.size);
-            writer.value("action", &(self.action as u8 as char).to_string());
-            writer.value("side", &(self.side as u8 as char).to_string());
-            writer.value("flags", self.flags);
-            writer.value("depth", self.depth);
-            write_ts_field::<PRETTY_TS>(writer, "ts_recv", self.ts_recv);
-            writer.value("ts_in_delta", self.ts_in_delta);
-            writer.value("sequence", self.sequence);
-            write_ba_pair::<PRETTY_PX>(&mut writer.array("booklevel"), &self.booklevel[0]);
-        }
-    }
-
-    impl JsonSerialize for Mbp10Msg {
-        fn to_json<const PRETTY_PX: bool, const PRETTY_TS: bool>(
-            &self,
-            writer: &mut JSONObjectWriter,
-        ) {
-            write_header::<PRETTY_TS>(writer, &self.hd);
-            write_px_field::<PRETTY_PX>(writer, "price", self.price);
-            writer.value("size", self.size);
-            writer.value("action", &(self.action as u8 as char).to_string());
-            writer.value("side", &(self.side as u8 as char).to_string());
-            writer.value("flags", self.flags);
-            writer.value("depth", self.depth);
-            write_ts_field::<PRETTY_TS>(writer, "ts_recv", self.ts_recv);
-            writer.value("ts_in_delta", self.ts_in_delta);
-            writer.value("sequence", self.sequence);
-            let mut arr_writer = writer.array("booklevel");
-            for level in self.booklevel.iter() {
-                write_ba_pair::<PRETTY_PX>(&mut arr_writer, level);
-            }
-        }
-    }
-
-    impl JsonSerialize for TradeMsg {
-        fn to_json<const PRETTY_PX: bool, const PRETTY_TS: bool>(
-            &self,
-            writer: &mut JSONObjectWriter,
-        ) {
-            write_header::<PRETTY_TS>(writer, &self.hd);
-            write_px_field::<PRETTY_PX>(writer, "price", self.price);
-            writer.value("size", self.size);
-            writer.value("action", &(self.action as u8 as char).to_string());
-            writer.value("side", &(self.side as u8 as char).to_string());
-            writer.value("flags", self.flags);
-            writer.value("depth", self.depth);
-            write_ts_field::<PRETTY_TS>(writer, "ts_recv", self.ts_recv);
-            writer.value("ts_in_delta", self.ts_in_delta);
-            writer.value("sequence", self.sequence);
-        }
-    }
-
-    impl JsonSerialize for OhlcvMsg {
-        fn to_json<const PRETTY_PX: bool, const PRETTY_TS: bool>(
-            &self,
-            writer: &mut JSONObjectWriter,
-        ) {
-            write_header::<PRETTY_TS>(writer, &self.hd);
-            write_px_field::<PRETTY_PX>(writer, "open", self.open);
-            write_px_field::<PRETTY_PX>(writer, "high", self.high);
-            write_px_field::<PRETTY_PX>(writer, "low", self.low);
-            write_px_field::<PRETTY_PX>(writer, "close", self.close);
-            writer.value("volume", &self.volume.to_string());
-        }
-    }
-
-    impl JsonSerialize for StatusMsg {
-        fn to_json<const _PRETTY_PX: bool, const PRETTY_TS: bool>(
-            &self,
-            writer: &mut JSONObjectWriter,
-        ) {
-            write_header::<PRETTY_TS>(writer, &self.hd);
-            write_ts_field::<PRETTY_TS>(writer, "ts_recv", self.ts_recv);
-            writer.value("group", self.group().unwrap_or_default());
-            writer.value("trading_status", self.trading_status);
-            writer.value("halt_reason", self.halt_reason);
-            writer.value("trading_event", self.trading_event);
-        }
-    }
-
-    impl JsonSerialize for InstrumentDefMsg {
-        fn to_json<const PRETTY_PX: bool, const PRETTY_TS: bool>(
-            &self,
-            writer: &mut JSONObjectWriter,
-        ) {
-            write_header::<PRETTY_TS>(writer, &self.hd);
-            write_ts_field::<PRETTY_TS>(writer, "ts_recv", self.ts_recv);
-            write_px_field::<PRETTY_PX>(writer, "min_price_increment", self.min_price_increment);
-            write_px_field::<PRETTY_PX>(writer, "display_factor", self.display_factor);
-            write_ts_field::<PRETTY_TS>(writer, "expiration", self.expiration);
-            write_ts_field::<PRETTY_TS>(writer, "activation", self.activation);
-            write_px_field::<PRETTY_PX>(writer, "high_limit_price", self.high_limit_price);
-            write_px_field::<PRETTY_PX>(writer, "low_limit_price", self.low_limit_price);
-            write_px_field::<PRETTY_PX>(writer, "max_price_variation", self.max_price_variation);
-            write_px_field::<PRETTY_PX>(
-                writer,
-                "trading_reference_price",
-                self.trading_reference_price,
-            );
-            writer.value("unit_of_measure_qty", &self.unit_of_measure_qty.to_string());
-            write_px_field::<PRETTY_PX>(
-                writer,
-                "min_price_increment_amount",
-                self.min_price_increment_amount,
-            );
-            write_px_field::<PRETTY_PX>(writer, "price_ratio", self.price_ratio);
-            writer.value("inst_attrib_value", self.inst_attrib_value);
-            writer.value("underlying_id", self.underlying_id);
-            writer.value("cleared_volume", self.cleared_volume);
-            writer.value("market_depth_implied", self.market_depth_implied);
-            writer.value("market_depth", self.market_depth);
-            writer.value("market_segment_id", self.market_segment_id);
-            writer.value("max_trade_vol", self.max_trade_vol);
-            writer.value("min_lot_size", self.min_lot_size);
-            writer.value("min_lot_size_block", self.min_lot_size_block);
-            writer.value("min_lot_size_round_lot", self.min_lot_size_round_lot);
-            writer.value("min_trade_vol", self.min_trade_vol);
-            writer.value("open_interest_qty", self.open_interest_qty);
-            writer.value("contract_multiplier", self.contract_multiplier);
-            writer.value("decay_quantity", self.decay_quantity);
-            writer.value("original_contract_size", self.original_contract_size);
-            writer.value("trading_reference_date", self.trading_reference_date);
-            writer.value("appl_id", self.appl_id);
-            writer.value("maturity_year", self.maturity_year);
-            writer.value("decay_start_date", self.decay_start_date);
-            writer.value("channel_id", self.channel_id);
-            writer.value("currency", self.currency().unwrap_or_default());
-            writer.value("settl_currency", self.settl_currency().unwrap_or_default());
-            writer.value("secsubtype", self.secsubtype().unwrap_or_default());
-            writer.value("raw_symbol", self.raw_symbol().unwrap_or_default());
-            writer.value("group", self.group().unwrap_or_default());
-            writer.value("exchange", self.exchange().unwrap_or_default());
-            writer.value("asset", self.asset().unwrap_or_default());
-            writer.value("cfi", self.cfi().unwrap_or_default());
-            writer.value("security_type", self.security_type().unwrap_or_default());
-            writer.value(
-                "unit_of_measure",
-                self.unit_of_measure().unwrap_or_default(),
-            );
-            writer.value("underlying", self.underlying().unwrap_or_default());
-            writer.value(
-                "strike_price_currency",
-                self.strike_price_currency().unwrap_or_default(),
-            );
-            writer.value(
-                "instrument_class",
-                &(self.instrument_class as u8 as char).to_string(),
-            );
-            write_px_field::<PRETTY_PX>(writer, "strike_price", self.strike_price);
-            writer.value(
-                "match_algorithm",
-                &(self.match_algorithm as u8 as char).to_string(),
-            );
-            writer.value(
-                "md_security_trading_status",
-                self.md_security_trading_status,
-            );
-            writer.value("main_fraction", self.main_fraction);
-            writer.value("price_display_format", self.price_display_format);
-            writer.value("settl_price_type", self.settl_price_type);
-            writer.value("sub_fraction", self.sub_fraction);
-            writer.value("underlying_product", self.underlying_product);
-            writer.value(
-                "security_update_action",
-                &(self.security_update_action as u8 as char).to_string(),
-            );
-            writer.value("maturity_month", self.maturity_month);
-            writer.value("maturity_day", self.maturity_day);
-            writer.value("maturity_week", self.maturity_week);
-            writer.value(
-                "user_defined_instrument",
-                &(self.user_defined_instrument as u8 as char).to_string(),
-            );
-            writer.value("contract_multiplier_unit", self.contract_multiplier_unit);
-            writer.value("flow_schedule_type", self.flow_schedule_type);
-            writer.value("tick_rule", self.tick_rule);
-        }
-    }
-
-    impl JsonSerialize for ImbalanceMsg {
-        fn to_json<const PRETTY_PX: bool, const PRETTY_TS: bool>(
-            &self,
-            writer: &mut JSONObjectWriter,
-        ) {
-            write_header::<PRETTY_TS>(writer, &self.hd);
-            write_ts_field::<PRETTY_TS>(writer, "ts_recv", self.ts_recv);
-            write_px_field::<PRETTY_PX>(writer, "ref_price", self.ref_price);
-            writer.value("auction_time", &self.auction_time.to_string());
-            write_px_field::<PRETTY_PX>(writer, "cont_book_clr_price", self.cont_book_clr_price);
-            write_px_field::<PRETTY_PX>(
-                writer,
-                "auct_interest_clr_price",
-                self.auct_interest_clr_price,
-            );
-            write_px_field::<PRETTY_PX>(writer, "ssr_filling_price", self.ssr_filling_price);
-            write_px_field::<PRETTY_PX>(writer, "ind_match_price", self.ind_match_price);
-            write_px_field::<PRETTY_PX>(writer, "upper_collar", self.upper_collar);
-            write_px_field::<PRETTY_PX>(writer, "lower_collar", self.lower_collar);
-            writer.value("paired_qty", self.paired_qty);
-            writer.value("total_imbalance_qty", self.total_imbalance_qty);
-            writer.value("market_imbalance_qty", self.market_imbalance_qty);
-            writer.value("unpaired_qty", self.unpaired_qty);
-            writer.value(
-                "auction_type",
-                &(self.auction_type as u8 as char).to_string(),
-            );
-            writer.value("side", &(self.side as u8 as char).to_string());
-            writer.value("auction_status", self.auction_status);
-            writer.value("freeze_status", self.freeze_status);
-            writer.value("num_extensions", self.num_extensions);
-            writer.value(
-                "unpaired_side",
-                &(self.unpaired_side as u8 as char).to_string(),
-            );
-            writer.value(
-                "significant_imbalance",
-                &(self.significant_imbalance as u8 as char).to_string(),
-            );
-        }
-    }
-
-    impl JsonSerialize for StatMsg {
-        fn to_json<const PRETTY_PX: bool, const PRETTY_TS: bool>(
-            &self,
-            writer: &mut JSONObjectWriter,
-        ) {
-            write_header::<PRETTY_TS>(writer, &self.hd);
-            write_ts_field::<PRETTY_TS>(writer, "ts_recv", self.ts_recv);
-            write_ts_field::<PRETTY_TS>(writer, "ts_ref", self.ts_ref);
-            write_px_field::<PRETTY_PX>(writer, "price", self.price);
-            writer.value("quantity", self.quantity);
-            writer.value("sequence", self.sequence);
-            writer.value("ts_in_delta", self.ts_in_delta);
-            writer.value("stat_type", self.stat_type);
-            writer.value("channel_id", self.channel_id);
-            writer.value("update_action", self.update_action);
-            writer.value("stat_flags", self.stat_flags);
-        }
-    }
-
-    impl JsonSerialize for ErrorMsg {
-        fn to_json<const PRETTY_PX: bool, const PRETTY_TS: bool>(
-            &self,
-            writer: &mut JSONObjectWriter,
-        ) {
-            write_header::<PRETTY_TS>(writer, &self.hd);
-            writer.value("err", self.err().unwrap_or_default());
-        }
-    }
-
-    impl JsonSerialize for SystemMsg {
-        fn to_json<const PRETTY_PX: bool, const PRETTY_TS: bool>(
-            &self,
-            writer: &mut JSONObjectWriter,
-        ) {
-            write_header::<PRETTY_TS>(writer, &self.hd);
-            writer.value("msg", self.msg().unwrap_or_default());
-        }
-    }
-
-    impl JsonSerialize for SymbolMappingMsg {
-        fn to_json<const _PRETTY_PX: bool, const PRETTY_TS: bool>(
-            &self,
-            writer: &mut JSONObjectWriter,
-        ) {
-            write_header::<PRETTY_TS>(writer, &self.hd);
-            writer.value(
-                "stype_in_symbol",
-                self.stype_in_symbol().unwrap_or_default(),
-            );
-            writer.value(
-                "stype_out_symbol",
-                self.stype_out_symbol().unwrap_or_default(),
-            );
-            write_ts_field::<PRETTY_TS>(writer, "start_ts", self.start_ts);
-            write_ts_field::<PRETTY_TS>(writer, "end_ts", self.end_ts);
-        }
     }
 
     impl<T: HasRType + JsonSerialize> JsonSerialize for WithTsOut<T> {
@@ -524,28 +218,124 @@ pub(crate) mod serialize {
         }
     }
 
-    fn write_header<const PRETTY_TS: bool>(writer: &mut JSONObjectWriter, hd: &RecordHeader) {
-        let mut hd_writer = writer.object("hd");
-        hd_writer.value("rtype", hd.rtype);
-        hd_writer.value("publisher_id", hd.publisher_id);
-        hd_writer.value("instrument_id", hd.instrument_id);
-        write_ts_field::<PRETTY_TS>(&mut hd_writer, "ts_event", hd.ts_event);
+    pub trait WriteField {
+        fn write_field<const PRETTY_PX: bool, const PRETTY_TS: bool>(
+            &self,
+            writer: &mut JSONObjectWriter,
+            name: &str,
+        );
     }
 
-    fn write_ba_pair<const PRETTY_PX: bool>(
-        arr_writer: &mut JSONArrayWriter,
-        ba_pair: &BidAskPair,
+    impl WriteField for RecordHeader {
+        fn write_field<const PRETTY_PX: bool, const PRETTY_TS: bool>(
+            &self,
+            writer: &mut JSONObjectWriter,
+            name: &str,
+        ) {
+            let mut hd_writer = writer.object(name);
+            hd_writer.value("rtype", self.rtype);
+            hd_writer.value("publisher_id", self.publisher_id);
+            hd_writer.value("instrument_id", self.instrument_id);
+            write_ts_field::<PRETTY_TS>(&mut hd_writer, "ts_event", self.ts_event);
+        }
+    }
+
+    impl<const N: usize> WriteField for [BidAskPair; N] {
+        fn write_field<const PRETTY_PX: bool, const PRETTY_TS: bool>(
+            &self,
+            writer: &mut JSONObjectWriter,
+            name: &str,
+        ) {
+            let mut arr_writer = writer.array(name);
+            for level in self.iter() {
+                let mut item_writer = arr_writer.object();
+                write_px_field::<PRETTY_PX>(&mut item_writer, "bid_px", level.bid_px);
+                write_px_field::<PRETTY_PX>(&mut item_writer, "ask_px", level.ask_px);
+                item_writer.value("bid_sz", level.bid_sz);
+                item_writer.value("ask_sz", level.ask_sz);
+                item_writer.value("bid_ct", level.bid_ct);
+                item_writer.value("ask_ct", level.ask_ct);
+            }
+        }
+    }
+
+    impl WriteField for i64 {
+        fn write_field<const PRETTY_PX: bool, const PRETTY_TS: bool>(
+            &self,
+            writer: &mut JSONObjectWriter,
+            name: &str,
+        ) {
+            writer.value(name, &self.to_string());
+        }
+    }
+
+    impl WriteField for u64 {
+        fn write_field<const PRETTY_PX: bool, const PRETTY_TS: bool>(
+            &self,
+            writer: &mut JSONObjectWriter,
+            name: &str,
+        ) {
+            writer.value(name, &self.to_string());
+        }
+    }
+
+    macro_rules! impl_write_field_for {
+        ($($ty:ident),+) => {
+            $(
+                impl WriteField for $ty {
+                    fn write_field<const PRETTY_PX: bool, const PRETTY_TS: bool>(
+                        &self,
+                        writer: &mut JSONObjectWriter,
+                        name: &str,
+                    ) {
+                        writer.value(name, self);
+                    }
+                }
+            )*
+        };
+    }
+
+    impl_write_field_for! {i32, u32, i16, u16, i8, u8, bool}
+
+    impl WriteField for SecurityUpdateAction {
+        fn write_field<const _PRETTY_PX: bool, const _PRETTY_TS: bool>(
+            &self,
+            writer: &mut JSONObjectWriter,
+            name: &str,
+        ) {
+            writer.value(name, &(*self as u8 as char).to_string());
+        }
+    }
+
+    impl WriteField for UserDefinedInstrument {
+        fn write_field<const _PRETTY_PX: bool, const _PRETTY_TS: bool>(
+            &self,
+            writer: &mut JSONObjectWriter,
+            name: &str,
+        ) {
+            writer.value(name, &(*self as u8 as char).to_string());
+        }
+    }
+
+    impl<const N: usize> WriteField for [c_char; N] {
+        fn write_field<const PRETTY_PX: bool, const PRETTY_TS: bool>(
+            &self,
+            writer: &mut JSONObjectWriter,
+            name: &str,
+        ) {
+            writer.value(name, c_chars_to_str(self).unwrap_or_default());
+        }
+    }
+
+    pub fn write_c_char_field(writer: &mut JSONObjectWriter, name: &str, c_char: c_char) {
+        writer.value(name, &(c_char as u8 as char).to_string());
+    }
+
+    pub fn write_px_field<const PRETTY_PX: bool>(
+        writer: &mut JSONObjectWriter,
+        key: &str,
+        px: i64,
     ) {
-        let mut writer = arr_writer.object();
-        write_px_field::<PRETTY_PX>(&mut writer, "bid_px", ba_pair.bid_px);
-        write_px_field::<PRETTY_PX>(&mut writer, "ask_px", ba_pair.ask_px);
-        writer.value("bid_sz", ba_pair.bid_sz);
-        writer.value("ask_sz", ba_pair.ask_sz);
-        writer.value("bid_ct", ba_pair.bid_ct);
-        writer.value("ask_ct", ba_pair.ask_ct);
-    }
-
-    fn write_px_field<const PRETTY_PX: bool>(writer: &mut JSONObjectWriter, key: &str, px: i64) {
         if PRETTY_PX {
             if px == UNDEF_PRICE {
                 writer.value(key, NULL);
@@ -558,7 +348,11 @@ pub(crate) mod serialize {
         }
     }
 
-    fn write_ts_field<const PRETTY_TS: bool>(writer: &mut JSONObjectWriter, key: &str, ts: u64) {
+    pub fn write_ts_field<const PRETTY_TS: bool>(
+        writer: &mut JSONObjectWriter,
+        key: &str,
+        ts: u64,
+    ) {
         if PRETTY_TS {
             if ts == 0 {
                 writer.value(key, NULL);
@@ -847,7 +641,7 @@ mod tests {
             contract_multiplier: 0,
             decay_quantity: 0,
             original_contract_size: 0,
-            reserved1: Default::default(),
+            _reserved1: Default::default(),
             trading_reference_date: 0,
             appl_id: 0,
             maturity_year: 0,
@@ -866,9 +660,9 @@ mod tests {
             underlying: str_to_c_chars("ESZ4").unwrap(),
             strike_price_currency: str_to_c_chars("USD").unwrap(),
             instrument_class: InstrumentClass::Call as u8 as c_char,
-            reserved2: Default::default(),
+            _reserved2: Default::default(),
             strike_price: 4_100_000_000_000,
-            reserved3: Default::default(),
+            _reserved3: Default::default(),
             match_algorithm: 'F' as c_char,
             md_security_trading_status: 2,
             main_fraction: 4,
@@ -896,7 +690,7 @@ mod tests {
                 "{{{},{}}}\n",
                 r#""hd":{"rtype":4,"publisher_id":1,"instrument_id":323,"ts_event":"2022-07-21T22:17:31.000000000"}"#,
                 concat!(
-                    r#""ts_recv":"2022-07-21T22:18:11.000000000","min_price_increment":"0.000000100","display_factor":"0.000001000","expiration":"2023-10-27T23:40:00.000000000","activation":"2023-10-15T06:06:40.000000000","#,
+                    r#""ts_recv":"2022-07-21T22:18:11.000000000","min_price_increment":"0.000000100","display_factor":"1000","expiration":"2023-10-27T23:40:00.000000000","activation":"2023-10-15T06:06:40.000000000","#,
                     r#""high_limit_price":"0.001000000","low_limit_price":"-0.001000000","max_price_variation":"0.000000000","trading_reference_price":"0.000500000","unit_of_measure_qty":"5","#,
                     r#""min_price_increment_amount":"0.000000005","price_ratio":"0.000000010","inst_attrib_value":10,"underlying_id":256785,"cleared_volume":0,"market_depth_implied":0,"#,
                     r#""market_depth":13,"market_segment_id":0,"max_trade_vol":10000,"min_lot_size":1,"min_lot_size_block":1000,"min_lot_size_round_lot":100,"min_trade_vol":1,"#,
