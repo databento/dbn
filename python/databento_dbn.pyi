@@ -1644,8 +1644,8 @@ class StatMsg(Record):
     @property
     def update_action(self) -> int:
         """
-        Indicates if the statistic is new added or deleted. Deleted is only
-        used for a couple stat types.
+        Indicates if the statistic is newly added (1) or deleted (2). (Deleted is only
+        used with some stat types)
 
         Returns
         -------

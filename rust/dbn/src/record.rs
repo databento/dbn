@@ -618,8 +618,8 @@ pub struct StatMsg {
     pub stat_type: u16,
     /// A channel ID within the venue.
     pub channel_id: u16,
-    /// Indicates if the statistic is new added or deleted. Deleted is only used for a
-    /// couple stat types.
+    /// Indicates if the statistic is newly added (1) or deleted (2). (Deleted is only used with
+    /// some stat types)
     pub update_action: u8,
     /// Additional flags associate with certain stat types.
     pub stat_flags: u8,
