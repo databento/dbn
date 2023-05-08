@@ -366,8 +366,8 @@ pub struct InstrumentDefMsg {
     #[pyo3(get, set)]
     pub underlying_id: u32,
     /// The total cleared volume of the instrument traded during the prior trading session.
-    #[pyo3(get, set)]
-    pub cleared_volume: i32,
+    #[doc(hidden)]
+    pub _reserved1: [u8; 4],
     /// The implied book depth on the price level data feed.
     #[pyo3(get, set)]
     pub market_depth_implied: i32,
@@ -393,9 +393,8 @@ pub struct InstrumentDefMsg {
     /// The minimum trading volume for the instrument.
     #[pyo3(get, set)]
     pub min_trade_vol: u32,
-    /// The total open interest for the market at the close of the prior trading session.
-    #[pyo3(get, set)]
-    pub open_interest_qty: i32,
+    #[doc(hidden)]
+    pub _reserved2: [u8; 4],
     /// The number of deliverables per instrument, i.e. peak days.
     #[pyo3(get, set)]
     pub contract_multiplier: i32,
@@ -407,7 +406,7 @@ pub struct InstrumentDefMsg {
     #[pyo3(get, set)]
     pub original_contract_size: i32,
     #[doc(hidden)]
-    pub _reserved1: [c_char; 4],
+    pub _reserved3: [u8; 4],
     /// The trading session date corresponding to the settlement price in
     /// `trading_reference_price`, in number of days since the UNIX epoch.
     #[pyo3(get, set)]
@@ -453,14 +452,14 @@ pub struct InstrumentDefMsg {
     #[pyo3(get, set)]
     pub instrument_class: c_char,
     #[doc(hidden)]
-    pub _reserved2: [c_char; 2],
+    pub _reserved4: [u8; 2],
     /// The strike price of the option. Converted to units of 1e-9, i.e. 1/1,000,000,000
     /// or 0.000000001.
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub strike_price: i64,
     #[doc(hidden)]
-    pub _reserved3: [c_char; 6],
+    pub _reserved5: [u8; 6],
     /// The matching algorithm used for the instrument, typically **F**IFO.
     #[dbn(c_char)]
     #[pyo3(get, set)]
@@ -509,7 +508,7 @@ pub struct InstrumentDefMsg {
     pub tick_rule: u8,
     // Filler for alignment.
     #[doc(hidden)]
-    pub _dummy: [c_char; 3],
+    pub _dummy: [u8; 3],
 }
 
 /// An auction imbalance message.
@@ -579,7 +578,7 @@ pub struct ImbalanceMsg {
     pub significant_imbalance: c_char,
     // Filler for alignment.
     #[doc(hidden)]
-    pub _dummy: [c_char; 1],
+    pub _dummy: [u8; 1],
 }
 
 /// A statistics message. A catchall for various data disseminated by publishers.
@@ -625,7 +624,7 @@ pub struct StatMsg {
     pub stat_flags: u8,
     // Filler for alignment
     #[doc(hidden)]
-    pub _dummy: [c_char; 6],
+    pub _dummy: [u8; 6],
 }
 
 /// An error message from the Databento Live Subscription Gateway (LSG).
@@ -659,7 +658,7 @@ pub struct SymbolMappingMsg {
     pub stype_out_symbol: [c_char; 22],
     // Filler for alignment.
     #[doc(hidden)]
-    pub _dummy: [c_char; 4],
+    pub _dummy: [u8; 4],
     /// The start of the mapping interval expressed as the number of nanoseconds since
     /// the UNIX epoch.
     #[dbn(unix_nanos)]
@@ -1550,7 +1549,17 @@ mod tests {
     }
 
     #[test]
-    fn test_symbol_mapping_size() {
+    fn test_sizes() {
+        assert_eq!(mem::size_of::<RecordHeader>(), 16);
+        assert_eq!(mem::size_of::<MboMsg>(), 56);
+        assert_eq!(mem::size_of::<Mbp1Msg>(), 80);
+        assert_eq!(mem::size_of::<Mbp10Msg>(), 368);
+        assert_eq!(mem::size_of::<OhlcvMsg>(), 56);
+        assert_eq!(mem::size_of::<StatusMsg>(), 48);
+        assert_eq!(mem::size_of::<InstrumentDefMsg>(), 360);
+        assert_eq!(mem::size_of::<StatMsg>(), 64);
+        assert_eq!(mem::size_of::<ErrorMsg>(), 80);
         assert_eq!(mem::size_of::<SymbolMappingMsg>(), 80);
+        assert_eq!(mem::size_of::<SystemMsg>(), 80);
     }
 }

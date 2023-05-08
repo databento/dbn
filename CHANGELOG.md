@@ -6,6 +6,8 @@
   to CSV and JSON encoders
 - Renamed `--pretty-json` CLI flag to `--pretty` and added support for CSV. Passing this
   flag now also enables `use_pretty_px` and `use_pretty_ts`
+- Removed `open_interest_qty` and `cleared_volume` fields that were always unset from
+  definition schema
 
 ## 0.5.1 - 2023-05-05
 - Added `F`ill action type for MBO messages

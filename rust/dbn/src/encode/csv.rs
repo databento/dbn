@@ -537,7 +537,6 @@ mod tests {
             price_ratio: 10,
             inst_attrib_value: 10,
             underlying_id: 256785,
-            cleared_volume: 0,
             market_depth_implied: 0,
             market_depth: 13,
             market_segment_id: 0,
@@ -546,11 +545,9 @@ mod tests {
             min_lot_size_block: 1000,
             min_lot_size_round_lot: 100,
             min_trade_vol: 1,
-            open_interest_qty: 0,
             contract_multiplier: 0,
             decay_quantity: 0,
             original_contract_size: 0,
-            _reserved1: Default::default(),
             trading_reference_date: 0,
             appl_id: 0,
             maturity_year: 0,
@@ -569,9 +566,7 @@ mod tests {
             underlying: [0; 21],
             strike_price_currency: Default::default(),
             instrument_class: InstrumentClass::Future as u8 as c_char,
-            _reserved2: Default::default(),
             strike_price: 0,
-            _reserved3: Default::default(),
             match_algorithm: 'F' as c_char,
             md_security_trading_status: 2,
             main_fraction: 4,
@@ -587,6 +582,11 @@ mod tests {
             contract_multiplier_unit: 0,
             flow_schedule_type: 5,
             tick_rule: 0,
+            _reserved1: Default::default(),
+            _reserved2: Default::default(),
+            _reserved3: Default::default(),
+            _reserved4: Default::default(),
+            _reserved5: Default::default(),
             _dummy: [0; 3],
         }];
         let mut buffer = Vec::new();
@@ -595,7 +595,7 @@ mod tests {
             .encode_stream(VecStream::new(data))
             .unwrap();
         let line = extract_2nd_line(buffer);
-        assert_eq!(line, format!("{HEADER_CSV},1658441891000000000,100,1000,1698450000000000000,1697350000000000000,1000000,-1000000,0,500000,5,5,10,10,256785,0,0,13,0,10000,1,1000,100,1,0,0,0,0,0,0,0,0,4,,USD,,,,,,,,,,,F,0,F,2,4,8,9,23,10,A,8,9,11,N,0,5,0"));
+        assert_eq!(line, format!("{HEADER_CSV},1658441891000000000,100,1000,1698450000000000000,1697350000000000000,1000000,-1000000,0,500000,5,5,10,10,256785,0,13,0,10000,1,1000,100,1,0,0,0,0,0,0,0,4,,USD,,,,,,,,,,,F,0,F,2,4,8,9,23,10,A,8,9,11,N,0,5,0"));
     }
 
     #[test]

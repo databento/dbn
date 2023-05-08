@@ -858,17 +858,6 @@ class InstrumentDefMsg(Record):
 
         """
     @property
-    def cleared_volume(self) -> int:
-        """
-        The total cleared volume of the instrument traded during the prior
-        trading session.
-
-        Returns
-        -------
-        int
-
-        """
-    @property
     def market_depth_implied(self) -> int:
         """
         The implied book depth on the price level data feed.
@@ -943,17 +932,6 @@ class InstrumentDefMsg(Record):
     def min_trade_vol(self) -> int:
         """
         The minimum trading volume for the instrument.
-
-        Returns
-        -------
-        int
-
-        """
-    @property
-    def open_interest_qty(self) -> int:
-        """
-        The total open interest for the market at the close of the prior
-        trading session.
 
         Returns
         -------
