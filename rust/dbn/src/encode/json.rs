@@ -489,7 +489,7 @@ mod tests {
             ts_recv: 1658441891000000000,
             ts_in_delta: 22_000,
             sequence: 1_002_375,
-            booklevel: [BID_ASK],
+            levels: [BID_ASK],
         }];
         let slice_res = write_json_to_string(data.as_slice(), false, true, true);
         let stream_res = write_json_stream_to_string(data, false, true, true);
@@ -501,7 +501,7 @@ mod tests {
                 "{{{},{},{}}}\n",
                 r#""hd":{"rtype":4,"publisher_id":1,"instrument_id":323,"ts_event":"2022-07-21T22:17:31.000000000"}"#,
                 r#""price":"0.000005500","size":3,"action":"B","side":"B","flags":128,"depth":9,"ts_recv":"2022-07-21T22:18:11.000000000","ts_in_delta":22000,"sequence":1002375"#,
-                format_args!("\"booklevel\":[{BID_ASK_JSON}]")
+                format_args!("\"levels\":[{BID_ASK_JSON}]")
             )
         );
     }
@@ -519,7 +519,7 @@ mod tests {
             ts_recv: 1658441891000000000,
             ts_in_delta: 22_000,
             sequence: 1_002_375,
-            booklevel: array::from_fn(|_| BID_ASK.clone()),
+            levels: array::from_fn(|_| BID_ASK.clone()),
         }];
         let slice_res = write_json_to_string(data.as_slice(), false, true, true);
         let stream_res = write_json_stream_to_string(data, false, true, true);
@@ -531,7 +531,7 @@ mod tests {
                 "{{{},{},{}}}\n",
                 r#""hd":{"rtype":4,"publisher_id":1,"instrument_id":323,"ts_event":"2022-07-21T22:17:31.000000000"}"#,
                 r#""price":"0.000005500","size":3,"action":"T","side":"N","flags":128,"depth":9,"ts_recv":"2022-07-21T22:18:11.000000000","ts_in_delta":22000,"sequence":1002375"#,
-                format_args!("\"booklevel\":[{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON}]")
+                format_args!("\"levels\":[{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON}]")
             )
         );
     }

@@ -31,7 +31,7 @@ use crate::{
 pub struct RecordHeader {
     /// The length of the record in 32-bit words.
     pub(crate) length: u8,
-    /// The record type; with `0xe0..0x0F` specifying MBP booklevel size. Record types
+    /// The record type; with `0xe0..0x0F` specifying MBP levels size. Record types
     /// implement the trait [`HasRType`], and the [`has_rtype`][HasRType::has_rtype]
     /// function can be used to check if that type can be used to decode a message with
     /// a given rtype. The set of possible values is defined in [`rtype`].
@@ -87,7 +87,7 @@ pub struct MboMsg {
     pub sequence: u32,
 }
 
-/// A book level.
+/// A level.
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
@@ -188,7 +188,7 @@ pub struct Mbp1Msg {
     /// The message sequence number assigned at the venue.
     pub sequence: u32,
     /// The top of the order book.
-    pub booklevel: [BidAskPair; 1],
+    pub levels: [BidAskPair; 1],
 }
 
 /// Market by price implementation with a known book depth of 10. The record of the
@@ -230,7 +230,7 @@ pub struct Mbp10Msg {
     /// The message sequence number assigned at the venue.
     pub sequence: u32,
     /// The top 10 levels of the order book.
-    pub booklevel: [BidAskPair; 10],
+    pub levels: [BidAskPair; 10],
 }
 
 /// The record of the [`Tbbo`](crate::enums::Schema::Tbbo) schema.
@@ -1245,7 +1245,7 @@ impl AsRef<[u8]> for TradeMsg {
     }
 }
 
-/// [Mbp1Msg]'s type ID is the size of its `booklevel` array.
+/// [Mbp1Msg]'s type ID is the size of its `levels` array.
 impl HasRType for Mbp1Msg {
     fn has_rtype(rtype: u8) -> bool {
         rtype == rtype::MBP_1
@@ -1266,7 +1266,7 @@ impl AsRef<[u8]> for Mbp1Msg {
     }
 }
 
-/// [Mbp10Msg]'s type ID is the size of its `booklevel` array.
+/// [Mbp10Msg]'s type ID is the size of its `levels` array.
 impl HasRType for Mbp10Msg {
     fn has_rtype(rtype: u8) -> bool {
         rtype == rtype::MBP_10

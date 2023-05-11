@@ -451,7 +451,7 @@ impl Mbp1Msg {
         ts_recv: u64,
         ts_in_delta: i32,
         sequence: u32,
-        booklevel: Option<BidAskPair>,
+        levels: Option<BidAskPair>,
     ) -> Self {
         Self {
             hd: RecordHeader::new::<Self>(rtype::MBP_1, publisher_id, instrument_id, ts_event),
@@ -464,7 +464,7 @@ impl Mbp1Msg {
             ts_recv,
             ts_in_delta,
             sequence,
-            booklevel: [booklevel.unwrap_or_default()],
+            levels: [levels.unwrap_or_default()],
         }
     }
 
@@ -526,14 +526,14 @@ impl Mbp10Msg {
         ts_recv: u64,
         ts_in_delta: i32,
         sequence: u32,
-        booklevel: Option<Vec<BidAskPair>>,
+        levels: Option<Vec<BidAskPair>>,
     ) -> PyResult<Self> {
-        let booklevel = if let Some(booklevel) = booklevel {
+        let levels = if let Some(level) = levels {
             let mut arr: [BidAskPair; 10] = Default::default();
-            if booklevel.len() > 10 {
-                return Err(to_val_err("Only 10 booklevels are allowed"));
+            if level.len() > 10 {
+                return Err(to_val_err("Only 10 levels are allowed"));
             }
-            for (i, level) in booklevel.into_iter().enumerate() {
+            for (i, level) in level.into_iter().enumerate() {
                 arr[i] = level;
             }
             arr
@@ -551,7 +551,7 @@ impl Mbp10Msg {
             ts_recv,
             ts_in_delta,
             sequence,
-            booklevel,
+            levels,
         })
     }
 

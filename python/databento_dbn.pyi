@@ -617,7 +617,7 @@ class MBP1Msg(Record, _MBPBase):
     """Market by price implementation with a known book depth of 1."""
 
     @property
-    def booklevel(self) -> List[BidAskPair]:
+    def levels(self) -> List[BidAskPair]:
         """
         The top of the order book.
 
@@ -635,9 +635,9 @@ class MBP10Msg(Record, _MBPBase):
     """Market by price implementation with a known book depth of 10."""
 
     @property
-    def booklevel(self) -> List[BidAskPair]:
+    def levels(self) -> List[BidAskPair]:
         """
-        The top of the order book.
+        The top 10 levels.
 
         Returns
         -------
