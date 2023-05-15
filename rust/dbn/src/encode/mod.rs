@@ -76,7 +76,7 @@ pub trait EncodeDbn {
     /// This function returns an error if it's unable to flush the underlying writer.
     fn flush(&mut self) -> anyhow::Result<()>;
 
-    /// Encodes a single DBN record of type `R`.
+    /// Encodes a single DBN record.
     ///
     /// Returns `true`if the pipe was closed.
     ///

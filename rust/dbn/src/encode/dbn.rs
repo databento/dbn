@@ -9,8 +9,8 @@ use anyhow::{anyhow, Context};
 
 use super::{zstd_encoder, DbnEncodable, EncodeDbn};
 use crate::{
-    enums::Schema, Metadata, SymbolMapping, DBN_VERSION, NULL_END, NULL_LIMIT, NULL_RECORD_COUNT,
-    NULL_SCHEMA, NULL_STYPE,
+    enums::Schema, record_ref::RecordRef, Metadata, SymbolMapping, DBN_VERSION, NULL_END,
+    NULL_LIMIT, NULL_RECORD_COUNT, NULL_SCHEMA, NULL_STYPE,
 };
 
 /// Type for encoding files and streams in Databento Binary Encoding (DBN).
@@ -66,6 +66,31 @@ where
     W: io::Write,
 {
     fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> anyhow::Result<bool> {
+        match self.writer.write_all(record.as_ref()) {
+            Ok(_) => Ok(false),
+            Err(e) if e.kind() == io::ErrorKind::BrokenPipe => Ok(true),
+            Err(e) => {
+                Err(anyhow::Error::new(e).context(format!("Failed to serialize {record:#?}")))
+            }
+        }
+    }
+
+    /// Encodes a single DBN record.
+    ///
+    /// Returns `true` if the the pipe was closed.
+    ///
+    /// # Safety
+    /// The DBN encoding a [`RecordRef`] is safe because no dispatching based on type
+    /// is required.
+    ///
+    /// # Errors
+    /// This function will return an error if it fails to encode `record` to
+    /// `writer`.
+    unsafe fn encode_record_ref(
+        &mut self,
+        record: RecordRef,
+        _ts_out: bool,
+    ) -> anyhow::Result<bool> {
         match self.writer.write_all(record.as_ref()) {
             Ok(_) => Ok(false),
             Err(e) if e.kind() == io::ErrorKind::BrokenPipe => Ok(true),
@@ -504,9 +529,8 @@ mod r#async {
     use tokio::io;
 
     use crate::{
-        record::HasRType, record_ref::RecordRef, rtype_ts_out_async_dispatch, Metadata,
-        SymbolMapping, DBN_VERSION, NULL_END, NULL_LIMIT, NULL_RECORD_COUNT, NULL_SCHEMA,
-        NULL_STYPE,
+        record::HasRType, record_ref::RecordRef, Metadata, SymbolMapping, DBN_VERSION, NULL_END,
+        NULL_LIMIT, NULL_RECORD_COUNT, NULL_SCHEMA, NULL_STYPE,
     };
 
     /// An async encoder of DBN records.
@@ -551,20 +575,18 @@ mod r#async {
         ///
         /// Returns `true`if the pipe was closed.
         ///
-        /// # Safety
-        /// `ts_out` must be `false` if `record` does not have an appended `ts_out
-        ///
         /// # Errors
         /// This function returns an error if it's unable to write to the underlying writer
         /// or there's a serialization error.
-        pub async unsafe fn encode_ref(
-            &mut self,
-            record_ref: RecordRef<'_>,
-            ts_out: bool,
-        ) -> anyhow::Result<bool> {
-            rtype_ts_out_async_dispatch!(record_ref, ts_out, |rec| async move {
-                self.encode(rec).await
-            })?
+        pub async fn encode_ref(&mut self, record_ref: RecordRef<'_>) -> anyhow::Result<bool> {
+            match self.writer.write_all(record_ref.as_ref()).await {
+                Ok(_) => Ok(false),
+                Err(e) if e.kind() == io::ErrorKind::BrokenPipe => Ok(true),
+                Err(e) => {
+                    Err(anyhow::Error::new(e)
+                        .context(format!("Failed to serialize {record_ref:#?}")))
+                }
+            }
         }
 
         /// Returns a mutable reference to the underlying writer.

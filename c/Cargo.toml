@@ -14,6 +14,7 @@ name = "dbn_c"
 crate-type = ["cdylib"]
 
 [dependencies]
+anyhow = "1.0.71"
 # DBN library
 dbn = { path = "../rust/dbn", features = [] }
 libc = "0.2.142"
