@@ -244,10 +244,10 @@ dependencies = [
  "async-compression",
  "csv",
  "dbn-macros",
- "json-writer",
+ "itoa",
  "num_enum",
  "pyo3",
- "serde_json",
+ "ryu",
  "streaming-iterator",
  "time",
  "tokio",
@@ -445,16 +445,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "936cfd212a0155903bcbc060e316fb6cc7cbf2e1907329391ebadc1fe0ce77c2"
 dependencies = [
  "libc",
-]
-
-[[package]]
-name = "json-writer"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c71f1edc62b65ae646954fb5f7c8671aabd939cdc2ef2a8a2179081b6276821"
-dependencies = [
- "itoa",
- "ryu",
 ]
 
 [[package]]

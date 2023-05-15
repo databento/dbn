@@ -19,4 +19,4 @@ dbn = { path = "../rust/dbn", features = [] }
 libc = "0.2.142"
 
 [build-dependencies]
-cbindgen = { version = "0.24.3", default_features = false }
+cbindgen = { version = "0.24.3", default-features = false }

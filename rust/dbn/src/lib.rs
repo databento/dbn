@@ -5,17 +5,19 @@
 #![deny(missing_docs)]
 #![deny(rustdoc::broken_intra_doc_links)]
 #![deny(clippy::missing_errors_doc)]
+
 pub mod decode;
 pub mod encode;
 pub mod enums;
 pub mod error;
+/// json_writer crate with additional changes that haven't been upstreamed yet
+mod json_writer;
 mod macros;
 pub mod metadata;
-pub mod record;
-pub mod record_ref;
-
 #[cfg(feature = "python")]
 pub mod python;
+pub mod record;
+pub mod record_ref;
 
 pub use crate::metadata::{MappingInterval, Metadata, MetadataBuilder, SymbolMapping};
 

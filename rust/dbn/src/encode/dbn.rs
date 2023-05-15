@@ -295,11 +295,6 @@ mod tests {
 
     #[test]
     fn test_encode_decode_metadata_identity() {
-        let mut extra = serde_json::Map::default();
-        extra.insert(
-            "Key".to_owned(),
-            serde_json::Value::Number(serde_json::Number::from_f64(4.0).unwrap()),
-        );
         let metadata = Metadata {
             version: crate::DBN_VERSION,
             dataset: "GLBX.MDP3".to_owned(),
@@ -779,11 +774,6 @@ mod r#async {
 
         #[tokio::test]
         async fn test_encode_decode_metadata_identity() {
-            let mut extra = serde_json::Map::default();
-            extra.insert(
-                "Key".to_owned(),
-                serde_json::Value::Number(serde_json::Number::from_f64(4.0).unwrap()),
-            );
             let metadata = Metadata {
                 version: crate::DBN_VERSION,
                 dataset: "GLBX.MDP3".to_owned(),

@@ -46,9 +46,9 @@ pub fn derive_json_macro_impl(input: proc_macro::TokenStream) -> proc_macro::Tok
             let field_iter = fields.named.iter().map(write_json_field_token_stream);
             return quote! {
                 impl crate::encode::json::serialize::JsonSerialize for #ident {
-                    fn to_json<const PRETTY_PX: bool, const PRETTY_TS: bool>(
+                    fn to_json<F: crate::json_writer::Formatter, const PRETTY_PX: bool, const PRETTY_TS: bool>(
                         &self,
-                        writer: &mut ::json_writer::JSONObjectWriter,
+                        writer: &mut crate::json_writer::JsonObjectWriter<F>,
                     ) {
                         use crate::encode::json::serialize::WriteField;
 
@@ -120,11 +120,11 @@ fn write_json_field_token_stream(field: &Field) -> TokenStream {
     if let Some(dbn_attr_id) = find_dbn_attr_id(field) {
         if dbn_attr_id == "unix_nanos" {
             quote! {
-                crate::encode::json::serialize::write_ts_field::<PRETTY_TS>(writer, stringify!(#ident), self.#ident);
+                crate::encode::json::serialize::write_ts_field::<_, PRETTY_TS>(writer, stringify!(#ident), self.#ident);
             }
         } else if dbn_attr_id == "fixed_price" {
             quote! {
-                crate::encode::json::serialize::write_px_field::<PRETTY_PX>(writer, stringify!(#ident), self.#ident);
+                crate::encode::json::serialize::write_px_field::<_, PRETTY_PX>(writer, stringify!(#ident), self.#ident);
             }
         } else if dbn_attr_id == "c_char" {
             quote! {
@@ -140,7 +140,7 @@ fn write_json_field_token_stream(field: &Field) -> TokenStream {
         }
     } else {
         quote! {
-            self.#ident.write_field::<PRETTY_PX, PRETTY_TS>(writer, stringify!(#ident));
+            self.#ident.write_field::<_, PRETTY_PX, PRETTY_TS>(writer, stringify!(#ident));
         }
     }
 }
