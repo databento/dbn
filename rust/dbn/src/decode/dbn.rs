@@ -510,8 +510,8 @@ mod tests {
         encode::{dbn::Encoder, EncodeDbn},
         enums::rtype,
         record::{
-            ErrorMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader, TbboMsg,
-            TradeMsg,
+            ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
+            RecordHeader, StatMsg, TbboMsg, TradeMsg,
         },
         MetadataBuilder,
     };
@@ -629,6 +629,18 @@ mod tests {
         test_dbn_zstd_identity_instrument_def,
         InstrumentDefMsg,
         Schema::Definition
+    );
+    test_dbn_identity!(test_dbn_identity_imbalance, ImbalanceMsg, Schema::Imbalance);
+    test_dbn_zstd_identity!(
+        test_dbn_zstd_identity_imbalance,
+        ImbalanceMsg,
+        Schema::Imbalance
+    );
+    test_dbn_identity!(test_dbn_identity_statistics, StatMsg, Schema::Statistics);
+    test_dbn_zstd_identity!(
+        test_dbn_zstd_identity_statistics,
+        StatMsg,
+        Schema::Statistics
     );
 
     #[test]
@@ -886,8 +898,8 @@ mod r#async {
             encode::dbn::{AsyncMetadataEncoder, AsyncRecordEncoder},
             enums::{rtype, Schema},
             record::{
-                ErrorMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader,
-                TbboMsg, TradeMsg, WithTsOut,
+                ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
+                RecordHeader, StatMsg, TbboMsg, TradeMsg, WithTsOut,
             },
         };
 
@@ -1000,6 +1012,18 @@ mod r#async {
             test_dbn_zstd_identity_instrument_def,
             InstrumentDefMsg,
             Schema::Definition
+        );
+        test_dbn_identity!(test_dbn_identity_imbalance, ImbalanceMsg, Schema::Imbalance);
+        test_dbn_zstd_identity!(
+            test_dbn_zstd_identity_imbalance,
+            ImbalanceMsg,
+            Schema::Imbalance
+        );
+        test_dbn_identity!(test_dbn_identity_statistics, StatMsg, Schema::Statistics);
+        test_dbn_zstd_identity!(
+            test_dbn_zstd_identity_statistics,
+            StatMsg,
+            Schema::Statistics
         );
 
         #[tokio::test]

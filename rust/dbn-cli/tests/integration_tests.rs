@@ -342,6 +342,69 @@ fn convert_dbz_to_dbn() {
 }
 
 #[test]
+fn metadata_conflicts_with_limit() {
+    cmd()
+        .args(&[
+            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.zst"),
+            "--json",
+            "--metadata",
+            "--limit",
+            "1",
+        ])
+        .assert()
+        .failure()
+        .stderr(contains("'--metadata' cannot be used with '--limit"));
+}
+
+#[test]
+fn test_limit_updates_metadata() {
+    // Check metadata shows limit = 2
+    cmd()
+        .args(&[
+            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.zst"),
+            "--json",
+            "--metadata",
+        ])
+        .assert()
+        .success()
+        .stdout(contains("\"limit\":\"2\","));
+    // Check contains 2 records
+    cmd()
+        .args(&[
+            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.zst"),
+            "--json",
+        ])
+        .assert()
+        .success()
+        .stdout(contains('\n').count(2));
+    let output_dir = tempdir().unwrap();
+    let output_path = format!("{}/limited.dbn", output_dir.path().to_str().unwrap());
+    cmd()
+        .args(&[
+            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.zst"),
+            "--output",
+            &output_path,
+            "--limit",
+            "1",
+        ])
+        .assert()
+        .success()
+        .stderr(is_empty());
+    // Check metadata shows limit = 1
+    cmd()
+        .args(&[&output_path, "--json", "--metadata"])
+        .assert()
+        .success()
+        .stdout(contains("\"limit\":\"1\","));
+    // Check contains 1 record
+    cmd()
+        .args(&[&output_path, "--json"])
+        .assert()
+        .success()
+        .stdout(contains('\n').count(1));
+}
+
+#[test]
 fn help() {
     cmd()
         .arg("--help")

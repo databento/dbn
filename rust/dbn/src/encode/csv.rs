@@ -1,18 +1,11 @@
 //! Encoding of DBN records into comma-separated values (CSV).
-use std::io;
+use std::{io, num::NonZeroU64};
 
 use anyhow::anyhow;
 use streaming_iterator::StreamingIterator;
 
 use super::EncodeDbn;
-use crate::{
-    decode::DecodeDbn,
-    enums::{RType, Schema},
-    record::{
-        ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatMsg, StatusMsg,
-        TbboMsg, TradeMsg,
-    },
-};
+use crate::{decode::DecodeDbn, enums::RType, schema_method_dispatch};
 
 /// Type for encoding files and streams of DBN records in CSV.
 ///
@@ -124,20 +117,7 @@ where
     fn encode_decoded<D: DecodeDbn>(&mut self, mut decoder: D) -> anyhow::Result<()> {
         let ts_out = decoder.metadata().ts_out;
         if let Some(schema) = decoder.metadata().schema {
-            match schema {
-                Schema::Mbo => self.encode_header::<MboMsg>(),
-                Schema::Mbp1 => self.encode_header::<Mbp1Msg>(),
-                Schema::Mbp10 => self.encode_header::<Mbp10Msg>(),
-                Schema::Tbbo => self.encode_header::<TbboMsg>(),
-                Schema::Trades => self.encode_header::<TradeMsg>(),
-                Schema::Ohlcv1S | Schema::Ohlcv1M | Schema::Ohlcv1H | Schema::Ohlcv1D => {
-                    self.encode_header::<OhlcvMsg>()
-                }
-                Schema::Definition => self.encode_header::<InstrumentDefMsg>(),
-                Schema::Statistics => self.encode_header::<StatMsg>(),
-                Schema::Status => self.encode_header::<StatusMsg>(),
-                Schema::Imbalance => self.encode_header::<ImbalanceMsg>(),
-            }?;
+            schema_method_dispatch!(schema, self, encode_header)?;
             let rtype = RType::from(schema);
             while let Some(record) = decoder.decode_record_ref()? {
                 if record.rtype().map_or(true, |r| r != rtype) {
@@ -146,6 +126,37 @@ where
                 // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
                 // from the metadata header.
                 if unsafe { self.encode_record_ref(record, ts_out)? } {
+                    break;
+                }
+            }
+            self.flush()?;
+            Ok(())
+        } else {
+            Err(anyhow!("Can't encode a DBN with mixed schemas in CSV"))
+        }
+    }
+
+    fn encode_decoded_with_limit<D: DecodeDbn>(
+        &mut self,
+        mut decoder: D,
+        limit: NonZeroU64,
+    ) -> anyhow::Result<()> {
+        let ts_out = decoder.metadata().ts_out;
+        if let Some(schema) = decoder.metadata().schema {
+            schema_method_dispatch!(schema, self, encode_header)?;
+            let rtype = RType::from(schema);
+            let mut i = 0;
+            while let Some(record) = decoder.decode_record_ref()? {
+                if record.rtype().map_or(true, |r| r != rtype) {
+                    return Err(anyhow!("Schema indicated {rtype:?}, but found record with rtype {:?}. Mixed schemas cannot be encoded in CSV.", record.rtype()));
+                }
+                // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
+                // from the metadata header.
+                if unsafe { self.encode_record_ref(record, ts_out)? } {
+                    break;
+                }
+                i += 1;
+                if i == limit.get() {
                     break;
                 }
             }

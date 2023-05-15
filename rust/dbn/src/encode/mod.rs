@@ -4,7 +4,7 @@ pub mod csv;
 pub mod dbn;
 pub mod json;
 
-use std::{fmt, io};
+use std::{fmt, io, num::NonZeroU64};
 
 use streaming_iterator::StreamingIterator;
 use time::format_description::FormatItem;
@@ -105,6 +105,34 @@ pub trait EncodeDbn {
             // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
             // from the metadata header.
             if unsafe { self.encode_record_ref(record, ts_out)? } {
+                break;
+            }
+        }
+        self.flush()?;
+        Ok(())
+    }
+
+    /// Encodes DBN records directly from a DBN decoder, outputting no more than
+    /// `limit` records.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to write to the underlying writer
+    /// or there's a serialization error.
+    fn encode_decoded_with_limit<D: DecodeDbn>(
+        &mut self,
+        mut decoder: D,
+        limit: NonZeroU64,
+    ) -> anyhow::Result<()> {
+        let ts_out = decoder.metadata().ts_out;
+        let mut i = 0;
+        while let Some(record) = decoder.decode_record_ref()? {
+            // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
+            // from the metadata header.
+            if unsafe { self.encode_record_ref(record, ts_out)? } {
+                break;
+            }
+            i += 1;
+            if i == limit.get() {
                 break;
             }
         }

@@ -34,6 +34,28 @@ macro_rules! rtype_dispatch_base {
     }};
 }
 
+#[doc(hidden)]
+#[macro_export]
+macro_rules! schema_dispatch_base {
+    ($schema:expr, $handler:ident) => {{
+        use $crate::enums::Schema;
+        use $crate::record::*;
+        match $schema {
+            Schema::Mbo => $handler!(MboMsg),
+            Schema::Mbp1 | Schema::Tbbo => $handler!(Mbp1Msg),
+            Schema::Mbp10 => $handler!(Mbp10Msg),
+            Schema::Trades => $handler!(TradeMsg),
+            Schema::Ohlcv1D | Schema::Ohlcv1H | Schema::Ohlcv1M | Schema::Ohlcv1S => {
+                $handler!(OhlcvMsg)
+            }
+            Schema::Definition => $handler!(InstrumentDefMsg),
+            Schema::Statistics => $handler!(StatMsg),
+            Schema::Status => $handler!(StatusMsg),
+            Schema::Imbalance => $handler!(ImbalanceMsg),
+        }
+    }};
+}
+
 /// Specializes a generic function to all record types and dispatches based on the
 /// `rtype` and `ts_out`.
 ///
@@ -135,3 +157,85 @@ macro_rules! rtype_dispatch_with_ts_out {
         $crate::rtype_dispatch_base!($rec_ref, handler)
     };
 }}
+
+/// Specializes a generic method function to all record types with an associated schema.
+#[macro_export]
+macro_rules! schema_method_dispatch {
+    ($schema:expr, $this:expr, $generic_method:ident $(,$arg:expr)*) => {{
+        macro_rules! handler {
+            ($r:ty) => {{
+                $this.$generic_method::<$r>($($arg),*)
+            }}
+        }
+        $crate::schema_dispatch_base!($schema, handler)
+    }};
+}
+
+/// Specializes a generic async method function to all record types with an associated
+/// schema.
+#[macro_export]
+macro_rules! schema_async_method_dispatch {
+    ($schema:expr, $this:expr, $generic_method:ident $(,$arg:expr)*) => {{
+        macro_rules! handler {
+            ($r:ty) => {{
+                $this.$generic_method::<$r>($($arg),*).await
+            }}
+        }
+        $crate::schema_dispatch_base!($schema, handler)
+    }};
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{record::HasRType, schema_method_dispatch};
+
+    struct Dummy {}
+
+    #[allow(dead_code)]
+    impl Dummy {
+        fn on_rtype<T: HasRType>(&self) -> bool {
+            T::has_rtype(0xFF)
+        }
+
+        fn on_rtype_2<T: HasRType>(&self, x: u64, y: u64) -> u64 {
+            x + y
+        }
+
+        async fn do_something<T: HasRType>(&self, arg: u8) -> bool {
+            T::has_rtype(arg)
+        }
+    }
+
+    #[test]
+    fn test_two_args() {
+        let ret = schema_method_dispatch!(Schema::Definition, Dummy {}, on_rtype_2, 5, 6);
+        assert_eq!(ret, 11);
+    }
+
+    #[test]
+    fn test_no_args() {
+        let ret = schema_method_dispatch!(Schema::Definition, Dummy {}, on_rtype);
+        assert_eq!(ret, false);
+    }
+
+    #[cfg(feature = "async")]
+    mod r#async {
+        use super::*;
+        use crate::schema_async_method_dispatch;
+
+        #[tokio::test]
+        async fn test_self() {
+            let target = Dummy {};
+            let ret_true = schema_async_method_dispatch!(
+                Schema::Trades,
+                target,
+                do_something,
+                crate::enums::rtype::MBP_0
+            );
+            let ret_false =
+                schema_async_method_dispatch!(Schema::Trades, target, do_something, 0xff);
+            assert_eq!(ret_true, true);
+            assert_eq!(ret_false, false);
+        }
+    }
+}
