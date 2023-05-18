@@ -18,7 +18,7 @@ pub struct Encoder<W>
 where
     W: io::Write,
 {
-    writer: W,
+    record_encoder: RecordEncoder<W>,
 }
 
 impl<W> Encoder<W>
@@ -32,17 +32,18 @@ where
     /// `writer`.
     pub fn new(mut writer: W, metadata: &Metadata) -> anyhow::Result<Self> {
         MetadataEncoder::new(&mut writer).encode(metadata)?;
-        Ok(Self { writer })
+        let record_encoder = RecordEncoder::new(writer);
+        Ok(Self { record_encoder })
     }
 
     /// Returns a reference to the underlying writer.
     pub fn get_ref(&self) -> &W {
-        &self.writer
+        self.record_encoder.get_ref()
     }
 
     /// Returns a mutable reference to the underlying writer.
     pub fn get_mut(&mut self) -> &mut W {
-        &mut self.writer
+        self.record_encoder.get_mut()
     }
 }
 
@@ -66,13 +67,7 @@ where
     W: io::Write,
 {
     fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> anyhow::Result<bool> {
-        match self.writer.write_all(record.as_ref()) {
-            Ok(_) => Ok(false),
-            Err(e) if e.kind() == io::ErrorKind::BrokenPipe => Ok(true),
-            Err(e) => {
-                Err(anyhow::Error::new(e).context(format!("Failed to serialize {record:#?}")))
-            }
-        }
+        self.record_encoder.encode_record(record)
     }
 
     /// Encodes a single DBN record.
@@ -89,19 +84,13 @@ where
     unsafe fn encode_record_ref(
         &mut self,
         record: RecordRef,
-        _ts_out: bool,
+        ts_out: bool,
     ) -> anyhow::Result<bool> {
-        match self.writer.write_all(record.as_ref()) {
-            Ok(_) => Ok(false),
-            Err(e) if e.kind() == io::ErrorKind::BrokenPipe => Ok(true),
-            Err(e) => {
-                Err(anyhow::Error::new(e).context(format!("Failed to serialize {record:#?}")))
-            }
-        }
+        self.record_encoder.encode_record_ref(record, ts_out)
     }
 
     fn flush(&mut self) -> anyhow::Result<()> {
-        Ok(self.writer.flush()?)
+        self.record_encoder.flush()
     }
 }
 
@@ -304,6 +293,78 @@ where
             .seek(SeekFrom::End(0))
             .with_context(|| "Failed to seek back to end".to_owned())?;
         Ok(())
+    }
+}
+
+/// Type for encoding Databento Binary Encoding (DBN) records (not metadata).
+pub struct RecordEncoder<W>
+where
+    W: io::Write,
+{
+    writer: W,
+}
+
+impl<W> RecordEncoder<W>
+where
+    W: io::Write,
+{
+    /// Creates a new DBN [`RecordEncoder`] that will write to `writer`.
+    pub fn new(writer: W) -> Self {
+        Self { writer }
+    }
+
+    /// Returns a reference to the underlying writer.
+    pub fn get_ref(&self) -> &W {
+        &self.writer
+    }
+
+    /// Returns a mutable reference to the underlying writer.
+    pub fn get_mut(&mut self) -> &mut W {
+        &mut self.writer
+    }
+}
+
+impl<W> EncodeDbn for RecordEncoder<W>
+where
+    W: io::Write,
+{
+    fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> anyhow::Result<bool> {
+        match self.writer.write_all(record.as_ref()) {
+            Ok(_) => Ok(false),
+            Err(e) if e.kind() == io::ErrorKind::BrokenPipe => Ok(true),
+            Err(e) => {
+                Err(anyhow::Error::new(e).context(format!("Failed to serialize {record:#?}")))
+            }
+        }
+    }
+
+    /// Encodes a single DBN record.
+    ///
+    /// Returns `true` if the the pipe was closed.
+    ///
+    /// # Safety
+    /// The DBN encoding a [`RecordRef`] is safe because no dispatching based on type
+    /// is required.
+    ///
+    /// # Errors
+    /// This function will return an error if it fails to encode `record` to
+    /// `writer`.
+    unsafe fn encode_record_ref(
+        &mut self,
+        record: RecordRef,
+        _ts_out: bool,
+    ) -> anyhow::Result<bool> {
+        match self.writer.write_all(record.as_ref()) {
+            Ok(_) => Ok(false),
+            Err(e) if e.kind() == io::ErrorKind::BrokenPipe => Ok(true),
+            Err(e) => {
+                Err(anyhow::Error::new(e).context(format!("Failed to serialize {record:#?}")))
+            }
+        }
+    }
+
+    fn flush(&mut self) -> anyhow::Result<()> {
+        Ok(self.writer.flush()?)
     }
 }
 

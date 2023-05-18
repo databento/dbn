@@ -9,6 +9,20 @@ use std::{fmt, io, num::NonZeroU64};
 use streaming_iterator::StreamingIterator;
 use time::format_description::FormatItem;
 
+// Re-exports
+#[cfg(feature = "async")]
+pub use self::dbn::{
+    AsyncMetadataEncoder as DbnAsyncMetadataEncoder, AsyncRecordEncoder as AsyncDbnRecordEncoder,
+};
+pub use self::{
+    csv::Encoder as CsvEncoder,
+    dbn::{
+        Encoder as DbnEncoder, MetadataEncoder as DbnMetadataEncoder,
+        RecordEncoder as DbnRecordEncoder,
+    },
+    json::Encoder as JsonEncoder,
+};
+
 use crate::{
     decode::DecodeDbn,
     enums::{Compression, Encoding},

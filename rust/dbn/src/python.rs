@@ -16,7 +16,7 @@ use crate::{
     decode::{DecodeDbn, DynDecoder},
     encode::dbn::MetadataEncoder,
     enums::{
-        rtype, Compression, SType, Schema, SecurityUpdateAction, StatUpdateAction,
+        rtype, Compression, Encoding, SType, Schema, SecurityUpdateAction, StatUpdateAction,
         UserDefinedInstrument,
     },
     metadata::MetadataBuilder,
@@ -220,7 +220,20 @@ impl<'source> FromPyObject<'source> for Schema {
 
 impl IntoPy<PyObject> for Schema {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        (self.as_str()).into_py(py)
+        self.as_str().into_py(py)
+    }
+}
+
+impl<'source> FromPyObject<'source> for Encoding {
+    fn extract(any: &'source PyAny) -> PyResult<Self> {
+        let str: &str = any.extract()?;
+        str.parse().map_err(to_val_err)
+    }
+}
+
+impl IntoPy<PyObject> for Encoding {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        self.as_str().into_py(py)
     }
 }
 
@@ -233,7 +246,7 @@ impl<'source> FromPyObject<'source> for SType {
 
 impl IntoPy<PyObject> for SType {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        (self.as_str()).into_py(py)
+        self.as_str().into_py(py)
     }
 }
 

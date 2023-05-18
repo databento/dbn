@@ -11,7 +11,8 @@ pub mod encode;
 pub mod enums;
 pub mod error;
 /// json_writer crate with additional changes that haven't been upstreamed yet
-mod json_writer;
+#[doc(hidden)]
+pub mod json_writer;
 mod macros;
 pub mod metadata;
 #[cfg(feature = "python")]

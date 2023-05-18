@@ -185,6 +185,19 @@ macro_rules! schema_async_method_dispatch {
     }};
 }
 
+/// Specializes a generic method function to all record types with an associated schema.
+#[macro_export]
+macro_rules! schema_dispatch {
+    ($schema:expr, $generic_fn:ident $(,$arg:expr)*) => {{
+        macro_rules! handler {
+            ($r:ty) => {{
+                $generic_fn::<$r>($($arg),*)
+            }}
+        }
+        $crate::schema_dispatch_base!($schema, handler)
+    }};
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{record::HasRType, schema_method_dispatch};
