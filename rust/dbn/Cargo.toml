@@ -26,14 +26,12 @@ anyhow = "1.0"
 async-compression = { version = "0.3.15", features = ["tokio", "zstd"], optional = true }
 # CSV serialization
 csv = "1.2"
-# json_writer: int to string
-itoa = "1.0.6"
 # Deriving translation between integers and enums
 num_enum = "0.6"
 # Python bindings for Rust
 pyo3 = { version = "0.18.3", optional = true }
-# json_writer: float to string
-ryu = "1.0.13"
+# JSON serialization
+json-writer = "0.3"
 # zero-copy DBN decoding
 streaming-iterator = "0.1.9"
 # date and datetime support

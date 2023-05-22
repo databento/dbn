@@ -46,9 +46,9 @@ pub fn derive_json_macro_impl(input: proc_macro::TokenStream) -> proc_macro::Tok
             let field_iter = fields.named.iter().map(write_json_field_token_stream);
             return quote! {
                 impl crate::encode::json::serialize::JsonSerialize for #ident {
-                    fn to_json<F: crate::json_writer::Formatter, const PRETTY_PX: bool, const PRETTY_TS: bool>(
+                    fn to_json<J: crate::json_writer::JsonWriter, const PRETTY_PX: bool, const PRETTY_TS: bool>(
                         &self,
-                        writer: &mut crate::json_writer::JsonObjectWriter<F>,
+                        writer: &mut crate::json_writer::JsonObjectWriter<J>,
                     ) {
                         use crate::encode::json::serialize::WriteField;
 

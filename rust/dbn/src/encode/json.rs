@@ -134,9 +134,6 @@ pub(crate) mod serialize {
         Metadata, UNDEF_PRICE,
     };
 
-    const PRETTY_FORMATTER: crate::json_writer::PrettyFormatter =
-        crate::json_writer::PrettyFormatter::with_indent("    ");
-
     /// Serializes `obj` to a JSON string.
     pub fn to_json_string<T: JsonSerialize>(
         obj: &T,
@@ -145,68 +142,75 @@ pub(crate) mod serialize {
         use_pretty_ts: bool,
     ) -> String {
         let mut res = String::new();
-        {
-            if should_pretty_print {
-                let mut writer = JsonObjectWriter::with_formatter(&mut res, PRETTY_FORMATTER);
-                to_json_with_writer(obj, &mut writer, use_pretty_px, use_pretty_ts);
-            } else {
-                let mut writer = JsonObjectWriter::new(&mut res);
-                to_json_with_writer(obj, &mut writer, use_pretty_px, use_pretty_ts);
-            }
+        if should_pretty_print {
+            let mut pretty = pretty_writer(&mut res);
+            let mut writer = JsonObjectWriter::new(&mut pretty);
+            to_json_with_writer(obj, &mut writer, use_pretty_px, use_pretty_ts);
+        } else {
+            let mut writer = JsonObjectWriter::new(&mut res);
+            to_json_with_writer(obj, &mut writer, use_pretty_px, use_pretty_ts);
         }
         res
     }
 
-    fn to_json_with_writer<T: JsonSerialize, F: crate::json_writer::Formatter>(
+    fn to_json_with_writer<T: JsonSerialize, J: crate::json_writer::JsonWriter>(
         obj: &T,
-        writer: &mut JsonObjectWriter<F>,
+        writer: &mut JsonObjectWriter<J>,
         use_pretty_px: bool,
         use_pretty_ts: bool,
     ) {
         match (use_pretty_px, use_pretty_ts) {
-            (true, true) => obj.to_json::<F, true, true>(writer),
-            (true, false) => obj.to_json::<F, true, false>(writer),
-            (false, true) => obj.to_json::<F, false, true>(writer),
-            (false, false) => obj.to_json::<F, false, false>(writer),
+            (true, true) => obj.to_json::<J, true, true>(writer),
+            (true, false) => obj.to_json::<J, true, false>(writer),
+            (false, true) => obj.to_json::<J, false, true>(writer),
+            (false, false) => obj.to_json::<J, false, false>(writer),
         };
     }
 
+    fn pretty_writer(buffer: &mut String) -> crate::json_writer::PrettyJsonWriter<'_> {
+        crate::json_writer::PrettyJsonWriter::with_indent(buffer, "    ")
+    }
+
     pub trait JsonSerialize {
-        fn to_json<F: crate::json_writer::Formatter, const PRETTY_PX: bool, const PRETTY_TS: bool>(
+        fn to_json<
+            J: crate::json_writer::JsonWriter,
+            const PRETTY_PX: bool,
+            const PRETTY_TS: bool,
+        >(
             &self,
-            writer: &mut JsonObjectWriter<F>,
+            writer: &mut JsonObjectWriter<J>,
         );
     }
 
     impl<T: HasRType + JsonSerialize> JsonSerialize for WithTsOut<T> {
         fn to_json<
-            F: crate::json_writer::Formatter,
+            J: crate::json_writer::JsonWriter,
             const PRETTY_PX: bool,
             const PRETTY_TS: bool,
         >(
             &self,
-            writer: &mut JsonObjectWriter<F>,
+            writer: &mut JsonObjectWriter<J>,
         ) {
-            self.rec.to_json::<F, PRETTY_PX, PRETTY_TS>(writer);
-            write_ts_field::<F, PRETTY_TS>(writer, "ts_out", self.ts_out);
+            self.rec.to_json::<J, PRETTY_PX, PRETTY_TS>(writer);
+            write_ts_field::<J, PRETTY_TS>(writer, "ts_out", self.ts_out);
         }
     }
 
     impl JsonSerialize for Metadata {
         fn to_json<
-            F: crate::json_writer::Formatter,
+            J: crate::json_writer::JsonWriter,
             const _PRETTY_PX: bool,
             const PRETTY_TS: bool,
         >(
             &self,
-            writer: &mut JsonObjectWriter<F>,
+            writer: &mut JsonObjectWriter<J>,
         ) {
             writer.value("version", self.version);
             writer.value("dataset", &self.dataset);
             writer.value("schema", self.schema.map(|s| s.as_str()));
-            write_ts_field::<F, PRETTY_TS>(writer, "start", self.start);
+            write_ts_field::<J, PRETTY_TS>(writer, "start", self.start);
             if let Some(end) = self.end {
-                write_ts_field::<F, PRETTY_TS>(writer, "end", end.get());
+                write_ts_field::<J, PRETTY_TS>(writer, "end", end.get());
             } else {
                 writer.value("end", NULL);
             }
@@ -231,12 +235,12 @@ pub(crate) mod serialize {
                 let mut interval_arr_writer = item_writer.array("intervals");
                 for interval in mapping.intervals.iter() {
                     let mut interval_writer = interval_arr_writer.object();
-                    write_date_field::<F, PRETTY_TS>(
+                    write_date_field::<J, PRETTY_TS>(
                         &mut interval_writer,
                         "start_date",
                         &interval.start_date,
                     );
-                    write_date_field::<F, PRETTY_TS>(
+                    write_date_field::<J, PRETTY_TS>(
                         &mut interval_writer,
                         "end_date",
                         &interval.end_date,
@@ -249,49 +253,49 @@ pub(crate) mod serialize {
 
     pub trait WriteField {
         fn write_field<
-            F: crate::json_writer::Formatter,
+            J: crate::json_writer::JsonWriter,
             const PRETTY_PX: bool,
             const PRETTY_TS: bool,
         >(
             &self,
-            writer: &mut JsonObjectWriter<F>,
+            writer: &mut JsonObjectWriter<J>,
             name: &str,
         );
     }
 
     impl WriteField for RecordHeader {
         fn write_field<
-            F: crate::json_writer::Formatter,
+            J: crate::json_writer::JsonWriter,
             const PRETTY_PX: bool,
             const PRETTY_TS: bool,
         >(
             &self,
-            writer: &mut JsonObjectWriter<F>,
+            writer: &mut JsonObjectWriter<J>,
             name: &str,
         ) {
             let mut hd_writer = writer.object(name);
             hd_writer.value("rtype", self.rtype);
             hd_writer.value("publisher_id", self.publisher_id);
             hd_writer.value("instrument_id", self.instrument_id);
-            write_ts_field::<F, PRETTY_TS>(&mut hd_writer, "ts_event", self.ts_event);
+            write_ts_field::<J, PRETTY_TS>(&mut hd_writer, "ts_event", self.ts_event);
         }
     }
 
     impl<const N: usize> WriteField for [BidAskPair; N] {
         fn write_field<
-            F: crate::json_writer::Formatter,
+            J: crate::json_writer::JsonWriter,
             const PRETTY_PX: bool,
             const PRETTY_TS: bool,
         >(
             &self,
-            writer: &mut JsonObjectWriter<F>,
+            writer: &mut JsonObjectWriter<J>,
             name: &str,
         ) {
             let mut arr_writer = writer.array(name);
             for level in self.iter() {
                 let mut item_writer = arr_writer.object();
-                write_px_field::<F, PRETTY_PX>(&mut item_writer, "bid_px", level.bid_px);
-                write_px_field::<F, PRETTY_PX>(&mut item_writer, "ask_px", level.ask_px);
+                write_px_field::<J, PRETTY_PX>(&mut item_writer, "bid_px", level.bid_px);
+                write_px_field::<J, PRETTY_PX>(&mut item_writer, "ask_px", level.ask_px);
                 item_writer.value("bid_sz", level.bid_sz);
                 item_writer.value("ask_sz", level.ask_sz);
                 item_writer.value("bid_ct", level.bid_ct);
@@ -302,12 +306,12 @@ pub(crate) mod serialize {
 
     impl WriteField for i64 {
         fn write_field<
-            F: crate::json_writer::Formatter,
+            J: crate::json_writer::JsonWriter,
             const PRETTY_PX: bool,
             const PRETTY_TS: bool,
         >(
             &self,
-            writer: &mut JsonObjectWriter<F>,
+            writer: &mut JsonObjectWriter<J>,
             name: &str,
         ) {
             writer.value(name, &self.to_string());
@@ -316,12 +320,12 @@ pub(crate) mod serialize {
 
     impl WriteField for u64 {
         fn write_field<
-            F: crate::json_writer::Formatter,
+            J: crate::json_writer::JsonWriter,
             const PRETTY_PX: bool,
             const PRETTY_TS: bool,
         >(
             &self,
-            writer: &mut JsonObjectWriter<F>,
+            writer: &mut JsonObjectWriter<J>,
             name: &str,
         ) {
             writer.value(name, &self.to_string());
@@ -332,9 +336,9 @@ pub(crate) mod serialize {
         ($($ty:ident),+) => {
             $(
                 impl WriteField for $ty {
-                    fn write_field<F: crate::json_writer::Formatter, const PRETTY_PX: bool, const PRETTY_TS: bool>(
+                    fn write_field<J: crate::json_writer::JsonWriter, const PRETTY_PX: bool, const PRETTY_TS: bool>(
                         &self,
-                        writer: &mut JsonObjectWriter<F>,
+                        writer: &mut JsonObjectWriter<J>,
                         name: &str,
                     ) {
                         writer.value(name, self);
@@ -348,12 +352,12 @@ pub(crate) mod serialize {
 
     impl WriteField for SecurityUpdateAction {
         fn write_field<
-            F: crate::json_writer::Formatter,
+            J: crate::json_writer::JsonWriter,
             const _PRETTY_PX: bool,
             const _PRETTY_TS: bool,
         >(
             &self,
-            writer: &mut JsonObjectWriter<F>,
+            writer: &mut JsonObjectWriter<J>,
             name: &str,
         ) {
             writer.value(name, &(*self as u8 as char).to_string());
@@ -362,12 +366,12 @@ pub(crate) mod serialize {
 
     impl WriteField for UserDefinedInstrument {
         fn write_field<
-            F: crate::json_writer::Formatter,
+            J: crate::json_writer::JsonWriter,
             const _PRETTY_PX: bool,
             const _PRETTY_TS: bool,
         >(
             &self,
-            writer: &mut JsonObjectWriter<F>,
+            writer: &mut JsonObjectWriter<J>,
             name: &str,
         ) {
             writer.value(name, &(*self as u8 as char).to_string());
@@ -376,28 +380,28 @@ pub(crate) mod serialize {
 
     impl<const N: usize> WriteField for [c_char; N] {
         fn write_field<
-            F: crate::json_writer::Formatter,
+            J: crate::json_writer::JsonWriter,
             const PRETTY_PX: bool,
             const PRETTY_TS: bool,
         >(
             &self,
-            writer: &mut JsonObjectWriter<F>,
+            writer: &mut JsonObjectWriter<J>,
             name: &str,
         ) {
             writer.value(name, c_chars_to_str(self).unwrap_or_default());
         }
     }
 
-    pub fn write_c_char_field<F: crate::json_writer::Formatter>(
-        writer: &mut JsonObjectWriter<F>,
+    pub fn write_c_char_field<J: crate::json_writer::JsonWriter>(
+        writer: &mut JsonObjectWriter<J>,
         name: &str,
         c_char: c_char,
     ) {
         writer.value(name, &(c_char as u8 as char).to_string());
     }
 
-    pub fn write_px_field<F: crate::json_writer::Formatter, const PRETTY_PX: bool>(
-        writer: &mut JsonObjectWriter<F>,
+    pub fn write_px_field<J: crate::json_writer::JsonWriter, const PRETTY_PX: bool>(
+        writer: &mut JsonObjectWriter<J>,
         key: &str,
         px: i64,
     ) {
@@ -413,8 +417,8 @@ pub(crate) mod serialize {
         }
     }
 
-    pub fn write_ts_field<F: crate::json_writer::Formatter, const PRETTY_TS: bool>(
-        writer: &mut JsonObjectWriter<F>,
+    pub fn write_ts_field<J: crate::json_writer::JsonWriter, const PRETTY_TS: bool>(
+        writer: &mut JsonObjectWriter<J>,
         key: &str,
         ts: u64,
     ) {
@@ -430,8 +434,8 @@ pub(crate) mod serialize {
         }
     }
 
-    fn write_date_field<F: crate::json_writer::Formatter, const PRETTY_TS: bool>(
-        writer: &mut JsonObjectWriter<F>,
+    fn write_date_field<J: crate::json_writer::JsonWriter, const PRETTY_TS: bool>(
+        writer: &mut JsonObjectWriter<J>,
         key: &str,
         date: &time::Date,
     ) {
