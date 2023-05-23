@@ -28,7 +28,7 @@ use crate::{
     },
     UNDEF_ORDER_SIZE, UNDEF_PRICE,
 };
-use crate::{MappingInterval, Metadata, SymbolMapping};
+use crate::{MappingInterval, Metadata, SymbolMapping, UNDEF_TIMESTAMP};
 
 #[pymethods]
 impl Metadata {
@@ -857,8 +857,8 @@ impl InstrumentDefMsg {
             ts_recv,
             min_price_increment,
             display_factor,
-            expiration: expiration.unwrap_or(u64::MAX),
-            activation: activation.unwrap_or(u64::MAX),
+            expiration: expiration.unwrap_or(UNDEF_TIMESTAMP),
+            activation: activation.unwrap_or(UNDEF_TIMESTAMP),
             high_limit_price: high_limit_price.unwrap_or(UNDEF_PRICE),
             low_limit_price: low_limit_price.unwrap_or(UNDEF_PRICE),
             max_price_variation: max_price_variation.unwrap_or(i64::MAX),

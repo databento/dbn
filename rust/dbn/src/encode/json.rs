@@ -127,6 +127,7 @@ pub(crate) mod serialize {
     use time::format_description::FormatItem;
 
     use crate::json_writer::{JsonObjectWriter, NULL};
+    use crate::UNDEF_TIMESTAMP;
     use crate::{
         encode::{format_px, format_ts},
         enums::{SecurityUpdateAction, UserDefinedInstrument},
@@ -423,11 +424,10 @@ pub(crate) mod serialize {
         ts: u64,
     ) {
         if PRETTY_TS {
-            if ts == 0 {
-                writer.value(key, NULL);
-            } else {
-                writer.value(key, &format_ts(ts));
-            }
+            match ts {
+                0 | UNDEF_TIMESTAMP => writer.value(key, NULL),
+                ts => writer.value(key, &format_ts(ts)),
+            };
         } else {
             // Convert to string to avoid a loss of precision
             writer.value(key, &ts.to_string());

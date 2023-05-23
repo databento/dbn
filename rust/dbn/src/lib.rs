@@ -28,17 +28,18 @@ const METADATA_RESERVED_LEN: usize = 47;
 /// Excludes magic string, version, and length.
 const METADATA_FIXED_LEN: usize = 100;
 const SYMBOL_CSTR_LEN: usize = 22;
-const NULL_END: u64 = u64::MAX;
 const NULL_LIMIT: u64 = 0;
 const NULL_RECORD_COUNT: u64 = u64::MAX;
 const NULL_SCHEMA: u16 = u16::MAX;
 const NULL_STYPE: u8 = u8::MAX;
 
 /// The denominator of fixed prices in DBN.
-const FIXED_PRICE_SCALE: i64 = 1_000_000_000;
+pub const FIXED_PRICE_SCALE: i64 = 1_000_000_000;
 /// The sentinel value for an unset or null price.
 pub const UNDEF_PRICE: i64 = i64::MAX;
 /// The sentinel value for an unset or null order quantity.
 pub const UNDEF_ORDER_SIZE: u32 = u32::MAX;
 /// The sentinel value for an unset or null stat quantity.
 pub const UNDEF_STAT_QUANTITY: i32 = i32::MAX;
+/// The sentinel value for an unset or null timestamp.
+pub const UNDEF_TIMESTAMP: u64 = u64::MAX;

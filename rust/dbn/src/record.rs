@@ -331,12 +331,12 @@ pub struct InstrumentDefMsg {
     #[pyo3(get, set)]
     pub display_factor: i64,
     /// The last eligible trade time expressed as a number of nanoseconds since the
-    /// UNIX epoch.
+    /// UNIX epoch. Will be [`crate::UNDEF_TIMESTAMP`] when null, such as for equities.
     #[dbn(unix_nanos)]
     #[pyo3(get, set)]
     pub expiration: u64,
     /// The time of instrument activation expressed as a number of nanoseconds since the
-    /// UNIX epoch.
+    /// UNIX epoch. Will be [`crate::UNDEF_TIMESTAMP`] when null, such as for equities.
     #[dbn(unix_nanos)]
     #[pyo3(get, set)]
     pub activation: u64,
@@ -613,6 +613,7 @@ pub struct StatMsg {
     #[dbn(unix_nanos)]
     pub ts_recv: u64,
     /// Reference timestamp expressed as the number of nanoseconds since the UNIX epoch.
+    /// Will be [`crate::UNDEF_TIMESTAMP`] when unused.
     #[dbn(unix_nanos)]
     pub ts_ref: u64,
     /// The value for price statistics expressed as a signed integer where every 1 unit

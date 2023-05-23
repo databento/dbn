@@ -8,6 +8,7 @@
 - Improved DBN encoding performance of `RecordRef`s
 - Added `use_pretty_px` for price formatting and `use_pretty_ts` for datetime formatting
   to CSV and JSON encoders
+- Added `UNDEF_TIMESTAMP` constant for when timestamp fields are unset
 - Removed `open_interest_qty` and `cleared_volume` fields that were always unset from
   definition schema
 - Renamed `--pretty-json` CLI flag to `--pretty` and added support for CSV. Passing this

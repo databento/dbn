@@ -178,7 +178,7 @@ pub(crate) mod serialize {
         encode::{format_px, format_ts},
         enums::{SecurityUpdateAction, UserDefinedInstrument},
         record::{c_chars_to_str, BidAskPair, HasRType, RecordHeader, WithTsOut},
-        UNDEF_PRICE,
+        UNDEF_PRICE, UNDEF_TIMESTAMP,
     };
 
     /// Because of the flat nature of CSVs, there are several limitations in the
@@ -329,10 +329,9 @@ pub(crate) mod serialize {
         ts: u64,
     ) -> csv::Result<()> {
         if PRETTY_TS {
-            if ts == 0 {
-                csv_writer.write_field("")
-            } else {
-                csv_writer.write_field(format_ts(ts))
+            match ts {
+                0 | UNDEF_TIMESTAMP => csv_writer.write_field(""),
+                ts => csv_writer.write_field(format_ts(ts)),
             }
         } else {
             csv_writer.write_field(ts.to_string())

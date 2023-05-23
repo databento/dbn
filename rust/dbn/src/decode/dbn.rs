@@ -17,8 +17,8 @@ use crate::{
     enums::{SType, Schema},
     record::{HasRType, RecordHeader},
     record_ref::RecordRef,
-    MappingInterval, Metadata, SymbolMapping, DBN_VERSION, METADATA_FIXED_LEN, NULL_END,
-    NULL_SCHEMA, NULL_STYPE,
+    MappingInterval, Metadata, SymbolMapping, DBN_VERSION, METADATA_FIXED_LEN, NULL_SCHEMA,
+    NULL_STYPE, UNDEF_TIMESTAMP,
 };
 
 const DBN_PREFIX: &[u8] = b"DBN";
@@ -361,7 +361,7 @@ where
             stype_in,
             stype_out,
             start,
-            end: if end == NULL_END {
+            end: if end == UNDEF_TIMESTAMP {
                 None
             } else {
                 NonZeroU64::new(end)

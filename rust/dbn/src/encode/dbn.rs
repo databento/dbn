@@ -9,8 +9,8 @@ use anyhow::{anyhow, Context};
 
 use super::{zstd_encoder, DbnEncodable, EncodeDbn};
 use crate::{
-    enums::Schema, record_ref::RecordRef, Metadata, SymbolMapping, DBN_VERSION, NULL_END,
-    NULL_LIMIT, NULL_RECORD_COUNT, NULL_SCHEMA, NULL_STYPE,
+    enums::Schema, record_ref::RecordRef, Metadata, SymbolMapping, DBN_VERSION, NULL_LIMIT,
+    NULL_RECORD_COUNT, NULL_SCHEMA, NULL_STYPE, UNDEF_TIMESTAMP,
 };
 
 /// Type for encoding files and streams in Databento Binary Encoding (DBN).
@@ -185,7 +185,7 @@ where
         self.writer.write_all(start.to_le_bytes().as_slice())?;
         self.writer.write_all(
             end.map(|e| e.get())
-                .unwrap_or(NULL_END)
+                .unwrap_or(UNDEF_TIMESTAMP)
                 .to_le_bytes()
                 .as_slice(),
         )?;
@@ -590,8 +590,8 @@ mod r#async {
     use tokio::io;
 
     use crate::{
-        record::HasRType, record_ref::RecordRef, Metadata, SymbolMapping, DBN_VERSION, NULL_END,
-        NULL_LIMIT, NULL_RECORD_COUNT, NULL_SCHEMA, NULL_STYPE,
+        record::HasRType, record_ref::RecordRef, Metadata, SymbolMapping, DBN_VERSION, NULL_LIMIT,
+        NULL_RECORD_COUNT, NULL_SCHEMA, NULL_STYPE, UNDEF_TIMESTAMP,
     };
 
     /// An async encoder of DBN records.
@@ -749,7 +749,7 @@ mod r#async {
         ) -> anyhow::Result<()> {
             self.writer.write_u64_le(start).await?;
             self.writer
-                .write_u64_le(end.map(|e| e.get()).unwrap_or(NULL_END))
+                .write_u64_le(end.map(|e| e.get()).unwrap_or(UNDEF_TIMESTAMP))
                 .await?;
             self.writer
                 .write_u64_le(limit.map(|l| l.get()).unwrap_or(NULL_LIMIT))
