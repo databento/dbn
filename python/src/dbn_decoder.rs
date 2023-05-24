@@ -1,6 +1,6 @@
 use std::io::{self, Write};
 
-use pyo3::{prelude::*, types::PyTuple};
+use pyo3::prelude::*;
 
 use dbn::{
     decode::dbn::{MetadataDecoder, RecordDecoder},
@@ -9,7 +9,7 @@ use dbn::{
     rtype_ts_out_dispatch,
 };
 
-#[pyclass(module = "databento_dbn")]
+#[pyclass(module = "databento_dbn", name = "DBNDecoder")]
 pub struct DbnDecoder {
     buffer: io::Cursor<Vec<u8>>,
     has_decoded_metadata: bool,
@@ -43,7 +43,7 @@ impl DbnDecoder {
             match MetadataDecoder::new(&mut self.buffer).decode() {
                 Ok(metadata) => {
                     self.ts_out = metadata.ts_out;
-                    Python::with_gil(|py| recs.push((metadata, py.None()).into_py(py)));
+                    Python::with_gil(|py| recs.push(metadata.into_py(py)));
                     self.has_decoded_metadata = true;
                 }
                 Err(err) => {
@@ -64,20 +64,7 @@ impl DbnDecoder {
                     py: Python,
                     recs: &mut Vec<Py<PyAny>>,
                 ) {
-                    let pyrec = rec.clone().into_py(py);
-                    recs.push(
-                        // Convert non `WithTsOut` records to a (rec, None)
-                        // for consistent typing
-                        if pyrec
-                            .as_ref(py)
-                            .is_instance_of::<PyTuple>()
-                            .unwrap_or_default()
-                        {
-                            pyrec
-                        } else {
-                            (pyrec, py.None()).into_py(py)
-                        },
-                    )
+                    recs.push(rec.clone().into_py(py))
                 }
 
                 // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`

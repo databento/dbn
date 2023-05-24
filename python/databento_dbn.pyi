@@ -352,6 +352,17 @@ class Record(SupportsBytes):
         int
 
         """
+    @property
+    def ts_out(self) -> Optional[int]:
+        """
+        The live gateway send timestamp expressed as number of nanoseconds since
+        the UNIX epoch.
+
+        Returns
+        -------
+        Optional[int]
+
+        """
 
 class _MBOBase:
     """Base for market-by-order messages."""
@@ -1751,7 +1762,7 @@ class SystemMsg(Record):
 
         """
 
-class DbnDecoder:
+class DBNDecoder:
     """A class for decoding DBN data to Python objects."""
 
     def buffer(self) -> bytes:
@@ -1765,13 +1776,13 @@ class DbnDecoder:
         """
     def decode(
         self,
-    ) -> List[Tuple[_DBNRecord, Optional[int]]]:
+    ) -> List[_DBNRecord]:
         """
         Decode the buffered data into DBN records.
 
         Returns
         -------
-        List[Tuple[DBNRecord, Optional[int]]]
+        List[DBNRecord]
 
         Raises
         ------
@@ -1788,7 +1799,7 @@ class DbnDecoder:
         bytes: bytes,
     ) -> None:
         """
-        Write a sequence of bytes to the internal buffer of the DbnDecoder.
+        Write a sequence of bytes to the internal buffer of the DBNDecoder.
 
         Raises
         ------

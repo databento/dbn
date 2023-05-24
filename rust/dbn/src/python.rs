@@ -9,7 +9,7 @@ use pyo3::{
     exceptions::PyValueError,
     prelude::*,
     pyclass::CompareOp,
-    types::{PyBytes, PyDate, PyDateAccess, PyDict, PyTuple, PyType},
+    types::{PyBytes, PyDate, PyDateAccess, PyDict, PyType},
 };
 use time::Date;
 
@@ -129,7 +129,9 @@ impl ToPyObject for SymbolMapping {
 // `WithTsOut` is converted to a 2-tuple in Python
 impl<R: HasRType + IntoPy<Py<PyAny>>> IntoPy<PyObject> for WithTsOut<R> {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        PyTuple::new(py, [self.rec.into_py(py), self.ts_out.into_py(py)]).into_py(py)
+        let obj = self.rec.into_py(py);
+        obj.setattr(py, "ts_out", self.ts_out).unwrap();
+        obj
     }
 }
 
