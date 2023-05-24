@@ -2,6 +2,7 @@
 //! to be able to implement [`pyo3`] traits for DBN types.
 #![allow(clippy::too_many_arguments)]
 
+use std::mem;
 use std::{collections::HashMap, ffi::c_char, fmt, io, num::NonZeroU64};
 
 use pyo3::{
@@ -347,6 +348,11 @@ impl MboMsg {
     fn py_record_size(&self) -> usize {
         self.record_size()
     }
+
+    #[classmethod]
+    fn size_hint(_: &PyType) -> PyResult<usize> {
+        Ok(mem::size_of::<MboMsg>())
+    }
 }
 
 #[pymethods]
@@ -446,6 +452,11 @@ impl TradeMsg {
     fn py_record_size(&self) -> usize {
         self.record_size()
     }
+
+    #[classmethod]
+    fn size_hint(_: &PyType) -> PyResult<usize> {
+        Ok(mem::size_of::<TradeMsg>())
+    }
 }
 
 #[pymethods]
@@ -520,6 +531,11 @@ impl Mbp1Msg {
     #[pyo3(name = "record_size")]
     fn py_record_size(&self) -> usize {
         self.record_size()
+    }
+
+    #[classmethod]
+    fn size_hint(_: &PyType) -> PyResult<usize> {
+        Ok(mem::size_of::<Mbp1Msg>())
     }
 }
 
@@ -608,6 +624,11 @@ impl Mbp10Msg {
     fn py_record_size(&self) -> usize {
         self.record_size()
     }
+
+    #[classmethod]
+    fn size_hint(_: &PyType) -> PyResult<usize> {
+        Ok(mem::size_of::<Mbp10Msg>())
+    }
 }
 
 #[pymethods]
@@ -674,6 +695,11 @@ impl OhlcvMsg {
     fn py_record_size(&self) -> usize {
         self.record_size()
     }
+
+    #[classmethod]
+    fn size_hint(_: &PyType) -> PyResult<usize> {
+        Ok(mem::size_of::<OhlcvMsg>())
+    }
 }
 
 #[pymethods]
@@ -738,6 +764,11 @@ impl StatusMsg {
     #[pyo3(name = "record_size")]
     fn py_record_size(&self) -> usize {
         self.record_size()
+    }
+
+    #[classmethod]
+    fn size_hint(_: &PyType) -> PyResult<usize> {
+        Ok(mem::size_of::<StatMsg>())
     }
 
     #[getter]
@@ -933,6 +964,11 @@ impl InstrumentDefMsg {
         self.record_size()
     }
 
+    #[classmethod]
+    fn size_hint(_: &PyType) -> PyResult<usize> {
+        Ok(mem::size_of::<InstrumentDefMsg>())
+    }
+
     #[getter]
     #[pyo3(name = "currency")]
     fn py_currency(&self) -> PyResult<&str> {
@@ -1083,6 +1119,11 @@ impl ImbalanceMsg {
     fn py_record_size(&self) -> usize {
         self.record_size()
     }
+
+    #[classmethod]
+    fn size_hint(_: &PyType) -> PyResult<usize> {
+        Ok(mem::size_of::<ImbalanceMsg>())
+    }
 }
 
 #[pymethods]
@@ -1158,6 +1199,11 @@ impl StatMsg {
     fn py_record_size(&self) -> usize {
         self.record_size()
     }
+
+    #[classmethod]
+    fn size_hint(_: &PyType) -> PyResult<usize> {
+        Ok(mem::size_of::<StatMsg>())
+    }
 }
 
 #[pymethods]
@@ -1206,6 +1252,11 @@ impl ErrorMsg {
     #[pyo3(name = "record_size")]
     fn py_record_size(&self) -> usize {
         self.record_size()
+    }
+
+    #[classmethod]
+    fn size_hint(_: &PyType) -> PyResult<usize> {
+        Ok(mem::size_of::<ErrorMsg>())
     }
 
     #[getter]
@@ -1283,6 +1334,11 @@ impl SymbolMappingMsg {
         self.record_size()
     }
 
+    #[classmethod]
+    fn size_hint(_: &PyType) -> PyResult<usize> {
+        Ok(mem::size_of::<SymbolMappingMsg>())
+    }
+
     #[getter]
     #[pyo3(name = "stype_in_symbol")]
     fn py_stype_in_symbol(&self) -> PyResult<&str> {
@@ -1342,6 +1398,11 @@ impl SystemMsg {
     #[pyo3(name = "record_size")]
     fn py_record_size(&self) -> usize {
         self.record_size()
+    }
+
+    #[classmethod]
+    fn size_hint(_: &PyType) -> PyResult<usize> {
+        Ok(mem::size_of::<SystemMsg>())
     }
 
     #[getter]

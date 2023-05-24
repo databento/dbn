@@ -5,6 +5,7 @@
 - Added `--limit NUM` CLI argument to output only the first `NUM` records
 - Added `AsRef<[u8]>` implementation for `RecordRef`
 - Improved DBN encoding performance of `RecordRef`s
+- Added Python `size_hint` classmethod for DBN records
 - Added `use_pretty_px` for price formatting and `use_pretty_ts` for datetime formatting
   to CSV and JSON encoders
 - Renamed `--pretty-json` CLI flag to `--pretty` and added support for CSV. Passing this

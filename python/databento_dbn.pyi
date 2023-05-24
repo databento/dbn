@@ -283,13 +283,32 @@ class Record(SupportsBytes):
         RecordHeader
 
         """
-    def record_size(self) -> int:
+    @classmethod
+    def size_hint(cls) -> int:
         """
-        Return the size of the record.
+        Return an estimated size of the record in bytes.
 
         Returns
         -------
         int
+
+        See Also
+        --------
+        record_size
+
+        """
+    @property
+    def record_size(self) -> int:
+        """
+        Return the size of the record in bytes.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        size_hint
 
         """
     @property
