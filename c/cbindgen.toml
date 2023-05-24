@@ -8,8 +8,33 @@ sys_includes = ["stdio.h"]
 cpp_compat = true
 
 [export]
-include = ["Schema", "SerializeError"]
+include = [
+  # Records
+  "MboMsg",
+  "BidAskPair",
+  "TradeMsg",
+  "Mbp1Msg",
+  "Mbp10Msg",
+  "TbboMsg",
+  "OhlcvMsg",
+  "StatusMsg",
+  "InstrumentDefMsg",
+  "ImbalanceMsg",
+  "StatMsg",
+  "ErrorMsg",
+  "SymbolMappingMsg",
+  "SystemMsg",
+  # Other exports
+  "RType",
+  "Schema",
+  "SerializeError",
+]
+prefix = "Dbn"
 exclude = ["MIN_ENCODED_SIZE"]
+renaming_overrides_prefixing = true
+
+[export.rename]
+"FILE" = "FILE"
 
 [enum]
 prefix_with_name = true

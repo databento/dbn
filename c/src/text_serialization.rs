@@ -60,18 +60,21 @@ pub unsafe extern "C" fn s_serialize_record_header(
     record: *const RecordHeader,
     options: *const SerializeRecordOptions,
 ) -> libc::c_int {
-    if buffer.is_null() {
+    let buffer = if let Some(buffer) = (buffer as *mut u8).as_mut() {
+        slice::from_raw_parts_mut(buffer, length)
+    } else {
         return SerializeError::NullBuffer as libc::c_int;
-    }
-    let buffer: &mut [u8] = slice::from_raw_parts_mut(buffer as *mut u8, length);
-    if record.is_null() {
+    };
+    let record = if let Some(record) = record.as_ref() {
+        RecordRef::unchecked_from_header(record)
+    } else {
         return SerializeError::NullRecord as libc::c_int;
-    }
-    let record = RecordRef::unchecked_from_header(record);
-    if options.is_null() {
+    };
+    let options = if let Some(options) = options.as_ref() {
+        options
+    } else {
         return SerializeError::NullOptions as libc::c_int;
-    }
-    let options = options.read();
+    };
     let mut cursor = io::Cursor::new(buffer);
     let res = match options.encoding {
         TextEncoding::Json => return 0,
@@ -112,14 +115,16 @@ pub unsafe extern "C" fn f_serialize_record_header(
     } else {
         return SerializeError::NullFile as libc::c_int;
     };
-    if record.is_null() {
+    let record = if let Some(record) = record.as_ref() {
+        RecordRef::unchecked_from_header(record)
+    } else {
         return SerializeError::NullRecord as libc::c_int;
-    }
-    let record = RecordRef::unchecked_from_header(record);
-    if options.is_null() {
+    };
+    let options = if let Some(options) = options.as_ref() {
+        options
+    } else {
         return SerializeError::NullOptions as libc::c_int;
-    }
-    let options = options.read();
+    };
     let res = match options.encoding {
         TextEncoding::Json => {
             return 0;
@@ -159,14 +164,16 @@ pub unsafe extern "C" fn s_serialize_record(
         return SerializeError::NullBuffer as libc::c_int;
     }
     let buffer: &mut [u8] = slice::from_raw_parts_mut(buffer as *mut u8, length);
-    if record.is_null() {
+    let record = if let Some(record) = record.as_ref() {
+        RecordRef::unchecked_from_header(record)
+    } else {
         return SerializeError::NullRecord as libc::c_int;
-    }
-    let record = RecordRef::unchecked_from_header(record);
-    if options.is_null() {
+    };
+    let options = if let Some(options) = options.as_ref() {
+        options
+    } else {
         return SerializeError::NullOptions as libc::c_int;
-    }
-    let options = options.read();
+    };
     let mut cursor = io::Cursor::new(buffer);
     let res = match options.encoding {
         TextEncoding::Json => {
@@ -207,14 +214,16 @@ pub unsafe extern "C" fn f_serialize_record(
     } else {
         return SerializeError::NullFile as libc::c_int;
     };
-    if record.is_null() {
+    let record = if let Some(record) = record.as_ref() {
+        RecordRef::unchecked_from_header(record)
+    } else {
         return SerializeError::NullRecord as libc::c_int;
-    }
-    let record = RecordRef::unchecked_from_header(record);
-    if options.is_null() {
+    };
+    let options = if let Some(options) = options.as_ref() {
+        options
+    } else {
         return SerializeError::NullOptions as libc::c_int;
-    }
-    let options = options.read();
+    };
     let res = match options.encoding {
         TextEncoding::Json => {
             json::Encoder::new(&mut cfile, false, options.pretty_px, options.pretty_ts)

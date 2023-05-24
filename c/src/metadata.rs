@@ -32,9 +32,11 @@ pub unsafe extern "C" fn encode_metadata(
     schema: Schema,
     start: u64,
 ) -> libc::c_int {
-    if buffer.is_null() {
+    let buffer = if let Some(buffer) = (buffer as *mut u8).as_mut() {
+        slice::from_raw_parts_mut(buffer, length)
+    } else {
         return -1;
-    }
+    };
     let dataset = match CStr::from_ptr(dataset).to_str() {
         Ok(dataset) => dataset.to_owned(),
         Err(_) => {
@@ -48,7 +50,6 @@ pub unsafe extern "C" fn encode_metadata(
         .stype_out(SType::InstrumentId)
         .schema(Some(schema))
         .build();
-    let buffer: &mut [u8] = slice::from_raw_parts_mut(buffer as *mut u8, length);
     let mut cursor = io::Cursor::new(buffer);
     match MetadataEncoder::new(&mut cursor).encode(&metadata) {
         Ok(()) => cursor.position() as i32,

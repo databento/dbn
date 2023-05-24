@@ -207,79 +207,79 @@ pub mod rtype {
     #[repr(u8)]
     pub enum RType {
         /// Market by price with a book depth of 0 (used for trades).
-        Mbp0 = MBP_0,
+        Mbp0 = 0,
         /// Market by price with a book depth of 1 (also used for TBBO).
-        Mbp1 = MBP_1,
+        Mbp1 = 0x01,
         /// Market by price with a book depth of 10.
-        Mbp10 = MBP_10,
+        Mbp10 = 0x0A,
         /// Open, high, low, close, and volume at an unspecified cadence.
         #[deprecated(
             since = "0.3.3",
             note = "Separated into separate rtypes for each OHLCV schema."
         )]
-        OhlcvDeprecated = OHLCV_DEPRECATED,
+        OhlcvDeprecated = 0x11,
         /// Open, high, low, close, and volume at a 1-second cadence.
-        Ohlcv1S = OHLCV_1S,
+        Ohlcv1S = 0x20,
         /// Open, high, low, close, and volume at a 1-minute cadence.
-        Ohlcv1M = OHLCV_1M,
+        Ohlcv1M = 0x21,
         /// Open, high, low, close, and volume at a daily cadence.
-        Ohlcv1H = OHLCV_1H,
+        Ohlcv1H = 0x22,
         /// Open, high, low, close, and volume at a daily cadence.
-        Ohlcv1D = OHLCV_1D,
+        Ohlcv1D = 0x23,
         /// Exchange status.
-        Status = STATUS,
+        Status = 0x12,
         /// Instrument definition.
-        InstrumentDef = INSTRUMENT_DEF,
+        InstrumentDef = 0x13,
         /// Order imbalance.
-        Imbalance = IMBALANCE,
+        Imbalance = 0x14,
         /// Error from gateway.
-        Error = ERROR,
+        Error = 0x15,
         /// Symbol mapping.
-        SymbolMapping = SYMBOL_MAPPING,
+        SymbolMapping = 0x16,
         /// A non-error message. Also used for heartbeats.
-        System = SYSTEM,
+        System = 0x17,
         /// Statistics from the publisher (not calculated by Databento).
-        Statistics = STATISTICS,
+        Statistics = 0x18,
         /// Market by order.
-        Mbo = MBO,
+        Mbo = 0xA0,
     }
 
     /// Market by price with a book depth of 0 (used for trades).
-    pub const MBP_0: u8 = 0x00;
+    pub const MBP_0: u8 = RType::Mbp0 as u8;
     /// Market by price with a book depth of 1 (also used for TBBO).
-    pub const MBP_1: u8 = 0x01;
+    pub const MBP_1: u8 = RType::Mbp1 as u8;
     /// Market by price with a book depth of 10.
-    pub const MBP_10: u8 = 0x0A;
+    pub const MBP_10: u8 = RType::Mbp10 as u8;
     /// Open, high, low, close, and volume at an unspecified cadence.
     #[deprecated(
         since = "0.3.3",
         note = "Separated into separate rtypes for each OHLCV schema."
     )]
-    pub const OHLCV_DEPRECATED: u8 = 0x11;
+    pub const OHLCV_DEPRECATED: u8 = RType::OhlcvDeprecated as u8;
     /// Open, high, low, close, and volume at a 1-second cadence.
-    pub const OHLCV_1S: u8 = 0x20;
+    pub const OHLCV_1S: u8 = RType::Ohlcv1S as u8;
     /// Open, high, low, close, and volume at a 1-minute cadence.
-    pub const OHLCV_1M: u8 = 0x21;
+    pub const OHLCV_1M: u8 = RType::Ohlcv1M as u8;
     /// Open, high, low, close, and volume at an hourly cadence.
-    pub const OHLCV_1H: u8 = 0x22;
+    pub const OHLCV_1H: u8 = RType::Ohlcv1H as u8;
     /// Open, high, low, close, and volume at a daily cadence.
-    pub const OHLCV_1D: u8 = 0x23;
+    pub const OHLCV_1D: u8 = RType::Ohlcv1D as u8;
     /// Exchange status.
-    pub const STATUS: u8 = 0x12;
+    pub const STATUS: u8 = RType::Status as u8;
     /// Instrument definition.
-    pub const INSTRUMENT_DEF: u8 = 0x13;
+    pub const INSTRUMENT_DEF: u8 = RType::InstrumentDef as u8;
     /// Order imbalance.
-    pub const IMBALANCE: u8 = 0x14;
+    pub const IMBALANCE: u8 = RType::Imbalance as u8;
     /// Error from gateway.
-    pub const ERROR: u8 = 0x15;
+    pub const ERROR: u8 = RType::Error as u8;
     /// Symbol mapping.
-    pub const SYMBOL_MAPPING: u8 = 0x16;
+    pub const SYMBOL_MAPPING: u8 = RType::SymbolMapping as u8;
     /// A non-error message. Also used for heartbeats.
-    pub const SYSTEM: u8 = 0x17;
+    pub const SYSTEM: u8 = RType::System as u8;
     /// Statistics from the publisher (not calculated by Databento).
-    pub const STATISTICS: u8 = 0x18;
+    pub const STATISTICS: u8 = RType::Statistics as u8;
     /// Market by order.
-    pub const MBO: u8 = 0xA0;
+    pub const MBO: u8 = RType::Mbo as u8;
 
     /// Get the corresponding `rtype` for the given `schema`.
     impl From<Schema> for RType {
