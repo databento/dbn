@@ -101,9 +101,9 @@ assert metadata.ts_out is False"#
         setup();
         Python::with_gil(|py| {
             py.run(
-                r#"from databento_dbn import DbnDecoder
+                r#"from databento_dbn import DBNDecoder
 
-decoder = DbnDecoder()
+decoder = DBNDecoder()
 try:
     records = decoder.decode()
     # If this code is called, the test will fail

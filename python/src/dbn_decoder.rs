@@ -221,19 +221,16 @@ mod tests {
             py_run!(
                 py,
                 path,
-                r#"from databento_dbn import DbnDecoder
+                r#"from databento_dbn import DBNDecoder
 
-decoder = DbnDecoder()
+decoder = DBNDecoder()
 with open(path, 'rb') as fin:
     decoder.write(fin.read())
 records = decoder.decode()
 assert len(records) == 3
-metadata, _ = records[0]
-for _, ts_out in records[1:]:
-    if metadata.ts_out:
-        assert ts_out is not None
-    else:
-        assert ts_out is None"#
+metadata = records[0]
+for record in records[1:]:
+    assert hasattr(record, "ts_out") == metadata.ts_out"#
             )
         });
     }
@@ -243,7 +240,7 @@ for _, ts_out in records[1:]:
         setup();
         Python::with_gil(|py| {
             py.run(
-                r#"from databento_dbn import DbnDecoder, Metadata
+                r#"from databento_dbn import DBNDecoder, Metadata
 
 metadata = Metadata(
     dataset="GLBX.MDP3",
@@ -258,7 +255,7 @@ metadata = Metadata(
     mappings=[]
 )
 metadata_bytes = bytes(metadata)
-decoder = DbnDecoder()
+decoder = DBNDecoder()
 decoder.write(metadata_bytes)
 decoder.write(bytes([0x04, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]))
 try:
