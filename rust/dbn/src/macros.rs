@@ -1,3 +1,8 @@
+//! Helper macros for working with multiple RTypes, Schemas, and record types.
+
+// Re-export
+pub use dbn_macros::{dbn_record, CsvSerialize, JsonSerialize};
+
 /// Base macro for type dispatch based on rtype.
 ///
 /// # Errors

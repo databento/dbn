@@ -9,7 +9,6 @@ use anyhow::anyhow;
 // of pyo3's attribute macros. See https://github.com/PyO3/pyo3/issues/780
 #[cfg(not(feature = "python"))]
 use dbn_macros::MockPyo3;
-use dbn_macros::{CsvSerialize, JsonSerialize};
 
 use crate::{
     enums::{
@@ -18,6 +17,7 @@ use crate::{
         StatUpdateAction, UserDefinedInstrument,
     },
     error::ConversionError,
+    macros::{dbn_record, CsvSerialize, JsonSerialize},
 };
 
 /// Common data for all Databento records.
@@ -54,6 +54,7 @@ pub struct RecordHeader {
     feature = "python",
     pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn", name = "MBOMsg")
 )]
+#[dbn_record(rtype::MBO)]
 pub struct MboMsg {
     /// The common header.
     pub hd: RecordHeader,
@@ -119,6 +120,7 @@ pub struct BidAskPair {
     feature = "python",
     pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn", name = "TradeMsg")
 )]
+#[dbn_record(rtype::MBP_0)]
 pub struct TradeMsg {
     /// The common header.
     pub hd: RecordHeader,
@@ -158,6 +160,7 @@ pub struct TradeMsg {
     feature = "python",
     pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn", name = "MBP1Msg")
 )]
+#[dbn_record(rtype::MBP_1)]
 pub struct Mbp1Msg {
     /// The common header.
     pub hd: RecordHeader,
@@ -200,6 +203,7 @@ pub struct Mbp1Msg {
     feature = "python",
     pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn", name = "MBP10Msg")
 )]
+#[dbn_record(rtype::MBP_10)]
 pub struct Mbp10Msg {
     /// The common header.
     pub hd: RecordHeader,
@@ -248,6 +252,13 @@ pub type TbboMsg = Mbp1Msg;
     feature = "python",
     pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn", name = "OHLCVMsg")
 )]
+#[dbn_record(
+    rtype::OHLCV_1S,
+    rtype::OHLCV_1M,
+    rtype::OHLCV_1H,
+    rtype::OHLCV_1D,
+    rtype::OHLCV_DEPRECATED
+)]
 pub struct OhlcvMsg {
     /// The common header.
     pub hd: RecordHeader,
@@ -275,6 +286,7 @@ pub struct OhlcvMsg {
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "python", pyo3::pyclass(dict, module = "databento_dbn"))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
+#[dbn_record(rtype::STATUS)]
 pub struct StatusMsg {
     /// The common header.
     #[pyo3(get, set)]
@@ -300,6 +312,7 @@ pub struct StatusMsg {
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "python", pyo3::pyclass(dict, module = "databento_dbn"))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
+#[dbn_record(rtype::INSTRUMENT_DEF)]
 pub struct InstrumentDefMsg {
     /// The common header.
     #[pyo3(get, set)]
@@ -519,6 +532,7 @@ pub struct InstrumentDefMsg {
     feature = "python",
     pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn")
 )]
+#[dbn_record(rtype::IMBALANCE)]
 pub struct ImbalanceMsg {
     /// The common header.
     pub hd: RecordHeader,
@@ -590,6 +604,7 @@ pub struct ImbalanceMsg {
     feature = "python",
     pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn")
 )]
+#[dbn_record(rtype::STATISTICS)]
 pub struct StatMsg {
     /// The common header.
     pub hd: RecordHeader,
@@ -633,6 +648,7 @@ pub struct StatMsg {
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "python", pyo3::pyclass(dict, module = "databento_dbn"))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
+#[dbn_record(rtype::ERROR)]
 pub struct ErrorMsg {
     /// The common header.
     #[pyo3(get, set)]
@@ -648,6 +664,7 @@ pub struct ErrorMsg {
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "python", pyo3::pyclass(dict, module = "databento_dbn"))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
+#[dbn_record(rtype::SYMBOL_MAPPING)]
 pub struct SymbolMappingMsg {
     /// The common header.
     #[pyo3(get, set)]
@@ -678,6 +695,7 @@ pub struct SymbolMappingMsg {
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "python", pyo3::pyclass(dict, module = "databento_dbn"))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
+#[dbn_record(rtype::SYSTEM)]
 pub struct SystemMsg {
     /// The common header.
     #[pyo3(get, set)]
@@ -1201,256 +1219,6 @@ pub unsafe fn transmute_record_mut<T: HasRType>(header: &mut RecordHeader) -> Op
         Some(non_null.cast::<T>().as_mut())
     } else {
         None
-    }
-}
-
-impl HasRType for MboMsg {
-    fn has_rtype(rtype: u8) -> bool {
-        rtype == rtype::MBO
-    }
-
-    fn header(&self) -> &RecordHeader {
-        &self.hd
-    }
-
-    fn header_mut(&mut self) -> &mut RecordHeader {
-        &mut self.hd
-    }
-}
-
-impl AsRef<[u8]> for MboMsg {
-    fn as_ref(&self) -> &[u8] {
-        unsafe { as_u8_slice(self) }
-    }
-}
-
-impl HasRType for TradeMsg {
-    fn has_rtype(rtype: u8) -> bool {
-        rtype == rtype::MBP_0
-    }
-
-    fn header(&self) -> &RecordHeader {
-        &self.hd
-    }
-
-    fn header_mut(&mut self) -> &mut RecordHeader {
-        &mut self.hd
-    }
-}
-
-impl AsRef<[u8]> for TradeMsg {
-    fn as_ref(&self) -> &[u8] {
-        unsafe { as_u8_slice(self) }
-    }
-}
-
-/// [Mbp1Msg]'s type ID is the size of its `levels` array.
-impl HasRType for Mbp1Msg {
-    fn has_rtype(rtype: u8) -> bool {
-        rtype == rtype::MBP_1
-    }
-
-    fn header(&self) -> &RecordHeader {
-        &self.hd
-    }
-
-    fn header_mut(&mut self) -> &mut RecordHeader {
-        &mut self.hd
-    }
-}
-
-impl AsRef<[u8]> for Mbp1Msg {
-    fn as_ref(&self) -> &[u8] {
-        unsafe { as_u8_slice(self) }
-    }
-}
-
-/// [Mbp10Msg]'s type ID is the size of its `levels` array.
-impl HasRType for Mbp10Msg {
-    fn has_rtype(rtype: u8) -> bool {
-        rtype == rtype::MBP_10
-    }
-
-    fn header(&self) -> &RecordHeader {
-        &self.hd
-    }
-
-    fn header_mut(&mut self) -> &mut RecordHeader {
-        &mut self.hd
-    }
-}
-
-impl AsRef<[u8]> for Mbp10Msg {
-    fn as_ref(&self) -> &[u8] {
-        unsafe { as_u8_slice(self) }
-    }
-}
-
-impl HasRType for OhlcvMsg {
-    #[allow(deprecated)]
-    fn has_rtype(rtype: u8) -> bool {
-        matches!(
-            rtype,
-            rtype::OHLCV_DEPRECATED
-                | rtype::OHLCV_1S
-                | rtype::OHLCV_1M
-                | rtype::OHLCV_1H
-                | rtype::OHLCV_1D
-        )
-    }
-
-    fn header(&self) -> &RecordHeader {
-        &self.hd
-    }
-
-    fn header_mut(&mut self) -> &mut RecordHeader {
-        &mut self.hd
-    }
-}
-
-impl AsRef<[u8]> for OhlcvMsg {
-    fn as_ref(&self) -> &[u8] {
-        unsafe { as_u8_slice(self) }
-    }
-}
-
-impl HasRType for StatusMsg {
-    fn has_rtype(rtype: u8) -> bool {
-        rtype == rtype::STATUS
-    }
-
-    fn header(&self) -> &RecordHeader {
-        &self.hd
-    }
-
-    fn header_mut(&mut self) -> &mut RecordHeader {
-        &mut self.hd
-    }
-}
-
-impl AsRef<[u8]> for StatusMsg {
-    fn as_ref(&self) -> &[u8] {
-        unsafe { as_u8_slice(self) }
-    }
-}
-
-impl HasRType for InstrumentDefMsg {
-    fn has_rtype(rtype: u8) -> bool {
-        rtype == rtype::INSTRUMENT_DEF
-    }
-
-    fn header(&self) -> &RecordHeader {
-        &self.hd
-    }
-
-    fn header_mut(&mut self) -> &mut RecordHeader {
-        &mut self.hd
-    }
-}
-
-impl AsRef<[u8]> for InstrumentDefMsg {
-    fn as_ref(&self) -> &[u8] {
-        unsafe { as_u8_slice(self) }
-    }
-}
-
-impl HasRType for ImbalanceMsg {
-    fn has_rtype(rtype: u8) -> bool {
-        rtype == rtype::IMBALANCE
-    }
-
-    fn header(&self) -> &RecordHeader {
-        &self.hd
-    }
-
-    fn header_mut(&mut self) -> &mut RecordHeader {
-        &mut self.hd
-    }
-}
-
-impl AsRef<[u8]> for ImbalanceMsg {
-    fn as_ref(&self) -> &[u8] {
-        unsafe { as_u8_slice(self) }
-    }
-}
-
-impl HasRType for StatMsg {
-    fn has_rtype(rtype: u8) -> bool {
-        rtype == rtype::STATISTICS
-    }
-
-    fn header(&self) -> &RecordHeader {
-        &self.hd
-    }
-
-    fn header_mut(&mut self) -> &mut RecordHeader {
-        &mut self.hd
-    }
-}
-
-impl AsRef<[u8]> for StatMsg {
-    fn as_ref(&self) -> &[u8] {
-        unsafe { as_u8_slice(self) }
-    }
-}
-
-impl HasRType for ErrorMsg {
-    fn has_rtype(rtype: u8) -> bool {
-        rtype == rtype::ERROR
-    }
-
-    fn header(&self) -> &RecordHeader {
-        &self.hd
-    }
-
-    fn header_mut(&mut self) -> &mut RecordHeader {
-        &mut self.hd
-    }
-}
-
-impl AsRef<[u8]> for ErrorMsg {
-    fn as_ref(&self) -> &[u8] {
-        unsafe { as_u8_slice(self) }
-    }
-}
-
-impl HasRType for SymbolMappingMsg {
-    fn has_rtype(rtype: u8) -> bool {
-        rtype == rtype::SYMBOL_MAPPING
-    }
-
-    fn header(&self) -> &RecordHeader {
-        &self.hd
-    }
-
-    fn header_mut(&mut self) -> &mut RecordHeader {
-        &mut self.hd
-    }
-}
-
-impl AsRef<[u8]> for SymbolMappingMsg {
-    fn as_ref(&self) -> &[u8] {
-        unsafe { as_u8_slice(self) }
-    }
-}
-
-impl HasRType for SystemMsg {
-    fn has_rtype(rtype: u8) -> bool {
-        rtype == rtype::SYSTEM
-    }
-
-    fn header(&self) -> &RecordHeader {
-        &self.hd
-    }
-
-    fn header_mut(&mut self) -> &mut RecordHeader {
-        &mut self.hd
-    }
-}
-
-impl AsRef<[u8]> for SystemMsg {
-    fn as_ref(&self) -> &[u8] {
-        unsafe { as_u8_slice(self) }
     }
 }
 

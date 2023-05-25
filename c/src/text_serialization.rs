@@ -54,6 +54,7 @@ pub struct SerializeRecordOptions {
 /// # Safety
 /// This function assumes `buffer` is of size `length`. It checks the validity of all
 /// pointers before dereferencing.
+#[no_mangle]
 pub unsafe extern "C" fn s_serialize_record_header(
     buffer: *mut c_char,
     length: libc::size_t,

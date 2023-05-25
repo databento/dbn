@@ -1,6 +1,8 @@
 use proc_macro::TokenStream;
 
+mod has_rtype;
 mod serialize;
+mod utils;
 
 /// Dummy derive macro to get around `cfg_attr` incompatibility of several
 /// of pyo3's attribute macros. See <https://github.com/PyO3/pyo3/issues/780>.
@@ -39,4 +41,14 @@ pub fn derive_csv_serialize(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(JsonSerialize, attributes(dbn))]
 pub fn derive_json_serialize(input: TokenStream) -> TokenStream {
     serialize::derive_json_macro_impl(input)
+}
+
+/// Attribute macro that acts like a derive macro for for `HasRType` and
+/// `AsRef<[u8]>`.
+///
+/// Expects 1 or more paths to `u8` constants that are the RTypes associated
+/// with this record.
+#[proc_macro_attribute]
+pub fn dbn_record(attr: TokenStream, input: TokenStream) -> TokenStream {
+    has_rtype::attribute_macro_impl(attr, input)
 }
