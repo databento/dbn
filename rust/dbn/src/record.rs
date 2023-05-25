@@ -768,7 +768,7 @@ impl MboMsg {
     /// This function returns an error if the `action` field does not
     /// contain a valid [`Action`](crate::enums::Action).
     pub fn action(&self) -> crate::error::Result<Action> {
-        Action::try_from(self.side as u8)
+        Action::try_from(self.action as u8)
             .map_err(|_| ConversionError::TypeConversion("Invalid action"))
     }
 }
@@ -789,7 +789,7 @@ impl TradeMsg {
     /// This function returns an error if the `action` field does not
     /// contain a valid [`Action`](crate::enums::Action).
     pub fn action(&self) -> crate::error::Result<Action> {
-        Action::try_from(self.side as u8)
+        Action::try_from(self.action as u8)
             .map_err(|_| ConversionError::TypeConversion("Invalid action"))
     }
 }
@@ -810,7 +810,7 @@ impl Mbp1Msg {
     /// This function returns an error if the `action` field does not
     /// contain a valid [`Action`](crate::enums::Action).
     pub fn action(&self) -> crate::error::Result<Action> {
-        Action::try_from(self.side as u8)
+        Action::try_from(self.action as u8)
             .map_err(|_| ConversionError::TypeConversion("Invalid action"))
     }
 }
@@ -831,7 +831,7 @@ impl Mbp10Msg {
     /// This function returns an error if the `action` field does not
     /// contain a valid [`Action`](crate::enums::Action).
     pub fn action(&self) -> crate::error::Result<Action> {
-        Action::try_from(self.side as u8)
+        Action::try_from(self.action as u8)
             .map_err(|_| ConversionError::TypeConversion("Invalid action"))
     }
 }
