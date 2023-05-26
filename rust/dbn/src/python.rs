@@ -2,13 +2,14 @@
 //! to be able to implement [`pyo3`] traits for DBN types.
 #![allow(clippy::too_many_arguments)]
 
+use std::mem;
 use std::{collections::HashMap, ffi::c_char, fmt, io, num::NonZeroU64};
 
 use pyo3::{
     exceptions::PyValueError,
     prelude::*,
     pyclass::CompareOp,
-    types::{PyBytes, PyDate, PyDateAccess, PyDict, PyTuple, PyType},
+    types::{PyBytes, PyDate, PyDateAccess, PyDict, PyType},
 };
 use time::Date;
 
@@ -16,7 +17,7 @@ use crate::{
     decode::{DecodeDbn, DynDecoder},
     encode::dbn::MetadataEncoder,
     enums::{
-        rtype, Compression, SType, Schema, SecurityUpdateAction, StatUpdateAction,
+        rtype, Compression, Encoding, SType, Schema, SecurityUpdateAction, StatUpdateAction,
         UserDefinedInstrument,
     },
     metadata::MetadataBuilder,
@@ -27,7 +28,7 @@ use crate::{
     },
     UNDEF_ORDER_SIZE, UNDEF_PRICE,
 };
-use crate::{MappingInterval, Metadata, SymbolMapping};
+use crate::{MappingInterval, Metadata, SymbolMapping, UNDEF_TIMESTAMP};
 
 #[pymethods]
 impl Metadata {
@@ -128,7 +129,9 @@ impl ToPyObject for SymbolMapping {
 // `WithTsOut` is converted to a 2-tuple in Python
 impl<R: HasRType + IntoPy<Py<PyAny>>> IntoPy<PyObject> for WithTsOut<R> {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        PyTuple::new(py, [self.rec.into_py(py), self.ts_out.into_py(py)]).into_py(py)
+        let obj = self.rec.into_py(py);
+        obj.setattr(py, "ts_out", self.ts_out).unwrap();
+        obj
     }
 }
 
@@ -220,7 +223,20 @@ impl<'source> FromPyObject<'source> for Schema {
 
 impl IntoPy<PyObject> for Schema {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        (self.as_str()).into_py(py)
+        self.as_str().into_py(py)
+    }
+}
+
+impl<'source> FromPyObject<'source> for Encoding {
+    fn extract(any: &'source PyAny) -> PyResult<Self> {
+        let str: &str = any.extract()?;
+        str.parse().map_err(to_val_err)
+    }
+}
+
+impl IntoPy<PyObject> for Encoding {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        self.as_str().into_py(py)
     }
 }
 
@@ -233,7 +249,7 @@ impl<'source> FromPyObject<'source> for SType {
 
 impl IntoPy<PyObject> for SType {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        (self.as_str()).into_py(py)
+        self.as_str().into_py(py)
     }
 }
 
@@ -334,6 +350,11 @@ impl MboMsg {
     fn py_record_size(&self) -> usize {
         self.record_size()
     }
+
+    #[classmethod]
+    fn size_hint(_: &PyType) -> PyResult<usize> {
+        Ok(mem::size_of::<MboMsg>())
+    }
 }
 
 #[pymethods]
@@ -433,6 +454,11 @@ impl TradeMsg {
     fn py_record_size(&self) -> usize {
         self.record_size()
     }
+
+    #[classmethod]
+    fn size_hint(_: &PyType) -> PyResult<usize> {
+        Ok(mem::size_of::<TradeMsg>())
+    }
 }
 
 #[pymethods]
@@ -451,7 +477,7 @@ impl Mbp1Msg {
         ts_recv: u64,
         ts_in_delta: i32,
         sequence: u32,
-        booklevel: Option<BidAskPair>,
+        levels: Option<BidAskPair>,
     ) -> Self {
         Self {
             hd: RecordHeader::new::<Self>(rtype::MBP_1, publisher_id, instrument_id, ts_event),
@@ -464,7 +490,7 @@ impl Mbp1Msg {
             ts_recv,
             ts_in_delta,
             sequence,
-            booklevel: [booklevel.unwrap_or_default()],
+            levels: [levels.unwrap_or_default()],
         }
     }
 
@@ -508,6 +534,11 @@ impl Mbp1Msg {
     fn py_record_size(&self) -> usize {
         self.record_size()
     }
+
+    #[classmethod]
+    fn size_hint(_: &PyType) -> PyResult<usize> {
+        Ok(mem::size_of::<Mbp1Msg>())
+    }
 }
 
 #[pymethods]
@@ -526,14 +557,14 @@ impl Mbp10Msg {
         ts_recv: u64,
         ts_in_delta: i32,
         sequence: u32,
-        booklevel: Option<Vec<BidAskPair>>,
+        levels: Option<Vec<BidAskPair>>,
     ) -> PyResult<Self> {
-        let booklevel = if let Some(booklevel) = booklevel {
+        let levels = if let Some(level) = levels {
             let mut arr: [BidAskPair; 10] = Default::default();
-            if booklevel.len() > 10 {
-                return Err(to_val_err("Only 10 booklevels are allowed"));
+            if level.len() > 10 {
+                return Err(to_val_err("Only 10 levels are allowed"));
             }
-            for (i, level) in booklevel.into_iter().enumerate() {
+            for (i, level) in level.into_iter().enumerate() {
                 arr[i] = level;
             }
             arr
@@ -551,7 +582,7 @@ impl Mbp10Msg {
             ts_recv,
             ts_in_delta,
             sequence,
-            booklevel,
+            levels,
         })
     }
 
@@ -594,6 +625,11 @@ impl Mbp10Msg {
     #[pyo3(name = "record_size")]
     fn py_record_size(&self) -> usize {
         self.record_size()
+    }
+
+    #[classmethod]
+    fn size_hint(_: &PyType) -> PyResult<usize> {
+        Ok(mem::size_of::<Mbp10Msg>())
     }
 }
 
@@ -661,6 +697,11 @@ impl OhlcvMsg {
     fn py_record_size(&self) -> usize {
         self.record_size()
     }
+
+    #[classmethod]
+    fn size_hint(_: &PyType) -> PyResult<usize> {
+        Ok(mem::size_of::<OhlcvMsg>())
+    }
 }
 
 #[pymethods]
@@ -727,6 +768,11 @@ impl StatusMsg {
         self.record_size()
     }
 
+    #[classmethod]
+    fn size_hint(_: &PyType) -> PyResult<usize> {
+        Ok(mem::size_of::<StatMsg>())
+    }
+
     #[getter]
     #[pyo3(name = "group")]
     fn py_group(&self) -> PyResult<&str> {
@@ -763,7 +809,6 @@ impl InstrumentDefMsg {
         price_ratio: Option<i64>,
         inst_attrib_value: Option<i32>,
         underlying_id: Option<u32>,
-        cleared_volume: Option<i32>,
         market_depth_implied: Option<i32>,
         market_depth: Option<i32>,
         market_segment_id: Option<u32>,
@@ -771,7 +816,6 @@ impl InstrumentDefMsg {
         min_lot_size: Option<i32>,
         min_lot_size_block: Option<i32>,
         min_trade_vol: Option<u32>,
-        open_interest_qty: Option<i32>,
         contract_multiplier: Option<i32>,
         decay_quantity: Option<i32>,
         original_contract_size: Option<i32>,
@@ -813,8 +857,8 @@ impl InstrumentDefMsg {
             ts_recv,
             min_price_increment,
             display_factor,
-            expiration: expiration.unwrap_or(u64::MAX),
-            activation: activation.unwrap_or(u64::MAX),
+            expiration: expiration.unwrap_or(UNDEF_TIMESTAMP),
+            activation: activation.unwrap_or(UNDEF_TIMESTAMP),
             high_limit_price: high_limit_price.unwrap_or(UNDEF_PRICE),
             low_limit_price: low_limit_price.unwrap_or(UNDEF_PRICE),
             max_price_variation: max_price_variation.unwrap_or(i64::MAX),
@@ -824,7 +868,6 @@ impl InstrumentDefMsg {
             price_ratio: price_ratio.unwrap_or(i64::MAX),
             inst_attrib_value: inst_attrib_value.unwrap_or(i32::MAX),
             underlying_id: underlying_id.unwrap_or_default(),
-            cleared_volume: cleared_volume.unwrap_or(i32::MAX),
             market_depth_implied: market_depth_implied.unwrap_or(i32::MAX),
             market_depth: market_depth.unwrap_or(i32::MAX),
             market_segment_id: market_segment_id.unwrap_or(u32::MAX),
@@ -833,11 +876,9 @@ impl InstrumentDefMsg {
             min_lot_size_block: min_lot_size_block.unwrap_or(i32::MAX),
             min_lot_size_round_lot,
             min_trade_vol: min_trade_vol.unwrap_or(u32::MAX),
-            open_interest_qty: open_interest_qty.unwrap_or(i32::MAX),
             contract_multiplier: contract_multiplier.unwrap_or(i32::MAX),
             decay_quantity: decay_quantity.unwrap_or(i32::MAX),
             original_contract_size: original_contract_size.unwrap_or(i32::MAX),
-            reserved1: Default::default(),
             trading_reference_date: trading_reference_date.unwrap_or(u16::MAX),
             appl_id: appl_id.unwrap_or(i16::MAX),
             maturity_year: maturity_year.unwrap_or(u16::MAX),
@@ -859,9 +900,7 @@ impl InstrumentDefMsg {
             strike_price_currency: str_to_c_chars(strike_price_currency.unwrap_or_default())
                 .map_err(to_val_err)?,
             instrument_class,
-            reserved2: Default::default(),
             strike_price: strike_price.unwrap_or(UNDEF_PRICE),
-            reserved3: Default::default(),
             match_algorithm,
             md_security_trading_status,
             main_fraction: main_fraction.unwrap_or(u8::MAX),
@@ -877,6 +916,11 @@ impl InstrumentDefMsg {
             contract_multiplier_unit: contract_multiplier_unit.unwrap_or(i8::MAX),
             flow_schedule_type: flow_schedule_type.unwrap_or(i8::MAX),
             tick_rule: tick_rule.unwrap_or(u8::MAX),
+            _reserved1: Default::default(),
+            _reserved2: Default::default(),
+            _reserved3: Default::default(),
+            _reserved4: Default::default(),
+            _reserved5: Default::default(),
             _dummy: Default::default(),
         })
     }
@@ -920,6 +964,11 @@ impl InstrumentDefMsg {
     #[pyo3(name = "record_size")]
     fn py_record_size(&self) -> usize {
         self.record_size()
+    }
+
+    #[classmethod]
+    fn size_hint(_: &PyType) -> PyResult<usize> {
+        Ok(mem::size_of::<InstrumentDefMsg>())
     }
 
     #[getter]
@@ -1072,6 +1121,11 @@ impl ImbalanceMsg {
     fn py_record_size(&self) -> usize {
         self.record_size()
     }
+
+    #[classmethod]
+    fn size_hint(_: &PyType) -> PyResult<usize> {
+        Ok(mem::size_of::<ImbalanceMsg>())
+    }
 }
 
 #[pymethods]
@@ -1147,6 +1201,11 @@ impl StatMsg {
     fn py_record_size(&self) -> usize {
         self.record_size()
     }
+
+    #[classmethod]
+    fn size_hint(_: &PyType) -> PyResult<usize> {
+        Ok(mem::size_of::<StatMsg>())
+    }
 }
 
 #[pymethods]
@@ -1195,6 +1254,11 @@ impl ErrorMsg {
     #[pyo3(name = "record_size")]
     fn py_record_size(&self) -> usize {
         self.record_size()
+    }
+
+    #[classmethod]
+    fn size_hint(_: &PyType) -> PyResult<usize> {
+        Ok(mem::size_of::<ErrorMsg>())
     }
 
     #[getter]
@@ -1272,6 +1336,11 @@ impl SymbolMappingMsg {
         self.record_size()
     }
 
+    #[classmethod]
+    fn size_hint(_: &PyType) -> PyResult<usize> {
+        Ok(mem::size_of::<SymbolMappingMsg>())
+    }
+
     #[getter]
     #[pyo3(name = "stype_in_symbol")]
     fn py_stype_in_symbol(&self) -> PyResult<&str> {
@@ -1331,6 +1400,11 @@ impl SystemMsg {
     #[pyo3(name = "record_size")]
     fn py_record_size(&self) -> usize {
         self.record_size()
+    }
+
+    #[classmethod]
+    fn size_hint(_: &PyType) -> PyResult<usize> {
+        Ok(mem::size_of::<SystemMsg>())
     }
 
     #[getter]

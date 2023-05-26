@@ -4,7 +4,7 @@ use std::{
 };
 
 use assert_cmd::Command;
-use predicates::str::{contains, ends_with, is_empty, starts_with};
+use predicates::str::{contains, ends_with, is_empty, is_match, starts_with};
 use tempfile::{tempdir, NamedTempFile};
 
 fn cmd() -> Command {
@@ -257,19 +257,41 @@ fn no_csv_metadata() {
 }
 
 #[test]
-fn pretty_print_data() {
+fn pretty_print_json_data() {
     cmd()
         .args(&[
             &format!("{TEST_DATA_PATH}/test_data.mbo.dbn.zst"),
             "--json",
-            "--pretty-json",
+            "--pretty",
         ])
         .assert()
         .success()
         .stdout(contains("    "))
         .stdout(contains(",\n"))
+        .stdout(contains(": "))
+        .stdout(is_match(format!(".*\\s\"{PRETTY_TS_REGEX}\".*")).unwrap())
+        // prices should also be quoted
+        .stdout(is_match(format!(".*\\s\"{PRETTY_PX_REGEX}\".*")).unwrap())
         .stderr(is_empty());
 }
+
+#[test]
+fn pretty_print_csv_data() {
+    cmd()
+        .args(&[
+            &format!("{TEST_DATA_PATH}/test_data.mbo.dbn.zst"),
+            "--csv",
+            "--pretty",
+        ])
+        .assert()
+        .success()
+        .stdout(is_match(format!(".*{PRETTY_TS_REGEX},.*")).unwrap())
+        .stdout(is_match(format!(".*,{PRETTY_PX_REGEX},.*")).unwrap())
+        .stderr(is_empty());
+}
+
+const PRETTY_TS_REGEX: &str = r#"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{9}"#;
+const PRETTY_PX_REGEX: &str = r#"\d+\.\d{9}"#;
 
 #[test]
 fn pretty_print_data_metadata() {
@@ -317,6 +339,69 @@ fn convert_dbz_to_dbn() {
         .assert()
         .success()
         .stderr(is_empty());
+}
+
+#[test]
+fn metadata_conflicts_with_limit() {
+    cmd()
+        .args(&[
+            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.zst"),
+            "--json",
+            "--metadata",
+            "--limit",
+            "1",
+        ])
+        .assert()
+        .failure()
+        .stderr(contains("'--metadata' cannot be used with '--limit"));
+}
+
+#[test]
+fn test_limit_updates_metadata() {
+    // Check metadata shows limit = 2
+    cmd()
+        .args(&[
+            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.zst"),
+            "--json",
+            "--metadata",
+        ])
+        .assert()
+        .success()
+        .stdout(contains("\"limit\":\"2\","));
+    // Check contains 2 records
+    cmd()
+        .args(&[
+            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.zst"),
+            "--json",
+        ])
+        .assert()
+        .success()
+        .stdout(contains('\n').count(2));
+    let output_dir = tempdir().unwrap();
+    let output_path = format!("{}/limited.dbn", output_dir.path().to_str().unwrap());
+    cmd()
+        .args(&[
+            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.zst"),
+            "--output",
+            &output_path,
+            "--limit",
+            "1",
+        ])
+        .assert()
+        .success()
+        .stderr(is_empty());
+    // Check metadata shows limit = 1
+    cmd()
+        .args(&[&output_path, "--json", "--metadata"])
+        .assert()
+        .success()
+        .stdout(contains("\"limit\":\"1\","));
+    // Check contains 1 record
+    cmd()
+        .args(&[&output_path, "--json"])
+        .assert()
+        .success()
+        .stdout(contains('\n').count(1));
 }
 
 #[test]

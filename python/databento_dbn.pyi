@@ -283,13 +283,32 @@ class Record(SupportsBytes):
         RecordHeader
 
         """
-    def record_size(self) -> int:
+    @classmethod
+    def size_hint(cls) -> int:
         """
-        Return the size of the record.
+        Return an estimated size of the record in bytes.
 
         Returns
         -------
         int
+
+        See Also
+        --------
+        record_size
+
+        """
+    @property
+    def record_size(self) -> int:
+        """
+        Return the size of the record in bytes.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        size_hint
 
         """
     @property
@@ -331,6 +350,17 @@ class Record(SupportsBytes):
         Returns
         -------
         int
+
+        """
+    @property
+    def ts_out(self) -> Optional[int]:
+        """
+        The live gateway send timestamp expressed as number of nanoseconds since
+        the UNIX epoch.
+
+        Returns
+        -------
+        Optional[int]
 
         """
 
@@ -617,7 +647,7 @@ class MBP1Msg(Record, _MBPBase):
     """Market by price implementation with a known book depth of 1."""
 
     @property
-    def booklevel(self) -> List[BidAskPair]:
+    def levels(self) -> List[BidAskPair]:
         """
         The top of the order book.
 
@@ -635,9 +665,9 @@ class MBP10Msg(Record, _MBPBase):
     """Market by price implementation with a known book depth of 10."""
 
     @property
-    def booklevel(self) -> List[BidAskPair]:
+    def levels(self) -> List[BidAskPair]:
         """
-        The top of the order book.
+        The top 10 levels.
 
         Returns
         -------
@@ -858,17 +888,6 @@ class InstrumentDefMsg(Record):
 
         """
     @property
-    def cleared_volume(self) -> int:
-        """
-        The total cleared volume of the instrument traded during the prior
-        trading session.
-
-        Returns
-        -------
-        int
-
-        """
-    @property
     def market_depth_implied(self) -> int:
         """
         The implied book depth on the price level data feed.
@@ -943,17 +962,6 @@ class InstrumentDefMsg(Record):
     def min_trade_vol(self) -> int:
         """
         The minimum trading volume for the instrument.
-
-        Returns
-        -------
-        int
-
-        """
-    @property
-    def open_interest_qty(self) -> int:
-        """
-        The total open interest for the market at the close of the prior
-        trading session.
 
         Returns
         -------
@@ -1644,8 +1652,8 @@ class StatMsg(Record):
     @property
     def update_action(self) -> int:
         """
-        Indicates if the statistic is new added or deleted. Deleted is only
-        used for a couple stat types.
+        Indicates if the statistic is newly added (1) or deleted (2). (Deleted is only
+        used with some stat types)
 
         Returns
         -------
@@ -1754,7 +1762,7 @@ class SystemMsg(Record):
 
         """
 
-class DbnDecoder:
+class DBNDecoder:
     """A class for decoding DBN data to Python objects."""
 
     def buffer(self) -> bytes:
@@ -1768,13 +1776,13 @@ class DbnDecoder:
         """
     def decode(
         self,
-    ) -> List[Tuple[_DBNRecord, Optional[int]]]:
+    ) -> List[_DBNRecord]:
         """
         Decode the buffered data into DBN records.
 
         Returns
         -------
-        List[Tuple[DBNRecord, Optional[int]]]
+        List[DBNRecord]
 
         Raises
         ------
@@ -1791,7 +1799,7 @@ class DbnDecoder:
         bytes: bytes,
     ) -> None:
         """
-        Write a sequence of bytes to the internal buffer of the DbnDecoder.
+        Write a sequence of bytes to the internal buffer of the DBNDecoder.
 
         Raises
         ------

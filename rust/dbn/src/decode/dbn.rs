@@ -17,8 +17,8 @@ use crate::{
     enums::{SType, Schema},
     record::{HasRType, RecordHeader},
     record_ref::RecordRef,
-    MappingInterval, Metadata, SymbolMapping, DBN_VERSION, METADATA_FIXED_LEN, NULL_END,
-    NULL_SCHEMA, NULL_STYPE,
+    MappingInterval, Metadata, SymbolMapping, DBN_VERSION, METADATA_FIXED_LEN, NULL_SCHEMA,
+    NULL_STYPE, UNDEF_TIMESTAMP,
 };
 
 const DBN_PREFIX: &[u8] = b"DBN";
@@ -361,7 +361,7 @@ where
             stype_in,
             stype_out,
             start,
-            end: if end == NULL_END {
+            end: if end == UNDEF_TIMESTAMP {
                 None
             } else {
                 NonZeroU64::new(end)
@@ -510,8 +510,8 @@ mod tests {
         encode::{dbn::Encoder, EncodeDbn},
         enums::rtype,
         record::{
-            ErrorMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader, TbboMsg,
-            TradeMsg,
+            ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
+            RecordHeader, StatMsg, TbboMsg, TradeMsg,
         },
         MetadataBuilder,
     };
@@ -629,6 +629,18 @@ mod tests {
         test_dbn_zstd_identity_instrument_def,
         InstrumentDefMsg,
         Schema::Definition
+    );
+    test_dbn_identity!(test_dbn_identity_imbalance, ImbalanceMsg, Schema::Imbalance);
+    test_dbn_zstd_identity!(
+        test_dbn_zstd_identity_imbalance,
+        ImbalanceMsg,
+        Schema::Imbalance
+    );
+    test_dbn_identity!(test_dbn_identity_statistics, StatMsg, Schema::Statistics);
+    test_dbn_zstd_identity!(
+        test_dbn_zstd_identity_statistics,
+        StatMsg,
+        Schema::Statistics
     );
 
     #[test]
@@ -886,8 +898,8 @@ mod r#async {
             encode::dbn::{AsyncMetadataEncoder, AsyncRecordEncoder},
             enums::{rtype, Schema},
             record::{
-                ErrorMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader,
-                TbboMsg, TradeMsg, WithTsOut,
+                ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
+                RecordHeader, StatMsg, TbboMsg, TradeMsg, WithTsOut,
             },
         };
 
@@ -1000,6 +1012,18 @@ mod r#async {
             test_dbn_zstd_identity_instrument_def,
             InstrumentDefMsg,
             Schema::Definition
+        );
+        test_dbn_identity!(test_dbn_identity_imbalance, ImbalanceMsg, Schema::Imbalance);
+        test_dbn_zstd_identity!(
+            test_dbn_zstd_identity_imbalance,
+            ImbalanceMsg,
+            Schema::Imbalance
+        );
+        test_dbn_identity!(test_dbn_identity_statistics, StatMsg, Schema::Statistics);
+        test_dbn_zstd_identity!(
+            test_dbn_zstd_identity_statistics,
+            StatMsg,
+            Schema::Statistics
         );
 
         #[tokio::test]

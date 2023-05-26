@@ -1,6 +1,7 @@
 use std::{
     fs::File,
     io::{self, BufWriter},
+    num::NonZeroU64,
     path::PathBuf,
 };
 
@@ -83,12 +84,20 @@ pub struct Args {
     pub should_output_metadata: bool,
     #[clap(
          short = 'p',
-         long = "pretty-json",
+         long = "pretty",
          action = ArgAction::SetTrue,
          default_value = "false",
-         help ="Make the JSON output easier to read with spacing and indentation"
+         help ="Make the CSV or JSON output easier to read by converting timestamps to ISO 8601 and prices to decimals"
     )]
     pub should_pretty_print: bool,
+    #[clap(
+        short = 'l',
+        long = "limit",
+        value_name = "NUM",
+        conflicts_with = "should_output_metadata",
+        help = "Limit the number of records in the output to the specified number"
+    )]
+    pub limit: Option<NonZeroU64>,
 }
 
 impl Args {

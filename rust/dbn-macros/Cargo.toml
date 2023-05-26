@@ -1,7 +1,7 @@
 [package]
 name = "dbn-macros"
 authors = ["Databento <support@databento.com>"]
-version = "0.5.1"
+version = "0.6.0"
 edition = "2021"
 description = "Proc macros for dbn crate"
 license = "Apache-2.0"
@@ -11,3 +11,10 @@ repository = "https://github.com/databento/dbn"
 proc-macro = true
 
 [dependencies]
+# Get name of current crate in macros, like $crate in macro_rules macros
+proc-macro-crate = "1.3.1"
+proc-macro2 = "1.0"
+# Convert code to token streams
+quote = "1.0"
+# Token parsing
+syn = { version = "2.0", features = ["full"] }

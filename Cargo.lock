@@ -62,9 +62,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.70"
+version = "1.0.71"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7de8ce5e0f9f8d88245311066a578d72b7af3e7088f32783804676302df237e4"
+checksum = "9c7d0618f0e0b7e8ff11427422b64564d5fb0be1940354bfe2e0529b18a9d9b8"
 
 [[package]]
 name = "assert_cmd"
@@ -229,7 +229,7 @@ dependencies = [
 
 [[package]]
 name = "databento-dbn"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "dbn",
  "pyo3",
@@ -238,16 +238,15 @@ dependencies = [
 
 [[package]]
 name = "dbn"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "async-compression",
  "csv",
  "dbn-macros",
+ "json-writer",
  "num_enum",
  "pyo3",
- "serde",
- "serde_json",
  "streaming-iterator",
  "time",
  "tokio",
@@ -256,8 +255,9 @@ dependencies = [
 
 [[package]]
 name = "dbn-c"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
+ "anyhow",
  "cbindgen",
  "dbn",
  "libc",
@@ -265,7 +265,7 @@ dependencies = [
 
 [[package]]
 name = "dbn-cli"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -278,7 +278,13 @@ dependencies = [
 
 [[package]]
 name = "dbn-macros"
-version = "0.5.1"
+version = "0.6.0"
+dependencies = [
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.15",
+]
 
 [[package]]
 name = "difflib"
@@ -440,6 +446,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "936cfd212a0155903bcbc060e316fb6cc7cbf2e1907329391ebadc1fe0ce77c2"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "json-writer"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a46aa3d39e9495d71c03e7b68981cd900f17e7ddf2ff97a14583bfbd866f8d23"
+dependencies = [
+ "itoa",
+ "ryu",
 ]
 
 [[package]]
@@ -863,6 +879,7 @@ version = "0.3.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cd0cbfecb4d19b5ea75bb31ad904eb5b9fa13f21079c3b92017ebdf4999a5890"
 dependencies = [
+ "itoa",
  "serde",
  "time-core",
  "time-macros",

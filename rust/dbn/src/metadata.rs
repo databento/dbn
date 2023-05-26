@@ -2,8 +2,6 @@
 //! stream and [`MetadataBuilder`] for creating a [`Metadata`] with defaults.
 use std::num::NonZeroU64;
 
-use serde::Serialize;
-
 // Dummy derive macro to get around `cfg_attr` incompatibility of several
 // of pyo3's attribute macros. See https://github.com/PyO3/pyo3/issues/780
 #[cfg(not(feature = "python"))]
@@ -14,7 +12,7 @@ use crate::record::as_u8_slice;
 
 /// Information about the data contained in a DBN file or stream. DBN requires the
 /// Metadata to be included at the start of the encoded data.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "python", pyo3::pyclass(module = "databento_dbn"))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 pub struct Metadata {
@@ -39,7 +37,6 @@ pub struct Metadata {
     pub end: Option<NonZeroU64>,
     /// The optional maximum number of records for the query.
     #[pyo3(get)]
-    #[serde(serialize_with = "serialize_as_raw")]
     pub limit: Option<NonZeroU64>,
     /// The input symbology type to map from. `None` indicates a mix, such as in the
     /// case of live data.
@@ -295,7 +292,7 @@ impl Default for MetadataBuilder<Unset, Unset, Unset, Unset, Unset> {
 }
 
 /// A raw symbol and its symbol mappings for different time ranges within the query range.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "python", derive(pyo3::FromPyObject))]
 pub struct SymbolMapping {
     /// The symbol assigned by publisher.
@@ -305,29 +302,12 @@ pub struct SymbolMapping {
 }
 
 /// The resolved symbol for a date range.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MappingInterval {
     /// The UTC start date of interval.
-    #[serde(serialize_with = "serialize_date")]
     pub start_date: time::Date,
     /// The UTC end date of interval.
-    #[serde(serialize_with = "serialize_date")]
     pub end_date: time::Date,
     /// The resolved symbol for this interval.
     pub symbol: String,
-}
-
-// Override `time::Date`'s serialization format to be ISO 8601.
-fn serialize_date<S: serde::Serializer>(
-    date: &time::Date,
-    serializer: S,
-) -> Result<S::Ok, S::Error> {
-    serializer.serialize_str(&date.to_string()) // ISO 8601
-}
-
-fn serialize_as_raw<S: serde::Serializer>(
-    val: &Option<NonZeroU64>,
-    serializer: S,
-) -> Result<S::Ok, S::Error> {
-    serializer.serialize_u64(val.map(|n| n.get()).unwrap_or(0))
 }

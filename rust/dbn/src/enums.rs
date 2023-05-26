@@ -4,7 +4,6 @@
 use std::fmt::{self, Display, Formatter};
 
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use serde::Serialize;
 
 use crate::error::ConversionError;
 
@@ -24,12 +23,6 @@ pub enum Side {
 impl From<Side> for char {
     fn from(side: Side) -> Self {
         u8::from(side) as char
-    }
-}
-
-impl Serialize for Side {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_char(char::from(*self))
     }
 }
 
@@ -54,12 +47,6 @@ pub enum Action {
 impl From<Action> for char {
     fn from(action: Action) -> Self {
         u8::from(action) as char
-    }
-}
-
-impl serde::Serialize for Action {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_char(char::from(*self))
     }
 }
 
@@ -90,12 +77,6 @@ pub enum InstrumentClass {
 impl From<InstrumentClass> for char {
     fn from(class: InstrumentClass) -> Self {
         u8::from(class) as char
-    }
-}
-
-impl serde::Serialize for InstrumentClass {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_char(char::from(*self))
     }
 }
 
@@ -131,12 +112,6 @@ impl From<MatchAlgorithm> for char {
     }
 }
 
-impl serde::Serialize for MatchAlgorithm {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_char(char::from(*self))
-    }
-}
-
 /// Whether the instrument is user-defined.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive, Default)]
 #[repr(u8)]
@@ -154,16 +129,9 @@ impl From<UserDefinedInstrument> for char {
     }
 }
 
-impl serde::Serialize for UserDefinedInstrument {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_char(char::from(*self))
-    }
-}
-
 /// A symbology type. Refer to the [symbology documentation](https://docs.databento.com/api-reference-historical/basics/symbology)
 /// for more information.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, TryFromPrimitive)]
-#[serde(rename_all = "snake_case")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
 #[repr(u8)]
 pub enum SType {
     /// Symbology using a unique numeric ID.
@@ -231,88 +199,87 @@ pub use rtype::RType;
 #[allow(deprecated)]
 pub mod rtype {
     use num_enum::TryFromPrimitive;
-    use serde::Serialize;
 
     use super::Schema;
 
     /// A type of record, i.e. a struct implementing [`HasRType`](crate::record::HasRType).
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, TryFromPrimitive)]
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
     #[repr(u8)]
     pub enum RType {
         /// Market by price with a book depth of 0 (used for trades).
-        Mbp0 = MBP_0,
+        Mbp0 = 0,
         /// Market by price with a book depth of 1 (also used for TBBO).
-        Mbp1 = MBP_1,
+        Mbp1 = 0x01,
         /// Market by price with a book depth of 10.
-        Mbp10 = MBP_10,
+        Mbp10 = 0x0A,
         /// Open, high, low, close, and volume at an unspecified cadence.
         #[deprecated(
             since = "0.3.3",
             note = "Separated into separate rtypes for each OHLCV schema."
         )]
-        OhlcvDeprecated = OHLCV_DEPRECATED,
+        OhlcvDeprecated = 0x11,
         /// Open, high, low, close, and volume at a 1-second cadence.
-        Ohlcv1S = OHLCV_1S,
+        Ohlcv1S = 0x20,
         /// Open, high, low, close, and volume at a 1-minute cadence.
-        Ohlcv1M = OHLCV_1M,
+        Ohlcv1M = 0x21,
         /// Open, high, low, close, and volume at a daily cadence.
-        Ohlcv1H = OHLCV_1H,
+        Ohlcv1H = 0x22,
         /// Open, high, low, close, and volume at a daily cadence.
-        Ohlcv1D = OHLCV_1D,
+        Ohlcv1D = 0x23,
         /// Exchange status.
-        Status = STATUS,
+        Status = 0x12,
         /// Instrument definition.
-        InstrumentDef = INSTRUMENT_DEF,
+        InstrumentDef = 0x13,
         /// Order imbalance.
-        Imbalance = IMBALANCE,
+        Imbalance = 0x14,
         /// Error from gateway.
-        Error = ERROR,
+        Error = 0x15,
         /// Symbol mapping.
-        SymbolMapping = SYMBOL_MAPPING,
+        SymbolMapping = 0x16,
         /// A non-error message. Also used for heartbeats.
-        System = SYSTEM,
+        System = 0x17,
         /// Statistics from the publisher (not calculated by Databento).
-        Statistics = STATISTICS,
+        Statistics = 0x18,
         /// Market by order.
-        Mbo = MBO,
+        Mbo = 0xA0,
     }
 
     /// Market by price with a book depth of 0 (used for trades).
-    pub const MBP_0: u8 = 0x00;
+    pub const MBP_0: u8 = RType::Mbp0 as u8;
     /// Market by price with a book depth of 1 (also used for TBBO).
-    pub const MBP_1: u8 = 0x01;
+    pub const MBP_1: u8 = RType::Mbp1 as u8;
     /// Market by price with a book depth of 10.
-    pub const MBP_10: u8 = 0x0A;
+    pub const MBP_10: u8 = RType::Mbp10 as u8;
     /// Open, high, low, close, and volume at an unspecified cadence.
     #[deprecated(
         since = "0.3.3",
         note = "Separated into separate rtypes for each OHLCV schema."
     )]
-    pub const OHLCV_DEPRECATED: u8 = 0x11;
+    pub const OHLCV_DEPRECATED: u8 = RType::OhlcvDeprecated as u8;
     /// Open, high, low, close, and volume at a 1-second cadence.
-    pub const OHLCV_1S: u8 = 0x20;
+    pub const OHLCV_1S: u8 = RType::Ohlcv1S as u8;
     /// Open, high, low, close, and volume at a 1-minute cadence.
-    pub const OHLCV_1M: u8 = 0x21;
+    pub const OHLCV_1M: u8 = RType::Ohlcv1M as u8;
     /// Open, high, low, close, and volume at an hourly cadence.
-    pub const OHLCV_1H: u8 = 0x22;
+    pub const OHLCV_1H: u8 = RType::Ohlcv1H as u8;
     /// Open, high, low, close, and volume at a daily cadence.
-    pub const OHLCV_1D: u8 = 0x23;
+    pub const OHLCV_1D: u8 = RType::Ohlcv1D as u8;
     /// Exchange status.
-    pub const STATUS: u8 = 0x12;
+    pub const STATUS: u8 = RType::Status as u8;
     /// Instrument definition.
-    pub const INSTRUMENT_DEF: u8 = 0x13;
+    pub const INSTRUMENT_DEF: u8 = RType::InstrumentDef as u8;
     /// Order imbalance.
-    pub const IMBALANCE: u8 = 0x14;
+    pub const IMBALANCE: u8 = RType::Imbalance as u8;
     /// Error from gateway.
-    pub const ERROR: u8 = 0x15;
+    pub const ERROR: u8 = RType::Error as u8;
     /// Symbol mapping.
-    pub const SYMBOL_MAPPING: u8 = 0x16;
+    pub const SYMBOL_MAPPING: u8 = RType::SymbolMapping as u8;
     /// A non-error message. Also used for heartbeats.
-    pub const SYSTEM: u8 = 0x17;
+    pub const SYSTEM: u8 = RType::System as u8;
     /// Statistics from the publisher (not calculated by Databento).
-    pub const STATISTICS: u8 = 0x18;
+    pub const STATISTICS: u8 = RType::Statistics as u8;
     /// Market by order.
-    pub const MBO: u8 = 0xA0;
+    pub const MBO: u8 = RType::Mbo as u8;
 
     /// Get the corresponding `rtype` for the given `schema`.
     impl From<Schema> for RType {
@@ -446,12 +413,6 @@ impl Schema {
     }
 }
 
-impl Serialize for Schema {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(self.as_str())
-    }
-}
-
 impl Display for Schema {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_str())
@@ -459,8 +420,7 @@ impl Display for Schema {
 }
 
 /// A data encoding format.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, TryFromPrimitive)]
-#[serde(rename_all = "lowercase")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
 #[repr(u8)]
 pub enum Encoding {
     /// Databento Binary Encoding.
@@ -510,8 +470,7 @@ impl Display for Encoding {
 }
 
 /// A compression format or none if uncompressed.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, TryFromPrimitive)]
-#[serde(rename_all = "lowercase")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
 #[repr(u8)]
 pub enum Compression {
     /// Uncompressed.
@@ -585,12 +544,6 @@ pub enum SecurityUpdateAction {
     #[doc(hidden)]
     #[deprecated = "Still present in legacy files."]
     Invalid = b'~',
-}
-
-impl Serialize for SecurityUpdateAction {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_char(char::from(*self as u8))
-    }
 }
 
 /// The type of statistic contained in a [`StatMsg`](crate::record::StatMsg).

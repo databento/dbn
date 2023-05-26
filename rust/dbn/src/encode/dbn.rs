@@ -9,8 +9,8 @@ use anyhow::{anyhow, Context};
 
 use super::{zstd_encoder, DbnEncodable, EncodeDbn};
 use crate::{
-    enums::Schema, Metadata, SymbolMapping, DBN_VERSION, NULL_END, NULL_LIMIT, NULL_RECORD_COUNT,
-    NULL_SCHEMA, NULL_STYPE,
+    enums::Schema, record_ref::RecordRef, Metadata, SymbolMapping, DBN_VERSION, NULL_LIMIT,
+    NULL_RECORD_COUNT, NULL_SCHEMA, NULL_STYPE, UNDEF_TIMESTAMP,
 };
 
 /// Type for encoding files and streams in Databento Binary Encoding (DBN).
@@ -18,7 +18,7 @@ pub struct Encoder<W>
 where
     W: io::Write,
 {
-    writer: W,
+    record_encoder: RecordEncoder<W>,
 }
 
 impl<W> Encoder<W>
@@ -32,17 +32,18 @@ where
     /// `writer`.
     pub fn new(mut writer: W, metadata: &Metadata) -> anyhow::Result<Self> {
         MetadataEncoder::new(&mut writer).encode(metadata)?;
-        Ok(Self { writer })
+        let record_encoder = RecordEncoder::new(writer);
+        Ok(Self { record_encoder })
     }
 
     /// Returns a reference to the underlying writer.
     pub fn get_ref(&self) -> &W {
-        &self.writer
+        self.record_encoder.get_ref()
     }
 
     /// Returns a mutable reference to the underlying writer.
     pub fn get_mut(&mut self) -> &mut W {
-        &mut self.writer
+        self.record_encoder.get_mut()
     }
 }
 
@@ -66,17 +67,30 @@ where
     W: io::Write,
 {
     fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> anyhow::Result<bool> {
-        match self.writer.write_all(record.as_ref()) {
-            Ok(_) => Ok(false),
-            Err(e) if e.kind() == io::ErrorKind::BrokenPipe => Ok(true),
-            Err(e) => {
-                Err(anyhow::Error::new(e).context(format!("Failed to serialize {record:#?}")))
-            }
-        }
+        self.record_encoder.encode_record(record)
+    }
+
+    /// Encodes a single DBN record.
+    ///
+    /// Returns `true` if the the pipe was closed.
+    ///
+    /// # Safety
+    /// The DBN encoding a [`RecordRef`] is safe because no dispatching based on type
+    /// is required.
+    ///
+    /// # Errors
+    /// This function will return an error if it fails to encode `record` to
+    /// `writer`.
+    unsafe fn encode_record_ref(
+        &mut self,
+        record: RecordRef,
+        ts_out: bool,
+    ) -> anyhow::Result<bool> {
+        self.record_encoder.encode_record_ref(record, ts_out)
     }
 
     fn flush(&mut self) -> anyhow::Result<()> {
-        Ok(self.writer.flush()?)
+        self.record_encoder.flush()
     }
 }
 
@@ -171,7 +185,7 @@ where
         self.writer.write_all(start.to_le_bytes().as_slice())?;
         self.writer.write_all(
             end.map(|e| e.get())
-                .unwrap_or(NULL_END)
+                .unwrap_or(UNDEF_TIMESTAMP)
                 .to_le_bytes()
                 .as_slice(),
         )?;
@@ -282,6 +296,78 @@ where
     }
 }
 
+/// Type for encoding Databento Binary Encoding (DBN) records (not metadata).
+pub struct RecordEncoder<W>
+where
+    W: io::Write,
+{
+    writer: W,
+}
+
+impl<W> RecordEncoder<W>
+where
+    W: io::Write,
+{
+    /// Creates a new DBN [`RecordEncoder`] that will write to `writer`.
+    pub fn new(writer: W) -> Self {
+        Self { writer }
+    }
+
+    /// Returns a reference to the underlying writer.
+    pub fn get_ref(&self) -> &W {
+        &self.writer
+    }
+
+    /// Returns a mutable reference to the underlying writer.
+    pub fn get_mut(&mut self) -> &mut W {
+        &mut self.writer
+    }
+}
+
+impl<W> EncodeDbn for RecordEncoder<W>
+where
+    W: io::Write,
+{
+    fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> anyhow::Result<bool> {
+        match self.writer.write_all(record.as_ref()) {
+            Ok(_) => Ok(false),
+            Err(e) if e.kind() == io::ErrorKind::BrokenPipe => Ok(true),
+            Err(e) => {
+                Err(anyhow::Error::new(e).context(format!("Failed to serialize {record:#?}")))
+            }
+        }
+    }
+
+    /// Encodes a single DBN record.
+    ///
+    /// Returns `true` if the the pipe was closed.
+    ///
+    /// # Safety
+    /// The DBN encoding a [`RecordRef`] is safe because no dispatching based on type
+    /// is required.
+    ///
+    /// # Errors
+    /// This function will return an error if it fails to encode `record` to
+    /// `writer`.
+    unsafe fn encode_record_ref(
+        &mut self,
+        record: RecordRef,
+        _ts_out: bool,
+    ) -> anyhow::Result<bool> {
+        match self.writer.write_all(record.as_ref()) {
+            Ok(_) => Ok(false),
+            Err(e) if e.kind() == io::ErrorKind::BrokenPipe => Ok(true),
+            Err(e) => {
+                Err(anyhow::Error::new(e).context(format!("Failed to serialize {record:#?}")))
+            }
+        }
+    }
+
+    fn flush(&mut self) -> anyhow::Result<()> {
+        Ok(self.writer.flush()?)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::{io::Seek, mem};
@@ -295,11 +381,6 @@ mod tests {
 
     #[test]
     fn test_encode_decode_metadata_identity() {
-        let mut extra = serde_json::Map::default();
-        extra.insert(
-            "Key".to_owned(),
-            serde_json::Value::Number(serde_json::Number::from_f64(4.0).unwrap()),
-        );
         let metadata = Metadata {
             version: crate::DBN_VERSION,
             dataset: "GLBX.MDP3".to_owned(),
@@ -509,9 +590,8 @@ mod r#async {
     use tokio::io;
 
     use crate::{
-        record::HasRType, record_ref::RecordRef, rtype_ts_out_async_dispatch, Metadata,
-        SymbolMapping, DBN_VERSION, NULL_END, NULL_LIMIT, NULL_RECORD_COUNT, NULL_SCHEMA,
-        NULL_STYPE,
+        record::HasRType, record_ref::RecordRef, Metadata, SymbolMapping, DBN_VERSION, NULL_LIMIT,
+        NULL_RECORD_COUNT, NULL_SCHEMA, NULL_STYPE, UNDEF_TIMESTAMP,
     };
 
     /// An async encoder of DBN records.
@@ -556,20 +636,18 @@ mod r#async {
         ///
         /// Returns `true`if the pipe was closed.
         ///
-        /// # Safety
-        /// `ts_out` must be `false` if `record` does not have an appended `ts_out
-        ///
         /// # Errors
         /// This function returns an error if it's unable to write to the underlying writer
         /// or there's a serialization error.
-        pub async unsafe fn encode_ref(
-            &mut self,
-            record_ref: RecordRef<'_>,
-            ts_out: bool,
-        ) -> anyhow::Result<bool> {
-            rtype_ts_out_async_dispatch!(record_ref, ts_out, |rec| async move {
-                self.encode(rec).await
-            })?
+        pub async fn encode_ref(&mut self, record_ref: RecordRef<'_>) -> anyhow::Result<bool> {
+            match self.writer.write_all(record_ref.as_ref()).await {
+                Ok(_) => Ok(false),
+                Err(e) if e.kind() == io::ErrorKind::BrokenPipe => Ok(true),
+                Err(e) => {
+                    Err(anyhow::Error::new(e)
+                        .context(format!("Failed to serialize {record_ref:#?}")))
+                }
+            }
         }
 
         /// Returns a mutable reference to the underlying writer.
@@ -671,7 +749,7 @@ mod r#async {
         ) -> anyhow::Result<()> {
             self.writer.write_u64_le(start).await?;
             self.writer
-                .write_u64_le(end.map(|e| e.get()).unwrap_or(NULL_END))
+                .write_u64_le(end.map(|e| e.get()).unwrap_or(UNDEF_TIMESTAMP))
                 .await?;
             self.writer
                 .write_u64_le(limit.map(|l| l.get()).unwrap_or(NULL_LIMIT))
@@ -779,11 +857,6 @@ mod r#async {
 
         #[tokio::test]
         async fn test_encode_decode_metadata_identity() {
-            let mut extra = serde_json::Map::default();
-            extra.insert(
-                "Key".to_owned(),
-                serde_json::Value::Number(serde_json::Number::from_f64(4.0).unwrap()),
-            );
             let metadata = Metadata {
                 version: crate::DBN_VERSION,
                 dataset: "GLBX.MDP3".to_owned(),

@@ -42,6 +42,18 @@ impl<'a> RecordRef<'a> {
         }
     }
 
+    /// Constructs a new reference to the DBN record.
+    ///
+    /// # Safety
+    /// `header` must point to a valid DBN record.
+    pub unsafe fn unchecked_from_header(header: *const RecordHeader) -> Self {
+        Self {
+            // `NonNull` requires `mut` but it is never mutated
+            ptr: NonNull::new_unchecked(header as *mut RecordHeader),
+            _marker: PhantomData,
+        }
+    }
+
     /// Returns a reference to the [`RecordHeader`] of the referenced record.
     pub fn header(&self) -> &RecordHeader {
         // Safety: assumes `ptr` passes to a `RecordHeader`.
@@ -96,6 +108,14 @@ impl<'a> RecordRef<'a> {
     }
 }
 
+impl<'a> AsRef<[u8]> for RecordRef<'a> {
+    fn as_ref(&self) -> &[u8] {
+        // # Safety
+        // Assumes the encoded record length is correct.
+        unsafe { std::slice::from_raw_parts(self.ptr.as_ptr() as *const u8, self.record_size()) }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::ffi::c_char;
@@ -138,5 +158,13 @@ mod tests {
         assert!(!target.has::<InstrumentDefMsg>());
         assert!(target.has::<MboMsg>());
         assert_eq!(*unsafe { target.get_unchecked::<MboMsg>() }, SOURCE_RECORD);
+    }
+
+    #[test]
+    fn test_as_ref() {
+        let target = unsafe { RecordRef::new(SOURCE_RECORD.as_ref()) };
+        let byte_slice = target.as_ref();
+        assert_eq!(SOURCE_RECORD.record_size(), byte_slice.len());
+        assert_eq!(target.record_size(), byte_slice.len());
     }
 }

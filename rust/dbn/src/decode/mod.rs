@@ -15,6 +15,12 @@ mod error_utils;
 mod stream;
 mod zstd;
 
+// Re-exports
+pub use self::dbn::{
+    Decoder as DbnDecoder, MetadataDecoder as DbnMetadataDecoder, RecordDecoder as DbnRecordDecoder,
+};
+pub use stream::StreamIterDecoder;
+
 use std::{
     fs::File,
     io::{self, BufReader},
@@ -31,7 +37,6 @@ use crate::{
     // record_ref::RecordRef,
     Metadata,
 };
-pub use stream::StreamIterDecoder;
 
 /// Trait for types that decode DBN records.
 pub trait DecodeDbn: private::BufferSlice {

@@ -1,6 +1,24 @@
 # Changelog
 
-## 0.5.1 - 2023-05-04
+## 0.6.0 - 2023-05-26
+- Renamed `booklevel` MBP field to `levels` for brevity and consistent naming
+- Added `--limit NUM` CLI argument to output only the first `NUM` records
+- Added `AsRef<[u8]>` implementation for `RecordRef`
+- Added Python `size_hint` classmethod for DBN records
+- Improved DBN encoding performance of `RecordRef`s
+- Added `use_pretty_px` for price formatting and `use_pretty_ts` for datetime formatting
+  to CSV and JSON encoders
+- Added `UNDEF_TIMESTAMP` constant for when timestamp fields are unset
+- Removed `open_interest_qty` and `cleared_volume` fields that were always unset from
+  definition schema
+- Renamed `--pretty-json` CLI flag to `--pretty` and added support for CSV. Passing this
+  flag now also enables `use_pretty_px` and `use_pretty_ts`
+- Changed Python `DBNDecoder.decode` to return records with a `ts_out` attribute, instead
+  of a tuple
+- Rename Python `DbnDecoder` to `DBNDecoder`
+- Fixed `Action` conversion methods (credit: @thomas-k-cameron)
+
+## 0.5.1 - 2023-05-05
 - Added `F`ill action type for MBO messages
 - Added Python type stub for `StatMsg`
 

@@ -12,13 +12,35 @@ fn write_dbn<R: io::BufRead>(decoder: DynDecoder<R>, args: &Args) -> anyhow::Res
     let (encoding, compression) = infer_encoding_and_compression(args)?;
     if args.should_output_metadata {
         assert!(args.json);
-        json::Encoder::new(writer, args.should_pretty_print).encode_metadata(decoder.metadata())
+        json::Encoder::new(
+            writer,
+            args.should_pretty_print,
+            args.should_pretty_print,
+            args.should_pretty_print,
+        )
+        .encode_metadata(decoder.metadata())
+    } else if let Some(limit) = args.limit {
+        let mut metadata = decoder.metadata().clone();
+        // Update metadata
+        metadata.limit = args.limit;
+        DynEncoder::new(
+            writer,
+            encoding,
+            compression,
+            &metadata,
+            args.should_pretty_print,
+            args.should_pretty_print,
+            args.should_pretty_print,
+        )?
+        .encode_decoded_with_limit(decoder, limit)
     } else {
         DynEncoder::new(
             writer,
             encoding,
             compression,
             decoder.metadata(),
+            args.should_pretty_print,
+            args.should_pretty_print,
             args.should_pretty_print,
         )?
         .encode_decoded(decoder)
