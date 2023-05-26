@@ -229,7 +229,7 @@ dependencies = [
 
 [[package]]
 name = "databento-dbn"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "dbn",
  "pyo3",
@@ -238,7 +238,7 @@ dependencies = [
 
 [[package]]
 name = "dbn"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "async-compression",
@@ -255,7 +255,7 @@ dependencies = [
 
 [[package]]
 name = "dbn-c"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "cbindgen",
@@ -265,7 +265,7 @@ dependencies = [
 
 [[package]]
 name = "dbn-cli"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -278,7 +278,7 @@ dependencies = [
 
 [[package]]
 name = "dbn-macros"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",

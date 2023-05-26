@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.5.2 - TBD
+## 0.6.0 - 2023-05-26
 - Renamed `booklevel` MBP field to `levels` for brevity and consistent naming
 - Added `--limit NUM` CLI argument to output only the first `NUM` records
 - Added `AsRef<[u8]>` implementation for `RecordRef`
