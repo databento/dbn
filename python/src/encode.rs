@@ -183,6 +183,7 @@ mod tests {
     use std::io::{Cursor, Seek, Write};
     use std::sync::{Arc, Mutex};
 
+    use dbn::datasets::GLBX_MDP3;
     use dbn::{
         decode::{dbn::Decoder as DbnDecoder, DecodeDbn},
         enums::SType,
@@ -240,7 +241,7 @@ mod tests {
         }
     }
 
-    const DATASET: &str = "GLBX.MDP3";
+    const DATASET: &str = GLBX_MDP3;
     const STYPE: SType = SType::InstrumentId;
 
     macro_rules! test_writing_dbn_from_python {

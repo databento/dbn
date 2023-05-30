@@ -112,6 +112,7 @@ impl DbnDecoder {
 #[cfg(test)]
 mod tests {
     use dbn::{
+        datasets::XNAS_ITCH,
         encode::{dbn::Encoder, EncodeDbn},
         enums::{rtype, SType, Schema},
         record::{ErrorMsg, OhlcvMsg, RecordHeader},
@@ -130,7 +131,7 @@ mod tests {
         let mut encoder = Encoder::new(
             buffer,
             &MetadataBuilder::new()
-                .dataset("XNAS.ITCH".to_owned())
+                .dataset(XNAS_ITCH.to_owned())
                 .schema(Some(Schema::Trades))
                 .stype_in(Some(SType::RawSymbol))
                 .stype_out(SType::InstrumentId)
@@ -169,7 +170,7 @@ mod tests {
         let mut encoder = Encoder::new(
             buffer,
             &MetadataBuilder::new()
-                .dataset("XNAS.ITCH".to_owned())
+                .dataset(XNAS_ITCH.to_owned())
                 .schema(Some(Schema::Ohlcv1S))
                 .stype_in(Some(SType::RawSymbol))
                 .stype_out(SType::InstrumentId)

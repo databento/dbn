@@ -43,3 +43,11 @@ pub const UNDEF_ORDER_SIZE: u32 = u32::MAX;
 pub const UNDEF_STAT_QUANTITY: i32 = i32::MAX;
 /// The sentinel value for an unset or null timestamp.
 pub const UNDEF_TIMESTAMP: u64 = u64::MAX;
+
+/// Contains dataset code constants.
+pub mod datasets {
+    /// The dataset code for CME Globex MDP 3.0.
+    pub const GLBX_MDP3: &str = "GLBX.MDP3";
+    /// The dataset code for Nasdaq TotalView ITCH.
+    pub const XNAS_ITCH: &str = "XNAS.ITCH";
+}

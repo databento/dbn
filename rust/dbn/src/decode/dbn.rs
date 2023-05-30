@@ -506,6 +506,7 @@ mod tests {
 
     use super::*;
     use crate::{
+        datasets::XNAS_ITCH,
         decode::tests::TEST_DATA_PATH,
         encode::{dbn::Encoder, EncodeDbn},
         enums::rtype,
@@ -649,7 +650,7 @@ mod tests {
         let mut encoder = Encoder::new(
             &mut buffer,
             &MetadataBuilder::new()
-                .dataset("XNAS.ITCH".to_owned())
+                .dataset(XNAS_ITCH.to_owned())
                 .schema(Some(Schema::Mbo))
                 .start(0)
                 .stype_in(Some(SType::InstrumentId))

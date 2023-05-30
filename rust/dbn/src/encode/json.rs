@@ -458,6 +458,7 @@ mod tests {
 
     use super::*;
     use crate::{
+        datasets::GLBX_MDP3,
         encode::test_data::{VecStream, BID_ASK, RECORD_HEADER},
         enums::{
             InstrumentClass, SType, Schema, SecurityUpdateAction, StatType, StatUpdateAction,
@@ -853,7 +854,7 @@ mod tests {
     fn test_metadata_write_json() {
         let metadata = Metadata {
             version: 1,
-            dataset: "GLBX.MDP3".to_owned(),
+            dataset: GLBX_MDP3.to_owned(),
             schema: Some(Schema::Ohlcv1H),
             start: 1662734705128748281,
             end: NonZeroU64::new(1662734720914876944),

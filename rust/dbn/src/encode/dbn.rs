@@ -374,6 +374,7 @@ mod tests {
 
     use super::*;
     use crate::{
+        datasets::{GLBX_MDP3, XNAS_ITCH},
         decode::{dbn::MetadataDecoder, FromLittleEndianSlice},
         enums::{SType, Schema},
         MappingInterval, MetadataBuilder,
@@ -383,7 +384,7 @@ mod tests {
     fn test_encode_decode_metadata_identity() {
         let metadata = Metadata {
             version: crate::DBN_VERSION,
-            dataset: "GLBX.MDP3".to_owned(),
+            dataset: GLBX_MDP3.to_owned(),
             schema: Some(Schema::Mbp10),
             stype_in: Some(SType::RawSymbol),
             stype_out: SType::InstrumentId,
@@ -500,7 +501,7 @@ mod tests {
     fn test_update_encoded() {
         let orig_metadata = Metadata {
             version: crate::DBN_VERSION,
-            dataset: "GLBX.MDP3".to_owned(),
+            dataset: GLBX_MDP3.to_owned(),
             schema: Some(Schema::Mbo),
             stype_in: Some(SType::Parent),
             stype_out: SType::RawSymbol,
@@ -544,7 +545,7 @@ mod tests {
     #[test]
     fn test_encode_decode_nulls() {
         let metadata = MetadataBuilder::new()
-            .dataset("XNAS.ITCH".to_owned())
+            .dataset(XNAS_ITCH.to_owned())
             .schema(Some(Schema::Mbo))
             .start(1697240529000000000)
             .stype_in(Some(SType::RawSymbol))
@@ -562,7 +563,7 @@ mod tests {
     #[test]
     fn test_metadata_min_encoded_size() {
         let metadata = MetadataBuilder::new()
-            .dataset("XNAS.ITCH".to_owned())
+            .dataset(XNAS_ITCH.to_owned())
             .schema(Some(Schema::Mbo))
             .start(1697240529000000000)
             .stype_in(Some(SType::RawSymbol))
@@ -850,6 +851,7 @@ mod r#async {
 
         use super::*;
         use crate::{
+            datasets::{GLBX_MDP3, XNAS_ITCH},
             decode::{dbn::MetadataDecoder, FromLittleEndianSlice},
             enums::{SType, Schema},
             MappingInterval, MetadataBuilder,
@@ -859,7 +861,7 @@ mod r#async {
         async fn test_encode_decode_metadata_identity() {
             let metadata = Metadata {
                 version: crate::DBN_VERSION,
-                dataset: "GLBX.MDP3".to_owned(),
+                dataset: GLBX_MDP3.to_owned(),
                 schema: Some(Schema::Mbp10),
                 stype_in: Some(SType::RawSymbol),
                 stype_out: SType::InstrumentId,
@@ -989,7 +991,7 @@ mod r#async {
         #[tokio::test]
         async fn test_encode_decode_nulls() {
             let metadata = MetadataBuilder::new()
-                .dataset("XNAS.ITCH".to_owned())
+                .dataset(XNAS_ITCH.to_owned())
                 .schema(Some(Schema::Mbo))
                 .start(1697240529000000000)
                 .stype_in(Some(SType::RawSymbol))
