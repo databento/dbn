@@ -89,7 +89,7 @@ pub trait DecodeDbn: private::BufferSlice {
 }
 
 /// A decoder implementing [`DecodeDbn`] whose [`Encoding`](crate::enums::Encoding) and
-/// [`Compression`](crate::enums::Compression) can be determined at runtime by peeking
+/// [`Compression`](crate::enums::Compression) are determined at runtime by peeking
 /// at the first few bytes.
 pub struct DynDecoder<'a, R>(DynDecoderImpl<'a, R>)
 where

@@ -357,6 +357,90 @@ fn metadata_conflicts_with_limit() {
 }
 
 #[test]
+fn fragment_conflicts_with_metadata() {
+    cmd()
+        .args(&[
+            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.frag"),
+            "--fragment",
+            "--json",
+            "--metadata",
+        ])
+        .assert()
+        .failure()
+        .stderr(contains("'--fragment' cannot be used with '--metadata'"));
+}
+
+#[test]
+fn zstd_fragment_conflicts_with_metadata() {
+    cmd()
+        .args(&[
+            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.frag.zst"),
+            "--zstd-fragment",
+            "--json",
+            "--metadata",
+        ])
+        .assert()
+        .failure()
+        .stderr(contains(
+            "'--zstd-fragment' cannot be used with '--metadata'",
+        ));
+}
+
+#[test]
+fn fragment_conflicts_with_dbn_output() {
+    cmd()
+        .args(&[
+            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.frag"),
+            "--fragment",
+            "--dbn",
+        ])
+        .assert()
+        .failure()
+        .stderr(contains("'--fragment' cannot be used with '--dbn'"));
+}
+
+#[test]
+fn zstd_fragment_conflicts_with_dbn_output() {
+    cmd()
+        .args(&[
+            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.frag.zst"),
+            "--zstd-fragment",
+            "--dbn",
+        ])
+        .assert()
+        .failure()
+        .stderr(contains("'--zstd-fragment' cannot be used with '--dbn'"));
+}
+
+#[test]
+fn test_fragment() {
+    cmd()
+        .args(&[
+            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.frag"),
+            "--fragment",
+            "--json",
+        ])
+        .assert()
+        .success()
+        .stdout(contains('\n').count(2))
+        .stderr(is_empty());
+}
+
+#[test]
+fn test_zstd_fragment() {
+    cmd()
+        .args(&[
+            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.frag.zst"),
+            "--zstd-fragment",
+            "--json",
+        ])
+        .assert()
+        .success()
+        .stdout(contains('\n').count(2))
+        .stderr(is_empty());
+}
+
+#[test]
 fn test_limit_updates_metadata() {
     // Check metadata shows limit = 2
     cmd()
