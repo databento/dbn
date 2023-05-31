@@ -25,7 +25,7 @@ anyhow = "1.0"
 # async (de)compression
 async-compression = { version = "0.3.15", features = ["tokio", "zstd"], optional = true }
 # CSV serialization
-csv = "1.2"
+csv = ">=1.2.2"
 # Deriving translation between integers and enums
 num_enum = "0.6"
 # Python bindings for Rust

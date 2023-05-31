@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.6.1 - TBD
+- Added `csv::Decoder::get_ref` that returns reference to the underlying writer
+
 ## 0.6.0 - 2023-05-26
 - Renamed `booklevel` MBP field to `levels` for brevity and consistent naming
 - Added `--limit NUM` CLI argument to output only the first `NUM` records
