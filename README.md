@@ -5,7 +5,7 @@
 [![Current Crates.io Version](https://img.shields.io/crates/v/dbn.svg)](https://crates.io/crates/dbn)
 [![pypi-version](https://img.shields.io/pypi/v/databento_dbn)](https://pypi.org/project/databento-dbn)
 
-A library (`dbn`) and CLI tool (`dbn`) for working with Databento Binary
+Libraries and a CLI tool for working with Databento Binary
 Encoding (DBN) files and streams.
 Python bindings for `dbn` are provided in the `databento-dbn` package.
 
@@ -21,9 +21,9 @@ highly-compressible binary encoding suitable for bulk financial time series data
 ## Usage
 
 See the respective READMEs for usage details:
-- [`dbn`](rust/dbn/README.md)
-- [`dbn-cli`](rust/dbn-cli/README.md)
-- [`databento-dbn`](python/README.md)
+- [`dbn`](rust/dbn/README.md): Rust library crate
+- [`dbn-cli`](rust/dbn-cli/README.md): CLI crate providing a `dbn` binary
+- [`databento-dbn`](python/README.md): Python package
 
 # License
 
