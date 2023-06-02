@@ -37,6 +37,11 @@ where
         }
     }
 
+    /// Returns a reference to the underlying writer.
+    pub fn get_ref(&self) -> &W {
+        self.writer.get_ref()
+    }
+
     #[doc(hidden)]
     pub fn encode_header<R: super::DbnEncodable>(&mut self) -> anyhow::Result<()> {
         R::serialize_header(&mut self.writer)?;

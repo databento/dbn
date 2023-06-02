@@ -1,9 +1,11 @@
-use std::io;
+use std::{fs::File, io};
 
 use clap::Parser;
 use dbn::{
-    decode::{DecodeDbn, DynDecoder},
+    decode::{DbnRecordDecoder, DecodeDbn, DynDecoder},
     encode::{json, DynEncoder, EncodeDbn},
+    enums::SType,
+    MetadataBuilder,
 };
 use dbn_cli::{infer_encoding_and_compression, output_from_args, Args};
 
@@ -47,9 +49,68 @@ fn write_dbn<R: io::BufRead>(decoder: DynDecoder<R>, args: &Args) -> anyhow::Res
     }
 }
 
+fn write_dbn_frag<R: io::Read>(
+    mut decoder: DbnRecordDecoder<R>,
+    args: &Args,
+) -> anyhow::Result<()> {
+    let writer = output_from_args(args)?;
+    let (encoding, compression) = infer_encoding_and_compression(args)?;
+    assert!(!args.should_output_metadata);
+
+    let mut encoder = DynEncoder::new(
+        writer,
+        encoding,
+        compression,
+        // dummy metadata won't be encoded
+        &MetadataBuilder::new()
+            .dataset(String::new())
+            .schema(None)
+            .start(0)
+            .stype_in(None)
+            .stype_out(SType::InstrumentId)
+            .build(),
+        args.should_pretty_print,
+        args.should_pretty_print,
+        args.should_pretty_print,
+    )?;
+    let mut n = 0;
+    while let Some(record) = decoder.decode_ref()? {
+        // Assume no ts_out for safety
+        unsafe {
+            encoder.encode_record_ref(record, false)?;
+        }
+        n += 1;
+        if args.limit.map_or(false, |l| n >= l.get()) {
+            break;
+        }
+    }
+    Ok(())
+}
+
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-    if args.input.as_os_str() == "-" {
+    if args.is_fragment {
+        if args.input.as_os_str() == "-" {
+            write_dbn_frag(DbnRecordDecoder::new(io::stdin().lock()), &args)
+        } else {
+            write_dbn_frag(
+                DbnRecordDecoder::new(File::open(args.input.clone())?),
+                &args,
+            )
+        }
+    } else if args.is_zstd_fragment {
+        if args.input.as_os_str() == "-" {
+            write_dbn_frag(
+                DbnRecordDecoder::new(zstd::stream::Decoder::with_buffer(io::stdin().lock())?),
+                &args,
+            )
+        } else {
+            write_dbn_frag(
+                DbnRecordDecoder::new(zstd::stream::Decoder::new(File::open(args.input.clone())?)?),
+                &args,
+            )
+        }
+    } else if args.input.as_os_str() == "-" {
         write_dbn(DynDecoder::inferred_with_buffer(io::stdin().lock())?, &args)
     } else {
         write_dbn(DynDecoder::from_file(&args.input)?, &args)

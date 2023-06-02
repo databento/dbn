@@ -52,24 +52,31 @@ pub struct RecordHeader {
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn", name = "MBOMsg")
+    pyo3::pyclass(set_all, dict, module = "databento_dbn", name = "MBOMsg")
 )]
+#[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[dbn_record(rtype::MBO)]
 pub struct MboMsg {
     /// The common header.
+    #[pyo3(get)]
     pub hd: RecordHeader,
     /// The order ID assigned at the venue.
+    #[pyo3(get)]
     pub order_id: u64,
     /// The order price expressed as a signed integer where every 1 unit
     /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
     #[dbn(fixed_price)]
+    #[pyo3(get)]
     pub price: i64,
     /// The order quantity.
+    #[pyo3(get)]
     pub size: u32,
     /// A combination of packet end with matching engine status. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
+    #[pyo3(get)]
     pub flags: u8,
     /// A channel ID within the venue.
+    #[pyo3(get)]
     pub channel_id: u8,
     /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**,
     /// **T**rade, or **F**ill.
@@ -81,10 +88,13 @@ pub struct MboMsg {
     /// The capture-server-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
     #[dbn(unix_nanos)]
+    #[pyo3(get)]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
+    #[pyo3(get)]
     pub ts_in_delta: i32,
     /// The message sequence number assigned at the venue.
+    #[pyo3(get)]
     pub sequence: u32,
 }
 
@@ -118,17 +128,21 @@ pub struct BidAskPair {
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn", name = "TradeMsg")
+    pyo3::pyclass(set_all, dict, module = "databento_dbn")
 )]
+#[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[dbn_record(rtype::MBP_0)]
 pub struct TradeMsg {
     /// The common header.
+    #[pyo3(get)]
     pub hd: RecordHeader,
     /// The order price expressed as a signed integer where every 1 unit
     /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
     #[dbn(fixed_price)]
+    #[pyo3(get)]
     pub price: i64,
     /// The order quantity.
+    #[pyo3(get)]
     pub size: u32,
     /// The event action. Always **T**rade in the trades schema.
     #[dbn(c_char)]
@@ -138,16 +152,21 @@ pub struct TradeMsg {
     pub side: c_char,
     /// A combination of packet end with matching engine status. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
+    #[pyo3(get)]
     pub flags: u8,
     /// The depth of actual book change.
+    #[pyo3(get)]
     pub depth: u8,
     /// The capture-server-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
     #[dbn(unix_nanos)]
+    #[pyo3(get)]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
+    #[pyo3(get)]
     pub ts_in_delta: i32,
     /// The message sequence number assigned at the venue.
+    #[pyo3(get)]
     pub sequence: u32,
 }
 
@@ -158,17 +177,21 @@ pub struct TradeMsg {
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn", name = "MBP1Msg")
+    pyo3::pyclass(set_all, dict, module = "databento_dbn", name = "MBP1Msg")
 )]
+#[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[dbn_record(rtype::MBP_1)]
 pub struct Mbp1Msg {
     /// The common header.
+    #[pyo3(get)]
     pub hd: RecordHeader,
     /// The order price expressed as a signed integer where every 1 unit
     /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
     #[dbn(fixed_price)]
+    #[pyo3(get)]
     pub price: i64,
     /// The order quantity.
+    #[pyo3(get)]
     pub size: u32,
     /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or
     /// **T**rade.
@@ -179,18 +202,24 @@ pub struct Mbp1Msg {
     pub side: c_char,
     /// A combination of packet end with matching engine status. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
+    #[pyo3(get)]
     pub flags: u8,
     /// The depth of actual book change.
+    #[pyo3(get)]
     pub depth: u8,
     /// The capture-server-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
     #[dbn(unix_nanos)]
+    #[pyo3(get)]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
+    #[pyo3(get)]
     pub ts_in_delta: i32,
     /// The message sequence number assigned at the venue.
+    #[pyo3(get)]
     pub sequence: u32,
     /// The top of the order book.
+    #[pyo3(get)]
     pub levels: [BidAskPair; 1],
 }
 
@@ -201,17 +230,21 @@ pub struct Mbp1Msg {
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn", name = "MBP10Msg")
+    pyo3::pyclass(set_all, dict, module = "databento_dbn", name = "MBP10Msg")
 )]
+#[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[dbn_record(rtype::MBP_10)]
 pub struct Mbp10Msg {
     /// The common header.
+    #[pyo3(get)]
     pub hd: RecordHeader,
     /// The order price expressed as a signed integer where every 1 unit
     /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
     #[dbn(fixed_price)]
+    #[pyo3(get)]
     pub price: i64,
     /// The order quantity.
+    #[pyo3(get)]
     pub size: u32,
     /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or
     /// **T**rade.
@@ -222,18 +255,24 @@ pub struct Mbp10Msg {
     pub side: c_char,
     /// A combination of packet end with matching engine status. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
+    #[pyo3(get)]
     pub flags: u8,
     /// The depth of actual book change.
+    #[pyo3(get)]
     pub depth: u8,
     /// The capture-server-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
     #[dbn(unix_nanos)]
+    #[pyo3(get)]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
+    #[pyo3(get)]
     pub ts_in_delta: i32,
     /// The message sequence number assigned at the venue.
+    #[pyo3(get)]
     pub sequence: u32,
     /// The top 10 levels of the order book.
+    #[pyo3(get)]
     pub levels: [BidAskPair; 10],
 }
 
@@ -462,7 +501,7 @@ pub struct InstrumentDefMsg {
     pub strike_price_currency: [c_char; 4],
     /// The classification of the instrument.
     #[dbn(c_char)]
-    #[pyo3(get, set)]
+    #[pyo3(set)]
     pub instrument_class: c_char,
     #[doc(hidden)]
     pub _reserved4: [u8; 2],
@@ -475,7 +514,7 @@ pub struct InstrumentDefMsg {
     pub _reserved5: [u8; 6],
     /// The matching algorithm used for the instrument, typically **F**IFO.
     #[dbn(c_char)]
-    #[pyo3(get, set)]
+    #[pyo3(set)]
     pub match_algorithm: c_char,
     /// The current trading state of the instrument.
     #[pyo3(get, set)]
@@ -496,7 +535,7 @@ pub struct InstrumentDefMsg {
     #[pyo3(get, set)]
     pub underlying_product: u8,
     /// Indicates if the instrument definition has been added, modified, or deleted.
-    #[pyo3(get, set)]
+    #[pyo3(set)]
     pub security_update_action: SecurityUpdateAction,
     /// The calendar month reflected in the instrument symbol.
     #[pyo3(get, set)]
@@ -508,7 +547,7 @@ pub struct InstrumentDefMsg {
     #[pyo3(get, set)]
     pub maturity_week: u8,
     /// Indicates if the instrument is user defined: **Y**es or **N**o.
-    #[pyo3(get, set)]
+    #[pyo3(set)]
     pub user_defined_instrument: UserDefinedInstrument,
     /// The type of `contract_multiplier`. Either `1` for hours, or `2` for days.
     #[pyo3(get, set)]
@@ -530,47 +569,62 @@ pub struct InstrumentDefMsg {
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn")
+    pyo3::pyclass(set_all, dict, module = "databento_dbn")
 )]
+#[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[dbn_record(rtype::IMBALANCE)]
 pub struct ImbalanceMsg {
     /// The common header.
+    #[pyo3(get)]
     pub hd: RecordHeader,
     /// The capture-server-received timestamp expressed as the number of nanoseconds
     /// since the UNIX epoch.
     #[dbn(unix_nanos)]
+    #[pyo3(get)]
     pub ts_recv: u64,
     /// The price at which the imbalance shares are calculated, where every 1 unit corresponds to
     /// 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
     #[dbn(fixed_price)]
+    #[pyo3(get)]
     pub ref_price: i64,
     /// Reserved for future use.
+    #[pyo3(get)]
     pub auction_time: u64,
     /// The hypothetical auction-clearing price for both cross and continuous orders.
     #[dbn(fixed_price)]
+    #[pyo3(get)]
     pub cont_book_clr_price: i64,
     /// The hypothetical auction-clearing price for cross orders only.
     #[dbn(fixed_price)]
+    #[pyo3(get)]
     pub auct_interest_clr_price: i64,
     /// Reserved for future use.
     #[dbn(fixed_price)]
+    #[pyo3(get)]
     pub ssr_filling_price: i64,
     /// Reserved for future use.
     #[dbn(fixed_price)]
+    #[pyo3(get)]
     pub ind_match_price: i64,
     /// Reserved for future use.
     #[dbn(fixed_price)]
+    #[pyo3(get)]
     pub upper_collar: i64,
     /// Reserved for future use.
     #[dbn(fixed_price)]
+    #[pyo3(get)]
     pub lower_collar: i64,
     /// The quantity of shares that are eligible to be matched at `ref_price`.
+    #[pyo3(get)]
     pub paired_qty: u32,
     /// The quantity of shares that are not paired at `ref_price`.
+    #[pyo3(get)]
     pub total_imbalance_qty: u32,
     /// Reserved for future use.
+    #[pyo3(get)]
     pub market_imbalance_qty: u32,
     /// Reserved for future use.
+    #[pyo3(get)]
     pub unpaired_qty: u32,
     /// Venue-specific character code indicating the auction type.
     #[dbn(c_char)]
@@ -579,10 +633,13 @@ pub struct ImbalanceMsg {
     #[dbn(c_char)]
     pub side: c_char,
     /// Reserved for future use.
+    #[pyo3(get)]
     pub auction_status: u8,
     /// Reserved for future use.
+    #[pyo3(get)]
     pub freeze_status: u8,
     /// Reserved for future use.
+    #[pyo3(get)]
     pub num_extensions: u8,
     /// Reserved for future use.
     #[dbn(c_char)]
@@ -604,6 +661,7 @@ pub struct ImbalanceMsg {
     feature = "python",
     pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn")
 )]
+#[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[dbn_record(rtype::STATISTICS)]
 pub struct StatMsg {
     /// The common header.

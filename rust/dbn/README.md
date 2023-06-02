@@ -6,6 +6,13 @@
 
 The official library for working with the Databento Binary Encoding (DBN, formerly DBZ).
 
+## Installation
+
+To add the crate to an existing project, run the following command:
+```sh
+cargo add dbn
+```
+
 ## Usage
 
 To read a DBN file with MBO data and print each row:

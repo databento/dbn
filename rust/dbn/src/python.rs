@@ -355,6 +355,18 @@ impl MboMsg {
     fn size_hint(_: &PyType) -> PyResult<usize> {
         Ok(mem::size_of::<MboMsg>())
     }
+
+    #[getter]
+    #[pyo3(name = "action")]
+    fn py_action(&self) -> char {
+        self.action as u8 as char
+    }
+
+    #[getter]
+    #[pyo3(name = "side")]
+    fn py_side(&self) -> char {
+        self.side as u8 as char
+    }
 }
 
 #[pymethods]
@@ -459,6 +471,18 @@ impl TradeMsg {
     fn size_hint(_: &PyType) -> PyResult<usize> {
         Ok(mem::size_of::<TradeMsg>())
     }
+
+    #[getter]
+    #[pyo3(name = "action")]
+    fn py_action(&self) -> char {
+        self.action as u8 as char
+    }
+
+    #[getter]
+    #[pyo3(name = "side")]
+    fn py_side(&self) -> char {
+        self.side as u8 as char
+    }
 }
 
 #[pymethods]
@@ -538,6 +562,18 @@ impl Mbp1Msg {
     #[classmethod]
     fn size_hint(_: &PyType) -> PyResult<usize> {
         Ok(mem::size_of::<Mbp1Msg>())
+    }
+
+    #[getter]
+    #[pyo3(name = "action")]
+    fn py_action(&self) -> char {
+        self.action as u8 as char
+    }
+
+    #[getter]
+    #[pyo3(name = "side")]
+    fn py_side(&self) -> char {
+        self.side as u8 as char
     }
 }
 
@@ -630,6 +666,18 @@ impl Mbp10Msg {
     #[classmethod]
     fn size_hint(_: &PyType) -> PyResult<usize> {
         Ok(mem::size_of::<Mbp10Msg>())
+    }
+
+    #[getter]
+    #[pyo3(name = "action")]
+    fn py_action(&self) -> char {
+        self.action as u8 as char
+    }
+
+    #[getter]
+    #[pyo3(name = "side")]
+    fn py_side(&self) -> char {
+        self.side as u8 as char
     }
 }
 
@@ -996,6 +1044,12 @@ impl InstrumentDefMsg {
     }
 
     #[getter]
+    #[pyo3(name = "group")]
+    fn py_group(&self) -> PyResult<&str> {
+        self.group().map_err(to_val_err)
+    }
+
+    #[getter]
     #[pyo3(name = "exchange")]
     fn py_exchange(&self) -> PyResult<&str> {
         self.exchange().map_err(to_val_err)
@@ -1035,6 +1089,30 @@ impl InstrumentDefMsg {
     #[pyo3(name = "strike_price_currency")]
     fn py_strike_price_currency(&self) -> PyResult<&str> {
         self.strike_price_currency().map_err(to_val_err)
+    }
+
+    #[getter]
+    #[pyo3(name = "instrument_class")]
+    fn py_instrument_class(&self) -> char {
+        self.instrument_class as u8 as char
+    }
+
+    #[getter]
+    #[pyo3(name = "match_algorithm")]
+    fn py_match_algorithm(&self) -> char {
+        self.match_algorithm as u8 as char
+    }
+
+    #[getter]
+    #[pyo3(name = "security_update_action")]
+    fn py_security_update_action(&self) -> char {
+        self.security_update_action as u8 as char
+    }
+
+    #[getter]
+    #[pyo3(name = "user_defined_instrument")]
+    fn py_user_defined_instrument(&self) -> char {
+        self.user_defined_instrument as u8 as char
     }
 }
 
@@ -1125,6 +1203,30 @@ impl ImbalanceMsg {
     #[classmethod]
     fn size_hint(_: &PyType) -> PyResult<usize> {
         Ok(mem::size_of::<ImbalanceMsg>())
+    }
+
+    #[getter]
+    #[pyo3(name = "auction_type")]
+    fn py_auction_type(&self) -> char {
+        self.auction_type as u8 as char
+    }
+
+    #[getter]
+    #[pyo3(name = "side")]
+    fn py_side(&self) -> char {
+        self.side as u8 as char
+    }
+
+    #[getter]
+    #[pyo3(name = "unpaired_side")]
+    fn py_unpaired_side(&self) -> char {
+        self.unpaired_side as u8 as char
+    }
+
+    #[getter]
+    #[pyo3(name = "significant_imbalance")]
+    fn py_significant_imbalance(&self) -> char {
+        self.significant_imbalance as u8 as char
     }
 }
 

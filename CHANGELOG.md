@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.1 - 2023-06-02
+- Added `--fragment` and `--zstd-fragment` CLI arguments to read DBN streams
+  without metadata
+- Added `csv::Decoder::get_ref` that returns reference to the underlying writer
+- Added missing Python getter for `InstrumentDefMsg::group`
+- Added dataset constants
+- Changed `c_char` fields to be exposed to Python as `str`
+
 ## 0.6.0 - 2023-05-26
 - Renamed `booklevel` MBP field to `levels` for brevity and consistent naming
 - Added `--limit NUM` CLI argument to output only the first `NUM` records

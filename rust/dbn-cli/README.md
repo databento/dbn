@@ -8,6 +8,13 @@ This crate provides a CLI tool `dbn` for converting the Databento Binary
 Encoding (DBN) files to text formats, as well as updating legacy DBZ files to
 DBN.
 
+## Installation
+
+To install the latest version, run the following command:
+```sh
+cargo install dbn-cli
+```
+
 ## Usage
 
 `dbn` currently supports CSV and JSON (technically [newline-delimited JSON](http://ndjson.org/))
@@ -16,9 +23,9 @@ By default, `dbn` outputs the result to standard output for ease of use with
 text-based command-line utilities.
 Running
 ```sh
-dbn some.dbn --csv | head -n 5
+dbn some.dbn --csv --limit 5
 ```
-will print the header row and 4 data rows in `some.dbn` in CSV format to the console.
+will print the header row and the first 5 data rows in `some.dbn` in CSV format to the console.
 Similarly, running
 ```sh
 dbn ohlcv-1d.dbn.zst --json | jq '.high'
@@ -53,7 +60,7 @@ dbn ohlcv-1d.dbn -o ohclv-1d.json.zst
 
 or explicitly
 ```
-dbn ohlcv-1d.dbn --json --zstd > ohlcv-1d.json.zst
+dbn ohlcv-1d.dbn --json --zstd -o ohlcv-1d.json.zst
 ```
 
 ### Converting DBZ files to DBN

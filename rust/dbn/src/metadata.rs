@@ -69,7 +69,9 @@ pub struct Metadata {
 ///
 /// # Required fields
 /// - [`dataset`](Metadata::dataset)
+/// - [`schema`](Metadata::schema)
 /// - [`start`](Metadata::start)
+/// - [`stype_in`](Metadata::stype_in)
 /// - [`stype_out`](Metadata::stype_out)
 #[derive(Debug)]
 pub struct MetadataBuilder<D, Sch, Start, StIn, StOut> {

@@ -98,6 +98,22 @@ pub struct Args {
         help = "Limit the number of records in the output to the specified number"
     )]
     pub limit: Option<NonZeroU64>,
+    #[clap(
+        long = "fragment",
+        action = ArgAction::SetTrue,
+        default_value = "false",
+        conflicts_with_all = ["is_zstd_fragment", "should_output_metadata", "dbn"],
+        help = "Interpret the input as an uncompressed DBN fragment, i.e. records without metadata. Only valid with text output encodings"
+    )]
+    pub is_fragment: bool,
+    #[clap(
+        long = "zstd-fragment",
+        action = ArgAction::SetTrue,
+        default_value = "false",
+        conflicts_with_all = ["should_output_metadata", "dbn"],
+        help = "Interpret the input as a Zstd-compressed DBN fragment, i.e. records without metadata. Only valid with text output encodings"
+    )]
+    pub is_zstd_fragment: bool,
 }
 
 impl Args {
