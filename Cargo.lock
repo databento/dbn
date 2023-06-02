@@ -247,6 +247,7 @@ dependencies = [
  "json-writer",
  "num_enum",
  "pyo3",
+ "serde",
  "streaming-iterator",
  "time",
  "tokio",
