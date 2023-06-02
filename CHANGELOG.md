@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.6.1 - TBD
+## 0.6.1 - 2023-06-02
 - Added `--fragment` and `--zstd-fragment` CLI arguments to read DBN streams
   without metadata
 - Added `csv::Decoder::get_ref` that returns reference to the underlying writer
