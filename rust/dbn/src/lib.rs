@@ -50,4 +50,6 @@ pub mod datasets {
     pub const GLBX_MDP3: &str = "GLBX.MDP3";
     /// The dataset code for Nasdaq TotalView ITCH.
     pub const XNAS_ITCH: &str = "XNAS.ITCH";
+    /// The dataset code for Databento Equity Basic.
+    pub const DBEQ_BASIC: &str = "DBEQ.BASIC";
 }
