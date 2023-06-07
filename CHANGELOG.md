@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.7.0 - TBD
+- Dropped support for Python 3.7
+
 ## 0.6.1 - 2023-06-02
 - Added `--fragment` and `--zstd-fragment` CLI arguments to read DBN streams
   without metadata

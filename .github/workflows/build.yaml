@@ -43,12 +43,16 @@ jobs:
 
       - name: Format
         run: scripts/format.sh
+        shell: bash
       - name: Build
         run: scripts/build.sh
+        shell: bash
       - name: Lint
         run: scripts/lint.sh
+        shell: bash
       - name: Test
         run: scripts/test.sh
+        shell: bash
 
   aarch64-build:
     strategy:

@@ -38,15 +38,6 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Format
-        run: scripts/format.sh
-      - name: Build
-        run: scripts/build.sh
-      - name: Lint
-        run: scripts/lint.sh
-      - name: Test
-        run: scripts/test.sh
-
       # Tag the commit with the library version
       - name: Create git tag
         uses: salsify/action-detect-and-tag-new-version@v2
@@ -57,8 +48,8 @@ jobs:
       - name: Set output
         id: vars
         run: |
-          echo "::set-output name=tag_name::v$(scripts/get_version.sh)"
-          echo "::set-output name=release_name::$(scripts/get_version.sh)"
+          echo "name=tag_name::v$(scripts/get_version.sh)" >> $GITHUB_OUTPUT
+          echo "name=release_name::$(scripts/get_version.sh)" >> $GITHUB_OUTPUT
 
       # Create GitHub release
       - name: Create release
