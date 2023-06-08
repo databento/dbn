@@ -14,6 +14,8 @@ pub mod error;
 pub mod json_writer;
 pub mod macros;
 pub mod metadata;
+/// Enumerations for different data sources, venues, and publishers.
+pub mod publishers;
 #[cfg(feature = "python")]
 pub mod python;
 pub mod record;

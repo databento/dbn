@@ -1,10 +1,11 @@
 # Changelog
 
 ## 0.7.0 - TBD
-- Fixed pretty timestamp formatting to match API
-- Dropped support for Python 3.7
+- Added publishers enums
 - Added export to Python for `Compression`, `Encoding`, `SType`, and `Schema`
   enums
+- Fixed pretty timestamp formatting to match API
+- Dropped support for Python 3.7
 
 ## 0.6.1 - 2023-06-02
 - Added `--fragment` and `--zstd-fragment` CLI arguments to read DBN streams
