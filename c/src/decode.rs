@@ -1,3 +1,6 @@
+// RawFd isn't defined for windows
+#![cfg(not(target_os = "windows"))]
+
 use std::{
     fs::File,
     io::BufReader,
