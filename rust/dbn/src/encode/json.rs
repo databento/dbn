@@ -569,8 +569,8 @@ mod tests {
             slice_res,
             format!(
                 "{{{},{},{}}}\n",
-                r#""hd":{"rtype":4,"publisher_id":1,"instrument_id":323,"ts_event":"2022-07-21T22:17:31.000000000"}"#,
-                r#""price":"0.000005500","size":3,"action":"B","side":"B","flags":128,"depth":9,"ts_recv":"2022-07-21T22:18:11.000000000","ts_in_delta":22000,"sequence":1002375"#,
+                r#""hd":{"rtype":4,"publisher_id":1,"instrument_id":323,"ts_event":"2022-07-21T22:17:31.000000000Z"}"#,
+                r#""price":"0.000005500","size":3,"action":"B","side":"B","flags":128,"depth":9,"ts_recv":"2022-07-21T22:18:11.000000000Z","ts_in_delta":22000,"sequence":1002375"#,
                 format_args!("\"levels\":[{BID_ASK_JSON}]")
             )
         );
@@ -599,8 +599,8 @@ mod tests {
             slice_res,
             format!(
                 "{{{},{},{}}}\n",
-                r#""hd":{"rtype":4,"publisher_id":1,"instrument_id":323,"ts_event":"2022-07-21T22:17:31.000000000"}"#,
-                r#""price":"0.000005500","size":3,"action":"T","side":"N","flags":128,"depth":9,"ts_recv":"2022-07-21T22:18:11.000000000","ts_in_delta":22000,"sequence":1002375"#,
+                r#""hd":{"rtype":4,"publisher_id":1,"instrument_id":323,"ts_event":"2022-07-21T22:17:31.000000000Z"}"#,
+                r#""price":"0.000005500","size":3,"action":"T","side":"N","flags":128,"depth":9,"ts_recv":"2022-07-21T22:18:11.000000000Z","ts_in_delta":22000,"sequence":1002375"#,
                 format_args!("\"levels\":[{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON}]")
             )
         );
@@ -674,8 +674,8 @@ mod tests {
             slice_res,
             format!(
                 "{{{},{}}}\n",
-                r#""hd":{"rtype":4,"publisher_id":1,"instrument_id":323,"ts_event":"2022-07-21T22:17:31.000000000"}"#,
-                r#""ts_recv":"2022-07-21T22:18:11.000000000","group":"group","trading_status":3,"halt_reason":4,"trading_event":6"#,
+                r#""hd":{"rtype":4,"publisher_id":1,"instrument_id":323,"ts_event":"2022-07-21T22:17:31.000000000Z"}"#,
+                r#""ts_recv":"2022-07-21T22:18:11.000000000Z","group":"group","trading_status":3,"halt_reason":4,"trading_event":6"#,
             )
         );
     }
@@ -758,9 +758,9 @@ mod tests {
             slice_res,
             format!(
                 "{{{},{}}}\n",
-                r#""hd":{"rtype":4,"publisher_id":1,"instrument_id":323,"ts_event":"2022-07-21T22:17:31.000000000"}"#,
+                r#""hd":{"rtype":4,"publisher_id":1,"instrument_id":323,"ts_event":"2022-07-21T22:17:31.000000000Z"}"#,
                 concat!(
-                    r#""ts_recv":"2022-07-21T22:18:11.000000000","min_price_increment":"0.000000100","display_factor":"1000","expiration":"2023-10-27T23:40:00.000000000","activation":"2023-10-15T06:06:40.000000000","#,
+                    r#""ts_recv":"2022-07-21T22:18:11.000000000Z","min_price_increment":"0.000000100","display_factor":"1000","expiration":"2023-10-27T23:40:00.000000000Z","activation":"2023-10-15T06:06:40.000000000Z","#,
                     r#""high_limit_price":"0.001000000","low_limit_price":"-0.001000000","max_price_variation":"0.000000000","trading_reference_price":"0.000500000","unit_of_measure_qty":"5","#,
                     r#""min_price_increment_amount":"0.000000005","price_ratio":"0.000000010","inst_attrib_value":10,"underlying_id":256785,"market_depth_implied":0,"#,
                     r#""market_depth":13,"market_segment_id":0,"max_trade_vol":10000,"min_lot_size":1,"min_lot_size_block":1000,"min_lot_size_round_lot":100,"min_trade_vol":1,"#,
@@ -880,7 +880,7 @@ mod tests {
         assert_eq!(
             res,
             "{\"version\":1,\"dataset\":\"GLBX.MDP3\",\"schema\":\"ohlcv-1h\",\"start\"\
-            :\"2022-09-09T14:45:05.128748281\",\"end\":\"2022-09-09T14:45:20.914876944\",\"limit\":null,\
+            :\"2022-09-09T14:45:05.128748281Z\",\"end\":\"2022-09-09T14:45:20.914876944Z\",\"limit\":null,\
             \"stype_in\":\"instrument_id\",\"stype_out\":\"raw_symbol\",\"ts_out\":false,\"symbols\"\
             :[\"ESZ2\"],\"partial\":[],\"not_found\":[],\"mappings\":[{\"raw_symbol\":\"ESZ2\",\
             \"intervals\":[{\"start_date\":\"2022-09-09\",\"end_date\":\"2022-09-10\",\"symbol\":\
@@ -906,8 +906,8 @@ mod tests {
             res,
             format!(
                 "{{{},{}}}\n",
-                r#""hd":{"rtype":4,"publisher_id":1,"instrument_id":323,"ts_event":"2022-07-21T22:17:31.000000000"}"#,
-                r#""open":"5000","high":"8000","low":"3000","close":"6000","volume":"55000","ts_out":"2023-03-10T20:57:49.000000000""#,
+                r#""hd":{"rtype":4,"publisher_id":1,"instrument_id":323,"ts_event":"2022-07-21T22:17:31.000000000Z"}"#,
+                r#""open":"5000","high":"8000","low":"3000","close":"6000","volume":"55000","ts_out":"2023-03-10T20:57:49.000000000Z""#,
             )
         );
     }

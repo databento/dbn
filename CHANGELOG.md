@@ -1,6 +1,7 @@
 # Changelog
 
 ## 0.7.0 - TBD
+- Fixed pretty timestamp formatting to match API
 - Dropped support for Python 3.7
 
 ## 0.6.1 - 2023-06-02
