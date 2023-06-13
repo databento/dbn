@@ -3,6 +3,10 @@
 //! Enums used in Databento APIs.
 use std::fmt::{self, Display, Formatter};
 
+// Dummy derive macro to get around `cfg_attr` incompatibility of several
+// of pyo3's attribute macros. See https://github.com/PyO3/pyo3/issues/780
+#[cfg(not(feature = "python"))]
+use dbn_macros::MockPyo3;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 use crate::error::ConversionError;
@@ -133,20 +137,27 @@ impl From<UserDefinedInstrument> for char {
 /// for more information.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
 #[repr(u8)]
+#[cfg_attr(feature = "python", pyo3::pyclass(module = "databento_dbn"))]
+#[cfg_attr(not(feature = "python"), derive(MockPyo3))]
 pub enum SType {
     /// Symbology using a unique numeric ID.
+    #[pyo3(name = "INSTRUMENT_ID")]
     InstrumentId = 0,
     /// Symbology using the original symbols provided by the publisher.
+    #[pyo3(name = "RAW_SYMBOL")]
     RawSymbol = 1,
     /// A set of Databento-specific symbologies for referring to groups of symbols.
     #[deprecated(since = "0.5.0", note = "Smart was split into Continuous and Parent.")]
+    #[pyo3(name = "SMART")]
     Smart = 2,
     /// A Databento-specific symbology where one symbol may point to different
     /// instruments at different points of time, e.g. to always refer to the front month
     /// future.
+    #[pyo3(name = "CONTINUOUS")]
     Continuous = 3,
     /// A Databento-specific symbology for referring to a group of symbols by one
     /// "parent" symbol, e.g. ES.FUT to refer to all ES futures.
+    #[pyo3(name = "PARENT")]
     Parent = 4,
 }
 
@@ -327,34 +338,49 @@ pub mod rtype {
 /// A data record schema.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
 #[repr(u16)]
+#[cfg_attr(feature = "python", pyo3::pyclass(module = "databento_dbn"))]
+#[cfg_attr(not(feature = "python"), derive(MockPyo3))]
 pub enum Schema {
     /// Market by order.
+    #[pyo3(name = "MBO")]
     Mbo = 0,
     /// Market by price with a book depth of 1.
+    #[pyo3(name = "MBP_1")]
     Mbp1 = 1,
     /// Market by price with a book depth of 10.
+    #[pyo3(name = "MBP_10")]
     Mbp10 = 2,
     /// All trade events with the best bid and offer (BBO) immediately **before** the
     /// effect of the trade.
+    #[pyo3(name = "TBBO")]
     Tbbo = 3,
     /// All trade events.
+    #[pyo3(name = "TRADES")]
     Trades = 4,
     /// Open, high, low, close, and volume at a one-second interval.
+    #[pyo3(name = "OHLCV_1S")]
     Ohlcv1S = 5,
     /// Open, high, low, close, and volume at a one-minute interval.
+    #[pyo3(name = "OHLCV_1M")]
     Ohlcv1M = 6,
     /// Open, high, low, close, and volume at an hourly interval.
+    #[pyo3(name = "OHLCV_1H")]
     Ohlcv1H = 7,
     /// Open, high, low, close, and volume at a daily interval.
+    #[pyo3(name = "OHLCV_1D")]
     Ohlcv1D = 8,
     /// Instrument definitions.
+    #[pyo3(name = "DEFINITION")]
     Definition = 9,
     /// Additional data disseminated by publishers.
+    #[pyo3(name = "STATISTICS")]
     Statistics = 10,
     /// Exchange status.
     #[doc(hidden)]
+    #[pyo3(name = "STATUS")]
     Status = 11,
     /// Auction imbalance events.
+    #[pyo3(name = "IMBALANCE")]
     Imbalance = 12,
 }
 
@@ -422,12 +448,17 @@ impl Display for Schema {
 /// A data encoding format.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
 #[repr(u8)]
+#[cfg_attr(feature = "python", pyo3::pyclass(module = "databento_dbn"))]
+#[cfg_attr(not(feature = "python"), derive(MockPyo3))]
 pub enum Encoding {
     /// Databento Binary Encoding.
+    #[pyo3(name = "DBN")]
     Dbn = 0,
     /// Comma-separated values.
+    #[pyo3(name = "CSV")]
     Csv = 1,
     /// JavaScript object notation.
+    #[pyo3(name = "JSON")]
     Json = 2,
 }
 
@@ -472,10 +503,14 @@ impl Display for Encoding {
 /// A compression format or none if uncompressed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
 #[repr(u8)]
+#[cfg_attr(feature = "python", pyo3::pyclass(module = "databento_dbn"))]
+#[cfg_attr(not(feature = "python"), derive(MockPyo3))]
 pub enum Compression {
     /// Uncompressed.
+    #[pyo3(name = "NONE")]
     None = 0,
     /// Zstandard compressed.
+    #[pyo3(name = "ZSTD")]
     ZStd = 1,
 }
 

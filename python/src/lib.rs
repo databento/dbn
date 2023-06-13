@@ -3,6 +3,7 @@
 use pyo3::{prelude::*, wrap_pyfunction, PyClass};
 
 use dbn::{
+    enums::{Compression, Encoding, SType, Schema},
     record::{
         BidAskPair, ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
         RecordHeader, StatMsg, StatusMsg, SymbolMappingMsg, SystemMsg, TradeMsg,
@@ -26,6 +27,7 @@ fn databento_dbn(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(encode::write_dbn_file))?;
     checked_add_class::<dbn_decoder::DbnDecoder>(m)?;
     checked_add_class::<Metadata>(m)?;
+    // Records
     checked_add_class::<RecordHeader>(m)?;
     checked_add_class::<MboMsg>(m)?;
     checked_add_class::<BidAskPair>(m)?;
@@ -40,6 +42,11 @@ fn databento_dbn(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     checked_add_class::<SymbolMappingMsg>(m)?;
     checked_add_class::<SystemMsg>(m)?;
     checked_add_class::<StatMsg>(m)?;
+    // PyClass enums
+    checked_add_class::<Compression>(m)?;
+    checked_add_class::<Encoding>(m)?;
+    checked_add_class::<Schema>(m)?;
+    checked_add_class::<SType>(m)?;
     Ok(())
 }
 
@@ -68,14 +75,14 @@ mod tests {
             pyo3::py_run!(
                   py,
                   stype_in stype_out,
-                  r#"from databento_dbn import Metadata
+                  r#"from databento_dbn import Metadata, Schema, SType
 
 metadata = Metadata(
     dataset="GLBX.MDP3",
-    schema="mbo",
+    schema=Schema.MBO,
     start=1,
-    stype_in="raw_symbol",
-    stype_out="instrument_id",
+    stype_in=SType.RAW_SYMBOL,
+    stype_out=SType.INSTRUMENT_ID,
     end=2,
     symbols=[],
     partial=[],
@@ -85,12 +92,12 @@ metadata = Metadata(
 metadata_bytes = metadata.encode()
 metadata = Metadata.decode(metadata_bytes)
 assert metadata.dataset == "GLBX.MDP3"
-assert metadata.schema == "mbo"
+assert metadata.schema == Schema.MBO
 assert metadata.start == 1
 assert metadata.end == 2
 assert metadata.limit is None
-assert metadata.stype_in == "raw_symbol"
-assert metadata.stype_out == "instrument_id"
+assert metadata.stype_in == SType.RAW_SYMBOL
+assert metadata.stype_out == SType.INSTRUMENT_ID
 assert metadata.ts_out is False"#
             );
         });
