@@ -12,8 +12,10 @@ use time::format_description::FormatItem;
 // Re-exports
 #[cfg(feature = "async")]
 pub use self::dbn::{
-    AsyncMetadataEncoder as DbnAsyncMetadataEncoder, AsyncRecordEncoder as AsyncDbnRecordEncoder,
+    AsyncMetadataEncoder as AsyncDbnMetadataEncoder, AsyncRecordEncoder as AsyncDbnRecordEncoder,
 };
+#[cfg(feature = "async")]
+pub use self::json::AsyncEncoder as AsyncJsonEncoder;
 pub use self::{
     csv::Encoder as CsvEncoder,
     dbn::{

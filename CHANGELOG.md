@@ -4,6 +4,7 @@
 - Added publishers enums
 - Added export to Python for `Compression`, `Encoding`, `SType`, and `Schema`
   enums
+- Added async JSON encoder
 - Fixed pretty timestamp formatting to match API
 - Dropped support for Python 3.7
 
