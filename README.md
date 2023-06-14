@@ -4,6 +4,7 @@
 [![license](https://img.shields.io/github/license/databento/dbn?color=blue)](./LICENSE)
 [![Current Crates.io Version](https://img.shields.io/crates/v/dbn.svg)](https://crates.io/crates/dbn)
 [![pypi-version](https://img.shields.io/pypi/v/databento_dbn)](https://pypi.org/project/databento-dbn)
+[![Slack](https://img.shields.io/badge/join_Slack-community-darkblue.svg?logo=slack)](https://join.slack.com/t/databento-hq/shared_invite/zt-1xk498wxs-9fUs_xhz5ypaGD~mhI_hVQ)
 
 Libraries and a CLI tool for working with Databento Binary
 Encoding (DBN) files and streams.
