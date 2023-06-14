@@ -65,10 +65,11 @@ pub struct MboMsg {
     pub order_id: u64,
     /// The order price expressed as a signed integer where every 1 unit
     /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
-    #[dbn(fixed_price)]
+    #[dbn(encode_order(4), fixed_price)]
     #[pyo3(get)]
     pub price: i64,
     /// The order quantity.
+    #[dbn(encode_order(5))]
     #[pyo3(get)]
     pub size: u32,
     /// A combination of packet end with matching engine status. See
@@ -76,18 +77,19 @@ pub struct MboMsg {
     #[pyo3(get)]
     pub flags: u8,
     /// A channel ID within the venue.
+    #[dbn(encode_order(6))]
     #[pyo3(get)]
     pub channel_id: u8,
     /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**,
     /// **T**rade, or **F**ill.
-    #[dbn(c_char)]
+    #[dbn(c_char, encode_order(2))]
     pub action: c_char,
     /// The order side. Can be **A**sk, **B**id or **N**one.
-    #[dbn(c_char)]
+    #[dbn(c_char, encode_order(3))]
     pub side: c_char,
     /// The capture-server-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
-    #[dbn(unix_nanos)]
+    #[dbn(encode_order(0), unix_nanos)]
     #[pyo3(get)]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
@@ -145,21 +147,22 @@ pub struct TradeMsg {
     #[pyo3(get)]
     pub size: u32,
     /// The event action. Always **T**rade in the trades schema.
-    #[dbn(c_char)]
+    #[dbn(c_char, encode_order(2))]
     pub action: c_char,
     /// The aggressing order's side in the trade. Can be **A**sk, **B**id or **N**one.
-    #[dbn(c_char)]
+    #[dbn(c_char, encode_order(3))]
     pub side: c_char,
     /// A combination of packet end with matching engine status. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
     #[pyo3(get)]
     pub flags: u8,
     /// The depth of actual book change.
+    #[dbn(encode_order(4))]
     #[pyo3(get)]
     pub depth: u8,
     /// The capture-server-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
-    #[dbn(unix_nanos)]
+    #[dbn(encode_order(0), unix_nanos)]
     #[pyo3(get)]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
@@ -195,21 +198,22 @@ pub struct Mbp1Msg {
     pub size: u32,
     /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or
     /// **T**rade.
-    #[dbn(c_char)]
+    #[dbn(c_char, encode_order(2))]
     pub action: c_char,
     /// The order side. Can be **A**sk, **B**id or **N**one.
-    #[dbn(c_char)]
+    #[dbn(c_char, encode_order(3))]
     pub side: c_char,
     /// A combination of packet end with matching engine status. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
     #[pyo3(get)]
     pub flags: u8,
     /// The depth of actual book change.
+    #[dbn(encode_order(4))]
     #[pyo3(get)]
     pub depth: u8,
     /// The capture-server-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
-    #[dbn(unix_nanos)]
+    #[dbn(encode_order(0), unix_nanos)]
     #[pyo3(get)]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
@@ -248,21 +252,22 @@ pub struct Mbp10Msg {
     pub size: u32,
     /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or
     /// **T**rade.
-    #[dbn(c_char)]
+    #[dbn(c_char, encode_order(2))]
     pub action: c_char,
     /// The order side. Can be **A**sk, **B**id or **N**one.
-    #[dbn(c_char)]
+    #[dbn(c_char, encode_order(3))]
     pub side: c_char,
     /// A combination of packet end with matching engine status. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
     #[pyo3(get)]
     pub flags: u8,
     /// The depth of actual book change.
+    #[dbn(encode_order(4))]
     #[pyo3(get)]
     pub depth: u8,
     /// The capture-server-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
-    #[dbn(unix_nanos)]
+    #[dbn(encode_order(0), unix_nanos)]
     #[pyo3(get)]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
@@ -358,7 +363,7 @@ pub struct InstrumentDefMsg {
     pub hd: RecordHeader,
     /// The capture-server-received timestamp expressed as number of nanoseconds since the
     /// UNIX epoch.
-    #[dbn(unix_nanos)]
+    #[dbn(encode_order(0), unix_nanos)]
     #[pyo3(get, set)]
     pub ts_recv: u64,
     /// The minimum constant tick for the instrument in units of 1e-9, i.e.
@@ -482,6 +487,7 @@ pub struct InstrumentDefMsg {
     /// The strategy type of the spread.
     pub secsubtype: [c_char; 6],
     /// The instrument raw symbol assigned by the publisher.
+    #[dbn(encode_order(2))]
     pub raw_symbol: [c_char; 22],
     /// The security group code of the instrument.
     pub group: [c_char; 21],
@@ -500,7 +506,7 @@ pub struct InstrumentDefMsg {
     /// The currency of [`strike_price`](Self::strike_price).
     pub strike_price_currency: [c_char; 4],
     /// The classification of the instrument.
-    #[dbn(c_char)]
+    #[dbn(c_char, encode_order(4))]
     #[pyo3(set)]
     pub instrument_class: c_char,
     #[doc(hidden)]
@@ -535,6 +541,7 @@ pub struct InstrumentDefMsg {
     #[pyo3(get, set)]
     pub underlying_product: u8,
     /// Indicates if the instrument definition has been added, modified, or deleted.
+    #[dbn(encode_order(3))]
     #[pyo3(set)]
     pub security_update_action: SecurityUpdateAction,
     /// The calendar month reflected in the instrument symbol.
@@ -579,7 +586,7 @@ pub struct ImbalanceMsg {
     pub hd: RecordHeader,
     /// The capture-server-received timestamp expressed as the number of nanoseconds
     /// since the UNIX epoch.
-    #[dbn(unix_nanos)]
+    #[dbn(encode_order(0), unix_nanos)]
     #[pyo3(get)]
     pub ts_recv: u64,
     /// The price at which the imbalance shares are calculated, where every 1 unit corresponds to
@@ -668,7 +675,7 @@ pub struct StatMsg {
     pub hd: RecordHeader,
     /// The capture-server-received timestamp expressed as the number of nanoseconds
     /// since the UNIX epoch.
-    #[dbn(unix_nanos)]
+    #[dbn(encode_order(0), unix_nanos)]
     pub ts_recv: u64,
     /// Reference timestamp expressed as the number of nanoseconds since the UNIX epoch.
     /// Will be [`crate::UNDEF_TIMESTAMP`] when unused.

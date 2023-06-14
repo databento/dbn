@@ -1,5 +1,14 @@
 # Changelog
 
+# 0.8.0
+- Updated serialization order to serialize `ts_recv` and `ts_event` first
+- Updated `MboMsg` serialization order to serialize `action`, `side`, and `channel_id`
+  earlier given their importance
+- Updated `Mbp1Msg`, `Mbp10Msg`, and `TradeMsg` serialization order to serialize
+  `action`, `side`, and `depth` earlier given their importance
+- Updated `InstrumentDefMsg` serialization order to serialize `raw_symbol`,
+  `security_update_action`, and `instrument_class` earlier given their importance
+
 ## 0.7.1 - 2023-06-26
 - Added Python `variants` method to return an iterator over the enum variants for
   `Compression`, `Encoding`, `Schema`, and `SType`

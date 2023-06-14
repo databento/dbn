@@ -270,10 +270,11 @@ pub(crate) mod serialize {
             name: &str,
         ) {
             let mut hd_writer = writer.object(name);
+            // Serialize ts_event first to be more human-readable
+            write_ts_field::<J, PRETTY_TS>(&mut hd_writer, "ts_event", self.ts_event);
             hd_writer.value("rtype", self.rtype);
             hd_writer.value("publisher_id", self.publisher_id);
             hd_writer.value("instrument_id", self.instrument_id);
-            write_ts_field::<J, PRETTY_TS>(&mut hd_writer, "ts_event", self.ts_event);
         }
     }
 
@@ -509,8 +510,8 @@ mod tests {
         String::from_utf8(buffer).expect("valid UTF-8")
     }
 
-    pub const HEADER_JSON: &str =
-        r#""hd":{"rtype":4,"publisher_id":1,"instrument_id":323,"ts_event":"1658441851000000000"}"#;
+    const HEADER_JSON: &str =
+        r#""hd":{"ts_event":"1658441851000000000","rtype":4,"publisher_id":1,"instrument_id":323}"#;
     const BID_ASK_JSON: &str = r#"{"bid_px":"372000.000000000","ask_px":"372500.000000000","bid_sz":10,"ask_sz":5,"bid_ct":5,"ask_ct":2}"#;
 
     #[test]
@@ -535,8 +536,9 @@ mod tests {
         assert_eq!(
             slice_res,
             format!(
-                "{{{HEADER_JSON},{}}}\n",
-                r#""order_id":"16","price":"0.000005500","size":3,"flags":128,"channel_id":14,"action":"R","side":"N","ts_recv":"1658441891000000000","ts_in_delta":22000,"sequence":1002375"#
+                "{{{},{HEADER_JSON},{}}}\n",
+                r#""ts_recv":"1658441891000000000""#,
+                r#""action":"R","side":"N","price":"0.000005500","size":3,"channel_id":14,"order_id":"16","flags":128,"ts_in_delta":22000,"sequence":1002375"#
             )
         );
     }
@@ -563,16 +565,17 @@ mod tests {
         assert_eq!(
             slice_res,
             format!(
-                "{{{},{},{}}}\n",
-                r#""hd":{"rtype":4,"publisher_id":1,"instrument_id":323,"ts_event":"2022-07-21T22:17:31.000000000Z"}"#,
-                r#""price":"0.000005500","size":3,"action":"B","side":"B","flags":128,"depth":9,"ts_recv":"2022-07-21T22:18:11.000000000Z","ts_in_delta":22000,"sequence":1002375"#,
+                "{{{},{},{},{}}}\n",
+                r#""ts_recv":"2022-07-21T22:18:11.000000000Z""#,
+                r#""hd":{"ts_event":"2022-07-21T22:17:31.000000000Z","rtype":4,"publisher_id":1,"instrument_id":323}"#,
+                r#""action":"B","side":"B","depth":9,"price":"0.000005500","size":3,"flags":128,"ts_in_delta":22000,"sequence":1002375"#,
                 format_args!("\"levels\":[{BID_ASK_JSON}]")
             )
         );
     }
 
     #[test]
-    fn test_mbo10_write_json() {
+    fn test_mbp10_write_json() {
         let data = vec![Mbp10Msg {
             hd: RECORD_HEADER,
             price: 5500,
@@ -593,9 +596,10 @@ mod tests {
         assert_eq!(
             slice_res,
             format!(
-                "{{{},{},{}}}\n",
-                r#""hd":{"rtype":4,"publisher_id":1,"instrument_id":323,"ts_event":"2022-07-21T22:17:31.000000000Z"}"#,
-                r#""price":"0.000005500","size":3,"action":"T","side":"N","flags":128,"depth":9,"ts_recv":"2022-07-21T22:18:11.000000000Z","ts_in_delta":22000,"sequence":1002375"#,
+                "{{{},{},{},{}}}\n",
+                r#""ts_recv":"2022-07-21T22:18:11.000000000Z""#,
+                r#""hd":{"ts_event":"2022-07-21T22:17:31.000000000Z","rtype":4,"publisher_id":1,"instrument_id":323}"#,
+                r#""action":"T","side":"N","depth":9,"price":"0.000005500","size":3,"flags":128,"ts_in_delta":22000,"sequence":1002375"#,
                 format_args!("\"levels\":[{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON}]")
             )
         );
@@ -622,8 +626,9 @@ mod tests {
         assert_eq!(
             slice_res,
             format!(
-                "{{{HEADER_JSON},{}}}\n",
-                r#""price":"5500","size":3,"action":"C","side":"B","flags":128,"depth":9,"ts_recv":"1658441891000000000","ts_in_delta":22000,"sequence":1002375"#,
+                "{{{},{HEADER_JSON},{}}}\n",
+                r#""ts_recv":"1658441891000000000""#,
+                r#""action":"C","side":"B","depth":9,"price":"5500","size":3,"flags":128,"ts_in_delta":22000,"sequence":1002375"#,
             )
         );
     }
@@ -669,7 +674,7 @@ mod tests {
             slice_res,
             format!(
                 "{{{},{}}}\n",
-                r#""hd":{"rtype":4,"publisher_id":1,"instrument_id":323,"ts_event":"2022-07-21T22:17:31.000000000Z"}"#,
+                r#""hd":{"ts_event":"2022-07-21T22:17:31.000000000Z","rtype":4,"publisher_id":1,"instrument_id":323}"#,
                 r#""ts_recv":"2022-07-21T22:18:11.000000000Z","group":"group","trading_status":3,"halt_reason":4,"trading_event":6"#,
             )
         );
@@ -752,17 +757,18 @@ mod tests {
         assert_eq!(
             slice_res,
             format!(
-                "{{{},{}}}\n",
-                r#""hd":{"rtype":4,"publisher_id":1,"instrument_id":323,"ts_event":"2022-07-21T22:17:31.000000000Z"}"#,
+                "{{{},{},{}}}\n",
+                r#""ts_recv":"2022-07-21T22:18:11.000000000Z""#,
+                r#""hd":{"ts_event":"2022-07-21T22:17:31.000000000Z","rtype":4,"publisher_id":1,"instrument_id":323}"#,
                 concat!(
-                    r#""ts_recv":"2022-07-21T22:18:11.000000000Z","min_price_increment":"0.000000100","display_factor":"1000","expiration":"2023-10-27T23:40:00.000000000Z","activation":"2023-10-15T06:06:40.000000000Z","#,
+                    r#""raw_symbol":"ESZ4 C4100","security_update_action":"A","instrument_class":"C","min_price_increment":"0.000000100","display_factor":"1000","expiration":"2023-10-27T23:40:00.000000000Z","activation":"2023-10-15T06:06:40.000000000Z","#,
                     r#""high_limit_price":"0.001000000","low_limit_price":"-0.001000000","max_price_variation":"0.000000000","trading_reference_price":"0.000500000","unit_of_measure_qty":"5","#,
                     r#""min_price_increment_amount":"0.000000005","price_ratio":"0.000000010","inst_attrib_value":10,"underlying_id":256785,"market_depth_implied":0,"#,
                     r#""market_depth":13,"market_segment_id":0,"max_trade_vol":10000,"min_lot_size":1,"min_lot_size_block":1000,"min_lot_size_round_lot":100,"min_trade_vol":1,"#,
                     r#""contract_multiplier":0,"decay_quantity":0,"original_contract_size":0,"trading_reference_date":0,"appl_id":0,"#,
-                    r#""maturity_year":0,"decay_start_date":0,"channel_id":4,"currency":"USD","settl_currency":"USD","secsubtype":"","raw_symbol":"ESZ4 C4100","group":"EW","exchange":"XCME","asset":"ES","cfi":"OCAFPS","#,
-                    r#""security_type":"OOF","unit_of_measure":"IPNT","underlying":"ESZ4","strike_price_currency":"USD","instrument_class":"C","strike_price":"4100.000000000","match_algorithm":"F","md_security_trading_status":2,"main_fraction":4,"price_display_format":8,"#,
-                    r#""settl_price_type":9,"sub_fraction":23,"underlying_product":10,"security_update_action":"A","maturity_month":8,"maturity_day":9,"maturity_week":11,"#,
+                    r#""maturity_year":0,"decay_start_date":0,"channel_id":4,"currency":"USD","settl_currency":"USD","secsubtype":"","group":"EW","exchange":"XCME","asset":"ES","cfi":"OCAFPS","#,
+                    r#""security_type":"OOF","unit_of_measure":"IPNT","underlying":"ESZ4","strike_price_currency":"USD","strike_price":"4100.000000000","match_algorithm":"F","md_security_trading_status":2,"main_fraction":4,"price_display_format":8,"#,
+                    r#""settl_price_type":9,"sub_fraction":23,"underlying_product":10,"maturity_month":8,"maturity_day":9,"maturity_week":11,"#,
                     r#""user_defined_instrument":"N","contract_multiplier_unit":0,"flow_schedule_type":5,"tick_rule":0"#
                 )
             )
@@ -802,9 +808,10 @@ mod tests {
         assert_eq!(
             slice_res,
             format!(
-                "{{{HEADER_JSON},{}}}\n",
+                "{{{},{HEADER_JSON},{}}}\n",
+                r#""ts_recv":"1""#,
                 concat!(
-                    r#""ts_recv":"1","ref_price":"2","auction_time":"3","cont_book_clr_price":"4","auct_interest_clr_price":"5","#,
+                    r#""ref_price":"2","auction_time":"3","cont_book_clr_price":"4","auct_interest_clr_price":"5","#,
                     r#""ssr_filling_price":"6","ind_match_price":"7","upper_collar":"8","lower_collar":"9","paired_qty":10,"#,
                     r#""total_imbalance_qty":11,"market_imbalance_qty":12,"unpaired_qty":13,"auction_type":"B","side":"A","#,
                     r#""auction_status":14,"freeze_status":15,"num_extensions":16,"unpaired_side":"A","significant_imbalance":"N""#,
@@ -836,9 +843,10 @@ mod tests {
         assert_eq!(
             slice_res,
             format!(
-                "{{{HEADER_JSON},{}}}\n",
+                "{{{},{HEADER_JSON},{}}}\n",
+                r#""ts_recv":"1""#,
                 concat!(
-                    r#""ts_recv":"1","ts_ref":"2","price":"0.000000003","quantity":0,"sequence":4,"#,
+                    r#""ts_ref":"2","price":"0.000000003","quantity":0,"sequence":4,"#,
                     r#""ts_in_delta":5,"stat_type":1,"channel_id":7,"update_action":1,"stat_flags":0"#,
                 )
             )
@@ -901,7 +909,7 @@ mod tests {
             res,
             format!(
                 "{{{},{}}}\n",
-                r#""hd":{"rtype":4,"publisher_id":1,"instrument_id":323,"ts_event":"2022-07-21T22:17:31.000000000Z"}"#,
+                r#""hd":{"ts_event":"2022-07-21T22:17:31.000000000Z","rtype":4,"publisher_id":1,"instrument_id":323}"#,
                 r#""open":"5000","high":"8000","low":"3000","close":"6000","volume":"55000","ts_out":"2023-03-10T20:57:49.000000000Z""#,
             )
         );
@@ -917,7 +925,7 @@ mod tests {
         );
         assert_eq!(
             json,
-            r#"{"hd":{"rtype":21,"publisher_id":0,"instrument_id":0,"ts_event":null},"err":"\"A test"}
+            r#"{"hd":{"ts_event":null,"rtype":21,"publisher_id":0,"instrument_id":0},"err":"\"A test"}
 "#
         );
     }
@@ -1131,9 +1139,10 @@ mod r#async {
             assert_eq!(
                 ref_res,
                 format!(
-                    "{{{},{}}}\n",
-                    r#""hd":{"rtype":160,"publisher_id":1,"instrument_id":323,"ts_event":"1658441851000000000"}"#,
-                    r#""order_id":"16","price":"0.000005500","size":3,"flags":128,"channel_id":14,"action":"R","side":"N","ts_recv":"1658441891000000000","ts_in_delta":22000,"sequence":1002375"#
+                    "{{{},{},{}}}\n",
+                    r#""ts_recv":"1658441891000000000""#,
+                    r#""hd":{"ts_event":"1658441851000000000","rtype":160,"publisher_id":1,"instrument_id":323}"#,
+                    r#""action":"R","side":"N","price":"0.000005500","size":3,"channel_id":14,"order_id":"16","flags":128,"ts_in_delta":22000,"sequence":1002375"#
                 )
             );
         }

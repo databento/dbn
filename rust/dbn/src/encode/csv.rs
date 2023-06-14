@@ -232,14 +232,15 @@ pub(crate) mod serialize {
             &self,
             writer: &mut Writer<W>,
         ) -> csv::Result<()> {
+            // Serialize ts_event first to be more human-readable
+            write_ts_field::<W, PRETTY_TS>(writer, self.ts_event)?;
             writer.write_field(self.rtype.to_string())?;
             writer.write_field(self.publisher_id.to_string())?;
-            writer.write_field(self.instrument_id.to_string())?;
-            write_ts_field::<W, PRETTY_TS>(writer, self.ts_event)
+            writer.write_field(self.instrument_id.to_string())
         }
 
         fn write_header<W: io::Write>(csv_writer: &mut Writer<W>, _name: &str) -> csv::Result<()> {
-            ["rtype", "publisher_id", "instrument_id", "ts_event"]
+            ["ts_event", "rtype", "publisher_id", "instrument_id"]
                 .iter()
                 .try_for_each(|header| csv_writer.write_field(header))
         }
@@ -368,7 +369,7 @@ mod tests {
         },
     };
 
-    const HEADER_CSV: &str = "4,1,323,1658441851000000000";
+    const HEADER_CSV: &str = "1658441851000000000,4,1,323";
 
     const BID_ASK_CSV: &str = "372000000000000,372500000000000,10,5,5,2";
 
@@ -404,7 +405,7 @@ mod tests {
         let line = extract_2nd_line(buffer);
         assert_eq!(
             line,
-            format!("{HEADER_CSV},16,5500,3,128,14,B,B,1658441891000000000,22000,1002375")
+            format!("1658441891000000000,{HEADER_CSV},B,B,5500,3,14,16,128,22000,1002375")
         );
     }
 
@@ -432,13 +433,13 @@ mod tests {
         assert_eq!(
             line,
             format!(
-                "{HEADER_CSV},5500,3,M,A,128,9,1658441891000000000,22000,1002375,{BID_ASK_CSV}"
+                "1658441891000000000,{HEADER_CSV},M,A,9,5500,3,128,22000,1002375,{BID_ASK_CSV}"
             )
         );
     }
 
     #[test]
-    fn test_mbo10_encode_stream() {
+    fn test_mbp10_encode_stream() {
         let data = vec![Mbp10Msg {
             hd: RECORD_HEADER,
             price: 5500,
@@ -460,7 +461,7 @@ mod tests {
         let line = extract_2nd_line(buffer);
         assert_eq!(
             line,
-            format!("{HEADER_CSV},5500,3,B,A,128,9,1658441891000000000,22000,1002375,{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV}")
+            format!("1658441891000000000,{HEADER_CSV},B,A,9,5500,3,128,22000,1002375,{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV}")
         );
     }
 
@@ -486,7 +487,7 @@ mod tests {
         let line = extract_2nd_line(buffer);
         assert_eq!(
             line,
-            format!("{HEADER_CSV},5500,3,B,B,128,9,1658441891000000000,22000,1002375")
+            format!("1658441891000000000,{HEADER_CSV},B,B,9,5500,3,128,22000,1002375")
         );
     }
 
@@ -569,20 +570,20 @@ mod tests {
             maturity_year: 0,
             decay_start_date: 0,
             channel_id: 4,
-            currency: [0; 4],
+            currency: str_to_c_chars("USD").unwrap(),
             settl_currency: str_to_c_chars("USD").unwrap(),
-            secsubtype: [0; 6],
-            raw_symbol: [0; 22],
-            group: [0; 21],
-            exchange: [0; 5],
-            asset: [0; 7],
-            cfi: [0; 7],
-            security_type: [0; 7],
-            unit_of_measure: [0; 31],
-            underlying: [0; 21],
-            strike_price_currency: Default::default(),
-            instrument_class: InstrumentClass::Future as u8 as c_char,
-            strike_price: 0,
+            secsubtype: Default::default(),
+            raw_symbol: str_to_c_chars("ESZ4 C4100").unwrap(),
+            group: str_to_c_chars("EW").unwrap(),
+            exchange: str_to_c_chars("XCME").unwrap(),
+            asset: str_to_c_chars("ES").unwrap(),
+            cfi: str_to_c_chars("OCAFPS").unwrap(),
+            security_type: str_to_c_chars("OOF").unwrap(),
+            unit_of_measure: str_to_c_chars("IPNT").unwrap(),
+            underlying: str_to_c_chars("ESZ4").unwrap(),
+            strike_price_currency: str_to_c_chars("USD").unwrap(),
+            instrument_class: InstrumentClass::Call as u8 as c_char,
+            strike_price: 4_100_000_000_000,
             match_algorithm: 'F' as c_char,
             md_security_trading_status: 2,
             main_fraction: 4,
@@ -611,7 +612,7 @@ mod tests {
             .encode_stream(VecStream::new(data))
             .unwrap();
         let line = extract_2nd_line(buffer);
-        assert_eq!(line, format!("{HEADER_CSV},1658441891000000000,100,1000,1698450000000000000,1697350000000000000,1000000,-1000000,0,500000,5,5,10,10,256785,0,13,0,10000,1,1000,100,1,0,0,0,0,0,0,0,4,,USD,,,,,,,,,,,F,0,F,2,4,8,9,23,10,A,8,9,11,N,0,5,0"));
+        assert_eq!(line, format!("1658441891000000000,{HEADER_CSV},ESZ4 C4100,A,C,100,1000,1698450000000000000,1697350000000000000,1000000,-1000000,0,500000,5,5,10,10,256785,0,13,0,10000,1,1000,100,1,0,0,0,0,0,0,0,4,USD,USD,,EW,XCME,ES,OCAFPS,OOF,IPNT,ESZ4,USD,4100000000000,F,2,4,8,9,23,10,8,9,11,N,0,5,0"));
     }
 
     #[test]
@@ -639,7 +640,7 @@ mod tests {
         let lines = String::from_utf8(buffer).expect("valid UTF-8");
         assert_eq!(
             lines,
-            format!("rtype,publisher_id,instrument_id,ts_event,price,size,action,side,flags,depth,ts_recv,ts_in_delta,sequence,ts_out\n{HEADER_CSV},5500,3,T,A,128,9,1658441891000000000,22000,1002375,1678480044000000000\n")
+            format!("ts_recv,ts_event,rtype,publisher_id,instrument_id,action,side,depth,price,size,flags,ts_in_delta,sequence,ts_out\n1658441891000000000,{HEADER_CSV},T,A,9,5500,3,128,22000,1002375,1678480044000000000\n")
         );
     }
 
@@ -677,7 +678,7 @@ mod tests {
         let line = extract_2nd_line(buffer);
         assert_eq!(
             line,
-            format!("{HEADER_CSV},1,2,3,4,5,6,7,8,9,10,11,12,13,B,A,14,15,16,A,N")
+            format!("1,{HEADER_CSV},2,3,4,5,6,7,8,9,10,11,12,13,B,A,14,15,16,A,N")
         );
     }
 
@@ -703,6 +704,6 @@ mod tests {
             .encode_stream(VecStream::new(data))
             .unwrap();
         let line = extract_2nd_line(buffer);
-        assert_eq!(line, format!("{HEADER_CSV},1,2,3,0,4,5,1,7,1,0"));
+        assert_eq!(line, format!("1,{HEADER_CSV},2,3,0,4,5,1,7,1,0"));
     }
 }
