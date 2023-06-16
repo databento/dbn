@@ -1,6 +1,5 @@
-use quote::{quote, quote_spanned};
-
 use proc_macro2::Span;
+use quote::quote;
 use syn::{
     parse::{Parse, ParseStream},
     parse_macro_input,
@@ -14,9 +13,11 @@ pub fn attribute_macro_impl(
 ) -> proc_macro::TokenStream {
     let args = parse_macro_input!(attr as Args);
     if args.args.is_empty() {
-        return quote_spanned! {
-            args.span => compile_error!("Need at least one rtype to match against")
-        }
+        return syn::Error::new(
+            args.span,
+            "Need to specify at least one rtype to match against",
+        )
+        .into_compile_error()
         .into();
     }
     let input_struct = parse_macro_input!(input as ItemStruct);
@@ -62,5 +63,31 @@ impl Parse for Args {
             args: args.into_iter().collect(),
             span: input.span(),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_args_single() {
+        let input = quote!(rtype::MBO);
+        let args = syn::parse2::<Args>(input).unwrap();
+        assert_eq!(args.args.len(), 1);
+    }
+
+    #[test]
+    fn parse_args_multiple() {
+        let input = quote!(rtype::MBO, rtype::OHLC);
+        let args = syn::parse2::<Args>(input).unwrap();
+        assert_eq!(args.args.len(), 2);
+    }
+
+    #[test]
+    fn parse_args_empty() {
+        let input = quote!();
+        let args = syn::parse2::<Args>(input).unwrap();
+        assert!(args.args.is_empty());
     }
 }
