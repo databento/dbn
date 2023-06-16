@@ -6,6 +6,7 @@
   enums
 - Added async JSON encoder
 - Fixed pretty timestamp formatting to match API
+- Improved Python string representation of `ErrorMsg` and `SystemMsg`
 - Dropped support for Python 3.7
 
 ## 0.6.1 - 2023-06-02
