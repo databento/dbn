@@ -58,7 +58,7 @@ jobs:
         id: create-release
         uses: softprops/action-gh-release@v1
         with:
-          release_name: ${{ env.RELEASE_NAME }}
+          name: ${{ env.RELEASE_NAME }}
           tag_name: ${{ env.TAG_NAME }}
           append_body: true
           body_path: ./NOTES.md
