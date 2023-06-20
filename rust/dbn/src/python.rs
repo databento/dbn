@@ -9,6 +9,7 @@ use pyo3::{
     prelude::*,
     pyclass::CompareOp,
     types::{PyBytes, PyDate, PyDateAccess, PyDict, PyType},
+    PyTypeInfo,
 };
 use time::Date;
 
@@ -232,69 +233,85 @@ impl IntoPy<PyObject> for UserDefinedInstrument {
 
 #[pymethods]
 impl Compression {
-    fn __str__(&self) -> &'static str {
-        self.as_str()
+    #[new]
+    fn py_new(py: Python<'_>, value: &PyAny) -> PyResult<Self> {
+        let t = Self::type_object(py);
+        Self::py_from_str(t, value)
     }
 
-    fn __repr__(&self) -> String {
-        format!("{self:?}")
+    fn __repr__(&self) -> &'static str {
+        self.as_str()
     }
 
     #[classmethod]
     #[pyo3(name = "from_str")]
-    fn py_from_str(_: &PyType, s: &str) -> PyResult<Self> {
-        Self::from_str(s).map_err(to_val_err)
+    fn py_from_str(_: &PyType, data: &PyAny) -> PyResult<Self> {
+        let data_str: &str = data.str().and_then(|s| s.extract())?;
+        let tokenized = data_str.to_lowercase();
+        Self::from_str(&tokenized).map_err(to_val_err)
     }
 }
 
 #[pymethods]
 impl Encoding {
-    fn __str__(&self) -> &'static str {
-        self.as_str()
+    #[new]
+    fn py_new(py: Python<'_>, value: &PyAny) -> PyResult<Self> {
+        let t = Self::type_object(py);
+        Self::py_from_str(t, value)
     }
 
-    fn __repr__(&self) -> String {
-        format!("{self:?}")
+    fn __repr__(&self) -> &'static str {
+        self.as_str()
     }
 
     #[classmethod]
     #[pyo3(name = "from_str")]
-    fn py_from_str(_: &PyType, s: &str) -> PyResult<Self> {
-        Self::from_str(s).map_err(to_val_err)
+    fn py_from_str(_: &PyType, data: &PyAny) -> PyResult<Self> {
+        let data_str: &str = data.str().and_then(|s| s.extract())?;
+        let tokenized = data_str.to_lowercase();
+        Self::from_str(&tokenized).map_err(to_val_err)
     }
 }
 
 #[pymethods]
 impl Schema {
-    fn __str__(&self) -> &'static str {
-        self.as_str()
+    #[new]
+    fn py_new(py: Python<'_>, value: &PyAny) -> PyResult<Self> {
+        let t = Self::type_object(py);
+        Self::py_from_str(t, value)
     }
 
-    fn __repr__(&self) -> String {
-        format!("{self:?}")
+    fn __repr__(&self) -> &'static str {
+        self.as_str()
     }
 
     #[classmethod]
     #[pyo3(name = "from_str")]
-    fn py_from_str(_: &PyType, s: &str) -> PyResult<Self> {
-        Self::from_str(s).map_err(to_val_err)
+    fn py_from_str(_: &PyType, data: &PyAny) -> PyResult<Self> {
+        let data_str: &str = data.str().and_then(|s| s.extract())?;
+        let tokenized = data_str.replace('_', "-").to_lowercase();
+        Self::from_str(&tokenized).map_err(to_val_err)
     }
 }
 
 #[pymethods]
 impl SType {
-    fn __str__(&self) -> &'static str {
-        self.as_str()
+    #[new]
+    fn py_new(py: Python<'_>, value: &PyAny) -> PyResult<Self> {
+        let t = Self::type_object(py);
+        Self::py_from_str(t, value)
     }
 
-    fn __repr__(&self) -> String {
-        format!("{self:?}")
+    fn __repr__(&self) -> &'static str {
+        self.as_str()
     }
 
     #[classmethod]
     #[pyo3(name = "from_str")]
-    fn py_from_str(_: &PyType, s: &str) -> PyResult<Self> {
-        Self::from_str(s).map_err(to_val_err)
+    fn py_from_str(_: &PyType, data: &PyAny) -> PyResult<Self> {
+        let data_str: &str = data.str().and_then(|s| s.extract())?;
+        let tokenized = data_str.replace('_', "-").to_lowercase();
+        Self::from_str(&tokenized).map_err(to_val_err)
     }
 }
 

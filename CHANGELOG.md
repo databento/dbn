@@ -1,6 +1,9 @@
 # Changelog
 
-## 0.7.0 - TBD
+## 0.7.1 - TBD
+- Improved Python enum conversions for `Compression`, `Encoding`, `Schema`, and `SType`
+
+## 0.7.0 - 2023-06-20
 - Added publishers enums
 - Added export to Python for `Compression`, `Encoding`, `SType`, and `Schema`
   enums
