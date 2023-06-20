@@ -2,8 +2,7 @@
 //! to be able to implement [`pyo3`] traits for DBN types.
 #![allow(clippy::too_many_arguments)]
 
-use std::mem;
-use std::{collections::HashMap, ffi::c_char, fmt, io, num::NonZeroU64};
+use std::{collections::HashMap, ffi::c_char, fmt, io, mem, num::NonZeroU64, str::FromStr};
 
 use pyo3::{
     exceptions::PyValueError,
@@ -207,52 +206,6 @@ pub fn to_val_err(e: impl fmt::Debug) -> PyErr {
     PyValueError::new_err(format!("{e:?}"))
 }
 
-impl<'source> FromPyObject<'source> for Compression {
-    fn extract(any: &'source PyAny) -> PyResult<Self> {
-        let str: &str = any.extract()?;
-        str.parse().map_err(to_val_err)
-    }
-}
-
-impl<'source> FromPyObject<'source> for Schema {
-    fn extract(any: &'source PyAny) -> PyResult<Self> {
-        let str: &str = any.extract()?;
-        str.parse().map_err(to_val_err)
-    }
-}
-
-impl IntoPy<PyObject> for Schema {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.as_str().into_py(py)
-    }
-}
-
-impl<'source> FromPyObject<'source> for Encoding {
-    fn extract(any: &'source PyAny) -> PyResult<Self> {
-        let str: &str = any.extract()?;
-        str.parse().map_err(to_val_err)
-    }
-}
-
-impl IntoPy<PyObject> for Encoding {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.as_str().into_py(py)
-    }
-}
-
-impl<'source> FromPyObject<'source> for SType {
-    fn extract(any: &'source PyAny) -> PyResult<Self> {
-        let str: &str = any.extract()?;
-        str.parse().map_err(to_val_err)
-    }
-}
-
-impl IntoPy<PyObject> for SType {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.as_str().into_py(py)
-    }
-}
-
 impl<'source> FromPyObject<'source> for SecurityUpdateAction {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
         u8::extract(ob).and_then(|num| Self::try_from(num).map_err(to_val_err))
@@ -274,6 +227,74 @@ impl<'source> FromPyObject<'source> for UserDefinedInstrument {
 impl IntoPy<PyObject> for UserDefinedInstrument {
     fn into_py(self, py: Python<'_>) -> PyObject {
         (self as u8).into_py(py)
+    }
+}
+
+#[pymethods]
+impl Compression {
+    fn __str__(&self) -> &'static str {
+        self.as_str()
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
+
+    #[classmethod]
+    #[pyo3(name = "from_str")]
+    fn py_from_str(_: &PyType, s: &str) -> PyResult<Self> {
+        Self::from_str(s).map_err(to_val_err)
+    }
+}
+
+#[pymethods]
+impl Encoding {
+    fn __str__(&self) -> &'static str {
+        self.as_str()
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
+
+    #[classmethod]
+    #[pyo3(name = "from_str")]
+    fn py_from_str(_: &PyType, s: &str) -> PyResult<Self> {
+        Self::from_str(s).map_err(to_val_err)
+    }
+}
+
+#[pymethods]
+impl Schema {
+    fn __str__(&self) -> &'static str {
+        self.as_str()
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
+
+    #[classmethod]
+    #[pyo3(name = "from_str")]
+    fn py_from_str(_: &PyType, s: &str) -> PyResult<Self> {
+        Self::from_str(s).map_err(to_val_err)
+    }
+}
+
+#[pymethods]
+impl SType {
+    fn __str__(&self) -> &'static str {
+        self.as_str()
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
+
+    #[classmethod]
+    #[pyo3(name = "from_str")]
+    fn py_from_str(_: &PyType, s: &str) -> PyResult<Self> {
+        Self::from_str(s).map_err(to_val_err)
     }
 }
 
@@ -1330,7 +1351,11 @@ impl ErrorMsg {
     }
 
     fn __repr__(&self) -> String {
-        format!("{self:?}")
+        if let Ok(err_msg) = self.err() {
+            format!("ErrorMsg {{ hd: {:?}, err: '{}' }}", self.hd, err_msg)
+        } else {
+            format!("ErrorMsg {{ hd: {:?}, err: '{:?}' }}", self.hd, self.err)
+        }
     }
 
     #[getter]
@@ -1476,7 +1501,11 @@ impl SystemMsg {
     }
 
     fn __repr__(&self) -> String {
-        format!("{self:?}")
+        if let Ok(sys_msg) = self.msg() {
+            format!("SystemMsg {{ hd: {:?}, msg: '{}' }}", self.hd, sys_msg)
+        } else {
+            format!("SystemMsg {{ hd: {:?}, msg: '{:?}' }}", self.hd, self.msg)
+        }
     }
 
     #[getter]

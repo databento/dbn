@@ -290,7 +290,7 @@ fn pretty_print_csv_data() {
         .stderr(is_empty());
 }
 
-const PRETTY_TS_REGEX: &str = r#"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{9}"#;
+const PRETTY_TS_REGEX: &str = r#"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{9}Z"#;
 const PRETTY_PX_REGEX: &str = r#"\d+\.\d{9}"#;
 
 #[test]

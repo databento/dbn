@@ -1,15 +1,14 @@
-"""Type stubs for databento_dbn."""
+# ruff: noqa: PYI021 PYI053
+from __future__ import annotations
+
+from collections.abc import Sequence
 from typing import (
     Any,
     BinaryIO,
-    Dict,
-    List,
-    Optional,
-    Sequence,
     SupportsBytes,
-    Tuple,
     Union,
 )
+
 
 _DBNRecord = Union[
     Metadata,
@@ -32,7 +31,7 @@ class Metadata(SupportsBytes):
     the Metadata to be included at the start of the encoded data.
 
     See Also
-    ---------
+    --------
     decode_metadata
     encode_metadata
 
@@ -62,14 +61,14 @@ class Metadata(SupportsBytes):
 
         """
     @property
-    def schema(self) -> Optional[str]:
+    def schema(self) -> str | None:
         """
         The data record schema. Specifies which record type is stored in the
         Zstd-compressed DBN file.
 
         Returns
         -------
-        Optional[str]
+        str | None
 
         """
     @property
@@ -105,13 +104,13 @@ class Metadata(SupportsBytes):
 
         """
     @property
-    def stype_in(self) -> Optional[str]:
+    def stype_in(self) -> str | None:
         """
         The input symbology type to map from.
 
         Returns
         -------
-        Optional[str]
+        str | None
 
         """
     @property
@@ -136,50 +135,50 @@ class Metadata(SupportsBytes):
 
         """
     @property
-    def symbols(self) -> List[str]:
+    def symbols(self) -> list[str]:
         """
         The original query input symbols from the request.
 
         Returns
         -------
-        List[str]
+        list[str]
 
         """
     @property
-    def partial(self) -> List[str]:
+    def partial(self) -> list[str]:
         """
         Symbols that did not resolve for at least one day in the query time
         range.
 
         Returns
         -------
-        List[str]
+        list[str]
 
         """
     @property
-    def not_found(self) -> List[str]:
+    def not_found(self) -> list[str]:
         """
         Symbols that did not resolve for any day in the query time range.
 
         Returns
         -------
-        List[str]
+        list[str]
 
         """
     @property
-    def mappings(self) -> Dict[str, List[Dict[str, Any]]]:
+    def mappings(self) -> dict[str, list[dict[str, Any]]]:
         """
         Symbol mappings containing a native symbol and its mapping intervals.
 
         Returns
         -------
-        Dict[str, List[Dict[str, Any]]]:
+        dict[str, list[dict[str, Any]]]:
 
         """
     @classmethod
-    def decode(cls, data: bytes) -> "Metadata":
+    def decode(cls, data: bytes) -> Metadata:
         """
-        Decodes the given Python `bytes` to `Metadata`. Returns a `Metadata`
+        Decode the given Python `bytes` to `Metadata`. Returns a `Metadata`
         object with all the DBN metadata attributes.
 
         Parameters
@@ -199,7 +198,7 @@ class Metadata(SupportsBytes):
         """
     def encode(self) -> bytes:
         """
-        Encodes the Metadata to bytes.
+        Encode the Metadata to bytes.
 
         Returns
         -------
@@ -353,14 +352,14 @@ class Record(SupportsBytes):
 
         """
     @property
-    def ts_out(self) -> Optional[int]:
+    def ts_out(self) -> int | None:
         """
         The live gateway send timestamp expressed as number of nanoseconds since
         the UNIX epoch.
 
         Returns
         -------
-        Optional[int]
+        int | None
 
         """
 
@@ -647,13 +646,13 @@ class MBP1Msg(Record, _MBPBase):
     """Market by price implementation with a known book depth of 1."""
 
     @property
-    def levels(self) -> List[BidAskPair]:
+    def levels(self) -> list[BidAskPair]:
         """
         The top of the order book.
 
         Returns
         -------
-        List[BidAskPair]
+        list[BidAskPair]
 
         Notes
         -----
@@ -665,13 +664,13 @@ class MBP10Msg(Record, _MBPBase):
     """Market by price implementation with a known book depth of 10."""
 
     @property
-    def levels(self) -> List[BidAskPair]:
+    def levels(self) -> list[BidAskPair]:
         """
         The top 10 levels.
 
         Returns
         -------
-        List[BidAskPair]
+        list[BidAskPair]
 
         Notes
         -----
@@ -1687,7 +1686,8 @@ class ErrorMsg(Record):
 
 class SymbolMappingMsg(Record):
     """A symbol mapping message which maps a symbol of one `SType` to
-    another."""
+    another.
+    """
 
     @property
     def stype_in_symbol(self) -> str:
@@ -1776,13 +1776,13 @@ class DBNDecoder:
         """
     def decode(
         self,
-    ) -> List[_DBNRecord]:
+    ) -> list[_DBNRecord]:
         """
         Decode the buffered data into DBN records.
 
         Returns
         -------
-        List[DBNRecord]
+        list[DBNRecord]
 
         Raises
         ------
@@ -1815,11 +1815,11 @@ class DBNDecoder:
 def update_encoded_metadata(
     file: BinaryIO,
     start: int,
-    end: Optional[int] = None,
-    limit: Optional[int] = None,
+    end: int | None = None,
+    limit: int | None = None,
 ) -> None:
     """
-    Updates existing fields that have already been written to the given file.
+    Update existing fields that have already been written to the given file.
 
     Parameters
     ----------
@@ -1828,10 +1828,10 @@ def update_encoded_metadata(
     start : int
         The UNIX nanosecond timestamp of the query start, or the
         first record if the file was split.
-    end : Optional[int]
+    end : int | None
         The UNIX nanosecond timestamp of the query end, or the
         last record if the file was split.
-    limit : Optional[int]
+    limit : int | None
         The optional maximum number of records for the query.
 
     Raises
@@ -1850,10 +1850,10 @@ def write_dbn_file(
     stype_in: str,
     stype_out: str,
     records: Sequence[Record],
-    end: Optional[int] = None,
+    end: int | None = None,
 ) -> None:
     """
-    Encodes the given data in the DBN encoding and writes it to `file`.
+    Encode the given data in the DBN encoding and writes it to `file`.
 
     Parameters
     ----------
@@ -1874,7 +1874,7 @@ def write_dbn_file(
         The output symbology type to map to.
     records : Sequence[object]
         A sequence of DBN record objects.
-    end : Optional[int]
+    end : int | None
         The UNIX nanosecond timestamp of the query end, or the
         last record if the file was split.
 

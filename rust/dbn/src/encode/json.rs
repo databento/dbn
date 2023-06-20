@@ -51,8 +51,6 @@ where
             self.use_pretty_ts,
         );
         self.writer.write_all(json.as_bytes())?;
-        // newline at EOF
-        self.writer.write_all(b"\n")?;
         self.writer.flush()?;
         Ok(())
     }
@@ -85,10 +83,6 @@ where
             Err(e) => {
                 Err(anyhow::Error::new(e).context(format!("Failed to serialize {record:#?}")))
             }
-        }?;
-        match self.writer.write_all(b"\n") {
-            Err(e) if e.kind() == io::ErrorKind::BrokenPipe => return Ok(true),
-            r => r,
         }?;
         Ok(false)
     }
@@ -151,6 +145,7 @@ pub(crate) mod serialize {
             let mut writer = JsonObjectWriter::new(&mut res);
             to_json_with_writer(obj, &mut writer, use_pretty_px, use_pretty_ts);
         }
+        res.push('\n');
         res
     }
 
@@ -514,7 +509,7 @@ mod tests {
         String::from_utf8(buffer).expect("valid UTF-8")
     }
 
-    const HEADER_JSON: &str =
+    pub const HEADER_JSON: &str =
         r#""hd":{"rtype":4,"publisher_id":1,"instrument_id":323,"ts_event":"1658441851000000000"}"#;
     const BID_ASK_JSON: &str = r#"{"bid_px":"372000.000000000","ask_px":"372500.000000000","bid_sz":10,"ask_sz":5,"bid_ct":5,"ask_ct":2}"#;
 
@@ -569,8 +564,8 @@ mod tests {
             slice_res,
             format!(
                 "{{{},{},{}}}\n",
-                r#""hd":{"rtype":4,"publisher_id":1,"instrument_id":323,"ts_event":"2022-07-21T22:17:31.000000000"}"#,
-                r#""price":"0.000005500","size":3,"action":"B","side":"B","flags":128,"depth":9,"ts_recv":"2022-07-21T22:18:11.000000000","ts_in_delta":22000,"sequence":1002375"#,
+                r#""hd":{"rtype":4,"publisher_id":1,"instrument_id":323,"ts_event":"2022-07-21T22:17:31.000000000Z"}"#,
+                r#""price":"0.000005500","size":3,"action":"B","side":"B","flags":128,"depth":9,"ts_recv":"2022-07-21T22:18:11.000000000Z","ts_in_delta":22000,"sequence":1002375"#,
                 format_args!("\"levels\":[{BID_ASK_JSON}]")
             )
         );
@@ -599,8 +594,8 @@ mod tests {
             slice_res,
             format!(
                 "{{{},{},{}}}\n",
-                r#""hd":{"rtype":4,"publisher_id":1,"instrument_id":323,"ts_event":"2022-07-21T22:17:31.000000000"}"#,
-                r#""price":"0.000005500","size":3,"action":"T","side":"N","flags":128,"depth":9,"ts_recv":"2022-07-21T22:18:11.000000000","ts_in_delta":22000,"sequence":1002375"#,
+                r#""hd":{"rtype":4,"publisher_id":1,"instrument_id":323,"ts_event":"2022-07-21T22:17:31.000000000Z"}"#,
+                r#""price":"0.000005500","size":3,"action":"T","side":"N","flags":128,"depth":9,"ts_recv":"2022-07-21T22:18:11.000000000Z","ts_in_delta":22000,"sequence":1002375"#,
                 format_args!("\"levels\":[{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON},{BID_ASK_JSON}]")
             )
         );
@@ -674,8 +669,8 @@ mod tests {
             slice_res,
             format!(
                 "{{{},{}}}\n",
-                r#""hd":{"rtype":4,"publisher_id":1,"instrument_id":323,"ts_event":"2022-07-21T22:17:31.000000000"}"#,
-                r#""ts_recv":"2022-07-21T22:18:11.000000000","group":"group","trading_status":3,"halt_reason":4,"trading_event":6"#,
+                r#""hd":{"rtype":4,"publisher_id":1,"instrument_id":323,"ts_event":"2022-07-21T22:17:31.000000000Z"}"#,
+                r#""ts_recv":"2022-07-21T22:18:11.000000000Z","group":"group","trading_status":3,"halt_reason":4,"trading_event":6"#,
             )
         );
     }
@@ -758,9 +753,9 @@ mod tests {
             slice_res,
             format!(
                 "{{{},{}}}\n",
-                r#""hd":{"rtype":4,"publisher_id":1,"instrument_id":323,"ts_event":"2022-07-21T22:17:31.000000000"}"#,
+                r#""hd":{"rtype":4,"publisher_id":1,"instrument_id":323,"ts_event":"2022-07-21T22:17:31.000000000Z"}"#,
                 concat!(
-                    r#""ts_recv":"2022-07-21T22:18:11.000000000","min_price_increment":"0.000000100","display_factor":"1000","expiration":"2023-10-27T23:40:00.000000000","activation":"2023-10-15T06:06:40.000000000","#,
+                    r#""ts_recv":"2022-07-21T22:18:11.000000000Z","min_price_increment":"0.000000100","display_factor":"1000","expiration":"2023-10-27T23:40:00.000000000Z","activation":"2023-10-15T06:06:40.000000000Z","#,
                     r#""high_limit_price":"0.001000000","low_limit_price":"-0.001000000","max_price_variation":"0.000000000","trading_reference_price":"0.000500000","unit_of_measure_qty":"5","#,
                     r#""min_price_increment_amount":"0.000000005","price_ratio":"0.000000010","inst_attrib_value":10,"underlying_id":256785,"market_depth_implied":0,"#,
                     r#""market_depth":13,"market_segment_id":0,"max_trade_vol":10000,"min_lot_size":1,"min_lot_size_block":1000,"min_lot_size_round_lot":100,"min_trade_vol":1,"#,
@@ -880,7 +875,7 @@ mod tests {
         assert_eq!(
             res,
             "{\"version\":1,\"dataset\":\"GLBX.MDP3\",\"schema\":\"ohlcv-1h\",\"start\"\
-            :\"2022-09-09T14:45:05.128748281\",\"end\":\"2022-09-09T14:45:20.914876944\",\"limit\":null,\
+            :\"2022-09-09T14:45:05.128748281Z\",\"end\":\"2022-09-09T14:45:20.914876944Z\",\"limit\":null,\
             \"stype_in\":\"instrument_id\",\"stype_out\":\"raw_symbol\",\"ts_out\":false,\"symbols\"\
             :[\"ESZ2\"],\"partial\":[],\"not_found\":[],\"mappings\":[{\"raw_symbol\":\"ESZ2\",\
             \"intervals\":[{\"start_date\":\"2022-09-09\",\"end_date\":\"2022-09-10\",\"symbol\":\
@@ -906,8 +901,8 @@ mod tests {
             res,
             format!(
                 "{{{},{}}}\n",
-                r#""hd":{"rtype":4,"publisher_id":1,"instrument_id":323,"ts_event":"2022-07-21T22:17:31.000000000"}"#,
-                r#""open":"5000","high":"8000","low":"3000","close":"6000","volume":"55000","ts_out":"2023-03-10T20:57:49.000000000""#,
+                r#""hd":{"rtype":4,"publisher_id":1,"instrument_id":323,"ts_event":"2022-07-21T22:17:31.000000000Z"}"#,
+                r#""open":"5000","high":"8000","low":"3000","close":"6000","volume":"55000","ts_out":"2023-03-10T20:57:49.000000000Z""#,
             )
         );
     }
@@ -925,5 +920,222 @@ mod tests {
             r#"{"hd":{"rtype":21,"publisher_id":0,"instrument_id":0,"ts_event":null},"err":"\"A test"}
 "#
         );
+    }
+}
+
+#[cfg(feature = "async")]
+pub use r#async::Encoder as AsyncEncoder;
+
+#[cfg(feature = "async")]
+mod r#async {
+    use tokio::io;
+
+    use crate::{
+        encode::DbnEncodable, record_ref::RecordRef, rtype_ts_out_async_dispatch, Metadata,
+    };
+
+    /// Type for encoding files and streams of DBN records in newline-delimited JSON (ndjson).
+    pub struct Encoder<W>
+    where
+        W: io::AsyncWriteExt + Unpin,
+    {
+        writer: W,
+        should_pretty_print: bool,
+        use_pretty_px: bool,
+        use_pretty_ts: bool,
+    }
+
+    impl<W> Encoder<W>
+    where
+        W: io::AsyncWriteExt + Unpin,
+    {
+        /// Creates a new instance of [`Encoder`]. If `should_pretty_print` is `true`,
+        /// each JSON object will be nicely formatted and indented, instead of the default
+        /// compact output with no whitespace between key-value pairs.
+        pub fn new(
+            writer: W,
+            should_pretty_print: bool,
+            use_pretty_px: bool,
+            use_pretty_ts: bool,
+        ) -> Self {
+            Self {
+                writer,
+                should_pretty_print,
+                use_pretty_px,
+                use_pretty_ts,
+            }
+        }
+
+        /// Encodes `metadata` into JSON.
+        ///
+        /// # Errors
+        /// This function returns an error if there's an error writing to `writer`.
+        pub async fn encode_metadata(&mut self, metadata: &Metadata) -> anyhow::Result<()> {
+            let json = super::to_json_string(
+                metadata,
+                self.should_pretty_print,
+                self.use_pretty_px,
+                self.use_pretty_ts,
+            );
+            self.writer.write_all(json.as_bytes()).await?;
+            self.writer.flush().await?;
+            Ok(())
+        }
+
+        /// Returns a reference to the underlying writer.
+        pub fn get_ref(&self) -> &W {
+            &self.writer
+        }
+
+        /// Returns a mutable reference to the underlying writer.
+        pub fn get_mut(&mut self) -> &mut W {
+            &mut self.writer
+        }
+
+        /// Encode a single DBN record of type `R`.
+        ///
+        /// Returns `true`if the pipe was closed.
+        ///
+        /// # Errors
+        /// This function returns an error if it's unable to write to the underlying
+        /// writer.
+        pub async fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> anyhow::Result<bool> {
+            let json = super::to_json_string(
+                record,
+                self.should_pretty_print,
+                self.use_pretty_px,
+                self.use_pretty_ts,
+            );
+            match self.writer.write_all(json.as_bytes()).await {
+                Ok(_) => Ok(()),
+                Err(e) if matches!(e.kind(), io::ErrorKind::BrokenPipe) => return Ok(true),
+                Err(e) => {
+                    Err(anyhow::Error::new(e).context(format!("Failed to serialize {record:#?}")))
+                }
+            }?;
+            Ok(false)
+        }
+
+        /// Encodes a single DBN record.
+        ///
+        /// Returns `true`if the pipe was closed.
+        ///
+        /// # Safety
+        /// `ts_out` must be `false` if `record` does not have an appended `ts_out
+        ///
+        /// # Errors
+        /// This function returns an error if it's unable to write to the underlying writer
+        /// or there's a serialization error.
+        pub async unsafe fn encode_record_ref(
+            &mut self,
+            record_ref: RecordRef<'_>,
+            ts_out: bool,
+        ) -> anyhow::Result<bool> {
+            rtype_ts_out_async_dispatch!(record_ref, ts_out, |rec| async move {
+                self.encode_record(rec).await
+            })?
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use std::ffi::c_char;
+
+        use tokio::io::{AsyncWriteExt, BufWriter};
+
+        use crate::{
+            encode::test_data::RECORD_HEADER,
+            enums::rtype,
+            record::{HasRType, MboMsg, RecordHeader},
+        };
+
+        use super::*;
+
+        async fn write_to_json_string<R>(
+            record: &R,
+            should_pretty_print: bool,
+            use_pretty_px: bool,
+            use_pretty_ts: bool,
+        ) -> String
+        where
+            R: DbnEncodable,
+        {
+            let mut buffer = Vec::new();
+            let mut writer = BufWriter::new(&mut buffer);
+            Encoder::new(
+                &mut writer,
+                should_pretty_print,
+                use_pretty_px,
+                use_pretty_ts,
+            )
+            .encode_record(record)
+            .await
+            .unwrap();
+            writer.flush().await.unwrap();
+            String::from_utf8(buffer).expect("valid UTF-8")
+        }
+
+        async fn write_ref_to_json_string(
+            record: RecordRef<'_>,
+            should_pretty_print: bool,
+            use_pretty_px: bool,
+            use_pretty_ts: bool,
+        ) -> String {
+            let mut buffer = Vec::new();
+            let mut writer = BufWriter::new(&mut buffer);
+            unsafe {
+                Encoder::new(
+                    &mut writer,
+                    should_pretty_print,
+                    use_pretty_px,
+                    use_pretty_ts,
+                )
+                .encode_record_ref(record, false)
+            }
+            .await
+            .unwrap();
+            writer.flush().await.unwrap();
+            String::from_utf8(buffer).expect("valid UTF-8")
+        }
+
+        #[tokio::test]
+        async fn test_mbo_write_json() {
+            let record = MboMsg {
+                hd: RecordHeader::new::<MboMsg>(
+                    rtype::MBO,
+                    RECORD_HEADER.publisher_id,
+                    RECORD_HEADER.instrument_id,
+                    RECORD_HEADER.ts_event,
+                ),
+                order_id: 16,
+                price: 5500,
+                size: 3,
+                flags: 128,
+                channel_id: 14,
+                action: 'R' as c_char,
+                side: 'N' as c_char,
+                ts_recv: 1658441891000000000,
+                ts_in_delta: 22_000,
+                sequence: 1_002_375,
+            };
+            let res = write_to_json_string(&record, false, true, false).await;
+            let ref_res = write_ref_to_json_string(
+                unsafe { RecordRef::unchecked_from_header(record.header()) },
+                false,
+                true,
+                false,
+            )
+            .await;
+
+            assert_eq!(res, ref_res);
+            assert_eq!(
+                ref_res,
+                format!(
+                    "{{{},{}}}\n",
+                    r#""hd":{"rtype":160,"publisher_id":1,"instrument_id":323,"ts_event":"1658441851000000000"}"#,
+                    r#""order_id":"16","price":"0.000005500","size":3,"flags":128,"channel_id":14,"action":"R","side":"N","ts_recv":"1658441891000000000","ts_in_delta":22000,"sequence":1002375"#
+                )
+            );
+        }
     }
 }

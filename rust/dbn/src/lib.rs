@@ -14,6 +14,8 @@ pub mod error;
 pub mod json_writer;
 pub mod macros;
 pub mod metadata;
+/// Enumerations for different data sources, venues, and publishers.
+pub mod publishers;
 #[cfg(feature = "python")]
 pub mod python;
 pub mod record;
@@ -50,4 +52,6 @@ pub mod datasets {
     pub const GLBX_MDP3: &str = "GLBX.MDP3";
     /// The dataset code for Nasdaq TotalView ITCH.
     pub const XNAS_ITCH: &str = "XNAS.ITCH";
+    /// The dataset code for Databento Equity Basic.
+    pub const DBEQ_BASIC: &str = "DBEQ.BASIC";
 }

@@ -12,8 +12,10 @@ use time::format_description::FormatItem;
 // Re-exports
 #[cfg(feature = "async")]
 pub use self::dbn::{
-    AsyncMetadataEncoder as DbnAsyncMetadataEncoder, AsyncRecordEncoder as AsyncDbnRecordEncoder,
+    AsyncMetadataEncoder as AsyncDbnMetadataEncoder, AsyncRecordEncoder as AsyncDbnRecordEncoder,
 };
+#[cfg(feature = "async")]
+pub use self::json::AsyncEncoder as AsyncJsonEncoder;
 pub use self::{
     csv::Encoder as CsvEncoder,
     dbn::{
@@ -461,7 +463,7 @@ fn format_px(px: i64) -> String {
 
 fn format_ts(ts: u64) -> String {
     const TS_FORMAT: &[FormatItem<'static>] = time::macros::format_description!(
-        "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:9]"
+        "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:9]Z"
     );
     if ts == 0 {
         String::new()
@@ -587,14 +589,14 @@ mod tests {
 
     #[test]
     fn format_ts_1() {
-        assert_eq!(format_ts(1), "1970-01-01T00:00:00.000000001");
+        assert_eq!(format_ts(1), "1970-01-01T00:00:00.000000001Z");
     }
 
     #[test]
     fn format_ts_future() {
         assert_eq!(
             format_ts(1622838300000000000),
-            "2021-06-04T20:25:00.000000000"
+            "2021-06-04T20:25:00.000000000Z"
         );
     }
 }

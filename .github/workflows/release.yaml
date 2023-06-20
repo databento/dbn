@@ -38,15 +38,6 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Format
-        run: scripts/format.sh
-      - name: Build
-        run: scripts/build.sh
-      - name: Lint
-        run: scripts/lint.sh
-      - name: Test
-        run: scripts/test.sh
-
       # Tag the commit with the library version
       - name: Create git tag
         uses: salsify/action-detect-and-tag-new-version@v2
@@ -57,21 +48,20 @@ jobs:
       - name: Set output
         id: vars
         run: |
-          echo "::set-output name=tag_name::v$(scripts/get_version.sh)"
-          echo "::set-output name=release_name::$(scripts/get_version.sh)"
+          echo "TAG_NAME=v$(scripts/get_version.sh)" >> $GITHUB_ENV
+          echo "RELEASE_NAME=$(scripts/get_version.sh)" >> $GITHUB_ENV
+          echo "## Release notes" > NOTES.md
+          sed -n '4,/^$/p' CHANGELOG.md >> NOTES.md
 
       # Create GitHub release
       - name: Create release
         id: create-release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG_NAME: ${{ steps.vars.outputs.tag_name }}
-          RELEASE_NAME: ${{ steps.vars.outputs.release_name }}
+        uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ env.TAG_NAME }}
           release_name: ${{ env.RELEASE_NAME }}
-          draft: false
+          tag_name: ${{ env.TAG_NAME }}
+          append_body: true
+          body_path: ./NOTES.md
           prerelease: false
 
   macos-release:
@@ -79,7 +69,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
     runs-on: macos-latest
     steps:
       - name: Checkout repository
@@ -124,7 +114,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
     runs-on: windows-latest
     steps:
       - name: Checkout repository
@@ -164,7 +154,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
         target: [x86_64, aarch64]
     runs-on: ubuntu-latest
     steps:
@@ -205,7 +195,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
         target: [x86_64-unknown-linux-musl, aarch64-unknown-linux-musl]
     runs-on: ubuntu-latest
     steps:

@@ -9,8 +9,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
     name: build - Python ${{ matrix.python-version }} (x86_64 ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
 
@@ -43,18 +43,22 @@ jobs:
 
       - name: Format
         run: scripts/format.sh
+        shell: bash
       - name: Build
         run: scripts/build.sh
+        shell: bash
       - name: Lint
         run: scripts/lint.sh
+        shell: bash
       - name: Test
         run: scripts/test.sh
+        shell: bash
 
   aarch64-build:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
     name: build - Python ${{ matrix.python-version }} (aarch64 linux)
     runs-on: ubuntu-latest
 
@@ -98,7 +102,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
     name: build - Python ${{ matrix.python-version }} (macOS)
     runs-on: macos-latest
 

@@ -241,14 +241,14 @@ for record in records[1:]:
         setup();
         Python::with_gil(|py| {
             py.run(
-                r#"from databento_dbn import DBNDecoder, Metadata
+                r#"from databento_dbn import DBNDecoder, Metadata, Schema, SType
 
 metadata = Metadata(
     dataset="GLBX.MDP3",
-    schema="mbo",
+    schema=Schema.MBO,
     start=1,
-    stype_in="native",
-    stype_out="instrument_id",
+    stype_in=SType.RAW_SYMBOL,
+    stype_out=SType.INSTRUMENT_ID,
     end=2,
     symbols=[],
     partial=[],

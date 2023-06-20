@@ -1,6 +1,7 @@
 # databento-dbn
 
 [![build](https://github.com/databento/dbn/actions/workflows/build.yaml/badge.svg)](https://github.com/databento/dbn/actions/workflows/build.yaml)
+![python](https://img.shields.io/badge/python-3.8+-blue.svg)
 ![license](https://img.shields.io/github/license/databento/dbn?color=blue)
 [![pypi-version](https://img.shields.io/pypi/v/databento_dbn)](https://pypi.org/project/databento-dbn)
 

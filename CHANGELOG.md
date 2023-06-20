@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.0 - TBD
+- Added publishers enums
+- Added export to Python for `Compression`, `Encoding`, `SType`, and `Schema`
+  enums
+- Added async JSON encoder
+- Fixed pretty timestamp formatting to match API
+- Improved Python string representation of `ErrorMsg` and `SystemMsg`
+- Dropped support for Python 3.7
+
 ## 0.6.1 - 2023-06-02
 - Added `--fragment` and `--zstd-fragment` CLI arguments to read DBN streams
   without metadata
