@@ -139,6 +139,7 @@ impl From<UserDefinedInstrument> for char {
 #[repr(u8)]
 #[cfg_attr(feature = "python", pyo3::pyclass(module = "databento_dbn"))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
+#[cfg_attr(feature = "python", derive(strum::EnumIter))]
 pub enum SType {
     /// Symbology using a unique numeric ID.
     #[pyo3(name = "INSTRUMENT_ID")]
@@ -340,6 +341,8 @@ pub mod rtype {
 #[repr(u16)]
 #[cfg_attr(feature = "python", pyo3::pyclass(module = "databento_dbn"))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
+#[cfg_attr(feature = "python", derive(strum::EnumIter))]
+#[cfg_attr(test, derive(strum::EnumCount))]
 pub enum Schema {
     /// Market by order.
     #[pyo3(name = "MBO")]
@@ -450,6 +453,7 @@ impl Display for Schema {
 #[repr(u8)]
 #[cfg_attr(feature = "python", pyo3::pyclass(module = "databento_dbn"))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
+#[cfg_attr(feature = "python", derive(strum::EnumIter))]
 pub enum Encoding {
     /// Databento Binary Encoding.
     #[pyo3(name = "DBN")]
@@ -505,6 +509,7 @@ impl Display for Encoding {
 #[repr(u8)]
 #[cfg_attr(feature = "python", pyo3::pyclass(module = "databento_dbn"))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
+#[cfg_attr(feature = "python", derive(strum::EnumIter))]
 pub enum Compression {
     /// Uncompressed.
     #[pyo3(name = "NONE")]
@@ -660,5 +665,17 @@ mod deserialize {
             let str = <&str>::deserialize(deserializer)?;
             FromStr::from_str(str).map_err(de::Error::custom)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn validate_schema_count() {
+        use strum::EnumCount;
+
+        assert_eq!(Schema::COUNT, SCHEMA_COUNT);
     }
 }

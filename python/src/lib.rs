@@ -4,6 +4,7 @@ use pyo3::{prelude::*, wrap_pyfunction, PyClass};
 
 use dbn::{
     enums::{Compression, Encoding, SType, Schema},
+    python::EnumIterator,
     record::{
         BidAskPair, ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
         RecordHeader, StatMsg, StatusMsg, SymbolMappingMsg, SystemMsg, TradeMsg,
@@ -27,6 +28,7 @@ fn databento_dbn(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(encode::write_dbn_file))?;
     checked_add_class::<dbn_decoder::DbnDecoder>(m)?;
     checked_add_class::<Metadata>(m)?;
+    checked_add_class::<EnumIterator>(m)?;
     // Records
     checked_add_class::<RecordHeader>(m)?;
     checked_add_class::<MboMsg>(m)?;

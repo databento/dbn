@@ -1,6 +1,8 @@
 # Changelog
 
 ## 0.7.1 - TBD
+- Added Python `variants` method to return an iterator over the enum variants for
+  `Compression`, `Encoding`, `Schema`, and `SType`
 - Improved Python enum conversions for `Compression`, `Encoding`, `Schema`, and `SType`
 
 ## 0.7.0 - 2023-06-20

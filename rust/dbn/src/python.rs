@@ -11,6 +11,7 @@ use pyo3::{
     types::{PyBytes, PyDate, PyDateAccess, PyDict, PyType},
     PyTypeInfo,
 };
+use strum::IntoEnumIterator;
 use time::Date;
 
 use crate::{
@@ -243,6 +244,12 @@ impl Compression {
         self.as_str()
     }
 
+    // No metaclass support with pyo3, so `for c in Compression: ...` isn't possible
+    #[classmethod]
+    fn variants(_: &PyType, py: Python<'_>) -> EnumIterator {
+        EnumIterator::new::<Self>(py)
+    }
+
     #[classmethod]
     #[pyo3(name = "from_str")]
     fn py_from_str(_: &PyType, data: &PyAny) -> PyResult<Self> {
@@ -262,6 +269,11 @@ impl Encoding {
 
     fn __repr__(&self) -> &'static str {
         self.as_str()
+    }
+
+    #[classmethod]
+    fn variants(_: &PyType, py: Python<'_>) -> EnumIterator {
+        EnumIterator::new::<Self>(py)
     }
 
     #[classmethod]
@@ -286,6 +298,11 @@ impl Schema {
     }
 
     #[classmethod]
+    fn variants(_: &PyType, py: Python<'_>) -> EnumIterator {
+        EnumIterator::new::<Self>(py)
+    }
+
+    #[classmethod]
     #[pyo3(name = "from_str")]
     fn py_from_str(_: &PyType, data: &PyAny) -> PyResult<Self> {
         let data_str: &str = data.str().and_then(|s| s.extract())?;
@@ -304,6 +321,11 @@ impl SType {
 
     fn __repr__(&self) -> &'static str {
         self.as_str()
+    }
+
+    #[classmethod]
+    fn variants(_: &PyType, py: Python<'_>) -> EnumIterator {
+        EnumIterator::new::<Self>(py)
     }
 
     #[classmethod]
@@ -1564,5 +1586,41 @@ impl SystemMsg {
     #[pyo3(name = "is_heartbeat")]
     fn py_is_heartbeat(&self) -> bool {
         self.is_heartbeat()
+    }
+}
+
+/// Python iterator over the variants of an enum.
+#[pyclass(module = "databento_dbn")]
+pub struct EnumIterator {
+    // Type erasure for code reuse. Generic types can't be exposed to Python.
+    iter: Box<dyn Iterator<Item = PyObject> + Send>,
+}
+
+#[pymethods]
+impl EnumIterator {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<PyObject> {
+        slf.iter.next()
+    }
+}
+
+impl EnumIterator {
+    fn new<E>(py: Python<'_>) -> Self
+    where
+        E: strum::IntoEnumIterator + IntoPy<Py<PyAny>>,
+        <E as IntoEnumIterator>::Iterator: Send,
+    {
+        Self {
+            iter: Box::new(
+                E::iter()
+                    .map(|var| var.into_py(py))
+                    // force eager evaluation because `py` isn't `Send`
+                    .collect::<Vec<_>>()
+                    .into_iter(),
+            ),
+        }
     }
 }
