@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from enum import Enum
 from typing import (
     Any,
     BinaryIO,
@@ -24,6 +25,118 @@ _DBNRecord = Union[
     SystemMsg,
     StatMsg,
 ]
+
+class Compression(Enum):
+    """
+    Data compression format.
+
+    NONE
+        Uncompressed
+    ZSTD
+        Zstandard compressed.
+
+    """
+
+    NONE: str
+    ZSTD: str
+
+    @classmethod
+    def from_str(cls, str) -> Compression: ...
+
+class Encoding(Enum):
+    """
+    Data output encoding.
+
+    DBN
+        Databento Binary Encoding.
+    CSV
+        Comma-separated values.
+    JSON
+        JavaScript object notation.
+
+    """
+
+    DBN: str
+    CSV: str
+    JSON: str
+
+    @classmethod
+    def from_str(cls, str) -> Encoding: ...
+
+class Schema(Enum):
+    """
+    A DBN record schema.
+
+    MBO
+        Market by order.
+    MBP_1
+        Market by price with a book depth of 1.
+    MBP_10
+        Market by price with a book depth of 10.
+    TBBO
+        All trade events with the best bid and offer (BBO) immediately before the effect of the trade.
+    TRADES
+        All trade events.
+    OHLCV_1S
+        Open, high, low, close, and volume at a one-second interval.
+    OHLCV_1M
+        Open, high, low, close, and volume at a one-minute interval.
+    OHLCV_1H
+        Open, high, low, close, and volume at an hourly interval.
+    OHLCV_1D
+        Open, high, low, close, and volume at a daily interval.
+    DEFINITION
+        Instrument definitions.
+    STATISTICS
+        Additional data disseminated by publishers.
+    STATUS
+        Exchange status.
+    IMBALANCE
+        Auction imbalance events.
+
+    """
+
+    MBO: str
+    MBP_1: str
+    MBP_10: str
+    TBBO: str
+    TRADES: str
+    OHLCV_1S: str
+    OHLCV_1M: str
+    OHLCV_1H: str
+    OHLCV_1D: str
+    DEFINITION: str
+    STATUS: str
+    IMBALANCE: str
+
+    @classmethod
+    def from_str(cls, str) -> Schema: ...
+
+class SType(Enum):
+    """
+    A DBN symbology type.
+
+    INSTRUMENT_ID
+        Symbology using a unique numeric ID.
+    RAW_SYMBOL
+        Symbology using the original symbols provided by the publisher.
+    CONTINUOUS
+        A Databento-specific symbology where one symbol may point to different
+        instruments at different points of time, e.g. to always refer to the front month
+        future.
+    PARENT
+        A Databento-specific symbology for referring to a group of symbols by one
+        "parent" symbol, e.g. ES.FUT to refer to all ES futures.
+
+    """
+
+    INSTRUMENT_ID: str
+    RAW_SYMBOL: str
+    CONTINUOUS: str
+    PARENT: str
+
+    @classmethod
+    def from_str(cls, str) -> SType: ...
 
 class Metadata(SupportsBytes):
     """

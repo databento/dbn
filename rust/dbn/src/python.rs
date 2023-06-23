@@ -240,7 +240,25 @@ impl Compression {
         Self::py_from_str(t, value)
     }
 
-    fn __repr__(&self) -> &'static str {
+    fn __hash__(&self) -> isize {
+        *self as isize
+    }
+
+    fn __str__(&self) -> &'static str {
+        self.as_str()
+    }
+
+    fn __repr__(&self) -> String {
+        format!("<Compression.{}: '{}'>", self.name(), self.value(),)
+    }
+
+    #[getter]
+    fn name(&self) -> String {
+        self.as_str().to_uppercase()
+    }
+
+    #[getter]
+    fn value(&self) -> &'static str {
         self.as_str()
     }
 
@@ -267,7 +285,25 @@ impl Encoding {
         Self::py_from_str(t, value)
     }
 
-    fn __repr__(&self) -> &'static str {
+    fn __hash__(&self) -> isize {
+        *self as isize
+    }
+
+    fn __str__(&self) -> &'static str {
+        self.as_str()
+    }
+
+    fn __repr__(&self) -> String {
+        format!("<Encoding.{}: '{}'>", self.name(), self.value(),)
+    }
+
+    #[getter]
+    fn name(&self) -> String {
+        self.as_str().to_uppercase()
+    }
+
+    #[getter]
+    fn value(&self) -> &'static str {
         self.as_str()
     }
 
@@ -293,7 +329,25 @@ impl Schema {
         Self::py_from_str(t, value)
     }
 
-    fn __repr__(&self) -> &'static str {
+    fn __hash__(&self) -> isize {
+        *self as isize
+    }
+
+    fn __str__(&self) -> &'static str {
+        self.as_str()
+    }
+
+    fn __repr__(&self) -> String {
+        format!("<Schema.{}: '{}'>", self.name(), self.value(),)
+    }
+
+    #[getter]
+    fn name(&self) -> String {
+        self.as_str().to_uppercase()
+    }
+
+    #[getter]
+    fn value(&self) -> &'static str {
         self.as_str()
     }
 
@@ -319,7 +373,25 @@ impl SType {
         Self::py_from_str(t, value)
     }
 
-    fn __repr__(&self) -> &'static str {
+    fn __hash__(&self) -> isize {
+        *self as isize
+    }
+
+    fn __str__(&self) -> &'static str {
+        self.as_str()
+    }
+
+    fn __repr__(&self) -> String {
+        format!("<SType.{}: '{}'>", self.name(), self.value(),)
+    }
+
+    #[getter]
+    fn name(&self) -> String {
+        self.as_str().to_uppercase()
+    }
+
+    #[getter]
+    fn value(&self) -> &'static str {
         self.as_str()
     }
 
