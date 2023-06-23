@@ -21,8 +21,6 @@ trivial_copy = []
 [dependencies]
 dbn-macros = { version = "=0.7.1", path = "../dbn-macros" }
 
-# error handling
-anyhow = "1.0"
 # async (de)compression
 async-compression = { version = "0.3.15", features = ["tokio", "zstd"], optional = true }
 # CSV serialization
@@ -39,6 +37,8 @@ serde = { version = "1.0", features = ["derive"], optional = true }
 streaming-iterator = "0.1.9"
 # extra enum traits for Python
 strum = { version = "0.25", features = ["derive"], optional = true }
+# Custom error helper
+thiserror = "1.0"
 # date and datetime support
 time = { version = "0.3", features = ["formatting", "macros"] }
 # async traits

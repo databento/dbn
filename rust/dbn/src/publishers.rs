@@ -132,9 +132,9 @@ impl AsRef<str> for Venue {
 }
 
 impl std::str::FromStr for Venue {
-    type Err = anyhow::Error;
+    type Err = crate::Error;
 
-    fn from_str(s: &str) -> anyhow::Result<Self, Self::Err> {
+    fn from_str(s: &str) -> crate::Result<Self> {
         match s {
             "GLBX" => Ok(Venue::Glbx),
             "XNAS" => Ok(Venue::Xnas),
@@ -172,7 +172,7 @@ impl std::str::FromStr for Venue {
             "C2OX" => Ok(Venue::C2Ox),
             "XPHL" => Ok(Venue::Xphl),
             "BATO" => Ok(Venue::Bato),
-            _ => Err(anyhow::format_err!("String doesn't match any valid Venue")),
+            _ => Err(crate::Error::conversion::<Self>(s.to_owned())),
         }
     }
 }
@@ -261,9 +261,9 @@ impl AsRef<str> for Dataset {
 }
 
 impl std::str::FromStr for Dataset {
-    type Err = anyhow::Error;
+    type Err = crate::Error;
 
-    fn from_str(s: &str) -> anyhow::Result<Self, Self::Err> {
+    fn from_str(s: &str) -> crate::Result<Self> {
         match s {
             "GLBX.MDP3" => Ok(Dataset::GlbxMdp3),
             "XNAS.ITCH" => Ok(Dataset::XnasItch),
@@ -285,9 +285,7 @@ impl std::str::FromStr for Dataset {
             "FINY.TRADES" => Ok(Dataset::FinyTrades),
             "OPRA.PILLAR" => Ok(Dataset::OpraPillar),
             "DBEQ.BASIC" => Ok(Dataset::DbeqBasic),
-            _ => Err(anyhow::format_err!(
-                "String doesn't match any valid Dataset"
-            )),
+            _ => Err(crate::Error::conversion::<Self>(s.to_owned())),
         }
     }
 }
@@ -424,9 +422,9 @@ impl AsRef<str> for Publisher {
 }
 
 impl std::str::FromStr for Publisher {
-    type Err = anyhow::Error;
+    type Err = crate::Error;
 
-    fn from_str(s: &str) -> anyhow::Result<Self, Self::Err> {
+    fn from_str(s: &str) -> crate::Result<Self> {
         match s {
             "GLBX.MDP3.GLBX" => Ok(Publisher::GlbxMdp3Glbx),
             "XNAS.ITCH.XNAS" => Ok(Publisher::XnasItchXnas),
@@ -464,9 +462,7 @@ impl std::str::FromStr for Publisher {
             "OPRA.PILLAR.C2OX" => Ok(Publisher::OpraPillarC2Ox),
             "OPRA.PILLAR.XPHL" => Ok(Publisher::OpraPillarXphl),
             "OPRA.PILLAR.BATO" => Ok(Publisher::OpraPillarBato),
-            _ => Err(anyhow::format_err!(
-                "String doesn't match any valid Publisher"
-            )),
+            _ => Err(crate::Error::conversion::<Self>(s.to_owned())),
         }
     }
 }

@@ -1,11 +1,10 @@
 //! Encoding of DBN records into comma-separated values (CSV).
 use std::{io, num::NonZeroU64};
 
-use anyhow::anyhow;
 use streaming_iterator::StreamingIterator;
 
 use super::EncodeDbn;
-use crate::{decode::DecodeDbn, enums::RType, schema_method_dispatch};
+use crate::{decode::DecodeDbn, enums::RType, schema_method_dispatch, Error, Result};
 
 /// Type for encoding files and streams of DBN records in CSV.
 ///
@@ -43,7 +42,7 @@ where
     }
 
     #[doc(hidden)]
-    pub fn encode_header<R: super::DbnEncodable>(&mut self) -> anyhow::Result<()> {
+    pub fn encode_header<R: super::DbnEncodable>(&mut self) -> Result<()> {
         R::serialize_header(&mut self.writer)?;
         // end of line
         self.writer.write_record(None::<&[u8]>)?;
@@ -55,7 +54,7 @@ impl<W> EncodeDbn for Encoder<W>
 where
     W: io::Write,
 {
-    fn encode_record<R: super::DbnEncodable>(&mut self, record: &R) -> anyhow::Result<bool> {
+    fn encode_record<R: super::DbnEncodable>(&mut self, record: &R) -> Result<bool> {
         let serialize_res = match (self.use_pretty_px, self.use_pretty_ts) {
             (true, true) => record.serialize_to::<_, true, true>(&mut self.writer),
             (true, false) => record.serialize_to::<_, true, false>(&mut self.writer),
@@ -73,13 +72,13 @@ where
                     // closed pipe, should stop writing output
                     Ok(true)
                 } else {
-                    Err(anyhow::Error::new(e).context(format!("Failed to serialize {record:#?}")))
+                    Err(Error::encode(format!("Failed to serialize {record:#?}")))
                 }
             }
         }
     }
 
-    fn encode_records<R: super::DbnEncodable>(&mut self, records: &[R]) -> anyhow::Result<()> {
+    fn encode_records<R: super::DbnEncodable>(&mut self, records: &[R]) -> Result<()> {
         self.encode_header::<R>()?;
         for record in records {
             if self.encode_record(record)? {
@@ -98,7 +97,7 @@ where
     fn encode_stream<R: super::DbnEncodable>(
         &mut self,
         mut stream: impl StreamingIterator<Item = R>,
-    ) -> anyhow::Result<()> {
+    ) -> Result<()> {
         self.encode_header::<R>()?;
         while let Some(record) = stream.next() {
             if self.encode_record(record)? {
@@ -109,8 +108,10 @@ where
         Ok(())
     }
 
-    fn flush(&mut self) -> anyhow::Result<()> {
-        Ok(self.writer.flush()?)
+    fn flush(&mut self) -> Result<()> {
+        self.writer
+            .flush()
+            .map_err(|e| Error::io(e, "flushing output"))
     }
 
     /// Encode DBN records directly from a DBN decoder. This implemented outside [`EncodeDbn`](super::EncodeDbn)
@@ -120,14 +121,14 @@ where
     /// # Errors
     /// This function returns an error if it's unable to write to the underlying writer
     /// or there's a serialization error.
-    fn encode_decoded<D: DecodeDbn>(&mut self, mut decoder: D) -> anyhow::Result<()> {
+    fn encode_decoded<D: DecodeDbn>(&mut self, mut decoder: D) -> Result<()> {
         let ts_out = decoder.metadata().ts_out;
         if let Some(schema) = decoder.metadata().schema {
             schema_method_dispatch!(schema, self, encode_header)?;
             let rtype = RType::from(schema);
             while let Some(record) = decoder.decode_record_ref()? {
                 if record.rtype().map_or(true, |r| r != rtype) {
-                    return Err(anyhow!("Schema indicated {rtype:?}, but found record with rtype {:?}. Mixed schemas cannot be encoded in CSV.", record.rtype()));
+                    return Err(Error::encode(format!("Schema indicated {rtype:?}, but found record with rtype {:?}. Mixed schemas cannot be encoded in CSV.", record.rtype())));
                 }
                 // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
                 // from the metadata header.
@@ -138,7 +139,7 @@ where
             self.flush()?;
             Ok(())
         } else {
-            Err(anyhow!("Can't encode a DBN with mixed schemas in CSV"))
+            Err(Error::encode("Can't encode a CSV with mixed schemas"))
         }
     }
 
@@ -146,7 +147,7 @@ where
         &mut self,
         mut decoder: D,
         limit: NonZeroU64,
-    ) -> anyhow::Result<()> {
+    ) -> Result<()> {
         let ts_out = decoder.metadata().ts_out;
         if let Some(schema) = decoder.metadata().schema {
             schema_method_dispatch!(schema, self, encode_header)?;
@@ -154,7 +155,7 @@ where
             let mut i = 0;
             while let Some(record) = decoder.decode_record_ref()? {
                 if record.rtype().map_or(true, |r| r != rtype) {
-                    return Err(anyhow!("Schema indicated {rtype:?}, but found record with rtype {:?}. Mixed schemas cannot be encoded in CSV.", record.rtype()));
+                    return Err(Error::encode(format!("Schema indicated {rtype:?}, but found record with rtype {:?}. Mixed schemas cannot be encoded in CSV.", record.rtype())));
                 }
                 // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
                 // from the metadata header.
@@ -169,7 +170,7 @@ where
             self.flush()?;
             Ok(())
         } else {
-            Err(anyhow!("Can't encode a DBN with mixed schemas in CSV"))
+            Err(Error::encode("Can't encode a CSV with mixed schemas"))
         }
     }
 }

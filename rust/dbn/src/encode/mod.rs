@@ -25,12 +25,13 @@ pub use self::{
     json::Encoder as JsonEncoder,
 };
 
+use crate::Error;
 use crate::{
     decode::DecodeDbn,
     enums::{Compression, Encoding},
     record::HasRType,
     record_ref::RecordRef,
-    rtype_ts_out_dispatch, Metadata, FIXED_PRICE_SCALE,
+    rtype_ts_out_dispatch, Metadata, Result, FIXED_PRICE_SCALE,
 };
 
 use self::{csv::serialize::CsvSerialize, json::serialize::JsonSerialize};
@@ -51,14 +52,14 @@ pub trait EncodeDbn {
     /// # Errors
     /// This function returns an error if it's unable to write to the underlying writer
     /// or there's a serialization error.
-    fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> anyhow::Result<bool>;
+    fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<bool>;
 
     /// Encodes a slice of DBN records.
     ///
     /// # Errors
     /// This function returns an error if it's unable to write to the underlying writer
     /// or there's a serialization error.
-    fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> anyhow::Result<()> {
+    fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> Result<()> {
         for record in records {
             if self.encode_record(record)? {
                 break;
@@ -76,7 +77,7 @@ pub trait EncodeDbn {
     fn encode_stream<R: DbnEncodable>(
         &mut self,
         mut stream: impl StreamingIterator<Item = R>,
-    ) -> anyhow::Result<()> {
+    ) -> Result<()> {
         while let Some(record) = stream.next() {
             if self.encode_record(record)? {
                 break;
@@ -90,7 +91,7 @@ pub trait EncodeDbn {
     ///
     /// # Errors
     /// This function returns an error if it's unable to flush the underlying writer.
-    fn flush(&mut self) -> anyhow::Result<()>;
+    fn flush(&mut self) -> Result<()>;
 
     /// Encodes a single DBN record.
     ///
@@ -102,11 +103,7 @@ pub trait EncodeDbn {
     /// # Errors
     /// This function returns an error if it's unable to write to the underlying writer
     /// or there's a serialization error.
-    unsafe fn encode_record_ref(
-        &mut self,
-        record: RecordRef,
-        ts_out: bool,
-    ) -> anyhow::Result<bool> {
+    unsafe fn encode_record_ref(&mut self, record: RecordRef, ts_out: bool) -> Result<bool> {
         rtype_ts_out_dispatch!(record, ts_out, |rec| self.encode_record(rec))?
     }
 
@@ -115,7 +112,7 @@ pub trait EncodeDbn {
     /// # Errors
     /// This function returns an error if it's unable to write to the underlying writer
     /// or there's a serialization error.
-    fn encode_decoded<D: DecodeDbn>(&mut self, mut decoder: D) -> anyhow::Result<()> {
+    fn encode_decoded<D: DecodeDbn>(&mut self, mut decoder: D) -> Result<()> {
         let ts_out = decoder.metadata().ts_out;
         while let Some(record) = decoder.decode_record_ref()? {
             // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
@@ -138,7 +135,7 @@ pub trait EncodeDbn {
         &mut self,
         mut decoder: D,
         limit: NonZeroU64,
-    ) -> anyhow::Result<()> {
+    ) -> Result<()> {
         let ts_out = decoder.metadata().ts_out;
         let mut i = 0;
         while let Some(record) = decoder.decode_record_ref()? {
@@ -180,7 +177,7 @@ where
     ///
     /// # Errors
     /// This function returns an error if it fails to initialize the Zstd compression.
-    pub fn new(writer: W, compression: Compression) -> anyhow::Result<Self> {
+    pub fn new(writer: W, compression: Compression) -> Result<Self> {
         match compression {
             Compression::None => Ok(Self::Uncompressed(writer)),
             Compression::ZStd => zstd_encoder(writer).map(Self::ZStd),
@@ -196,11 +193,12 @@ where
     }
 }
 
-fn zstd_encoder<'a, W: io::Write>(
-    writer: W,
-) -> anyhow::Result<zstd::stream::AutoFinishEncoder<'a, W>> {
-    let mut zstd_encoder = zstd::Encoder::new(writer, ZSTD_COMPRESSION_LEVEL)?;
-    zstd_encoder.include_checksum(true)?;
+fn zstd_encoder<'a, W: io::Write>(writer: W) -> Result<zstd::stream::AutoFinishEncoder<'a, W>> {
+    let mut zstd_encoder = zstd::Encoder::new(writer, ZSTD_COMPRESSION_LEVEL)
+        .map_err(|e| Error::io(e, "creating zstd encoder"))?;
+    zstd_encoder
+        .include_checksum(true)
+        .map_err(|e| Error::io(e, "setting zstd checksum"))?;
     Ok(zstd_encoder.auto_finish())
 }
 
@@ -281,7 +279,7 @@ where
         should_pretty_print: bool,
         use_pretty_px: bool,
         use_pretty_ts: bool,
-    ) -> anyhow::Result<Self> {
+    ) -> Result<Self> {
         let writer = DynWriter::new(writer, compression)?;
         match encoding {
             Encoding::Dbn => {
@@ -306,34 +304,30 @@ impl<'a, W> EncodeDbn for DynEncoder<'a, W>
 where
     W: io::Write,
 {
-    fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> anyhow::Result<bool> {
+    fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<bool> {
         self.0.encode_record(record)
     }
 
-    fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> anyhow::Result<()> {
+    fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> Result<()> {
         self.0.encode_records(records)
     }
 
     fn encode_stream<R: DbnEncodable>(
         &mut self,
         stream: impl StreamingIterator<Item = R>,
-    ) -> anyhow::Result<()> {
+    ) -> Result<()> {
         self.0.encode_stream(stream)
     }
 
-    fn flush(&mut self) -> anyhow::Result<()> {
+    fn flush(&mut self) -> Result<()> {
         self.0.flush()
     }
 
-    unsafe fn encode_record_ref(
-        &mut self,
-        record: RecordRef,
-        ts_out: bool,
-    ) -> anyhow::Result<bool> {
+    unsafe fn encode_record_ref(&mut self, record: RecordRef, ts_out: bool) -> Result<bool> {
         self.0.encode_record_ref(record, ts_out)
     }
 
-    fn encode_decoded<D: DecodeDbn>(&mut self, decoder: D) -> anyhow::Result<()> {
+    fn encode_decoded<D: DecodeDbn>(&mut self, decoder: D) -> Result<()> {
         self.0.encode_decoded(decoder)
     }
 }
@@ -349,13 +343,13 @@ where
 /// inner value.
 macro_rules! encoder_enum_dispatch {
     ($($variant:ident),*) => {
-        fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> anyhow::Result<bool> {
+        fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<bool> {
             match self {
                 $(Self::$variant(v) => v.encode_record(record),)*
             }
         }
 
-        fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> anyhow::Result<()> {
+        fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> Result<()> {
             match self {
                 $(Self::$variant(v) => v.encode_records(records),)*
             }
@@ -364,13 +358,13 @@ macro_rules! encoder_enum_dispatch {
         fn encode_stream<R: DbnEncodable>(
             &mut self,
             stream: impl StreamingIterator<Item = R>,
-        ) -> anyhow::Result<()> {
+        ) -> Result<()> {
             match self {
                 $(Self::$variant(v) => v.encode_stream(stream),)*
             }
         }
 
-        fn flush(&mut self) -> anyhow::Result<()> {
+        fn flush(&mut self) -> Result<()> {
             match self {
                 $(Self::$variant(v) => v.flush(),)*
             }
@@ -380,7 +374,7 @@ macro_rules! encoder_enum_dispatch {
             &mut self,
             record: RecordRef,
             ts_out: bool,
-        ) -> anyhow::Result<bool> {
+        ) -> Result<bool> {
             match self {
                 $(Self::$variant(v) => v.encode_record_ref(record, ts_out),)*
             }
@@ -389,7 +383,7 @@ macro_rules! encoder_enum_dispatch {
         fn encode_decoded<D: DecodeDbn>(
             &mut self,
             decoder: D,
-        ) -> anyhow::Result<()> {
+        ) -> Result<()> {
             match self {
                 $(Self::$variant(v) => v.encode_decoded(decoder),)*
             }

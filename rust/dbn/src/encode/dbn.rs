@@ -5,12 +5,10 @@ use std::{
     num::NonZeroU64,
 };
 
-use anyhow::{anyhow, Context};
-
 use super::{zstd_encoder, DbnEncodable, EncodeDbn};
 use crate::{
-    enums::Schema, record_ref::RecordRef, Metadata, SymbolMapping, DBN_VERSION, NULL_LIMIT,
-    NULL_RECORD_COUNT, NULL_SCHEMA, NULL_STYPE, UNDEF_TIMESTAMP,
+    enums::Schema, record_ref::RecordRef, Error, Metadata, Result, SymbolMapping, DBN_VERSION,
+    NULL_LIMIT, NULL_RECORD_COUNT, NULL_SCHEMA, NULL_STYPE, UNDEF_TIMESTAMP,
 };
 
 /// Type for encoding files and streams in Databento Binary Encoding (DBN).
@@ -30,7 +28,7 @@ where
     /// # Errors
     /// This function will return an error if it fails to encode `metadata` to
     /// `writer`.
-    pub fn new(mut writer: W, metadata: &Metadata) -> anyhow::Result<Self> {
+    pub fn new(mut writer: W, metadata: &Metadata) -> Result<Self> {
         MetadataEncoder::new(&mut writer).encode(metadata)?;
         let record_encoder = RecordEncoder::new(writer);
         Ok(Self { record_encoder })
@@ -57,7 +55,7 @@ where
     /// # Errors
     /// This function will return an error if it fails to encode `metadata` to
     /// `writer`.
-    pub fn with_zstd(writer: W, metadata: &Metadata) -> anyhow::Result<Self> {
+    pub fn with_zstd(writer: W, metadata: &Metadata) -> Result<Self> {
         Encoder::new(zstd_encoder(writer)?, metadata)
     }
 }
@@ -66,7 +64,7 @@ impl<W> EncodeDbn for Encoder<W>
 where
     W: io::Write,
 {
-    fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> anyhow::Result<bool> {
+    fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<bool> {
         self.record_encoder.encode_record(record)
     }
 
@@ -81,15 +79,11 @@ where
     /// # Errors
     /// This function will return an error if it fails to encode `record` to
     /// `writer`.
-    unsafe fn encode_record_ref(
-        &mut self,
-        record: RecordRef,
-        ts_out: bool,
-    ) -> anyhow::Result<bool> {
+    unsafe fn encode_record_ref(&mut self, record: RecordRef, ts_out: bool) -> Result<bool> {
         self.record_encoder.encode_record_ref(record, ts_out)
     }
 
-    fn flush(&mut self) -> anyhow::Result<()> {
+    fn flush(&mut self) -> Result<()> {
         self.record_encoder.flush()
     }
 }
@@ -121,35 +115,45 @@ where
     ///
     /// # Errors
     /// This function returns an error if it fails to write to the underlying writer.
-    pub fn encode(&mut self, metadata: &Metadata) -> anyhow::Result<()> {
-        self.writer.write_all(b"DBN")?;
+    pub fn encode(&mut self, metadata: &Metadata) -> Result<()> {
+        let metadata_err = |e| Error::io(e, "writing DBN metadata");
+        self.writer.write_all(b"DBN").map_err(metadata_err)?;
         // regardless of version in metadata, should encode crate version
-        self.writer.write_all(&[DBN_VERSION])?;
+        self.writer
+            .write_all(&[DBN_VERSION])
+            .map_err(metadata_err)?;
         let length = Self::calc_length(metadata);
-        self.writer.write_all(length.to_le_bytes().as_slice())?;
+        self.writer
+            .write_all(length.to_le_bytes().as_slice())
+            .map_err(metadata_err)?;
         self.encode_fixed_len_cstr::<{ crate::METADATA_DATASET_CSTR_LEN }>(&metadata.dataset)?;
-        self.writer.write_all(
-            (metadata.schema.map(|s| s as u16).unwrap_or(NULL_SCHEMA))
-                .to_le_bytes()
-                .as_slice(),
-        )?;
+        self.writer
+            .write_all(
+                (metadata.schema.map(|s| s as u16).unwrap_or(NULL_SCHEMA))
+                    .to_le_bytes()
+                    .as_slice(),
+            )
+            .map_err(metadata_err)?;
         self.encode_range_and_counts(metadata.start, metadata.end, metadata.limit)?;
-        self.writer.write_all(&[
-            metadata.stype_in.map(|s| s as u8).unwrap_or(NULL_STYPE),
-            metadata.stype_out as u8,
-            metadata.ts_out as u8,
-        ])?;
+        self.writer
+            .write_all(&[
+                metadata.stype_in.map(|s| s as u8).unwrap_or(NULL_STYPE),
+                metadata.stype_out as u8,
+                metadata.ts_out as u8,
+            ])
+            .map_err(metadata_err)?;
         // padding
-        self.writer.write_all(&[0; crate::METADATA_RESERVED_LEN])?;
+        self.writer
+            .write_all(&[0; crate::METADATA_RESERVED_LEN])
+            .map_err(metadata_err)?;
         // schema_definition_length
-        self.writer.write_all(0u32.to_le_bytes().as_slice())?;
+        self.writer
+            .write_all(0u32.to_le_bytes().as_slice())
+            .map_err(metadata_err)?;
 
-        self.encode_repeated_symbol_cstr(metadata.symbols.as_slice())
-            .with_context(|| "Failed to encode symbols")?;
-        self.encode_repeated_symbol_cstr(metadata.partial.as_slice())
-            .with_context(|| "Failed to encode partial")?;
-        self.encode_repeated_symbol_cstr(metadata.not_found.as_slice())
-            .with_context(|| "Failed to encode not_found")?;
+        self.encode_repeated_symbol_cstr(metadata.symbols.as_slice())?;
+        self.encode_repeated_symbol_cstr(metadata.partial.as_slice())?;
+        self.encode_repeated_symbol_cstr(metadata.not_found.as_slice())?;
         self.encode_symbol_mappings(metadata.mappings.as_slice())?;
 
         Ok(())
@@ -181,30 +185,39 @@ where
         start: u64,
         end: Option<NonZeroU64>,
         limit: Option<NonZeroU64>,
-    ) -> anyhow::Result<()> {
-        self.writer.write_all(start.to_le_bytes().as_slice())?;
-        self.writer.write_all(
-            end.map(|e| e.get())
-                .unwrap_or(UNDEF_TIMESTAMP)
-                .to_le_bytes()
-                .as_slice(),
-        )?;
-        self.writer.write_all(
-            limit
-                .map(|l| l.get())
-                .unwrap_or(NULL_LIMIT)
-                .to_le_bytes()
-                .as_slice(),
-        )?;
+    ) -> Result<()> {
+        let metadata_err = |e| Error::io(e, "writing DBN metadata");
+        self.writer
+            .write_all(start.to_le_bytes().as_slice())
+            .map_err(metadata_err)?;
+        self.writer
+            .write_all(
+                end.map(|e| e.get())
+                    .unwrap_or(UNDEF_TIMESTAMP)
+                    .to_le_bytes()
+                    .as_slice(),
+            )
+            .map_err(metadata_err)?;
+        self.writer
+            .write_all(
+                limit
+                    .map(|l| l.get())
+                    .unwrap_or(NULL_LIMIT)
+                    .to_le_bytes()
+                    .as_slice(),
+            )
+            .map_err(metadata_err)?;
         // backwards compatibility for record_count
         self.writer
-            .write_all(NULL_RECORD_COUNT.to_le_bytes().as_slice())?;
+            .write_all(NULL_RECORD_COUNT.to_le_bytes().as_slice())
+            .map_err(metadata_err)?;
         Ok(())
     }
 
-    fn encode_repeated_symbol_cstr(&mut self, symbols: &[String]) -> anyhow::Result<()> {
+    fn encode_repeated_symbol_cstr(&mut self, symbols: &[String]) -> Result<()> {
         self.writer
-            .write_all((symbols.len() as u32).to_le_bytes().as_slice())?;
+            .write_all((symbols.len() as u32).to_le_bytes().as_slice())
+            .map_err(|e| Error::io(e, "writing cstr length"))?;
         for symbol in symbols {
             self.encode_fixed_len_cstr::<{ crate::SYMBOL_CSTR_LEN }>(symbol)?;
         }
@@ -212,57 +225,64 @@ where
         Ok(())
     }
 
-    fn encode_symbol_mappings(&mut self, symbol_mappings: &[SymbolMapping]) -> anyhow::Result<()> {
+    fn encode_symbol_mappings(&mut self, symbol_mappings: &[SymbolMapping]) -> Result<()> {
         // encode mappings_count
         self.writer
-            .write_all((symbol_mappings.len() as u32).to_le_bytes().as_slice())?;
+            .write_all((symbol_mappings.len() as u32).to_le_bytes().as_slice())
+            .map_err(|e| Error::io(e, "writing symbol mappings length"))?;
         for symbol_mapping in symbol_mappings {
             self.encode_symbol_mapping(symbol_mapping)?;
         }
         Ok(())
     }
 
-    fn encode_symbol_mapping(&mut self, symbol_mapping: &SymbolMapping) -> anyhow::Result<()> {
+    fn encode_symbol_mapping(&mut self, symbol_mapping: &SymbolMapping) -> Result<()> {
         self.encode_fixed_len_cstr::<{ crate::SYMBOL_CSTR_LEN }>(&symbol_mapping.raw_symbol)?;
         // encode interval_count
-        self.writer.write_all(
-            (symbol_mapping.intervals.len() as u32)
-                .to_le_bytes()
-                .as_slice(),
-        )?;
+        self.writer
+            .write_all(
+                (symbol_mapping.intervals.len() as u32)
+                    .to_le_bytes()
+                    .as_slice(),
+            )
+            .map_err(|e| Error::io(e, "writing symbol mapping interval count"))?;
         for interval in symbol_mapping.intervals.iter() {
-            self.encode_date(interval.start_date)?;
-            self.encode_date(interval.end_date)?;
+            self.encode_date(interval.start_date)
+                .map_err(|e| Error::io(e, "writing start date"))?;
+            self.encode_date(interval.end_date)
+                .map_err(|e| Error::io(e, "writing end date"))?;
             self.encode_fixed_len_cstr::<{ crate::SYMBOL_CSTR_LEN }>(&interval.symbol)?;
         }
         Ok(())
     }
 
-    fn encode_fixed_len_cstr<const LEN: usize>(&mut self, string: &str) -> anyhow::Result<()> {
+    fn encode_fixed_len_cstr<const LEN: usize>(&mut self, string: &str) -> Result<()> {
         if !string.is_ascii() {
-            return Err(anyhow!(
-                "'{string}' can't be encoded in DBN because it contains non-ASCII characters"
-            ));
+            return Err(Error::Conversion {
+                input: string.to_owned(),
+                desired_type: "ASCII",
+            });
         }
         if string.len() > LEN {
-            return Err(anyhow!(
+            return Err(Error::encode(
+            format!(
                 "'{string}' is too long to be encoded in DBN; it cannot be longer than {LEN} characters"
-            ));
+            )));
         }
-        self.writer.write_all(string.as_bytes())?;
+        let cstr_err = |e| Error::io(e, "writing cstr");
+        self.writer.write_all(string.as_bytes()).map_err(cstr_err)?;
         // pad remaining space with null bytes
         for _ in string.len()..LEN {
-            self.writer.write_all(&[0])?;
+            self.writer.write_all(&[0]).map_err(cstr_err)?;
         }
         Ok(())
     }
 
-    fn encode_date(&mut self, date: time::Date) -> anyhow::Result<()> {
+    fn encode_date(&mut self, date: time::Date) -> io::Result<()> {
         let mut date_int = date.year() as u32 * 10_000;
         date_int += date.month() as u32 * 100;
         date_int += date.day() as u32;
-        self.writer.write_all(date_int.to_le_bytes().as_slice())?;
-        Ok(())
+        self.writer.write_all(date_int.to_le_bytes().as_slice())
     }
 }
 
@@ -280,18 +300,18 @@ where
         start: u64,
         end: Option<NonZeroU64>,
         limit: Option<NonZeroU64>,
-    ) -> anyhow::Result<()> {
+    ) -> Result<()> {
         /// Byte position of the field `start`
         const START_SEEK_FROM: SeekFrom =
             SeekFrom::Start(MetadataEncoder::<Vec<u8>>::START_OFFSET as u64);
 
         self.writer
             .seek(START_SEEK_FROM)
-            .with_context(|| "Failed to seek to write position".to_owned())?;
+            .map_err(|e| Error::io(e, "seeking to write position"))?;
         self.encode_range_and_counts(start, end, limit)?;
         self.writer
             .seek(SeekFrom::End(0))
-            .with_context(|| "Failed to seek back to end".to_owned())?;
+            .map_err(|e| Error::io(e, "seeking back to end"))?;
         Ok(())
     }
 }
@@ -328,13 +348,11 @@ impl<W> EncodeDbn for RecordEncoder<W>
 where
     W: io::Write,
 {
-    fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> anyhow::Result<bool> {
+    fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<bool> {
         match self.writer.write_all(record.as_ref()) {
             Ok(_) => Ok(false),
             Err(e) if e.kind() == io::ErrorKind::BrokenPipe => Ok(true),
-            Err(e) => {
-                Err(anyhow::Error::new(e).context(format!("Failed to serialize {record:#?}")))
-            }
+            Err(e) => Err(Error::io(e, format!("serializing {record:#?}"))),
         }
     }
 
@@ -349,22 +367,18 @@ where
     /// # Errors
     /// This function will return an error if it fails to encode `record` to
     /// `writer`.
-    unsafe fn encode_record_ref(
-        &mut self,
-        record: RecordRef,
-        _ts_out: bool,
-    ) -> anyhow::Result<bool> {
+    unsafe fn encode_record_ref(&mut self, record: RecordRef, _ts_out: bool) -> Result<bool> {
         match self.writer.write_all(record.as_ref()) {
             Ok(_) => Ok(false),
             Err(e) if e.kind() == io::ErrorKind::BrokenPipe => Ok(true),
-            Err(e) => {
-                Err(anyhow::Error::new(e).context(format!("Failed to serialize {record:#?}")))
-            }
+            Err(e) => Err(Error::io(e, format!("serializing {record:#?}"))),
         }
     }
 
-    fn flush(&mut self) -> anyhow::Result<()> {
-        Ok(self.writer.flush()?)
+    fn flush(&mut self) -> Result<()> {
+        self.writer
+            .flush()
+            .map_err(|e| Error::io(e, "flushing output"))
     }
 }
 
@@ -586,13 +600,12 @@ pub use r#async::{MetadataEncoder as AsyncMetadataEncoder, RecordEncoder as Asyn
 mod r#async {
     use std::{fmt, num::NonZeroU64};
 
-    use anyhow::{anyhow, Context};
     use async_compression::tokio::write::ZstdEncoder;
     use tokio::io;
 
     use crate::{
-        record::HasRType, record_ref::RecordRef, Metadata, SymbolMapping, DBN_VERSION, NULL_LIMIT,
-        NULL_RECORD_COUNT, NULL_SCHEMA, NULL_STYPE, UNDEF_TIMESTAMP,
+        record::HasRType, record_ref::RecordRef, Error, Metadata, Result, SymbolMapping,
+        DBN_VERSION, NULL_LIMIT, NULL_RECORD_COUNT, NULL_SCHEMA, NULL_STYPE, UNDEF_TIMESTAMP,
     };
 
     /// An async encoder of DBN records.
@@ -623,13 +636,11 @@ mod r#async {
         pub async fn encode<R: AsRef<[u8]> + HasRType + fmt::Debug>(
             &mut self,
             record: &R,
-        ) -> anyhow::Result<bool> {
+        ) -> Result<bool> {
             match self.writer.write_all(record.as_ref()).await {
                 Ok(_) => Ok(false),
                 Err(e) if e.kind() == io::ErrorKind::BrokenPipe => Ok(true),
-                Err(e) => {
-                    Err(anyhow::Error::new(e).context(format!("Failed to serialize {record:#?}")))
-                }
+                Err(e) => Err(Error::io(e, format!("serializing {record:#?}"))),
             }
         }
 
@@ -640,14 +651,11 @@ mod r#async {
         /// # Errors
         /// This function returns an error if it's unable to write to the underlying writer
         /// or there's a serialization error.
-        pub async fn encode_ref(&mut self, record_ref: RecordRef<'_>) -> anyhow::Result<bool> {
+        pub async fn encode_ref(&mut self, record_ref: RecordRef<'_>) -> Result<bool> {
             match self.writer.write_all(record_ref.as_ref()).await {
                 Ok(_) => Ok(false),
                 Err(e) if e.kind() == io::ErrorKind::BrokenPipe => Ok(true),
-                Err(e) => {
-                    Err(anyhow::Error::new(e)
-                        .context(format!("Failed to serialize {record_ref:#?}")))
-                }
+                Err(e) => Err(Error::io(e, format!("serializing {record_ref:#?}"))),
             }
         }
 
@@ -693,39 +701,52 @@ mod r#async {
         /// # Errors
         /// This function returns an error if it's unable to write to the underlying
         /// writer.
-        pub async fn encode(&mut self, metadata: &Metadata) -> anyhow::Result<()> {
-            self.writer.write_all(b"DBN").await?;
+        pub async fn encode(&mut self, metadata: &Metadata) -> Result<()> {
+            let metadata_err = |e| Error::io(e, "writing DBN metadata");
+            self.writer.write_all(b"DBN").await.map_err(metadata_err)?;
             // regardless of version in metadata, should encode crate version
-            self.writer.write_all(&[DBN_VERSION]).await?;
+            self.writer
+                .write_all(&[DBN_VERSION])
+                .await
+                .map_err(metadata_err)?;
             let length = super::MetadataEncoder::<std::fs::File>::calc_length(metadata);
-            self.writer.write_u32_le(length).await?;
+            self.writer
+                .write_u32_le(length)
+                .await
+                .map_err(metadata_err)?;
             self.encode_fixed_len_cstr::<{ crate::METADATA_DATASET_CSTR_LEN }>(&metadata.dataset)
                 .await?;
             self.writer
                 .write_u16_le(metadata.schema.map(|s| s as u16).unwrap_or(NULL_SCHEMA))
-                .await?;
+                .await
+                .map_err(metadata_err)?;
             self.encode_range_and_counts(metadata.start, metadata.end, metadata.limit)
                 .await?;
             self.writer
                 .write_u8(metadata.stype_in.map(|s| s as u8).unwrap_or(NULL_STYPE))
-                .await?;
-            self.writer.write_u8(metadata.stype_out as u8).await?;
-            self.writer.write_u8(metadata.ts_out as u8).await?;
+                .await
+                .map_err(metadata_err)?;
+            self.writer
+                .write_u8(metadata.stype_out as u8)
+                .await
+                .map_err(metadata_err)?;
+            self.writer
+                .write_u8(metadata.ts_out as u8)
+                .await
+                .map_err(metadata_err)?;
             // padding
             self.writer
                 .write_all(&[0; crate::METADATA_RESERVED_LEN])
-                .await?;
+                .await
+                .map_err(metadata_err)?;
             // schema_definition_length
-            self.writer.write_u32_le(0).await?;
+            self.writer.write_u32_le(0).await.map_err(metadata_err)?;
             self.encode_repeated_symbol_cstr(metadata.symbols.as_slice())
-                .await
-                .with_context(|| "Failed to encode symbols")?;
+                .await?;
             self.encode_repeated_symbol_cstr(metadata.partial.as_slice())
-                .await
-                .with_context(|| "Failed to encode partial")?;
+                .await?;
             self.encode_repeated_symbol_cstr(metadata.not_found.as_slice())
-                .await
-                .with_context(|| "Failed to encode not_found")?;
+                .await?;
             self.encode_symbol_mappings(metadata.mappings.as_slice())
                 .await?;
 
@@ -747,21 +768,32 @@ mod r#async {
             start: u64,
             end: Option<NonZeroU64>,
             limit: Option<NonZeroU64>,
-        ) -> anyhow::Result<()> {
-            self.writer.write_u64_le(start).await?;
+        ) -> Result<()> {
+            let metadata_err = |e| Error::io(e, "writing DBN metadata");
+            self.writer
+                .write_u64_le(start)
+                .await
+                .map_err(metadata_err)?;
             self.writer
                 .write_u64_le(end.map(|e| e.get()).unwrap_or(UNDEF_TIMESTAMP))
-                .await?;
+                .await
+                .map_err(metadata_err)?;
             self.writer
                 .write_u64_le(limit.map(|l| l.get()).unwrap_or(NULL_LIMIT))
-                .await?;
+                .await
+                .map_err(metadata_err)?;
             // Backwards compatibility with removed metadata field `record_count`
-            self.writer.write_u64_le(NULL_RECORD_COUNT).await?;
-            Ok(())
+            self.writer
+                .write_u64_le(NULL_RECORD_COUNT)
+                .await
+                .map_err(metadata_err)
         }
 
-        async fn encode_repeated_symbol_cstr(&mut self, symbols: &[String]) -> anyhow::Result<()> {
-            self.writer.write_u32_le(symbols.len() as u32).await?;
+        async fn encode_repeated_symbol_cstr(&mut self, symbols: &[String]) -> Result<()> {
+            self.writer
+                .write_u32_le(symbols.len() as u32)
+                .await
+                .map_err(|e| Error::io(e, "writing cstr length"))?;
             for symbol in symbols {
                 self.encode_fixed_len_cstr::<{ crate::SYMBOL_CSTR_LEN }>(symbol)
                     .await?;
@@ -773,59 +805,65 @@ mod r#async {
         async fn encode_symbol_mappings(
             &mut self,
             symbol_mappings: &[SymbolMapping],
-        ) -> anyhow::Result<()> {
+        ) -> Result<()> {
             // encode mappings_count
             self.writer
                 .write_u32_le(symbol_mappings.len() as u32)
-                .await?;
+                .await
+                .map_err(|e| Error::io(e, "writing symbol mappings length"))?;
             for symbol_mapping in symbol_mappings {
                 self.encode_symbol_mapping(symbol_mapping).await?;
             }
             Ok(())
         }
 
-        async fn encode_symbol_mapping(
-            &mut self,
-            symbol_mapping: &SymbolMapping,
-        ) -> anyhow::Result<()> {
+        async fn encode_symbol_mapping(&mut self, symbol_mapping: &SymbolMapping) -> Result<()> {
             self.encode_fixed_len_cstr::<{ crate::SYMBOL_CSTR_LEN }>(&symbol_mapping.raw_symbol)
                 .await?;
             // encode interval_count
             self.writer
                 .write_u32_le(symbol_mapping.intervals.len() as u32)
-                .await?;
+                .await
+                .map_err(|e| Error::io(e, "writing symbol mapping interval count"))?;
             for interval in symbol_mapping.intervals.iter() {
-                self.encode_date(interval.start_date).await?;
-                self.encode_date(interval.end_date).await?;
+                self.encode_date(interval.start_date)
+                    .await
+                    .map_err(|e| Error::io(e, "writing start date"))?;
+                self.encode_date(interval.end_date)
+                    .await
+                    .map_err(|e| Error::io(e, "writing end date"))?;
                 self.encode_fixed_len_cstr::<{ crate::SYMBOL_CSTR_LEN }>(&interval.symbol)
                     .await?;
             }
             Ok(())
         }
 
-        async fn encode_fixed_len_cstr<const LEN: usize>(
-            &mut self,
-            string: &str,
-        ) -> anyhow::Result<()> {
+        async fn encode_fixed_len_cstr<const LEN: usize>(&mut self, string: &str) -> Result<()> {
             if !string.is_ascii() {
-                return Err(anyhow!(
-                    "'{string}' can't be encoded in DBN because it contains non-ASCII characters"
-                ));
+                return Err(Error::Conversion {
+                    input: string.to_owned(),
+                    desired_type: "ASCII",
+                });
             }
             if string.len() > LEN {
-                return Err(anyhow!(
-                "'{string}' is too long to be encoded in DBN; it cannot be longer than {LEN} characters"
-            ));
+                return Err(Error::encode(
+                    format!(
+                    "'{string}' is too long to be encoded in DBN; it cannot be longer than {LEN} characters"
+                )));
             }
-            self.writer.write_all(string.as_bytes()).await?;
+            let cstr_err = |e| Error::io(e, "writing cstr");
+            self.writer
+                .write_all(string.as_bytes())
+                .await
+                .map_err(cstr_err)?;
             // pad remaining space with null bytes
             for _ in string.len()..LEN {
-                self.writer.write_u8(0).await?;
+                self.writer.write_u8(0).await.map_err(cstr_err)?;
             }
             Ok(())
         }
 
-        async fn encode_date(&mut self, date: time::Date) -> anyhow::Result<()> {
+        async fn encode_date(&mut self, date: time::Date) -> io::Result<()> {
             let mut date_int = date.year() as u32 * 10_000;
             date_int += date.month() as u32 * 100;
             date_int += date.day() as u32;

@@ -9,8 +9,6 @@ use std::fmt::{self, Display, Formatter};
 use dbn_macros::MockPyo3;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
-use crate::error::ConversionError;
-
 /// A side of the market. The side of the market for resting orders, or the side
 /// of the aggressor for trades.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive)]
@@ -163,7 +161,7 @@ pub enum SType {
 }
 
 impl std::str::FromStr for SType {
-    type Err = ConversionError;
+    type Err = crate::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
@@ -172,9 +170,7 @@ impl std::str::FromStr for SType {
             "smart" => Ok(SType::Smart),
             "continuous" => Ok(SType::Continuous),
             "parent" => Ok(SType::Parent),
-            _ => Err(ConversionError::TypeConversion(
-                "Value doesn't match a valid symbol type",
-            )),
+            _ => Err(crate::Error::conversion::<Self>(s.to_owned())),
         }
     }
 }
@@ -391,7 +387,7 @@ pub enum Schema {
 pub const SCHEMA_COUNT: usize = 13;
 
 impl std::str::FromStr for Schema {
-    type Err = ConversionError;
+    type Err = crate::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
@@ -408,9 +404,7 @@ impl std::str::FromStr for Schema {
             "statistics" => Ok(Schema::Statistics),
             "status" => Ok(Schema::Status),
             "imbalance" => Ok(Schema::Imbalance),
-            _ => Err(ConversionError::TypeConversion(
-                "Value doesn't match a valid schema",
-            )),
+            _ => Err(crate::Error::conversion::<Self>(s.to_owned())),
         }
     }
 }
@@ -467,16 +461,14 @@ pub enum Encoding {
 }
 
 impl std::str::FromStr for Encoding {
-    type Err = ConversionError;
+    type Err = crate::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "dbn" | "dbz" => Ok(Encoding::Dbn),
             "csv" => Ok(Encoding::Csv),
             "json" => Ok(Encoding::Json),
-            _ => Err(ConversionError::TypeConversion(
-                "Value doesn't match a valid encoding",
-            )),
+            _ => Err(crate::Error::conversion::<Self>(s.to_owned())),
         }
     }
 }
@@ -520,15 +512,13 @@ pub enum Compression {
 }
 
 impl std::str::FromStr for Compression {
-    type Err = ConversionError;
+    type Err = crate::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "none" => Ok(Compression::None),
             "zstd" => Ok(Compression::ZStd),
-            _ => Err(ConversionError::TypeConversion(
-                "Value doesn't match a valid compression",
-            )),
+            _ => Err(crate::Error::conversion::<Self>(s.to_owned())),
         }
     }
 }

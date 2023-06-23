@@ -20,7 +20,7 @@ where
     /// `None` indicates the end of the stream has been reached.
     i: Option<usize>,
     /// Last error encountering when decoding.
-    last_err: Option<std::io::Error>,
+    last_err: Option<crate::Error>,
     /// Required to associate this type with a specific record type `T`.
     _marker: PhantomData<T>,
 }
@@ -40,7 +40,7 @@ where
     }
 
     /// Last error encountering when decoding.
-    pub fn last_err(&self) -> Option<&std::io::Error> {
+    pub fn last_err(&self) -> Option<&crate::Error> {
         self.last_err.as_ref()
     }
 }

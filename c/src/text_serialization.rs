@@ -185,7 +185,11 @@ pub unsafe extern "C" fn s_serialize_record(
             .encode_record_ref(record, options.ts_out),
     }
     // null byte
-    .and_then(|_| Ok(cursor.write_all(&[0])?));
+    .and_then(|_| {
+        cursor
+            .write_all(&[0])
+            .map_err(|e| dbn::Error::io(e, "writing null byte"))
+    });
     if res.is_ok() {
         // subtract for null byte
         cursor.position() as i32 - 1
@@ -261,6 +265,6 @@ pub unsafe extern "C" fn schema_from_rtype(rtype: u8, res: *mut Schema) -> bool 
 fn serialize_csv_header<W: io::Write, R: DbnEncodable>(
     _rec: &R,
     encoder: &mut csv::Encoder<W>,
-) -> anyhow::Result<()> {
+) -> dbn::Result<()> {
     encoder.encode_header::<R>()
 }

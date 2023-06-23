@@ -5,7 +5,7 @@ use streaming_iterator::StreamingIterator;
 
 use self::serialize::to_json_string;
 use super::{DbnEncodable, EncodeDbn};
-use crate::Metadata;
+use crate::{Error, Metadata, Result};
 
 /// Type for encoding files and streams of DBN records in newline-delimited JSON (ndjson).
 pub struct Encoder<W>
@@ -43,15 +43,16 @@ where
     ///
     /// # Errors
     /// This function returns an error if there's an error writing to `writer`.
-    pub fn encode_metadata(&mut self, metadata: &Metadata) -> anyhow::Result<()> {
+    pub fn encode_metadata(&mut self, metadata: &Metadata) -> Result<()> {
         let json = to_json_string(
             metadata,
             self.should_pretty_print,
             self.use_pretty_px,
             self.use_pretty_ts,
         );
-        self.writer.write_all(json.as_bytes())?;
-        self.writer.flush()?;
+        let io_err = |e| Error::io(e, "writing metadata");
+        self.writer.write_all(json.as_bytes()).map_err(io_err)?;
+        self.writer.flush().map_err(io_err)?;
         Ok(())
     }
 
@@ -70,7 +71,7 @@ impl<W> EncodeDbn for Encoder<W>
 where
     W: io::Write,
 {
-    fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> anyhow::Result<bool> {
+    fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<bool> {
         let json = to_json_string(
             record,
             self.should_pretty_print,
@@ -80,38 +81,42 @@ where
         match self.writer.write_all(json.as_bytes()) {
             Ok(_) => Ok(()),
             Err(e) if matches!(e.kind(), io::ErrorKind::BrokenPipe) => return Ok(true),
-            Err(e) => {
-                Err(anyhow::Error::new(e).context(format!("Failed to serialize {record:#?}")))
-            }
+            Err(e) => Err(Error::io(e, "writing record")),
         }?;
         Ok(false)
     }
 
-    fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> anyhow::Result<()> {
+    fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> Result<()> {
         for record in records {
             if self.encode_record(record)? {
                 return Ok(());
             }
         }
-        self.writer.flush()?;
+        self.writer
+            .flush()
+            .map_err(|e| Error::io(e, "flushing output"))?;
         Ok(())
     }
 
     fn encode_stream<R: DbnEncodable>(
         &mut self,
         mut stream: impl StreamingIterator<Item = R>,
-    ) -> anyhow::Result<()> {
+    ) -> Result<()> {
         while let Some(record) = stream.next() {
             if self.encode_record(record)? {
                 return Ok(());
             }
         }
-        self.writer.flush()?;
+        self.writer
+            .flush()
+            .map_err(|e| Error::io(e, "flushing output"))?;
         Ok(())
     }
 
-    fn flush(&mut self) -> anyhow::Result<()> {
-        Ok(self.writer.flush()?)
+    fn flush(&mut self) -> Result<()> {
+        self.writer
+            .flush()
+            .map_err(|e| Error::io(e, "flushing output"))
     }
 }
 
@@ -939,7 +944,8 @@ mod r#async {
     use tokio::io;
 
     use crate::{
-        encode::DbnEncodable, record_ref::RecordRef, rtype_ts_out_async_dispatch, Metadata,
+        encode::DbnEncodable, record_ref::RecordRef, rtype_ts_out_async_dispatch, Error, Metadata,
+        Result,
     };
 
     /// Type for encoding files and streams of DBN records in newline-delimited JSON (ndjson).
@@ -978,15 +984,19 @@ mod r#async {
         ///
         /// # Errors
         /// This function returns an error if there's an error writing to `writer`.
-        pub async fn encode_metadata(&mut self, metadata: &Metadata) -> anyhow::Result<()> {
+        pub async fn encode_metadata(&mut self, metadata: &Metadata) -> Result<()> {
             let json = super::to_json_string(
                 metadata,
                 self.should_pretty_print,
                 self.use_pretty_px,
                 self.use_pretty_ts,
             );
-            self.writer.write_all(json.as_bytes()).await?;
-            self.writer.flush().await?;
+            let io_err = |e| Error::io(e, "writing metadata");
+            self.writer
+                .write_all(json.as_bytes())
+                .await
+                .map_err(io_err)?;
+            self.writer.flush().await.map_err(io_err)?;
             Ok(())
         }
 
@@ -1007,7 +1017,7 @@ mod r#async {
         /// # Errors
         /// This function returns an error if it's unable to write to the underlying
         /// writer.
-        pub async fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> anyhow::Result<bool> {
+        pub async fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<bool> {
             let json = super::to_json_string(
                 record,
                 self.should_pretty_print,
@@ -1017,9 +1027,7 @@ mod r#async {
             match self.writer.write_all(json.as_bytes()).await {
                 Ok(_) => Ok(()),
                 Err(e) if matches!(e.kind(), io::ErrorKind::BrokenPipe) => return Ok(true),
-                Err(e) => {
-                    Err(anyhow::Error::new(e).context(format!("Failed to serialize {record:#?}")))
-                }
+                Err(e) => Err(Error::io(e, "writing record")),
             }?;
             Ok(false)
         }
@@ -1038,7 +1046,7 @@ mod r#async {
             &mut self,
             record_ref: RecordRef<'_>,
             ts_out: bool,
-        ) -> anyhow::Result<bool> {
+        ) -> Result<bool> {
             rtype_ts_out_async_dispatch!(record_ref, ts_out, |rec| async move {
                 self.encode_record(rec).await
             })?

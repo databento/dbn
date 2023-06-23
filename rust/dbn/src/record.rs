@@ -1,9 +1,7 @@
 //! Market data types for encoding different Databento [`Schema`](crate::enums::Schema)s
 //! and conversion functions.
 
-use std::{ffi::CStr, mem, os::raw::c_char, ptr::NonNull, slice, str::Utf8Error};
-
-use anyhow::anyhow;
+use std::{ffi::CStr, mem, os::raw::c_char, ptr::NonNull, slice};
 
 // Dummy derive macro to get around `cfg_attr` incompatibility of several
 // of pyo3's attribute macros. See https://github.com/PyO3/pyo3/issues/780
@@ -16,8 +14,8 @@ use crate::{
         Action, InstrumentClass, MatchAlgorithm, SecurityUpdateAction, Side, StatType,
         StatUpdateAction, UserDefinedInstrument,
     },
-    error::ConversionError,
     macros::{dbn_record, CsvSerialize, JsonSerialize},
+    Error, Result,
 };
 
 /// Common data for all Databento records.
@@ -832,7 +830,8 @@ impl RecordHeader {
     /// This function returns an error if the `rtype` field does not
     /// contain a valid, known [`RType`](crate::enums::RType).
     pub fn rtype(&self) -> crate::error::Result<RType> {
-        RType::try_from(self.rtype).map_err(|_| ConversionError::TypeConversion("Invalid rtype"))
+        RType::try_from(self.rtype)
+            .map_err(|_| Error::conversion::<RType>(format!("{:#02X}", self.rtype)))
     }
 }
 
@@ -843,7 +842,8 @@ impl MboMsg {
     /// This function returns an error if the `side` field does not
     /// contain a valid [`Side`](crate::enums::Side).
     pub fn side(&self) -> crate::error::Result<Side> {
-        Side::try_from(self.side as u8).map_err(|_| ConversionError::TypeConversion("Invalid side"))
+        Side::try_from(self.side as u8)
+            .map_err(|_| Error::conversion::<Side>(format!("{:#02X}", self.side as u8)))
     }
 
     /// Tries to convert the raw `action` to an enum.
@@ -853,7 +853,7 @@ impl MboMsg {
     /// contain a valid [`Action`](crate::enums::Action).
     pub fn action(&self) -> crate::error::Result<Action> {
         Action::try_from(self.action as u8)
-            .map_err(|_| ConversionError::TypeConversion("Invalid action"))
+            .map_err(|_| Error::conversion::<Action>(format!("{:#02X}", self.action as u8)))
     }
 }
 
@@ -864,7 +864,8 @@ impl TradeMsg {
     /// This function returns an error if the `side` field does not
     /// contain a valid [`Side`](crate::enums::Side).
     pub fn side(&self) -> crate::error::Result<Side> {
-        Side::try_from(self.side as u8).map_err(|_| ConversionError::TypeConversion("Invalid side"))
+        Side::try_from(self.side as u8)
+            .map_err(|_| Error::conversion::<Side>(format!("{:#02X}", self.side as u8)))
     }
 
     /// Tries to convert the raw `action` to an enum.
@@ -874,7 +875,7 @@ impl TradeMsg {
     /// contain a valid [`Action`](crate::enums::Action).
     pub fn action(&self) -> crate::error::Result<Action> {
         Action::try_from(self.action as u8)
-            .map_err(|_| ConversionError::TypeConversion("Invalid action"))
+            .map_err(|_| Error::conversion::<Action>(format!("{:#02X}", self.action as u8)))
     }
 }
 
@@ -885,7 +886,8 @@ impl Mbp1Msg {
     /// This function returns an error if the `side` field does not
     /// contain a valid [`Side`](crate::enums::Side).
     pub fn side(&self) -> crate::error::Result<Side> {
-        Side::try_from(self.side as u8).map_err(|_| ConversionError::TypeConversion("Invalid side"))
+        Side::try_from(self.side as u8)
+            .map_err(|_| Error::conversion::<Side>(format!("{:#02X}", self.side as u8)))
     }
 
     /// Tries to convert the raw `action` to an enum.
@@ -895,7 +897,7 @@ impl Mbp1Msg {
     /// contain a valid [`Action`](crate::enums::Action).
     pub fn action(&self) -> crate::error::Result<Action> {
         Action::try_from(self.action as u8)
-            .map_err(|_| ConversionError::TypeConversion("Invalid action"))
+            .map_err(|_| Error::conversion::<Action>(format!("{:#02X}", self.action as u8)))
     }
 }
 
@@ -905,8 +907,9 @@ impl Mbp10Msg {
     /// # Errors
     /// This function returns an error if the `side` field does not
     /// contain a valid [`Side`](crate::enums::Side).
-    pub fn side(&self) -> crate::error::Result<Side> {
-        Side::try_from(self.side as u8).map_err(|_| ConversionError::TypeConversion("Invalid side"))
+    pub fn side(&self) -> Result<Side> {
+        Side::try_from(self.side as u8)
+            .map_err(|_| Error::conversion::<Side>(format!("{:#02X}", self.side as u8)))
     }
 
     /// Tries to convert the raw `action` to an enum.
@@ -914,9 +917,9 @@ impl Mbp10Msg {
     /// # Errors
     /// This function returns an error if the `action` field does not
     /// contain a valid [`Action`](crate::enums::Action).
-    pub fn action(&self) -> crate::error::Result<Action> {
+    pub fn action(&self) -> Result<Action> {
         Action::try_from(self.action as u8)
-            .map_err(|_| ConversionError::TypeConversion("Invalid action"))
+            .map_err(|_| Error::conversion::<Action>(format!("{:#02X}", self.action as u8)))
     }
 }
 
@@ -925,7 +928,7 @@ impl StatusMsg {
     ///
     /// # Errors
     /// This function returns an error if `group` contains invalid UTF-8.
-    pub fn group(&self) -> Result<&str, Utf8Error> {
+    pub fn group(&self) -> Result<&str> {
         c_chars_to_str(&self.group)
     }
 }
@@ -935,7 +938,7 @@ impl InstrumentDefMsg {
     ///
     /// # Errors
     /// This function returns an error if `currency` contains invalid UTF-8.
-    pub fn currency(&self) -> Result<&str, Utf8Error> {
+    pub fn currency(&self) -> Result<&str> {
         c_chars_to_str(&self.currency)
     }
 
@@ -943,7 +946,7 @@ impl InstrumentDefMsg {
     ///
     /// # Errors
     /// This function returns an error if `settl_currency` contains invalid UTF-8.
-    pub fn settl_currency(&self) -> Result<&str, Utf8Error> {
+    pub fn settl_currency(&self) -> Result<&str> {
         c_chars_to_str(&self.settl_currency)
     }
 
@@ -951,7 +954,7 @@ impl InstrumentDefMsg {
     ///
     /// # Errors
     /// This function returns an error if `secsubtype` contains invalid UTF-8.
-    pub fn secsubtype(&self) -> Result<&str, Utf8Error> {
+    pub fn secsubtype(&self) -> Result<&str> {
         c_chars_to_str(&self.secsubtype)
     }
 
@@ -959,7 +962,7 @@ impl InstrumentDefMsg {
     ///
     /// # Errors
     /// This function returns an error if `raw_symbol` contains invalid UTF-8.
-    pub fn raw_symbol(&self) -> Result<&str, Utf8Error> {
+    pub fn raw_symbol(&self) -> Result<&str> {
         c_chars_to_str(&self.raw_symbol)
     }
 
@@ -967,7 +970,7 @@ impl InstrumentDefMsg {
     ///
     /// # Errors
     /// This function returns an error if `exchange` contains invalid UTF-8.
-    pub fn exchange(&self) -> Result<&str, Utf8Error> {
+    pub fn exchange(&self) -> Result<&str> {
         c_chars_to_str(&self.exchange)
     }
 
@@ -975,7 +978,7 @@ impl InstrumentDefMsg {
     ///
     /// # Errors
     /// This function returns an error if `asset` contains invalid UTF-8.
-    pub fn asset(&self) -> Result<&str, Utf8Error> {
+    pub fn asset(&self) -> Result<&str> {
         c_chars_to_str(&self.asset)
     }
 
@@ -983,7 +986,7 @@ impl InstrumentDefMsg {
     ///
     /// # Errors
     /// This function returns an error if `cfi` contains invalid UTF-8.
-    pub fn cfi(&self) -> Result<&str, Utf8Error> {
+    pub fn cfi(&self) -> Result<&str> {
         c_chars_to_str(&self.cfi)
     }
 
@@ -991,7 +994,7 @@ impl InstrumentDefMsg {
     ///
     /// # Errors
     /// This function returns an error if `security_type` contains invalid UTF-8.
-    pub fn security_type(&self) -> Result<&str, Utf8Error> {
+    pub fn security_type(&self) -> Result<&str> {
         c_chars_to_str(&self.security_type)
     }
 
@@ -999,7 +1002,7 @@ impl InstrumentDefMsg {
     ///
     /// # Errors
     /// This function returns an error if `unit_of_measure` contains invalid UTF-8.
-    pub fn unit_of_measure(&self) -> Result<&str, Utf8Error> {
+    pub fn unit_of_measure(&self) -> Result<&str> {
         c_chars_to_str(&self.unit_of_measure)
     }
 
@@ -1007,7 +1010,7 @@ impl InstrumentDefMsg {
     ///
     /// # Errors
     /// This function returns an error if `underlying` contains invalid UTF-8.
-    pub fn underlying(&self) -> Result<&str, Utf8Error> {
+    pub fn underlying(&self) -> Result<&str> {
         c_chars_to_str(&self.underlying)
     }
 
@@ -1015,7 +1018,7 @@ impl InstrumentDefMsg {
     ///
     /// # Errors
     /// This function returns an error if `strike_price_currency` contains invalid UTF-8.
-    pub fn strike_price_currency(&self) -> Result<&str, Utf8Error> {
+    pub fn strike_price_currency(&self) -> Result<&str> {
         c_chars_to_str(&self.strike_price_currency)
     }
 
@@ -1023,7 +1026,7 @@ impl InstrumentDefMsg {
     ///
     /// # Errors
     /// This function returns an error if `group` contains invalid UTF-8.
-    pub fn group(&self) -> Result<&str, Utf8Error> {
+    pub fn group(&self) -> Result<&str> {
         c_chars_to_str(&self.group)
     }
 
@@ -1032,9 +1035,10 @@ impl InstrumentDefMsg {
     /// # Errors
     /// This function returns an error if the `instrument_class` field does not
     /// contain a valid [`InstrumentClass`](crate::enums::InstrumentClass).
-    pub fn instrument_class(&self) -> crate::error::Result<InstrumentClass> {
-        InstrumentClass::try_from(self.instrument_class as u8)
-            .map_err(|_| ConversionError::TypeConversion("Invalid instrument_class"))
+    pub fn instrument_class(&self) -> Result<InstrumentClass> {
+        InstrumentClass::try_from(self.instrument_class as u8).map_err(|_| {
+            Error::conversion::<InstrumentClass>(format!("{:#02X}", self.instrument_class as u8))
+        })
     }
 
     /// Tries to convert the raw `match_algorithm` to an enum.
@@ -1042,9 +1046,10 @@ impl InstrumentDefMsg {
     /// # Errors
     /// This function returns an error if the `match_algorithm` field does not
     /// contain a valid [`MatchAlgorithm`](crate::enums::MatchAlgorithm).
-    pub fn match_algorithm(&self) -> crate::error::Result<MatchAlgorithm> {
-        MatchAlgorithm::try_from(self.match_algorithm as u8)
-            .map_err(|_| ConversionError::TypeConversion("Invalid match_algorithm"))
+    pub fn match_algorithm(&self) -> Result<MatchAlgorithm> {
+        MatchAlgorithm::try_from(self.match_algorithm as u8).map_err(|_| {
+            Error::conversion::<MatchAlgorithm>(format!("{:#02X}", self.match_algorithm as u8))
+        })
     }
 }
 
@@ -1054,9 +1059,9 @@ impl StatMsg {
     /// # Errors
     /// This function returns an error if the `stat_type` field does not
     /// contain a valid [`StatType`](crate::enums::StatType).
-    pub fn stat_type(&self) -> crate::error::Result<StatType> {
+    pub fn stat_type(&self) -> Result<StatType> {
         StatType::try_from(self.stat_type)
-            .map_err(|_| ConversionError::TypeConversion("Invalid stat_type"))
+            .map_err(|_| Error::conversion::<StatType>(format!("{:02X}", self.stat_type)))
     }
 
     /// Tries to convert the raw `update_action` to an enum.
@@ -1064,9 +1069,10 @@ impl StatMsg {
     /// # Errors
     /// This function returns an error if the `update_action` field does not
     /// contain a valid [`StatUpdateAction`](crate::enums::StatUpdateAction).
-    pub fn update_action(&self) -> crate::error::Result<StatUpdateAction> {
-        StatUpdateAction::try_from(self.update_action)
-            .map_err(|_| ConversionError::TypeConversion("Invalid update_action"))
+    pub fn update_action(&self) -> Result<StatUpdateAction> {
+        StatUpdateAction::try_from(self.update_action).map_err(|_| {
+            Error::conversion::<StatUpdateAction>(format!("{:02X}", self.update_action))
+        })
     }
 }
 
@@ -1091,9 +1097,8 @@ impl ErrorMsg {
     ///
     /// # Errors
     /// This function returns an error if `err` contains invalid UTF-8.
-    pub fn err(&self) -> Result<&str, Utf8Error> {
-        // Safety: a pointer to `self.err` will always be valid
-        unsafe { CStr::from_ptr(&self.err as *const c_char).to_str() }
+    pub fn err(&self) -> Result<&str> {
+        c_chars_to_str(&self.err)
     }
 }
 
@@ -1102,7 +1107,7 @@ impl SymbolMappingMsg {
     ///
     /// # Errors
     /// This function returns an error if `stype_in_symbol` contains invalid UTF-8.
-    pub fn stype_in_symbol(&self) -> Result<&str, Utf8Error> {
+    pub fn stype_in_symbol(&self) -> Result<&str> {
         c_chars_to_str(&self.stype_in_symbol)
     }
 
@@ -1110,7 +1115,7 @@ impl SymbolMappingMsg {
     ///
     /// # Errors
     /// This function returns an error if `stype_out_symbol` contains invalid UTF-8.
-    pub fn stype_out_symbol(&self) -> Result<&str, Utf8Error> {
+    pub fn stype_out_symbol(&self) -> Result<&str> {
         c_chars_to_str(&self.stype_out_symbol)
     }
 }
@@ -1122,7 +1127,7 @@ impl SystemMsg {
     ///
     /// # Errors
     /// This function returns an error if `msg` is too long.
-    pub fn new(ts_event: u64, msg: &str) -> anyhow::Result<Self> {
+    pub fn new(ts_event: u64, msg: &str) -> Result<Self> {
         Ok(Self {
             hd: RecordHeader::new::<Self>(rtype::SYSTEM, 0, 0, ts_event),
             msg: str_to_c_chars(msg)?,
@@ -1148,7 +1153,7 @@ impl SystemMsg {
     ///
     /// # Errors
     /// This function returns an error if `msg` contains invalid UTF-8.
-    pub fn msg(&self) -> Result<&str, Utf8Error> {
+    pub fn msg(&self) -> Result<&str> {
         c_chars_to_str(&self.msg)
     }
 }
@@ -1293,13 +1298,13 @@ pub unsafe fn transmute_record_mut<T: HasRType>(header: &mut RecordHeader) -> Op
 /// # Errors
 /// This function returns an error if `s` contains more than N - 1 characters. The last
 /// character is reserved for the null byte.
-pub fn str_to_c_chars<const N: usize>(s: &str) -> anyhow::Result<[c_char; N]> {
+pub fn str_to_c_chars<const N: usize>(s: &str) -> Result<[c_char; N]> {
     if s.len() > (N - 1) {
-        return Err(anyhow!(
+        return Err(Error::encode(format!(
             "String cannot be longer than {}; received str of length {}",
             N - 1,
-            s.len()
-        ));
+            s.len(),
+        )));
     }
     let mut res = [0; N];
     for (i, byte) in s.as_bytes().iter().enumerate() {
@@ -1318,9 +1323,10 @@ pub fn str_to_c_chars<const N: usize>(s: &str) -> anyhow::Result<[c_char; N]> {
 ///
 /// # Errors
 /// This function returns an error if `chars` contains invalid UTF-8.
-pub fn c_chars_to_str<const N: usize>(chars: &[c_char; N]) -> Result<&str, Utf8Error> {
+pub fn c_chars_to_str<const N: usize>(chars: &[c_char; N]) -> Result<&str> {
     let cstr = unsafe { CStr::from_ptr(chars.as_ptr()) };
     cstr.to_str()
+        .map_err(|e| Error::utf8(e, format!("converting c_char array: {chars:?}")))
 }
 
 #[cfg(test)]

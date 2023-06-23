@@ -20,7 +20,7 @@ fn write_dbn<R: io::BufRead>(decoder: DynDecoder<R>, args: &Args) -> anyhow::Res
             args.should_pretty_print,
             args.should_pretty_print,
         )
-        .encode_metadata(decoder.metadata())
+        .encode_metadata(decoder.metadata())?;
     } else if let Some(limit) = args.limit {
         let mut metadata = decoder.metadata().clone();
         // Update metadata
@@ -34,7 +34,7 @@ fn write_dbn<R: io::BufRead>(decoder: DynDecoder<R>, args: &Args) -> anyhow::Res
             args.should_pretty_print,
             args.should_pretty_print,
         )?
-        .encode_decoded_with_limit(decoder, limit)
+        .encode_decoded_with_limit(decoder, limit)?;
     } else {
         DynEncoder::new(
             writer,
@@ -45,8 +45,9 @@ fn write_dbn<R: io::BufRead>(decoder: DynDecoder<R>, args: &Args) -> anyhow::Res
             args.should_pretty_print,
             args.should_pretty_print,
         )?
-        .encode_decoded(decoder)
+        .encode_decoded(decoder)?;
     }
+    Ok(())
 }
 
 fn write_dbn_frag<R: io::Read>(

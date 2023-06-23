@@ -11,7 +11,6 @@ pub mod dbn;
     )
 )]
 pub mod dbz;
-mod error_utils;
 mod stream;
 mod zstd;
 
@@ -28,8 +27,6 @@ use std::{
     path::Path,
 };
 
-use anyhow::{anyhow, Context};
-
 use crate::{
     enums::Compression,
     record::HasRType,
@@ -43,40 +40,48 @@ pub trait DecodeDbn: private::BufferSlice {
     /// Returns a reference to the decoded [`Metadata`].
     fn metadata(&self) -> &Metadata;
 
-    /// Tries to decode a reference to a single record of type `T`. Returns
-    /// `Ok(None)` if the input has been exhausted.
+    /// Tries to decode a reference to a single record of type `T`. Returns `Ok(None)`
+    /// if the input has been exhausted.
     ///
     /// # Errors
-    /// This function returns an error if the underlying reader returns an
-    /// error of a kind other than `io::ErrorKind::UnexpectedEof` upon reading.
+    /// This function returns an error if the underlying reader returns an error of a
+    /// kind other than `io::ErrorKind::UnexpectedEof` upon reading.
     ///
-    /// If the next record is of a different type than `T`,
-    /// `io::ErrorKind::InvalidData` will be returned.
-    fn decode_record<T: HasRType>(&mut self) -> io::Result<Option<&T>>;
+    /// If the next record is of a different type than `T`, an
+    /// [`Error::Conversion`](crate::Error::Conversion) will be returned.
+    ///
+    /// If the `length` property of the record is invalid, an
+    /// [`Error::Decode`](crate::Error::Decode) will be returned.
+    fn decode_record<T: HasRType>(&mut self) -> crate::Result<Option<&T>>;
 
     /// Tries to decode a generic reference a record.
     ///
     /// # Errors
-    /// This function returns an error if the underlying reader returns an
-    /// error of a kind other than `io::ErrorKind::UnexpectedEof` upon reading.
-    fn decode_record_ref(&mut self) -> io::Result<Option<RecordRef>>;
+    /// This function returns an error if the underlying reader returns an error of a
+    /// kind other than `io::ErrorKind::UnexpectedEof` upon reading.
+    ///
+    /// If the `length` property of the record is invalid, an
+    /// [`Error::Decode`](crate::Error::Decode) will be returned.
+    fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef>>;
 
     /// Tries to convert the decoder into a streaming iterator. This lazily decodes the
     /// data.
-    ///
-    /// # Errors
-    /// This function returns an error if schema of the data being decoded doesn't
-    /// correspond with `T`.
-    fn decode_stream<T: HasRType>(self) -> anyhow::Result<StreamIterDecoder<Self, T>>
+    fn decode_stream<T: HasRType>(self) -> StreamIterDecoder<Self, T>
     where
         Self: Sized;
 
     /// Tries to decode all records into a `Vec`. This eagerly decodes the data.
     ///
     /// # Errors
-    /// This function returns an error if schema of the data being decoded doesn't
-    /// correspond with `T`.
-    fn decode_records<T: HasRType + Clone>(mut self) -> anyhow::Result<Vec<T>>
+    /// This function returns an error if the underlying reader returns an error of a
+    /// kind other than `io::ErrorKind::UnexpectedEof` upon reading.
+    ///
+    /// If any of the records is of a different type than `T`, an
+    /// [`Error::Conversion`](crate::Error::Conversion) will be returned.
+    ///
+    /// If the `length` property of any of the records is invalid, a
+    /// [`Error::Decode`](crate::Error::Decode) will be returned.
+    fn decode_records<T: HasRType + Clone>(mut self) -> crate::Result<Vec<T>>
     where
         Self: Sized,
     {
@@ -113,7 +118,7 @@ where
     ///
     /// # Errors
     /// This function will return an error if it fails to parse the metadata.
-    pub fn new(reader: R, compression: Compression) -> anyhow::Result<Self> {
+    pub fn new(reader: R, compression: Compression) -> crate::Result<Self> {
         Self::with_buffer(BufReader::new(reader), compression)
     }
 
@@ -124,7 +129,7 @@ where
     /// # Errors
     /// This function will return an error if it is unable to determine
     /// the encoding of `reader` or it fails to parse the metadata.
-    pub fn new_inferred(reader: R) -> anyhow::Result<Self> {
+    pub fn new_inferred(reader: R) -> crate::Result<Self> {
         Self::inferred_with_buffer(BufReader::new(reader))
     }
 }
@@ -139,7 +144,7 @@ where
     /// # Errors
     /// This function will return an error if it is unable to determine
     /// the encoding of `reader` or it fails to parse the metadata.
-    pub fn with_buffer(reader: R, compression: Compression) -> anyhow::Result<Self> {
+    pub fn with_buffer(reader: R, compression: Compression) -> crate::Result<Self> {
         match compression {
             Compression::None => Ok(Self(DynDecoderImpl::Dbn(dbn::Decoder::new(reader)?))),
             Compression::ZStd => Ok(Self(DynDecoderImpl::ZstdDbn(
@@ -154,10 +159,10 @@ where
     /// # Errors
     /// This function will return an error if it is unable to determine
     /// the encoding of `reader` or it fails to parse the metadata.
-    pub fn inferred_with_buffer(mut reader: R) -> anyhow::Result<Self> {
+    pub fn inferred_with_buffer(mut reader: R) -> crate::Result<Self> {
         let first_bytes = reader
             .fill_buf()
-            .context("Failed to read bytes to determine encoding")?;
+            .map_err(|e| crate::Error::io(e, "creating buffer to infer encoding"))?;
         #[allow(deprecated)]
         if dbz::starts_with_prefix(first_bytes) {
             Ok(Self(DynDecoderImpl::LegacyDbz(dbz::Decoder::new(reader)?)))
@@ -168,7 +173,7 @@ where
                 dbn::Decoder::with_zstd_buffer(reader)?,
             )))
         } else {
-            Err(anyhow!("Unable to determine encoding"))
+            Err(crate::Error::decode("Unable to determine encoding"))
         }
     }
 }
@@ -179,11 +184,14 @@ impl<'a> DynDecoder<'a, BufReader<File>> {
     /// # Errors
     /// This function will return an error if the file doesn't exist, it is unable to
     /// determine the encoding of the file or it fails to parse the metadata.
-    pub fn from_file(path: impl AsRef<Path>) -> anyhow::Result<Self> {
-        let file = File::open(path.as_ref()).with_context(|| {
-            format!(
-                "Error opening file to decode at path '{}'",
-                path.as_ref().display()
+    pub fn from_file(path: impl AsRef<Path>) -> crate::Result<Self> {
+        let file = File::open(path.as_ref()).map_err(|e| {
+            crate::Error::io(
+                e,
+                format!(
+                    "Error opening file to decode at path '{}'",
+                    path.as_ref().display()
+                ),
             )
         })?;
         DynDecoder::new_inferred(file)
@@ -203,7 +211,7 @@ where
         }
     }
 
-    fn decode_record_ref(&mut self) -> io::Result<Option<RecordRef>> {
+    fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef>> {
         match &mut self.0 {
             DynDecoderImpl::Dbn(decoder) => decoder.decode_record_ref(),
             DynDecoderImpl::ZstdDbn(decoder) => decoder.decode_record_ref(),
@@ -211,7 +219,7 @@ where
         }
     }
 
-    fn decode_record<T: HasRType>(&mut self) -> io::Result<Option<&T>> {
+    fn decode_record<T: HasRType>(&mut self) -> crate::Result<Option<&T>> {
         match &mut self.0 {
             DynDecoderImpl::Dbn(decoder) => decoder.decode_record(),
             DynDecoderImpl::ZstdDbn(decoder) => decoder.decode_record(),
@@ -219,11 +227,11 @@ where
         }
     }
 
-    fn decode_stream<T: HasRType>(self) -> anyhow::Result<StreamIterDecoder<Self, T>>
+    fn decode_stream<T: HasRType>(self) -> StreamIterDecoder<Self, T>
     where
         Self: Sized,
     {
-        Ok(StreamIterDecoder::new(self))
+        StreamIterDecoder::new(self)
     }
 }
 

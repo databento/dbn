@@ -249,7 +249,6 @@ dependencies = [
 name = "dbn"
 version = "0.7.1"
 dependencies = [
- "anyhow",
  "async-compression",
  "csv",
  "dbn-macros",
@@ -259,6 +258,7 @@ dependencies = [
  "serde",
  "streaming-iterator",
  "strum",
+ "thiserror",
  "time",
  "tokio",
  "zstd 0.12.3+zstd.1.5.2",
@@ -925,6 +925,26 @@ name = "termtree"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3369f5ac52d5eb6ab48c6b4ffdc8efbcad6b89c765749064ba298f2c68a16a76"
+
+[[package]]
+name = "thiserror"
+version = "1.0.40"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "978c9a314bd8dc99be594bc3c175faaa9794be04a5a5e153caba6915336cebac"
+dependencies = [
+ "thiserror-impl",
+]
+
+[[package]]
+name = "thiserror-impl"
+version = "1.0.40"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f9456a42c5b0d803c8cd86e73dd7cc9edd429499f37a3550d286d5e86720569f"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.18",
+]
 
 [[package]]
 name = "time"

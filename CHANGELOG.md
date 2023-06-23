@@ -1,6 +1,8 @@
 # Changelog
 
-# 0.8.0
+## 0.8.0 - TBD
+- Switched from `anyhow::Error` to custom `dbn::Error` for all public fallible functions
+  and methods. This should make it easier to disambiguate between error types.
 - Updated serialization order to serialize `ts_recv` and `ts_event` first
 - Updated `MboMsg` serialization order to serialize `action`, `side`, and `channel_id`
   earlier given their importance
