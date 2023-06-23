@@ -51,7 +51,7 @@ jobs:
           echo "TAG_NAME=v$(scripts/get_version.sh)" >> $GITHUB_ENV
           echo "RELEASE_NAME=$(scripts/get_version.sh)" >> $GITHUB_ENV
           echo "## Release notes" > NOTES.md
-          sed -n '4,/^$/p' CHANGELOG.md >> NOTES.md
+          sed -n '/^## /{n; :a; /^## /q; p; n; ba}' CHANGELOG.md >> NOTES.md
 
       # Create GitHub release
       - name: Create release
