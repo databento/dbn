@@ -404,7 +404,7 @@ impl SType {
     #[pyo3(name = "from_str")]
     fn py_from_str(_: &PyType, data: &PyAny) -> PyResult<Self> {
         let data_str: &str = data.str().and_then(|s| s.extract())?;
-        let tokenized = data_str.replace('_', "-").to_lowercase();
+        let tokenized = data_str.replace('-', "_").to_lowercase();
         Self::from_str(&tokenized).map_err(to_val_err)
     }
 }
