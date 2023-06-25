@@ -1,6 +1,7 @@
 # ruff: noqa: PYI021 PYI053
 from __future__ import annotations
 
+from collections.abc import Iterable
 from collections.abc import Sequence
 from enum import Enum
 from typing import (
@@ -43,6 +44,9 @@ class Compression(Enum):
     @classmethod
     def from_str(cls, str) -> Compression: ...
 
+    @classmethod
+    def variants(cls) -> Iterable[Compression]: ...
+
 class Encoding(Enum):
     """
     Data output encoding.
@@ -62,6 +66,9 @@ class Encoding(Enum):
 
     @classmethod
     def from_str(cls, str) -> Encoding: ...
+
+    @classmethod
+    def variants(cls) -> Iterable[Compression]: ...
 
 class Schema(Enum):
     """
@@ -112,6 +119,10 @@ class Schema(Enum):
     @classmethod
     def from_str(cls, str) -> Schema: ...
 
+    @classmethod
+    def variants(cls) -> Iterable[Schema]: ...
+
+
 class SType(Enum):
     """
     A DBN symbology type.
@@ -137,6 +148,9 @@ class SType(Enum):
 
     @classmethod
     def from_str(cls, str) -> SType: ...
+
+    @classmethod
+    def variants(cls) -> Iterable[SType]: ...
 
 class Metadata(SupportsBytes):
     """
@@ -325,7 +339,9 @@ class Metadata(SupportsBytes):
         """
 
 class RecordHeader:
-    """DBN Record Header."""
+    """
+    DBN Record Header.
+    """
 
     @property
     def length(self) -> int:
@@ -380,7 +396,9 @@ class RecordHeader:
         """
 
 class Record(SupportsBytes):
-    """Base class for DBN records."""
+    """
+    Base class for DBN records.
+    """
 
     def __bytes__(self) -> bytes: ...
     def __eq__(self, other) -> bool: ...
@@ -467,8 +485,8 @@ class Record(SupportsBytes):
     @property
     def ts_out(self) -> int | None:
         """
-        The live gateway send timestamp expressed as number of nanoseconds since
-        the UNIX epoch.
+        The live gateway send timestamp expressed as number of nanoseconds
+        since the UNIX epoch.
 
         Returns
         -------
@@ -477,7 +495,9 @@ class Record(SupportsBytes):
         """
 
 class _MBOBase:
-    """Base for market-by-order messages."""
+    """
+    Base for market-by-order messages.
+    """
 
     @property
     def order_id(self) -> int:
@@ -584,10 +604,14 @@ class _MBOBase:
         """
 
 class MBOMsg(Record, _MBOBase):
-    """A market-by-order (MBO) tick message."""
+    """
+    A market-by-order (MBO) tick message.
+    """
 
 class BidAskPair:
-    """A book level."""
+    """
+    A book level.
+    """
 
     @property
     def bid_px(self) -> int:
@@ -651,7 +675,9 @@ class BidAskPair:
         """
 
 class _MBPBase:
-    """Base for market-by-price messages."""
+    """
+    Base for market-by-price messages.
+    """
 
     @property
     def price(self) -> int:
@@ -756,7 +782,9 @@ class TradeMsg(Record, _MBPBase):
     """
 
 class MBP1Msg(Record, _MBPBase):
-    """Market by price implementation with a known book depth of 1."""
+    """
+    Market by price implementation with a known book depth of 1.
+    """
 
     @property
     def levels(self) -> list[BidAskPair]:
@@ -774,7 +802,9 @@ class MBP1Msg(Record, _MBPBase):
         """
 
 class MBP10Msg(Record, _MBPBase):
-    """Market by price implementation with a known book depth of 10."""
+    """
+    Market by price implementation with a known book depth of 10.
+    """
 
     @property
     def levels(self) -> list[BidAskPair]:
@@ -792,7 +822,9 @@ class MBP10Msg(Record, _MBPBase):
         """
 
 class OHLCVMsg(Record):
-    """Open, high, low, close, and volume message."""
+    """
+    Open, high, low, close, and volume message.
+    """
 
     @property
     def open(self) -> int:
@@ -846,7 +878,9 @@ class OHLCVMsg(Record):
         """
 
 class InstrumentDefMsg(Record):
-    """Definition of an instrument."""
+    """
+    Definition of an instrument.
+    """
 
     @property
     def ts_recv(self) -> int:
@@ -1460,7 +1494,9 @@ class InstrumentDefMsg(Record):
         """
 
 class ImbalanceMsg(Record):
-    """An auction imbalance message."""
+    """
+    An auction imbalance message.
+    """
 
     @property
     def ts_recv(self) -> int:
@@ -1764,8 +1800,8 @@ class StatMsg(Record):
     @property
     def update_action(self) -> int:
         """
-        Indicates if the statistic is newly added (1) or deleted (2). (Deleted is only
-        used with some stat types)
+        Indicates if the statistic is newly added (1) or deleted (2). (Deleted
+        is only used with some stat types)
 
         Returns
         -------
@@ -1784,7 +1820,9 @@ class StatMsg(Record):
         """
 
 class ErrorMsg(Record):
-    """An error message from the Databento Live Subscription Gateway (LSG)."""
+    """
+    An error message from the Databento Live Subscription Gateway (LSG).
+    """
 
     @property
     def err(self) -> str:
@@ -1876,7 +1914,9 @@ class SystemMsg(Record):
         """
 
 class DBNDecoder:
-    """A class for decoding DBN data to Python objects."""
+    """
+    A class for decoding DBN data to Python objects.
+    """
 
     def buffer(self) -> bytes:
         """
