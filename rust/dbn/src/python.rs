@@ -9,7 +9,9 @@ use pyo3::{
     prelude::*,
     pyclass::CompareOp,
     types::{PyBytes, PyDate, PyDateAccess, PyDict, PyType},
+    PyTypeInfo,
 };
+use strum::IntoEnumIterator;
 use time::Date;
 
 use crate::{
@@ -232,69 +234,222 @@ impl IntoPy<PyObject> for UserDefinedInstrument {
 
 #[pymethods]
 impl Compression {
+    #[new]
+    fn py_new(py: Python<'_>, value: &PyAny) -> PyResult<Self> {
+        let t = Self::type_object(py);
+        Self::py_from_str(t, value)
+    }
+
+    fn __hash__(&self) -> isize {
+        *self as isize
+    }
+
     fn __str__(&self) -> &'static str {
         self.as_str()
     }
 
     fn __repr__(&self) -> String {
-        format!("{self:?}")
+        format!("<Compression.{}: '{}'>", self.name(), self.value(),)
+    }
+
+    fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        let Ok(other_enum) = Self::py_from_str(Self::type_object(py), other) else {
+            return py.NotImplemented();
+        };
+        match op {
+            CompareOp::Eq => self.eq(&other_enum).into_py(py),
+            CompareOp::Ne => self.ne(&other_enum).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
+    #[getter]
+    fn name(&self) -> String {
+        self.as_str().to_uppercase()
+    }
+
+    #[getter]
+    fn value(&self) -> &'static str {
+        self.as_str()
+    }
+
+    // No metaclass support with pyo3, so `for c in Compression: ...` isn't possible
+    #[classmethod]
+    fn variants(_: &PyType, py: Python<'_>) -> EnumIterator {
+        EnumIterator::new::<Self>(py)
     }
 
     #[classmethod]
     #[pyo3(name = "from_str")]
-    fn py_from_str(_: &PyType, s: &str) -> PyResult<Self> {
-        Self::from_str(s).map_err(to_val_err)
+    fn py_from_str(_: &PyType, data: &PyAny) -> PyResult<Self> {
+        let data_str: &str = data.str().and_then(|s| s.extract())?;
+        let tokenized = data_str.to_lowercase();
+        Self::from_str(&tokenized).map_err(to_val_err)
     }
 }
 
 #[pymethods]
 impl Encoding {
+    #[new]
+    fn py_new(py: Python<'_>, value: &PyAny) -> PyResult<Self> {
+        let t = Self::type_object(py);
+        Self::py_from_str(t, value)
+    }
+
+    fn __hash__(&self) -> isize {
+        *self as isize
+    }
+
     fn __str__(&self) -> &'static str {
         self.as_str()
     }
 
     fn __repr__(&self) -> String {
-        format!("{self:?}")
+        format!("<Encoding.{}: '{}'>", self.name(), self.value(),)
+    }
+
+    fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        let Ok(other_enum) = Self::py_from_str(Self::type_object(py), other) else {
+            return py.NotImplemented();
+        };
+        match op {
+            CompareOp::Eq => self.eq(&other_enum).into_py(py),
+            CompareOp::Ne => self.ne(&other_enum).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
+    #[getter]
+    fn name(&self) -> String {
+        self.as_str().to_uppercase()
+    }
+
+    #[getter]
+    fn value(&self) -> &'static str {
+        self.as_str()
+    }
+
+    #[classmethod]
+    fn variants(_: &PyType, py: Python<'_>) -> EnumIterator {
+        EnumIterator::new::<Self>(py)
     }
 
     #[classmethod]
     #[pyo3(name = "from_str")]
-    fn py_from_str(_: &PyType, s: &str) -> PyResult<Self> {
-        Self::from_str(s).map_err(to_val_err)
+    fn py_from_str(_: &PyType, data: &PyAny) -> PyResult<Self> {
+        let data_str: &str = data.str().and_then(|s| s.extract())?;
+        let tokenized = data_str.to_lowercase();
+        Self::from_str(&tokenized).map_err(to_val_err)
     }
 }
 
 #[pymethods]
 impl Schema {
+    #[new]
+    fn py_new(py: Python<'_>, value: &PyAny) -> PyResult<Self> {
+        let t = Self::type_object(py);
+        Self::py_from_str(t, value)
+    }
+
+    fn __hash__(&self) -> isize {
+        *self as isize
+    }
+
     fn __str__(&self) -> &'static str {
         self.as_str()
     }
 
     fn __repr__(&self) -> String {
-        format!("{self:?}")
+        format!("<Schema.{}: '{}'>", self.name(), self.value(),)
+    }
+
+    fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        let Ok(other_enum) = Self::py_from_str(Self::type_object(py), other) else {
+            return py.NotImplemented();
+        };
+        match op {
+            CompareOp::Eq => self.eq(&other_enum).into_py(py),
+            CompareOp::Ne => self.ne(&other_enum).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
+    #[getter]
+    fn name(&self) -> String {
+        self.as_str().to_uppercase()
+    }
+
+    #[getter]
+    fn value(&self) -> &'static str {
+        self.as_str()
+    }
+
+    #[classmethod]
+    fn variants(_: &PyType, py: Python<'_>) -> EnumIterator {
+        EnumIterator::new::<Self>(py)
     }
 
     #[classmethod]
     #[pyo3(name = "from_str")]
-    fn py_from_str(_: &PyType, s: &str) -> PyResult<Self> {
-        Self::from_str(s).map_err(to_val_err)
+    fn py_from_str(_: &PyType, data: &PyAny) -> PyResult<Self> {
+        let data_str: &str = data.str().and_then(|s| s.extract())?;
+        let tokenized = data_str.replace('_', "-").to_lowercase();
+        Self::from_str(&tokenized).map_err(to_val_err)
     }
 }
 
 #[pymethods]
 impl SType {
+    #[new]
+    fn py_new(py: Python<'_>, value: &PyAny) -> PyResult<Self> {
+        let t = Self::type_object(py);
+        Self::py_from_str(t, value)
+    }
+
+    fn __hash__(&self) -> isize {
+        *self as isize
+    }
+
     fn __str__(&self) -> &'static str {
         self.as_str()
     }
 
     fn __repr__(&self) -> String {
-        format!("{self:?}")
+        format!("<SType.{}: '{}'>", self.name(), self.value(),)
+    }
+
+    fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        let Ok(other_enum) = Self::py_from_str(Self::type_object(py), other) else {
+            return py.NotImplemented();
+        };
+        match op {
+            CompareOp::Eq => self.eq(&other_enum).into_py(py),
+            CompareOp::Ne => self.ne(&other_enum).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
+    #[getter]
+    fn name(&self) -> String {
+        self.as_str().to_uppercase()
+    }
+
+    #[getter]
+    fn value(&self) -> &'static str {
+        self.as_str()
+    }
+
+    #[classmethod]
+    fn variants(_: &PyType, py: Python<'_>) -> EnumIterator {
+        EnumIterator::new::<Self>(py)
     }
 
     #[classmethod]
     #[pyo3(name = "from_str")]
-    fn py_from_str(_: &PyType, s: &str) -> PyResult<Self> {
-        Self::from_str(s).map_err(to_val_err)
+    fn py_from_str(_: &PyType, data: &PyAny) -> PyResult<Self> {
+        let data_str: &str = data.str().and_then(|s| s.extract())?;
+        let tokenized = data_str.replace('-', "_").to_lowercase();
+        Self::from_str(&tokenized).map_err(to_val_err)
     }
 }
 
@@ -1547,5 +1702,41 @@ impl SystemMsg {
     #[pyo3(name = "is_heartbeat")]
     fn py_is_heartbeat(&self) -> bool {
         self.is_heartbeat()
+    }
+}
+
+/// Python iterator over the variants of an enum.
+#[pyclass(module = "databento_dbn")]
+pub struct EnumIterator {
+    // Type erasure for code reuse. Generic types can't be exposed to Python.
+    iter: Box<dyn Iterator<Item = PyObject> + Send>,
+}
+
+#[pymethods]
+impl EnumIterator {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<PyObject> {
+        slf.iter.next()
+    }
+}
+
+impl EnumIterator {
+    fn new<E>(py: Python<'_>) -> Self
+    where
+        E: strum::IntoEnumIterator + IntoPy<Py<PyAny>>,
+        <E as IntoEnumIterator>::Iterator: Send,
+    {
+        Self {
+            iter: Box::new(
+                E::iter()
+                    .map(|var| var.into_py(py))
+                    // force eager evaluation because `py` isn't `Send`
+                    .collect::<Vec<_>>()
+                    .into_iter(),
+            ),
+        }
     }
 }

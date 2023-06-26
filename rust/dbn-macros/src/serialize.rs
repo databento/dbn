@@ -1,5 +1,5 @@
 use proc_macro2::TokenStream;
-use quote::{quote, quote_spanned};
+use quote::quote;
 use syn::{parse_macro_input, Data, DeriveInput, Field, Ident, Meta};
 
 pub fn derive_csv_macro_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -32,10 +32,9 @@ pub fn derive_csv_macro_impl(input: proc_macro::TokenStream) -> proc_macro::Toke
             .into();
         }
     }
-    quote_spanned! {
-        ident.span() => compile_error!("Can only derive CsvSerialize for structs")
-    }
-    .into()
+    syn::Error::new(ident.span(), "Can only derive CsvSerialize for structs")
+        .into_compile_error()
+        .into()
 }
 
 pub fn derive_json_macro_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -59,10 +58,9 @@ pub fn derive_json_macro_impl(input: proc_macro::TokenStream) -> proc_macro::Tok
             .into();
         }
     }
-    quote_spanned! {
-        ident.span() => compile_error!("Can only derive JsonSerialize for structs")
-    }
-    .into()
+    syn::Error::new(ident.span(), "Can only derive JsonSerialize for structs")
+        .into_compile_error()
+        .into()
 }
 
 fn write_csv_header_token_stream(field: &Field) -> TokenStream {
@@ -99,10 +97,11 @@ fn write_csv_field_token_stream(field: &Field) -> TokenStream {
         } else if dbn_attr_id == "skip" {
             quote! {}
         } else {
-            quote_spanned! {
-                field.attrs.first().unwrap().bracket_token.span =>
-                compile_error!("Invalid attr {dbn_attr_id}")
-            }
+            syn::Error::new(
+                dbn_attr_id.span(),
+                format!("Invalid attr `{dbn_attr_id}` passed to `#[dbn]`"),
+            )
+            .into_compile_error()
         }
     } else {
         quote! {
@@ -133,10 +132,11 @@ fn write_json_field_token_stream(field: &Field) -> TokenStream {
         } else if dbn_attr_id == "skip" {
             quote! {}
         } else {
-            quote_spanned! {
-                field.attrs.first().unwrap().bracket_token.span =>
-                compile_error!("Invalid attr {dbn_attr_id}")
-            }
+            syn::Error::new(
+                dbn_attr_id.span(),
+                format!("Invalid attr `{dbn_attr_id}` passed to `#[dbn]`"),
+            )
+            .into_compile_error()
         }
     } else {
         quote! {
@@ -155,4 +155,38 @@ fn find_dbn_attr_id(field: &Field) -> Option<Ident> {
         }
         None
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use syn::FieldsNamed;
+
+    use super::*;
+
+    #[test]
+    fn test_skip_field() {
+        let input = quote!({
+                #[dbn(skip)]
+                pub b: bool,
+        });
+        let fields = syn::parse2::<FieldsNamed>(input).unwrap();
+        assert_eq!(fields.named.len(), 1);
+        let csv_generated = write_csv_field_token_stream(fields.named.first().unwrap());
+        let json_generated = write_json_field_token_stream(fields.named.first().unwrap());
+        assert!(csv_generated.is_empty());
+        assert!(json_generated.is_empty());
+    }
+
+    #[test]
+    fn test_skip_underscore_field() {
+        let input = quote!({
+                pub _a: bool,
+        });
+        let fields = syn::parse2::<FieldsNamed>(input).unwrap();
+        assert_eq!(fields.named.len(), 1);
+        let csv_generated = write_csv_field_token_stream(fields.named.first().unwrap());
+        let json_generated = write_json_field_token_stream(fields.named.first().unwrap());
+        assert!(csv_generated.is_empty());
+        assert!(json_generated.is_empty());
+    }
 }

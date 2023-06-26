@@ -1,7 +1,9 @@
 # ruff: noqa: PYI021 PYI053
 from __future__ import annotations
 
+from collections.abc import Iterable
 from collections.abc import Sequence
+from enum import Enum
 from typing import (
     Any,
     BinaryIO,
@@ -24,6 +26,132 @@ _DBNRecord = Union[
     SystemMsg,
     StatMsg,
 ]
+
+class Compression(Enum):
+    """
+    Data compression format.
+
+    NONE
+        Uncompressed
+    ZSTD
+        Zstandard compressed.
+
+    """
+
+    NONE: str
+    ZSTD: str
+
+    @classmethod
+    def from_str(cls, str) -> Compression: ...
+
+    @classmethod
+    def variants(cls) -> Iterable[Compression]: ...
+
+class Encoding(Enum):
+    """
+    Data output encoding.
+
+    DBN
+        Databento Binary Encoding.
+    CSV
+        Comma-separated values.
+    JSON
+        JavaScript object notation.
+
+    """
+
+    DBN: str
+    CSV: str
+    JSON: str
+
+    @classmethod
+    def from_str(cls, str) -> Encoding: ...
+
+    @classmethod
+    def variants(cls) -> Iterable[Compression]: ...
+
+class Schema(Enum):
+    """
+    A DBN record schema.
+
+    MBO
+        Market by order.
+    MBP_1
+        Market by price with a book depth of 1.
+    MBP_10
+        Market by price with a book depth of 10.
+    TBBO
+        All trade events with the best bid and offer (BBO) immediately before the effect of the trade.
+    TRADES
+        All trade events.
+    OHLCV_1S
+        Open, high, low, close, and volume at a one-second interval.
+    OHLCV_1M
+        Open, high, low, close, and volume at a one-minute interval.
+    OHLCV_1H
+        Open, high, low, close, and volume at an hourly interval.
+    OHLCV_1D
+        Open, high, low, close, and volume at a daily interval.
+    DEFINITION
+        Instrument definitions.
+    STATISTICS
+        Additional data disseminated by publishers.
+    STATUS
+        Exchange status.
+    IMBALANCE
+        Auction imbalance events.
+
+    """
+
+    MBO: str
+    MBP_1: str
+    MBP_10: str
+    TBBO: str
+    TRADES: str
+    OHLCV_1S: str
+    OHLCV_1M: str
+    OHLCV_1H: str
+    OHLCV_1D: str
+    DEFINITION: str
+    STATISTICS: str
+    STATUS: str
+    IMBALANCE: str
+
+    @classmethod
+    def from_str(cls, str) -> Schema: ...
+
+    @classmethod
+    def variants(cls) -> Iterable[Schema]: ...
+
+
+class SType(Enum):
+    """
+    A DBN symbology type.
+
+    INSTRUMENT_ID
+        Symbology using a unique numeric ID.
+    RAW_SYMBOL
+        Symbology using the original symbols provided by the publisher.
+    CONTINUOUS
+        A Databento-specific symbology where one symbol may point to different
+        instruments at different points of time, e.g. to always refer to the front month
+        future.
+    PARENT
+        A Databento-specific symbology for referring to a group of symbols by one
+        "parent" symbol, e.g. ES.FUT to refer to all ES futures.
+
+    """
+
+    INSTRUMENT_ID: str
+    RAW_SYMBOL: str
+    CONTINUOUS: str
+    PARENT: str
+
+    @classmethod
+    def from_str(cls, str) -> SType: ...
+
+    @classmethod
+    def variants(cls) -> Iterable[SType]: ...
 
 class Metadata(SupportsBytes):
     """
@@ -212,7 +340,9 @@ class Metadata(SupportsBytes):
         """
 
 class RecordHeader:
-    """DBN Record Header."""
+    """
+    DBN Record Header.
+    """
 
     @property
     def length(self) -> int:
@@ -267,7 +397,9 @@ class RecordHeader:
         """
 
 class Record(SupportsBytes):
-    """Base class for DBN records."""
+    """
+    Base class for DBN records.
+    """
 
     def __bytes__(self) -> bytes: ...
     def __eq__(self, other) -> bool: ...
@@ -354,8 +486,8 @@ class Record(SupportsBytes):
     @property
     def ts_out(self) -> int | None:
         """
-        The live gateway send timestamp expressed as number of nanoseconds since
-        the UNIX epoch.
+        The live gateway send timestamp expressed as number of nanoseconds
+        since the UNIX epoch.
 
         Returns
         -------
@@ -364,7 +496,9 @@ class Record(SupportsBytes):
         """
 
 class _MBOBase:
-    """Base for market-by-order messages."""
+    """
+    Base for market-by-order messages.
+    """
 
     @property
     def order_id(self) -> int:
@@ -471,10 +605,14 @@ class _MBOBase:
         """
 
 class MBOMsg(Record, _MBOBase):
-    """A market-by-order (MBO) tick message."""
+    """
+    A market-by-order (MBO) tick message.
+    """
 
 class BidAskPair:
-    """A book level."""
+    """
+    A book level.
+    """
 
     @property
     def bid_px(self) -> int:
@@ -538,7 +676,9 @@ class BidAskPair:
         """
 
 class _MBPBase:
-    """Base for market-by-price messages."""
+    """
+    Base for market-by-price messages.
+    """
 
     @property
     def price(self) -> int:
@@ -643,7 +783,9 @@ class TradeMsg(Record, _MBPBase):
     """
 
 class MBP1Msg(Record, _MBPBase):
-    """Market by price implementation with a known book depth of 1."""
+    """
+    Market by price implementation with a known book depth of 1.
+    """
 
     @property
     def levels(self) -> list[BidAskPair]:
@@ -661,7 +803,9 @@ class MBP1Msg(Record, _MBPBase):
         """
 
 class MBP10Msg(Record, _MBPBase):
-    """Market by price implementation with a known book depth of 10."""
+    """
+    Market by price implementation with a known book depth of 10.
+    """
 
     @property
     def levels(self) -> list[BidAskPair]:
@@ -679,7 +823,9 @@ class MBP10Msg(Record, _MBPBase):
         """
 
 class OHLCVMsg(Record):
-    """Open, high, low, close, and volume message."""
+    """
+    Open, high, low, close, and volume message.
+    """
 
     @property
     def open(self) -> int:
@@ -733,7 +879,9 @@ class OHLCVMsg(Record):
         """
 
 class InstrumentDefMsg(Record):
-    """Definition of an instrument."""
+    """
+    Definition of an instrument.
+    """
 
     @property
     def ts_recv(self) -> int:
@@ -1347,7 +1495,9 @@ class InstrumentDefMsg(Record):
         """
 
 class ImbalanceMsg(Record):
-    """An auction imbalance message."""
+    """
+    An auction imbalance message.
+    """
 
     @property
     def ts_recv(self) -> int:
@@ -1651,8 +1801,8 @@ class StatMsg(Record):
     @property
     def update_action(self) -> int:
         """
-        Indicates if the statistic is newly added (1) or deleted (2). (Deleted is only
-        used with some stat types)
+        Indicates if the statistic is newly added (1) or deleted (2). (Deleted
+        is only used with some stat types)
 
         Returns
         -------
@@ -1671,7 +1821,9 @@ class StatMsg(Record):
         """
 
 class ErrorMsg(Record):
-    """An error message from the Databento Live Subscription Gateway (LSG)."""
+    """
+    An error message from the Databento Live Subscription Gateway (LSG).
+    """
 
     @property
     def err(self) -> str:
@@ -1763,7 +1915,9 @@ class SystemMsg(Record):
         """
 
 class DBNDecoder:
-    """A class for decoding DBN data to Python objects."""
+    """
+    A class for decoding DBN data to Python objects.
+    """
 
     def buffer(self) -> bytes:
         """

@@ -1,0 +1,7 @@
+error: Need to specify at least one rtype to match against
+ --> tests/ui/missing_rtype.rs:4:1
+  |
+4 | #[dbn_record]
+  | ^^^^^^^^^^^^^
+  |
+  = note: this error originates in the attribute macro `dbn_record` (in Nightly builds, run with -Z macro-backtrace for more info)

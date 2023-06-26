@@ -1,0 +1,21 @@
+error: Invalid attr `unknown` passed to `#[dbn]`
+ --> tests/ui/csv_serialize_invalid_dbn_attr.rs:6:11
+  |
+6 |     #[dbn(unknown)]
+  |           ^^^^^^^
+
+error[E0433]: failed to resolve: could not find `encode` in the crate root
+ --> tests/ui/csv_serialize_invalid_dbn_attr.rs:3:10
+  |
+3 | #[derive(CsvSerialize)]
+  |          ^^^^^^^^^^^^ could not find `encode` in the crate root
+  |
+  = note: this error originates in the derive macro `CsvSerialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0433]: failed to resolve: could not find `csv` in the list of imported crates
+ --> tests/ui/csv_serialize_invalid_dbn_attr.rs:3:10
+  |
+3 | #[derive(CsvSerialize)]
+  |          ^^^^^^^^^^^^ could not find `csv` in the list of imported crates
+  |
+  = note: this error originates in the derive macro `CsvSerialize` (in Nightly builds, run with -Z macro-backtrace for more info)

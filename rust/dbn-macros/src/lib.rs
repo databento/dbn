@@ -52,3 +52,12 @@ pub fn derive_json_serialize(input: TokenStream) -> TokenStream {
 pub fn dbn_record(attr: TokenStream, input: TokenStream) -> TokenStream {
     has_rtype::attribute_macro_impl(attr, input)
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn ui() {
+        let t = trybuild::TestCases::new();
+        t.compile_fail("tests/ui/*.rs");
+    }
+}
