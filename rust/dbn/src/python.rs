@@ -252,6 +252,17 @@ impl Compression {
         format!("<Compression.{}: '{}'>", self.name(), self.value(),)
     }
 
+    fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        let Ok(other_enum) = Self::py_from_str(Self::type_object(py), other) else {
+            return py.NotImplemented();
+        };
+        match op {
+            CompareOp::Eq => self.eq(&other_enum).into_py(py),
+            CompareOp::Ne => self.ne(&other_enum).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
     #[getter]
     fn name(&self) -> String {
         self.as_str().to_uppercase()
@@ -295,6 +306,17 @@ impl Encoding {
 
     fn __repr__(&self) -> String {
         format!("<Encoding.{}: '{}'>", self.name(), self.value(),)
+    }
+
+    fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        let Ok(other_enum) = Self::py_from_str(Self::type_object(py), other) else {
+            return py.NotImplemented();
+        };
+        match op {
+            CompareOp::Eq => self.eq(&other_enum).into_py(py),
+            CompareOp::Ne => self.ne(&other_enum).into_py(py),
+            _ => py.NotImplemented(),
+        }
     }
 
     #[getter]
@@ -341,6 +363,17 @@ impl Schema {
         format!("<Schema.{}: '{}'>", self.name(), self.value(),)
     }
 
+    fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        let Ok(other_enum) = Self::py_from_str(Self::type_object(py), other) else {
+            return py.NotImplemented();
+        };
+        match op {
+            CompareOp::Eq => self.eq(&other_enum).into_py(py),
+            CompareOp::Ne => self.ne(&other_enum).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
     #[getter]
     fn name(&self) -> String {
         self.as_str().to_uppercase()
@@ -383,6 +416,17 @@ impl SType {
 
     fn __repr__(&self) -> String {
         format!("<SType.{}: '{}'>", self.name(), self.value(),)
+    }
+
+    fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        let Ok(other_enum) = Self::py_from_str(Self::type_object(py), other) else {
+            return py.NotImplemented();
+        };
+        match op {
+            CompareOp::Eq => self.eq(&other_enum).into_py(py),
+            CompareOp::Ne => self.ne(&other_enum).into_py(py),
+            _ => py.NotImplemented(),
+        }
     }
 
     #[getter]

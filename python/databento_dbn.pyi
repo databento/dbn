@@ -113,6 +113,7 @@ class Schema(Enum):
     OHLCV_1H: str
     OHLCV_1D: str
     DEFINITION: str
+    STATISTICS: str
     STATUS: str
     IMBALANCE: str
 
