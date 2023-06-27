@@ -47,12 +47,10 @@ impl<T> DbnEncodable for T where
 pub trait EncodeDbn {
     /// Encodes a single DBN record of type `R`.
     ///
-    /// Returns `true`if the pipe was closed.
-    ///
     /// # Errors
     /// This function returns an error if it's unable to write to the underlying writer
     /// or there's a serialization error.
-    fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<bool>;
+    fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<()>;
 
     /// Encodes a slice of DBN records.
     ///
@@ -61,9 +59,7 @@ pub trait EncodeDbn {
     /// or there's a serialization error.
     fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> Result<()> {
         for record in records {
-            if self.encode_record(record)? {
-                break;
-            }
+            self.encode_record(record)?;
         }
         self.flush()?;
         Ok(())
@@ -79,9 +75,7 @@ pub trait EncodeDbn {
         mut stream: impl StreamingIterator<Item = R>,
     ) -> Result<()> {
         while let Some(record) = stream.next() {
-            if self.encode_record(record)? {
-                break;
-            }
+            self.encode_record(record)?;
         }
         self.flush()?;
         Ok(())
@@ -95,15 +89,13 @@ pub trait EncodeDbn {
 
     /// Encodes a single DBN record.
     ///
-    /// Returns `true`if the pipe was closed.
-    ///
     /// # Safety
     /// `ts_out` must be `false` if `record` does not have an appended `ts_out
     ///
     /// # Errors
     /// This function returns an error if it's unable to write to the underlying writer
     /// or there's a serialization error.
-    unsafe fn encode_record_ref(&mut self, record: RecordRef, ts_out: bool) -> Result<bool> {
+    unsafe fn encode_record_ref(&mut self, record: RecordRef, ts_out: bool) -> Result<()> {
         rtype_ts_out_dispatch!(record, ts_out, |rec| self.encode_record(rec))?
     }
 
@@ -117,9 +109,7 @@ pub trait EncodeDbn {
         while let Some(record) = decoder.decode_record_ref()? {
             // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
             // from the metadata header.
-            if unsafe { self.encode_record_ref(record, ts_out)? } {
-                break;
-            }
+            unsafe { self.encode_record_ref(record, ts_out) }?;
         }
         self.flush()?;
         Ok(())
@@ -141,9 +131,7 @@ pub trait EncodeDbn {
         while let Some(record) = decoder.decode_record_ref()? {
             // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
             // from the metadata header.
-            if unsafe { self.encode_record_ref(record, ts_out)? } {
-                break;
-            }
+            unsafe { self.encode_record_ref(record, ts_out) }?;
             i += 1;
             if i == limit.get() {
                 break;
@@ -304,7 +292,7 @@ impl<'a, W> EncodeDbn for DynEncoder<'a, W>
 where
     W: io::Write,
 {
-    fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<bool> {
+    fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<()> {
         self.0.encode_record(record)
     }
 
@@ -323,7 +311,7 @@ where
         self.0.flush()
     }
 
-    unsafe fn encode_record_ref(&mut self, record: RecordRef, ts_out: bool) -> Result<bool> {
+    unsafe fn encode_record_ref(&mut self, record: RecordRef, ts_out: bool) -> Result<()> {
         self.0.encode_record_ref(record, ts_out)
     }
 
@@ -343,7 +331,7 @@ where
 /// inner value.
 macro_rules! encoder_enum_dispatch {
     ($($variant:ident),*) => {
-        fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<bool> {
+        fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<()> {
             match self {
                 $(Self::$variant(v) => v.encode_record(record),)*
             }
@@ -374,7 +362,7 @@ macro_rules! encoder_enum_dispatch {
             &mut self,
             record: RecordRef,
             ts_out: bool,
-        ) -> Result<bool> {
+        ) -> Result<()> {
             match self {
                 $(Self::$variant(v) => v.encode_record_ref(record, ts_out),)*
             }

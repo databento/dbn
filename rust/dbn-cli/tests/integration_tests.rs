@@ -1,6 +1,7 @@
 use std::{
     fs,
     io::{Read, Write},
+    process,
 };
 
 use assert_cmd::Command;
@@ -486,6 +487,53 @@ fn test_limit_updates_metadata() {
         .assert()
         .success()
         .stdout(contains('\n').count(1));
+}
+
+#[cfg(not(target_os = "windows"))] // no `false`
+#[test]
+fn broken_pipe_is_silent() {
+    let dbn_cmd = process::Command::new(assert_cmd::cargo::cargo_bin("dbn"))
+        .args(&[&format!("{TEST_DATA_PATH}/test_data.mbo.dbn.zst"), "--json"])
+        .stdout(process::Stdio::piped())
+        .stderr(process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut false_cmd = process::Command::new("false");
+    false_cmd.stdin(dbn_cmd.stdout.unwrap());
+    Command::from_std(false_cmd)
+        .assert()
+        .failure()
+        .stdout(is_empty())
+        .stderr(is_empty());
+    let mut stderr = String::new();
+    dbn_cmd.stderr.unwrap().read_to_string(&mut stderr).unwrap();
+    assert!(stderr.is_empty(), "Stderr: {stderr}");
+}
+
+#[cfg(not(target_os = "windows"))] // no `false`
+#[test]
+fn broken_pipe_is_silent_fragment() {
+    // Test fragment separately because it's a different code path
+    let dbn_cmd = process::Command::new(assert_cmd::cargo::cargo_bin("dbn"))
+        .args(&[
+            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.frag"),
+            "--fragment",
+            "--csv",
+        ])
+        .stdout(process::Stdio::piped())
+        .stderr(process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut false_cmd = process::Command::new("false");
+    false_cmd.stdin(dbn_cmd.stdout.unwrap());
+    Command::from_std(false_cmd)
+        .assert()
+        .failure()
+        .stdout(is_empty())
+        .stderr(is_empty());
+    let mut stderr = String::new();
+    dbn_cmd.stderr.unwrap().read_to_string(&mut stderr).unwrap();
+    assert!(stderr.is_empty(), "Stderr: {stderr}");
 }
 
 #[test]

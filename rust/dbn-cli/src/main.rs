@@ -12,7 +12,7 @@ use dbn_cli::{infer_encoding_and_compression, output_from_args, Args};
 fn write_dbn<R: io::BufRead>(decoder: DynDecoder<R>, args: &Args) -> anyhow::Result<()> {
     let writer = output_from_args(args)?;
     let (encoding, compression) = infer_encoding_and_compression(args)?;
-    if args.should_output_metadata {
+    let encode_res = if args.should_output_metadata {
         assert!(args.json);
         json::Encoder::new(
             writer,
@@ -20,7 +20,7 @@ fn write_dbn<R: io::BufRead>(decoder: DynDecoder<R>, args: &Args) -> anyhow::Res
             args.should_pretty_print,
             args.should_pretty_print,
         )
-        .encode_metadata(decoder.metadata())?;
+        .encode_metadata(decoder.metadata())
     } else if let Some(limit) = args.limit {
         let mut metadata = decoder.metadata().clone();
         // Update metadata
@@ -34,7 +34,7 @@ fn write_dbn<R: io::BufRead>(decoder: DynDecoder<R>, args: &Args) -> anyhow::Res
             args.should_pretty_print,
             args.should_pretty_print,
         )?
-        .encode_decoded_with_limit(decoder, limit)?;
+        .encode_decoded_with_limit(decoder, limit)
     } else {
         DynEncoder::new(
             writer,
@@ -45,9 +45,15 @@ fn write_dbn<R: io::BufRead>(decoder: DynDecoder<R>, args: &Args) -> anyhow::Res
             args.should_pretty_print,
             args.should_pretty_print,
         )?
-        .encode_decoded(decoder)?;
+        .encode_decoded(decoder)
+    };
+    match encode_res {
+        // Handle broken pipe as a non-error.
+        Err(dbn::Error::Io { source, .. }) if source.kind() == std::io::ErrorKind::BrokenPipe => {
+            Ok(())
+        }
+        res => Ok(res?),
     }
-    Ok(())
 }
 
 fn write_dbn_frag<R: io::Read>(
@@ -77,9 +83,17 @@ fn write_dbn_frag<R: io::Read>(
     let mut n = 0;
     while let Some(record) = decoder.decode_ref()? {
         // Assume no ts_out for safety
-        unsafe {
-            encoder.encode_record_ref(record, false)?;
-        }
+        match unsafe { encoder.encode_record_ref(record, false) } {
+            // Handle broken pipe as a non-error.
+            Err(dbn::Error::Io { source, .. })
+                if source.kind() == std::io::ErrorKind::BrokenPipe =>
+            {
+                return Ok(());
+            }
+            res => {
+                res?;
+            }
+        };
         n += 1;
         if args.limit.map_or(false, |l| n >= l.get()) {
             break;

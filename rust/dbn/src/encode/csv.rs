@@ -54,7 +54,7 @@ impl<W> EncodeDbn for Encoder<W>
 where
     W: io::Write,
 {
-    fn encode_record<R: super::DbnEncodable>(&mut self, record: &R) -> Result<bool> {
+    fn encode_record<R: super::DbnEncodable>(&mut self, record: &R) -> Result<()> {
         let serialize_res = match (self.use_pretty_px, self.use_pretty_ts) {
             (true, true) => record.serialize_to::<_, true, true>(&mut self.writer),
             (true, false) => record.serialize_to::<_, true, false>(&mut self.writer),
@@ -65,25 +65,18 @@ where
             // write new line
             .and_then(|_| self.writer.write_record(None::<&[u8]>))
         {
-            Ok(_) => Ok(false),
-            Err(e) => {
-                if matches!(e.kind(), csv::ErrorKind::Io(io_err) if io_err.kind() == io::ErrorKind::BrokenPipe)
-                {
-                    // closed pipe, should stop writing output
-                    Ok(true)
-                } else {
-                    Err(Error::encode(format!("Failed to serialize {record:#?}")))
-                }
-            }
+            Ok(()) => Ok(()),
+            Err(e) => Err(match e.into_kind() {
+                csv::ErrorKind::Io(err) => Error::io(err, format!("serializing {record:#?}")),
+                _ => Error::encode(format!("Failed to serialize {record:#?}")),
+            }),
         }
     }
 
     fn encode_records<R: super::DbnEncodable>(&mut self, records: &[R]) -> Result<()> {
         self.encode_header::<R>()?;
         for record in records {
-            if self.encode_record(record)? {
-                break;
-            }
+            self.encode_record(record)?;
         }
         self.flush()?;
         Ok(())
@@ -100,9 +93,7 @@ where
     ) -> Result<()> {
         self.encode_header::<R>()?;
         while let Some(record) = stream.next() {
-            if self.encode_record(record)? {
-                break;
-            }
+            self.encode_record(record)?;
         }
         self.flush()?;
         Ok(())
@@ -132,9 +123,7 @@ where
                 }
                 // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
                 // from the metadata header.
-                if unsafe { self.encode_record_ref(record, ts_out)? } {
-                    break;
-                }
+                unsafe { self.encode_record_ref(record, ts_out) }?;
             }
             self.flush()?;
             Ok(())
@@ -159,9 +148,7 @@ where
                 }
                 // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
                 // from the metadata header.
-                if unsafe { self.encode_record_ref(record, ts_out)? } {
-                    break;
-                }
+                unsafe { self.encode_record_ref(record, ts_out) }?;
                 i += 1;
                 if i == limit.get() {
                     break;

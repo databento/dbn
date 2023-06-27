@@ -64,13 +64,11 @@ impl<W> EncodeDbn for Encoder<W>
 where
     W: io::Write,
 {
-    fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<bool> {
+    fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<()> {
         self.record_encoder.encode_record(record)
     }
 
     /// Encodes a single DBN record.
-    ///
-    /// Returns `true` if the the pipe was closed.
     ///
     /// # Safety
     /// The DBN encoding a [`RecordRef`] is safe because no dispatching based on type
@@ -79,7 +77,7 @@ where
     /// # Errors
     /// This function will return an error if it fails to encode `record` to
     /// `writer`.
-    unsafe fn encode_record_ref(&mut self, record: RecordRef, ts_out: bool) -> Result<bool> {
+    unsafe fn encode_record_ref(&mut self, record: RecordRef, ts_out: bool) -> Result<()> {
         self.record_encoder.encode_record_ref(record, ts_out)
     }
 
@@ -348,17 +346,14 @@ impl<W> EncodeDbn for RecordEncoder<W>
 where
     W: io::Write,
 {
-    fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<bool> {
+    fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<()> {
         match self.writer.write_all(record.as_ref()) {
-            Ok(_) => Ok(false),
-            Err(e) if e.kind() == io::ErrorKind::BrokenPipe => Ok(true),
+            Ok(()) => Ok(()),
             Err(e) => Err(Error::io(e, format!("serializing {record:#?}"))),
         }
     }
 
     /// Encodes a single DBN record.
-    ///
-    /// Returns `true` if the the pipe was closed.
     ///
     /// # Safety
     /// The DBN encoding a [`RecordRef`] is safe because no dispatching based on type
@@ -367,10 +362,9 @@ where
     /// # Errors
     /// This function will return an error if it fails to encode `record` to
     /// `writer`.
-    unsafe fn encode_record_ref(&mut self, record: RecordRef, _ts_out: bool) -> Result<bool> {
+    unsafe fn encode_record_ref(&mut self, record: RecordRef, _ts_out: bool) -> Result<()> {
         match self.writer.write_all(record.as_ref()) {
-            Ok(_) => Ok(false),
-            Err(e) if e.kind() == io::ErrorKind::BrokenPipe => Ok(true),
+            Ok(()) => Ok(()),
             Err(e) => Err(Error::io(e, format!("serializing {record:#?}"))),
         }
     }
@@ -628,33 +622,27 @@ mod r#async {
 
         /// Encode a single DBN record of type `R`.
         ///
-        /// Returns `true`if the pipe was closed.
-        ///
         /// # Errors
         /// This function returns an error if it's unable to write to the underlying
         /// writer.
         pub async fn encode<R: AsRef<[u8]> + HasRType + fmt::Debug>(
             &mut self,
             record: &R,
-        ) -> Result<bool> {
+        ) -> Result<()> {
             match self.writer.write_all(record.as_ref()).await {
-                Ok(_) => Ok(false),
-                Err(e) if e.kind() == io::ErrorKind::BrokenPipe => Ok(true),
+                Ok(()) => Ok(()),
                 Err(e) => Err(Error::io(e, format!("serializing {record:#?}"))),
             }
         }
 
         /// Encodes a single DBN record of type `R`.
         ///
-        /// Returns `true`if the pipe was closed.
-        ///
         /// # Errors
         /// This function returns an error if it's unable to write to the underlying writer
         /// or there's a serialization error.
-        pub async fn encode_ref(&mut self, record_ref: RecordRef<'_>) -> Result<bool> {
+        pub async fn encode_ref(&mut self, record_ref: RecordRef<'_>) -> Result<()> {
             match self.writer.write_all(record_ref.as_ref()).await {
-                Ok(_) => Ok(false),
-                Err(e) if e.kind() == io::ErrorKind::BrokenPipe => Ok(true),
+                Ok(()) => Ok(()),
                 Err(e) => Err(Error::io(e, format!("serializing {record_ref:#?}"))),
             }
         }

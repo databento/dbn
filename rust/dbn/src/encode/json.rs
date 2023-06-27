@@ -1,8 +1,6 @@
 //! Encoding of DBN records into newline-delimited JSON (ndjson).
 use std::io;
 
-use streaming_iterator::StreamingIterator;
-
 use self::serialize::to_json_string;
 use super::{DbnEncodable, EncodeDbn};
 use crate::{Error, Metadata, Result};
@@ -71,7 +69,7 @@ impl<W> EncodeDbn for Encoder<W>
 where
     W: io::Write,
 {
-    fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<bool> {
+    fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<()> {
         let json = to_json_string(
             record,
             self.should_pretty_print,
@@ -79,38 +77,9 @@ where
             self.use_pretty_ts,
         );
         match self.writer.write_all(json.as_bytes()) {
-            Ok(_) => Ok(()),
-            Err(e) if matches!(e.kind(), io::ErrorKind::BrokenPipe) => return Ok(true),
+            Ok(()) => Ok(()),
             Err(e) => Err(Error::io(e, "writing record")),
-        }?;
-        Ok(false)
-    }
-
-    fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> Result<()> {
-        for record in records {
-            if self.encode_record(record)? {
-                return Ok(());
-            }
         }
-        self.writer
-            .flush()
-            .map_err(|e| Error::io(e, "flushing output"))?;
-        Ok(())
-    }
-
-    fn encode_stream<R: DbnEncodable>(
-        &mut self,
-        mut stream: impl StreamingIterator<Item = R>,
-    ) -> Result<()> {
-        while let Some(record) = stream.next() {
-            if self.encode_record(record)? {
-                return Ok(());
-            }
-        }
-        self.writer
-            .flush()
-            .map_err(|e| Error::io(e, "flushing output"))?;
-        Ok(())
     }
 
     fn flush(&mut self) -> Result<()> {
@@ -1028,12 +997,10 @@ mod r#async {
 
         /// Encode a single DBN record of type `R`.
         ///
-        /// Returns `true`if the pipe was closed.
-        ///
         /// # Errors
         /// This function returns an error if it's unable to write to the underlying
         /// writer.
-        pub async fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<bool> {
+        pub async fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<()> {
             let json = super::to_json_string(
                 record,
                 self.should_pretty_print,
@@ -1041,16 +1008,12 @@ mod r#async {
                 self.use_pretty_ts,
             );
             match self.writer.write_all(json.as_bytes()).await {
-                Ok(_) => Ok(()),
-                Err(e) if matches!(e.kind(), io::ErrorKind::BrokenPipe) => return Ok(true),
+                Ok(()) => Ok(()),
                 Err(e) => Err(Error::io(e, "writing record")),
-            }?;
-            Ok(false)
+            }
         }
 
         /// Encodes a single DBN record.
-        ///
-        /// Returns `true`if the pipe was closed.
         ///
         /// # Safety
         /// `ts_out` must be `false` if `record` does not have an appended `ts_out
@@ -1062,7 +1025,7 @@ mod r#async {
             &mut self,
             record_ref: RecordRef<'_>,
             ts_out: bool,
-        ) -> Result<bool> {
+        ) -> Result<()> {
             rtype_ts_out_async_dispatch!(record_ref, ts_out, |rec| async move {
                 self.encode_record(rec).await
             })?

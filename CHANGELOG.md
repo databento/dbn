@@ -4,6 +4,8 @@
 ### Enhancements
 - Switched from `anyhow::Error` to custom `dbn::Error` for all public fallible functions
   and methods. This should make it easier to disambiguate between error types.
+- `EncodeDbn::encode_record` and `EncodeDbn::record_record_ref` no longer treat a
+  `BrokenPipe` error differently
 
 ### Breaking changes
 - All fallible operations now return a `dbn::Error` instead of an `anyhow::Error`
@@ -14,7 +16,12 @@
   `action`, `side`, and `depth` earlier given their importance
 - Updated `InstrumentDefMsg` serialization order to serialize `raw_symbol`,
   `security_update_action`, and `instrument_class` earlier given their importance
+- Removed `bool` return value from `EncodeDbn::encode_record` and
+  `EncodeDbn::record_record_ref`. These now return `dbn::Result<()>`.
+
+### Bug fixes
 - Fixed handling of NUL byte when encoding DBN to CSV and JSON
+- Fixed handling of broken pipe in `dbn` CLI tool
 
 ## 0.7.1 - 2023-06-26
 - Added Python `variants` method to return an iterator over the enum variants for
