@@ -27,7 +27,7 @@ use crate::{
         Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader, StatMsg, StatusMsg, SymbolMappingMsg, SystemMsg,
         TradeMsg, WithTsOut,
     },
-    UNDEF_ORDER_SIZE, UNDEF_PRICE,
+    FIXED_PRICE_SCALE, UNDEF_ORDER_SIZE, UNDEF_PRICE,
 };
 use crate::{MappingInterval, Metadata, SymbolMapping, UNDEF_TIMESTAMP};
 
@@ -522,6 +522,12 @@ impl MboMsg {
         self.hd.ts_event
     }
 
+    #[getter]
+    #[pyo3(name = "pretty_price")]
+    fn py_pretty_price(&self) -> f64 {
+        self.price as f64 / FIXED_PRICE_SCALE as f64
+    }
+
     #[pyo3(name = "record_size")]
     fn py_record_size(&self) -> usize {
         self.record_size()
@@ -557,12 +563,30 @@ impl BidAskPair {
         ask_ct: Option<u32>,
     ) -> Self {
         Self {
-            bid_px: bid_px.unwrap_or_default(),
-            ask_px: ask_px.unwrap_or_default(),
+            bid_px: bid_px.unwrap_or(UNDEF_PRICE),
+            ask_px: ask_px.unwrap_or(UNDEF_PRICE),
             bid_sz: bid_sz.unwrap_or_default(),
             ask_sz: ask_sz.unwrap_or_default(),
             bid_ct: bid_ct.unwrap_or_default(),
             ask_ct: ask_ct.unwrap_or_default(),
+        }
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ask_px")]
+    fn py_pretty_ask_px(&self) -> f64 {
+        match self.ask_px {
+            UNDEF_PRICE => f64::NAN,
+            _ => self.ask_px as f64 / FIXED_PRICE_SCALE as f64,
+        }
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_bid_px")]
+    fn py_pretty_bid_px(&self) -> f64 {
+        match self.bid_px {
+            UNDEF_PRICE => f64::NAN,
+            _ => self.bid_px as f64 / FIXED_PRICE_SCALE as f64,
         }
     }
 
@@ -636,6 +660,12 @@ impl TradeMsg {
     #[getter]
     fn ts_event(&self) -> u64 {
         self.hd.ts_event
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_price")]
+    fn py_pretty_price(&self) -> f64 {
+        self.price as f64 / FIXED_PRICE_SCALE as f64
     }
 
     #[pyo3(name = "record_size")]
@@ -728,6 +758,12 @@ impl Mbp1Msg {
     #[getter]
     fn ts_event(&self) -> u64 {
         self.hd.ts_event
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_price")]
+    fn py_pretty_price(&self) -> f64 {
+        self.price as f64 / FIXED_PRICE_SCALE as f64
     }
 
     #[pyo3(name = "record_size")]
@@ -834,6 +870,12 @@ impl Mbp10Msg {
         self.hd.ts_event
     }
 
+    #[getter]
+    #[pyo3(name = "pretty_price")]
+    fn py_pretty_price(&self) -> f64 {
+        self.price as f64 / FIXED_PRICE_SCALE as f64
+    }
+
     #[pyo3(name = "record_size")]
     fn py_record_size(&self) -> usize {
         self.record_size()
@@ -915,6 +957,30 @@ impl OhlcvMsg {
     #[getter]
     fn ts_event(&self) -> u64 {
         self.hd.ts_event
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_open")]
+    fn py_pretty_open(&self) -> f64 {
+        self.open as f64 / FIXED_PRICE_SCALE as f64
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_high")]
+    fn py_pretty_high(&self) -> f64 {
+        self.high as f64 / FIXED_PRICE_SCALE as f64
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_low")]
+    fn py_pretty_low(&self) -> f64 {
+        self.low as f64 / FIXED_PRICE_SCALE as f64
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_close")]
+    fn py_pretty_close(&self) -> f64 {
+        self.close as f64 / FIXED_PRICE_SCALE as f64
     }
 
     #[pyo3(name = "record_size")]
@@ -1085,11 +1151,11 @@ impl InstrumentDefMsg {
             activation: activation.unwrap_or(UNDEF_TIMESTAMP),
             high_limit_price: high_limit_price.unwrap_or(UNDEF_PRICE),
             low_limit_price: low_limit_price.unwrap_or(UNDEF_PRICE),
-            max_price_variation: max_price_variation.unwrap_or(i64::MAX),
-            trading_reference_price: trading_reference_price.unwrap_or(i64::MAX),
+            max_price_variation: max_price_variation.unwrap_or(UNDEF_PRICE),
+            trading_reference_price: trading_reference_price.unwrap_or(UNDEF_PRICE),
             unit_of_measure_qty: unit_of_measure_qty.unwrap_or(i64::MAX),
-            min_price_increment_amount: min_price_increment_amount.unwrap_or(i64::MAX),
-            price_ratio: price_ratio.unwrap_or(i64::MAX),
+            min_price_increment_amount: min_price_increment_amount.unwrap_or(UNDEF_PRICE),
+            price_ratio: price_ratio.unwrap_or(UNDEF_PRICE),
             inst_attrib_value: inst_attrib_value.unwrap_or(i32::MAX),
             underlying_id: underlying_id.unwrap_or_default(),
             market_depth_implied: market_depth_implied.unwrap_or(i32::MAX),
@@ -1183,6 +1249,75 @@ impl InstrumentDefMsg {
     #[getter]
     fn ts_event(&self) -> u64 {
         self.hd.ts_event
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_min_price_increment")]
+    fn py_pretty_min_price_increment(&self) -> f64 {
+        self.min_price_increment as f64 / FIXED_PRICE_SCALE as f64
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_high_limit_price")]
+    fn py_pretty_high_limit_price(&self) -> f64 {
+        match self.high_limit_price {
+            UNDEF_PRICE => f64::NAN,
+            _ => self.high_limit_price as f64 / FIXED_PRICE_SCALE as f64,
+        }
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_low_limit_price")]
+    fn py_pretty_low_limit_price(&self) -> f64 {
+        match self.low_limit_price {
+            UNDEF_PRICE => f64::NAN,
+            _ => self.low_limit_price as f64 / FIXED_PRICE_SCALE as f64,
+        }
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_max_price_variation")]
+    fn py_pretty_max_price_variation(&self) -> f64 {
+        match self.max_price_variation {
+            UNDEF_PRICE => f64::NAN,
+            _ => self.max_price_variation as f64 / FIXED_PRICE_SCALE as f64,
+        }
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_trading_reference_price")]
+    fn py_pretty_trading_reference_price(&self) -> f64 {
+        match self.trading_reference_price {
+            UNDEF_PRICE => f64::NAN,
+            _ => self.trading_reference_price as f64 / FIXED_PRICE_SCALE as f64,
+        }
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_min_price_increment_amount")]
+    fn py_pretty_min_price_increment_amount(&self) -> f64 {
+        match self.min_price_increment_amount {
+            UNDEF_PRICE => f64::NAN,
+            _ => self.min_price_increment_amount as f64 / FIXED_PRICE_SCALE as f64,
+        }
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_price_ratio")]
+    fn py_pretty_price_ratio(&self) -> f64 {
+        match self.price_ratio {
+            UNDEF_PRICE => f64::NAN,
+            _ => self.price_ratio as f64 / FIXED_PRICE_SCALE as f64,
+        }
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_strike_price")]
+    fn py_pretty_strike_price(&self) -> f64 {
+        match self.strike_price {
+            UNDEF_PRICE => f64::NAN,
+            _ => self.strike_price as f64 / FIXED_PRICE_SCALE as f64,
+        }
     }
 
     #[pyo3(name = "record_size")]
@@ -1371,6 +1506,24 @@ impl ImbalanceMsg {
         self.hd.ts_event
     }
 
+    #[getter]
+    #[pyo3(name = "pretty_auct_interest_clr_price")]
+    fn py_pretty_auct_interest_clr_price(&self) -> f64 {
+        self.auct_interest_clr_price as f64 / FIXED_PRICE_SCALE as f64
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_cont_book_clear_price")]
+    fn py_pretty_cont_book_clear_price(&self) -> f64 {
+        self.cont_book_clr_price as f64 / FIXED_PRICE_SCALE as f64
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ref_price")]
+    fn py_pretty_ref_price(&self) -> f64 {
+        self.ref_price as f64 / FIXED_PRICE_SCALE as f64
+    }
+
     #[pyo3(name = "record_size")]
     fn py_record_size(&self) -> usize {
         self.record_size()
@@ -1473,6 +1626,12 @@ impl StatMsg {
     #[getter]
     fn ts_event(&self) -> u64 {
         self.hd.ts_event
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_price")]
+    fn py_pretty_price(&self) -> f64 {
+        self.price as f64 / FIXED_PRICE_SCALE as f64
     }
 
     #[pyo3(name = "record_size")]
