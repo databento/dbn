@@ -349,7 +349,12 @@ pub(crate) mod serialize {
         csv_writer: &mut Writer<W>,
         c: c_char,
     ) -> csv::Result<()> {
-        csv_writer.write_field((c as u8 as char).to_string())
+        // Handle NUL byte
+        if c == 0 {
+            csv_writer.write_field(String::new())
+        } else {
+            csv_writer.write_field((c as u8 as char).to_string())
+        }
     }
 }
 
@@ -357,7 +362,7 @@ pub(crate) mod serialize {
 mod tests {
     use std::{array, io::BufWriter, os::raw::c_char};
 
-    use super::*;
+    use super::{serialize::write_c_char_field, *};
     use crate::{
         encode::test_data::{VecStream, BID_ASK, RECORD_HEADER},
         enums::{
@@ -706,5 +711,17 @@ mod tests {
             .unwrap();
         let line = extract_2nd_line(buffer);
         assert_eq!(line, format!("1,{HEADER_CSV},2,3,0,4,5,1,7,1,0"));
+    }
+
+    #[test]
+    fn test_write_char_nul() {
+        let mut buffer = Vec::new();
+        let mut writer = csv::WriterBuilder::new().from_writer(&mut buffer);
+        write_c_char_field(&mut writer, 0).unwrap();
+        writer.write_field("a").unwrap();
+        writer.flush().unwrap();
+        drop(writer);
+        let s = std::str::from_utf8(buffer.as_slice()).unwrap();
+        assert_eq!(s, ",a");
     }
 }

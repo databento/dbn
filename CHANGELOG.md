@@ -10,6 +10,7 @@
   `action`, `side`, and `depth` earlier given their importance
 - Updated `InstrumentDefMsg` serialization order to serialize `raw_symbol`,
   `security_update_action`, and `instrument_class` earlier given their importance
+- Fixed handling of NUL byte when encoding DBN to CSV and JSON
 
 ## 0.7.1 - 2023-06-26
 - Added Python `variants` method to return an iterator over the enum variants for
