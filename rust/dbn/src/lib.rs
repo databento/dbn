@@ -55,4 +55,6 @@ pub mod datasets {
     pub const XNAS_ITCH: &str = "XNAS.ITCH";
     /// The dataset code for Databento Equity Basic.
     pub const DBEQ_BASIC: &str = "DBEQ.BASIC";
+    /// The dataset code for OPRA PILLAR
+    pub const OPRA_PILLAR: &str = "OPRA.PILLAR";
 }
