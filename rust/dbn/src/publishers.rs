@@ -78,10 +78,12 @@ pub enum Venue {
     Xphl = 35,
     /// CBOE BZX Options Exchange
     Bato = 36,
+    /// MEMX Options Exchange
+    Mxop = 37,
 }
 
 /// The number of Venue variants.
-pub const VENUE_COUNT: usize = 36;
+pub const VENUE_COUNT: usize = 37;
 
 impl Venue {
     /// Convert a Venue to its `str` representation.
@@ -123,6 +125,7 @@ impl Venue {
             Self::C2Ox => "C2OX",
             Self::Xphl => "XPHL",
             Self::Bato => "BATO",
+            Self::Mxop => "MXOP",
         }
     }
 }
@@ -174,6 +177,7 @@ impl std::str::FromStr for Venue {
             "C2OX" => Ok(Self::C2Ox),
             "XPHL" => Ok(Self::Xphl),
             "BATO" => Ok(Self::Bato),
+            "MXOP" => Ok(Self::Mxop),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
@@ -368,10 +372,12 @@ pub enum Publisher {
     OpraPillarXphl = 35,
     /// OPRA - CBOE BZX Options Exchange
     OpraPillarBato = 36,
+    /// OPRA - MEMX OPTIONS EXCHANGE
+    OpraPillarMxop = 37,
 }
 
 /// The number of Publisher variants.
-pub const PUBLISHER_COUNT: usize = 36;
+pub const PUBLISHER_COUNT: usize = 37;
 
 impl Publisher {
     /// Convert a Publisher to its `str` representation.
@@ -413,6 +419,7 @@ impl Publisher {
             Self::OpraPillarC2Ox => "OPRA.PILLAR.C2OX",
             Self::OpraPillarXphl => "OPRA.PILLAR.XPHL",
             Self::OpraPillarBato => "OPRA.PILLAR.BATO",
+            Self::OpraPillarMxop => "OPRA.PILLAR.MXOP",
         }
     }
 
@@ -455,6 +462,7 @@ impl Publisher {
             Self::OpraPillarC2Ox => Venue::C2Ox,
             Self::OpraPillarXphl => Venue::Xphl,
             Self::OpraPillarBato => Venue::Bato,
+            Self::OpraPillarMxop => Venue::Mxop,
         }
     }
 
@@ -497,6 +505,7 @@ impl Publisher {
             Self::OpraPillarC2Ox => Dataset::OpraPillar,
             Self::OpraPillarXphl => Dataset::OpraPillar,
             Self::OpraPillarBato => Dataset::OpraPillar,
+            Self::OpraPillarMxop => Dataset::OpraPillar,
         }
     }
 }
@@ -548,6 +557,7 @@ impl std::str::FromStr for Publisher {
             "OPRA.PILLAR.C2OX" => Ok(Self::OpraPillarC2Ox),
             "OPRA.PILLAR.XPHL" => Ok(Self::OpraPillarXphl),
             "OPRA.PILLAR.BATO" => Ok(Self::OpraPillarBato),
+            "OPRA.PILLAR.MXOP" => Ok(Self::OpraPillarMxop),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
