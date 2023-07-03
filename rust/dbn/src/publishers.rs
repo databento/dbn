@@ -227,10 +227,12 @@ pub enum Dataset {
     OpraPillar = 19,
     /// Databento Equities Basic
     DbeqBasic = 20,
+    /// NYSE Arca
+    ArcxPillar = 21,
 }
 
 /// The number of Dataset variants.
-pub const DATASET_COUNT: usize = 20;
+pub const DATASET_COUNT: usize = 21;
 
 impl Dataset {
     /// Convert a Dataset to its `str` representation.
@@ -256,6 +258,7 @@ impl Dataset {
             Self::FinyTrades => "FINY.TRADES",
             Self::OpraPillar => "OPRA.PILLAR",
             Self::DbeqBasic => "DBEQ.BASIC",
+            Self::ArcxPillar => "ARCX.PILLAR",
         }
     }
 }
@@ -291,6 +294,7 @@ impl std::str::FromStr for Dataset {
             "FINY.TRADES" => Ok(Self::FinyTrades),
             "OPRA.PILLAR" => Ok(Self::OpraPillar),
             "DBEQ.BASIC" => Ok(Self::DbeqBasic),
+            "ARCX.PILLAR" => Ok(Self::ArcxPillar),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
