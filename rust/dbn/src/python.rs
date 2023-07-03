@@ -9,7 +9,7 @@ use pyo3::{
     intern,
     prelude::*,
     pyclass::CompareOp,
-    types::{PyBytes, PyDate, PyDateAccess, PyDict, PyType},
+    types::{timezone_utc, PyBytes, PyDate, PyDateAccess, PyDateTime, PyDict, PyType},
     PyTypeInfo,
 };
 use strum::IntoEnumIterator;
@@ -143,6 +143,27 @@ fn extract_date(any: &PyAny) -> PyResult<time::Date> {
         time::Month::try_from(py_date.get_month()).map_err(|e| to_val_err(e.to_string()))?;
     Date::from_calendar_date(py_date.get_year(), month, py_date.get_day())
         .map_err(|e| to_val_err(e.to_string()))
+}
+
+fn get_utc_nanosecond_timestamp(py: Python<'_>, timestamp: u64) -> PyResult<PyObject> {
+    if let Ok(pandas) = PyModule::import(py, intern!(py, "pandas")) {
+        let kwargs = PyDict::new(py);
+        if kwargs.set_item(intern!(py, "utc"), true).is_ok()
+            && kwargs
+                .set_item(intern!(py, "errors"), intern!(py, "coerce"))
+                .is_ok()
+            && kwargs
+                .set_item(intern!(py, "unit"), intern!(py, "ns"))
+                .is_ok()
+        {
+            return pandas
+                .call_method(intern!(py, "to_datetime"), (timestamp,), Some(kwargs))
+                .map(|o| o.into_py(py));
+        }
+    }
+    let utc_tz = timezone_utc(py);
+    let timestamp_ms = timestamp as f64 / 1_000_000.0;
+    PyDateTime::from_timestamp(py, timestamp_ms, Some(utc_tz)).map(|o| o.into_py(py))
 }
 
 impl<'source> FromPyObject<'source> for MappingInterval {
@@ -529,6 +550,18 @@ impl MboMsg {
         self.price as f64 / FIXED_PRICE_SCALE as f64
     }
 
+    #[getter]
+    #[pyo3(name = "pretty_ts_event")]
+    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_event())
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_recv")]
+    fn py_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_recv)
+    }
+
     #[pyo3(name = "record_size")]
     fn py_record_size(&self) -> usize {
         self.record_size()
@@ -669,6 +702,18 @@ impl TradeMsg {
         self.price as f64 / FIXED_PRICE_SCALE as f64
     }
 
+    #[getter]
+    #[pyo3(name = "pretty_ts_event")]
+    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_event())
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_recv")]
+    fn py_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_recv)
+    }
+
     #[pyo3(name = "record_size")]
     fn py_record_size(&self) -> usize {
         self.record_size()
@@ -765,6 +810,18 @@ impl Mbp1Msg {
     #[pyo3(name = "pretty_price")]
     fn py_pretty_price(&self) -> f64 {
         self.price as f64 / FIXED_PRICE_SCALE as f64
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_event")]
+    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_event())
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_recv")]
+    fn py_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_recv)
     }
 
     #[pyo3(name = "record_size")]
@@ -877,6 +934,18 @@ impl Mbp10Msg {
         self.price as f64 / FIXED_PRICE_SCALE as f64
     }
 
+    #[getter]
+    #[pyo3(name = "pretty_ts_event")]
+    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_event())
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_recv")]
+    fn py_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_recv)
+    }
+
     #[pyo3(name = "record_size")]
     fn py_record_size(&self) -> usize {
         self.record_size()
@@ -984,6 +1053,12 @@ impl OhlcvMsg {
         self.close as f64 / FIXED_PRICE_SCALE as f64
     }
 
+    #[getter]
+    #[pyo3(name = "pretty_ts_event")]
+    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_event())
+    }
+
     #[pyo3(name = "record_size")]
     fn py_record_size(&self) -> usize {
         self.record_size()
@@ -1052,6 +1127,18 @@ impl StatusMsg {
     #[getter]
     fn ts_event(&self) -> u64 {
         self.hd.ts_event
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_event")]
+    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_event())
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_recv")]
+    fn py_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_recv)
     }
 
     #[pyo3(name = "record_size")]
@@ -1321,6 +1408,30 @@ impl InstrumentDefMsg {
         }
     }
 
+    #[getter]
+    #[pyo3(name = "pretty_ts_event")]
+    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_event())
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_recv")]
+    fn py_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_recv)
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_activation")]
+    fn py_pretty_activation(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.expiration)
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_expiration")]
+    fn py_pretty_expiration(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.expiration)
+    }
+
     #[pyo3(name = "record_size")]
     fn py_record_size(&self) -> usize {
         self.record_size()
@@ -1530,6 +1641,18 @@ impl ImbalanceMsg {
         self.record_size()
     }
 
+    #[getter]
+    #[pyo3(name = "pretty_ts_event")]
+    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_event())
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_recv")]
+    fn py_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_recv)
+    }
+
     #[classmethod]
     fn size_hint(_: &PyType) -> PyResult<usize> {
         Ok(mem::size_of::<ImbalanceMsg>())
@@ -1635,6 +1758,24 @@ impl StatMsg {
         self.price as f64 / FIXED_PRICE_SCALE as f64
     }
 
+    #[getter]
+    #[pyo3(name = "pretty_ts_event")]
+    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_event())
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_recv")]
+    fn py_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_recv)
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_ref")]
+    fn py_pretty_ts_ref(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_ref)
+    }
+
     #[pyo3(name = "record_size")]
     fn py_record_size(&self) -> usize {
         self.record_size()
@@ -1691,6 +1832,12 @@ impl ErrorMsg {
     #[getter]
     fn ts_event(&self) -> u64 {
         self.hd.ts_event
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_event")]
+    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_event())
     }
 
     #[pyo3(name = "record_size")]
@@ -1773,6 +1920,24 @@ impl SymbolMappingMsg {
         self.hd.ts_event
     }
 
+    #[getter]
+    #[pyo3(name = "pretty_ts_event")]
+    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_event())
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_end_ts")]
+    fn py_pretty_end_ts(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.end_ts)
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_start_ts")]
+    fn py_pretty_start_ts(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.start_ts)
+    }
+
     #[pyo3(name = "record_size")]
     fn py_record_size(&self) -> usize {
         self.record_size()
@@ -1841,6 +2006,12 @@ impl SystemMsg {
     #[getter]
     fn ts_event(&self) -> u64 {
         self.hd.ts_event
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_event")]
+    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_event())
     }
 
     #[pyo3(name = "record_size")]

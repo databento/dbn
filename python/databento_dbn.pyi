@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from collections.abc import Sequence
+from datetime import datetime
 from enum import Enum
 from typing import (
     Any,
@@ -468,6 +469,17 @@ class Record(SupportsBytes):
 
         """
     @property
+    def pretty_ts_event(self) -> datetime:
+        """
+        The matching-engine-received timestamp expressed as a
+        datetime or a `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime
+
+        """
+    @property
     def ts_event(self) -> int:
         """
         The matching-engine-received timestamp expressed as number of
@@ -583,6 +595,17 @@ class _MBOBase:
         Returns
         -------
         str
+
+        """
+    @property
+    def pretty_ts_recv(self) -> datetime:
+        """
+        The capture-server-received timestamp as a datetime or
+        `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime
 
         """
     @property
@@ -812,6 +835,17 @@ class _MBPBase:
 
         """
     @property
+    def pretty_ts_recv(self) -> datetime:
+        """
+        The capture-server-received timestamp as a datetime or
+        `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime
+
+        """
+    @property
     def ts_recv(self) -> int:
         """
         The capture-server-received timestamp expressed as number of
@@ -1029,6 +1063,17 @@ class InstrumentDefMsg(Record):
     """
 
     @property
+    def pretty_ts_recv(self) -> datetime:
+        """
+        The capture-server-received timestamp as a datetime or
+        `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime
+
+        """
+    @property
     def ts_recv(self) -> int:
         """
         The capture-server-received timestamp expressed as number of
@@ -1080,6 +1125,17 @@ class InstrumentDefMsg(Record):
 
         """
     @property
+    def pretty_expiration(self) -> datetime:
+        """
+        The last eligible trade time expressed as a datetime or
+        `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime
+
+        """
+    @property
     def expiration(self) -> int:
         """
         The last eligible trade time expressed as a number of nanoseconds since
@@ -1088,6 +1144,17 @@ class InstrumentDefMsg(Record):
         Returns
         -------
         int
+
+        """
+    @property
+    def pretty_activation(self) -> datetime:
+        """
+        The time of instrument activation expressed as a datetime or
+        `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime
 
         """
     @property
@@ -1791,6 +1858,17 @@ class ImbalanceMsg(Record):
     """
 
     @property
+    def pretty_ts_recv(self) -> datetime:
+        """
+        The capture-server-received timestamp as a datetime or
+        `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime
+
+        """
+    @property
     def ts_recv(self) -> int:
         """
         The capture-server-received timestamp expressed as the number of
@@ -2064,6 +2142,17 @@ class StatMsg(Record):
     """
 
     @property
+    def pretty_ts_recv(self) -> datetime:
+        """
+        The capture-server-received timestamp as a datetime or
+        `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime
+
+        """
+    @property
     def ts_recv(self) -> int:
         """
         The capture-server-received timestamp expressed as the number of
@@ -2229,6 +2318,17 @@ class SymbolMappingMsg(Record):
 
         """
     @property
+    def pretty_start_ts(self) -> datetime:
+        """
+        The start of the mapping interval expressed as a datetime
+        or `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime
+
+        """
+    @property
     def start_ts(self) -> int:
         """
         The start of the mapping interval expressed as the number of
@@ -2237,6 +2337,17 @@ class SymbolMappingMsg(Record):
         Returns
         -------
         int
+
+        """
+    @property
+    def pretty_end_ts(self) -> datetime:
+        """
+        The end of the mapping interval expressed as a datetime
+        or `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime
 
         """
     @property
