@@ -229,10 +229,12 @@ pub enum Dataset {
     DbeqBasic = 20,
     /// NYSE Arca
     ArcxPillar = 21,
+    /// Investors Exchange TOPS
+    IexgTops = 22,
 }
 
 /// The number of Dataset variants.
-pub const DATASET_COUNT: usize = 21;
+pub const DATASET_COUNT: usize = 22;
 
 impl Dataset {
     /// Convert a Dataset to its `str` representation.
@@ -259,6 +261,7 @@ impl Dataset {
             Self::OpraPillar => "OPRA.PILLAR",
             Self::DbeqBasic => "DBEQ.BASIC",
             Self::ArcxPillar => "ARCX.PILLAR",
+            Self::IexgTops => "IEXG.TOPS",
         }
     }
 }
@@ -295,6 +298,7 @@ impl std::str::FromStr for Dataset {
             "OPRA.PILLAR" => Ok(Self::OpraPillar),
             "DBEQ.BASIC" => Ok(Self::DbeqBasic),
             "ARCX.PILLAR" => Ok(Self::ArcxPillar),
+            "IEXG.TOPS" => Ok(Self::IexgTops),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
@@ -378,10 +382,20 @@ pub enum Publisher {
     OpraPillarBato = 36,
     /// OPRA - MEMX OPTIONS EXCHANGE
     OpraPillarMxop = 37,
+    /// Investors Exchange TOPS
+    IexgTopsIexg = 38,
+    /// DBEQ Basic - Nyse Chicago
+    DbeqBasicXchi = 39,
+    /// DBEQ Basic - Nyse National
+    DbeqBasicXcis = 40,
+    /// DBEQ Basic - Investors Exchange
+    DbeqBasicIexg = 41,
+    /// DBEQ Basic - MIAX Pearl
+    DbeqBasicEprl = 42,
 }
 
 /// The number of Publisher variants.
-pub const PUBLISHER_COUNT: usize = 37;
+pub const PUBLISHER_COUNT: usize = 42;
 
 impl Publisher {
     /// Convert a Publisher to its `str` representation.
@@ -424,6 +438,11 @@ impl Publisher {
             Self::OpraPillarXphl => "OPRA.PILLAR.XPHL",
             Self::OpraPillarBato => "OPRA.PILLAR.BATO",
             Self::OpraPillarMxop => "OPRA.PILLAR.MXOP",
+            Self::IexgTopsIexg => "IEXG.TOPS.IEXG",
+            Self::DbeqBasicXchi => "DBEQ.BASIC.XCHI",
+            Self::DbeqBasicXcis => "DBEQ.BASIC.XCIS",
+            Self::DbeqBasicIexg => "DBEQ.BASIC.IEXG",
+            Self::DbeqBasicEprl => "DBEQ.BASIC.EPRL",
         }
     }
 
@@ -467,6 +486,11 @@ impl Publisher {
             Self::OpraPillarXphl => Venue::Xphl,
             Self::OpraPillarBato => Venue::Bato,
             Self::OpraPillarMxop => Venue::Mxop,
+            Self::IexgTopsIexg => Venue::Iexg,
+            Self::DbeqBasicXchi => Venue::Xchi,
+            Self::DbeqBasicXcis => Venue::Xcis,
+            Self::DbeqBasicIexg => Venue::Iexg,
+            Self::DbeqBasicEprl => Venue::Eprl,
         }
     }
 
@@ -510,6 +534,11 @@ impl Publisher {
             Self::OpraPillarXphl => Dataset::OpraPillar,
             Self::OpraPillarBato => Dataset::OpraPillar,
             Self::OpraPillarMxop => Dataset::OpraPillar,
+            Self::IexgTopsIexg => Dataset::IexgTops,
+            Self::DbeqBasicXchi => Dataset::DbeqBasic,
+            Self::DbeqBasicXcis => Dataset::DbeqBasic,
+            Self::DbeqBasicIexg => Dataset::DbeqBasic,
+            Self::DbeqBasicEprl => Dataset::DbeqBasic,
         }
     }
 }
@@ -562,6 +591,11 @@ impl std::str::FromStr for Publisher {
             "OPRA.PILLAR.XPHL" => Ok(Self::OpraPillarXphl),
             "OPRA.PILLAR.BATO" => Ok(Self::OpraPillarBato),
             "OPRA.PILLAR.MXOP" => Ok(Self::OpraPillarMxop),
+            "IEXG.TOPS.IEXG" => Ok(Self::IexgTopsIexg),
+            "DBEQ.BASIC.XCHI" => Ok(Self::DbeqBasicXchi),
+            "DBEQ.BASIC.XCIS" => Ok(Self::DbeqBasicXcis),
+            "DBEQ.BASIC.IEXG" => Ok(Self::DbeqBasicIexg),
+            "DBEQ.BASIC.EPRL" => Ok(Self::DbeqBasicEprl),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
