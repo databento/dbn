@@ -7,6 +7,7 @@
 - `EncodeDbn::encode_record` and `EncodeDbn::record_record_ref` no longer treat a
   `BrokenPipe` error differently
 - Added `pretty_` Python attributes for DBN price fields
+- Added interning for Python strings
 
 ### Breaking changes
 - All fallible operations now return a `dbn::Error` instead of an `anyhow::Error`

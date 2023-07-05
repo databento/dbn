@@ -6,6 +6,7 @@ use std::{collections::HashMap, ffi::c_char, fmt, io, mem, num::NonZeroU64, str:
 
 use pyo3::{
     exceptions::PyValueError,
+    intern,
     prelude::*,
     pyclass::CompareOp,
     types::{PyBytes, PyDate, PyDateAccess, PyDict, PyType},
@@ -119,10 +120,10 @@ impl IntoPy<PyObject> for SymbolMapping {
 impl ToPyObject for SymbolMapping {
     fn to_object(&self, py: Python<'_>) -> PyObject {
         let dict = PyDict::new(py);
-        dict.set_item("raw_symbol", &self.raw_symbol)
-            .expect("set raw_symbol");
-        dict.set_item("intervals", &self.intervals)
-            .expect("set intervals");
+        dict.set_item(intern!(py, "raw_symbol"), &self.raw_symbol)
+            .unwrap();
+        dict.set_item(intern!(py, "intervals"), &self.intervals)
+            .unwrap();
         dict.into_py(py)
     }
 }
@@ -131,7 +132,7 @@ impl ToPyObject for SymbolMapping {
 impl<R: HasRType + IntoPy<Py<PyAny>>> IntoPy<PyObject> for WithTsOut<R> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         let obj = self.rec.into_py(py);
-        obj.setattr(py, "ts_out", self.ts_out).unwrap();
+        obj.setattr(py, intern!(py, "ts_out"), self.ts_out).unwrap();
         obj
     }
 }
@@ -147,15 +148,15 @@ fn extract_date(any: &PyAny) -> PyResult<time::Date> {
 impl<'source> FromPyObject<'source> for MappingInterval {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
         let start_date = ob
-            .getattr("start_date")
+            .getattr(intern!(ob.py(), "start_date"))
             .map_err(|_| to_val_err("Missing start_date".to_owned()))
             .and_then(extract_date)?;
         let end_date = ob
-            .getattr("end_date")
+            .getattr(intern!(ob.py(), "end_date"))
             .map_err(|_| to_val_err("Missing end_date".to_owned()))
             .and_then(extract_date)?;
         let symbol = ob
-            .getattr("symbol")
+            .getattr(intern!(ob.py(), "symbol"))
             .map_err(|_| to_val_err("Missing symbol".to_owned()))
             .and_then(|d| d.extract::<String>())?;
         Ok(Self {
@@ -170,28 +171,28 @@ impl ToPyObject for MappingInterval {
     fn to_object(&self, py: Python<'_>) -> PyObject {
         let dict = PyDict::new(py);
         dict.set_item(
-            "start_date",
+            intern!(py, "start_date"),
             PyDate::new(
                 py,
                 self.start_date.year(),
                 self.start_date.month() as u8,
                 self.start_date.day(),
             )
-            .expect("valid start_date"),
+            .unwrap(),
         )
-        .expect("set start_date");
+        .unwrap();
         dict.set_item(
-            "end_date",
+            intern!(py, "end_date"),
             PyDate::new(
                 py,
                 self.end_date.year(),
                 self.end_date.month() as u8,
                 self.end_date.day(),
             )
-            .expect("valid end_date"),
+            .unwrap(),
         )
-        .expect("set end_date");
-        dict.set_item("symbol", &self.symbol).expect("set symbol");
+        .unwrap();
+        dict.set_item(intern!(py, "symbol"), &self.symbol).unwrap();
         dict.into_py(py)
     }
 }
