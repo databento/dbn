@@ -1,4 +1,4 @@
-//! Types for errors that can occur in databento-defs and dependent crates.
+//! Types for errors that can occur while working with DBN.
 use thiserror::Error;
 
 /// An error that can occur while processing DBN data.
