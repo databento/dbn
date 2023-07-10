@@ -349,7 +349,7 @@ where
     fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<()> {
         match self.writer.write_all(record.as_ref()) {
             Ok(()) => Ok(()),
-            Err(e) => Err(Error::io(e, format!("serializing {record:#?}"))),
+            Err(e) => Err(Error::io(e, format!("serializing {record:?}"))),
         }
     }
 
@@ -365,7 +365,7 @@ where
     unsafe fn encode_record_ref(&mut self, record: RecordRef, _ts_out: bool) -> Result<()> {
         match self.writer.write_all(record.as_ref()) {
             Ok(()) => Ok(()),
-            Err(e) => Err(Error::io(e, format!("serializing {record:#?}"))),
+            Err(e) => Err(Error::io(e, format!("serializing {record:?}"))),
         }
     }
 
@@ -631,7 +631,7 @@ mod r#async {
         ) -> Result<()> {
             match self.writer.write_all(record.as_ref()).await {
                 Ok(()) => Ok(()),
-                Err(e) => Err(Error::io(e, format!("serializing {record:#?}"))),
+                Err(e) => Err(Error::io(e, format!("serializing {record:?}"))),
             }
         }
 
@@ -643,7 +643,7 @@ mod r#async {
         pub async fn encode_ref(&mut self, record_ref: RecordRef<'_>) -> Result<()> {
             match self.writer.write_all(record_ref.as_ref()).await {
                 Ok(()) => Ok(()),
-                Err(e) => Err(Error::io(e, format!("serializing {record_ref:#?}"))),
+                Err(e) => Err(Error::io(e, format!("serializing {record_ref:?}"))),
             }
         }
 

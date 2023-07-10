@@ -67,8 +67,8 @@ where
         {
             Ok(()) => Ok(()),
             Err(e) => Err(match e.into_kind() {
-                csv::ErrorKind::Io(err) => Error::io(err, format!("serializing {record:#?}")),
-                _ => Error::encode(format!("Failed to serialize {record:#?}")),
+                csv::ErrorKind::Io(err) => Error::io(err, format!("serializing {record:?}")),
+                _ => Error::encode(format!("Failed to serialize {record:?}")),
             }),
         }
     }
