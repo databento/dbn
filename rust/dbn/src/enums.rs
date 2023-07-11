@@ -586,7 +586,8 @@ pub enum StatType {
     /// open. Both `price` and `quantity` will be set.
     IndicativeOpeningPrice = 2,
     /// The settlement price of an instrument. `price` will be set and `flags` indicate
-    /// whether the price is final or preliminary and actual or theoretical.
+    /// whether the price is final or preliminary and actual or theoretical. `ts_ref`
+    /// will indicate the trading date of the settlement price.
     SettlementPrice = 3,
     /// The lowest trade price of an instrument during the trading session. `price` will
     /// be set.
@@ -595,7 +596,7 @@ pub enum StatType {
     /// be set.
     TradingSessionHighPrice = 5,
     /// The number of contracts cleared for an instrument on the previous trading date.
-    /// `quantity` will be set.
+    /// `quantity` will be set. `ts_ref` will indicate the trading date of the volume.
     ClearedVolume = 6,
     /// The lowest offer price for an instrument during the trading session. `price`
     /// will be set.
@@ -604,7 +605,8 @@ pub enum StatType {
     /// will be set.
     HighestBid = 8,
     /// The current number of outstanding contracts of an instrument. `quantity` will
-    // be set.
+    /// be set. `ts_ref` will indicate the trading date for which the open interest was
+    /// calculated.
     OpenInterest = 9,
     /// The volume-weighted average price (VWAP) for a fixing period. `price` will be
     /// set.
