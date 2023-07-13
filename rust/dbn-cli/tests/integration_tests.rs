@@ -537,6 +537,20 @@ fn broken_pipe_is_silent_fragment() {
 }
 
 #[test]
+fn writes_csv_header_for_0_records() {
+    cmd()
+        .args(&[
+            &format!("{TEST_DATA_PATH}/test_data.ohlcv-1d.dbn.zst"),
+            "--csv",
+        ])
+        .assert()
+        .success()
+        .stdout(starts_with("ts_event,"))
+        .stdout(contains('\n').count(1))
+        .stderr(is_empty());
+}
+
+#[test]
 fn help() {
     cmd()
         .arg("--help")

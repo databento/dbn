@@ -711,4 +711,7 @@ mod tests {
         let s = std::str::from_utf8(buffer.as_slice()).unwrap();
         assert_eq!(s, ",a");
     }
+
+    #[test]
+    fn test_writes_header_for_0_records() {}
 }
