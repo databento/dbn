@@ -1,4 +1,4 @@
-# ruff: noqa: PYI021 PYI053
+# ruff: noqa: UP007 PYI021 PYI053
 from __future__ import annotations
 
 from collections.abc import Iterable
