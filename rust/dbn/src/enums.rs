@@ -633,29 +633,29 @@ mod deserialize {
 
     impl<'de> Deserialize<'de> for Compression {
         fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-            let str = <&str>::deserialize(deserializer)?;
-            FromStr::from_str(str).map_err(de::Error::custom)
+            let str = String::deserialize(deserializer)?;
+            FromStr::from_str(&str).map_err(de::Error::custom)
         }
     }
 
     impl<'de> Deserialize<'de> for SType {
         fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-            let str = <&str>::deserialize(deserializer)?;
-            FromStr::from_str(str).map_err(de::Error::custom)
+            let str = String::deserialize(deserializer)?;
+            FromStr::from_str(&str).map_err(de::Error::custom)
         }
     }
 
     impl<'de> Deserialize<'de> for Schema {
         fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-            let str = <&str>::deserialize(deserializer)?;
-            FromStr::from_str(str).map_err(de::Error::custom)
+            let str = String::deserialize(deserializer)?;
+            FromStr::from_str(&str).map_err(de::Error::custom)
         }
     }
 
     impl<'de> Deserialize<'de> for Encoding {
         fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-            let str = <&str>::deserialize(deserializer)?;
-            FromStr::from_str(str).map_err(de::Error::custom)
+            let str = String::deserialize(deserializer)?;
+            FromStr::from_str(&str).map_err(de::Error::custom)
         }
     }
 }
