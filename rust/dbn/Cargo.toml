@@ -14,7 +14,7 @@ categories = ["encoding"]
 default = []
 async = ["dep:async-compression", "dep:tokio"]
 python = ["dep:pyo3", "dep:strum"]
-serde = ["dep:serde"]
+serde = ["dep:serde", "time/parsing", "time/serde"]
 # Enables deriving the `Copy` trait for records.
 trivial_copy = []
 

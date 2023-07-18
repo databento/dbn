@@ -6,6 +6,8 @@ use std::num::NonZeroU64;
 // of pyo3's attribute macros. See https://github.com/PyO3/pyo3/issues/780
 #[cfg(not(feature = "python"))]
 pub use dbn_macros::MockPyo3;
+#[cfg(feature = "serde")]
+use serde::Deserialize;
 
 use crate::enums::{SType, Schema};
 use crate::record::as_u8_slice;
@@ -295,6 +297,7 @@ impl Default for MetadataBuilder<Unset, Unset, Unset, Unset, Unset> {
 
 /// A raw symbol and its symbol mappings for different time ranges within the query range.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Deserialize))]
 #[cfg_attr(feature = "python", derive(pyo3::FromPyObject))]
 pub struct SymbolMapping {
     /// The symbol assigned by publisher.
@@ -305,11 +308,33 @@ pub struct SymbolMapping {
 
 /// The resolved symbol for a date range.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Deserialize))]
 pub struct MappingInterval {
-    /// The UTC start date of interval.
+    /// The UTC start date of interval (inclusive).
+    #[cfg_attr(
+        feature = "serde",
+        serde(rename = "d0", deserialize_with = "deserialize_date")
+    )]
     pub start_date: time::Date,
-    /// The UTC end date of interval.
+    /// The UTC end date of interval (exclusive).
+    #[cfg_attr(
+        feature = "serde",
+        serde(rename = "d1", deserialize_with = "deserialize_date")
+    )]
     pub end_date: time::Date,
     /// The resolved symbol for this interval.
+    #[cfg_attr(feature = "serde", serde(rename = "s"))]
     pub symbol: String,
+}
+
+/// The date format used for date strings when serializing [`Metadata`].
+pub const DATE_FORMAT: &[time::format_description::FormatItem<'static>] =
+    time::macros::format_description!("[year]-[month]-[day]");
+
+#[cfg(feature = "serde")]
+fn deserialize_date<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<time::Date, D::Error> {
+    let date_str = String::deserialize(deserializer)?;
+    time::Date::parse(&date_str, DATE_FORMAT).map_err(serde::de::Error::custom)
 }

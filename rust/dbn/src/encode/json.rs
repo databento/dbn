@@ -92,8 +92,6 @@ where
 pub(crate) mod serialize {
     use std::ffi::c_char;
 
-    use time::format_description::FormatItem;
-
     use crate::json_writer::{JsonObjectWriter, NULL};
     use crate::pretty::{fmt_px, fmt_ts};
     use crate::UNDEF_TIMESTAMP;
@@ -413,10 +411,13 @@ pub(crate) mod serialize {
         key: &str,
         date: &time::Date,
     ) {
-        const DATE_FORMAT: &[FormatItem<'static>] =
-            time::macros::format_description!("[year]-[month]-[day]");
         if PRETTY_TS {
-            writer.value(key, &date.format(DATE_FORMAT).unwrap_or_default());
+            writer.value(
+                key,
+                &date
+                    .format(crate::metadata::DATE_FORMAT)
+                    .unwrap_or_default(),
+            );
         } else {
             let mut date_int = date.year() as u32 * 10_000;
             date_int += date.month() as u32 * 100;
