@@ -7,7 +7,6 @@ pub mod json;
 use std::{fmt, io, num::NonZeroU64};
 
 use streaming_iterator::StreamingIterator;
-use time::format_description::FormatItem;
 
 // Re-exports
 #[cfg(feature = "async")]
@@ -31,7 +30,7 @@ use crate::{
     enums::{Compression, Encoding},
     record::HasRType,
     record_ref::RecordRef,
-    rtype_ts_out_dispatch, Metadata, Result, FIXED_PRICE_SCALE,
+    rtype_ts_out_dispatch, Metadata, Result,
 };
 
 use self::{csv::serialize::CsvSerialize, json::serialize::JsonSerialize};
@@ -432,31 +431,6 @@ mod test_data {
     }
 }
 
-fn format_px(px: i64) -> String {
-    if px == crate::UNDEF_PRICE {
-        "UNDEF_PRICE".to_owned()
-    } else {
-        let (sign, px_abs) = if px < 0 { ("-", -px) } else { ("", px) };
-        let px_integer = px_abs / FIXED_PRICE_SCALE;
-        let px_fraction = px_abs % FIXED_PRICE_SCALE;
-        format!("{sign}{px_integer}.{px_fraction:09}")
-    }
-}
-
-fn format_ts(ts: u64) -> String {
-    const TS_FORMAT: &[FormatItem<'static>] = time::macros::format_description!(
-        "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:9]Z"
-    );
-    if ts == 0 {
-        String::new()
-    } else {
-        time::OffsetDateTime::from_unix_timestamp_nanos(ts as i128)
-            .map_err(|_| ())
-            .and_then(|dt| dt.format(TS_FORMAT).map_err(|_| ()))
-            .unwrap_or_else(|_| ts.to_string())
-    }
-}
-
 #[cfg(feature = "async")]
 pub use r#async::DynWriter as DynAsyncWriter;
 
@@ -535,50 +509,5 @@ mod r#async {
                 DynWriterImpl::ZStd(enc) => io::AsyncWrite::poll_shutdown(Pin::new(enc), cx),
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::UNDEF_PRICE;
-
-    use super::*;
-
-    #[test]
-    fn test_format_px_negative() {
-        assert_eq!(format_px(-100_000), "-0.000100000");
-    }
-
-    #[test]
-    fn test_format_px_positive() {
-        assert_eq!(format_px(32_500_000_000), "32.500000000");
-    }
-
-    #[test]
-    fn test_format_px_zero() {
-        assert_eq!(format_px(0), "0.000000000");
-    }
-
-    #[test]
-    fn test_format_px_undef() {
-        assert_eq!(format_px(UNDEF_PRICE), "UNDEF_PRICE");
-    }
-
-    #[test]
-    fn format_ts_0() {
-        assert!(format_ts(0).is_empty());
-    }
-
-    #[test]
-    fn format_ts_1() {
-        assert_eq!(format_ts(1), "1970-01-01T00:00:00.000000001Z");
-    }
-
-    #[test]
-    fn format_ts_future() {
-        assert_eq!(
-            format_ts(1622838300000000000),
-            "2021-06-04T20:25:00.000000000Z"
-        );
     }
 }

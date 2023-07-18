@@ -168,8 +168,8 @@ pub(crate) mod serialize {
     use csv::Writer;
 
     use crate::{
-        encode::{format_px, format_ts},
         enums::{SecurityUpdateAction, UserDefinedInstrument},
+        pretty::{fmt_px, fmt_ts},
         record::{c_chars_to_str, BidAskPair, HasRType, RecordHeader, WithTsOut},
         UNDEF_PRICE, UNDEF_TIMESTAMP,
     };
@@ -311,7 +311,7 @@ pub(crate) mod serialize {
             if px == UNDEF_PRICE {
                 csv_writer.write_field("")
             } else {
-                csv_writer.write_field(format_px(px))
+                csv_writer.write_field(fmt_px(px))
             }
         } else {
             csv_writer.write_field(px.to_string())
@@ -325,7 +325,7 @@ pub(crate) mod serialize {
         if PRETTY_TS {
             match ts {
                 0 | UNDEF_TIMESTAMP => csv_writer.write_field(""),
-                ts => csv_writer.write_field(format_ts(ts)),
+                ts => csv_writer.write_field(fmt_ts(ts)),
             }
         } else {
             csv_writer.write_field(ts.to_string())

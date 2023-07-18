@@ -95,9 +95,9 @@ pub(crate) mod serialize {
     use time::format_description::FormatItem;
 
     use crate::json_writer::{JsonObjectWriter, NULL};
+    use crate::pretty::{fmt_px, fmt_ts};
     use crate::UNDEF_TIMESTAMP;
     use crate::{
-        encode::{format_px, format_ts},
         enums::{SecurityUpdateAction, UserDefinedInstrument},
         record::{c_chars_to_str, BidAskPair, HasRType, RecordHeader, WithTsOut},
         Metadata, UNDEF_PRICE,
@@ -384,7 +384,7 @@ pub(crate) mod serialize {
             if px == UNDEF_PRICE {
                 writer.value(key, NULL);
             } else {
-                writer.value(key, &format_px(px));
+                writer.value(key, &fmt_px(px));
             }
         } else {
             // Convert to string to avoid a loss of precision
@@ -400,7 +400,7 @@ pub(crate) mod serialize {
         if PRETTY_TS {
             match ts {
                 0 | UNDEF_TIMESTAMP => writer.value(key, NULL),
-                ts => writer.value(key, &format_ts(ts)),
+                ts => writer.value(key, &fmt_ts(ts)),
             };
         } else {
             // Convert to string to avoid a loss of precision

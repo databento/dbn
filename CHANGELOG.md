@@ -6,6 +6,8 @@
   and methods. This should make it easier to disambiguate between error types.
 - `EncodeDbn::encode_record` and `EncodeDbn::record_record_ref` no longer treat a
   `BrokenPipe` error differently
+- Added `pretty::Px` and `pretty::Ts` newtypes to expose price and timestamp formatting
+  logic outside of CSV and JSON encoding
 - Added interning for Python strings
 - Added `pretty_` Python attributes for DBN price fields
 - Added `pretty_` Python attributes for DBN UTC timestamp fields
