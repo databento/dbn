@@ -15,6 +15,7 @@ use dbn::{
 };
 use pyo3::{
     exceptions::{PyTypeError, PyValueError},
+    intern,
     prelude::*,
     types::PyBytes,
     PyClass,
@@ -100,17 +101,17 @@ impl<'source> FromPyObject<'source> for PyFileLike {
     fn extract(any: &'source PyAny) -> PyResult<Self> {
         Python::with_gil(|py| {
             let obj: PyObject = any.extract()?;
-            if obj.getattr(py, "read").is_err() {
+            if obj.getattr(py, intern!(py, "read")).is_err() {
                 return Err(PyTypeError::new_err(
                     "object is missing a `read()` method".to_owned(),
                 ));
             }
-            if obj.getattr(py, "write").is_err() {
+            if obj.getattr(py, intern!(py, "write")).is_err() {
                 return Err(PyTypeError::new_err(
                     "object is missing a `write()` method".to_owned(),
                 ));
             }
-            if obj.getattr(py, "seek").is_err() {
+            if obj.getattr(py, intern!(py, "seek")).is_err() {
                 return Err(PyTypeError::new_err(
                     "object is missing a `seek()` method".to_owned(),
                 ));
@@ -126,7 +127,7 @@ impl io::Write for PyFileLike {
             let bytes = PyBytes::new(py, buf).to_object(py);
             let number_bytes_written = self
                 .inner
-                .call_method(py, "write", (bytes,), None)
+                .call_method(py, intern!(py, "write"), (bytes,), None)
                 .map_err(py_to_rs_io_err)?;
 
             number_bytes_written.extract(py).map_err(py_to_rs_io_err)
@@ -136,7 +137,7 @@ impl io::Write for PyFileLike {
     fn flush(&mut self) -> Result<(), io::Error> {
         Python::with_gil(|py| {
             self.inner
-                .call_method(py, "flush", (), None)
+                .call_method(py, intern!(py, "flush"), (), None)
                 .map_err(py_to_rs_io_err)?;
 
             Ok(())
@@ -155,7 +156,7 @@ impl io::Seek for PyFileLike {
 
             let new_position = self
                 .inner
-                .call_method(py, "seek", (offset, whence), None)
+                .call_method(py, intern!(py, "seek"), (offset, whence), None)
                 .map_err(py_to_rs_io_err)?;
 
             new_position.extract(py).map_err(py_to_rs_io_err)
@@ -167,7 +168,7 @@ fn py_to_rs_io_err(e: PyErr) -> io::Error {
     Python::with_gil(|py| {
         let e_as_object: PyObject = e.into_py(py);
 
-        match e_as_object.call_method(py, "__str__", (), None) {
+        match e_as_object.call_method(py, intern!(py, "__str__"), (), None) {
             Ok(repr) => match repr.extract::<String>(py) {
                 Ok(s) => io::Error::new(io::ErrorKind::Other, s),
                 Err(_e) => io::Error::new(io::ErrorKind::Other, "An unknown error has occurred"),

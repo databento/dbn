@@ -1,8 +1,9 @@
-# ruff: noqa: PYI021 PYI053
+# ruff: noqa: UP007 PYI021 PYI053
 from __future__ import annotations
 
 from collections.abc import Iterable
 from collections.abc import Sequence
+from datetime import datetime
 from enum import Enum
 from typing import (
     Any,
@@ -43,7 +44,6 @@ class Compression(Enum):
 
     @classmethod
     def from_str(cls, str) -> Compression: ...
-
     @classmethod
     def variants(cls) -> Iterable[Compression]: ...
 
@@ -66,7 +66,6 @@ class Encoding(Enum):
 
     @classmethod
     def from_str(cls, str) -> Encoding: ...
-
     @classmethod
     def variants(cls) -> Iterable[Compression]: ...
 
@@ -119,10 +118,8 @@ class Schema(Enum):
 
     @classmethod
     def from_str(cls, str) -> Schema: ...
-
     @classmethod
     def variants(cls) -> Iterable[Schema]: ...
-
 
 class SType(Enum):
     """
@@ -149,7 +146,6 @@ class SType(Enum):
 
     @classmethod
     def from_str(cls, str) -> SType: ...
-
     @classmethod
     def variants(cls) -> Iterable[SType]: ...
 
@@ -473,6 +469,17 @@ class Record(SupportsBytes):
 
         """
     @property
+    def pretty_ts_event(self) -> datetime:
+        """
+        The matching-engine-received timestamp expressed as a
+        datetime or a `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime
+
+        """
+    @property
     def ts_event(self) -> int:
         """
         The matching-engine-received timestamp expressed as number of
@@ -511,6 +518,20 @@ class _MBOBase:
 
         """
     @property
+    def pretty_price(self) -> float:
+        """
+        The order price as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        price
+
+        """
+    @property
     def price(self) -> int:
         """
         The order price expressed as a signed integer where every 1 unit
@@ -519,6 +540,10 @@ class _MBOBase:
         Returns
         -------
         int
+
+        See Also
+        --------
+        pretty_price
 
         """
     @property
@@ -573,6 +598,17 @@ class _MBOBase:
 
         """
     @property
+    def pretty_ts_recv(self) -> datetime:
+        """
+        The capture-server-received timestamp as a datetime or
+        `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime
+
+        """
+    @property
     def ts_recv(self) -> int:
         """
         The capture-server-received timestamp expressed as number of
@@ -615,23 +651,61 @@ class BidAskPair:
     """
 
     @property
+    def pretty_bid_px(self) -> float:
+        """
+        The bid price as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        bid_px
+
+        """
+    @property
     def bid_px(self) -> int:
         """
-        The bid price.
+        The bid price expressed as a signed integer where every 1 unit
+        corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 
         Returns
         -------
         int
+
+        See Also
+        --------
+        pretty_bid_px
+
+        """
+    @property
+    def pretty_ask_px(self) -> float:
+        """
+        The ask price as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        ask_px
 
         """
     @property
     def ask_px(self) -> int:
         """
-        The ask price.
+        The ask price as a signed integer where every 1 unit
+        corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 
         Returns
         -------
         int
+
+        See Also
+        --------
+        pretty_ask_px
 
         """
     @property
@@ -681,6 +755,20 @@ class _MBPBase:
     """
 
     @property
+    def pretty_price(self) -> float:
+        """
+        The order price as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        price
+
+        """
+    @property
     def price(self) -> int:
         """
         The order price expressed as a signed integer where every 1 unit
@@ -689,6 +777,10 @@ class _MBPBase:
         Returns
         -------
         int
+
+        See Also
+        --------
+        pretty_price
 
         """
     @property
@@ -740,6 +832,17 @@ class _MBPBase:
         Returns
         -------
         int
+
+        """
+    @property
+    def pretty_ts_recv(self) -> datetime:
+        """
+        The capture-server-received timestamp as a datetime or
+        `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime
 
         """
     @property
@@ -828,43 +931,119 @@ class OHLCVMsg(Record):
     """
 
     @property
+    def pretty_open(self) -> float:
+        """
+        The open price for the bar as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        open
+
+        """
+    @property
     def open(self) -> int:
         """
-        The open price for the bar.
+        The open price for the bar expressed as a signed integer where every 1
+        unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 
         Returns
         -------
         int
+
+        See Also
+        --------
+        pretty_open
+
+        """
+    @property
+    def pretty_high(self) -> float:
+        """
+        The high price for the bar as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        high
 
         """
     @property
     def high(self) -> int:
         """
-        The high price for the bar.
+        The high price for the bar expressed as a signed integer where every 1
+        unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 
         Returns
         -------
         int
+
+        See Also
+        --------
+        pretty_high
+
+        """
+    @property
+    def pretty_low(self) -> float:
+        """
+        The low price for the bar as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        low
 
         """
     @property
     def low(self) -> int:
         """
-        The low price for the bar.
+        The low price for the bar expressed as a signed integer where every 1
+        unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 
         Returns
         -------
         int
+
+        See Also
+        --------
+        pretty_low
+
+        """
+    @property
+    def pretty_close(self) -> float:
+        """
+        The close price for the bar as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        close
 
         """
     @property
     def close(self) -> int:
         """
-        The close price for the bar.
+        The close price for the bar expressed as a signed integer where every 1
+        unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 
         Returns
         -------
         int
+
+        See Also
+        --------
+        pretty_close
 
         """
     @property
@@ -884,6 +1063,17 @@ class InstrumentDefMsg(Record):
     """
 
     @property
+    def pretty_ts_recv(self) -> datetime:
+        """
+        The capture-server-received timestamp as a datetime or
+        `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime
+
+        """
+    @property
     def ts_recv(self) -> int:
         """
         The capture-server-received timestamp expressed as number of
@@ -895,6 +1085,20 @@ class InstrumentDefMsg(Record):
 
         """
     @property
+    def pretty_min_price_increment(self) -> float:
+        """
+        The minimum constant tick for the instrument as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        min_price_increment
+
+        """
+    @property
     def min_price_increment(self) -> int:
         """
         The minimum constant tick for the instrument in units of 1e-9, i.e.
@@ -903,6 +1107,10 @@ class InstrumentDefMsg(Record):
         Returns
         -------
         int
+
+        See Also
+        --------
+        pretty_min_price_increment
 
         """
     @property
@@ -917,6 +1125,17 @@ class InstrumentDefMsg(Record):
 
         """
     @property
+    def pretty_expiration(self) -> datetime:
+        """
+        The last eligible trade time expressed as a datetime or
+        `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime
+
+        """
+    @property
     def expiration(self) -> int:
         """
         The last eligible trade time expressed as a number of nanoseconds since
@@ -925,6 +1144,17 @@ class InstrumentDefMsg(Record):
         Returns
         -------
         int
+
+        """
+    @property
+    def pretty_activation(self) -> datetime:
+        """
+        The time of instrument activation expressed as a datetime or
+        `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime
 
         """
     @property
@@ -939,6 +1169,20 @@ class InstrumentDefMsg(Record):
 
         """
     @property
+    def prety_high_limit_price(self) -> float:
+        """
+        The allowable high limit price for the trading day as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        high_limit_price
+
+        """
+    @property
     def high_limit_price(self) -> int:
         """
         The allowable high limit price for the trading day in units of 1e-9,
@@ -947,6 +1191,24 @@ class InstrumentDefMsg(Record):
         Returns
         -------
         int
+
+        See Also
+        --------
+        pretty_high_limit_price
+
+        """
+    @property
+    def pretty_low_limit_price(self) -> float:
+        """
+        The allowable low limit price for the trading day as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        low_limit_price
 
         """
     @property
@@ -959,6 +1221,24 @@ class InstrumentDefMsg(Record):
         -------
         int
 
+        See Also
+        --------
+        pretty_low_limit_price
+
+        """
+    @property
+    def pretty_max_price_variation(self) -> float:
+        """
+        The differential value for price banding in units as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        max_price_variation
+
         """
     @property
     def max_price_variation(self) -> int:
@@ -970,15 +1250,38 @@ class InstrumentDefMsg(Record):
         -------
         int
 
+        See Also
+        --------
+        pretty_max_price_variation
+
+        """
+    @property
+    def pretty_trading_reference_price(self) -> float:
+        """
+        The trading session settlement price on `trading_reference_date` as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        trading_reference_price
+
         """
     @property
     def trading_reference_price(self) -> int:
         """
-        The trading session settlement price on `trading_reference_date`.
+        The trading session settlement price on `trading_reference_date` in units of 1e-9, i.e.
+        1/1,000,000,000 or 0.000000001.
 
         Returns
         -------
         int
+
+        See Also
+        --------
+        pretty_trading_reference_price
 
         """
     @property
@@ -993,6 +1296,20 @@ class InstrumentDefMsg(Record):
 
         """
     @property
+    def pretty_min_price_increment_amount(self) -> float:
+        """
+        The value currently under development by the venue as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        min_price_increment_amount
+
+        """
+    @property
     def min_price_increment_amount(self) -> int:
         """
         The value currently under development by the venue. Converted to units
@@ -1001,6 +1318,25 @@ class InstrumentDefMsg(Record):
         Returns
         -------
         int
+
+        See Also
+        --------
+        pretty_min_price_increment_amount
+
+        """
+    @property
+    def pretty_price_ratio(self) -> float:
+        """
+        The value used for price calculation in spread and leg pricing as a
+        float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        price_ratio
 
         """
     @property
@@ -1012,6 +1348,10 @@ class InstrumentDefMsg(Record):
         Returns
         -------
         int
+
+        See Also
+        --------
+        pretty_price_ratio
 
         """
     @property
@@ -1330,6 +1670,20 @@ class InstrumentDefMsg(Record):
 
         """
     @property
+    def pretty_strike_price(self) -> float:
+        """
+        The strike price of the option as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        strike_price
+
+        """
+    @property
     def strike_price(self) -> int:
         """
         The strike price of the option. Converted to units of 1e-9, i.e.
@@ -1338,6 +1692,10 @@ class InstrumentDefMsg(Record):
         Returns
         -------
         int
+
+        See Also
+        --------
+        pretty_strike_price
 
         """
     @property
@@ -1500,6 +1858,17 @@ class ImbalanceMsg(Record):
     """
 
     @property
+    def pretty_ts_recv(self) -> datetime:
+        """
+        The capture-server-received timestamp as a datetime or
+        `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime
+
+        """
+    @property
     def ts_recv(self) -> int:
         """
         The capture-server-received timestamp expressed as the number of
@@ -1511,6 +1880,20 @@ class ImbalanceMsg(Record):
 
         """
     @property
+    def pretty_ref_price(self) -> float:
+        """
+        The price at which the imbalance shares are calculated as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        ref_price
+
+        """
+    @property
     def ref_price(self) -> int:
         """
         The price at which the imbalance shares are calculated, where every 1
@@ -1519,6 +1902,10 @@ class ImbalanceMsg(Record):
         Returns
         -------
         int
+
+        See Also
+        --------
+        pretty_ref_price
 
         """
     @property
@@ -1532,24 +1919,64 @@ class ImbalanceMsg(Record):
 
         """
     @property
+    def pretty_cont_book_clr_price(self) -> float:
+        """
+        The hypothetical auction-clearing price for both cross and continuous
+        orders as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        cont_book_clr_price
+
+        """
+    @property
     def cont_book_clr_price(self) -> int:
         """
         The hypothetical auction-clearing price for both cross and continuous
-        orders.
+        orders where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
+        0.000000001.
 
         Returns
         -------
         int
+
+        See Also
+        --------
+        pretty_cont_book_clr_price
+
+        """
+    @property
+    def pretty_auct_interest_clr_price(self) -> float:
+        """
+        The hypothetical auction-clearing price for cross orders only as a
+        float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        auct_interest_clr_price
 
         """
     @property
     def auct_interest_clr_price(self) -> int:
         """
-        The hypothetical auction-clearing price for cross orders only.
+        The hypothetical auction-clearing price for cross orders only where
+        every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 
         Returns
         -------
         int
+
+        See Also
+        --------
+        pretty_auct_interest_clr_price
 
         """
     @property
@@ -1715,6 +2142,17 @@ class StatMsg(Record):
     """
 
     @property
+    def pretty_ts_recv(self) -> datetime:
+        """
+        The capture-server-received timestamp as a datetime or
+        `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime
+
+        """
+    @property
     def ts_recv(self) -> int:
         """
         The capture-server-received timestamp expressed as the number of
@@ -1737,6 +2175,20 @@ class StatMsg(Record):
 
         """
     @property
+    def pretty_price(self) -> float:
+        """
+        The value for price statistics as a float. Will be nan when unused.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        price
+
+        """
+    @property
     def price(self) -> int:
         """
         The value for price statistics expressed as a signed integer where
@@ -1746,6 +2198,10 @@ class StatMsg(Record):
         Returns
         -------
         int
+
+        See Also
+        --------
+        pretty_price
 
         """
     @property
@@ -1862,6 +2318,17 @@ class SymbolMappingMsg(Record):
 
         """
     @property
+    def pretty_start_ts(self) -> datetime:
+        """
+        The start of the mapping interval expressed as a datetime
+        or `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime
+
+        """
+    @property
     def start_ts(self) -> int:
         """
         The start of the mapping interval expressed as the number of
@@ -1870,6 +2337,17 @@ class SymbolMappingMsg(Record):
         Returns
         -------
         int
+
+        """
+    @property
+    def pretty_end_ts(self) -> datetime:
+        """
+        The end of the mapping interval expressed as a datetime
+        or `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime
 
         """
     @property

@@ -6,9 +6,10 @@ use std::{collections::HashMap, ffi::c_char, fmt, io, mem, num::NonZeroU64, str:
 
 use pyo3::{
     exceptions::PyValueError,
+    intern,
     prelude::*,
     pyclass::CompareOp,
-    types::{PyBytes, PyDate, PyDateAccess, PyDict, PyType},
+    types::{timezone_utc, PyBytes, PyDate, PyDateAccess, PyDateTime, PyDict, PyType},
     PyTypeInfo,
 };
 use strum::IntoEnumIterator;
@@ -27,7 +28,7 @@ use crate::{
         Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader, StatMsg, StatusMsg, SymbolMappingMsg, SystemMsg,
         TradeMsg, WithTsOut,
     },
-    UNDEF_ORDER_SIZE, UNDEF_PRICE,
+    FIXED_PRICE_SCALE, UNDEF_ORDER_SIZE, UNDEF_PRICE,
 };
 use crate::{MappingInterval, Metadata, SymbolMapping, UNDEF_TIMESTAMP};
 
@@ -119,10 +120,10 @@ impl IntoPy<PyObject> for SymbolMapping {
 impl ToPyObject for SymbolMapping {
     fn to_object(&self, py: Python<'_>) -> PyObject {
         let dict = PyDict::new(py);
-        dict.set_item("raw_symbol", &self.raw_symbol)
-            .expect("set raw_symbol");
-        dict.set_item("intervals", &self.intervals)
-            .expect("set intervals");
+        dict.set_item(intern!(py, "raw_symbol"), &self.raw_symbol)
+            .unwrap();
+        dict.set_item(intern!(py, "intervals"), &self.intervals)
+            .unwrap();
         dict.into_py(py)
     }
 }
@@ -131,7 +132,7 @@ impl ToPyObject for SymbolMapping {
 impl<R: HasRType + IntoPy<Py<PyAny>>> IntoPy<PyObject> for WithTsOut<R> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         let obj = self.rec.into_py(py);
-        obj.setattr(py, "ts_out", self.ts_out).unwrap();
+        obj.setattr(py, intern!(py, "ts_out"), self.ts_out).unwrap();
         obj
     }
 }
@@ -144,18 +145,39 @@ fn extract_date(any: &PyAny) -> PyResult<time::Date> {
         .map_err(|e| to_val_err(e.to_string()))
 }
 
+fn get_utc_nanosecond_timestamp(py: Python<'_>, timestamp: u64) -> PyResult<PyObject> {
+    if let Ok(pandas) = PyModule::import(py, intern!(py, "pandas")) {
+        let kwargs = PyDict::new(py);
+        if kwargs.set_item(intern!(py, "utc"), true).is_ok()
+            && kwargs
+                .set_item(intern!(py, "errors"), intern!(py, "coerce"))
+                .is_ok()
+            && kwargs
+                .set_item(intern!(py, "unit"), intern!(py, "ns"))
+                .is_ok()
+        {
+            return pandas
+                .call_method(intern!(py, "to_datetime"), (timestamp,), Some(kwargs))
+                .map(|o| o.into_py(py));
+        }
+    }
+    let utc_tz = timezone_utc(py);
+    let timestamp_ms = timestamp as f64 / 1_000_000.0;
+    PyDateTime::from_timestamp(py, timestamp_ms, Some(utc_tz)).map(|o| o.into_py(py))
+}
+
 impl<'source> FromPyObject<'source> for MappingInterval {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
         let start_date = ob
-            .getattr("start_date")
+            .getattr(intern!(ob.py(), "start_date"))
             .map_err(|_| to_val_err("Missing start_date".to_owned()))
             .and_then(extract_date)?;
         let end_date = ob
-            .getattr("end_date")
+            .getattr(intern!(ob.py(), "end_date"))
             .map_err(|_| to_val_err("Missing end_date".to_owned()))
             .and_then(extract_date)?;
         let symbol = ob
-            .getattr("symbol")
+            .getattr(intern!(ob.py(), "symbol"))
             .map_err(|_| to_val_err("Missing symbol".to_owned()))
             .and_then(|d| d.extract::<String>())?;
         Ok(Self {
@@ -170,28 +192,28 @@ impl ToPyObject for MappingInterval {
     fn to_object(&self, py: Python<'_>) -> PyObject {
         let dict = PyDict::new(py);
         dict.set_item(
-            "start_date",
+            intern!(py, "start_date"),
             PyDate::new(
                 py,
                 self.start_date.year(),
                 self.start_date.month() as u8,
                 self.start_date.day(),
             )
-            .expect("valid start_date"),
+            .unwrap(),
         )
-        .expect("set start_date");
+        .unwrap();
         dict.set_item(
-            "end_date",
+            intern!(py, "end_date"),
             PyDate::new(
                 py,
                 self.end_date.year(),
                 self.end_date.month() as u8,
                 self.end_date.day(),
             )
-            .expect("valid end_date"),
+            .unwrap(),
         )
-        .expect("set end_date");
-        dict.set_item("symbol", &self.symbol).expect("set symbol");
+        .unwrap();
+        dict.set_item(intern!(py, "symbol"), &self.symbol).unwrap();
         dict.into_py(py)
     }
 }
@@ -522,6 +544,24 @@ impl MboMsg {
         self.hd.ts_event
     }
 
+    #[getter]
+    #[pyo3(name = "pretty_price")]
+    fn py_pretty_price(&self) -> f64 {
+        self.price as f64 / FIXED_PRICE_SCALE as f64
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_event")]
+    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_event())
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_recv")]
+    fn py_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_recv)
+    }
+
     #[pyo3(name = "record_size")]
     fn py_record_size(&self) -> usize {
         self.record_size()
@@ -557,12 +597,30 @@ impl BidAskPair {
         ask_ct: Option<u32>,
     ) -> Self {
         Self {
-            bid_px: bid_px.unwrap_or_default(),
-            ask_px: ask_px.unwrap_or_default(),
+            bid_px: bid_px.unwrap_or(UNDEF_PRICE),
+            ask_px: ask_px.unwrap_or(UNDEF_PRICE),
             bid_sz: bid_sz.unwrap_or_default(),
             ask_sz: ask_sz.unwrap_or_default(),
             bid_ct: bid_ct.unwrap_or_default(),
             ask_ct: ask_ct.unwrap_or_default(),
+        }
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ask_px")]
+    fn py_pretty_ask_px(&self) -> f64 {
+        match self.ask_px {
+            UNDEF_PRICE => f64::NAN,
+            _ => self.ask_px as f64 / FIXED_PRICE_SCALE as f64,
+        }
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_bid_px")]
+    fn py_pretty_bid_px(&self) -> f64 {
+        match self.bid_px {
+            UNDEF_PRICE => f64::NAN,
+            _ => self.bid_px as f64 / FIXED_PRICE_SCALE as f64,
         }
     }
 
@@ -636,6 +694,24 @@ impl TradeMsg {
     #[getter]
     fn ts_event(&self) -> u64 {
         self.hd.ts_event
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_price")]
+    fn py_pretty_price(&self) -> f64 {
+        self.price as f64 / FIXED_PRICE_SCALE as f64
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_event")]
+    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_event())
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_recv")]
+    fn py_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_recv)
     }
 
     #[pyo3(name = "record_size")]
@@ -728,6 +804,24 @@ impl Mbp1Msg {
     #[getter]
     fn ts_event(&self) -> u64 {
         self.hd.ts_event
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_price")]
+    fn py_pretty_price(&self) -> f64 {
+        self.price as f64 / FIXED_PRICE_SCALE as f64
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_event")]
+    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_event())
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_recv")]
+    fn py_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_recv)
     }
 
     #[pyo3(name = "record_size")]
@@ -834,6 +928,24 @@ impl Mbp10Msg {
         self.hd.ts_event
     }
 
+    #[getter]
+    #[pyo3(name = "pretty_price")]
+    fn py_pretty_price(&self) -> f64 {
+        self.price as f64 / FIXED_PRICE_SCALE as f64
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_event")]
+    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_event())
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_recv")]
+    fn py_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_recv)
+    }
+
     #[pyo3(name = "record_size")]
     fn py_record_size(&self) -> usize {
         self.record_size()
@@ -917,6 +1029,36 @@ impl OhlcvMsg {
         self.hd.ts_event
     }
 
+    #[getter]
+    #[pyo3(name = "pretty_open")]
+    fn py_pretty_open(&self) -> f64 {
+        self.open as f64 / FIXED_PRICE_SCALE as f64
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_high")]
+    fn py_pretty_high(&self) -> f64 {
+        self.high as f64 / FIXED_PRICE_SCALE as f64
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_low")]
+    fn py_pretty_low(&self) -> f64 {
+        self.low as f64 / FIXED_PRICE_SCALE as f64
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_close")]
+    fn py_pretty_close(&self) -> f64 {
+        self.close as f64 / FIXED_PRICE_SCALE as f64
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_event")]
+    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_event())
+    }
+
     #[pyo3(name = "record_size")]
     fn py_record_size(&self) -> usize {
         self.record_size()
@@ -985,6 +1127,18 @@ impl StatusMsg {
     #[getter]
     fn ts_event(&self) -> u64 {
         self.hd.ts_event
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_event")]
+    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_event())
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_recv")]
+    fn py_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_recv)
     }
 
     #[pyo3(name = "record_size")]
@@ -1085,11 +1239,11 @@ impl InstrumentDefMsg {
             activation: activation.unwrap_or(UNDEF_TIMESTAMP),
             high_limit_price: high_limit_price.unwrap_or(UNDEF_PRICE),
             low_limit_price: low_limit_price.unwrap_or(UNDEF_PRICE),
-            max_price_variation: max_price_variation.unwrap_or(i64::MAX),
-            trading_reference_price: trading_reference_price.unwrap_or(i64::MAX),
+            max_price_variation: max_price_variation.unwrap_or(UNDEF_PRICE),
+            trading_reference_price: trading_reference_price.unwrap_or(UNDEF_PRICE),
             unit_of_measure_qty: unit_of_measure_qty.unwrap_or(i64::MAX),
-            min_price_increment_amount: min_price_increment_amount.unwrap_or(i64::MAX),
-            price_ratio: price_ratio.unwrap_or(i64::MAX),
+            min_price_increment_amount: min_price_increment_amount.unwrap_or(UNDEF_PRICE),
+            price_ratio: price_ratio.unwrap_or(UNDEF_PRICE),
             inst_attrib_value: inst_attrib_value.unwrap_or(i32::MAX),
             underlying_id: underlying_id.unwrap_or_default(),
             market_depth_implied: market_depth_implied.unwrap_or(i32::MAX),
@@ -1183,6 +1337,99 @@ impl InstrumentDefMsg {
     #[getter]
     fn ts_event(&self) -> u64 {
         self.hd.ts_event
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_min_price_increment")]
+    fn py_pretty_min_price_increment(&self) -> f64 {
+        self.min_price_increment as f64 / FIXED_PRICE_SCALE as f64
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_high_limit_price")]
+    fn py_pretty_high_limit_price(&self) -> f64 {
+        match self.high_limit_price {
+            UNDEF_PRICE => f64::NAN,
+            _ => self.high_limit_price as f64 / FIXED_PRICE_SCALE as f64,
+        }
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_low_limit_price")]
+    fn py_pretty_low_limit_price(&self) -> f64 {
+        match self.low_limit_price {
+            UNDEF_PRICE => f64::NAN,
+            _ => self.low_limit_price as f64 / FIXED_PRICE_SCALE as f64,
+        }
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_max_price_variation")]
+    fn py_pretty_max_price_variation(&self) -> f64 {
+        match self.max_price_variation {
+            UNDEF_PRICE => f64::NAN,
+            _ => self.max_price_variation as f64 / FIXED_PRICE_SCALE as f64,
+        }
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_trading_reference_price")]
+    fn py_pretty_trading_reference_price(&self) -> f64 {
+        match self.trading_reference_price {
+            UNDEF_PRICE => f64::NAN,
+            _ => self.trading_reference_price as f64 / FIXED_PRICE_SCALE as f64,
+        }
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_min_price_increment_amount")]
+    fn py_pretty_min_price_increment_amount(&self) -> f64 {
+        match self.min_price_increment_amount {
+            UNDEF_PRICE => f64::NAN,
+            _ => self.min_price_increment_amount as f64 / FIXED_PRICE_SCALE as f64,
+        }
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_price_ratio")]
+    fn py_pretty_price_ratio(&self) -> f64 {
+        match self.price_ratio {
+            UNDEF_PRICE => f64::NAN,
+            _ => self.price_ratio as f64 / FIXED_PRICE_SCALE as f64,
+        }
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_strike_price")]
+    fn py_pretty_strike_price(&self) -> f64 {
+        match self.strike_price {
+            UNDEF_PRICE => f64::NAN,
+            _ => self.strike_price as f64 / FIXED_PRICE_SCALE as f64,
+        }
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_event")]
+    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_event())
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_recv")]
+    fn py_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_recv)
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_activation")]
+    fn py_pretty_activation(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.expiration)
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_expiration")]
+    fn py_pretty_expiration(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.expiration)
     }
 
     #[pyo3(name = "record_size")]
@@ -1371,9 +1618,39 @@ impl ImbalanceMsg {
         self.hd.ts_event
     }
 
+    #[getter]
+    #[pyo3(name = "pretty_auct_interest_clr_price")]
+    fn py_pretty_auct_interest_clr_price(&self) -> f64 {
+        self.auct_interest_clr_price as f64 / FIXED_PRICE_SCALE as f64
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_cont_book_clear_price")]
+    fn py_pretty_cont_book_clear_price(&self) -> f64 {
+        self.cont_book_clr_price as f64 / FIXED_PRICE_SCALE as f64
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ref_price")]
+    fn py_pretty_ref_price(&self) -> f64 {
+        self.ref_price as f64 / FIXED_PRICE_SCALE as f64
+    }
+
     #[pyo3(name = "record_size")]
     fn py_record_size(&self) -> usize {
         self.record_size()
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_event")]
+    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_event())
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_recv")]
+    fn py_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_recv)
     }
 
     #[classmethod]
@@ -1475,6 +1752,30 @@ impl StatMsg {
         self.hd.ts_event
     }
 
+    #[getter]
+    #[pyo3(name = "pretty_price")]
+    fn py_pretty_price(&self) -> f64 {
+        self.price as f64 / FIXED_PRICE_SCALE as f64
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_event")]
+    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_event())
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_recv")]
+    fn py_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_recv)
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_ref")]
+    fn py_pretty_ts_ref(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_ref)
+    }
+
     #[pyo3(name = "record_size")]
     fn py_record_size(&self) -> usize {
         self.record_size()
@@ -1531,6 +1832,12 @@ impl ErrorMsg {
     #[getter]
     fn ts_event(&self) -> u64 {
         self.hd.ts_event
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_event")]
+    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_event())
     }
 
     #[pyo3(name = "record_size")]
@@ -1613,6 +1920,24 @@ impl SymbolMappingMsg {
         self.hd.ts_event
     }
 
+    #[getter]
+    #[pyo3(name = "pretty_ts_event")]
+    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_event())
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_end_ts")]
+    fn py_pretty_end_ts(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.end_ts)
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_start_ts")]
+    fn py_pretty_start_ts(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.start_ts)
+    }
+
     #[pyo3(name = "record_size")]
     fn py_record_size(&self) -> usize {
         self.record_size()
@@ -1681,6 +2006,12 @@ impl SystemMsg {
     #[getter]
     fn ts_event(&self) -> u64 {
         self.hd.ts_event
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_event")]
+    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_event())
     }
 
     #[pyo3(name = "record_size")]

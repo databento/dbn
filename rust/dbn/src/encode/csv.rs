@@ -1,11 +1,10 @@
 //! Encoding of DBN records into comma-separated values (CSV).
 use std::{io, num::NonZeroU64};
 
-use anyhow::anyhow;
 use streaming_iterator::StreamingIterator;
 
 use super::EncodeDbn;
-use crate::{decode::DecodeDbn, enums::RType, schema_method_dispatch};
+use crate::{decode::DecodeDbn, enums::RType, schema_method_dispatch, Error, Result};
 
 /// Type for encoding files and streams of DBN records in CSV.
 ///
@@ -43,7 +42,7 @@ where
     }
 
     #[doc(hidden)]
-    pub fn encode_header<R: super::DbnEncodable>(&mut self) -> anyhow::Result<()> {
+    pub fn encode_header<R: super::DbnEncodable>(&mut self) -> Result<()> {
         R::serialize_header(&mut self.writer)?;
         // end of line
         self.writer.write_record(None::<&[u8]>)?;
@@ -55,7 +54,7 @@ impl<W> EncodeDbn for Encoder<W>
 where
     W: io::Write,
 {
-    fn encode_record<R: super::DbnEncodable>(&mut self, record: &R) -> anyhow::Result<bool> {
+    fn encode_record<R: super::DbnEncodable>(&mut self, record: &R) -> Result<()> {
         let serialize_res = match (self.use_pretty_px, self.use_pretty_ts) {
             (true, true) => record.serialize_to::<_, true, true>(&mut self.writer),
             (true, false) => record.serialize_to::<_, true, false>(&mut self.writer),
@@ -66,25 +65,18 @@ where
             // write new line
             .and_then(|_| self.writer.write_record(None::<&[u8]>))
         {
-            Ok(_) => Ok(false),
-            Err(e) => {
-                if matches!(e.kind(), csv::ErrorKind::Io(io_err) if io_err.kind() == io::ErrorKind::BrokenPipe)
-                {
-                    // closed pipe, should stop writing output
-                    Ok(true)
-                } else {
-                    Err(anyhow::Error::new(e).context(format!("Failed to serialize {record:#?}")))
-                }
-            }
+            Ok(()) => Ok(()),
+            Err(e) => Err(match e.into_kind() {
+                csv::ErrorKind::Io(err) => Error::io(err, format!("serializing {record:?}")),
+                _ => Error::encode(format!("Failed to serialize {record:?}")),
+            }),
         }
     }
 
-    fn encode_records<R: super::DbnEncodable>(&mut self, records: &[R]) -> anyhow::Result<()> {
+    fn encode_records<R: super::DbnEncodable>(&mut self, records: &[R]) -> Result<()> {
         self.encode_header::<R>()?;
         for record in records {
-            if self.encode_record(record)? {
-                break;
-            }
+            self.encode_record(record)?;
         }
         self.flush()?;
         Ok(())
@@ -98,19 +90,19 @@ where
     fn encode_stream<R: super::DbnEncodable>(
         &mut self,
         mut stream: impl StreamingIterator<Item = R>,
-    ) -> anyhow::Result<()> {
+    ) -> Result<()> {
         self.encode_header::<R>()?;
         while let Some(record) = stream.next() {
-            if self.encode_record(record)? {
-                break;
-            }
+            self.encode_record(record)?;
         }
         self.flush()?;
         Ok(())
     }
 
-    fn flush(&mut self) -> anyhow::Result<()> {
-        Ok(self.writer.flush()?)
+    fn flush(&mut self) -> Result<()> {
+        self.writer
+            .flush()
+            .map_err(|e| Error::io(e, "flushing output"))
     }
 
     /// Encode DBN records directly from a DBN decoder. This implemented outside [`EncodeDbn`](super::EncodeDbn)
@@ -120,25 +112,23 @@ where
     /// # Errors
     /// This function returns an error if it's unable to write to the underlying writer
     /// or there's a serialization error.
-    fn encode_decoded<D: DecodeDbn>(&mut self, mut decoder: D) -> anyhow::Result<()> {
+    fn encode_decoded<D: DecodeDbn>(&mut self, mut decoder: D) -> Result<()> {
         let ts_out = decoder.metadata().ts_out;
         if let Some(schema) = decoder.metadata().schema {
             schema_method_dispatch!(schema, self, encode_header)?;
             let rtype = RType::from(schema);
             while let Some(record) = decoder.decode_record_ref()? {
                 if record.rtype().map_or(true, |r| r != rtype) {
-                    return Err(anyhow!("Schema indicated {rtype:?}, but found record with rtype {:?}. Mixed schemas cannot be encoded in CSV.", record.rtype()));
+                    return Err(Error::encode(format!("Schema indicated {rtype:?}, but found record with rtype {:?}. Mixed schemas cannot be encoded in CSV.", record.rtype())));
                 }
                 // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
                 // from the metadata header.
-                if unsafe { self.encode_record_ref(record, ts_out)? } {
-                    break;
-                }
+                unsafe { self.encode_record_ref(record, ts_out) }?;
             }
             self.flush()?;
             Ok(())
         } else {
-            Err(anyhow!("Can't encode a DBN with mixed schemas in CSV"))
+            Err(Error::encode("Can't encode a CSV with mixed schemas"))
         }
     }
 
@@ -146,7 +136,7 @@ where
         &mut self,
         mut decoder: D,
         limit: NonZeroU64,
-    ) -> anyhow::Result<()> {
+    ) -> Result<()> {
         let ts_out = decoder.metadata().ts_out;
         if let Some(schema) = decoder.metadata().schema {
             schema_method_dispatch!(schema, self, encode_header)?;
@@ -154,13 +144,11 @@ where
             let mut i = 0;
             while let Some(record) = decoder.decode_record_ref()? {
                 if record.rtype().map_or(true, |r| r != rtype) {
-                    return Err(anyhow!("Schema indicated {rtype:?}, but found record with rtype {:?}. Mixed schemas cannot be encoded in CSV.", record.rtype()));
+                    return Err(Error::encode(format!("Schema indicated {rtype:?}, but found record with rtype {:?}. Mixed schemas cannot be encoded in CSV.", record.rtype())));
                 }
                 // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
                 // from the metadata header.
-                if unsafe { self.encode_record_ref(record, ts_out)? } {
-                    break;
-                }
+                unsafe { self.encode_record_ref(record, ts_out) }?;
                 i += 1;
                 if i == limit.get() {
                     break;
@@ -169,7 +157,7 @@ where
             self.flush()?;
             Ok(())
         } else {
-            Err(anyhow!("Can't encode a DBN with mixed schemas in CSV"))
+            Err(Error::encode("Can't encode a CSV with mixed schemas"))
         }
     }
 }
@@ -180,8 +168,8 @@ pub(crate) mod serialize {
     use csv::Writer;
 
     use crate::{
-        encode::{format_px, format_ts},
         enums::{SecurityUpdateAction, UserDefinedInstrument},
+        pretty::{fmt_px, fmt_ts},
         record::{c_chars_to_str, BidAskPair, HasRType, RecordHeader, WithTsOut},
         UNDEF_PRICE, UNDEF_TIMESTAMP,
     };
@@ -232,14 +220,15 @@ pub(crate) mod serialize {
             &self,
             writer: &mut Writer<W>,
         ) -> csv::Result<()> {
+            // Serialize ts_event first to be more human-readable
+            write_ts_field::<W, PRETTY_TS>(writer, self.ts_event)?;
             writer.write_field(self.rtype.to_string())?;
             writer.write_field(self.publisher_id.to_string())?;
-            writer.write_field(self.instrument_id.to_string())?;
-            write_ts_field::<W, PRETTY_TS>(writer, self.ts_event)
+            writer.write_field(self.instrument_id.to_string())
         }
 
         fn write_header<W: io::Write>(csv_writer: &mut Writer<W>, _name: &str) -> csv::Result<()> {
-            ["rtype", "publisher_id", "instrument_id", "ts_event"]
+            ["ts_event", "rtype", "publisher_id", "instrument_id"]
                 .iter()
                 .try_for_each(|header| csv_writer.write_field(header))
         }
@@ -322,7 +311,7 @@ pub(crate) mod serialize {
             if px == UNDEF_PRICE {
                 csv_writer.write_field("")
             } else {
-                csv_writer.write_field(format_px(px))
+                csv_writer.write_field(fmt_px(px))
             }
         } else {
             csv_writer.write_field(px.to_string())
@@ -336,7 +325,7 @@ pub(crate) mod serialize {
         if PRETTY_TS {
             match ts {
                 0 | UNDEF_TIMESTAMP => csv_writer.write_field(""),
-                ts => csv_writer.write_field(format_ts(ts)),
+                ts => csv_writer.write_field(fmt_ts(ts)),
             }
         } else {
             csv_writer.write_field(ts.to_string())
@@ -347,7 +336,12 @@ pub(crate) mod serialize {
         csv_writer: &mut Writer<W>,
         c: c_char,
     ) -> csv::Result<()> {
-        csv_writer.write_field((c as u8 as char).to_string())
+        // Handle NUL byte
+        if c == 0 {
+            csv_writer.write_field(String::new())
+        } else {
+            csv_writer.write_field((c as u8 as char).to_string())
+        }
     }
 }
 
@@ -355,7 +349,7 @@ pub(crate) mod serialize {
 mod tests {
     use std::{array, io::BufWriter, os::raw::c_char};
 
-    use super::*;
+    use super::{serialize::write_c_char_field, *};
     use crate::{
         encode::test_data::{VecStream, BID_ASK, RECORD_HEADER},
         enums::{
@@ -368,7 +362,7 @@ mod tests {
         },
     };
 
-    const HEADER_CSV: &str = "4,1,323,1658441851000000000";
+    const HEADER_CSV: &str = "1658441851000000000,4,1,323";
 
     const BID_ASK_CSV: &str = "372000000000000,372500000000000,10,5,5,2";
 
@@ -404,7 +398,7 @@ mod tests {
         let line = extract_2nd_line(buffer);
         assert_eq!(
             line,
-            format!("{HEADER_CSV},16,5500,3,128,14,B,B,1658441891000000000,22000,1002375")
+            format!("1658441891000000000,{HEADER_CSV},B,B,5500,3,14,16,128,22000,1002375")
         );
     }
 
@@ -432,13 +426,13 @@ mod tests {
         assert_eq!(
             line,
             format!(
-                "{HEADER_CSV},5500,3,M,A,128,9,1658441891000000000,22000,1002375,{BID_ASK_CSV}"
+                "1658441891000000000,{HEADER_CSV},M,A,9,5500,3,128,22000,1002375,{BID_ASK_CSV}"
             )
         );
     }
 
     #[test]
-    fn test_mbo10_encode_stream() {
+    fn test_mbp10_encode_stream() {
         let data = vec![Mbp10Msg {
             hd: RECORD_HEADER,
             price: 5500,
@@ -460,7 +454,7 @@ mod tests {
         let line = extract_2nd_line(buffer);
         assert_eq!(
             line,
-            format!("{HEADER_CSV},5500,3,B,A,128,9,1658441891000000000,22000,1002375,{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV}")
+            format!("1658441891000000000,{HEADER_CSV},B,A,9,5500,3,128,22000,1002375,{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV}")
         );
     }
 
@@ -486,7 +480,7 @@ mod tests {
         let line = extract_2nd_line(buffer);
         assert_eq!(
             line,
-            format!("{HEADER_CSV},5500,3,B,B,128,9,1658441891000000000,22000,1002375")
+            format!("1658441891000000000,{HEADER_CSV},B,B,9,5500,3,128,22000,1002375")
         );
     }
 
@@ -569,20 +563,20 @@ mod tests {
             maturity_year: 0,
             decay_start_date: 0,
             channel_id: 4,
-            currency: [0; 4],
+            currency: str_to_c_chars("USD").unwrap(),
             settl_currency: str_to_c_chars("USD").unwrap(),
-            secsubtype: [0; 6],
-            raw_symbol: [0; 22],
-            group: [0; 21],
-            exchange: [0; 5],
-            asset: [0; 7],
-            cfi: [0; 7],
-            security_type: [0; 7],
-            unit_of_measure: [0; 31],
-            underlying: [0; 21],
-            strike_price_currency: Default::default(),
-            instrument_class: InstrumentClass::Future as u8 as c_char,
-            strike_price: 0,
+            secsubtype: Default::default(),
+            raw_symbol: str_to_c_chars("ESZ4 C4100").unwrap(),
+            group: str_to_c_chars("EW").unwrap(),
+            exchange: str_to_c_chars("XCME").unwrap(),
+            asset: str_to_c_chars("ES").unwrap(),
+            cfi: str_to_c_chars("OCAFPS").unwrap(),
+            security_type: str_to_c_chars("OOF").unwrap(),
+            unit_of_measure: str_to_c_chars("IPNT").unwrap(),
+            underlying: str_to_c_chars("ESZ4").unwrap(),
+            strike_price_currency: str_to_c_chars("USD").unwrap(),
+            instrument_class: InstrumentClass::Call as u8 as c_char,
+            strike_price: 4_100_000_000_000,
             match_algorithm: 'F' as c_char,
             md_security_trading_status: 2,
             main_fraction: 4,
@@ -611,7 +605,7 @@ mod tests {
             .encode_stream(VecStream::new(data))
             .unwrap();
         let line = extract_2nd_line(buffer);
-        assert_eq!(line, format!("{HEADER_CSV},1658441891000000000,100,1000,1698450000000000000,1697350000000000000,1000000,-1000000,0,500000,5,5,10,10,256785,0,13,0,10000,1,1000,100,1,0,0,0,0,0,0,0,4,,USD,,,,,,,,,,,F,0,F,2,4,8,9,23,10,A,8,9,11,N,0,5,0"));
+        assert_eq!(line, format!("1658441891000000000,{HEADER_CSV},ESZ4 C4100,A,C,100,1000,1698450000000000000,1697350000000000000,1000000,-1000000,0,500000,5,5,10,10,256785,0,13,0,10000,1,1000,100,1,0,0,0,0,0,0,0,4,USD,USD,,EW,XCME,ES,OCAFPS,OOF,IPNT,ESZ4,USD,4100000000000,F,2,4,8,9,23,10,8,9,11,N,0,5,0"));
     }
 
     #[test]
@@ -639,7 +633,7 @@ mod tests {
         let lines = String::from_utf8(buffer).expect("valid UTF-8");
         assert_eq!(
             lines,
-            format!("rtype,publisher_id,instrument_id,ts_event,price,size,action,side,flags,depth,ts_recv,ts_in_delta,sequence,ts_out\n{HEADER_CSV},5500,3,T,A,128,9,1658441891000000000,22000,1002375,1678480044000000000\n")
+            format!("ts_recv,ts_event,rtype,publisher_id,instrument_id,action,side,depth,price,size,flags,ts_in_delta,sequence,ts_out\n1658441891000000000,{HEADER_CSV},T,A,9,5500,3,128,22000,1002375,1678480044000000000\n")
         );
     }
 
@@ -677,7 +671,7 @@ mod tests {
         let line = extract_2nd_line(buffer);
         assert_eq!(
             line,
-            format!("{HEADER_CSV},1,2,3,4,5,6,7,8,9,10,11,12,13,B,A,14,15,16,A,N")
+            format!("1,{HEADER_CSV},2,3,4,5,6,7,8,9,10,11,12,13,B,A,14,15,16,A,N")
         );
     }
 
@@ -703,6 +697,21 @@ mod tests {
             .encode_stream(VecStream::new(data))
             .unwrap();
         let line = extract_2nd_line(buffer);
-        assert_eq!(line, format!("{HEADER_CSV},1,2,3,0,4,5,1,7,1,0"));
+        assert_eq!(line, format!("1,{HEADER_CSV},2,3,0,4,5,1,7,1,0"));
     }
+
+    #[test]
+    fn test_write_char_nul() {
+        let mut buffer = Vec::new();
+        let mut writer = csv::WriterBuilder::new().from_writer(&mut buffer);
+        write_c_char_field(&mut writer, 0).unwrap();
+        writer.write_field("a").unwrap();
+        writer.flush().unwrap();
+        drop(writer);
+        let s = std::str::from_utf8(buffer.as_slice()).unwrap();
+        assert_eq!(s, ",a");
+    }
+
+    #[test]
+    fn test_writes_header_for_0_records() {}
 }

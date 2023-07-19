@@ -7,7 +7,6 @@ pub mod json;
 use std::{fmt, io, num::NonZeroU64};
 
 use streaming_iterator::StreamingIterator;
-use time::format_description::FormatItem;
 
 // Re-exports
 #[cfg(feature = "async")]
@@ -25,12 +24,13 @@ pub use self::{
     json::Encoder as JsonEncoder,
 };
 
+use crate::Error;
 use crate::{
     decode::DecodeDbn,
     enums::{Compression, Encoding},
     record::HasRType,
     record_ref::RecordRef,
-    rtype_ts_out_dispatch, Metadata, FIXED_PRICE_SCALE,
+    rtype_ts_out_dispatch, Metadata, Result,
 };
 
 use self::{csv::serialize::CsvSerialize, json::serialize::JsonSerialize};
@@ -46,23 +46,19 @@ impl<T> DbnEncodable for T where
 pub trait EncodeDbn {
     /// Encodes a single DBN record of type `R`.
     ///
-    /// Returns `true`if the pipe was closed.
-    ///
     /// # Errors
     /// This function returns an error if it's unable to write to the underlying writer
     /// or there's a serialization error.
-    fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> anyhow::Result<bool>;
+    fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<()>;
 
     /// Encodes a slice of DBN records.
     ///
     /// # Errors
     /// This function returns an error if it's unable to write to the underlying writer
     /// or there's a serialization error.
-    fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> anyhow::Result<()> {
+    fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> Result<()> {
         for record in records {
-            if self.encode_record(record)? {
-                break;
-            }
+            self.encode_record(record)?;
         }
         self.flush()?;
         Ok(())
@@ -76,11 +72,9 @@ pub trait EncodeDbn {
     fn encode_stream<R: DbnEncodable>(
         &mut self,
         mut stream: impl StreamingIterator<Item = R>,
-    ) -> anyhow::Result<()> {
+    ) -> Result<()> {
         while let Some(record) = stream.next() {
-            if self.encode_record(record)? {
-                break;
-            }
+            self.encode_record(record)?;
         }
         self.flush()?;
         Ok(())
@@ -90,11 +84,9 @@ pub trait EncodeDbn {
     ///
     /// # Errors
     /// This function returns an error if it's unable to flush the underlying writer.
-    fn flush(&mut self) -> anyhow::Result<()>;
+    fn flush(&mut self) -> Result<()>;
 
     /// Encodes a single DBN record.
-    ///
-    /// Returns `true`if the pipe was closed.
     ///
     /// # Safety
     /// `ts_out` must be `false` if `record` does not have an appended `ts_out
@@ -102,11 +94,7 @@ pub trait EncodeDbn {
     /// # Errors
     /// This function returns an error if it's unable to write to the underlying writer
     /// or there's a serialization error.
-    unsafe fn encode_record_ref(
-        &mut self,
-        record: RecordRef,
-        ts_out: bool,
-    ) -> anyhow::Result<bool> {
+    unsafe fn encode_record_ref(&mut self, record: RecordRef, ts_out: bool) -> Result<()> {
         rtype_ts_out_dispatch!(record, ts_out, |rec| self.encode_record(rec))?
     }
 
@@ -115,14 +103,12 @@ pub trait EncodeDbn {
     /// # Errors
     /// This function returns an error if it's unable to write to the underlying writer
     /// or there's a serialization error.
-    fn encode_decoded<D: DecodeDbn>(&mut self, mut decoder: D) -> anyhow::Result<()> {
+    fn encode_decoded<D: DecodeDbn>(&mut self, mut decoder: D) -> Result<()> {
         let ts_out = decoder.metadata().ts_out;
         while let Some(record) = decoder.decode_record_ref()? {
             // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
             // from the metadata header.
-            if unsafe { self.encode_record_ref(record, ts_out)? } {
-                break;
-            }
+            unsafe { self.encode_record_ref(record, ts_out) }?;
         }
         self.flush()?;
         Ok(())
@@ -138,15 +124,13 @@ pub trait EncodeDbn {
         &mut self,
         mut decoder: D,
         limit: NonZeroU64,
-    ) -> anyhow::Result<()> {
+    ) -> Result<()> {
         let ts_out = decoder.metadata().ts_out;
         let mut i = 0;
         while let Some(record) = decoder.decode_record_ref()? {
             // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
             // from the metadata header.
-            if unsafe { self.encode_record_ref(record, ts_out)? } {
-                break;
-            }
+            unsafe { self.encode_record_ref(record, ts_out) }?;
             i += 1;
             if i == limit.get() {
                 break;
@@ -180,7 +164,7 @@ where
     ///
     /// # Errors
     /// This function returns an error if it fails to initialize the Zstd compression.
-    pub fn new(writer: W, compression: Compression) -> anyhow::Result<Self> {
+    pub fn new(writer: W, compression: Compression) -> Result<Self> {
         match compression {
             Compression::None => Ok(Self::Uncompressed(writer)),
             Compression::ZStd => zstd_encoder(writer).map(Self::ZStd),
@@ -196,11 +180,12 @@ where
     }
 }
 
-fn zstd_encoder<'a, W: io::Write>(
-    writer: W,
-) -> anyhow::Result<zstd::stream::AutoFinishEncoder<'a, W>> {
-    let mut zstd_encoder = zstd::Encoder::new(writer, ZSTD_COMPRESSION_LEVEL)?;
-    zstd_encoder.include_checksum(true)?;
+fn zstd_encoder<'a, W: io::Write>(writer: W) -> Result<zstd::stream::AutoFinishEncoder<'a, W>> {
+    let mut zstd_encoder = zstd::Encoder::new(writer, ZSTD_COMPRESSION_LEVEL)
+        .map_err(|e| Error::io(e, "creating zstd encoder"))?;
+    zstd_encoder
+        .include_checksum(true)
+        .map_err(|e| Error::io(e, "setting zstd checksum"))?;
     Ok(zstd_encoder.auto_finish())
 }
 
@@ -281,7 +266,7 @@ where
         should_pretty_print: bool,
         use_pretty_px: bool,
         use_pretty_ts: bool,
-    ) -> anyhow::Result<Self> {
+    ) -> Result<Self> {
         let writer = DynWriter::new(writer, compression)?;
         match encoding {
             Encoding::Dbn => {
@@ -306,34 +291,30 @@ impl<'a, W> EncodeDbn for DynEncoder<'a, W>
 where
     W: io::Write,
 {
-    fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> anyhow::Result<bool> {
+    fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<()> {
         self.0.encode_record(record)
     }
 
-    fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> anyhow::Result<()> {
+    fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> Result<()> {
         self.0.encode_records(records)
     }
 
     fn encode_stream<R: DbnEncodable>(
         &mut self,
         stream: impl StreamingIterator<Item = R>,
-    ) -> anyhow::Result<()> {
+    ) -> Result<()> {
         self.0.encode_stream(stream)
     }
 
-    fn flush(&mut self) -> anyhow::Result<()> {
+    fn flush(&mut self) -> Result<()> {
         self.0.flush()
     }
 
-    unsafe fn encode_record_ref(
-        &mut self,
-        record: RecordRef,
-        ts_out: bool,
-    ) -> anyhow::Result<bool> {
+    unsafe fn encode_record_ref(&mut self, record: RecordRef, ts_out: bool) -> Result<()> {
         self.0.encode_record_ref(record, ts_out)
     }
 
-    fn encode_decoded<D: DecodeDbn>(&mut self, decoder: D) -> anyhow::Result<()> {
+    fn encode_decoded<D: DecodeDbn>(&mut self, decoder: D) -> Result<()> {
         self.0.encode_decoded(decoder)
     }
 }
@@ -349,13 +330,13 @@ where
 /// inner value.
 macro_rules! encoder_enum_dispatch {
     ($($variant:ident),*) => {
-        fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> anyhow::Result<bool> {
+        fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<()> {
             match self {
                 $(Self::$variant(v) => v.encode_record(record),)*
             }
         }
 
-        fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> anyhow::Result<()> {
+        fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> Result<()> {
             match self {
                 $(Self::$variant(v) => v.encode_records(records),)*
             }
@@ -364,13 +345,13 @@ macro_rules! encoder_enum_dispatch {
         fn encode_stream<R: DbnEncodable>(
             &mut self,
             stream: impl StreamingIterator<Item = R>,
-        ) -> anyhow::Result<()> {
+        ) -> Result<()> {
             match self {
                 $(Self::$variant(v) => v.encode_stream(stream),)*
             }
         }
 
-        fn flush(&mut self) -> anyhow::Result<()> {
+        fn flush(&mut self) -> Result<()> {
             match self {
                 $(Self::$variant(v) => v.flush(),)*
             }
@@ -380,7 +361,7 @@ macro_rules! encoder_enum_dispatch {
             &mut self,
             record: RecordRef,
             ts_out: bool,
-        ) -> anyhow::Result<bool> {
+        ) -> Result<()> {
             match self {
                 $(Self::$variant(v) => v.encode_record_ref(record, ts_out),)*
             }
@@ -389,7 +370,7 @@ macro_rules! encoder_enum_dispatch {
         fn encode_decoded<D: DecodeDbn>(
             &mut self,
             decoder: D,
-        ) -> anyhow::Result<()> {
+        ) -> Result<()> {
             match self {
                 $(Self::$variant(v) => v.encode_decoded(decoder),)*
             }
@@ -447,31 +428,6 @@ mod test_data {
         fn get(&self) -> Option<&Self::Item> {
             self.vec.get(self.idx as usize)
         }
-    }
-}
-
-fn format_px(px: i64) -> String {
-    if px == crate::UNDEF_PRICE {
-        "UNDEF_PRICE".to_owned()
-    } else {
-        let (sign, px_abs) = if px < 0 { ("-", -px) } else { ("", px) };
-        let px_integer = px_abs / FIXED_PRICE_SCALE;
-        let px_fraction = px_abs % FIXED_PRICE_SCALE;
-        format!("{sign}{px_integer}.{px_fraction:09}")
-    }
-}
-
-fn format_ts(ts: u64) -> String {
-    const TS_FORMAT: &[FormatItem<'static>] = time::macros::format_description!(
-        "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:9]Z"
-    );
-    if ts == 0 {
-        String::new()
-    } else {
-        time::OffsetDateTime::from_unix_timestamp_nanos(ts as i128)
-            .map_err(|_| ())
-            .and_then(|dt| dt.format(TS_FORMAT).map_err(|_| ()))
-            .unwrap_or_else(|_| ts.to_string())
     }
 }
 
@@ -553,50 +509,5 @@ mod r#async {
                 DynWriterImpl::ZStd(enc) => io::AsyncWrite::poll_shutdown(Pin::new(enc), cx),
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::UNDEF_PRICE;
-
-    use super::*;
-
-    #[test]
-    fn test_format_px_negative() {
-        assert_eq!(format_px(-100_000), "-0.000100000");
-    }
-
-    #[test]
-    fn test_format_px_positive() {
-        assert_eq!(format_px(32_500_000_000), "32.500000000");
-    }
-
-    #[test]
-    fn test_format_px_zero() {
-        assert_eq!(format_px(0), "0.000000000");
-    }
-
-    #[test]
-    fn test_format_px_undef() {
-        assert_eq!(format_px(UNDEF_PRICE), "UNDEF_PRICE");
-    }
-
-    #[test]
-    fn format_ts_0() {
-        assert!(format_ts(0).is_empty());
-    }
-
-    #[test]
-    fn format_ts_1() {
-        assert_eq!(format_ts(1), "1970-01-01T00:00:00.000000001Z");
-    }
-
-    #[test]
-    fn format_ts_future() {
-        assert_eq!(
-            format_ts(1622838300000000000),
-            "2021-06-04T20:25:00.000000000Z"
-        );
     }
 }

@@ -1,18 +1,57 @@
 # Changelog
 
+## 0.8.0 - 2023-07-19
+### Enhancements
+- Switched from `anyhow::Error` to custom `dbn::Error` for all public fallible functions
+  and methods. This should make it easier to disambiguate between error types.
+- `EncodeDbn::encode_record` and `EncodeDbn::record_record_ref` no longer treat a
+  `BrokenPipe` error differently
+- Added `AsyncDbnDecoder`
+- Added `pretty::Px` and `pretty::Ts` newtypes to expose price and timestamp formatting
+  logic outside of CSV and JSON encoding
+- Added interning for Python strings
+- Added `rtype` to encoded JSON and CSV to aid differeniating between different record types.
+  This is particularly important when working with live data.
+- Added `pretty_` Python attributes for DBN price fields
+- Added `pretty_` Python attributes for DBN UTC timestamp fields
+
+### Breaking changes
+- All fallible operations now return a `dbn::Error` instead of an `anyhow::Error`
+- Updated serialization order to serialize `ts_recv` and `ts_event` first
+- Moved header fields (`rtype`, `publisher_id`, `instrument_id`, and `ts_event`) to
+  nested object under the key `hd` in JSON encoding to match structure definitions
+- Changed JSON encoding of all 64-bit integers to strings to avoid loss of precision
+- Updated `MboMsg` serialization order to serialize `action`, `side`, and `channel_id`
+  earlier given their importance
+- Updated `Mbp1Msg`, `Mbp10Msg`, and `TradeMsg` serialization order to serialize
+  `action`, `side`, and `depth` earlier given their importance
+- Updated `InstrumentDefMsg` serialization order to serialize `raw_symbol`,
+  `security_update_action`, and `instrument_class` earlier given their importance
+- Removed `bool` return value from `EncodeDbn::encode_record` and
+  `EncodeDbn::record_record_ref`. These now return `dbn::Result<()>`.
+
+### Bug fixes
+- Fixed handling of NUL byte when encoding DBN to CSV and JSON
+- Fixed handling of broken pipe in `dbn` CLI tool
+
 ## 0.7.1 - 2023-06-26
 - Added Python `variants` method to return an iterator over the enum variants for
   `Compression`, `Encoding`, `Schema`, and `SType`
 - Improved Python enum conversions for `Compression`, `Encoding`, `Schema`, and `SType`
 
 ## 0.7.0 - 2023-06-20
+### Enhancements
 - Added publishers enums
 - Added export to Python for `Compression`, `Encoding`, `SType`, and `Schema`
   enums
-- Added async JSON encoder
-- Fixed pretty timestamp formatting to match API
 - Improved Python string representation of `ErrorMsg` and `SystemMsg`
+- Added async JSON encoder
+
+### Breaking changes
 - Dropped support for Python 3.7
+
+### Bug fixes
+- Fixed pretty timestamp formatting to match API
 
 ## 0.6.1 - 2023-06-02
 - Added `--fragment` and `--zstd-fragment` CLI arguments to read DBN streams
@@ -23,7 +62,7 @@
 - Changed `c_char` fields to be exposed to Python as `str`
 
 ## 0.6.0 - 2023-05-26
-- Renamed `booklevel` MBP field to `levels` for brevity and consistent naming
+### Enhancements
 - Added `--limit NUM` CLI argument to output only the first `NUM` records
 - Added `AsRef<[u8]>` implementation for `RecordRef`
 - Added Python `size_hint` classmethod for DBN records
@@ -31,13 +70,18 @@
 - Added `use_pretty_px` for price formatting and `use_pretty_ts` for datetime formatting
   to CSV and JSON encoders
 - Added `UNDEF_TIMESTAMP` constant for when timestamp fields are unset
-- Removed `open_interest_qty` and `cleared_volume` fields that were always unset from
-  definition schema
+
+### Breaking changes
+- Renamed `booklevel` MBP field to `levels` for brevity and consistent naming
 - Renamed `--pretty-json` CLI flag to `--pretty` and added support for CSV. Passing this
   flag now also enables `use_pretty_px` and `use_pretty_ts`
+- Removed `open_interest_qty` and `cleared_volume` fields that were always unset from
+  definition schema
 - Changed Python `DBNDecoder.decode` to return records with a `ts_out` attribute, instead
   of a tuple
 - Rename Python `DbnDecoder` to `DBNDecoder`
+
+### Bug fixes
 - Fixed `Action` conversion methods (credit: @thomas-k-cameron)
 
 ## 0.5.1 - 2023-05-05
@@ -45,16 +89,21 @@
 - Added Python type stub for `StatMsg`
 
 ## 0.5.0 - 2023-04-25
+### Enhancements
 - Added support for Statistics schema
+- Added `RType` enum for exhaustive pattern matching
+- Added `&str` getters for more `c_char` array record fields
+- Changed `DbnDecoder.decode` to always return a list of tuples
+
+### Breaking changes
 - Changed `schema` and `stype_in` to optional in `Metadata` to support live data
 - Renamed `SType::ProductId` to `SType::InstrumentId` and `SType::Native` to `SType::RawSymbol`
 - Renamed `RecordHeader::product_id` to `instrument_id`
 - Renamed `InstrumentDefMsg::symbol` to `raw_symbol`
 - Renamed `SymbolMapping::native_symbol` to `raw_symbol`
 - Deprecated `SType::Smart` to split into `SType::Parent` and `SType::Continuous`
-- Added `RType` enum for exhaustive pattern matching
-- Added `&str` getters for more `c_char` array record fields
-- Changed `DbnDecoder.decode` to always return a list of tuples
+
+### Bug fixes
 - Fixed value associated with `Side::None`
 - Fixed issue with decoding partial records in Python `DbnDecoder`
 - Fixed missing type hint for Metadata bytes support
@@ -67,65 +116,85 @@
 - Fixed support for `ErrorMsg`, `SystemMsg`, and `SymbolMappingMsg` in Python
 
 ## 0.4.1 - 2023-04-05
+### Enhancements
 - Added enums `MatchAlgorithm`, `UserDefinedInstrument`
 - Added constants `UNDEF_PRICE` and `UNDEF_ORDER_SIZE`
 - Added Python type stubs for `databento_dbn` package
+
+### Bug fixes
 - Fixed `Metadata.__bytes__` method to return valid DBN
 - Fixed panics when decoding invalid records
 - Fixed issue with attempting to decode partial records in Python `DbnDecoder`
 - Fixed support for `ImbalanceMsg` in Python `DbnDecoder`
 
 ## 0.4.0 - 2023-03-24
+### Enhancements
 - Added support for Imbalance schema
 - Updated `InstrumentDefMsg` to include options-related fields and `instrument_class`
 - Added support for encoding and decoding `ts_out`
 - Added `ts_out` to `Metadata`
 - Improved enum API
+- Relaxed requirement for slice passed to `RecordRef::new` to be mutable
+- Added error forwarding from `DecodeDbn` methods
+- Added `SystemMsg` record
+- Exposed constructor and additional methods for DBN records and `Metadata` to Python
+- Made `RecordRef` implement `Sync` and `Send`
+
+### Breaking changes
 - Introduced separate rtypes for each OHLCV schema
 - Removed `record_count` from `Metadata`
 - Changed serialization of `c_char` fields to strings instead of ints
-- Dropped requirement for slice passed to `RecordRef::new` to be mutable
-- Added error forwarding from `DecodeDbn` methods
-- Added `SystemMsg` record
 - Renamed `dbn::RecordDecoder::decode_record` to `decode`
 - Renamed `dbn::RecordDecoder::decode_record_ref` to `decode_ref`
 - Renamed `HasRType::size` to `record_size` to avoid confusion with order size fields
 - Stopped serializing `related` and `related_security_id` fields in `InstrumentDefMsg`
-- Exposed constructor and additional methods for DBN records and `Metadata` to Python
-- Made `RecordRef` implement `Sync` and `Send`
 
 ## 0.3.2 - 2023-03-01
+### Enhancements
 - Added records and `Metadata` as exports of `databento_dbn` Python package
 - Improved how `Metadata` appears in Python and added `__repr__`
+
+### Bug fixes
 - Fixed bug where `dbn` CLI tool didn't truncate existing files
 
 ## 0.3.1 - 2023-02-27
+### Enhancements
 - Added improved Python bindings for decoding DBN
-- Fixed bug with `encode_metadata` Python function
 - Standardized documentation for `start`, `end`, and `limit`
 
+### Bug fixes
+- Fixed bug with `encode_metadata` Python function
+
 ## 0.3.0 - 2023-02-22
-- Renamed DBZ to DBN
-  - Added ability to migrate legacy DBZ to DBN through CLI
-- Renamed python package to `databento-dbn`
-- Dropped requirement that DBN be Zstandard-compressed
-- Moved metadata out of skippable frame
+### Enhancements
+- Added ability to migrate legacy DBZ to DBN through CLI
+- Relaxed requirement that DBN be Zstandard-compressed
 - Folded in `databento-defs`
 - Added support for async encoding and decoding
 - Added billable size calculation to `dbn` CLI
 - Added `MetadataBuilder` to assist with defaults
 - Refactored into encoder and decoder types
 
+### Breaking changes
+- Renamed DBZ to DBN
+- Renamed python package to `databento-dbn`
+- Moved metadata out of skippable frame
+
 ## 0.2.1 - 2022-12-02
 - Added Python DBZ writing example
 - Changed [databento-defs](https://crates.io/crates/databento-defs) dependency to crates.io version
 
 ## 0.2.0 - 2022-11-28
-- Changed JSON output to NDJSON
-- Change nanosecond timestamps to strings in JSON to avoid loss of precision when parsing
-- Changed DBZ decoding to use [streaming-iterator](https://crates.io/crates/streaming-iterator)
-- Enabled Zstd checksums
+### Enhancements
 - Added interface for writing DBZ files
+- Enabled Zstd checksums
+- Changed DBZ decoding to use [streaming-iterator](https://crates.io/crates/streaming-iterator)
+
+### Breaking changes
+- Changed JSON output to NDJSON
+
+### Bug fixes
+- Change nanosecond timestamps to strings in JSON to avoid loss of precision when parsing
 
 ## 0.1.5 - 2022-09-14
 - Initial release

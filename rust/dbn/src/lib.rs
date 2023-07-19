@@ -14,6 +14,7 @@ pub mod error;
 pub mod json_writer;
 pub mod macros;
 pub mod metadata;
+pub mod pretty;
 /// Enumerations for different data sources, venues, and publishers.
 pub mod publishers;
 #[cfg(feature = "python")]
@@ -21,6 +22,7 @@ pub mod python;
 pub mod record;
 pub mod record_ref;
 
+pub use crate::error::{Error, Result};
 pub use crate::metadata::{MappingInterval, Metadata, MetadataBuilder, SymbolMapping};
 
 /// The current version of the DBN encoding, which is different from the crate version.
@@ -48,10 +50,12 @@ pub const UNDEF_TIMESTAMP: u64 = u64::MAX;
 
 /// Contains dataset code constants.
 pub mod datasets {
-    /// The dataset code for CME Globex MDP 3.0.
-    pub const GLBX_MDP3: &str = "GLBX.MDP3";
-    /// The dataset code for Nasdaq TotalView ITCH.
-    pub const XNAS_ITCH: &str = "XNAS.ITCH";
     /// The dataset code for Databento Equity Basic.
     pub const DBEQ_BASIC: &str = "DBEQ.BASIC";
+    /// The dataset code for CME Globex MDP 3.0.
+    pub const GLBX_MDP3: &str = "GLBX.MDP3";
+    /// The dataset code for OPRA PILLAR.
+    pub const OPRA_PILLAR: &str = "OPRA.PILLAR";
+    /// The dataset code for Nasdaq TotalView ITCH.
+    pub const XNAS_ITCH: &str = "XNAS.ITCH";
 }

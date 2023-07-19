@@ -5,16 +5,13 @@ use std::{
     mem,
     num::NonZeroU64,
     path::Path,
+    str::Utf8Error,
 };
 
-use anyhow::{anyhow, Context};
-
-use super::{
-    error_utils::silence_eof_error, private::BufferSlice, DecodeDbn, FromLittleEndianSlice,
-    StreamIterDecoder,
-};
+use super::{private::BufferSlice, DecodeDbn, FromLittleEndianSlice, StreamIterDecoder};
 use crate::{
     enums::{SType, Schema},
+    error::silence_eof_error,
     record::{HasRType, RecordHeader},
     record_ref::RecordRef,
     MappingInterval, Metadata, SymbolMapping, DBN_VERSION, METADATA_FIXED_LEN, NULL_SCHEMA,
@@ -48,7 +45,7 @@ where
     ///
     /// # Errors
     /// This function will return an error if it is unable to parse the metadata in `reader`.
-    pub fn new(mut reader: R) -> anyhow::Result<Self> {
+    pub fn new(mut reader: R) -> crate::Result<Self> {
         let metadata = MetadataDecoder::new(&mut reader).decode()?;
         Ok(Self {
             metadata,
@@ -75,8 +72,11 @@ where
     ///
     /// # Errors
     /// This function will return an error if it is unable to parse the metadata in `reader`.
-    pub fn with_zstd(reader: R) -> anyhow::Result<Self> {
-        Decoder::new(zstd::stream::Decoder::new(reader)?)
+    pub fn with_zstd(reader: R) -> crate::Result<Self> {
+        Decoder::new(
+            zstd::stream::Decoder::new(reader)
+                .map_err(|e| crate::Error::io(e, "creating zstd decoder"))?,
+        )
     }
 }
 
@@ -88,8 +88,11 @@ where
     ///
     /// # Errors
     /// This function will return an error if it is unable to parse the metadata in `reader`.
-    pub fn with_zstd_buffer(reader: R) -> anyhow::Result<Self> {
-        Decoder::new(zstd::stream::Decoder::with_buffer(reader)?)
+    pub fn with_zstd_buffer(reader: R) -> crate::Result<Self> {
+        Decoder::new(
+            zstd::stream::Decoder::with_buffer(reader)
+                .map_err(|e| crate::Error::io(e, "creating zstd decoder"))?,
+        )
     }
 }
 
@@ -99,11 +102,14 @@ impl Decoder<BufReader<File>> {
     /// # Errors
     /// This function will return an error if it is unable to read the file at `path` or
     /// if it is unable to parse the metadata in the file.
-    pub fn from_file(path: impl AsRef<Path>) -> anyhow::Result<Self> {
-        let file = File::open(path.as_ref()).with_context(|| {
-            format!(
-                "Error opening DBN file at path '{}'",
-                path.as_ref().display()
+    pub fn from_file(path: impl AsRef<Path>) -> crate::Result<Self> {
+        let file = File::open(path.as_ref()).map_err(|e| {
+            crate::Error::io(
+                e,
+                format!(
+                    "Error opening DBN file at path '{}'",
+                    path.as_ref().display()
+                ),
             )
         })?;
         Self::new(BufReader::new(file))
@@ -116,11 +122,14 @@ impl<'a> Decoder<zstd::stream::Decoder<'a, BufReader<File>>> {
     /// # Errors
     /// This function will return an error if it is unable to read the file at `path` or
     /// if it is unable to parse the metadata in the file.
-    pub fn from_zstd_file(path: impl AsRef<Path>) -> anyhow::Result<Self> {
-        let file = File::open(path.as_ref()).with_context(|| {
-            format!(
-                "Error opening Zstandard-compressed DBN file at path '{}'",
-                path.as_ref().display()
+    pub fn from_zstd_file(path: impl AsRef<Path>) -> crate::Result<Self> {
+        let file = File::open(path.as_ref()).map_err(|e| {
+            crate::Error::io(
+                e,
+                format!(
+                    "Error opening Zstandard-compressed DBN file at path '{}'",
+                    path.as_ref().display()
+                ),
             )
         })?;
         Self::with_zstd(file)
@@ -135,16 +144,16 @@ where
         &self.metadata
     }
 
-    fn decode_record<T: HasRType>(&mut self) -> io::Result<Option<&T>> {
+    fn decode_record<T: HasRType>(&mut self) -> crate::Result<Option<&T>> {
         self.decoder.decode()
     }
 
-    fn decode_record_ref(&mut self) -> io::Result<Option<RecordRef>> {
+    fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef>> {
         self.decoder.decode_ref()
     }
 
-    fn decode_stream<T: HasRType>(self) -> anyhow::Result<super::StreamIterDecoder<Self, T>> {
-        Ok(StreamIterDecoder::new(self))
+    fn decode_stream<T: HasRType>(self) -> super::StreamIterDecoder<Self, T> {
+        StreamIterDecoder::new(self)
     }
 }
 
@@ -198,12 +207,17 @@ where
     ///
     /// If the next record is of a different type than `T`,
     /// this function returns an error of kind `io::ErrorKind::InvalidData`.
-    pub fn decode<T: HasRType>(&mut self) -> io::Result<Option<&T>> {
+    pub fn decode<T: HasRType>(&mut self) -> crate::Result<Option<&T>> {
         let rec_ref = self.decode_ref()?;
         if let Some(rec_ref) = rec_ref {
             rec_ref
                 .get::<T>()
-                .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "Unexpected record type"))
+                .ok_or_else(|| {
+                    crate::Error::conversion::<T>(format!(
+                        "record with rtype {}",
+                        rec_ref.header().rtype
+                    ))
+                })
                 .map(Some)
         } else {
             Ok(None)
@@ -216,22 +230,22 @@ where
     /// This function returns an error if the underlying reader returns an
     /// error of a kind other than `io::ErrorKind::UnexpectedEof` upon reading.
     /// It will also return an error if it encounters an invalid record.
-    pub fn decode_ref(&mut self) -> io::Result<Option<RecordRef>> {
+    pub fn decode_ref(&mut self) -> crate::Result<Option<RecordRef>> {
+        let io_err = |e| crate::Error::io(e, "decoding record reference");
         if let Err(err) = self.reader.read_exact(&mut self.buffer[..1]) {
-            return silence_eof_error(err);
+            return silence_eof_error(err).map_err(io_err);
         }
         let length = self.buffer[0] as usize * RecordHeader::LENGTH_MULTIPLIER;
         if length < mem::size_of::<RecordHeader>() {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("Invalid record with length {length} shorter than header"),
-            ));
+            return Err(crate::Error::decode(format!(
+                "Invalid record with length {length} shorter than header"
+            )));
         }
         if length > self.buffer.len() {
             self.buffer.resize(length, 0);
         }
         if let Err(err) = self.reader.read_exact(&mut self.buffer[1..length]) {
-            return silence_eof_error(err);
+            return silence_eof_error(err).map_err(io_err);
         }
         // Safety: `buffer` is resized to contain at least `length` bytes.
         Ok(Some(unsafe { RecordRef::new(self.buffer.as_mut_slice()) }))
@@ -270,36 +284,36 @@ where
     ///
     /// # Errors
     /// This function will return an error if it is unable to parse the metadata.
-    pub fn decode(&mut self) -> anyhow::Result<Metadata> {
+    pub fn decode(&mut self) -> crate::Result<Metadata> {
         let mut prelude_buffer = [0u8; 8];
         self.reader
             .read_exact(&mut prelude_buffer)
-            .with_context(|| "Failed to read DBN metadata prelude")?;
+            .map_err(|e| crate::Error::io(e, "reading metadata prelude"))?;
         if &prelude_buffer[..DBN_PREFIX_LEN] != DBN_PREFIX {
-            return Err(anyhow!("Invalid DBN header"));
+            return Err(crate::Error::decode("Invalid DBN header"));
         }
         let version = prelude_buffer[DBN_PREFIX_LEN];
         if version > DBN_VERSION {
-            return Err(anyhow!("Can't decode newer version of DBN. Decoder version is {DBN_VERSION}, input version is {version}"));
+            return Err(crate::Error::decode(format!("Can't decode newer version of DBN. Decoder version is {DBN_VERSION}, input version is {version}")));
         }
         let length = u32::from_le_slice(&prelude_buffer[4..]);
         if (length as usize) < METADATA_FIXED_LEN {
-            return Err(anyhow!(
-                "Invalid DBN metadata. Metadata length shorter than fixed length."
+            return Err(crate::Error::decode(
+                "Invalid DBN metadata. Metadata length shorter than fixed length.",
             ));
         }
         let mut metadata_buffer = vec![0u8; length as usize];
         self.reader
             .read_exact(&mut metadata_buffer)
-            .with_context(|| "Failed to read metadata")?;
+            .map_err(|e| crate::Error::io(e, "reading fixed metadata"))?;
         Self::decode_metadata_fields(version, metadata_buffer)
     }
 
-    fn decode_metadata_fields(version: u8, buffer: Vec<u8>) -> anyhow::Result<Metadata> {
+    fn decode_metadata_fields(version: u8, buffer: Vec<u8>) -> crate::Result<Metadata> {
         const U64_SIZE: usize = mem::size_of::<u64>();
         let mut pos = 0;
         let dataset = std::str::from_utf8(&buffer[pos..pos + crate::METADATA_DATASET_CSTR_LEN])
-            .with_context(|| "Failed to read dataset from metadata")?
+            .map_err(|e| crate::Error::utf8(e, "reading dataset from metadata"))?
             // remove null bytes
             .trim_end_matches('\0')
             .to_owned();
@@ -309,10 +323,9 @@ where
         let schema = if raw_schema == NULL_SCHEMA {
             None
         } else {
-            Some(
-                Schema::try_from(raw_schema)
-                    .with_context(|| format!("Failed to read schema: '{}'", buffer[pos]))?,
-            )
+            Some(Schema::try_from(raw_schema).map_err(|_| {
+                crate::Error::conversion::<Schema>(format!("{:?}", &buffer[pos..pos + 2]))
+            })?)
         };
         pos += mem::size_of::<Schema>();
         let start = u64::from_le_slice(&buffer[pos..]);
@@ -328,12 +341,12 @@ where
         } else {
             Some(
                 SType::try_from(buffer[pos])
-                    .with_context(|| format!("Failed to read stype_in: '{}'", buffer[pos]))?,
+                    .map_err(|_| crate::Error::conversion::<SType>(format!("{}", buffer[pos])))?,
             )
         };
         pos += mem::size_of::<SType>();
         let stype_out = SType::try_from(buffer[pos])
-            .with_context(|| format!("Failed to read stype_out: '{}'", buffer[pos]))?;
+            .map_err(|_| crate::Error::conversion::<SType>(format!("{}", buffer[pos])))?;
         pos += mem::size_of::<SType>();
         let ts_out = buffer[pos] != 0;
         pos += mem::size_of::<bool>();
@@ -341,17 +354,14 @@ where
         pos += crate::METADATA_RESERVED_LEN;
         let schema_definition_length = u32::from_le_slice(&buffer[pos..]);
         if schema_definition_length != 0 {
-            return Err(anyhow!(
-                "This version of DBN can't parse schema definitions"
+            return Err(crate::Error::decode(
+                "This version of dbn can't parse schema definitions",
             ));
         }
         pos += Self::U32_SIZE + (schema_definition_length as usize);
-        let symbols = Self::decode_repeated_symbol_cstr(buffer.as_slice(), &mut pos)
-            .with_context(|| "Failed to parse symbols")?;
-        let partial = Self::decode_repeated_symbol_cstr(buffer.as_slice(), &mut pos)
-            .with_context(|| "Failed to parse partial")?;
-        let not_found = Self::decode_repeated_symbol_cstr(buffer.as_slice(), &mut pos)
-            .with_context(|| "Failed to parse not_found")?;
+        let symbols = Self::decode_repeated_symbol_cstr(buffer.as_slice(), &mut pos)?;
+        let partial = Self::decode_repeated_symbol_cstr(buffer.as_slice(), &mut pos)?;
+        let not_found = Self::decode_repeated_symbol_cstr(buffer.as_slice(), &mut pos)?;
         let mappings = Self::decode_symbol_mappings(buffer.as_slice(), &mut pos)?;
 
         Ok(Metadata {
@@ -375,83 +385,80 @@ where
         })
     }
 
-    fn decode_repeated_symbol_cstr(buffer: &[u8], pos: &mut usize) -> anyhow::Result<Vec<String>> {
+    fn decode_repeated_symbol_cstr(buffer: &[u8], pos: &mut usize) -> crate::Result<Vec<String>> {
         if *pos + Self::U32_SIZE > buffer.len() {
-            return Err(anyhow!("Unexpected end of metadata buffer"));
+            return Err(crate::Error::decode("Unexpected end of metadata buffer"));
         }
         let count = u32::from_le_slice(&buffer[*pos..]) as usize;
         *pos += Self::U32_SIZE;
         let read_size = count * crate::SYMBOL_CSTR_LEN;
         if *pos + read_size > buffer.len() {
-            return Err(anyhow!("Unexpected end of metadata buffer"));
+            return Err(crate::Error::decode("Unexpected end of metadata buffer"));
         }
         let mut res = Vec::with_capacity(count);
         for i in 0..count {
-            res.push(
-                Self::decode_symbol(buffer, pos)
-                    .with_context(|| format!("Failed to decode symbol at index {i}"))?,
-            );
+            res.push(Self::decode_symbol(buffer, pos).map_err(|e| {
+                crate::Error::utf8(e, format!("Failed to decode symbol at index {i}"))
+            })?);
         }
         Ok(res)
     }
 
-    fn decode_symbol_mappings(
-        buffer: &[u8],
-        pos: &mut usize,
-    ) -> anyhow::Result<Vec<SymbolMapping>> {
+    fn decode_symbol_mappings(buffer: &[u8], pos: &mut usize) -> crate::Result<Vec<SymbolMapping>> {
         if *pos + Self::U32_SIZE > buffer.len() {
-            return Err(anyhow!("Unexpected end of metadata buffer"));
+            return Err(crate::Error::decode("Unexpected end of metadata buffer"));
         }
         let count = u32::from_le_slice(&buffer[*pos..]) as usize;
         *pos += Self::U32_SIZE;
         let mut res = Vec::with_capacity(count);
         // Because each `SymbolMapping` itself is of a variable length, decoding it requires frequent bounds checks
         for i in 0..count {
-            res.push(
-                Self::decode_symbol_mapping(buffer, pos)
-                    .with_context(|| format!("Failed to parse symbol mapping at index {i}"))?,
-            );
+            res.push(Self::decode_symbol_mapping(i, buffer, pos)?);
         }
         Ok(res)
     }
 
-    fn decode_symbol_mapping(buffer: &[u8], pos: &mut usize) -> anyhow::Result<SymbolMapping> {
+    fn decode_symbol_mapping(
+        idx: usize,
+        buffer: &[u8],
+        pos: &mut usize,
+    ) -> crate::Result<SymbolMapping> {
         const MIN_SYMBOL_MAPPING_ENCODED_LEN: usize =
             crate::SYMBOL_CSTR_LEN + mem::size_of::<u32>();
         const MAPPING_INTERVAL_ENCODED_LEN: usize =
             mem::size_of::<u32>() * 2 + crate::SYMBOL_CSTR_LEN;
 
         if *pos + MIN_SYMBOL_MAPPING_ENCODED_LEN > buffer.len() {
-            return Err(anyhow!(
-                "Unexpected end of metadata buffer while parsing symbol mapping"
-            ));
+            return Err(crate::Error::decode(format!(
+                "Unexpected end of metadata buffer while parsing symbol mapping at index {idx}"
+            )));
         }
-        let raw_symbol =
-            Self::decode_symbol(buffer, pos).with_context(|| "Couldn't parse raw symbol")?;
+        let raw_symbol = Self::decode_symbol(buffer, pos)
+            .map_err(|e| crate::Error::utf8(e, "parsing raw symbol"))?;
         let interval_count = u32::from_le_slice(&buffer[*pos..]) as usize;
         *pos += Self::U32_SIZE;
         let read_size = interval_count * MAPPING_INTERVAL_ENCODED_LEN;
         if *pos + read_size > buffer.len() {
-            return Err(anyhow!(
-                "Symbol mapping interval_count ({interval_count}) doesn't match size of buffer \
+            return Err(crate::Error::decode(format!(
+                "Symbol mapping at index {idx} with interval_count ({interval_count}) doesn't match size of buffer \
                 which only contains space for {} intervals",
                 (buffer.len() - *pos) / MAPPING_INTERVAL_ENCODED_LEN
-            ));
+            )));
         }
         let mut intervals = Vec::with_capacity(interval_count);
         for i in 0..interval_count {
             let raw_start_date = u32::from_le_slice(&buffer[*pos..]);
             *pos += Self::U32_SIZE;
-            let start_date = decode_iso8601(raw_start_date).with_context(|| {
-                format!("Failed to parse start date of mapping interval at index {i}")
+            let start_date = decode_iso8601(raw_start_date).map_err(|e| {
+                crate::Error::decode(format!("{e} while parsing start date of mapping interval at index {i} within mapping at index {idx}"))
             })?;
             let raw_end_date = u32::from_le_slice(&buffer[*pos..]);
             *pos += Self::U32_SIZE;
-            let end_date = decode_iso8601(raw_end_date).with_context(|| {
-                format!("Failed to parse end date of mapping interval at index {i}")
+            let end_date = decode_iso8601(raw_end_date).map_err(|e| {
+                crate::Error::decode(format!("{e} while parsing end date of mapping interval at index {i} within mapping at index {idx}"))
             })?;
-            let symbol = Self::decode_symbol(buffer, pos).with_context(|| {
-                format!("Failed to parse symbol for mapping interval at index {i}")
+            let symbol = Self::decode_symbol(buffer, pos).map_err(|e| {
+                crate::Error::utf8(e, format!("Failed to parse symbol for mapping interval at index {i} within mapping at index {idx}"))
             })?;
             intervals.push(MappingInterval {
                 start_date,
@@ -465,10 +472,9 @@ where
         })
     }
 
-    fn decode_symbol(buffer: &[u8], pos: &mut usize) -> anyhow::Result<String> {
+    fn decode_symbol(buffer: &[u8], pos: &mut usize) -> Result<String, Utf8Error> {
         let symbol_slice = &buffer[*pos..*pos + crate::SYMBOL_CSTR_LEN];
-        let symbol = std::str::from_utf8(symbol_slice)
-            .with_context(|| format!("Failed to decode bytes {symbol_slice:?}"))?
+        let symbol = std::str::from_utf8(symbol_slice)?
             // remove null bytes
             .trim_end_matches('\0')
             .to_owned();
@@ -487,17 +493,19 @@ where
     }
 }
 
-pub(crate) fn decode_iso8601(raw: u32) -> anyhow::Result<time::Date> {
+pub(crate) fn decode_iso8601(raw: u32) -> Result<time::Date, String> {
     let year = raw / 10_000;
     let remaining = raw % 10_000;
     let raw_month = remaining / 100;
     let month = u8::try_from(raw_month)
-        .map_err(|e| anyhow!(e))
-        .and_then(|m| time::Month::try_from(m).map_err(|e| anyhow!(e)))
-        .with_context(|| format!("Invalid month {raw_month} while parsing {raw} into a date"))?;
+        .map_err(|e| format!("Error {e:?} while parsing {raw} into date"))
+        .and_then(|m| {
+            time::Month::try_from(m)
+                .map_err(|e| format!("Error {e:?} while parsing {raw} into date"))
+        })?;
     let day = remaining % 100;
     time::Date::from_calendar_date(year as i32, month, day as u8)
-        .with_context(|| format!("Couldn't convert {raw} to a valid date"))
+        .map_err(|e| format!("Couldn't convert {raw} to a valid date: {e:?}"))
 }
 
 #[cfg(test)]
@@ -514,7 +522,7 @@ mod tests {
             ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
             RecordHeader, StatMsg, TbboMsg, TradeMsg,
         },
-        MetadataBuilder,
+        Error, MetadataBuilder,
     };
 
     #[test]
@@ -535,7 +543,7 @@ mod tests {
         ];
         let mut pos = 0;
         let res = MetadataDecoder::<File>::decode_symbol(BYTES.as_slice(), &mut pos);
-        assert!(matches!(res, Err(e) if e.to_string().contains("Failed to decode bytes [")));
+        assert!(res.is_err());
     }
 
     #[test]
@@ -549,13 +557,15 @@ mod tests {
     #[test]
     fn test_decode_iso8601_invalid_month() {
         let res = decode_iso8601(20101305);
-        assert!(matches!(res, Err(e) if e.to_string().contains("Invalid month")));
+        dbg!(&res);
+        assert!(matches!(res, Err(e) if e.contains("month")));
     }
 
     #[test]
     fn test_decode_iso8601_invalid_day() {
         let res = decode_iso8601(20100600);
-        assert!(matches!(res, Err(e) if e.to_string().contains("a valid date")));
+        dbg!(&res);
+        assert!(matches!(res, Err(e) if e.contains("a valid date")));
     }
 
     macro_rules! test_dbn_identity {
@@ -682,7 +692,9 @@ mod tests {
     fn test_decode_record_0_length() {
         let buf = vec![0];
         let mut target = RecordDecoder::new(buf.as_slice());
-        assert!(matches!(target.decode_ref(), Err(e) if e.kind() == io::ErrorKind::InvalidData));
+        assert!(
+            matches!(target.decode_ref(), Err(Error::Decode(msg)) if msg.starts_with("Invalid record with length"))
+        );
     }
 
     #[test]
@@ -691,7 +703,9 @@ mod tests {
         assert_eq!(buf[0] as usize * RecordHeader::LENGTH_MULTIPLIER, buf.len());
 
         let mut target = RecordDecoder::new(buf.as_slice());
-        assert!(matches!(target.decode_ref(), Err(e) if e.kind() == io::ErrorKind::InvalidData));
+        assert!(
+            matches!(target.decode_ref(), Err(Error::Decode(msg)) if msg.starts_with("Invalid record with length"))
+        );
     }
 
     #[test]
@@ -703,20 +717,116 @@ mod tests {
 }
 
 #[cfg(feature = "async")]
-pub use r#async::{MetadataDecoder as AsyncMetadataDecoder, RecordDecoder as AsyncRecordDecoder};
+pub use r#async::{
+    Decoder as AsyncDecoder, MetadataDecoder as AsyncMetadataDecoder,
+    RecordDecoder as AsyncRecordDecoder,
+};
 
 #[cfg(feature = "async")]
 mod r#async {
-    use anyhow::{anyhow, Context};
     use async_compression::tokio::bufread::ZstdDecoder;
     use tokio::io::{self, BufReader};
 
     use crate::{
-        decode::{error_utils::silence_eof_error, FromLittleEndianSlice},
+        decode::FromLittleEndianSlice,
+        error::silence_eof_error,
         record::{HasRType, RecordHeader},
         record_ref::RecordRef,
-        Metadata, DBN_VERSION, METADATA_FIXED_LEN,
+        Metadata, Result, DBN_VERSION, METADATA_FIXED_LEN,
     };
+
+    /// An async decoder for Databento Binary Encoding (DBN), both metadata and records.
+    pub struct Decoder<R>
+    where
+        R: io::AsyncReadExt + Unpin,
+    {
+        metadata: Metadata,
+        decoder: RecordDecoder<R>,
+    }
+
+    impl<R> Decoder<R>
+    where
+        R: io::AsyncReadExt + Unpin,
+    {
+        /// Creates a new async DBN [`Decoder`] from `reader`.
+        ///
+        /// # Errors
+        /// This function will return an error if it is unable to parse the metadata in `reader`.
+        pub async fn new(mut reader: R) -> crate::Result<Self> {
+            let metadata = MetadataDecoder::new(&mut reader).decode().await?;
+            Ok(Self {
+                metadata,
+                decoder: RecordDecoder::new(reader),
+            })
+        }
+
+        /// Returns a mutable reference to the inner reader.
+        pub fn get_mut(&mut self) -> &mut R {
+            self.decoder.get_mut()
+        }
+
+        /// Consumes the decoder and returns the inner reader.
+        pub fn into_inner(self) -> R {
+            self.decoder.into_inner()
+        }
+
+        /// Returns a reference to the decoded metadata.
+        pub fn metadata(&self) -> &Metadata {
+            &self.metadata
+        }
+
+        /// Tries to decode a single record and returns a reference to the record that
+        /// lasts until the next method call. Returns `None` if `reader` has been
+        /// exhausted.
+        ///
+        /// # Errors
+        /// This function returns an error if the underlying reader returns an
+        /// error of a kind other than `io::ErrorKind::UnexpectedEof` upon reading.
+        ///
+        /// If the next record is of a different type than `T`,
+        /// this function returns an error of kind `io::ErrorKind::InvalidData`.
+        pub async fn decode_record<'a, T: HasRType + 'a>(&'a mut self) -> Result<Option<&T>> {
+            self.decoder.decode().await
+        }
+
+        /// Tries to decode a single record and returns a reference to the record that
+        /// lasts until the next method call. Returns `None` if `reader` has been
+        /// exhausted.
+        ///
+        /// # Errors
+        /// This function returns an error if the underlying reader returns an
+        /// error of a kind other than `io::ErrorKind::UnexpectedEof` upon reading.
+        /// It will also return an error if it encounters an invalid record.
+        pub async fn decode_record_ref(&mut self) -> Result<Option<RecordRef>> {
+            self.decoder.decode_ref().await
+        }
+    }
+
+    impl<'a, R> Decoder<ZstdDecoder<BufReader<R>>>
+    where
+        R: io::AsyncReadExt + Unpin,
+    {
+        /// Creates a new async DBN [`Decoder`] from Zstandard-compressed `reader`.
+        ///
+        /// # Errors
+        /// This function will return an error if it is unable to parse the metadata in `reader`.
+        pub async fn with_zstd(reader: R) -> crate::Result<Self> {
+            Decoder::new(ZstdDecoder::new(BufReader::new(reader))).await
+        }
+    }
+
+    impl<'a, R> Decoder<ZstdDecoder<R>>
+    where
+        R: io::AsyncBufReadExt + Unpin,
+    {
+        /// Creates a new async DBN [`Decoder`] from Zstandard-compressed buffered `reader`.
+        ///
+        /// # Errors
+        /// This function will return an error if it is unable to parse the metadata in `reader`.
+        pub async fn with_zstd_buffer(reader: R) -> crate::Result<Self> {
+            Decoder::new(ZstdDecoder::new(reader)).await
+        }
+    }
 
     /// An async decoder for files and streams of Databento Binary Encoding (DBN) records.
     pub struct RecordDecoder<R>
@@ -750,12 +860,21 @@ mod r#async {
         ///
         /// If the next record is of a different type than `T`,
         /// this function returns an error of kind `io::ErrorKind::InvalidData`.
-        pub async fn decode<'a, T: HasRType + 'a>(&'a mut self) -> io::Result<Option<&T>> {
-            self.decode_ref().await.and_then(|rec_ref| {
-                rec_ref.map(|rec_ref| rec_ref.get::<T>()).ok_or_else(|| {
-                    io::Error::new(io::ErrorKind::InvalidData, "Unexpected record type")
-                })
-            })
+        pub async fn decode<'a, T: HasRType + 'a>(&'a mut self) -> Result<Option<&T>> {
+            let rec_ref = self.decode_ref().await?;
+            if let Some(rec_ref) = rec_ref {
+                rec_ref
+                    .get::<T>()
+                    .ok_or_else(|| {
+                        crate::Error::conversion::<T>(format!(
+                            "record with rtype {}",
+                            rec_ref.header().rtype
+                        ))
+                    })
+                    .map(Some)
+            } else {
+                Ok(None)
+            }
         }
 
         /// Tries to decode a single record and returns a reference to the record that
@@ -766,22 +885,22 @@ mod r#async {
         /// This function returns an error if the underlying reader returns an
         /// error of a kind other than `io::ErrorKind::UnexpectedEof` upon reading.
         /// It will also return an error if it encounters an invalid record.
-        pub async fn decode_ref(&mut self) -> io::Result<Option<RecordRef>> {
+        pub async fn decode_ref(&mut self) -> Result<Option<RecordRef>> {
+            let io_err = |e| crate::Error::io(e, "decoding record reference");
             if let Err(err) = self.reader.read_exact(&mut self.buffer[..1]).await {
-                return silence_eof_error(err);
+                return silence_eof_error(err).map_err(io_err);
             }
             let length = self.buffer[0] as usize * RecordHeader::LENGTH_MULTIPLIER;
             if length > self.buffer.len() {
                 self.buffer.resize(length, 0);
             }
             if length < std::mem::size_of::<RecordHeader>() {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    format!("Invalid record with length {length} shorter than header"),
-                ));
+                return Err(crate::Error::decode(format!(
+                    "Invalid record with length {length} shorter than header"
+                )));
             }
             if let Err(err) = self.reader.read_exact(&mut self.buffer[1..length]).await {
-                return silence_eof_error(err);
+                return silence_eof_error(err).map_err(io_err);
             }
             // Safety: `buffer` is resized to contain at least `length` bytes.
             Ok(Some(unsafe { RecordRef::new(self.buffer.as_mut_slice()) }))
@@ -795,6 +914,26 @@ mod r#async {
         /// Consumes the decoder and returns the inner reader.
         pub fn into_inner(self) -> R {
             self.reader
+        }
+    }
+
+    impl<R> RecordDecoder<ZstdDecoder<BufReader<R>>>
+    where
+        R: io::AsyncReadExt + Unpin,
+    {
+        /// Creates a new async DBN [`RecordDecoder`] from a Zstandard-compressed `reader`.
+        pub fn with_zstd(reader: R) -> Self {
+            RecordDecoder::new(ZstdDecoder::new(BufReader::new(reader)))
+        }
+    }
+
+    impl<R> RecordDecoder<ZstdDecoder<R>>
+    where
+        R: io::AsyncBufReadExt + Unpin,
+    {
+        /// Creates a new async DBN [`RecordDecoder`] from a Zstandard-compressed buffered `reader`.
+        pub fn with_zstd_buffer(reader: R) -> Self {
+            RecordDecoder::new(ZstdDecoder::new(reader))
         }
     }
 
@@ -828,30 +967,30 @@ mod r#async {
         ///
         /// # Errors
         /// This function will return an error if it is unable to parse the metadata.
-        pub async fn decode(&mut self) -> anyhow::Result<Metadata> {
+        pub async fn decode(&mut self) -> Result<Metadata> {
             let mut prelude_buffer = [0u8; 8];
             self.reader
                 .read_exact(&mut prelude_buffer)
                 .await
-                .with_context(|| "Failed to read DBN metadata prelude")?;
+                .map_err(|e| crate::Error::io(e, "reading metadata prelude"))?;
             if &prelude_buffer[..super::DBN_PREFIX_LEN] != super::DBN_PREFIX {
-                return Err(anyhow!("Invalid DBN header"));
+                return Err(crate::Error::decode("Invalid DBN header"));
             }
             let version = prelude_buffer[super::DBN_PREFIX_LEN];
             if version > DBN_VERSION {
-                return Err(anyhow!("Can't decode newer version of DBN. Decoder version is {DBN_VERSION}, input version is {version}"));
+                return Err(crate::Error::decode(format!("Can't decode newer version of DBN. Decoder version is {DBN_VERSION}, input version is {version}")));
             }
             let length = u32::from_le_slice(&prelude_buffer[4..]);
             if (length as usize) < METADATA_FIXED_LEN {
-                return Err(anyhow!(
-                    "Invalid DBN metadata. Metadata length shorter than fixed length."
+                return Err(crate::Error::decode(
+                    "Invalid DBN metadata. Metadata length shorter than fixed length.",
                 ));
             }
             let mut metadata_buffer = vec![0u8; length as usize];
             self.reader
                 .read_exact(&mut metadata_buffer)
                 .await
-                .with_context(|| "Failed to read metadata")?;
+                .map_err(|e| crate::Error::io(e, "reading fixed metadata"))?;
             super::MetadataDecoder::<std::fs::File>::decode_metadata_fields(
                 version,
                 metadata_buffer,
@@ -902,6 +1041,7 @@ mod r#async {
                 ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
                 RecordHeader, StatMsg, TbboMsg, TradeMsg, WithTsOut,
             },
+            Error,
         };
 
         macro_rules! test_dbn_identity {
@@ -1089,7 +1229,7 @@ mod r#async {
             let buf = vec![0];
             let mut target = RecordDecoder::new(buf.as_slice());
             assert!(
-                matches!(target.decode_ref().await, Err(e) if e.kind() == io::ErrorKind::InvalidData)
+                matches!(target.decode_ref().await, Err(Error::Decode(msg)) if msg.starts_with("Invalid record with length"))
             );
         }
 
@@ -1100,7 +1240,7 @@ mod r#async {
 
             let mut target = RecordDecoder::new(buf.as_slice());
             assert!(
-                matches!(target.decode_ref().await, Err(e) if e.kind() == io::ErrorKind::InvalidData)
+                matches!(target.decode_ref().await, Err(Error::Decode(msg)) if msg.starts_with("Invalid record with length"))
             );
         }
 
