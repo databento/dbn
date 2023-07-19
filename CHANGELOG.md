@@ -1,20 +1,26 @@
 # Changelog
 
-## 0.8.0 - TBD
+## 0.8.0 - 2023-07-19
 ### Enhancements
 - Switched from `anyhow::Error` to custom `dbn::Error` for all public fallible functions
   and methods. This should make it easier to disambiguate between error types.
 - `EncodeDbn::encode_record` and `EncodeDbn::record_record_ref` no longer treat a
   `BrokenPipe` error differently
+- Added `AsyncDbnDecoder`
 - Added `pretty::Px` and `pretty::Ts` newtypes to expose price and timestamp formatting
   logic outside of CSV and JSON encoding
 - Added interning for Python strings
+- Added `rtype` to encoded JSON and CSV to aid differeniating between different record types.
+  This is particularly important when working with live data.
 - Added `pretty_` Python attributes for DBN price fields
 - Added `pretty_` Python attributes for DBN UTC timestamp fields
 
 ### Breaking changes
 - All fallible operations now return a `dbn::Error` instead of an `anyhow::Error`
 - Updated serialization order to serialize `ts_recv` and `ts_event` first
+- Moved header fields (`rtype`, `publisher_id`, `instrument_id`, and `ts_event`) to
+  nested object under the key `hd` in JSON encoding to match structure definitions
+- Changed JSON encoding of all 64-bit integers to strings to avoid loss of precision
 - Updated `MboMsg` serialization order to serialize `action`, `side`, and `channel_id`
   earlier given their importance
 - Updated `Mbp1Msg`, `Mbp10Msg`, and `TradeMsg` serialization order to serialize
