@@ -26,6 +26,6 @@ See the respective READMEs for usage details:
 - [`dbn-cli`](rust/dbn-cli/README.md): CLI crate providing a `dbn` binary
 - [`databento-dbn`](python/README.md): Python package
 
-# License
+## License
 
 Distributed under the [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0.html).
