@@ -10,6 +10,10 @@ keywords = ["finance", "market-data", "conversion", "encoding", "trading"]
 # see https://crates.io/category_slugs
 categories = ["encoding"]
 
+[package.metadata.docs.rs]
+# Document all features on docs.rs
+all-features = true
+
 [features]
 default = []
 async = ["dep:async-compression", "dep:tokio"]
