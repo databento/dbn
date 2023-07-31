@@ -1372,6 +1372,16 @@ class InstrumentDefMsg(Record):
 
         """
     @property
+    def raw_instrument_id(self) -> int:
+        """
+        The instrument ID assigned by the publisher. May be the same as `instrument_id`.
+
+        Returns
+        -------
+        int
+
+        """
+    @property
     def market_depth_implied(self) -> int:
         """
         The implied book depth on the price level data feed.

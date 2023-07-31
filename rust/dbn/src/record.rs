@@ -440,9 +440,8 @@ pub struct InstrumentDefMsg {
     /// The `instrument_id` of the first underlying instrument.
     #[pyo3(get, set)]
     pub underlying_id: u32,
-    /// The total cleared volume of the instrument traded during the prior trading session.
-    #[doc(hidden)]
-    pub _reserved1: [u8; 4],
+    /// The instrument ID assigned by the publisher. May be the same as `instrument_id`.
+    pub raw_instrument_id: u32,
     /// The implied book depth on the price level data feed.
     #[pyo3(get, set)]
     pub market_depth_implied: i32,

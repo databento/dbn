@@ -6,6 +6,8 @@
 
 ## 0.8.1 - 2023-08-02
 ### Enhancements
+- Added `raw_instrument_id` field to `InstrumentDefMsg` (definition schema) for use in
+  future datasets consolidated from multiple publishers
 - Added new `OHLCV_EOD` rtype for future daily OHLCV schema based on the trading
   session
 - Added new `SType::Nasdaq` and `SType::Cms` to support querying US equities datasets
