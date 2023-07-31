@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.1 - TBD
+### Enhancements
+- Added new `OHLCV_EOD` rtype for future daily OHLCV schema based on the trading
+  session
+
 ## 0.8.0 - 2023-07-19
 ### Enhancements
 - Switched from `anyhow::Error` to custom `dbn::Error` for all public fallible functions
