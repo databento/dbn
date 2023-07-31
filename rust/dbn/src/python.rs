@@ -12,7 +12,7 @@ use pyo3::{
     types::{timezone_utc, PyBytes, PyDate, PyDateAccess, PyDateTime, PyDict, PyType},
     PyTypeInfo,
 };
-use strum::{EnumCount, IntoEnumIterator};
+use strum::IntoEnumIterator;
 use time::Date;
 
 use crate::{
@@ -274,10 +274,6 @@ impl Compression {
         format!("<Compression.{}: '{}'>", self.name(), self.value(),)
     }
 
-    fn __len__(&self) -> usize {
-        Self::COUNT
-    }
-
     fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
         let Ok(other_enum) = Self::py_from_str(Self::type_object(py), other) else {
             return py.NotImplemented();
@@ -332,10 +328,6 @@ impl Encoding {
 
     fn __repr__(&self) -> String {
         format!("<Encoding.{}: '{}'>", self.name(), self.value(),)
-    }
-
-    fn __len__(&self) -> usize {
-        Self::COUNT
     }
 
     fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
@@ -393,10 +385,6 @@ impl Schema {
         format!("<Schema.{}: '{}'>", self.name(), self.value(),)
     }
 
-    fn __len__(&self) -> usize {
-        Self::COUNT
-    }
-
     fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
         let Ok(other_enum) = Self::py_from_str(Self::type_object(py), other) else {
             return py.NotImplemented();
@@ -450,10 +438,6 @@ impl SType {
 
     fn __repr__(&self) -> String {
         format!("<SType.{}: '{}'>", self.name(), self.value(),)
-    }
-
-    fn __len__(&self) -> usize {
-        Self::COUNT
     }
 
     fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
