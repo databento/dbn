@@ -158,6 +158,12 @@ pub enum SType {
     /// "parent" symbol, e.g. ES.FUT to refer to all ES futures.
     #[pyo3(name = "PARENT")]
     Parent = 4,
+    /// Symbology for US equities using NASDAQ Integrated suffix conventions.
+    #[pyo3(name = "NASDAQ")]
+    Nasdaq = 5,
+    /// Symbology for US equities using CMS suffix conventions.
+    #[pyo3(name = "CMS")]
+    Cms = 6,
 }
 
 impl std::str::FromStr for SType {
@@ -170,6 +176,8 @@ impl std::str::FromStr for SType {
             "smart" => Ok(SType::Smart),
             "continuous" => Ok(SType::Continuous),
             "parent" => Ok(SType::Parent),
+            "nasdaq" => Ok(SType::Nasdaq),
+            "cms" => Ok(SType::Cms),
             _ => Err(crate::Error::conversion::<Self>(s.to_owned())),
         }
     }
@@ -191,6 +199,8 @@ impl SType {
             SType::Smart => "smart",
             SType::Continuous => "continuous",
             SType::Parent => "parent",
+            SType::Nasdaq => "nasdaq",
+            SType::Cms => "cms",
         }
     }
 }

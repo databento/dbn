@@ -4,6 +4,8 @@
 ### Enhancements
 - Added new `OHLCV_EOD` rtype for future daily OHLCV schema based on the trading
   session
+- Added new `SType::Nasdaq` and `SType::Cms` to support querying US equities datasets
+  using either convention, regardless of the original convention of the dataset.
 
 ## 0.8.0 - 2023-07-19
 ### Enhancements
