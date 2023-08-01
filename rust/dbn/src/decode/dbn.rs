@@ -714,6 +714,24 @@ mod tests {
         let mut target = RecordDecoder::new(&rec.as_ref()[..rec.record_size() - 1]);
         assert!(matches!(target.decode_ref(), Ok(None)));
     }
+
+    #[test]
+    fn test_decode_multiframe_zst() {
+        let mut decoder = RecordDecoder::new(
+            zstd::stream::Decoder::new(
+                File::open(format!(
+                    "{TEST_DATA_PATH}/multi-frame.definition.dbn.frag.zst"
+                ))
+                .unwrap(),
+            )
+            .unwrap(),
+        );
+        let mut count = 0;
+        while let Some(_rec) = decoder.decode::<InstrumentDefMsg>().unwrap() {
+            count += 1;
+        }
+        assert_eq!(count, 8);
+    }
 }
 
 #[cfg(feature = "async")]
@@ -734,6 +752,17 @@ mod r#async {
         record_ref::RecordRef,
         Metadata, Result, DBN_VERSION, METADATA_FIXED_LEN,
     };
+
+    /// Helper to always set multiple members.
+    fn zstd_decoder<R>(reader: R) -> ZstdDecoder<R>
+    where
+        R: io::AsyncBufReadExt + Unpin,
+    {
+        let mut zstd_decoder = ZstdDecoder::new(reader);
+        // explicitly enable decoding multiple frames
+        zstd_decoder.multiple_members(true);
+        zstd_decoder
+    }
 
     /// An async decoder for Databento Binary Encoding (DBN), both metadata and records.
     pub struct Decoder<R>
@@ -811,7 +840,7 @@ mod r#async {
         /// # Errors
         /// This function will return an error if it is unable to parse the metadata in `reader`.
         pub async fn with_zstd(reader: R) -> crate::Result<Self> {
-            Decoder::new(ZstdDecoder::new(BufReader::new(reader))).await
+            Decoder::new(zstd_decoder(BufReader::new(reader))).await
         }
     }
 
@@ -824,7 +853,7 @@ mod r#async {
         /// # Errors
         /// This function will return an error if it is unable to parse the metadata in `reader`.
         pub async fn with_zstd_buffer(reader: R) -> crate::Result<Self> {
-            Decoder::new(ZstdDecoder::new(reader)).await
+            Decoder::new(zstd_decoder(reader)).await
         }
     }
 
@@ -923,7 +952,7 @@ mod r#async {
     {
         /// Creates a new async DBN [`RecordDecoder`] from a Zstandard-compressed `reader`.
         pub fn with_zstd(reader: R) -> Self {
-            RecordDecoder::new(ZstdDecoder::new(BufReader::new(reader)))
+            RecordDecoder::new(zstd_decoder(BufReader::new(reader)))
         }
     }
 
@@ -933,7 +962,7 @@ mod r#async {
     {
         /// Creates a new async DBN [`RecordDecoder`] from a Zstandard-compressed buffered `reader`.
         pub fn with_zstd_buffer(reader: R) -> Self {
-            RecordDecoder::new(ZstdDecoder::new(reader))
+            RecordDecoder::new(zstd_decoder(reader))
         }
     }
 
@@ -986,6 +1015,7 @@ mod r#async {
                     "Invalid DBN metadata. Metadata length shorter than fixed length.",
                 ));
             }
+
             let mut metadata_buffer = vec![0u8; length as usize];
             self.reader
                 .read_exact(&mut metadata_buffer)
@@ -1014,7 +1044,7 @@ mod r#async {
     {
         /// Creates a new async DBN [`MetadataDecoder`] from a Zstandard-compressed `reader`.
         pub fn with_zstd(reader: R) -> Self {
-            MetadataDecoder::new(ZstdDecoder::new(BufReader::new(reader)))
+            MetadataDecoder::new(zstd_decoder(BufReader::new(reader)))
         }
     }
 
@@ -1024,7 +1054,7 @@ mod r#async {
     {
         /// Creates a new async DBN [`MetadataDecoder`] from a Zstandard-compressed buffered `reader`.
         pub fn with_zstd_buffer(reader: R) -> Self {
-            MetadataDecoder::new(ZstdDecoder::new(reader))
+            MetadataDecoder::new(zstd_decoder(reader))
         }
     }
 
@@ -1096,11 +1126,11 @@ mod r#async {
                     ))
                     .await
                     .unwrap();
-                    let mut file_meta_decoder = MetadataDecoder::with_zstd(file);
-                    let file_metadata = file_meta_decoder.decode().await.unwrap();
-                    let mut file_decoder = RecordDecoder::from(file_meta_decoder);
+                    let mut file_decoder = Decoder::with_zstd(file).await.unwrap();
+                    let file_metadata = file_decoder.metadata().clone();
                     let mut file_records = Vec::new();
-                    while let Ok(Some(record)) = file_decoder.decode::<$record_type>().await {
+                    while let Ok(Some(record)) = file_decoder.decode_record::<$record_type>().await
+                    {
                         file_records.push(record.clone());
                     }
                     let mut buffer = Vec::new();
@@ -1113,12 +1143,11 @@ mod r#async {
                     }
                     buf_encoder.into_inner().shutdown().await.unwrap();
                     let mut buf_cursor = std::io::Cursor::new(&mut buffer);
-                    let mut buf_meta_decoder = MetadataDecoder::with_zstd_buffer(&mut buf_cursor);
-                    let buf_metadata = buf_meta_decoder.decode().await.unwrap();
+                    let mut buf_decoder = Decoder::with_zstd_buffer(&mut buf_cursor).await.unwrap();
+                    let buf_metadata = buf_decoder.metadata().clone();
                     assert_eq!(buf_metadata, file_metadata);
-                    let mut buf_decoder = RecordDecoder::from(buf_meta_decoder);
                     let mut buf_records = Vec::new();
-                    while let Ok(Some(record)) = buf_decoder.decode::<$record_type>().await {
+                    while let Ok(Some(record)) = buf_decoder.decode_record::<$record_type>().await {
                         buf_records.push(record.clone());
                     }
                     assert_eq!(buf_records, file_records);
@@ -1249,6 +1278,22 @@ mod r#async {
             let rec = ErrorMsg::new(1680703198000000000, "Test");
             let mut target = RecordDecoder::new(&rec.as_ref()[..rec.record_size() - 1]);
             assert!(matches!(target.decode_ref().await, Ok(None)));
+        }
+
+        #[tokio::test]
+        async fn test_decode_multiframe_zst() {
+            let mut decoder = RecordDecoder::with_zstd(
+                tokio::fs::File::open(format!(
+                    "{TEST_DATA_PATH}/multi-frame.definition.dbn.frag.zst"
+                ))
+                .await
+                .unwrap(),
+            );
+            let mut count = 0;
+            while let Some(_rec) = decoder.decode::<InstrumentDefMsg>().await.unwrap() {
+                count += 1;
+            }
+            assert_eq!(count, 8);
         }
     }
 }
