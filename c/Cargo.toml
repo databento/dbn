@@ -1,7 +1,7 @@
 [package]
 name = "dbn-c"
 authors = ["Databento <support@databento.com>"]
-version = "0.8.0"
+version = "0.8.1"
 edition = "2021"
 description = "C bindings for working with Databento Binary Encoding (DBN)"
 license = "Apache-2.0"
@@ -14,10 +14,10 @@ name = "dbn_c"
 crate-type = ["staticlib"]
 
 [dependencies]
-anyhow = "1.0.71"
+anyhow = "1.0.72"
 # DBN library
 dbn = { path = "../rust/dbn", features = [] }
-libc = "0.2.142"
+libc = "0.2.147"
 
 [build-dependencies]
-cbindgen = { version = "0.24.3", default-features = false }
+cbindgen = { version = "0.24.5", default-features = false }

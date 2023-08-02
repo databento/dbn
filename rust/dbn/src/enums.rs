@@ -158,6 +158,12 @@ pub enum SType {
     /// "parent" symbol, e.g. ES.FUT to refer to all ES futures.
     #[pyo3(name = "PARENT")]
     Parent = 4,
+    /// Symbology for US equities using NASDAQ Integrated suffix conventions.
+    #[pyo3(name = "NASDAQ")]
+    Nasdaq = 5,
+    /// Symbology for US equities using CMS suffix conventions.
+    #[pyo3(name = "CMS")]
+    Cms = 6,
 }
 
 impl std::str::FromStr for SType {
@@ -170,6 +176,8 @@ impl std::str::FromStr for SType {
             "smart" => Ok(SType::Smart),
             "continuous" => Ok(SType::Continuous),
             "parent" => Ok(SType::Parent),
+            "nasdaq" => Ok(SType::Nasdaq),
+            "cms" => Ok(SType::Cms),
             _ => Err(crate::Error::conversion::<Self>(s.to_owned())),
         }
     }
@@ -191,6 +199,8 @@ impl SType {
             SType::Smart => "smart",
             SType::Continuous => "continuous",
             SType::Parent => "parent",
+            SType::Nasdaq => "nasdaq",
+            SType::Cms => "cms",
         }
     }
 }
@@ -234,8 +244,12 @@ pub mod rtype {
         Ohlcv1M = 0x21,
         /// Denotes an open, high, low, close, and volume record at an hourly cadence.
         Ohlcv1H = 0x22,
-        /// Denotes an open, high, low, close, and volume record at a daily cadence.
+        /// Denotes an open, high, low, close, and volume record at a daily cadence
+        /// based on the UTC date.
         Ohlcv1D = 0x23,
+        /// Denotes an open, high, low, close, and volume record at a daily cadence
+        /// based on the end of the trading session.
+        OhlcvEod = 0x24,
         /// Denotes an exchange status record.
         Status = 0x12,
         /// Denotes an instrument definition record.
@@ -274,8 +288,12 @@ pub mod rtype {
     pub const OHLCV_1M: u8 = RType::Ohlcv1M as u8;
     /// Denotes an open, high, low, close, and volume record at an hourly cadence.
     pub const OHLCV_1H: u8 = RType::Ohlcv1H as u8;
-    /// Denotes an open, high, low, close, and volume record at a daily cadence.
+    /// Denotes an open, high, low, close, and volume record at a daily cadence based
+    /// on the UTC date.
     pub const OHLCV_1D: u8 = RType::Ohlcv1D as u8;
+    /// Denotes an open, high, low, close, and volume record at a daily cadence
+    /// based on the end of the trading session.
+    pub const OHLCV_EOD: u8 = RType::OhlcvEod as u8;
     /// Denotes an exchange status record.
     pub const STATUS: u8 = RType::Status as u8;
     /// Denotes an instrument definition record.
@@ -369,7 +387,7 @@ pub enum Schema {
     /// Open, high, low, close, and volume at an hourly interval.
     #[pyo3(name = "OHLCV_1H")]
     Ohlcv1H = 7,
-    /// Open, high, low, close, and volume at a daily interval.
+    /// Open, high, low, close, and volume at a daily interval based on the UTC date.
     #[pyo3(name = "OHLCV_1D")]
     Ohlcv1D = 8,
     /// Instrument definitions.

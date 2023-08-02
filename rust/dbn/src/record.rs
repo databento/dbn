@@ -299,6 +299,7 @@ pub type TbboMsg = Mbp1Msg;
     rtype::OHLCV_1M,
     rtype::OHLCV_1H,
     rtype::OHLCV_1D,
+    rtype::OHLCV_EOD,
     rtype::OHLCV_DEPRECATED
 )]
 pub struct OhlcvMsg {

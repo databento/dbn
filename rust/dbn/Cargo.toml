@@ -1,7 +1,7 @@
 [package]
 name = "dbn"
 authors = ["Databento <support@databento.com>"]
-version = "0.8.0"
+version = "0.8.1"
 edition = "2021"
 description = "Library for working with Databento Binary Encoding (DBN)"
 license = "Apache-2.0"
@@ -9,6 +9,10 @@ repository = "https://github.com/databento/dbn"
 keywords = ["finance", "market-data", "conversion", "encoding", "trading"]
 # see https://crates.io/category_slugs
 categories = ["encoding"]
+
+[package.metadata.docs.rs]
+# Document all features on docs.rs
+all-features = true
 
 [features]
 default = []
@@ -19,16 +23,16 @@ serde = ["dep:serde", "time/parsing", "time/serde"]
 trivial_copy = []
 
 [dependencies]
-dbn-macros = { version = "=0.8.0", path = "../dbn-macros" }
+dbn-macros = { version = "=0.8.1", path = "../dbn-macros" }
 
 # async (de)compression
-async-compression = { version = "0.3.15", features = ["tokio", "zstd"], optional = true }
+async-compression = { version = "0.4.1", features = ["tokio", "zstd"], optional = true }
 # CSV serialization
 csv = ">=1.2.2"
 # Deriving translation between integers and enums
 num_enum = "0.6"
 # Python bindings for Rust
-pyo3 = { version = "0.19.0", optional = true }
+pyo3 = { version = "0.19", optional = true }
 # JSON serialization
 json-writer = "0.3"
 # deserialization
@@ -42,10 +46,10 @@ thiserror = "1.0"
 # date and datetime support
 time = { version = "0.3", features = ["formatting", "macros"] }
 # async traits
-tokio = { version = "1.27", features = ["io-util"], optional = true }
+tokio = { version = "1", features = ["io-util"], optional = true }
 # (de)compression
-zstd = "=0.12.3"
+zstd = "0.12"
 
 [dev-dependencies]
 strum = { version = "0.25", features = ["derive"] }
-tokio = { version = "1.27", features = ["fs", "io-util", "macros", "rt-multi-thread"] }
+tokio = { version = "1.29", features = ["fs", "io-util", "macros", "rt-multi-thread"] }

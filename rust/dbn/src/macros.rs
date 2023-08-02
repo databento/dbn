@@ -24,7 +24,8 @@ macro_rules! rtype_dispatch_base {
                 | RType::Ohlcv1S
                 | RType::Ohlcv1M
                 | RType::Ohlcv1H
-                | RType::Ohlcv1D => $handler!(OhlcvMsg),
+                | RType::Ohlcv1D
+                | RType::OhlcvEod => $handler!(OhlcvMsg),
                 RType::Imbalance => $handler!(ImbalanceMsg),
                 RType::Status => $handler!(StatusMsg),
                 RType::InstrumentDef => $handler!(InstrumentDefMsg),

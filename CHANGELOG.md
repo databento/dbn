@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.8.1 - 2023-08-02
+### Enhancements
+- Added new `OHLCV_EOD` rtype for future daily OHLCV schema based on the trading
+  session
+- Added new `SType::Nasdaq` and `SType::Cms` to support querying US equities datasets
+  using either convention, regardless of the original convention of the dataset.
+- Relaxed `pyo3`, `tokio`, and `zstd` dependency version requirements
+
+### Bug fixes
+- Fixed multi-frame Zstd decoding for async decoders
+
 ## 0.8.0 - 2023-07-19
 ### Enhancements
 - Switched from `anyhow::Error` to custom `dbn::Error` for all public fallible functions
