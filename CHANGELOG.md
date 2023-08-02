@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.8.1 - TBD
+## 0.8.1 - 2023-08-02
 ### Enhancements
 - Added new `OHLCV_EOD` rtype for future daily OHLCV schema based on the trading
   session
