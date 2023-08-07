@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.2 - TBD
+### Bug fixes
+- Fixed Python type hint for `Encoding.variants()`
+
 ## 0.8.1 - 2023-08-02
 ### Enhancements
 - Added new `OHLCV_EOD` rtype for future daily OHLCV schema based on the trading
