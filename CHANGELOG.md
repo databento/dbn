@@ -7,6 +7,12 @@
 - Added new `SType::Nasdaq` and `SType::Cms` to support querying US equities datasets
   using either convention, regardless of the original convention of the dataset.
 - Relaxed `pyo3`, `tokio`, and `zstd` dependency version requirements
+- Added `FIXED_PRICE_SCALE` constant to `databento_dbn` Python package
+- Added generated field metadata for each record type to aid in pandas DataFrame
+  creation
+
+### Breaking changes
+- Changed `size_hint` class method to class attribute for Python records
 
 ### Bug fixes
 - Fixed multi-frame Zstd decoding for async decoders

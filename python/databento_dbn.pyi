@@ -8,9 +8,13 @@ from enum import Enum
 from typing import (
     Any,
     BinaryIO,
+    ClassVar,
     SupportsBytes,
     Union,
 )
+
+
+FIXED_PRICE_SCALE: int
 
 
 _DBNRecord = Union[
@@ -397,6 +401,13 @@ class Record(SupportsBytes):
     Base class for DBN records.
     """
 
+    size_hint: ClassVar[int]
+    _dtypes: ClassVar[list[tuple[str, str]]]
+    _hidden_fields: ClassVar[list[str]]
+    _price_fields: ClassVar[list[str]]
+    _ordered_fields: ClassVar[list[str]]
+    _timestamp_fields: ClassVar[list[str]]
+
     def __bytes__(self) -> bytes: ...
     def __eq__(self, other) -> bool: ...
     def __ne__(self, other) -> bool: ...
@@ -408,20 +419,6 @@ class Record(SupportsBytes):
         Returns
         -------
         RecordHeader
-
-        """
-    @classmethod
-    def size_hint(cls) -> int:
-        """
-        Return an estimated size of the record in bytes.
-
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        record_size
 
         """
     @property

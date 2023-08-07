@@ -1,6 +1,8 @@
 use proc_macro::TokenStream;
 
+mod dbn_attr;
 mod has_rtype;
+mod py_field_desc;
 mod serialize;
 mod utils;
 
@@ -41,6 +43,16 @@ pub fn derive_csv_serialize(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(JsonSerialize, attributes(dbn))]
 pub fn derive_json_serialize(input: TokenStream) -> TokenStream {
     serialize::derive_json_macro_impl(input)
+}
+
+/// Derive macro for field descriptions exposed to Python. Supports the following `dbn`
+/// attributes:
+/// - `fixed_price`: indicates this is a fixed-precision field
+/// - `skip`: indicates this field should be hidden
+/// - `unix_nanos`: indicates this is a UNIX nanosecond timestamp field
+#[proc_macro_derive(PyFieldDesc, attributes(dbn))]
+pub fn derive_py_field_desc(input: TokenStream) -> TokenStream {
+    py_field_desc::derive_impl(input)
 }
 
 /// Attribute macro that acts like a derive macro for for `HasRType` and

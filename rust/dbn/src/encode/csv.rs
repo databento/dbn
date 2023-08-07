@@ -68,7 +68,7 @@ where
             Ok(()) => Ok(()),
             Err(e) => Err(match e.into_kind() {
                 csv::ErrorKind::Io(err) => Error::io(err, format!("serializing {record:?}")),
-                _ => Error::encode(format!("Failed to serialize {record:?}")),
+                e => Error::encode(format!("Failed to serialize {record:?}: {e:?}")),
             }),
         }
     }
@@ -220,17 +220,11 @@ pub(crate) mod serialize {
             &self,
             writer: &mut Writer<W>,
         ) -> csv::Result<()> {
-            // Serialize ts_event first to be more human-readable
-            write_ts_field::<W, PRETTY_TS>(writer, self.ts_event)?;
-            writer.write_field(self.rtype.to_string())?;
-            writer.write_field(self.publisher_id.to_string())?;
-            writer.write_field(self.instrument_id.to_string())
+            self.serialize_to::<W, PRETTY_PX, PRETTY_TS>(writer)
         }
 
         fn write_header<W: io::Write>(csv_writer: &mut Writer<W>, _name: &str) -> csv::Result<()> {
-            ["ts_event", "rtype", "publisher_id", "instrument_id"]
-                .iter()
-                .try_for_each(|header| csv_writer.write_field(header))
+            Self::serialize_header(csv_writer)
         }
     }
 
