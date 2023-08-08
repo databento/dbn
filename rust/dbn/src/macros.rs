@@ -51,7 +51,11 @@ macro_rules! schema_dispatch_base {
             Schema::Mbp1 | Schema::Tbbo => $handler!(Mbp1Msg),
             Schema::Mbp10 => $handler!(Mbp10Msg),
             Schema::Trades => $handler!(TradeMsg),
-            Schema::Ohlcv1D | Schema::Ohlcv1H | Schema::Ohlcv1M | Schema::Ohlcv1S => {
+            Schema::Ohlcv1D
+            | Schema::Ohlcv1H
+            | Schema::Ohlcv1M
+            | Schema::Ohlcv1S
+            | Schema::OhlcvEod => {
                 $handler!(OhlcvMsg)
             }
             Schema::Definition => $handler!(InstrumentDefMsg),

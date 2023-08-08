@@ -66,7 +66,8 @@ pub fn write_dbn_file(
         Some(Schema::Ohlcv1S)
         | Some(Schema::Ohlcv1M)
         | Some(Schema::Ohlcv1H)
-        | Some(Schema::Ohlcv1D) => encode_pyrecs::<OhlcvMsg>(encoder, &records),
+        | Some(Schema::Ohlcv1D)
+        | Some(Schema::OhlcvEod) => encode_pyrecs::<OhlcvMsg>(encoder, &records),
         Some(Schema::Definition) => encode_pyrecs::<InstrumentDefMsg>(encoder, &records),
         Some(Schema::Imbalance) => encode_pyrecs::<ImbalanceMsg>(encoder, &records),
         Some(Schema::Statistics) => encode_pyrecs::<StatMsg>(encoder, &records),

@@ -297,6 +297,7 @@ pub type TbboMsg = Mbp1Msg;
 /// - [`Ohlcv1M`](crate::enums::Schema::Ohlcv1M)
 /// - [`Ohlcv1H`](crate::enums::Schema::Ohlcv1H)
 /// - [`Ohlcv1D`](crate::enums::Schema::Ohlcv1D)
+/// - [`OhlcvEod`](crate::enums::Schema::OhlcvEod)
 #[repr(C)]
 #[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]

@@ -1,6 +1,10 @@
 # Changelog
 
 ## 0.8.2 - TBD
+### Enhancements
+- Added new `OhlcvEod` schema variant for future use with OHLCV bars based around the
+  end of the trading session
+
 ### Bug fixes
 - Fixed Python type hint for `Encoding.variants()`
 
