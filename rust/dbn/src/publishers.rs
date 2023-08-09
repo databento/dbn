@@ -1,3 +1,5 @@
+use std::fmt::{self, Display, Formatter};
+
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 use crate::{Error, Result};
@@ -136,6 +138,12 @@ impl AsRef<str> for Venue {
     }
 }
 
+impl Display for Venue {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 impl std::str::FromStr for Venue {
     type Err = Error;
 
@@ -269,6 +277,12 @@ impl Dataset {
 impl AsRef<str> for Dataset {
     fn as_ref(&self) -> &str {
         self.as_str()
+    }
+}
+
+impl Display for Dataset {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 
@@ -546,6 +560,12 @@ impl Publisher {
 impl AsRef<str> for Publisher {
     fn as_ref(&self) -> &str {
         self.as_str()
+    }
+}
+
+impl Display for Publisher {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 

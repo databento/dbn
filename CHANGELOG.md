@@ -4,6 +4,8 @@
 ### Enhancements
 - Added new `OhlcvEod` schema variant for future use with OHLCV bars based around the
   end of the trading session
+- Implemented `std::fmt::Display` for publisher enums (`Publisher`, `Dataset`, and
+  `Venue`)
 
 ### Bug fixes
 - Fixed Python type hint for `Encoding.variants()`
