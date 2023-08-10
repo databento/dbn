@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.8.2 - TBD
+## 0.8.2 - 2023-08-10
 ### Enhancements
 - Added new `OhlcvEod` schema variant for future use with OHLCV bars based around the
   end of the trading session
