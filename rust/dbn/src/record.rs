@@ -442,6 +442,7 @@ pub struct InstrumentDefMsg {
     #[pyo3(get, set)]
     pub underlying_id: u32,
     /// The instrument ID assigned by the publisher. May be the same as `instrument_id`.
+    #[pyo3(get, set)]
     pub raw_instrument_id: u32,
     /// The implied book depth on the price level data feed.
     #[pyo3(get, set)]
