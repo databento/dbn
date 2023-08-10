@@ -567,8 +567,8 @@ impl MboMsg {
         self.record_size()
     }
 
-    #[classmethod]
-    fn size_hint(_: &PyType) -> PyResult<usize> {
+    #[classattr]
+    fn size_hint() -> PyResult<usize> {
         Ok(mem::size_of::<MboMsg>())
     }
 
@@ -582,6 +582,36 @@ impl MboMsg {
     #[pyo3(name = "side")]
     fn py_side(&self) -> char {
         self.side as u8 as char
+    }
+
+    #[classattr]
+    #[pyo3(name = "_dtypes")]
+    fn py_dtypes() -> Vec<(String, String)> {
+        Self::field_dtypes("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_price_fields")]
+    fn py_price_fields() -> Vec<String> {
+        Self::price_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_timestamp_fields")]
+    fn py_timestamp_fields() -> Vec<String> {
+        Self::timestamp_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_hidden_fields")]
+    fn py_hidden_fields() -> Vec<String> {
+        Self::hidden_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_ordered_fields")]
+    fn py_ordered_fields() -> Vec<String> {
+        Self::ordered_fields("")
     }
 }
 
@@ -719,8 +749,8 @@ impl TradeMsg {
         self.record_size()
     }
 
-    #[classmethod]
-    fn size_hint(_: &PyType) -> PyResult<usize> {
+    #[classattr]
+    fn size_hint() -> PyResult<usize> {
         Ok(mem::size_of::<TradeMsg>())
     }
 
@@ -734,6 +764,36 @@ impl TradeMsg {
     #[pyo3(name = "side")]
     fn py_side(&self) -> char {
         self.side as u8 as char
+    }
+
+    #[classattr]
+    #[pyo3(name = "_dtypes")]
+    fn py_dtypes() -> Vec<(String, String)> {
+        Self::field_dtypes("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_price_fields")]
+    fn py_price_fields() -> Vec<String> {
+        Self::price_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_timestamp_fields")]
+    fn py_timestamp_fields() -> Vec<String> {
+        Self::timestamp_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_hidden_fields")]
+    fn py_hidden_fields() -> Vec<String> {
+        Self::hidden_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_ordered_fields")]
+    fn py_ordered_fields() -> Vec<String> {
+        Self::ordered_fields("")
     }
 }
 
@@ -829,8 +889,8 @@ impl Mbp1Msg {
         self.record_size()
     }
 
-    #[classmethod]
-    fn size_hint(_: &PyType) -> PyResult<usize> {
+    #[classattr]
+    fn size_hint() -> PyResult<usize> {
         Ok(mem::size_of::<Mbp1Msg>())
     }
 
@@ -844,6 +904,36 @@ impl Mbp1Msg {
     #[pyo3(name = "side")]
     fn py_side(&self) -> char {
         self.side as u8 as char
+    }
+
+    #[classattr]
+    #[pyo3(name = "_dtypes")]
+    fn py_dtypes() -> Vec<(String, String)> {
+        Self::field_dtypes("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_price_fields")]
+    fn py_price_fields() -> Vec<String> {
+        Self::price_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_timestamp_fields")]
+    fn py_timestamp_fields() -> Vec<String> {
+        Self::timestamp_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_hidden_fields")]
+    fn py_hidden_fields() -> Vec<String> {
+        Self::hidden_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_ordered_fields")]
+    fn py_ordered_fields() -> Vec<String> {
+        Self::ordered_fields("")
     }
 }
 
@@ -951,8 +1041,8 @@ impl Mbp10Msg {
         self.record_size()
     }
 
-    #[classmethod]
-    fn size_hint(_: &PyType) -> PyResult<usize> {
+    #[classattr]
+    fn size_hint() -> PyResult<usize> {
         Ok(mem::size_of::<Mbp10Msg>())
     }
 
@@ -966,6 +1056,36 @@ impl Mbp10Msg {
     #[pyo3(name = "side")]
     fn py_side(&self) -> char {
         self.side as u8 as char
+    }
+
+    #[classattr]
+    #[pyo3(name = "_dtypes")]
+    fn py_dtypes() -> Vec<(String, String)> {
+        Self::field_dtypes("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_price_fields")]
+    fn py_price_fields() -> Vec<String> {
+        Self::price_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_timestamp_fields")]
+    fn py_timestamp_fields() -> Vec<String> {
+        Self::timestamp_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_hidden_fields")]
+    fn py_hidden_fields() -> Vec<String> {
+        Self::hidden_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_ordered_fields")]
+    fn py_ordered_fields() -> Vec<String> {
+        Self::ordered_fields("")
     }
 }
 
@@ -1064,9 +1184,39 @@ impl OhlcvMsg {
         self.record_size()
     }
 
-    #[classmethod]
-    fn size_hint(_: &PyType) -> PyResult<usize> {
+    #[classattr]
+    fn size_hint() -> PyResult<usize> {
         Ok(mem::size_of::<OhlcvMsg>())
+    }
+
+    #[classattr]
+    #[pyo3(name = "_dtypes")]
+    fn py_dtypes() -> Vec<(String, String)> {
+        Self::field_dtypes("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_price_fields")]
+    fn py_price_fields() -> Vec<String> {
+        Self::price_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_timestamp_fields")]
+    fn py_timestamp_fields() -> Vec<String> {
+        Self::timestamp_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_hidden_fields")]
+    fn py_hidden_fields() -> Vec<String> {
+        Self::hidden_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_ordered_fields")]
+    fn py_ordered_fields() -> Vec<String> {
+        Self::ordered_fields("")
     }
 }
 
@@ -1146,8 +1296,8 @@ impl StatusMsg {
         self.record_size()
     }
 
-    #[classmethod]
-    fn size_hint(_: &PyType) -> PyResult<usize> {
+    #[classattr]
+    fn size_hint() -> PyResult<usize> {
         Ok(mem::size_of::<StatMsg>())
     }
 
@@ -1155,6 +1305,36 @@ impl StatusMsg {
     #[pyo3(name = "group")]
     fn py_group(&self) -> PyResult<&str> {
         self.group().map_err(to_val_err)
+    }
+
+    #[classattr]
+    #[pyo3(name = "_dtypes")]
+    fn py_dtypes() -> Vec<(String, String)> {
+        Self::field_dtypes("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_price_fields")]
+    fn py_price_fields() -> Vec<String> {
+        Self::price_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_timestamp_fields")]
+    fn py_timestamp_fields() -> Vec<String> {
+        Self::timestamp_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_hidden_fields")]
+    fn py_hidden_fields() -> Vec<String> {
+        Self::hidden_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_ordered_fields")]
+    fn py_ordered_fields() -> Vec<String> {
+        Self::ordered_fields("")
     }
 }
 
@@ -1187,6 +1367,7 @@ impl InstrumentDefMsg {
         price_ratio: Option<i64>,
         inst_attrib_value: Option<i32>,
         underlying_id: Option<u32>,
+        raw_instrument_id: Option<u32>,
         market_depth_implied: Option<i32>,
         market_depth: Option<i32>,
         market_segment_id: Option<u32>,
@@ -1246,6 +1427,7 @@ impl InstrumentDefMsg {
             price_ratio: price_ratio.unwrap_or(UNDEF_PRICE),
             inst_attrib_value: inst_attrib_value.unwrap_or(i32::MAX),
             underlying_id: underlying_id.unwrap_or_default(),
+            raw_instrument_id: raw_instrument_id.unwrap_or(instrument_id),
             market_depth_implied: market_depth_implied.unwrap_or(i32::MAX),
             market_depth: market_depth.unwrap_or(i32::MAX),
             market_segment_id: market_segment_id.unwrap_or(u32::MAX),
@@ -1294,7 +1476,6 @@ impl InstrumentDefMsg {
             contract_multiplier_unit: contract_multiplier_unit.unwrap_or(i8::MAX),
             flow_schedule_type: flow_schedule_type.unwrap_or(i8::MAX),
             tick_rule: tick_rule.unwrap_or(u8::MAX),
-            _reserved1: Default::default(),
             _reserved2: Default::default(),
             _reserved3: Default::default(),
             _reserved4: Default::default(),
@@ -1437,8 +1618,8 @@ impl InstrumentDefMsg {
         self.record_size()
     }
 
-    #[classmethod]
-    fn size_hint(_: &PyType) -> PyResult<usize> {
+    #[classattr]
+    fn size_hint() -> PyResult<usize> {
         Ok(mem::size_of::<InstrumentDefMsg>())
     }
 
@@ -1536,6 +1717,36 @@ impl InstrumentDefMsg {
     #[pyo3(name = "user_defined_instrument")]
     fn py_user_defined_instrument(&self) -> char {
         self.user_defined_instrument as u8 as char
+    }
+
+    #[classattr]
+    #[pyo3(name = "_dtypes")]
+    fn py_dtypes() -> Vec<(String, String)> {
+        Self::field_dtypes("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_price_fields")]
+    fn py_price_fields() -> Vec<String> {
+        Self::price_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_timestamp_fields")]
+    fn py_timestamp_fields() -> Vec<String> {
+        Self::timestamp_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_hidden_fields")]
+    fn py_hidden_fields() -> Vec<String> {
+        Self::hidden_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_ordered_fields")]
+    fn py_ordered_fields() -> Vec<String> {
+        Self::ordered_fields("")
     }
 }
 
@@ -1653,8 +1864,8 @@ impl ImbalanceMsg {
         get_utc_nanosecond_timestamp(py, self.ts_recv)
     }
 
-    #[classmethod]
-    fn size_hint(_: &PyType) -> PyResult<usize> {
+    #[classattr]
+    fn size_hint() -> PyResult<usize> {
         Ok(mem::size_of::<ImbalanceMsg>())
     }
 
@@ -1680,6 +1891,36 @@ impl ImbalanceMsg {
     #[pyo3(name = "significant_imbalance")]
     fn py_significant_imbalance(&self) -> char {
         self.significant_imbalance as u8 as char
+    }
+
+    #[classattr]
+    #[pyo3(name = "_dtypes")]
+    fn py_dtypes() -> Vec<(String, String)> {
+        Self::field_dtypes("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_price_fields")]
+    fn py_price_fields() -> Vec<String> {
+        Self::price_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_timestamp_fields")]
+    fn py_timestamp_fields() -> Vec<String> {
+        Self::timestamp_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_hidden_fields")]
+    fn py_hidden_fields() -> Vec<String> {
+        Self::hidden_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_ordered_fields")]
+    fn py_ordered_fields() -> Vec<String> {
+        Self::ordered_fields("")
     }
 }
 
@@ -1781,9 +2022,39 @@ impl StatMsg {
         self.record_size()
     }
 
-    #[classmethod]
-    fn size_hint(_: &PyType) -> PyResult<usize> {
+    #[classattr]
+    fn size_hint() -> PyResult<usize> {
         Ok(mem::size_of::<StatMsg>())
+    }
+
+    #[classattr]
+    #[pyo3(name = "_dtypes")]
+    fn py_dtypes() -> Vec<(String, String)> {
+        Self::field_dtypes("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_price_fields")]
+    fn py_price_fields() -> Vec<String> {
+        Self::price_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_timestamp_fields")]
+    fn py_timestamp_fields() -> Vec<String> {
+        Self::timestamp_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_hidden_fields")]
+    fn py_hidden_fields() -> Vec<String> {
+        Self::hidden_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_ordered_fields")]
+    fn py_ordered_fields() -> Vec<String> {
+        Self::ordered_fields("")
     }
 }
 
@@ -1845,8 +2116,8 @@ impl ErrorMsg {
         self.record_size()
     }
 
-    #[classmethod]
-    fn size_hint(_: &PyType) -> PyResult<usize> {
+    #[classattr]
+    fn size_hint() -> PyResult<usize> {
         Ok(mem::size_of::<ErrorMsg>())
     }
 
@@ -1854,6 +2125,36 @@ impl ErrorMsg {
     #[pyo3(name = "err")]
     fn py_err(&self) -> PyResult<&str> {
         self.err().map_err(to_val_err)
+    }
+
+    #[classattr]
+    #[pyo3(name = "_dtypes")]
+    fn py_dtypes() -> Vec<(String, String)> {
+        Self::field_dtypes("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_price_fields")]
+    fn py_price_fields() -> Vec<String> {
+        Self::price_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_timestamp_fields")]
+    fn py_timestamp_fields() -> Vec<String> {
+        Self::timestamp_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_hidden_fields")]
+    fn py_hidden_fields() -> Vec<String> {
+        Self::hidden_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_ordered_fields")]
+    fn py_ordered_fields() -> Vec<String> {
+        Self::ordered_fields("")
     }
 }
 
@@ -1943,8 +2244,8 @@ impl SymbolMappingMsg {
         self.record_size()
     }
 
-    #[classmethod]
-    fn size_hint(_: &PyType) -> PyResult<usize> {
+    #[classattr]
+    fn size_hint() -> PyResult<usize> {
         Ok(mem::size_of::<SymbolMappingMsg>())
     }
 
@@ -1958,6 +2259,36 @@ impl SymbolMappingMsg {
     #[pyo3(name = "stype_out_symbol")]
     fn py_stype_out_symbol(&self) -> PyResult<&str> {
         self.stype_out_symbol().map_err(to_val_err)
+    }
+
+    #[classattr]
+    #[pyo3(name = "_dtypes")]
+    fn py_dtypes() -> Vec<(String, String)> {
+        Self::field_dtypes("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_price_fields")]
+    fn py_price_fields() -> Vec<String> {
+        Self::price_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_timestamp_fields")]
+    fn py_timestamp_fields() -> Vec<String> {
+        Self::timestamp_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_hidden_fields")]
+    fn py_hidden_fields() -> Vec<String> {
+        Self::hidden_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_ordered_fields")]
+    fn py_ordered_fields() -> Vec<String> {
+        Self::ordered_fields("")
     }
 }
 
@@ -2019,8 +2350,8 @@ impl SystemMsg {
         self.record_size()
     }
 
-    #[classmethod]
-    fn size_hint(_: &PyType) -> PyResult<usize> {
+    #[classattr]
+    fn size_hint() -> PyResult<usize> {
         Ok(mem::size_of::<SystemMsg>())
     }
 
@@ -2033,6 +2364,36 @@ impl SystemMsg {
     #[pyo3(name = "is_heartbeat")]
     fn py_is_heartbeat(&self) -> bool {
         self.is_heartbeat()
+    }
+
+    #[classattr]
+    #[pyo3(name = "_dtypes")]
+    fn py_dtypes() -> Vec<(String, String)> {
+        Self::field_dtypes("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_price_fields")]
+    fn py_price_fields() -> Vec<String> {
+        Self::price_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_timestamp_fields")]
+    fn py_timestamp_fields() -> Vec<String> {
+        Self::timestamp_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_hidden_fields")]
+    fn py_hidden_fields() -> Vec<String> {
+        Self::hidden_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_ordered_fields")]
+    fn py_ordered_fields() -> Vec<String> {
+        Self::ordered_fields("")
     }
 }
 
@@ -2069,5 +2430,449 @@ impl EnumIterator {
                     .into_iter(),
             ),
         }
+    }
+}
+/// A trait for records that provide descriptions of their fields.
+pub(crate) trait PyFieldDesc {
+    /// Returns a list of all fields and their numpy dtypes.
+    fn field_dtypes(field_name: &str) -> Vec<(String, String)>;
+    /// Returns a list of fields that should be hidden in Python.
+    fn hidden_fields(_field_name: &str) -> Vec<String> {
+        Vec::new()
+    }
+    /// Returns a list of the fixed-precision price fields.
+    fn price_fields(_field_name: &str) -> Vec<String> {
+        Vec::new()
+    }
+    /// Returns a list of UNIX nanosecond timestamp fields.
+    fn timestamp_fields(_field_name: &str) -> Vec<String> {
+        Vec::new()
+    }
+    /// Ordered list of fields excluding hidden fields.
+    fn ordered_fields(field_name: &str) -> Vec<String> {
+        vec![field_name.to_owned()]
+    }
+}
+
+impl PyFieldDesc for i64 {
+    fn field_dtypes(field_name: &str) -> Vec<(String, String)> {
+        vec![(field_name.to_owned(), "i8".to_owned())]
+    }
+}
+impl PyFieldDesc for i32 {
+    fn field_dtypes(field_name: &str) -> Vec<(String, String)> {
+        vec![(field_name.to_owned(), "i4".to_owned())]
+    }
+}
+impl PyFieldDesc for i16 {
+    fn field_dtypes(field_name: &str) -> Vec<(String, String)> {
+        vec![(field_name.to_owned(), "i2".to_owned())]
+    }
+}
+impl PyFieldDesc for i8 {
+    fn field_dtypes(field_name: &str) -> Vec<(String, String)> {
+        vec![(field_name.to_owned(), "i1".to_owned())]
+    }
+}
+impl PyFieldDesc for u64 {
+    fn field_dtypes(field_name: &str) -> Vec<(String, String)> {
+        vec![(field_name.to_owned(), "u8".to_owned())]
+    }
+}
+impl PyFieldDesc for u32 {
+    fn field_dtypes(field_name: &str) -> Vec<(String, String)> {
+        vec![(field_name.to_owned(), "u4".to_owned())]
+    }
+}
+impl PyFieldDesc for u16 {
+    fn field_dtypes(field_name: &str) -> Vec<(String, String)> {
+        vec![(field_name.to_owned(), "u2".to_owned())]
+    }
+}
+impl PyFieldDesc for u8 {
+    fn field_dtypes(field_name: &str) -> Vec<(String, String)> {
+        vec![(field_name.to_owned(), "u1".to_owned())]
+    }
+}
+impl<const N: usize> PyFieldDesc for [i8; N] {
+    fn field_dtypes(field_name: &str) -> Vec<(String, String)> {
+        vec![(field_name.to_owned(), format!("S{N}"))]
+    }
+}
+impl<const N: usize> PyFieldDesc for [u8; N] {
+    fn field_dtypes(field_name: &str) -> Vec<(String, String)> {
+        vec![(field_name.to_owned(), format!("S{N}"))]
+    }
+}
+
+impl PyFieldDesc for SecurityUpdateAction {
+    fn field_dtypes(field_name: &str) -> Vec<(String, String)> {
+        vec![(field_name.to_owned(), "S1".to_owned())]
+    }
+}
+
+impl PyFieldDesc for UserDefinedInstrument {
+    fn field_dtypes(field_name: &str) -> Vec<(String, String)> {
+        vec![(field_name.to_owned(), "S1".to_owned())]
+    }
+}
+
+impl<const N: usize> PyFieldDesc for [BidAskPair; N] {
+    fn field_dtypes(_field_name: &str) -> Vec<(String, String)> {
+        let mut res = Vec::new();
+        let field_dtypes = BidAskPair::field_dtypes("");
+        for level in 0..N {
+            let mut dtypes = field_dtypes.clone();
+            for dtype in dtypes.iter_mut() {
+                dtype.0.push_str(&format!("_{level:02}"));
+            }
+            res.extend(dtypes);
+        }
+        res
+    }
+
+    fn price_fields(_field_name: &str) -> Vec<String> {
+        let mut res = Vec::new();
+        let price_fields = BidAskPair::price_fields("");
+        for level in 0..N {
+            let mut fields = price_fields.clone();
+            for field in fields.iter_mut() {
+                field.push_str(&format!("_{level:02}"));
+            }
+            res.extend(fields);
+        }
+        res
+    }
+
+    fn ordered_fields(_field_name: &str) -> Vec<String> {
+        let mut res = Vec::new();
+        let ordered_fields = BidAskPair::ordered_fields("");
+        for level in 0..N {
+            let mut fields = ordered_fields.clone();
+            for field in fields.iter_mut() {
+                field.push_str(&format!("_{level:02}"));
+            }
+            res.extend(fields);
+        }
+        res
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn with_record_header_dtype(dtypes: Vec<(String, String)>) -> Vec<(String, String)> {
+        let mut res = vec![
+            ("length".to_owned(), "u1".to_owned()),
+            ("rtype".to_owned(), "u1".to_owned()),
+            ("publisher_id".to_owned(), "u2".to_owned()),
+            ("instrument_id".to_owned(), "u4".to_owned()),
+            ("ts_event".to_owned(), "u8".to_owned()),
+        ];
+        res.extend(dtypes);
+        res
+    }
+
+    #[test]
+    fn test_mbo_dtypes() {
+        let dtypes = MboMsg::field_dtypes("");
+        let exp = with_record_header_dtype(vec![
+            ("order_id".to_owned(), "u8".to_owned()),
+            ("price".to_owned(), "i8".to_owned()),
+            ("size".to_owned(), "u4".to_owned()),
+            ("flags".to_owned(), "u1".to_owned()),
+            ("channel_id".to_owned(), "u1".to_owned()),
+            ("action".to_owned(), "S1".to_owned()),
+            ("side".to_owned(), "S1".to_owned()),
+            ("ts_recv".to_owned(), "u8".to_owned()),
+            ("ts_in_delta".to_owned(), "i4".to_owned()),
+            ("sequence".to_owned(), "u4".to_owned()),
+        ]);
+        assert_eq!(dtypes, exp);
+    }
+
+    #[test]
+    fn test_mbo_fields() {
+        assert_eq!(MboMsg::price_fields(""), vec!["price".to_owned()]);
+        assert_eq!(MboMsg::hidden_fields(""), vec!["length".to_owned()]);
+        assert_eq!(
+            MboMsg::timestamp_fields(""),
+            vec!["ts_event".to_owned(), "ts_recv".to_owned()]
+        );
+    }
+
+    #[test]
+    fn test_mbo_ordered() {
+        assert_eq!(
+            MboMsg::ordered_fields(""),
+            vec![
+                "ts_recv".to_owned(),
+                "ts_event".to_owned(),
+                "rtype".to_owned(),
+                "publisher_id".to_owned(),
+                "instrument_id".to_owned(),
+                "action".to_owned(),
+                "side".to_owned(),
+                "price".to_owned(),
+                "size".to_owned(),
+                "channel_id".to_owned(),
+                "order_id".to_owned(),
+                "flags".to_owned(),
+                "ts_in_delta".to_owned(),
+                "sequence".to_owned(),
+            ]
+        )
+    }
+
+    #[test]
+    fn test_mbp10_dtypes() {
+        let dtypes = Mbp10Msg::field_dtypes("");
+        let mut exp = with_record_header_dtype(vec![
+            ("price".to_owned(), "i8".to_owned()),
+            ("size".to_owned(), "u4".to_owned()),
+            ("action".to_owned(), "S1".to_owned()),
+            ("side".to_owned(), "S1".to_owned()),
+            ("flags".to_owned(), "u1".to_owned()),
+            ("depth".to_owned(), "u1".to_owned()),
+            ("ts_recv".to_owned(), "u8".to_owned()),
+            ("ts_in_delta".to_owned(), "i4".to_owned()),
+            ("sequence".to_owned(), "u4".to_owned()),
+        ]);
+        for i in 0..10 {
+            exp.push((format!("bid_px_{i:02}"), "i8".to_owned()));
+            exp.push((format!("ask_px_{i:02}"), "i8".to_owned()));
+            exp.push((format!("bid_sz_{i:02}"), "u4".to_owned()));
+            exp.push((format!("ask_sz_{i:02}"), "u4".to_owned()));
+            exp.push((format!("bid_ct_{i:02}"), "u4".to_owned()));
+            exp.push((format!("ask_ct_{i:02}"), "u4".to_owned()));
+        }
+        assert_eq!(dtypes, exp);
+    }
+
+    #[test]
+    fn test_mbp10_fields() {
+        let mut exp_price = vec!["price".to_owned()];
+        for i in 0..10 {
+            exp_price.push(format!("bid_px_{i:02}"));
+            exp_price.push(format!("ask_px_{i:02}"));
+        }
+        assert_eq!(Mbp10Msg::price_fields(""), exp_price);
+        assert_eq!(Mbp10Msg::hidden_fields(""), vec!["length".to_owned()]);
+        assert_eq!(
+            Mbp10Msg::timestamp_fields(""),
+            vec!["ts_event".to_owned(), "ts_recv".to_owned()]
+        );
+    }
+
+    #[test]
+    fn test_mbp10_ordered() {
+        let mut exp = vec![
+            "ts_recv".to_owned(),
+            "ts_event".to_owned(),
+            "rtype".to_owned(),
+            "publisher_id".to_owned(),
+            "instrument_id".to_owned(),
+            "action".to_owned(),
+            "side".to_owned(),
+            "depth".to_owned(),
+            "price".to_owned(),
+            "size".to_owned(),
+            "flags".to_owned(),
+            "ts_in_delta".to_owned(),
+            "sequence".to_owned(),
+        ];
+        for i in 0..10 {
+            exp.push(format!("bid_px_{i:02}"));
+            exp.push(format!("ask_px_{i:02}"));
+            exp.push(format!("bid_sz_{i:02}"));
+            exp.push(format!("ask_sz_{i:02}"));
+            exp.push(format!("bid_ct_{i:02}"));
+            exp.push(format!("ask_ct_{i:02}"));
+        }
+        assert_eq!(Mbp10Msg::ordered_fields(""), exp)
+    }
+
+    #[test]
+    fn test_definition_dtypes() {
+        let dtypes = InstrumentDefMsg::field_dtypes("");
+        let exp = with_record_header_dtype(vec![
+            ("ts_recv".to_owned(), "u8".to_owned()),
+            ("min_price_increment".to_owned(), "i8".to_owned()),
+            ("display_factor".to_owned(), "i8".to_owned()),
+            ("expiration".to_owned(), "u8".to_owned()),
+            ("activation".to_owned(), "u8".to_owned()),
+            ("high_limit_price".to_owned(), "i8".to_owned()),
+            ("low_limit_price".to_owned(), "i8".to_owned()),
+            ("max_price_variation".to_owned(), "i8".to_owned()),
+            ("trading_reference_price".to_owned(), "i8".to_owned()),
+            ("unit_of_measure_qty".to_owned(), "i8".to_owned()),
+            ("min_price_increment_amount".to_owned(), "i8".to_owned()),
+            ("price_ratio".to_owned(), "i8".to_owned()),
+            ("inst_attrib_value".to_owned(), "i4".to_owned()),
+            ("underlying_id".to_owned(), "u4".to_owned()),
+            ("raw_instrument_id".to_owned(), "u4".to_owned()),
+            ("market_depth_implied".to_owned(), "i4".to_owned()),
+            ("market_depth".to_owned(), "i4".to_owned()),
+            ("market_segment_id".to_owned(), "u4".to_owned()),
+            ("max_trade_vol".to_owned(), "u4".to_owned()),
+            ("min_lot_size".to_owned(), "i4".to_owned()),
+            ("min_lot_size_block".to_owned(), "i4".to_owned()),
+            ("min_lot_size_round_lot".to_owned(), "i4".to_owned()),
+            ("min_trade_vol".to_owned(), "u4".to_owned()),
+            ("_reserved2".to_owned(), "S4".to_owned()),
+            ("contract_multiplier".to_owned(), "i4".to_owned()),
+            ("decay_quantity".to_owned(), "i4".to_owned()),
+            ("original_contract_size".to_owned(), "i4".to_owned()),
+            ("_reserved3".to_owned(), "S4".to_owned()),
+            ("trading_reference_date".to_owned(), "u2".to_owned()),
+            ("appl_id".to_owned(), "i2".to_owned()),
+            ("maturity_year".to_owned(), "u2".to_owned()),
+            ("decay_start_date".to_owned(), "u2".to_owned()),
+            ("channel_id".to_owned(), "u2".to_owned()),
+            ("currency".to_owned(), "S4".to_owned()),
+            ("settl_currency".to_owned(), "S4".to_owned()),
+            ("secsubtype".to_owned(), "S6".to_owned()),
+            ("raw_symbol".to_owned(), "S22".to_owned()),
+            ("group".to_owned(), "S21".to_owned()),
+            ("exchange".to_owned(), "S5".to_owned()),
+            ("asset".to_owned(), "S7".to_owned()),
+            ("cfi".to_owned(), "S7".to_owned()),
+            ("security_type".to_owned(), "S7".to_owned()),
+            ("unit_of_measure".to_owned(), "S31".to_owned()),
+            ("underlying".to_owned(), "S21".to_owned()),
+            ("strike_price_currency".to_owned(), "S4".to_owned()),
+            ("instrument_class".to_owned(), "S1".to_owned()),
+            ("_reserved4".to_owned(), "S2".to_owned()),
+            ("strike_price".to_owned(), "i8".to_owned()),
+            ("_reserved5".to_owned(), "S6".to_owned()),
+            ("match_algorithm".to_owned(), "S1".to_owned()),
+            ("md_security_trading_status".to_owned(), "u1".to_owned()),
+            ("main_fraction".to_owned(), "u1".to_owned()),
+            ("price_display_format".to_owned(), "u1".to_owned()),
+            ("settl_price_type".to_owned(), "u1".to_owned()),
+            ("sub_fraction".to_owned(), "u1".to_owned()),
+            ("underlying_product".to_owned(), "u1".to_owned()),
+            ("security_update_action".to_owned(), "S1".to_owned()),
+            ("maturity_month".to_owned(), "u1".to_owned()),
+            ("maturity_day".to_owned(), "u1".to_owned()),
+            ("maturity_week".to_owned(), "u1".to_owned()),
+            ("user_defined_instrument".to_owned(), "S1".to_owned()),
+            ("contract_multiplier_unit".to_owned(), "i1".to_owned()),
+            ("flow_schedule_type".to_owned(), "i1".to_owned()),
+            ("tick_rule".to_owned(), "u1".to_owned()),
+            ("_dummy".to_owned(), "S3".to_owned()),
+        ]);
+        assert_eq!(dtypes, exp);
+    }
+
+    #[test]
+    fn test_definition_fields() {
+        assert_eq!(
+            InstrumentDefMsg::price_fields(""),
+            vec![
+                "min_price_increment".to_owned(),
+                "high_limit_price".to_owned(),
+                "low_limit_price".to_owned(),
+                "max_price_variation".to_owned(),
+                "trading_reference_price".to_owned(),
+                "min_price_increment_amount".to_owned(),
+                "price_ratio".to_owned(),
+                "strike_price".to_owned(),
+            ]
+        );
+        assert_eq!(
+            InstrumentDefMsg::hidden_fields(""),
+            vec![
+                "length".to_owned(),
+                "_reserved2".to_owned(),
+                "_reserved3".to_owned(),
+                "_reserved4".to_owned(),
+                "_reserved5".to_owned(),
+                "_dummy".to_owned(),
+            ]
+        );
+        assert_eq!(
+            InstrumentDefMsg::timestamp_fields(""),
+            vec![
+                "ts_event".to_owned(),
+                "ts_recv".to_owned(),
+                "expiration".to_owned(),
+                "activation".to_owned()
+            ]
+        );
+    }
+
+    #[test]
+    fn test_definition_ordered() {
+        assert_eq!(
+            InstrumentDefMsg::ordered_fields(""),
+            vec![
+                "ts_recv".to_owned(),
+                "ts_event".to_owned(),
+                "rtype".to_owned(),
+                "publisher_id".to_owned(),
+                "instrument_id".to_owned(),
+                "raw_symbol".to_owned(),
+                "security_update_action".to_owned(),
+                "instrument_class".to_owned(),
+                "min_price_increment".to_owned(),
+                "display_factor".to_owned(),
+                "expiration".to_owned(),
+                "activation".to_owned(),
+                "high_limit_price".to_owned(),
+                "low_limit_price".to_owned(),
+                "max_price_variation".to_owned(),
+                "trading_reference_price".to_owned(),
+                "unit_of_measure_qty".to_owned(),
+                "min_price_increment_amount".to_owned(),
+                "price_ratio".to_owned(),
+                "inst_attrib_value".to_owned(),
+                "underlying_id".to_owned(),
+                "raw_instrument_id".to_owned(),
+                "market_depth_implied".to_owned(),
+                "market_depth".to_owned(),
+                "market_segment_id".to_owned(),
+                "max_trade_vol".to_owned(),
+                "min_lot_size".to_owned(),
+                "min_lot_size_block".to_owned(),
+                "min_lot_size_round_lot".to_owned(),
+                "min_trade_vol".to_owned(),
+                "contract_multiplier".to_owned(),
+                "decay_quantity".to_owned(),
+                "original_contract_size".to_owned(),
+                "trading_reference_date".to_owned(),
+                "appl_id".to_owned(),
+                "maturity_year".to_owned(),
+                "decay_start_date".to_owned(),
+                "channel_id".to_owned(),
+                "currency".to_owned(),
+                "settl_currency".to_owned(),
+                "secsubtype".to_owned(),
+                "group".to_owned(),
+                "exchange".to_owned(),
+                "asset".to_owned(),
+                "cfi".to_owned(),
+                "security_type".to_owned(),
+                "unit_of_measure".to_owned(),
+                "underlying".to_owned(),
+                "strike_price_currency".to_owned(),
+                "strike_price".to_owned(),
+                "match_algorithm".to_owned(),
+                "md_security_trading_status".to_owned(),
+                "main_fraction".to_owned(),
+                "price_display_format".to_owned(),
+                "settl_price_type".to_owned(),
+                "sub_fraction".to_owned(),
+                "underlying_product".to_owned(),
+                "maturity_month".to_owned(),
+                "maturity_day".to_owned(),
+                "maturity_week".to_owned(),
+                "user_defined_instrument".to_owned(),
+                "contract_multiplier_unit".to_owned(),
+                "flow_schedule_type".to_owned(),
+                "tick_rule".to_owned(),
+            ]
+        )
     }
 }

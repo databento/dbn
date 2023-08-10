@@ -323,6 +323,7 @@ pub mod rtype {
                 Schema::Ohlcv1M => RType::Ohlcv1M,
                 Schema::Ohlcv1H => RType::Ohlcv1H,
                 Schema::Ohlcv1D => RType::Ohlcv1D,
+                Schema::OhlcvEod => RType::OhlcvEod,
                 Schema::Definition => RType::InstrumentDef,
                 Schema::Statistics => RType::Statistics,
                 Schema::Status => RType::Status,
@@ -344,6 +345,7 @@ pub mod rtype {
             OHLCV_1M => Some(Schema::Ohlcv1M),
             OHLCV_1H => Some(Schema::Ohlcv1H),
             OHLCV_1D => Some(Schema::Ohlcv1D),
+            OHLCV_EOD => Some(Schema::OhlcvEod),
             STATUS => Some(Schema::Status),
             INSTRUMENT_DEF => Some(Schema::Definition),
             IMBALANCE => Some(Schema::Imbalance),
@@ -403,10 +405,14 @@ pub enum Schema {
     /// Auction imbalance events.
     #[pyo3(name = "IMBALANCE")]
     Imbalance = 12,
+    /// Open, high, low, close, and volume at a daily cadence based on the end of the
+    /// trading session.
+    #[pyo3(name = "OHLCV_EOD")]
+    OhlcvEod = 13,
 }
 
 /// The number of [`Schema`]s.
-pub const SCHEMA_COUNT: usize = 13;
+pub const SCHEMA_COUNT: usize = 14;
 
 impl std::str::FromStr for Schema {
     type Err = crate::Error;
@@ -422,6 +428,7 @@ impl std::str::FromStr for Schema {
             "ohlcv-1m" => Ok(Schema::Ohlcv1M),
             "ohlcv-1h" => Ok(Schema::Ohlcv1H),
             "ohlcv-1d" => Ok(Schema::Ohlcv1D),
+            "ohlcv-eod" => Ok(Schema::OhlcvEod),
             "definition" => Ok(Schema::Definition),
             "statistics" => Ok(Schema::Statistics),
             "status" => Ok(Schema::Status),
@@ -450,6 +457,7 @@ impl Schema {
             Schema::Ohlcv1M => "ohlcv-1m",
             Schema::Ohlcv1H => "ohlcv-1h",
             Schema::Ohlcv1D => "ohlcv-1d",
+            Schema::OhlcvEod => "ohlcv-eod",
             Schema::Definition => "definition",
             Schema::Statistics => "statistics",
             Schema::Status => "status",

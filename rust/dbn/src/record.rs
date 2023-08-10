@@ -20,14 +20,16 @@ use crate::{
 
 /// Common data for all Databento records.
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn")
+    pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn"),
+    derive(crate::macros::PyFieldDesc)
 )]
 pub struct RecordHeader {
     /// The length of the record in 32-bit words.
+    #[dbn(skip)]
     pub(crate) length: u8,
     /// The record type; with `0xe0..0x0F` specifying MBP levels size. Record types
     /// implement the trait [`HasRType`], and the [`has_rtype`][HasRType::has_rtype]
@@ -40,6 +42,7 @@ pub struct RecordHeader {
     pub instrument_id: u32,
     /// The matching-engine-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
+    #[dbn(encode_order(0), unix_nanos)]
     pub ts_event: u64,
 }
 
@@ -50,7 +53,8 @@ pub struct RecordHeader {
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(set_all, dict, module = "databento_dbn", name = "MBOMsg")
+    pyo3::pyclass(set_all, dict, module = "databento_dbn", name = "MBOMsg"),
+    derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[dbn_record(rtype::MBO)]
@@ -100,16 +104,19 @@ pub struct MboMsg {
 
 /// A level.
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Eq, Default)]
+#[derive(Clone, Debug, JsonSerialize, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn")
+    pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn"),
+    derive(crate::macros::PyFieldDesc)
 )]
 pub struct BidAskPair {
     /// The bid price.
+    #[dbn(fixed_price)]
     pub bid_px: i64,
     /// The ask price.
+    #[dbn(fixed_price)]
     pub ask_px: i64,
     /// The bid size.
     pub bid_sz: u32,
@@ -128,7 +135,8 @@ pub struct BidAskPair {
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(set_all, dict, module = "databento_dbn")
+    pyo3::pyclass(set_all, dict, module = "databento_dbn"),
+    derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[dbn_record(rtype::MBP_0)]
@@ -178,7 +186,8 @@ pub struct TradeMsg {
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(set_all, dict, module = "databento_dbn", name = "MBP1Msg")
+    pyo3::pyclass(set_all, dict, module = "databento_dbn", name = "MBP1Msg"),
+    derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[dbn_record(rtype::MBP_1)]
@@ -232,7 +241,8 @@ pub struct Mbp1Msg {
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(set_all, dict, module = "databento_dbn", name = "MBP10Msg")
+    pyo3::pyclass(set_all, dict, module = "databento_dbn", name = "MBP10Msg"),
+    derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[dbn_record(rtype::MBP_10)]
@@ -287,12 +297,14 @@ pub type TbboMsg = Mbp1Msg;
 /// - [`Ohlcv1M`](crate::enums::Schema::Ohlcv1M)
 /// - [`Ohlcv1H`](crate::enums::Schema::Ohlcv1H)
 /// - [`Ohlcv1D`](crate::enums::Schema::Ohlcv1D)
+/// - [`OhlcvEod`](crate::enums::Schema::OhlcvEod)
 #[repr(C)]
 #[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn", name = "OHLCVMsg")
+    pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn", name = "OHLCVMsg"),
+    derive(crate::macros::PyFieldDesc)
 )]
 #[dbn_record(
     rtype::OHLCV_1S,
@@ -327,7 +339,11 @@ pub struct OhlcvMsg {
 #[repr(C)]
 #[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
-#[cfg_attr(feature = "python", pyo3::pyclass(dict, module = "databento_dbn"))]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(dict, module = "databento_dbn"),
+    derive(crate::macros::PyFieldDesc)
+)]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[dbn_record(rtype::STATUS)]
 pub struct StatusMsg {
@@ -353,7 +369,11 @@ pub struct StatusMsg {
 #[repr(C)]
 #[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
-#[cfg_attr(feature = "python", pyo3::pyclass(dict, module = "databento_dbn"))]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(dict, module = "databento_dbn"),
+    derive(crate::macros::PyFieldDesc)
+)]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[dbn_record(rtype::INSTRUMENT_DEF)]
 pub struct InstrumentDefMsg {
@@ -421,9 +441,8 @@ pub struct InstrumentDefMsg {
     /// The `instrument_id` of the first underlying instrument.
     #[pyo3(get, set)]
     pub underlying_id: u32,
-    /// The total cleared volume of the instrument traded during the prior trading session.
-    #[doc(hidden)]
-    pub _reserved1: [u8; 4],
+    /// The instrument ID assigned by the publisher. May be the same as `instrument_id`.
+    pub raw_instrument_id: u32,
     /// The implied book depth on the price level data feed.
     #[pyo3(get, set)]
     pub market_depth_implied: i32,
@@ -575,7 +594,8 @@ pub struct InstrumentDefMsg {
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(set_all, dict, module = "databento_dbn")
+    pyo3::pyclass(set_all, dict, module = "databento_dbn"),
+    derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[dbn_record(rtype::IMBALANCE)]
@@ -665,7 +685,8 @@ pub struct ImbalanceMsg {
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn")
+    pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn"),
+    derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[dbn_record(rtype::STATISTICS)]
@@ -711,7 +732,11 @@ pub struct StatMsg {
 #[repr(C)]
 #[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
-#[cfg_attr(feature = "python", pyo3::pyclass(dict, module = "databento_dbn"))]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(dict, module = "databento_dbn"),
+    derive(crate::macros::PyFieldDesc)
+)]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[dbn_record(rtype::ERROR)]
 pub struct ErrorMsg {
@@ -727,7 +752,11 @@ pub struct ErrorMsg {
 #[repr(C)]
 #[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
-#[cfg_attr(feature = "python", pyo3::pyclass(dict, module = "databento_dbn"))]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(dict, module = "databento_dbn"),
+    derive(crate::macros::PyFieldDesc)
+)]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[dbn_record(rtype::SYMBOL_MAPPING)]
 pub struct SymbolMappingMsg {
@@ -758,7 +787,11 @@ pub struct SymbolMappingMsg {
 #[repr(C)]
 #[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
-#[cfg_attr(feature = "python", pyo3::pyclass(dict, module = "databento_dbn"))]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(dict, module = "databento_dbn"),
+    derive(crate::macros::PyFieldDesc)
+)]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[dbn_record(rtype::SYSTEM)]
 pub struct SystemMsg {

@@ -68,7 +68,7 @@ where
             Ok(()) => Ok(()),
             Err(e) => Err(match e.into_kind() {
                 csv::ErrorKind::Io(err) => Error::io(err, format!("serializing {record:?}")),
-                _ => Error::encode(format!("Failed to serialize {record:?}")),
+                e => Error::encode(format!("Failed to serialize {record:?}: {e:?}")),
             }),
         }
     }
@@ -220,17 +220,11 @@ pub(crate) mod serialize {
             &self,
             writer: &mut Writer<W>,
         ) -> csv::Result<()> {
-            // Serialize ts_event first to be more human-readable
-            write_ts_field::<W, PRETTY_TS>(writer, self.ts_event)?;
-            writer.write_field(self.rtype.to_string())?;
-            writer.write_field(self.publisher_id.to_string())?;
-            writer.write_field(self.instrument_id.to_string())
+            self.serialize_to::<W, PRETTY_PX, PRETTY_TS>(writer)
         }
 
         fn write_header<W: io::Write>(csv_writer: &mut Writer<W>, _name: &str) -> csv::Result<()> {
-            ["ts_event", "rtype", "publisher_id", "instrument_id"]
-                .iter()
-                .try_for_each(|header| csv_writer.write_field(header))
+            Self::serialize_header(csv_writer)
         }
     }
 
@@ -547,6 +541,7 @@ mod tests {
             price_ratio: 10,
             inst_attrib_value: 10,
             underlying_id: 256785,
+            raw_instrument_id: RECORD_HEADER.instrument_id,
             market_depth_implied: 0,
             market_depth: 13,
             market_segment_id: 0,
@@ -592,7 +587,6 @@ mod tests {
             contract_multiplier_unit: 0,
             flow_schedule_type: 5,
             tick_rule: 0,
-            _reserved1: Default::default(),
             _reserved2: Default::default(),
             _reserved3: Default::default(),
             _reserved4: Default::default(),
@@ -605,7 +599,7 @@ mod tests {
             .encode_stream(VecStream::new(data))
             .unwrap();
         let line = extract_2nd_line(buffer);
-        assert_eq!(line, format!("1658441891000000000,{HEADER_CSV},ESZ4 C4100,A,C,100,1000,1698450000000000000,1697350000000000000,1000000,-1000000,0,500000,5,5,10,10,256785,0,13,0,10000,1,1000,100,1,0,0,0,0,0,0,0,4,USD,USD,,EW,XCME,ES,OCAFPS,OOF,IPNT,ESZ4,USD,4100000000000,F,2,4,8,9,23,10,8,9,11,N,0,5,0"));
+        assert_eq!(line, format!("1658441891000000000,{HEADER_CSV},ESZ4 C4100,A,C,100,1000,1698450000000000000,1697350000000000000,1000000,-1000000,0,500000,5,5,10,10,256785,323,0,13,0,10000,1,1000,100,1,0,0,0,0,0,0,0,4,USD,USD,,EW,XCME,ES,OCAFPS,OOF,IPNT,ESZ4,USD,4100000000000,F,2,4,8,9,23,10,8,9,11,N,0,5,0"));
     }
 
     #[test]

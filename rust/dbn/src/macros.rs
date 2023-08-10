@@ -1,7 +1,7 @@
-//! Helper macros for working with multiple RTypes, Schemas, and record types.
+//! Helper macros for working with multiple RTypes, Schemas, and types of records.
 
 // Re-export
-pub use dbn_macros::{dbn_record, CsvSerialize, JsonSerialize};
+pub use dbn_macros::{dbn_record, CsvSerialize, JsonSerialize, PyFieldDesc};
 
 /// Base macro for type dispatch based on rtype.
 ///
@@ -51,7 +51,11 @@ macro_rules! schema_dispatch_base {
             Schema::Mbp1 | Schema::Tbbo => $handler!(Mbp1Msg),
             Schema::Mbp10 => $handler!(Mbp10Msg),
             Schema::Trades => $handler!(TradeMsg),
-            Schema::Ohlcv1D | Schema::Ohlcv1H | Schema::Ohlcv1M | Schema::Ohlcv1S => {
+            Schema::Ohlcv1D
+            | Schema::Ohlcv1H
+            | Schema::Ohlcv1M
+            | Schema::Ohlcv1S
+            | Schema::OhlcvEod => {
                 $handler!(OhlcvMsg)
             }
             Schema::Definition => $handler!(InstrumentDefMsg),
@@ -164,7 +168,7 @@ macro_rules! rtype_dispatch_with_ts_out {
     };
 }}
 
-/// Specializes a generic method function to all record types with an associated schema.
+/// Specializes a generic method to all record types with an associated schema.
 #[macro_export]
 macro_rules! schema_method_dispatch {
     ($schema:expr, $this:expr, $generic_method:ident $(,$arg:expr)*) => {{
@@ -177,7 +181,7 @@ macro_rules! schema_method_dispatch {
     }};
 }
 
-/// Specializes a generic async method function to all record types with an associated
+/// Specializes a generic async method to all record types with an associated
 /// schema.
 #[macro_export]
 macro_rules! schema_async_method_dispatch {
@@ -191,7 +195,7 @@ macro_rules! schema_async_method_dispatch {
     }};
 }
 
-/// Specializes a generic method function to all record types with an associated schema.
+/// Specializes a generic function to all record types with an associated schema.
 #[macro_export]
 macro_rules! schema_dispatch {
     ($schema:expr, $generic_fn:ident $(,$arg:expr)*) => {{

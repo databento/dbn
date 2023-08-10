@@ -1,12 +1,30 @@
 # Changelog
 
+## 0.8.2 - 2023-08-10
+### Enhancements
+- Added new `OhlcvEod` schema variant for future use with OHLCV bars based around the
+  end of the trading session
+- Implemented `std::fmt::Display` for publisher enums (`Publisher`, `Dataset`, and
+  `Venue`)
+
+### Bug fixes
+- Fixed Python type hint for `Encoding.variants()`
+
 ## 0.8.1 - 2023-08-02
 ### Enhancements
+- Added `raw_instrument_id` field to `InstrumentDefMsg` (definition schema) for use in
+  future datasets consolidated from multiple publishers
 - Added new `OHLCV_EOD` rtype for future daily OHLCV schema based on the trading
   session
 - Added new `SType::Nasdaq` and `SType::Cms` to support querying US equities datasets
   using either convention, regardless of the original convention of the dataset.
 - Relaxed `pyo3`, `tokio`, and `zstd` dependency version requirements
+- Added `FIXED_PRICE_SCALE` constant to `databento_dbn` Python package
+- Added generated field metadata for each record type to aid in pandas DataFrame
+  creation
+
+### Breaking changes
+- Changed `size_hint` class method to class attribute for Python records
 
 ### Bug fixes
 - Fixed multi-frame Zstd decoding for async decoders
