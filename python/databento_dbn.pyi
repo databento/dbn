@@ -95,6 +95,8 @@ class Schema(Enum):
         Open, high, low, close, and volume at an hourly interval.
     OHLCV_1D
         Open, high, low, close, and volume at a daily interval.
+    OHLCV_EOD
+        Open, high, low, close, and volume at a daily cadence based on the end of the trading session.
     DEFINITION
         Instrument definitions.
     STATISTICS
@@ -115,6 +117,7 @@ class Schema(Enum):
     OHLCV_1M: str
     OHLCV_1H: str
     OHLCV_1D: str
+    OHLCV_EOD: str
     DEFINITION: str
     STATISTICS: str
     STATUS: str
