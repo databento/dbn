@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.3 - 2023-08-15
+### Bug fixes
+- Fixed missing `raw_instrument_id` field in Python `InstrumentDefMsg`
+- Fixed missing `OHLCV_EOD` variant in Python `Schema` type hint
+
 ## 0.8.2 - 2023-08-10
 ### Enhancements
 - Added new `OhlcvEod` schema variant for future use with OHLCV bars based around the

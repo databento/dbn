@@ -1,7 +1,7 @@
 [package]
 name = "dbn-macros"
 authors = ["Databento <support@databento.com>"]
-version = "0.8.2"
+version = "0.8.3"
 edition = "2021"
 description = "Proc macros for dbn crate"
 license = "Apache-2.0"
