@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.8.3 - TBD
+## 0.8.3 - 2023-08-15
 ### Bug fixes
 - Fixed missing `raw_instrument_id` field in Python `InstrumentDefMsg`
 - Fixed missing `OHLCV_EOD` variant in Python `Schema` type hint
