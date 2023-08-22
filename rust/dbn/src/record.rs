@@ -36,7 +36,7 @@ pub struct RecordHeader {
     /// function can be used to check if that type can be used to decode a message with
     /// a given rtype. The set of possible values is defined in [`rtype`].
     pub rtype: u8,
-    /// The publisher ID assigned by Databento.
+    /// The publisher ID assigned by Databento, which denotes the dataset and venue.
     pub publisher_id: u16,
     /// The numeric ID assigned to the instrument.
     pub instrument_id: u32,

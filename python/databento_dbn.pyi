@@ -370,7 +370,7 @@ class RecordHeader:
     @property
     def publisher_id(self) -> int:
         """
-        The publisher ID assigned by Databento.
+        The publisher ID assigned by Databento, which denotes the dataset and venue.
 
         Returns
         -------
@@ -451,7 +451,7 @@ class Record(SupportsBytes):
     @property
     def publisher_id(self) -> int:
         """
-        The publisher ID assigned by Databento.
+        The publisher ID assigned by Databento, which denotes the dataset and venue.
 
         Returns
         -------
