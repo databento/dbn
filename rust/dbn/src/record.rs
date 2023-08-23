@@ -700,8 +700,9 @@ pub struct StatMsg {
     /// since the UNIX epoch.
     #[dbn(encode_order(0), unix_nanos)]
     pub ts_recv: u64,
-    /// Reference timestamp expressed as the number of nanoseconds since the UNIX epoch.
-    /// Will be [`crate::UNDEF_TIMESTAMP`] when unused.
+    /// The reference timestamp of the statistic value expressed as the number of
+    /// nanoseconds since the UNIX epoch. Will be [`crate::UNDEF_TIMESTAMP`] when
+    /// unused.
     #[dbn(unix_nanos)]
     pub ts_ref: u64,
     /// The value for price statistics expressed as a signed integer where every 1 unit
@@ -824,7 +825,7 @@ pub trait HasRType {
         self.header().record_size()
     }
 
-    /// Tries to convert the raw `rtype` into an enum which is useful for exhaustive
+    /// Tries to convert the raw record type into an enum which is useful for exhaustive
     /// pattern matching.
     ///
     /// # Errors
@@ -871,7 +872,7 @@ impl RecordHeader {
         self.length as usize * Self::LENGTH_MULTIPLIER
     }
 
-    /// Tries to convert the raw `rtype` into an enum.
+    /// Tries to convert the raw record type into an enum.
     ///
     /// # Errors
     /// This function returns an error if the `rtype` field does not
@@ -891,10 +892,21 @@ impl RecordHeader {
         Publisher::try_from(self.publisher_id)
             .map_err(|_| Error::conversion::<Publisher>(format!("{}", self.publisher_id)))
     }
+
+    /// Parses the raw matching-engine-received timestamp into a datetime. Returns
+    /// `None` if `ts_event` contains the sentinel for a null timestamp.
+    pub fn ts_event(&self) -> Option<time::OffsetDateTime> {
+        if self.ts_event == crate::UNDEF_TIMESTAMP {
+            None
+        } else {
+            // u64::MAX is within maximum allowable range
+            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.ts_event as i128).unwrap())
+        }
+    }
 }
 
 impl MboMsg {
-    /// Tries to convert the raw `side` to an enum.
+    /// Tries to convert the raw order side to an enum.
     ///
     /// # Errors
     /// This function returns an error if the `side` field does not
@@ -904,7 +916,7 @@ impl MboMsg {
             .map_err(|_| Error::conversion::<Side>(format!("{:#02X}", self.side as u8)))
     }
 
-    /// Tries to convert the raw `action` to an enum.
+    /// Tries to convert the raw event action to an enum.
     ///
     /// # Errors
     /// This function returns an error if the `action` field does not
@@ -912,11 +924,27 @@ impl MboMsg {
     pub fn action(&self) -> crate::Result<Action> {
         Action::try_from(self.action as u8)
             .map_err(|_| Error::conversion::<Action>(format!("{:#02X}", self.action as u8)))
+    }
+
+    /// Parses the raw capture-server-received timestamp into a datetime. Returns `None`
+    /// if `ts_recv` contains the sentinel for a null timestamp.
+    pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
+        if self.ts_recv == crate::UNDEF_TIMESTAMP {
+            None
+        } else {
+            // u64::MAX is within maximum allowable range
+            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.ts_recv as i128).unwrap())
+        }
+    }
+
+    /// Parses the raw `ts_in_delta`—the delta of `ts_recv - ts_exchange_send`—into a duration.
+    pub fn ts_in_delta(&self) -> time::Duration {
+        time::Duration::new(0, self.ts_in_delta)
     }
 }
 
 impl TradeMsg {
-    /// Tries to convert the raw `side` to an enum.
+    /// Tries to convert the raw order side to an enum.
     ///
     /// # Errors
     /// This function returns an error if the `side` field does not
@@ -926,7 +954,7 @@ impl TradeMsg {
             .map_err(|_| Error::conversion::<Side>(format!("{:#02X}", self.side as u8)))
     }
 
-    /// Tries to convert the raw `action` to an enum.
+    /// Tries to convert the raw event action to an enum.
     ///
     /// # Errors
     /// This function returns an error if the `action` field does not
@@ -934,6 +962,22 @@ impl TradeMsg {
     pub fn action(&self) -> crate::Result<Action> {
         Action::try_from(self.action as u8)
             .map_err(|_| Error::conversion::<Action>(format!("{:#02X}", self.action as u8)))
+    }
+
+    /// Parses the raw capture-server-received timestamp into a datetime. Returns `None`
+    /// if `ts_recv` contains the sentinel for a null timestamp.
+    pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
+        if self.ts_recv == crate::UNDEF_TIMESTAMP {
+            None
+        } else {
+            // u64::MAX is within maximum allowable range
+            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.ts_recv as i128).unwrap())
+        }
+    }
+
+    /// Parses the raw `ts_in_delta`—the delta of `ts_recv - ts_exchange_send`—into a duration.
+    pub fn ts_in_delta(&self) -> time::Duration {
+        time::Duration::new(0, self.ts_in_delta)
     }
 }
 
@@ -948,7 +992,7 @@ impl Mbp1Msg {
             .map_err(|_| Error::conversion::<Side>(format!("{:#02X}", self.side as u8)))
     }
 
-    /// Tries to convert the raw `action` to an enum.
+    /// Tries to convert the raw event action to an enum.
     ///
     /// # Errors
     /// This function returns an error if the `action` field does not
@@ -956,6 +1000,22 @@ impl Mbp1Msg {
     pub fn action(&self) -> crate::Result<Action> {
         Action::try_from(self.action as u8)
             .map_err(|_| Error::conversion::<Action>(format!("{:#02X}", self.action as u8)))
+    }
+
+    /// Parses the raw capture-server-received timestamp into a datetime. Returns `None`
+    /// if `ts_recv` contains the sentinel for a null timestamp.
+    pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
+        if self.ts_recv == crate::UNDEF_TIMESTAMP {
+            None
+        } else {
+            // u64::MAX is within maximum allowable range
+            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.ts_recv as i128).unwrap())
+        }
+    }
+
+    /// Parses the raw `ts_in_delta`—the delta of `ts_recv - ts_exchange_send`—into a duration.
+    pub fn ts_in_delta(&self) -> time::Duration {
+        time::Duration::new(0, self.ts_in_delta)
     }
 }
 
@@ -970,7 +1030,7 @@ impl Mbp10Msg {
             .map_err(|_| Error::conversion::<Side>(format!("{:#02X}", self.side as u8)))
     }
 
-    /// Tries to convert the raw `action` to an enum.
+    /// Tries to convert the raw event action to an enum.
     ///
     /// # Errors
     /// This function returns an error if the `action` field does not
@@ -978,6 +1038,22 @@ impl Mbp10Msg {
     pub fn action(&self) -> Result<Action> {
         Action::try_from(self.action as u8)
             .map_err(|_| Error::conversion::<Action>(format!("{:#02X}", self.action as u8)))
+    }
+
+    /// Parses the raw capture-server-received timestamp into a datetime. Returns `None`
+    /// if `ts_recv` contains the sentinel for a null timestamp.
+    pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
+        if self.ts_recv == crate::UNDEF_TIMESTAMP {
+            None
+        } else {
+            // u64::MAX is within maximum allowable range
+            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.ts_recv as i128).unwrap())
+        }
+    }
+
+    /// Parses the raw `ts_in_delta`—the delta of `ts_recv - ts_exchange_send`—into a duration.
+    pub fn ts_in_delta(&self) -> time::Duration {
+        time::Duration::new(0, self.ts_in_delta)
     }
 }
 
@@ -992,7 +1068,40 @@ impl StatusMsg {
 }
 
 impl InstrumentDefMsg {
-    /// Returns `currency` as a `&str`.
+    /// Parses the raw capture-server-received timestamp into a datetime. Returns `None`
+    /// if `ts_recv` contains the sentinel for a null timestamp.
+    pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
+        if self.ts_recv == crate::UNDEF_TIMESTAMP {
+            None
+        } else {
+            // u64::MAX is within maximum allowable range
+            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.ts_recv as i128).unwrap())
+        }
+    }
+
+    /// Parses the raw last eligible trade time into a datetime. Returns `None` if
+    /// `expiration` contains the sentinel for a null timestamp.
+    pub fn expiration(&self) -> Option<time::OffsetDateTime> {
+        if self.expiration == crate::UNDEF_TIMESTAMP {
+            None
+        } else {
+            // u64::MAX is within maximum allowable range
+            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.expiration as i128).unwrap())
+        }
+    }
+
+    /// Parses the raw time of instrument action into a datetime. Returns `None` if
+    /// `activation` contains the sentinel for a null timestamp.
+    pub fn activation(&self) -> Option<time::OffsetDateTime> {
+        if self.activation == crate::UNDEF_TIMESTAMP {
+            None
+        } else {
+            // u64::MAX is within maximum allowable range
+            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.activation as i128).unwrap())
+        }
+    }
+
+    /// Returns currency used for price fields as a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `currency` contains invalid UTF-8.
@@ -1000,7 +1109,7 @@ impl InstrumentDefMsg {
         c_chars_to_str(&self.currency)
     }
 
-    /// Returns `settl_currency` as a `&str`.
+    /// Returns currency used for settlement as a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `settl_currency` contains invalid UTF-8.
@@ -1008,7 +1117,7 @@ impl InstrumentDefMsg {
         c_chars_to_str(&self.settl_currency)
     }
 
-    /// Returns `secsubtype` as a `&str`.
+    /// Returns the strategy type of the spread as a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `secsubtype` contains invalid UTF-8.
@@ -1016,7 +1125,7 @@ impl InstrumentDefMsg {
         c_chars_to_str(&self.secsubtype)
     }
 
-    /// Returns `raw_symbol` as a `&str`.
+    /// Returns the instrument raw symbol assigned by the publisher as a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `raw_symbol` contains invalid UTF-8.
@@ -1024,7 +1133,7 @@ impl InstrumentDefMsg {
         c_chars_to_str(&self.raw_symbol)
     }
 
-    /// Returns `exchange` as a `&str`.
+    /// Returns exchange used to identify the instrument as a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `exchange` contains invalid UTF-8.
@@ -1032,7 +1141,7 @@ impl InstrumentDefMsg {
         c_chars_to_str(&self.exchange)
     }
 
-    /// Returns `asset` as a `&str`.
+    /// Returns the underlying asset code (product code) of the instrument as a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `asset` contains invalid UTF-8.
@@ -1040,7 +1149,7 @@ impl InstrumentDefMsg {
         c_chars_to_str(&self.asset)
     }
 
-    /// Returns `cfi` as a `&str`.
+    /// Returns the ISO standard instrument categorization code as a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `cfi` contains invalid UTF-8.
@@ -1048,7 +1157,8 @@ impl InstrumentDefMsg {
         c_chars_to_str(&self.cfi)
     }
 
-    /// Returns `security_type` as a `&str`.
+    /// Returns the type of the strument, e.g. FUT for future or future spread as
+    /// a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `security_type` contains invalid UTF-8.
@@ -1056,7 +1166,8 @@ impl InstrumentDefMsg {
         c_chars_to_str(&self.security_type)
     }
 
-    /// Returns `unit_of_measure` as a `&str`.
+    /// Returns the unit of measure for the instrument's original contract size, e.g.
+    /// USD or LBS, as a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `unit_of_measure` contains invalid UTF-8.
@@ -1064,7 +1175,7 @@ impl InstrumentDefMsg {
         c_chars_to_str(&self.unit_of_measure)
     }
 
-    /// Returns `underlying` as a `&str`.
+    /// Returns the symbol of the first underlying instrument as a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `underlying` contains invalid UTF-8.
@@ -1072,7 +1183,7 @@ impl InstrumentDefMsg {
         c_chars_to_str(&self.underlying)
     }
 
-    /// Returns `strike_price_currency` as a `&str`.
+    /// Returns the currency of [`strike_price`](Self::strike_price) as a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `strike_price_currency` contains invalid UTF-8.
@@ -1080,7 +1191,7 @@ impl InstrumentDefMsg {
         c_chars_to_str(&self.strike_price_currency)
     }
 
-    /// Returns `group` as a `&str`.
+    /// Returns the security group code of the instrumnet as a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `group` contains invalid UTF-8.
@@ -1088,7 +1199,7 @@ impl InstrumentDefMsg {
         c_chars_to_str(&self.group)
     }
 
-    /// Tries to convert the raw `instrument_class` to an enum.
+    /// Tries to convert the raw classification of the instrument to an enum.
     ///
     /// # Errors
     /// This function returns an error if the `instrument_class` field does not
@@ -1099,7 +1210,7 @@ impl InstrumentDefMsg {
         })
     }
 
-    /// Tries to convert the raw `match_algorithm` to an enum.
+    /// Tries to convert the raw matching algorithm used for the instrument to an enum.
     ///
     /// # Errors
     /// This function returns an error if the `match_algorithm` field does not
@@ -1111,8 +1222,43 @@ impl InstrumentDefMsg {
     }
 }
 
+impl ImbalanceMsg {
+    /// Parses the raw capture-server-received timestamp into a datetime. Returns `None`
+    /// if `ts_recv` contains the sentinel for a null timestamp.
+    pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
+        if self.ts_recv == crate::UNDEF_TIMESTAMP {
+            None
+        } else {
+            // u64::MAX is within maximum allowable range
+            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.ts_recv as i128).unwrap())
+        }
+    }
+}
+
 impl StatMsg {
-    /// Tries to convert the raw `stat_type` to an enum.
+    /// Parses the raw capture-server-received timestamp into a datetime. Returns `None`
+    /// if `ts_recv` contains the sentinel for a null timestamp.
+    pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
+        if self.ts_recv == crate::UNDEF_TIMESTAMP {
+            None
+        } else {
+            // u64::MAX is within maximum allowable range
+            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.ts_recv as i128).unwrap())
+        }
+    }
+
+    /// Parses the raw reference timestamp of the statistic value into a datetime.
+    /// Returns `None` if `ts_ref` contains the sentinel for a null timestamp.
+    pub fn ts_ref(&self) -> Option<time::OffsetDateTime> {
+        if self.ts_ref == crate::UNDEF_TIMESTAMP {
+            None
+        } else {
+            // u64::MAX is within maximum allowable range
+            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.ts_ref as i128).unwrap())
+        }
+    }
+
+    /// Tries to convert the raw type of the statistic value to an enum.
     ///
     /// # Errors
     /// This function returns an error if the `stat_type` field does not
@@ -1185,7 +1331,7 @@ impl SymbolMappingMsg {
         })
     }
 
-    /// Returns `stype_in_symbol` as a `&str`.
+    /// Returns the input symbol as a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `stype_in_symbol` contains invalid UTF-8.
@@ -1193,12 +1339,34 @@ impl SymbolMappingMsg {
         c_chars_to_str(&self.stype_in_symbol)
     }
 
-    /// Returns `stype_out_symbol` as a `&str`.
+    /// Returns the output symbol as a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `stype_out_symbol` contains invalid UTF-8.
     pub fn stype_out_symbol(&self) -> Result<&str> {
         c_chars_to_str(&self.stype_out_symbol)
+    }
+
+    /// Parses the raw start of the mapping interval into a datetime. Returns `None` if
+    /// `start_ts` contains the sentinel for a null timestamp.
+    pub fn start_ts(&self) -> Option<time::OffsetDateTime> {
+        if self.start_ts == crate::UNDEF_TIMESTAMP {
+            None
+        } else {
+            // u64::MAX is within maximum allowable range
+            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.start_ts as i128).unwrap())
+        }
+    }
+
+    /// Parses the raw end of the mapping interval into a datetime. Returns `None` if
+    /// `end_ts` contains the sentinel for a null timestamp.
+    pub fn end_ts(&self) -> Option<time::OffsetDateTime> {
+        if self.end_ts == crate::UNDEF_TIMESTAMP {
+            None
+        } else {
+            // u64::MAX is within maximum allowable range
+            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.end_ts as i128).unwrap())
+        }
     }
 }
 
@@ -1231,7 +1399,8 @@ impl SystemMsg {
             .unwrap_or_default()
     }
 
-    /// Returns `msg` as a `&str`.
+    /// Returns the message from the Databento Live Subscription Gateway (LSG) as
+    /// a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `msg` contains invalid UTF-8.
@@ -1281,6 +1450,12 @@ impl<T: HasRType> WithTsOut<T> {
         let mut res = Self { rec, ts_out };
         res.header_mut().length = (mem::size_of_val(&res) / RecordHeader::LENGTH_MULTIPLIER) as u8;
         res
+    }
+
+    /// Parses the raw live gateway send timestamp into a datetime.
+    pub fn ts_out(&self) -> time::OffsetDateTime {
+        // u64::MAX is within maximum allowable range
+        time::OffsetDateTime::from_unix_timestamp_nanos(self.ts_out as i128).unwrap()
     }
 }
 
@@ -1413,6 +1588,8 @@ pub fn c_chars_to_str<const N: usize>(chars: &[c_char; N]) -> Result<&str> {
 
 #[cfg(test)]
 mod tests {
+    use crate::UNDEF_TIMESTAMP;
+
     use super::*;
 
     const OHLCV_MSG: OhlcvMsg = OhlcvMsg {
@@ -1483,5 +1660,12 @@ mod tests {
         assert_eq!(mem::size_of::<ErrorMsg>(), 80);
         assert_eq!(mem::size_of::<SymbolMappingMsg>(), 80);
         assert_eq!(mem::size_of::<SystemMsg>(), 80);
+    }
+
+    #[test]
+    fn test_db_ts_always_valid_time_offsetdatetime() {
+        assert!(time::OffsetDateTime::from_unix_timestamp_nanos(0).is_ok());
+        assert!(time::OffsetDateTime::from_unix_timestamp_nanos((u64::MAX - 1) as i128).is_ok());
+        assert!(time::OffsetDateTime::from_unix_timestamp_nanos(UNDEF_TIMESTAMP as i128).is_ok());
     }
 }
