@@ -15,10 +15,12 @@ use crate::{
         StatUpdateAction, UserDefinedInstrument,
     },
     macros::{dbn_record, CsvSerialize, JsonSerialize},
-    Error, Result,
+    publishers::Publisher,
+    Error, Result, SYMBOL_CSTR_LEN,
 };
 
-/// Common data for all Databento records.
+/// Common data for all Databento records. Always found at the beginning of a record
+/// struct.
 #[repr(C)]
 #[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
@@ -507,7 +509,7 @@ pub struct InstrumentDefMsg {
     pub secsubtype: [c_char; 6],
     /// The instrument raw symbol assigned by the publisher.
     #[dbn(encode_order(2))]
-    pub raw_symbol: [c_char; 22],
+    pub raw_symbol: [c_char; SYMBOL_CSTR_LEN],
     /// The security group code of the instrument.
     pub group: [c_char; 21],
     /// The exchange used to identify the instrument.
@@ -765,9 +767,9 @@ pub struct SymbolMappingMsg {
     #[pyo3(get, set)]
     pub hd: RecordHeader,
     /// The input symbol.
-    pub stype_in_symbol: [c_char; 22],
+    pub stype_in_symbol: [c_char; SYMBOL_CSTR_LEN],
     /// The output symbol.
-    pub stype_out_symbol: [c_char; 22],
+    pub stype_out_symbol: [c_char; SYMBOL_CSTR_LEN],
     // Filler for alignment.
     #[doc(hidden)]
     pub _dummy: [u8; 4],
@@ -827,9 +829,19 @@ pub trait HasRType {
     ///
     /// # Errors
     /// This function returns an error if the `rtype` field does not
-    /// contain a valid, known [`RType`](crate::enums::RType).
-    fn rtype(&self) -> crate::error::Result<RType> {
+    /// contain a valid, known [`RType`].
+    fn rtype(&self) -> crate::Result<RType> {
         self.header().rtype()
+    }
+
+    /// Tries to convert the raw `publisher_id` into an enum which is useful for
+    /// exhaustive pattern matching.
+    ///
+    /// # Errors
+    /// This function returns an error if the `publisher_id` does not correspond with
+    /// any known [`Publisher`].
+    fn publisher(&self) -> crate::Result<Publisher> {
+        self.header().publisher()
     }
 }
 
@@ -863,10 +875,21 @@ impl RecordHeader {
     ///
     /// # Errors
     /// This function returns an error if the `rtype` field does not
-    /// contain a valid, known [`RType`](crate::enums::RType).
-    pub fn rtype(&self) -> crate::error::Result<RType> {
+    /// contain a valid, known [`RType`].
+    pub fn rtype(&self) -> crate::Result<RType> {
         RType::try_from(self.rtype)
             .map_err(|_| Error::conversion::<RType>(format!("{:#02X}", self.rtype)))
+    }
+
+    /// Tries to convert the raw `publisher_id` into an enum which is useful for
+    /// exhaustive pattern matching.
+    ///
+    /// # Errors
+    /// This function returns an error if the `publisher_id` does not correspond with
+    /// any known [`Publisher`].
+    pub fn publisher(&self) -> crate::Result<Publisher> {
+        Publisher::try_from(self.publisher_id)
+            .map_err(|_| Error::conversion::<Publisher>(format!("{}", self.publisher_id)))
     }
 }
 
@@ -875,8 +898,8 @@ impl MboMsg {
     ///
     /// # Errors
     /// This function returns an error if the `side` field does not
-    /// contain a valid [`Side`](crate::enums::Side).
-    pub fn side(&self) -> crate::error::Result<Side> {
+    /// contain a valid [`Side`].
+    pub fn side(&self) -> crate::Result<Side> {
         Side::try_from(self.side as u8)
             .map_err(|_| Error::conversion::<Side>(format!("{:#02X}", self.side as u8)))
     }
@@ -885,8 +908,8 @@ impl MboMsg {
     ///
     /// # Errors
     /// This function returns an error if the `action` field does not
-    /// contain a valid [`Action`](crate::enums::Action).
-    pub fn action(&self) -> crate::error::Result<Action> {
+    /// contain a valid [`Action`].
+    pub fn action(&self) -> crate::Result<Action> {
         Action::try_from(self.action as u8)
             .map_err(|_| Error::conversion::<Action>(format!("{:#02X}", self.action as u8)))
     }
@@ -897,8 +920,8 @@ impl TradeMsg {
     ///
     /// # Errors
     /// This function returns an error if the `side` field does not
-    /// contain a valid [`Side`](crate::enums::Side).
-    pub fn side(&self) -> crate::error::Result<Side> {
+    /// contain a valid [`Side`].
+    pub fn side(&self) -> crate::Result<Side> {
         Side::try_from(self.side as u8)
             .map_err(|_| Error::conversion::<Side>(format!("{:#02X}", self.side as u8)))
     }
@@ -907,8 +930,8 @@ impl TradeMsg {
     ///
     /// # Errors
     /// This function returns an error if the `action` field does not
-    /// contain a valid [`Action`](crate::enums::Action).
-    pub fn action(&self) -> crate::error::Result<Action> {
+    /// contain a valid [`Action`].
+    pub fn action(&self) -> crate::Result<Action> {
         Action::try_from(self.action as u8)
             .map_err(|_| Error::conversion::<Action>(format!("{:#02X}", self.action as u8)))
     }
@@ -919,8 +942,8 @@ impl Mbp1Msg {
     ///
     /// # Errors
     /// This function returns an error if the `side` field does not
-    /// contain a valid [`Side`](crate::enums::Side).
-    pub fn side(&self) -> crate::error::Result<Side> {
+    /// contain a valid [`Side`].
+    pub fn side(&self) -> crate::Result<Side> {
         Side::try_from(self.side as u8)
             .map_err(|_| Error::conversion::<Side>(format!("{:#02X}", self.side as u8)))
     }
@@ -929,8 +952,8 @@ impl Mbp1Msg {
     ///
     /// # Errors
     /// This function returns an error if the `action` field does not
-    /// contain a valid [`Action`](crate::enums::Action).
-    pub fn action(&self) -> crate::error::Result<Action> {
+    /// contain a valid [`Action`].
+    pub fn action(&self) -> crate::Result<Action> {
         Action::try_from(self.action as u8)
             .map_err(|_| Error::conversion::<Action>(format!("{:#02X}", self.action as u8)))
     }
@@ -941,7 +964,7 @@ impl Mbp10Msg {
     ///
     /// # Errors
     /// This function returns an error if the `side` field does not
-    /// contain a valid [`Side`](crate::enums::Side).
+    /// contain a valid [`Side`].
     pub fn side(&self) -> Result<Side> {
         Side::try_from(self.side as u8)
             .map_err(|_| Error::conversion::<Side>(format!("{:#02X}", self.side as u8)))
@@ -951,7 +974,7 @@ impl Mbp10Msg {
     ///
     /// # Errors
     /// This function returns an error if the `action` field does not
-    /// contain a valid [`Action`](crate::enums::Action).
+    /// contain a valid [`Action`].
     pub fn action(&self) -> Result<Action> {
         Action::try_from(self.action as u8)
             .map_err(|_| Error::conversion::<Action>(format!("{:#02X}", self.action as u8)))
@@ -1069,7 +1092,7 @@ impl InstrumentDefMsg {
     ///
     /// # Errors
     /// This function returns an error if the `instrument_class` field does not
-    /// contain a valid [`InstrumentClass`](crate::enums::InstrumentClass).
+    /// contain a valid [`InstrumentClass`].
     pub fn instrument_class(&self) -> Result<InstrumentClass> {
         InstrumentClass::try_from(self.instrument_class as u8).map_err(|_| {
             Error::conversion::<InstrumentClass>(format!("{:#02X}", self.instrument_class as u8))
@@ -1080,7 +1103,7 @@ impl InstrumentDefMsg {
     ///
     /// # Errors
     /// This function returns an error if the `match_algorithm` field does not
-    /// contain a valid [`MatchAlgorithm`](crate::enums::MatchAlgorithm).
+    /// contain a valid [`MatchAlgorithm`].
     pub fn match_algorithm(&self) -> Result<MatchAlgorithm> {
         MatchAlgorithm::try_from(self.match_algorithm as u8).map_err(|_| {
             Error::conversion::<MatchAlgorithm>(format!("{:#02X}", self.match_algorithm as u8))
@@ -1093,7 +1116,7 @@ impl StatMsg {
     ///
     /// # Errors
     /// This function returns an error if the `stat_type` field does not
-    /// contain a valid [`StatType`](crate::enums::StatType).
+    /// contain a valid [`StatType`].
     pub fn stat_type(&self) -> Result<StatType> {
         StatType::try_from(self.stat_type)
             .map_err(|_| Error::conversion::<StatType>(format!("{:02X}", self.stat_type)))
@@ -1103,7 +1126,7 @@ impl StatMsg {
     ///
     /// # Errors
     /// This function returns an error if the `update_action` field does not
-    /// contain a valid [`StatUpdateAction`](crate::enums::StatUpdateAction).
+    /// contain a valid [`StatUpdateAction`].
     pub fn update_action(&self) -> Result<StatUpdateAction> {
         StatUpdateAction::try_from(self.update_action).map_err(|_| {
             Error::conversion::<StatUpdateAction>(format!("{:02X}", self.update_action))
@@ -1138,6 +1161,30 @@ impl ErrorMsg {
 }
 
 impl SymbolMappingMsg {
+    /// Creates a new `SymbolMappingMsg`.
+    ///
+    /// # Errors
+    /// This function returns an error if `stype_in_symbol` or `stype_out_symbol`
+    /// contain more than maximum number of characters of 21.
+    pub fn new(
+        instrument_id: u32,
+        ts_event: u64,
+        stype_in_symbol: &str,
+        stype_out_symbol: &str,
+        start_ts: u64,
+        end_ts: u64,
+    ) -> crate::Result<Self> {
+        // symbol mappings aren't publisher-specific
+        Ok(Self {
+            hd: RecordHeader::new::<Self>(rtype::SYMBOL_MAPPING, 0, instrument_id, ts_event),
+            stype_in_symbol: str_to_c_chars(stype_in_symbol)?,
+            stype_out_symbol: str_to_c_chars(stype_out_symbol)?,
+            _dummy: Default::default(),
+            start_ts,
+            end_ts,
+        })
+    }
+
     /// Returns `stype_in_symbol` as a `&str`.
     ///
     /// # Errors

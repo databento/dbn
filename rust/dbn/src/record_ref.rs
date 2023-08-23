@@ -75,7 +75,7 @@ impl<'a> RecordRef<'a> {
     ///
     /// # Errors
     /// This function returns an error if the `rtype` field does not
-    /// contain a valid, known [`RType`](crate::enums::RType).
+    /// contain a valid, known [`RType`].
     pub fn rtype(&self) -> crate::error::Result<RType> {
         self.header().rtype()
     }

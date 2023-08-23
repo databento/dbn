@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.0 - TBD
+### Enhancements
+- Added `publisher` method to `RecordHeader` and all record types for converting
+  the `publisher_id` to an enum
+
 ## 0.8.3 - 2023-08-15
 ### Bug fixes
 - Fixed missing `raw_instrument_id` field in Python `InstrumentDefMsg`

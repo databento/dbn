@@ -105,9 +105,9 @@ where
             .map_err(|e| Error::io(e, "flushing output"))
     }
 
-    /// Encode DBN records directly from a DBN decoder. This implemented outside [`EncodeDbn`](super::EncodeDbn)
-    /// because the CSV encoder has the additional constraint of only being able to encode a single schema in
-    /// a stream.
+    /// Encode DBN records directly from a DBN decoder. This implemented outside
+    /// [`EncodeDbn`] because the CSV encoder has the additional constraint of only
+    /// being able to encode a single schema in a stream.
     ///
     /// # Errors
     /// This function returns an error if it's unable to write to the underlying writer

@@ -86,7 +86,7 @@ where
     }
 }
 
-/// Type for encoding [`Metadata`](crate::Metadata) into Databento Binary Encoding (DBN).
+/// Type for encoding [`Metadata`] into Databento Binary Encoding (DBN).
 pub struct MetadataEncoder<W>
 where
     W: io::Write,

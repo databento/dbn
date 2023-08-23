@@ -13,6 +13,8 @@ categories = ["encoding"]
 [package.metadata.docs.rs]
 # Document all features on docs.rs
 all-features = true
+# To build locally: `RUSTDOCFLAGS="--cfg docsrs" cargo +nightly doc --all-features --open`
+rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = []

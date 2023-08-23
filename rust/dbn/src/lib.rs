@@ -1,6 +1,28 @@
-//! A crate for reading DBN and legacy DBZ files and converting them to other
-//! [`Encoding`](enums::Encoding)s.
+//! The official crate for working with the [Databento](https://databento.com) Binary
+//! Encoding (DBN), a fast message encoding and storage format for normalized market
+//! data. The DBN specification includes a simple metadata header, and a fixed set of
+//! struct definitions, which enforce a standardized way to normalize market data.
+//!
+//! The crate supports reading DBN files and streams and converting them to other
+//! [`Encoding`](enums::Encoding)s, as well as updating legacy DBZ files to DBN.
+//!
+//! This crate provides:
+//! - [Decoders](crate::decode) for DBN and DBZ (the precursor to DBN), both
+//!   sync and async, with the `async` feature flag
+//! - [Encoders](crate::encode) for CSV, DBN, and JSON, both sync and async,
+//!   with the `async` feature flag
+//! - [Normalized market data struct definitions](crate::record) corresponding to the
+//!   different market data schemas offered by Databento
+//! - A [wrapper type](crate::RecordRef) for holding a reference to some record struct
+//! - Helpers functions and [macros] for common tasks
+//!
+//! # Feature flags
+//! - `async`: enables async decoding and encoding
+//! - `python`: enables `pyo3` bindings
+//! - `serde`: enables deriving `serde` traits for types
+//! - `trivial_copy`: enables deriving the `Copy` trait for records
 
+// Experimental feature to allow docs.rs to display features
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 #![deny(missing_docs)]
 #![deny(rustdoc::broken_intra_doc_links)]
@@ -24,10 +46,11 @@ pub mod record_ref;
 
 pub use crate::error::{Error, Result};
 pub use crate::metadata::{MappingInterval, Metadata, MetadataBuilder, SymbolMapping};
+pub use crate::record_ref::RecordRef;
 
 /// The current version of the DBN encoding, which is different from the crate version.
 pub const DBN_VERSION: u8 = 1;
-/// The length of Symbol fields (21 character maximum plus null-terminator)
+/// The length of symbol fields (21 characters plus null terminator).
 pub const SYMBOL_CSTR_LEN: usize = 22;
 
 const METADATA_DATASET_CSTR_LEN: usize = 16;
@@ -52,12 +75,14 @@ pub const UNDEF_TIMESTAMP: u64 = u64::MAX;
 
 /// Contains dataset code constants.
 pub mod datasets {
+    use crate::publishers::Dataset;
+
     /// The dataset code for Databento Equity Basic.
-    pub const DBEQ_BASIC: &str = "DBEQ.BASIC";
+    pub const DBEQ_BASIC: &str = Dataset::DbeqBasic.as_str();
     /// The dataset code for CME Globex MDP 3.0.
-    pub const GLBX_MDP3: &str = "GLBX.MDP3";
+    pub const GLBX_MDP3: &str = Dataset::GlbxMdp3.as_str();
     /// The dataset code for OPRA PILLAR.
-    pub const OPRA_PILLAR: &str = "OPRA.PILLAR";
+    pub const OPRA_PILLAR: &str = Dataset::OpraPillar.as_str();
     /// The dataset code for Nasdaq TotalView ITCH.
-    pub const XNAS_ITCH: &str = "XNAS.ITCH";
+    pub const XNAS_ITCH: &str = Dataset::XnasItch.as_str();
 }
