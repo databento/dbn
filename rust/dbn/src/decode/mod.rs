@@ -94,8 +94,7 @@ pub trait DecodeDbn: private::BufferSlice {
 }
 
 /// A decoder implementing [`DecodeDbn`] whose [`Encoding`](crate::enums::Encoding) and
-/// [`Compression`](crate::enums::Compression) are determined at runtime by peeking
-/// at the first few bytes.
+/// [`Compression`] are determined at runtime by peeking at the first few bytes.
 pub struct DynDecoder<'a, R>(DynDecoderImpl<'a, R>)
 where
     R: io::BufRead;
@@ -123,8 +122,8 @@ where
     }
 
     /// Creates a new [`DynDecoder`] from a reader, inferring the encoding and
-    /// compression. If `reader` also implements [`io::BufRead`](std::io::BufRead), it
-    /// is better to use [`inferred_with_buffer()`](Self::inferred_with_buffer).
+    /// compression. If `reader` also implements [`io::BufRead`], it is better to use
+    /// [`inferred_with_buffer()`](Self::inferred_with_buffer).
     ///
     /// # Errors
     /// This function will return an error if it is unable to determine

@@ -261,7 +261,7 @@ where
     }
 }
 
-/// Type for decoding [`Metadata`](crate::Metadata) from Databento Binary Encoding (DBN).
+/// Type for decoding [`Metadata`] from Databento Binary Encoding (DBN).
 pub struct MetadataDecoder<R>
 where
     R: io::Read,
@@ -522,13 +522,13 @@ mod tests {
             ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
             RecordHeader, StatMsg, TbboMsg, TradeMsg,
         },
-        Error, MetadataBuilder,
+        Error, MetadataBuilder, SYMBOL_CSTR_LEN,
     };
 
     #[test]
     fn test_decode_symbol() {
         let bytes = b"SPX.1.2\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
-        assert_eq!(bytes.len(), crate::SYMBOL_CSTR_LEN);
+        assert_eq!(bytes.len(), SYMBOL_CSTR_LEN);
         let mut pos = 0;
         let res = MetadataDecoder::<File>::decode_symbol(bytes.as_slice(), &mut pos).unwrap();
         assert_eq!(pos, crate::SYMBOL_CSTR_LEN);
@@ -537,7 +537,7 @@ mod tests {
 
     #[test]
     fn test_decode_symbol_invalid_utf8() {
-        const BYTES: [u8; 22] = [
+        const BYTES: [u8; SYMBOL_CSTR_LEN] = [
             // continuation byte
             0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ];

@@ -15,10 +15,12 @@ use crate::{
         StatUpdateAction, UserDefinedInstrument,
     },
     macros::{dbn_record, CsvSerialize, JsonSerialize},
-    Error, Result,
+    publishers::Publisher,
+    Error, Result, SYMBOL_CSTR_LEN,
 };
 
-/// Common data for all Databento records.
+/// Common data for all Databento records. Always found at the beginning of a record
+/// struct.
 #[repr(C)]
 #[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
@@ -36,7 +38,7 @@ pub struct RecordHeader {
     /// function can be used to check if that type can be used to decode a message with
     /// a given rtype. The set of possible values is defined in [`rtype`].
     pub rtype: u8,
-    /// The publisher ID assigned by Databento.
+    /// The publisher ID assigned by Databento, which denotes the dataset and venue.
     pub publisher_id: u16,
     /// The numeric ID assigned to the instrument.
     pub instrument_id: u32,
@@ -507,7 +509,7 @@ pub struct InstrumentDefMsg {
     pub secsubtype: [c_char; 6],
     /// The instrument raw symbol assigned by the publisher.
     #[dbn(encode_order(2))]
-    pub raw_symbol: [c_char; 22],
+    pub raw_symbol: [c_char; SYMBOL_CSTR_LEN],
     /// The security group code of the instrument.
     pub group: [c_char; 21],
     /// The exchange used to identify the instrument.
@@ -698,8 +700,9 @@ pub struct StatMsg {
     /// since the UNIX epoch.
     #[dbn(encode_order(0), unix_nanos)]
     pub ts_recv: u64,
-    /// Reference timestamp expressed as the number of nanoseconds since the UNIX epoch.
-    /// Will be [`crate::UNDEF_TIMESTAMP`] when unused.
+    /// The reference timestamp of the statistic value expressed as the number of
+    /// nanoseconds since the UNIX epoch. Will be [`crate::UNDEF_TIMESTAMP`] when
+    /// unused.
     #[dbn(unix_nanos)]
     pub ts_ref: u64,
     /// The value for price statistics expressed as a signed integer where every 1 unit
@@ -765,9 +768,9 @@ pub struct SymbolMappingMsg {
     #[pyo3(get, set)]
     pub hd: RecordHeader,
     /// The input symbol.
-    pub stype_in_symbol: [c_char; 22],
+    pub stype_in_symbol: [c_char; SYMBOL_CSTR_LEN],
     /// The output symbol.
-    pub stype_out_symbol: [c_char; 22],
+    pub stype_out_symbol: [c_char; SYMBOL_CSTR_LEN],
     // Filler for alignment.
     #[doc(hidden)]
     pub _dummy: [u8; 4],
@@ -822,14 +825,24 @@ pub trait HasRType {
         self.header().record_size()
     }
 
-    /// Tries to convert the raw `rtype` into an enum which is useful for exhaustive
+    /// Tries to convert the raw record type into an enum which is useful for exhaustive
     /// pattern matching.
     ///
     /// # Errors
     /// This function returns an error if the `rtype` field does not
-    /// contain a valid, known [`RType`](crate::enums::RType).
-    fn rtype(&self) -> crate::error::Result<RType> {
+    /// contain a valid, known [`RType`].
+    fn rtype(&self) -> crate::Result<RType> {
         self.header().rtype()
+    }
+
+    /// Tries to convert the raw `publisher_id` into an enum which is useful for
+    /// exhaustive pattern matching.
+    ///
+    /// # Errors
+    /// This function returns an error if the `publisher_id` does not correspond with
+    /// any known [`Publisher`].
+    fn publisher(&self) -> crate::Result<Publisher> {
+        self.header().publisher()
     }
 }
 
@@ -859,58 +872,112 @@ impl RecordHeader {
         self.length as usize * Self::LENGTH_MULTIPLIER
     }
 
-    /// Tries to convert the raw `rtype` into an enum.
+    /// Tries to convert the raw record type into an enum.
     ///
     /// # Errors
     /// This function returns an error if the `rtype` field does not
-    /// contain a valid, known [`RType`](crate::enums::RType).
-    pub fn rtype(&self) -> crate::error::Result<RType> {
+    /// contain a valid, known [`RType`].
+    pub fn rtype(&self) -> crate::Result<RType> {
         RType::try_from(self.rtype)
             .map_err(|_| Error::conversion::<RType>(format!("{:#02X}", self.rtype)))
+    }
+
+    /// Tries to convert the raw `publisher_id` into an enum which is useful for
+    /// exhaustive pattern matching.
+    ///
+    /// # Errors
+    /// This function returns an error if the `publisher_id` does not correspond with
+    /// any known [`Publisher`].
+    pub fn publisher(&self) -> crate::Result<Publisher> {
+        Publisher::try_from(self.publisher_id)
+            .map_err(|_| Error::conversion::<Publisher>(format!("{}", self.publisher_id)))
+    }
+
+    /// Parses the raw matching-engine-received timestamp into a datetime. Returns
+    /// `None` if `ts_event` contains the sentinel for a null timestamp.
+    pub fn ts_event(&self) -> Option<time::OffsetDateTime> {
+        if self.ts_event == crate::UNDEF_TIMESTAMP {
+            None
+        } else {
+            // u64::MAX is within maximum allowable range
+            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.ts_event as i128).unwrap())
+        }
     }
 }
 
 impl MboMsg {
-    /// Tries to convert the raw `side` to an enum.
+    /// Tries to convert the raw order side to an enum.
     ///
     /// # Errors
     /// This function returns an error if the `side` field does not
-    /// contain a valid [`Side`](crate::enums::Side).
-    pub fn side(&self) -> crate::error::Result<Side> {
+    /// contain a valid [`Side`].
+    pub fn side(&self) -> crate::Result<Side> {
         Side::try_from(self.side as u8)
             .map_err(|_| Error::conversion::<Side>(format!("{:#02X}", self.side as u8)))
     }
 
-    /// Tries to convert the raw `action` to an enum.
+    /// Tries to convert the raw event action to an enum.
     ///
     /// # Errors
     /// This function returns an error if the `action` field does not
-    /// contain a valid [`Action`](crate::enums::Action).
-    pub fn action(&self) -> crate::error::Result<Action> {
+    /// contain a valid [`Action`].
+    pub fn action(&self) -> crate::Result<Action> {
         Action::try_from(self.action as u8)
             .map_err(|_| Error::conversion::<Action>(format!("{:#02X}", self.action as u8)))
+    }
+
+    /// Parses the raw capture-server-received timestamp into a datetime. Returns `None`
+    /// if `ts_recv` contains the sentinel for a null timestamp.
+    pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
+        if self.ts_recv == crate::UNDEF_TIMESTAMP {
+            None
+        } else {
+            // u64::MAX is within maximum allowable range
+            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.ts_recv as i128).unwrap())
+        }
+    }
+
+    /// Parses the raw `ts_in_delta`—the delta of `ts_recv - ts_exchange_send`—into a duration.
+    pub fn ts_in_delta(&self) -> time::Duration {
+        time::Duration::new(0, self.ts_in_delta)
     }
 }
 
 impl TradeMsg {
-    /// Tries to convert the raw `side` to an enum.
+    /// Tries to convert the raw order side to an enum.
     ///
     /// # Errors
     /// This function returns an error if the `side` field does not
-    /// contain a valid [`Side`](crate::enums::Side).
-    pub fn side(&self) -> crate::error::Result<Side> {
+    /// contain a valid [`Side`].
+    pub fn side(&self) -> crate::Result<Side> {
         Side::try_from(self.side as u8)
             .map_err(|_| Error::conversion::<Side>(format!("{:#02X}", self.side as u8)))
     }
 
-    /// Tries to convert the raw `action` to an enum.
+    /// Tries to convert the raw event action to an enum.
     ///
     /// # Errors
     /// This function returns an error if the `action` field does not
-    /// contain a valid [`Action`](crate::enums::Action).
-    pub fn action(&self) -> crate::error::Result<Action> {
+    /// contain a valid [`Action`].
+    pub fn action(&self) -> crate::Result<Action> {
         Action::try_from(self.action as u8)
             .map_err(|_| Error::conversion::<Action>(format!("{:#02X}", self.action as u8)))
+    }
+
+    /// Parses the raw capture-server-received timestamp into a datetime. Returns `None`
+    /// if `ts_recv` contains the sentinel for a null timestamp.
+    pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
+        if self.ts_recv == crate::UNDEF_TIMESTAMP {
+            None
+        } else {
+            // u64::MAX is within maximum allowable range
+            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.ts_recv as i128).unwrap())
+        }
+    }
+
+    /// Parses the raw `ts_in_delta`—the delta of `ts_recv - ts_exchange_send`—into a duration.
+    pub fn ts_in_delta(&self) -> time::Duration {
+        time::Duration::new(0, self.ts_in_delta)
     }
 }
 
@@ -919,20 +986,36 @@ impl Mbp1Msg {
     ///
     /// # Errors
     /// This function returns an error if the `side` field does not
-    /// contain a valid [`Side`](crate::enums::Side).
-    pub fn side(&self) -> crate::error::Result<Side> {
+    /// contain a valid [`Side`].
+    pub fn side(&self) -> crate::Result<Side> {
         Side::try_from(self.side as u8)
             .map_err(|_| Error::conversion::<Side>(format!("{:#02X}", self.side as u8)))
     }
 
-    /// Tries to convert the raw `action` to an enum.
+    /// Tries to convert the raw event action to an enum.
     ///
     /// # Errors
     /// This function returns an error if the `action` field does not
-    /// contain a valid [`Action`](crate::enums::Action).
-    pub fn action(&self) -> crate::error::Result<Action> {
+    /// contain a valid [`Action`].
+    pub fn action(&self) -> crate::Result<Action> {
         Action::try_from(self.action as u8)
             .map_err(|_| Error::conversion::<Action>(format!("{:#02X}", self.action as u8)))
+    }
+
+    /// Parses the raw capture-server-received timestamp into a datetime. Returns `None`
+    /// if `ts_recv` contains the sentinel for a null timestamp.
+    pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
+        if self.ts_recv == crate::UNDEF_TIMESTAMP {
+            None
+        } else {
+            // u64::MAX is within maximum allowable range
+            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.ts_recv as i128).unwrap())
+        }
+    }
+
+    /// Parses the raw `ts_in_delta`—the delta of `ts_recv - ts_exchange_send`—into a duration.
+    pub fn ts_in_delta(&self) -> time::Duration {
+        time::Duration::new(0, self.ts_in_delta)
     }
 }
 
@@ -941,20 +1024,36 @@ impl Mbp10Msg {
     ///
     /// # Errors
     /// This function returns an error if the `side` field does not
-    /// contain a valid [`Side`](crate::enums::Side).
+    /// contain a valid [`Side`].
     pub fn side(&self) -> Result<Side> {
         Side::try_from(self.side as u8)
             .map_err(|_| Error::conversion::<Side>(format!("{:#02X}", self.side as u8)))
     }
 
-    /// Tries to convert the raw `action` to an enum.
+    /// Tries to convert the raw event action to an enum.
     ///
     /// # Errors
     /// This function returns an error if the `action` field does not
-    /// contain a valid [`Action`](crate::enums::Action).
+    /// contain a valid [`Action`].
     pub fn action(&self) -> Result<Action> {
         Action::try_from(self.action as u8)
             .map_err(|_| Error::conversion::<Action>(format!("{:#02X}", self.action as u8)))
+    }
+
+    /// Parses the raw capture-server-received timestamp into a datetime. Returns `None`
+    /// if `ts_recv` contains the sentinel for a null timestamp.
+    pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
+        if self.ts_recv == crate::UNDEF_TIMESTAMP {
+            None
+        } else {
+            // u64::MAX is within maximum allowable range
+            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.ts_recv as i128).unwrap())
+        }
+    }
+
+    /// Parses the raw `ts_in_delta`—the delta of `ts_recv - ts_exchange_send`—into a duration.
+    pub fn ts_in_delta(&self) -> time::Duration {
+        time::Duration::new(0, self.ts_in_delta)
     }
 }
 
@@ -969,7 +1068,40 @@ impl StatusMsg {
 }
 
 impl InstrumentDefMsg {
-    /// Returns `currency` as a `&str`.
+    /// Parses the raw capture-server-received timestamp into a datetime. Returns `None`
+    /// if `ts_recv` contains the sentinel for a null timestamp.
+    pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
+        if self.ts_recv == crate::UNDEF_TIMESTAMP {
+            None
+        } else {
+            // u64::MAX is within maximum allowable range
+            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.ts_recv as i128).unwrap())
+        }
+    }
+
+    /// Parses the raw last eligible trade time into a datetime. Returns `None` if
+    /// `expiration` contains the sentinel for a null timestamp.
+    pub fn expiration(&self) -> Option<time::OffsetDateTime> {
+        if self.expiration == crate::UNDEF_TIMESTAMP {
+            None
+        } else {
+            // u64::MAX is within maximum allowable range
+            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.expiration as i128).unwrap())
+        }
+    }
+
+    /// Parses the raw time of instrument action into a datetime. Returns `None` if
+    /// `activation` contains the sentinel for a null timestamp.
+    pub fn activation(&self) -> Option<time::OffsetDateTime> {
+        if self.activation == crate::UNDEF_TIMESTAMP {
+            None
+        } else {
+            // u64::MAX is within maximum allowable range
+            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.activation as i128).unwrap())
+        }
+    }
+
+    /// Returns currency used for price fields as a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `currency` contains invalid UTF-8.
@@ -977,7 +1109,7 @@ impl InstrumentDefMsg {
         c_chars_to_str(&self.currency)
     }
 
-    /// Returns `settl_currency` as a `&str`.
+    /// Returns currency used for settlement as a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `settl_currency` contains invalid UTF-8.
@@ -985,7 +1117,7 @@ impl InstrumentDefMsg {
         c_chars_to_str(&self.settl_currency)
     }
 
-    /// Returns `secsubtype` as a `&str`.
+    /// Returns the strategy type of the spread as a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `secsubtype` contains invalid UTF-8.
@@ -993,7 +1125,7 @@ impl InstrumentDefMsg {
         c_chars_to_str(&self.secsubtype)
     }
 
-    /// Returns `raw_symbol` as a `&str`.
+    /// Returns the instrument raw symbol assigned by the publisher as a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `raw_symbol` contains invalid UTF-8.
@@ -1001,7 +1133,7 @@ impl InstrumentDefMsg {
         c_chars_to_str(&self.raw_symbol)
     }
 
-    /// Returns `exchange` as a `&str`.
+    /// Returns exchange used to identify the instrument as a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `exchange` contains invalid UTF-8.
@@ -1009,7 +1141,7 @@ impl InstrumentDefMsg {
         c_chars_to_str(&self.exchange)
     }
 
-    /// Returns `asset` as a `&str`.
+    /// Returns the underlying asset code (product code) of the instrument as a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `asset` contains invalid UTF-8.
@@ -1017,7 +1149,7 @@ impl InstrumentDefMsg {
         c_chars_to_str(&self.asset)
     }
 
-    /// Returns `cfi` as a `&str`.
+    /// Returns the ISO standard instrument categorization code as a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `cfi` contains invalid UTF-8.
@@ -1025,7 +1157,8 @@ impl InstrumentDefMsg {
         c_chars_to_str(&self.cfi)
     }
 
-    /// Returns `security_type` as a `&str`.
+    /// Returns the type of the strument, e.g. FUT for future or future spread as
+    /// a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `security_type` contains invalid UTF-8.
@@ -1033,7 +1166,8 @@ impl InstrumentDefMsg {
         c_chars_to_str(&self.security_type)
     }
 
-    /// Returns `unit_of_measure` as a `&str`.
+    /// Returns the unit of measure for the instrument's original contract size, e.g.
+    /// USD or LBS, as a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `unit_of_measure` contains invalid UTF-8.
@@ -1041,7 +1175,7 @@ impl InstrumentDefMsg {
         c_chars_to_str(&self.unit_of_measure)
     }
 
-    /// Returns `underlying` as a `&str`.
+    /// Returns the symbol of the first underlying instrument as a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `underlying` contains invalid UTF-8.
@@ -1049,7 +1183,7 @@ impl InstrumentDefMsg {
         c_chars_to_str(&self.underlying)
     }
 
-    /// Returns `strike_price_currency` as a `&str`.
+    /// Returns the currency of [`strike_price`](Self::strike_price) as a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `strike_price_currency` contains invalid UTF-8.
@@ -1057,7 +1191,7 @@ impl InstrumentDefMsg {
         c_chars_to_str(&self.strike_price_currency)
     }
 
-    /// Returns `group` as a `&str`.
+    /// Returns the security group code of the instrumnet as a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `group` contains invalid UTF-8.
@@ -1065,22 +1199,22 @@ impl InstrumentDefMsg {
         c_chars_to_str(&self.group)
     }
 
-    /// Tries to convert the raw `instrument_class` to an enum.
+    /// Tries to convert the raw classification of the instrument to an enum.
     ///
     /// # Errors
     /// This function returns an error if the `instrument_class` field does not
-    /// contain a valid [`InstrumentClass`](crate::enums::InstrumentClass).
+    /// contain a valid [`InstrumentClass`].
     pub fn instrument_class(&self) -> Result<InstrumentClass> {
         InstrumentClass::try_from(self.instrument_class as u8).map_err(|_| {
             Error::conversion::<InstrumentClass>(format!("{:#02X}", self.instrument_class as u8))
         })
     }
 
-    /// Tries to convert the raw `match_algorithm` to an enum.
+    /// Tries to convert the raw matching algorithm used for the instrument to an enum.
     ///
     /// # Errors
     /// This function returns an error if the `match_algorithm` field does not
-    /// contain a valid [`MatchAlgorithm`](crate::enums::MatchAlgorithm).
+    /// contain a valid [`MatchAlgorithm`].
     pub fn match_algorithm(&self) -> Result<MatchAlgorithm> {
         MatchAlgorithm::try_from(self.match_algorithm as u8).map_err(|_| {
             Error::conversion::<MatchAlgorithm>(format!("{:#02X}", self.match_algorithm as u8))
@@ -1088,12 +1222,47 @@ impl InstrumentDefMsg {
     }
 }
 
+impl ImbalanceMsg {
+    /// Parses the raw capture-server-received timestamp into a datetime. Returns `None`
+    /// if `ts_recv` contains the sentinel for a null timestamp.
+    pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
+        if self.ts_recv == crate::UNDEF_TIMESTAMP {
+            None
+        } else {
+            // u64::MAX is within maximum allowable range
+            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.ts_recv as i128).unwrap())
+        }
+    }
+}
+
 impl StatMsg {
-    /// Tries to convert the raw `stat_type` to an enum.
+    /// Parses the raw capture-server-received timestamp into a datetime. Returns `None`
+    /// if `ts_recv` contains the sentinel for a null timestamp.
+    pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
+        if self.ts_recv == crate::UNDEF_TIMESTAMP {
+            None
+        } else {
+            // u64::MAX is within maximum allowable range
+            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.ts_recv as i128).unwrap())
+        }
+    }
+
+    /// Parses the raw reference timestamp of the statistic value into a datetime.
+    /// Returns `None` if `ts_ref` contains the sentinel for a null timestamp.
+    pub fn ts_ref(&self) -> Option<time::OffsetDateTime> {
+        if self.ts_ref == crate::UNDEF_TIMESTAMP {
+            None
+        } else {
+            // u64::MAX is within maximum allowable range
+            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.ts_ref as i128).unwrap())
+        }
+    }
+
+    /// Tries to convert the raw type of the statistic value to an enum.
     ///
     /// # Errors
     /// This function returns an error if the `stat_type` field does not
-    /// contain a valid [`StatType`](crate::enums::StatType).
+    /// contain a valid [`StatType`].
     pub fn stat_type(&self) -> Result<StatType> {
         StatType::try_from(self.stat_type)
             .map_err(|_| Error::conversion::<StatType>(format!("{:02X}", self.stat_type)))
@@ -1103,7 +1272,7 @@ impl StatMsg {
     ///
     /// # Errors
     /// This function returns an error if the `update_action` field does not
-    /// contain a valid [`StatUpdateAction`](crate::enums::StatUpdateAction).
+    /// contain a valid [`StatUpdateAction`].
     pub fn update_action(&self) -> Result<StatUpdateAction> {
         StatUpdateAction::try_from(self.update_action).map_err(|_| {
             Error::conversion::<StatUpdateAction>(format!("{:02X}", self.update_action))
@@ -1138,7 +1307,31 @@ impl ErrorMsg {
 }
 
 impl SymbolMappingMsg {
-    /// Returns `stype_in_symbol` as a `&str`.
+    /// Creates a new `SymbolMappingMsg`.
+    ///
+    /// # Errors
+    /// This function returns an error if `stype_in_symbol` or `stype_out_symbol`
+    /// contain more than maximum number of characters of 21.
+    pub fn new(
+        instrument_id: u32,
+        ts_event: u64,
+        stype_in_symbol: &str,
+        stype_out_symbol: &str,
+        start_ts: u64,
+        end_ts: u64,
+    ) -> crate::Result<Self> {
+        // symbol mappings aren't publisher-specific
+        Ok(Self {
+            hd: RecordHeader::new::<Self>(rtype::SYMBOL_MAPPING, 0, instrument_id, ts_event),
+            stype_in_symbol: str_to_c_chars(stype_in_symbol)?,
+            stype_out_symbol: str_to_c_chars(stype_out_symbol)?,
+            _dummy: Default::default(),
+            start_ts,
+            end_ts,
+        })
+    }
+
+    /// Returns the input symbol as a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `stype_in_symbol` contains invalid UTF-8.
@@ -1146,12 +1339,34 @@ impl SymbolMappingMsg {
         c_chars_to_str(&self.stype_in_symbol)
     }
 
-    /// Returns `stype_out_symbol` as a `&str`.
+    /// Returns the output symbol as a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `stype_out_symbol` contains invalid UTF-8.
     pub fn stype_out_symbol(&self) -> Result<&str> {
         c_chars_to_str(&self.stype_out_symbol)
+    }
+
+    /// Parses the raw start of the mapping interval into a datetime. Returns `None` if
+    /// `start_ts` contains the sentinel for a null timestamp.
+    pub fn start_ts(&self) -> Option<time::OffsetDateTime> {
+        if self.start_ts == crate::UNDEF_TIMESTAMP {
+            None
+        } else {
+            // u64::MAX is within maximum allowable range
+            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.start_ts as i128).unwrap())
+        }
+    }
+
+    /// Parses the raw end of the mapping interval into a datetime. Returns `None` if
+    /// `end_ts` contains the sentinel for a null timestamp.
+    pub fn end_ts(&self) -> Option<time::OffsetDateTime> {
+        if self.end_ts == crate::UNDEF_TIMESTAMP {
+            None
+        } else {
+            // u64::MAX is within maximum allowable range
+            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.end_ts as i128).unwrap())
+        }
     }
 }
 
@@ -1184,7 +1399,8 @@ impl SystemMsg {
             .unwrap_or_default()
     }
 
-    /// Returns `msg` as a `&str`.
+    /// Returns the message from the Databento Live Subscription Gateway (LSG) as
+    /// a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `msg` contains invalid UTF-8.
@@ -1234,6 +1450,12 @@ impl<T: HasRType> WithTsOut<T> {
         let mut res = Self { rec, ts_out };
         res.header_mut().length = (mem::size_of_val(&res) / RecordHeader::LENGTH_MULTIPLIER) as u8;
         res
+    }
+
+    /// Parses the raw live gateway send timestamp into a datetime.
+    pub fn ts_out(&self) -> time::OffsetDateTime {
+        // u64::MAX is within maximum allowable range
+        time::OffsetDateTime::from_unix_timestamp_nanos(self.ts_out as i128).unwrap()
     }
 }
 
@@ -1366,6 +1588,8 @@ pub fn c_chars_to_str<const N: usize>(chars: &[c_char; N]) -> Result<&str> {
 
 #[cfg(test)]
 mod tests {
+    use crate::UNDEF_TIMESTAMP;
+
     use super::*;
 
     const OHLCV_MSG: OhlcvMsg = OhlcvMsg {
@@ -1436,5 +1660,12 @@ mod tests {
         assert_eq!(mem::size_of::<ErrorMsg>(), 80);
         assert_eq!(mem::size_of::<SymbolMappingMsg>(), 80);
         assert_eq!(mem::size_of::<SystemMsg>(), 80);
+    }
+
+    #[test]
+    fn test_db_ts_always_valid_time_offsetdatetime() {
+        assert!(time::OffsetDateTime::from_unix_timestamp_nanos(0).is_ok());
+        assert!(time::OffsetDateTime::from_unix_timestamp_nanos((u64::MAX - 1) as i128).is_ok());
+        assert!(time::OffsetDateTime::from_unix_timestamp_nanos(UNDEF_TIMESTAMP as i128).is_ok());
     }
 }

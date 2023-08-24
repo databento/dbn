@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.0 - 2023-08-24
+### Enhancements
+- Added `publisher` method to `RecordHeader` and all record types for converting
+  the `publisher_id` to an enum
+- Added getters that return `time::OffsetDateTime` for the following fields:
+  `ts_event`, `ts_recv`, `ts_ref`, `activation`, `expiration`, `start_ts`, `end_ts`,
+  `ts_out`
+- Added getters for `ts_in_delta` that return `time::Duration`
+
 ## 0.8.3 - 2023-08-15
 ### Bug fixes
 - Fixed missing `raw_instrument_id` field in Python `InstrumentDefMsg`
