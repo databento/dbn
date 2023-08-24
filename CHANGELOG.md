@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.9.0 - TBD
+## 0.9.0 - 2023-08-24
 ### Enhancements
 - Added `publisher` method to `RecordHeader` and all record types for converting
   the `publisher_id` to an enum
