@@ -1,6 +1,11 @@
 # Changelog
 
-## 0.9.1 - 2023-08-25
+## 0.9.1 - TBD
+### Enhancements
+- Added optional `has_metadata` parameter to Python `DBNDecoder` to allow
+  decoding plain records by passing `False`. By default `DBNDecoder` expects a complete
+  DBN stream, which begins with metadata
+
 ### Bug fixes
 - Fixed typo in `BATY.PITCH.BATY` publisher
 

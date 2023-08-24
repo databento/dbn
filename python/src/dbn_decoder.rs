@@ -19,10 +19,10 @@ pub struct DbnDecoder {
 #[pymethods]
 impl DbnDecoder {
     #[new]
-    fn new() -> Self {
+    fn new(has_metadata: Option<bool>) -> Self {
         Self {
             buffer: io::Cursor::default(),
-            has_decoded_metadata: false,
+            has_decoded_metadata: !has_metadata.unwrap_or(true),
             ts_out: false,
         }
     }
@@ -126,7 +126,7 @@ mod tests {
     #[test]
     fn test_partial_records() {
         setup();
-        let mut decoder = DbnDecoder::new();
+        let mut decoder = DbnDecoder::new(None);
         let buffer = Vec::new();
         let mut encoder = Encoder::new(
             buffer,
@@ -165,7 +165,7 @@ mod tests {
     #[test]
     fn test_full_with_partial_record() {
         setup();
-        let mut decoder = DbnDecoder::new();
+        let mut decoder = DbnDecoder::new(None);
         let buffer = Vec::new();
         let mut encoder = Encoder::new(
             buffer,
@@ -270,5 +270,26 @@ except Exception as ex:
                 None,
             )
         }).unwrap();
+    }
+
+    #[test]
+    fn test_dbn_decoder_no_metadata() {
+        setup();
+        Python::with_gil(|py| {
+            py.run(
+                r#"from databento_dbn import DBNDecoder, OHLCVMsg
+
+decoder = DBNDecoder(has_metadata=False)
+record = OHLCVMsg(0x20, 1, 10, 0, 0, 0, 0, 0, 0)
+decoder.write(bytes(record))
+records = decoder.decode()
+assert len(records) == 1
+assert records[0] == record
+"#,
+                None,
+                None,
+            )
+        })
+        .unwrap();
     }
 }

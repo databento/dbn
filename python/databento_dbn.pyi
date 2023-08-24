@@ -2405,7 +2405,15 @@ class SystemMsg(Record):
 class DBNDecoder:
     """
     A class for decoding DBN data to Python objects.
+
+    Parameters
+    ----------
+    has_metadata : bool, default True
+        Whether the input bytes begin with DBN metadata. Pass False to decode
+        individual records or a fragment of a DBN stream.
     """
+
+    def __init__(self, has_metadata: bool = True): ...
 
     def buffer(self) -> bytes:
         """
