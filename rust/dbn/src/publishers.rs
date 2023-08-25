@@ -333,7 +333,7 @@ pub enum Publisher {
     /// CBOE BZX
     BatsPitchBats = 5,
     /// CBOE BYX
-    BatyPitchBats = 6,
+    BatyPitchBaty = 6,
     /// CBOE EDGA
     EdgaPitchEdga = 7,
     /// CBOE EDGX
@@ -420,7 +420,7 @@ impl Publisher {
             Self::XbosItchXbos => "XBOS.ITCH.XBOS",
             Self::XpsxItchXpsx => "XPSX.ITCH.XPSX",
             Self::BatsPitchBats => "BATS.PITCH.BATS",
-            Self::BatyPitchBats => "BATY.PITCH.BATS",
+            Self::BatyPitchBaty => "BATY.PITCH.BATY",
             Self::EdgaPitchEdga => "EDGA.PITCH.EDGA",
             Self::EdgxPitchEdgx => "EDGX.PITCH.EDGX",
             Self::XnysPillarXnys => "XNYS.PILLAR.XNYS",
@@ -468,7 +468,7 @@ impl Publisher {
             Self::XbosItchXbos => Venue::Xbos,
             Self::XpsxItchXpsx => Venue::Xpsx,
             Self::BatsPitchBats => Venue::Bats,
-            Self::BatyPitchBats => Venue::Bats,
+            Self::BatyPitchBaty => Venue::Baty,
             Self::EdgaPitchEdga => Venue::Edga,
             Self::EdgxPitchEdgx => Venue::Edgx,
             Self::XnysPillarXnys => Venue::Xnys,
@@ -516,7 +516,7 @@ impl Publisher {
             Self::XbosItchXbos => Dataset::XbosItch,
             Self::XpsxItchXpsx => Dataset::XpsxItch,
             Self::BatsPitchBats => Dataset::BatsPitch,
-            Self::BatyPitchBats => Dataset::BatyPitch,
+            Self::BatyPitchBaty => Dataset::BatyPitch,
             Self::EdgaPitchEdga => Dataset::EdgaPitch,
             Self::EdgxPitchEdgx => Dataset::EdgxPitch,
             Self::XnysPillarXnys => Dataset::XnysPillar,
@@ -579,7 +579,7 @@ impl std::str::FromStr for Publisher {
             "XBOS.ITCH.XBOS" => Ok(Self::XbosItchXbos),
             "XPSX.ITCH.XPSX" => Ok(Self::XpsxItchXpsx),
             "BATS.PITCH.BATS" => Ok(Self::BatsPitchBats),
-            "BATY.PITCH.BATS" => Ok(Self::BatyPitchBats),
+            "BATY.PITCH.BATY" => Ok(Self::BatyPitchBaty),
             "EDGA.PITCH.EDGA" => Ok(Self::EdgaPitchEdga),
             "EDGX.PITCH.EDGX" => Ok(Self::EdgxPitchEdgx),
             "XNYS.PILLAR.XNYS" => Ok(Self::XnysPillarXnys),

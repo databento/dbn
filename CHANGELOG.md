@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.1 - 2023-08-25
+### Bug fixes
+- Fixed typo in `BATY.PITCH.BATY` publisher
+
 ## 0.9.0 - 2023-08-24
 ### Enhancements
 - Added `publisher` method to `RecordHeader` and all record types for converting
