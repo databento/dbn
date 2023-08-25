@@ -13,12 +13,12 @@ pub fn derive_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let Data::Struct(data_struct) = data else {
         return syn::Error::new(ident.span(), "Can only derive PyFieldDesc for structs")
             .into_compile_error()
-            .into()
+            .into();
     };
     let syn::Fields::Named(fields) = data_struct.fields else {
         return syn::Error::new(ident.span(), "Cannot derive PyFieldDesc for tuple struct")
             .into_compile_error()
-            .into()
+            .into();
     };
     let sorted_fields = match get_sorted_fields(fields.clone()) {
         Ok(fields) => fields,
