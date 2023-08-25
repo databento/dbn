@@ -13,8 +13,9 @@
 //!   with the `async` feature flag
 //! - [Normalized market data struct definitions](crate::record) corresponding to the
 //!   different market data schemas offered by Databento
-//! - A [wrapper type](crate::RecordRef) for holding a reference to some record struct
-//! - Helpers functions and [macros] for common tasks
+//! - A [wrapper type](crate::RecordRef) for holding a reference to a record struct of
+//!   a dynamic type
+//! - Helper functions and [macros] for common tasks
 //!
 //! # Feature flags
 //! - `async`: enables async decoding and encoding
