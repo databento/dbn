@@ -15,6 +15,10 @@ from typing import (
 
 
 FIXED_PRICE_SCALE: int
+UNDEF_PRICE: int
+UNDEF_ORDER_SIZE: int
+UNDEF_STAT_QUANTITY: int
+UNDEF_TIMESTAMP: int
 
 
 _DBNRecord = Union[

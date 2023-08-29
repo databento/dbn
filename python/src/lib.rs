@@ -9,7 +9,8 @@ use dbn::{
         BidAskPair, ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
         RecordHeader, StatMsg, StatusMsg, SymbolMappingMsg, SystemMsg, TradeMsg,
     },
-    Metadata, FIXED_PRICE_SCALE,
+    Metadata, FIXED_PRICE_SCALE, UNDEF_ORDER_SIZE, UNDEF_PRICE, UNDEF_STAT_QUANTITY,
+    UNDEF_TIMESTAMP,
 };
 
 mod dbn_decoder;
@@ -51,6 +52,10 @@ fn databento_dbn(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     checked_add_class::<SType>(m)?;
     // constants
     m.add("FIXED_PRICE_SCALE", FIXED_PRICE_SCALE)?;
+    m.add("UNDEF_PRICE", UNDEF_PRICE)?;
+    m.add("UNDEF_ORDER_SIZE", UNDEF_ORDER_SIZE)?;
+    m.add("UNDEF_STAT_QUANTITY", UNDEF_STAT_QUANTITY)?;
+    m.add("UNDEF_TIMESTAMP", UNDEF_TIMESTAMP)?;
     Ok(())
 }
 

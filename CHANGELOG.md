@@ -5,6 +5,8 @@
 - Added optional `has_metadata` parameter to Python `DBNDecoder` to allow
   decoding plain records by passing `False`. By default `DBNDecoder` expects a complete
   DBN stream, which begins with metadata
+- Added `UNDEF_PRICE`, `UNDEF_ORDER_SIZE`, `UNDEF_STAT_QUANTITY`, and `UNDEF_TIMESTAMP`
+  constants to `databento_dbn` Python package to make it easier to filter null values
 
 ### Bug fixes
 - Fixed typo in `BATY.PITCH.BATY` publisher
