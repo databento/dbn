@@ -8,79 +8,79 @@ use crate::{Error, Result};
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive)]
 #[repr(u16)]
 pub enum Venue {
-    /// CME GLOBEX
+    /// CME Globex
     Glbx = 1,
-    /// NASDAQ
+    /// Nasdaq - All Markets
     Xnas = 2,
-    /// NASDAQ OMX BX
+    /// Nasdaq OMX BX
     Xbos = 3,
-    /// NASDAQ OMX PSX
+    /// Nasdaq OMX PSX
     Xpsx = 4,
-    /// CBOE BZX U.S. EQUITIES EXCHANGE
+    /// Cboe BZX U.S. Equities Exchange
     Bats = 5,
-    /// CBOE BYX U.S. EQUITIES EXCHANGE
+    /// Cboe BYX U.S. Equities Exchange
     Baty = 6,
-    /// CBOE EDGA U.S. EQUITIES EXCHANGE
+    /// Cboe EDGA U.S. Equities Exchange
     Edga = 7,
-    /// CBOE EDGX U.S. EQUITIES EXCHANGE
+    /// Cboe EDGX U.S. Equities Exchange
     Edgx = 8,
-    /// New York Stock Exchange
+    /// New York Stock Exchange, Inc.
     Xnys = 9,
-    /// NYSE NATIONAL, INC.
+    /// NYSE National, Inc.
     Xcis = 10,
-    /// NYSE AMERICAN
+    /// NYSE MKT LLC
     Xase = 11,
-    /// NYSE ARCA
+    /// NYSE Arca
     Arcx = 12,
-    /// NYSE CHICAGO, INC.
+    /// NYSE Chicago, Inc.
     Xchi = 13,
-    /// INVESTORS EXCHANGE
+    /// Investors Exchange
     Iexg = 14,
-    /// FINRA/NASDAQ TRF CARTERET
+    /// FINRA/Nasdaq TRF Carteret
     Finn = 15,
-    /// FINRA/NASDAQ TRF CHICAGO
+    /// FINRA/Nasdaq TRF Chicago
     Finc = 16,
     /// FINRA/NYSE TRF
     Finy = 17,
-    /// MEMX LLC EQUITIES
+    /// MEMX LLC Equities
     Memx = 18,
-    /// MIAX PEARL EQUITIES
+    /// MIAX Pearl Equities
     Eprl = 19,
-    /// NYSE AMERICAN OPTIONS
+    /// NYSE American Options
     Amxo = 20,
-    /// BOX OPTIONS EXCHANGE
+    /// BOX Options Exchange
     Xbox = 21,
-    /// CBOE OPTIONS EXCHANGE
+    /// Cboe Options Exchange
     Xcbo = 22,
-    /// MIAX EMERALD
+    /// MIAX Emerald
     Emld = 23,
     /// Cboe EDGX Options Exchange
     Edgo = 24,
-    /// NASDAQ GEMX
+    /// ISE Gemini Exchange
     Gmni = 25,
-    /// NASDAQ ISE
+    /// International Securities Exchange, LLC
     Xisx = 26,
-    /// NASDAQ MRX
+    /// ISE Mercury, LLC
     Mcry = 27,
-    /// MIAX INTERNATIONAL SECURITIES
+    /// Miami International Securities Exchange
     Xmio = 28,
-    /// NYSE ARCA OPTIONS
+    /// NYSE Arca Options
     Arco = 29,
-    /// OPRA
+    /// Options Price Reporting Authority
     Opra = 30,
-    /// MIAX PEARL
+    /// MIAX Pearl
     Mprl = 31,
-    /// NASDAQ OPTIONS MARKET
+    /// Nasdaq Options Market
     Xndq = 32,
-    /// NASDAQ BX OPTIONS
+    /// Nasdaq OMX BX Options
     Xbxo = 33,
-    /// CBOE C2 OPTIONS EXCHANGE
+    /// Cboe C2 Options Exchange
     C2Ox = 34,
-    /// NASDAQ PHLX
+    /// Nasdaq OMX PHLX
     Xphl = 35,
-    /// CBOE BZX Options Exchange
+    /// Cboe BZX Options Exchange
     Bato = 36,
-    /// MEMX Options Exchange
+    /// MEMX LLC Options
     Mxop = 37,
 }
 
@@ -197,47 +197,47 @@ impl std::str::FromStr for Venue {
 pub enum Dataset {
     /// CME MDP 3.0 Market Data
     GlbxMdp3 = 1,
-    /// Nasdaq XNAS TotalView-ITCH
+    /// Nasdaq TotalView-ITCH
     XnasItch = 2,
-    /// Nasdaq XBOS TotalView-ITCH
+    /// Nasdaq BX TotalView-ITCH
     XbosItch = 3,
-    /// Nasdaq XPSX TotalView-ITCH
+    /// Nasdaq PSX TotalView-ITCH
     XpsxItch = 4,
-    /// CBOE BZX
+    /// Cboe BZX Depth Pitch
     BatsPitch = 5,
-    /// CBOE BYX
+    /// Cboe BYX Depth Pitch
     BatyPitch = 6,
-    /// CBOE EDGA
+    /// Cboe EDGA Depth Pitch
     EdgaPitch = 7,
-    /// CBOE EDGX
+    /// Cboe EDGX Depth Pitch
     EdgxPitch = 8,
-    /// NYSE
+    /// NYSE Integrated
     XnysPillar = 9,
-    /// NYSE National
+    /// NYSE National Integrated
     XcisPillar = 10,
-    /// NYSE American
+    /// NYSE American Integrated
     XasePillar = 11,
-    /// NYSE Chicago
+    /// NYSE Chicago Integrated
     XchiPillar = 12,
     /// NYSE National BBO
     XcisBbo = 13,
-    /// NYSE National TRADES
+    /// NYSE National Trades
     XcisTrades = 14,
     /// MEMX Memoir Depth
     MemxMemoir = 15,
     /// MIAX Pearl Depth
     EprlDom = 16,
-    /// Finra/Nasdaq TRF
+    /// FINRA/Nasdaq TRF
     FinnNls = 17,
-    /// Finra/NYSE TRF
+    /// FINRA/NYSE TRF
     FinyTrades = 18,
-    /// OPRA Binary Recipient
+    /// OPRA Binary
     OpraPillar = 19,
     /// Databento Equities Basic
     DbeqBasic = 20,
-    /// NYSE Arca
+    /// NYSE Arca Integrated
     ArcxPillar = 21,
-    /// Investors Exchange TOPS
+    /// IEX TOPS
     IexgTops = 22,
 }
 
@@ -326,25 +326,25 @@ pub enum Publisher {
     GlbxMdp3Glbx = 1,
     /// Nasdaq TotalView ITCH
     XnasItchXnas = 2,
-    /// Nasdaq XBOS TotalView ITCH
+    /// Nasdaq BX TotalView ITCH
     XbosItchXbos = 3,
-    /// Nasdaq XPSX TotalView ITCH
+    /// Nasdaq PSX TotalView ITCH
     XpsxItchXpsx = 4,
-    /// CBOE BZX
+    /// Cboe BZX Depth Pitch
     BatsPitchBats = 5,
-    /// CBOE BYX
+    /// Cboe BYX Depth Pitch
     BatyPitchBaty = 6,
-    /// CBOE EDGA
+    /// Cboe EDGA Depth Pitch
     EdgaPitchEdga = 7,
-    /// CBOE EDGX
+    /// Cboe EDGX Depth Pitch
     EdgxPitchEdgx = 8,
-    /// NYSE
+    /// NYSE Integrated
     XnysPillarXnys = 9,
-    /// NYSE National
+    /// NYSE National Integrated
     XcisPillarXcis = 10,
-    /// NYSE American
+    /// NYSE American Integrated
     XasePillarXase = 11,
-    /// NYSE Chicago
+    /// NYSE Chicago Integrated
     XchiPillarXchi = 12,
     /// NYSE National BBO
     XcisBboXcis = 13,
@@ -354,55 +354,55 @@ pub enum Publisher {
     MemxMemoirMemx = 15,
     /// MIAX Pearl Depth
     EprlDomEprl = 16,
-    /// FINRA/NASDAQ TRF CARTERET
+    /// FINRA/Nasdaq TRF Carteret
     FinnNlsFinn = 17,
-    /// FINRA/NASDAQ TRF CHICAGO
+    /// FINRA/Nasdaq TRF Chicago
     FinnNlsFinc = 18,
     /// FINRA/NYSE TRF
     FinyTradesFiny = 19,
-    /// OPRA - NYSE AMERICAN OPTIONS
+    /// OPRA - NYSE American
     OpraPillarAmxo = 20,
-    /// OPRA - BOX OPTIONS EXCHANGE
+    /// OPRA - Boston Options Exchange
     OpraPillarXbox = 21,
-    /// OPRA - CBOE OPTIONS EXCHANGE
+    /// OPRA - Cboe Options Exchange
     OpraPillarXcbo = 22,
-    /// OPRA - MIAX EMERALD
+    /// OPRA - MIAX Emerald
     OpraPillarEmld = 23,
     /// OPRA - Cboe EDGX Options Exchange
     OpraPillarEdgo = 24,
-    /// OPRA - NASDAQ GEMX
+    /// OPRA - Nasdaq GEMX
     OpraPillarGmni = 25,
-    /// OPRA - NASDAQ ISE
+    /// OPRA - Nasdaq ISE
     OpraPillarXisx = 26,
-    /// OPRA - NASDAQ MRX
+    /// OPRA - Nasdaq MRX
     OpraPillarMcry = 27,
-    /// OPRA - MIAX INTERNATIONAL SECURITIES
+    /// OPRA - Miami International Securities
     OpraPillarXmio = 28,
-    /// OPRA - NYSE ARCA OPTIONS
+    /// OPRA - NYSE Arca
     OpraPillarArco = 29,
-    /// OPRA - OPRA
+    /// OPRA - Options Price Reporting Authority
     OpraPillarOpra = 30,
-    /// OPRA - MIAX PEARL
+    /// OPRA - MIAX Pearl
     OpraPillarMprl = 31,
-    /// OPRA - NASDAQ OPTIONS MARKET
+    /// OPRA - Nasdaq Options Market
     OpraPillarXndq = 32,
-    /// OPRA - NASDAQ BX OPTIONS
+    /// OPRA - Nasdaq BX Options
     OpraPillarXbxo = 33,
-    /// OPRA - CBOE C2 OPTIONS EXCHANGE
+    /// OPRA - Cboe C2 Options Exchange
     OpraPillarC2Ox = 34,
-    /// OPRA - NASDAQ PHLX
+    /// OPRA - Nasdaq PHLX
     OpraPillarXphl = 35,
-    /// OPRA - CBOE BZX Options Exchange
+    /// OPRA - Cboe BZX Options
     OpraPillarBato = 36,
-    /// OPRA - MEMX OPTIONS EXCHANGE
+    /// OPRA - MEMX Options Exchange
     OpraPillarMxop = 37,
-    /// Investors Exchange TOPS
+    /// IEX TOPS
     IexgTopsIexg = 38,
-    /// DBEQ Basic - Nyse Chicago
+    /// DBEQ Basic - NYSE Chicago
     DbeqBasicXchi = 39,
-    /// DBEQ Basic - Nyse National
+    /// DBEQ Basic - NYSE National
     DbeqBasicXcis = 40,
-    /// DBEQ Basic - Investors Exchange
+    /// DBEQ Basic - IEX
     DbeqBasicIexg = 41,
     /// DBEQ Basic - MIAX Pearl
     DbeqBasicEprl = 42,
