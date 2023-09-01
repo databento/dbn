@@ -184,7 +184,7 @@ impl MetadataDecoder {
     fn decode(metadata_buffer: Vec<u8>) -> crate::Result<Metadata> {
         const U64_SIZE: usize = mem::size_of::<u64>();
         let mut pos = 0;
-        if !matches!(&metadata_buffer[pos..pos + 3], MetadataDecoder::DBZ_PREFIX) {
+        if &metadata_buffer[pos..pos + 3] != MetadataDecoder::DBZ_PREFIX {
             return Err(crate::Error::Decode("Invalid version string".to_owned()));
         }
         // Interpret 4th character as an u8, not a char to allow for 254 versions (0 omitted)

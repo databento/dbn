@@ -1027,6 +1027,7 @@ mod r#async {
             record_ref: RecordRef<'_>,
             ts_out: bool,
         ) -> Result<()> {
+            #[allow(clippy::redundant_closure_call)]
             rtype_ts_out_async_dispatch!(record_ref, ts_out, |rec| async move {
                 self.encode_record(rec).await
             })?

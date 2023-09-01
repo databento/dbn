@@ -95,6 +95,7 @@ pub trait EncodeDbn {
     /// This function returns an error if it's unable to write to the underlying writer
     /// or there's a serialization error.
     unsafe fn encode_record_ref(&mut self, record: RecordRef, ts_out: bool) -> Result<()> {
+        #[allow(clippy::redundant_closure_call)]
         rtype_ts_out_dispatch!(record, ts_out, |rec| self.encode_record(rec))?
     }
 

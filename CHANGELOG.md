@@ -1,7 +1,10 @@
 # Changelog
 
-## 0.9.1 - TBD
+## 0.10.0 - TBD
 ### Enhancements
+- Added `start` and `end` getters to `Metadata` that return `time::OffsetDateTime`
+- Added `symbol_map` and `symbol_map_for_date` methods to `Metadata` to aid historical
+  symbology mapping from the instrument IDs in records
 - Added optional `has_metadata` parameter to Python `DBNDecoder` to allow
   decoding plain records by passing `False`. By default `DBNDecoder` expects a complete
   DBN stream, which begins with metadata

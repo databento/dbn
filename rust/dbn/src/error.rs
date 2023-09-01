@@ -36,6 +36,14 @@ pub enum Error {
         /// The context in which the error occurred.
         context: String,
     },
+    /// An invalid argument was passed to a function.
+    #[error("bad argument {param_name}: {desc}")]
+    BadArgument {
+        /// The name of the parameter to which the bad argument was passed.
+        param_name: String,
+        /// The description of why the argument was invalid.
+        desc: String,
+    },
 }
 /// An alias for a `Result` with [`dbn::Error`](crate::Error) as the error type.
 pub type Result<T> = std::result::Result<T, Error>;

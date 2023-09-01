@@ -6,3 +6,4 @@ members = [
   "rust/dbn-macros",
   "rust/dbn"
 ]
+resolver = "2"
