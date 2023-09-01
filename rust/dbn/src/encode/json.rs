@@ -2,8 +2,8 @@
 use std::io;
 
 use self::serialize::to_json_string;
-use super::{DbnEncodable, EncodeDbn};
-use crate::{Error, Metadata, Result};
+use super::{DbnEncodable, EncodeDbn, EncodeRecord, EncodeRecordRef};
+use crate::{rtype_ts_out_dispatch, Error, Metadata, Result};
 
 /// Type for encoding files and streams of DBN records in newline-delimited JSON (ndjson).
 pub struct Encoder<W>
@@ -65,7 +65,7 @@ where
     }
 }
 
-impl<W> EncodeDbn for Encoder<W>
+impl<W> EncodeRecord for Encoder<W>
 where
     W: io::Write,
 {
@@ -88,6 +88,18 @@ where
             .map_err(|e| Error::io(e, "flushing output"))
     }
 }
+
+impl<W> EncodeRecordRef for Encoder<W>
+where
+    W: io::Write,
+{
+    unsafe fn encode_record_ref(&mut self, record: crate::RecordRef, ts_out: bool) -> Result<()> {
+        #[allow(clippy::redundant_closure_call)]
+        rtype_ts_out_dispatch!(record, ts_out, |rec| self.encode_record(rec))?
+    }
+}
+
+impl<W> EncodeDbn for Encoder<W> where W: io::Write {}
 
 pub(crate) mod serialize {
     use std::ffi::c_char;

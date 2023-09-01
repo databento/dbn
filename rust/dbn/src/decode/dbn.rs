@@ -8,7 +8,9 @@ use std::{
     str::Utf8Error,
 };
 
-use super::{private::BufferSlice, DecodeDbn, FromLittleEndianSlice, StreamIterDecoder};
+use super::{
+    private::BufferSlice, DecodeDbn, DecodeRecordRef, FromLittleEndianSlice, StreamIterDecoder,
+};
 use crate::{
     enums::{SType, Schema},
     error::silence_eof_error,
@@ -56,6 +58,11 @@ where
     /// Returns a mutable reference to the inner reader.
     pub fn get_mut(&mut self) -> &mut R {
         self.decoder.get_mut()
+    }
+
+    /// Returns a reference to the inner reader.
+    pub fn get_ref(&self) -> &R {
+        self.decoder.get_ref()
     }
 
     /// Consumes the decoder and returns the inner reader.
@@ -136,6 +143,15 @@ impl<'a> Decoder<zstd::stream::Decoder<'a, BufReader<File>>> {
     }
 }
 
+impl<R> DecodeRecordRef for Decoder<R>
+where
+    R: io::Read,
+{
+    fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef>> {
+        self.decoder.decode_record_ref()
+    }
+}
+
 impl<R> DecodeDbn for Decoder<R>
 where
     R: io::Read,
@@ -146,10 +162,6 @@ where
 
     fn decode_record<T: HasRType>(&mut self) -> crate::Result<Option<&T>> {
         self.decoder.decode()
-    }
-
-    fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef>> {
-        self.decoder.decode_ref()
     }
 
     fn decode_stream<T: HasRType>(self) -> super::StreamIterDecoder<Self, T> {
@@ -193,6 +205,11 @@ where
         &mut self.reader
     }
 
+    /// Returns a reference to the inner reader.
+    pub fn get_ref(&self) -> &R {
+        &self.reader
+    }
+
     /// Consumes the decoder and returns the inner reader.
     pub fn into_inner(self) -> R {
         self.reader
@@ -208,7 +225,7 @@ where
     /// If the next record is of a different type than `T`,
     /// this function returns an error of kind `io::ErrorKind::InvalidData`.
     pub fn decode<T: HasRType>(&mut self) -> crate::Result<Option<&T>> {
-        let rec_ref = self.decode_ref()?;
+        let rec_ref = self.decode_record_ref()?;
         if let Some(rec_ref) = rec_ref {
             rec_ref
                 .get::<T>()
@@ -249,6 +266,15 @@ where
         }
         // Safety: `buffer` is resized to contain at least `length` bytes.
         Ok(Some(unsafe { RecordRef::new(self.buffer.as_mut_slice()) }))
+    }
+}
+
+impl<R> DecodeRecordRef for RecordDecoder<R>
+where
+    R: io::Read,
+{
+    fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef>> {
+        self.decode_ref()
     }
 }
 
@@ -516,7 +542,7 @@ mod tests {
     use crate::{
         datasets::XNAS_ITCH,
         decode::tests::TEST_DATA_PATH,
-        encode::{dbn::Encoder, EncodeDbn},
+        encode::{dbn::Encoder, EncodeDbn, EncodeRecord},
         enums::rtype,
         record::{
             ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,

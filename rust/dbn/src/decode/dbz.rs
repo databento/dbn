@@ -8,7 +8,10 @@ use std::{
     str::Utf8Error,
 };
 
-use super::{private::BufferSlice, zstd::ZSTD_SKIPPABLE_MAGIC_RANGE, DecodeDbn, StreamIterDecoder};
+use super::{
+    private::BufferSlice, zstd::ZSTD_SKIPPABLE_MAGIC_RANGE, DecodeDbn, DecodeRecordRef,
+    StreamIterDecoder,
+};
 use crate::{
     decode::{dbn::decode_iso8601, FromLittleEndianSlice},
     enums::{Compression, SType, Schema},
@@ -79,29 +82,7 @@ impl<R: io::BufRead> Decoder<R> {
     }
 }
 
-impl<R: io::BufRead> DecodeDbn for Decoder<R> {
-    /// Returns a reference to all metadata read from the DBZ data in a [`Metadata`] object.
-    fn metadata(&self) -> &Metadata {
-        &self.metadata
-    }
-
-    fn decode_record<T: HasRType>(&mut self) -> crate::Result<Option<&T>> {
-        let rec_ref = self.decode_record_ref()?;
-        if let Some(rec_ref) = rec_ref {
-            rec_ref
-                .get::<T>()
-                .ok_or_else(|| {
-                    crate::Error::conversion::<T>(format!(
-                        "record with rtype {}",
-                        rec_ref.header().rtype
-                    ))
-                })
-                .map(Some)
-        } else {
-            Ok(None)
-        }
-    }
-
+impl<R: io::BufRead> DecodeRecordRef for Decoder<R> {
     fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef>> {
         let io_err = |e| crate::Error::io(e, "decoding record reference");
         if let Err(err) = self.reader.read_exact(&mut self.buffer[..1]) {
@@ -121,6 +102,29 @@ impl<R: io::BufRead> DecodeDbn for Decoder<R> {
         }
         // Safety: `buffer` is resized to contain at least `length` bytes.
         Ok(Some(unsafe { RecordRef::new(self.buffer.as_mut_slice()) }))
+    }
+}
+
+impl<R: io::BufRead> DecodeDbn for Decoder<R> {
+    fn metadata(&self) -> &Metadata {
+        &self.metadata
+    }
+
+    fn decode_record<T: HasRType>(&mut self) -> crate::Result<Option<&T>> {
+        let rec_ref = self.decode_record_ref()?;
+        if let Some(rec_ref) = rec_ref {
+            rec_ref
+                .get::<T>()
+                .ok_or_else(|| {
+                    crate::Error::conversion::<T>(format!(
+                        "record with rtype {}",
+                        rec_ref.header().rtype
+                    ))
+                })
+                .map(Some)
+        } else {
+            Ok(None)
+        }
     }
 
     /// Try to decode the DBZ file into a streaming iterator. This decodes the

@@ -19,11 +19,11 @@ pub struct DbnDecoder {
 #[pymethods]
 impl DbnDecoder {
     #[new]
-    fn new(has_metadata: Option<bool>) -> Self {
+    fn new(has_metadata: Option<bool>, ts_out: Option<bool>) -> Self {
         Self {
             buffer: io::Cursor::default(),
             has_decoded_metadata: !has_metadata.unwrap_or(true),
-            ts_out: false,
+            ts_out: ts_out.unwrap_or_default(),
         }
     }
 
@@ -77,11 +77,11 @@ impl DbnDecoder {
                         rec.header().rtype,
                     )));
                 }
-                // keep track of position after last _successful_ decoding to ensure
-                // buffer is left in correct state in the case where one or more
-                // successful decodings is followed by a partial one, i.e. `decode_ref`
-                // returning `Ok(None)`
-                read_position = decoder.get_mut().position() as usize;
+                // keep track of position after last _successful_ decoding to
+                // ensure buffer is left in correct state in the case where one
+                // or more successful decodings is followed by a partial one, i.e.
+                // `decode_record_ref` returning `Ok(None)`
+                read_position = decoder.get_ref().position() as usize;
             }
             Ok(())
         })
@@ -113,7 +113,7 @@ impl DbnDecoder {
 mod tests {
     use dbn::{
         datasets::XNAS_ITCH,
-        encode::{dbn::Encoder, EncodeDbn},
+        encode::{dbn::Encoder, EncodeRecord},
         enums::{rtype, SType, Schema},
         record::{ErrorMsg, OhlcvMsg, RecordHeader},
         MetadataBuilder,
@@ -126,7 +126,7 @@ mod tests {
     #[test]
     fn test_partial_records() {
         setup();
-        let mut decoder = DbnDecoder::new(None);
+        let mut decoder = DbnDecoder::new(None, None);
         let buffer = Vec::new();
         let mut encoder = Encoder::new(
             buffer,
@@ -165,7 +165,7 @@ mod tests {
     #[test]
     fn test_full_with_partial_record() {
         setup();
-        let mut decoder = DbnDecoder::new(None);
+        let mut decoder = DbnDecoder::new(None, None);
         let buffer = Vec::new();
         let mut encoder = Encoder::new(
             buffer,

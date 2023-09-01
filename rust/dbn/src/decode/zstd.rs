@@ -3,7 +3,7 @@ use std::ops::Range;
 use super::FromLittleEndianSlice;
 
 /// Range of magic numbers for a Zstandard skippable frame.
-pub const ZSTD_SKIPPABLE_MAGIC_RANGE: Range<u32> = 0x184D2A50..0x184D2A60;
+pub(crate) const ZSTD_SKIPPABLE_MAGIC_RANGE: Range<u32> = 0x184D2A50..0x184D2A60;
 /// Magic number for the beginning of a Zstandard frame.
 const ZSTD_MAGIC_NUMBER: u32 = 0xFD2FB528;
 
