@@ -19,7 +19,7 @@ To read a DBN file with MBO data and print each row:
 ```rust
 use dbn::{
     decode::dbn::Decoder,
-    records::MboMsg,
+    record::MboMsg,
 };
 use streaming_iterator::StreamingIterator;
 
