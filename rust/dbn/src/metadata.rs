@@ -66,6 +66,13 @@ pub struct Metadata {
 }
 
 impl Metadata {
+    /// Creates a builder for building `Metadata`. Call `.dataset(...)`, `.schema(...)`,
+    /// `.start(...)` `.stype_in(...)`, and `.stype_out(...)` on the builder to set the
+    /// required fields. Finally call `.build()` to create the `Metadata` instance.
+    pub fn builder() -> MetadataBuilder<Unset, Unset, Unset, Unset, Unset> {
+        MetadataBuilder::default()
+    }
+
     /// Parses the raw query start into a datetime.
     pub fn start(&self) -> time::OffsetDateTime {
         // `u64::MAX` is within the allowable range for `OffsetDateTime`s

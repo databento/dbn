@@ -10,6 +10,7 @@
   DBN stream, which begins with metadata
 - Added `UNDEF_PRICE`, `UNDEF_ORDER_SIZE`, `UNDEF_STAT_QUANTITY`, and `UNDEF_TIMESTAMP`
   constants to `databento_dbn` Python package to make it easier to filter null values
+- Added `Metadata::builder()` function to create a new builder instance
 
 ### Bug fixes
 - Fixed typo in `BATY.PITCH.BATY` publisher
