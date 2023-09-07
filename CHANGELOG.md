@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.10.0 - TBD
+## 0.10.0 - 2023-09-07
 ### Enhancements
 - Added `start` and `end` getters to `Metadata` that return `time::OffsetDateTime`
 - Added `symbol_map` and `symbol_map_for_date` methods to `Metadata` to aid historical
