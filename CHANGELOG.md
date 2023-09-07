@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.10.1 - TBD
+## 0.10.1 - 2023-09-07
 
 ### Bug fixes
 - Changed `Metadata::symbol_map` and `symbol_map_for_date` to return `String` values

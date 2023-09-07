@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "databento-dbn"
-version = "0.10.0"
+version = "0.10.1"
 description = "Python bindings for encoding and decoding Databento Binary Encoding (DBN)"
 authors = ["Databento <support@databento.com>"]
 license = "Apache-2.0"
