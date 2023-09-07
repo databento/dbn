@@ -2,8 +2,8 @@ use std::{fs::File, io};
 
 use clap::Parser;
 use dbn::{
-    decode::{DbnRecordDecoder, DecodeDbn, DynDecoder},
-    encode::{json, DynEncoder, EncodeDbn},
+    decode::{DbnRecordDecoder, DecodeDbn, DecodeRecordRef, DynDecoder},
+    encode::{json, DynEncoder, EncodeDbn, EncodeRecordRef},
     enums::SType,
     MetadataBuilder,
 };
@@ -81,7 +81,7 @@ fn write_dbn_frag<R: io::Read>(
         args.should_pretty_print,
     )?;
     let mut n = 0;
-    while let Some(record) = decoder.decode_ref()? {
+    while let Some(record) = decoder.decode_record_ref()? {
         // Assume no ts_out for safety
         match unsafe { encoder.encode_record_ref(record, false) } {
             // Handle broken pipe as a non-error.

@@ -12,7 +12,9 @@ pub mod dbn;
 )]
 pub mod dbz;
 mod stream;
-mod zstd;
+// used in databento_dbn
+#[doc(hidden)]
+pub mod zstd;
 
 // Re-exports
 pub use self::dbn::{
@@ -35,8 +37,21 @@ use crate::{
     Metadata,
 };
 
-/// Trait for types that decode DBN records.
-pub trait DecodeDbn: private::BufferSlice {
+/// Trait for types that decode references to DBN records of a dynamic type.
+pub trait DecodeRecordRef {
+    /// Tries to decode a generic reference a record.
+    ///
+    /// # Errors
+    /// This function returns an error if the underlying reader returns an error of a
+    /// kind other than `io::ErrorKind::UnexpectedEof` upon reading.
+    ///
+    /// If the `length` property of the record is invalid, an
+    /// [`Error::Decode`](crate::Error::Decode) will be returned.
+    fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef>>;
+}
+
+/// Trait for types that decode DBN records of a particular type.
+pub trait DecodeDbn: DecodeRecordRef + private::BufferSlice {
     /// Returns a reference to the decoded [`Metadata`].
     fn metadata(&self) -> &Metadata;
 
@@ -53,16 +68,6 @@ pub trait DecodeDbn: private::BufferSlice {
     /// If the `length` property of the record is invalid, an
     /// [`Error::Decode`](crate::Error::Decode) will be returned.
     fn decode_record<T: HasRType>(&mut self) -> crate::Result<Option<&T>>;
-
-    /// Tries to decode a generic reference a record.
-    ///
-    /// # Errors
-    /// This function returns an error if the underlying reader returns an error of a
-    /// kind other than `io::ErrorKind::UnexpectedEof` upon reading.
-    ///
-    /// If the `length` property of the record is invalid, an
-    /// [`Error::Decode`](crate::Error::Decode) will be returned.
-    fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef>>;
 
     /// Tries to convert the decoder into a streaming iterator. This lazily decodes the
     /// data.
@@ -197,6 +202,19 @@ impl<'a> DynDecoder<'a, BufReader<File>> {
     }
 }
 
+impl<'a, R> DecodeRecordRef for DynDecoder<'a, R>
+where
+    R: io::BufRead,
+{
+    fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef>> {
+        match &mut self.0 {
+            DynDecoderImpl::Dbn(decoder) => decoder.decode_record_ref(),
+            DynDecoderImpl::ZstdDbn(decoder) => decoder.decode_record_ref(),
+            DynDecoderImpl::LegacyDbz(decoder) => decoder.decode_record_ref(),
+        }
+    }
+}
+
 #[allow(deprecated)]
 impl<'a, R> DecodeDbn for DynDecoder<'a, R>
 where
@@ -207,14 +225,6 @@ where
             DynDecoderImpl::Dbn(decoder) => decoder.metadata(),
             DynDecoderImpl::ZstdDbn(decoder) => decoder.metadata(),
             DynDecoderImpl::LegacyDbz(decoder) => decoder.metadata(),
-        }
-    }
-
-    fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef>> {
-        match &mut self.0 {
-            DynDecoderImpl::Dbn(decoder) => decoder.decode_record_ref(),
-            DynDecoderImpl::ZstdDbn(decoder) => decoder.decode_record_ref(),
-            DynDecoderImpl::LegacyDbz(decoder) => decoder.decode_record_ref(),
         }
     }
 
@@ -231,6 +241,131 @@ where
         Self: Sized,
     {
         StreamIterDecoder::new(self)
+    }
+}
+
+/// Type for runtime polymorphism over whether decoding uncompressed or ZStd-compressed
+/// DBN records. Implements [`std::io::Write`].
+pub struct DynReader<'a, R>(DynReaderImpl<'a, R>)
+where
+    R: io::BufRead;
+
+enum DynReaderImpl<'a, R>
+where
+    R: io::BufRead,
+{
+    Uncompressed(R),
+    ZStd(::zstd::stream::Decoder<'a, R>),
+}
+
+impl<'a, R> DynReader<'a, BufReader<R>>
+where
+    R: io::Read,
+{
+    /// Creates a new [`DynReader`] from a reader, with the specified `compression`.
+    ///
+    /// # Errors
+    /// This function will return an error if it fails to create the zstd decoder.
+    pub fn new(reader: R, compression: Compression) -> crate::Result<Self> {
+        Self::with_buffer(BufReader::new(reader), compression)
+    }
+
+    /// Creates a new [`DynReader`] from a reader, inferring the compression.
+    /// If `reader` also implements [`io::BufRead`], it is better to use
+    /// [`inferred_with_buffer()`](Self::inferred_with_buffer).
+    ///
+    /// # Errors
+    /// This function will return an error if it is unable to read from `reader`
+    /// or it fails to create the zstd decoder.
+    pub fn new_inferred(reader: R) -> crate::Result<Self> {
+        Self::inferred_with_buffer(BufReader::new(reader))
+    }
+}
+
+impl<'a, R> DynReader<'a, R>
+where
+    R: io::BufRead,
+{
+    /// Creates a new [`DynReader`] from a buffered reader with the specified
+    /// `compression`.
+    ///
+    /// # Errors
+    /// This function will return an error if it fails to create the zstd decoder.
+    pub fn with_buffer(reader: R, compression: Compression) -> crate::Result<Self> {
+        match compression {
+            Compression::None => Ok(Self(DynReaderImpl::Uncompressed(reader))),
+            Compression::ZStd => Ok(Self(DynReaderImpl::ZStd(
+                ::zstd::stream::Decoder::with_buffer(reader)
+                    .map_err(|e| crate::Error::io(e, "creating zstd decoder"))?,
+            ))),
+        }
+    }
+
+    /// Creates a new [`DynReader`] from a buffered reader, inferring the compression.
+    ///
+    /// # Errors
+    /// This function will return an error if it fails to read from `reader` or creating
+    /// the zstd decoder fails.
+    pub fn inferred_with_buffer(mut reader: R) -> crate::Result<Self> {
+        let first_bytes = reader
+            .fill_buf()
+            .map_err(|e| crate::Error::io(e, "creating buffer to infer encoding"))?;
+        if zstd::starts_with_prefix(first_bytes) {
+            Ok(Self(DynReaderImpl::ZStd(
+                ::zstd::stream::Decoder::with_buffer(reader)
+                    .map_err(|e| crate::Error::io(e, "creating zstd decoder"))?,
+            )))
+        } else {
+            Ok(Self(DynReaderImpl::Uncompressed(reader)))
+        }
+    }
+
+    /// Returns a mutable reference to the inner reader.
+    pub fn get_mut(&mut self) -> &mut R {
+        match &mut self.0 {
+            DynReaderImpl::Uncompressed(reader) => reader,
+            DynReaderImpl::ZStd(reader) => reader.get_mut(),
+        }
+    }
+
+    /// Returns a reference to the inner reader.
+    pub fn get_ref(&self) -> &R {
+        match &self.0 {
+            DynReaderImpl::Uncompressed(reader) => reader,
+            DynReaderImpl::ZStd(reader) => reader.get_ref(),
+        }
+    }
+}
+
+impl<'a> DynReader<'a, BufReader<File>> {
+    /// Creates a new [`DynReader`] from the file at `path`.
+    ///
+    /// # Errors
+    /// This function will return an error if the file doesn't exist, it is unable to
+    /// determine the encoding of the file or it fails to parse the metadata.
+    pub fn from_file(path: impl AsRef<Path>) -> crate::Result<Self> {
+        let file = File::open(path.as_ref()).map_err(|e| {
+            crate::Error::io(
+                e,
+                format!(
+                    "Error opening file to decode at path '{}'",
+                    path.as_ref().display()
+                ),
+            )
+        })?;
+        DynReader::new_inferred(file)
+    }
+}
+
+impl<'a, R> io::Read for DynReader<'a, R>
+where
+    R: io::BufRead,
+{
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        match &mut self.0 {
+            DynReaderImpl::Uncompressed(r) => r.read(buf),
+            DynReaderImpl::ZStd(r) => r.read(buf),
+        }
     }
 }
 
@@ -294,7 +429,35 @@ impl FromLittleEndianSlice for u16 {
 
 #[cfg(test)]
 mod tests {
+    use std::io::Read;
+
+    use super::*;
+
     pub const TEST_DATA_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/data");
+
+    #[test]
+    fn test_dyn_reader() {
+        for file in std::fs::read_dir(TEST_DATA_PATH).unwrap() {
+            let file = file.unwrap();
+            if matches!(file.path().extension(), Some(ext) if ext == "dbn") {
+                let path = file.path();
+                let mut uncompressed = DynReader::from_file(&path).unwrap();
+                let mut compressed_path = path.clone().into_os_string();
+                compressed_path.push(".zst");
+                let mut compressed = DynReader::from_file(&compressed_path).unwrap();
+                let mut uncompressed_res = Vec::new();
+                uncompressed.read_to_end(&mut uncompressed_res).unwrap();
+                let mut compressed_res = Vec::new();
+                compressed.read_to_end(&mut compressed_res).unwrap();
+                assert_eq!(
+                    compressed_res,
+                    uncompressed_res,
+                    "failed at {}",
+                    path.display()
+                );
+            }
+        }
+    }
 }
 
 #[cfg(feature = "async")]

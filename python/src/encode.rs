@@ -180,7 +180,7 @@ fn py_to_rs_io_err(e: PyErr) -> io::Error {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
 
     use std::io::{Cursor, Seek, Write};
     use std::sync::{Arc, Mutex};
@@ -198,7 +198,7 @@ mod tests {
     const DBN_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../tests/data");
 
     #[pyclass]
-    struct MockPyFile {
+    pub struct MockPyFile {
         buf: Arc<Mutex<Cursor<Vec<u8>>>>,
     }
 
@@ -232,13 +232,13 @@ mod tests {
     }
 
     impl MockPyFile {
-        fn new() -> Self {
+        pub fn new() -> Self {
             Self {
                 buf: Arc::new(Mutex::new(Cursor::new(Vec::new()))),
             }
         }
 
-        fn inner(&self) -> Arc<Mutex<Cursor<Vec<u8>>>> {
+        pub fn inner(&self) -> Arc<Mutex<Cursor<Vec<u8>>>> {
             self.buf.clone()
         }
     }

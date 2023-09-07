@@ -85,8 +85,18 @@ impl<'a> RecordRef<'a> {
     ///
     /// Note: for safety, this method calls [`has::<T>()`](Self::has). To avoid a
     /// duplicate check, use [`get_unchecked()`](Self::get_unchecked).
+    ///
+    /// # Panics
+    /// This function will panic if the rtype indicates it's of type `T` but the encoded
+    ///  length of the record is less than the size of `T`.
     pub fn get<T: HasRType>(&self) -> Option<&'a T> {
         if self.has::<T>() {
+            assert!(
+                self.record_size() >= mem::size_of::<T>(),
+                "Malformed record. Expected length of at least {} bytes, found {} bytes",
+                mem::size_of::<T>(),
+                self.record_size()
+            );
             // Safety: checked `rtype` in call to `has()`. Assumes the initial data based to
             // `RecordRef` is indeed a record.
             Some(unsafe { self.ptr.cast::<T>().as_ref() })
@@ -104,6 +114,7 @@ impl<'a> RecordRef<'a> {
     /// The caller needs to validate this object points to a `T`.
     pub unsafe fn get_unchecked<T: HasRType>(&self) -> &T {
         debug_assert!(self.has::<T>());
+        debug_assert!(self.record_size() >= mem::size_of::<T>());
         self.ptr.cast::<T>().as_ref()
     }
 }
@@ -166,5 +177,15 @@ mod tests {
         let byte_slice = target.as_ref();
         assert_eq!(SOURCE_RECORD.record_size(), byte_slice.len());
         assert_eq!(target.record_size(), byte_slice.len());
+    }
+
+    #[should_panic]
+    #[test]
+    fn test_get_too_short() {
+        let mut src = SOURCE_RECORD;
+        src.hd.length -= 1;
+        let target = unsafe { RecordRef::new(src.as_ref()) };
+        // panic due to unexpected length
+        target.get::<MboMsg>();
     }
 }

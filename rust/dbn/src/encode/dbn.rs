@@ -5,7 +5,7 @@ use std::{
     num::NonZeroU64,
 };
 
-use super::{zstd_encoder, DbnEncodable, EncodeDbn};
+use super::{zstd_encoder, DbnEncodable, EncodeDbn, EncodeRecord, EncodeRecordRef};
 use crate::{
     enums::Schema, record_ref::RecordRef, Error, Metadata, Result, SymbolMapping, DBN_VERSION,
     NULL_LIMIT, NULL_RECORD_COUNT, NULL_SCHEMA, NULL_STYPE, UNDEF_TIMESTAMP,
@@ -60,7 +60,7 @@ where
     }
 }
 
-impl<W> EncodeDbn for Encoder<W>
+impl<W> EncodeRecord for Encoder<W>
 where
     W: io::Write,
 {
@@ -68,6 +68,15 @@ where
         self.record_encoder.encode_record(record)
     }
 
+    fn flush(&mut self) -> Result<()> {
+        self.record_encoder.flush()
+    }
+}
+
+impl<W> EncodeRecordRef for Encoder<W>
+where
+    W: io::Write,
+{
     /// Encodes a single DBN record.
     ///
     /// # Safety
@@ -80,11 +89,9 @@ where
     unsafe fn encode_record_ref(&mut self, record: RecordRef, ts_out: bool) -> Result<()> {
         self.record_encoder.encode_record_ref(record, ts_out)
     }
-
-    fn flush(&mut self) -> Result<()> {
-        self.record_encoder.flush()
-    }
 }
+
+impl<W> EncodeDbn for Encoder<W> where W: io::Write {}
 
 /// Type for encoding [`Metadata`] into Databento Binary Encoding (DBN).
 pub struct MetadataEncoder<W>
@@ -342,7 +349,7 @@ where
     }
 }
 
-impl<W> EncodeDbn for RecordEncoder<W>
+impl<W> EncodeRecord for RecordEncoder<W>
 where
     W: io::Write,
 {
@@ -353,6 +360,17 @@ where
         }
     }
 
+    fn flush(&mut self) -> Result<()> {
+        self.writer
+            .flush()
+            .map_err(|e| Error::io(e, "flushing output"))
+    }
+}
+
+impl<W> EncodeRecordRef for RecordEncoder<W>
+where
+    W: io::Write,
+{
     /// Encodes a single DBN record.
     ///
     /// # Safety
@@ -367,12 +385,6 @@ where
             Ok(()) => Ok(()),
             Err(e) => Err(Error::io(e, format!("serializing {record:?}"))),
         }
-    }
-
-    fn flush(&mut self) -> Result<()> {
-        self.writer
-            .flush()
-            .map_err(|e| Error::io(e, "flushing output"))
     }
 }
 

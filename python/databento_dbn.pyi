@@ -10,11 +10,16 @@ from typing import (
     BinaryIO,
     ClassVar,
     SupportsBytes,
+    TextIO,
     Union,
 )
 
 
 FIXED_PRICE_SCALE: int
+UNDEF_PRICE: int
+UNDEF_ORDER_SIZE: int
+UNDEF_STAT_QUANTITY: int
+UNDEF_TIMESTAMP: int
 
 
 _DBNRecord = Union[
@@ -2405,7 +2410,18 @@ class SystemMsg(Record):
 class DBNDecoder:
     """
     A class for decoding DBN data to Python objects.
+
+    Parameters
+    ----------
+    has_metadata : bool, default True
+        Whether the input bytes begin with DBN metadata. Pass False to decode
+        individual records or a fragment of a DBN stream.
+    ts_out : bool, default False
+        Whether the records include the server send timestamp ts_out. Only needs to be
+        specified if `has_metadata` is False.
     """
+
+    def __init__(self, has_metadata: bool = True, ts_out: bool = False): ...
 
     def buffer(self) -> bytes:
         """
@@ -2453,6 +2469,80 @@ class DBNDecoder:
         decode
 
         """
+
+class Transcoder:
+    """
+    A class for transcoding DBN i.e. converting it from one compression and encoding to
+    another.
+
+    Parameters
+    ----------
+    file : BinaryIO | TextIO
+        The file-like object to write the transcoded output to.
+    encoding : Encoding
+        The encoding for the output.
+    compression : Compression
+        The compression for the output.
+    pretty_px : bool, default True
+        Whether to serialize fixed-precision prices as decimal strings. Only applicable
+        to CSV and JSON.
+    pretty_ts : bool, default True
+        Whether to serialize nanosecond UNIX timestamps as ISO8601 datetime strings.
+        Only applicable to CSV and JSON.
+    has_metadata : bool, default True
+        Whether the input bytes begin with DBN metadata. Pass False to transcode
+        individual records or a fragment of a DBN stream.
+    ts_out : bool, default False
+        Whether the records include the server send timestamp ts_out. Only needs to be
+        specified if `has_metadata` is False.
+    input_compression: Compression | None, default None
+        Override the compression of the input. By default it will attempt to detect
+        whether the input is compressed.
+    """
+
+    def __init__(
+        self,
+        file: BinaryIO | TextIO,
+        encoding: Encoding,
+        compression: Compression,
+        pretty_px: bool = True,
+        pretty_ts: bool = True,
+        has_metadata: bool = True,
+        ts_out: bool = False,
+        input_compression: Compression | None = None
+    ): ...
+    def buffer(self) -> bytes:
+        """
+        Return the internal buffer of the decoder.
+
+        Returns
+        -------
+        bytes
+        """
+    def write(
+        self,
+        bytes: bytes,
+    ) -> None:
+        """
+        Write a sequence of bytes to the internal buffer for transcoding.
+
+        Raises
+        ------
+        ValueError
+            When the write to the internal buffer or the output fails.
+        """
+    def flush(
+        self,
+    ) -> None:
+        """
+        Flushes remaining bytes from buffer through to the output file.
+
+        Raises
+        ------
+        ValueError
+            When the write to the output fails.
+        """
+
 
 def update_encoded_metadata(
     file: BinaryIO,

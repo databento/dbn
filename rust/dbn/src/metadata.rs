@@ -1,5 +1,6 @@
 //! Contains [`Metadata`] struct which comes at the beginning of any DBN file or
 //! stream and [`MetadataBuilder`] for creating a [`Metadata`] with defaults.
+use std::collections::HashMap;
 use std::num::NonZeroU64;
 
 // Dummy derive macro to get around `cfg_attr` incompatibility of several
@@ -62,6 +63,99 @@ pub struct Metadata {
     pub not_found: Vec<String>,
     /// Symbol mappings containing a raw symbol and its mapping intervals.
     pub mappings: Vec<SymbolMapping>,
+}
+
+impl Metadata {
+    /// Creates a builder for building `Metadata`. Call `.dataset(...)`, `.schema(...)`,
+    /// `.start(...)` `.stype_in(...)`, and `.stype_out(...)` on the builder to set the
+    /// required fields. Finally call `.build()` to create the `Metadata` instance.
+    pub fn builder() -> MetadataBuilder<Unset, Unset, Unset, Unset, Unset> {
+        MetadataBuilder::default()
+    }
+
+    /// Parses the raw query start into a datetime.
+    pub fn start(&self) -> time::OffsetDateTime {
+        // `u64::MAX` is within the allowable range for `OffsetDateTime`s
+        time::OffsetDateTime::from_unix_timestamp_nanos(self.start as i128).unwrap()
+    }
+
+    /// Parses the raw query end time or the timestamp of the last record into a
+    /// datetime. Returns `None` if  the end time was not specified.
+    pub fn end(&self) -> Option<time::OffsetDateTime> {
+        self.end
+            .map(|end| time::OffsetDateTime::from_unix_timestamp_nanos(end.get() as i128).unwrap())
+    }
+
+    /// Creates a symbology mapping from instrument ID to text symbol for the given
+    /// date.
+    ///
+    /// This method is useful when working with a historical request over a single day
+    /// or in other situations where you're sure the mappings don't change during the
+    /// time range of the request. Otherwise, [`Self::symbol_map()`] is recommmended.
+    ///
+    /// # Errors
+    /// This function returns an error if it can't parse a symbol into a `u32`
+    /// instrument ID.
+    pub fn symbol_map_for_date(&self, date: time::Date) -> crate::Result<HashMap<u32, &str>> {
+        if date < self.start().date() || self.end().map_or(false, |end| end.date() <= date) {
+            return Err(crate::Error::BadArgument {
+                param_name: "date".to_owned(),
+                desc: "Outside the query range".to_owned(),
+            });
+        }
+        let mut index = HashMap::new();
+        for mapping in self.mappings.iter() {
+            if let Some(interval) = mapping
+                .intervals
+                .iter()
+                .find(|interval| date >= interval.start_date && date < interval.end_date)
+            {
+                // handle old symbology format
+                if interval.symbol.is_empty() {
+                    continue;
+                }
+                let iid = interval
+                    .symbol
+                    .parse()
+                    .map_err(|_| crate::Error::conversion::<u32>(interval.symbol.as_str()))?;
+                index.insert(iid, mapping.raw_symbol.as_str());
+            }
+        }
+        Ok(index)
+    }
+
+    /// Creates a symbology mapping from instrument ID and date to text symbol.
+    ///
+    /// If you're working with a single date or otherwise don't expect the mappings to
+    /// change, [`Self::symbol_map_for_date()`] is recommended.
+    ///
+    /// # Errors
+    /// This function returns an error if it can't parse a symbol into a `u32`
+    /// instrument ID.
+    pub fn symbol_map(&self) -> crate::Result<HashMap<(time::Date, u32), &str>> {
+        let mut index = HashMap::new();
+        for mapping in self.mappings.iter() {
+            for interval in mapping.intervals.iter() {
+                // handle old symbology format
+                if interval.symbol.is_empty() {
+                    continue;
+                }
+                let mut day = interval.start_date;
+                let iid = interval
+                    .symbol
+                    .parse()
+                    .map_err(|_| crate::Error::conversion::<u32>(interval.symbol.as_str()))?;
+                loop {
+                    index.insert((day, iid), mapping.raw_symbol.as_str());
+                    day = day.next_day().unwrap();
+                    if day == interval.end_date {
+                        break;
+                    }
+                }
+            }
+        }
+        Ok(index)
+    }
 }
 
 /// Helper for constructing [`Metadata`] structs with defaults.
@@ -337,4 +431,490 @@ fn deserialize_date<'de, D: serde::Deserializer<'de>>(
 ) -> Result<time::Date, D::Error> {
     let date_str = String::deserialize(deserializer)?;
     time::Date::parse(&date_str, DATE_FORMAT).map_err(serde::de::Error::custom)
+}
+
+#[cfg(test)]
+mod tests {
+    use time::macros::{date, datetime};
+
+    use crate::publishers::Dataset;
+
+    use super::*;
+
+    fn metadata_w_mappings() -> Metadata {
+        MetadataBuilder::new()
+            .dataset(Dataset::XnasItch.as_str().to_owned())
+            .schema(Some(Schema::Trades))
+            .stype_in(Some(SType::RawSymbol))
+            .stype_out(SType::InstrumentId)
+            .start(datetime!(2023-07-01 00:00 UTC).unix_timestamp_nanos() as u64)
+            .end(NonZeroU64::new(
+                datetime!(2023-08-01 00:00 UTC).unix_timestamp_nanos() as u64,
+            ))
+            .mappings(vec![
+                SymbolMapping {
+                    raw_symbol: "AAPL".to_owned(),
+                    intervals: vec![MappingInterval {
+                        start_date: date!(2023 - 07 - 01),
+                        end_date: date!(2023 - 08 - 01),
+                        symbol: "32".to_owned(),
+                    }],
+                },
+                SymbolMapping {
+                    raw_symbol: "TSLA".to_owned(),
+                    intervals: vec![
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 01),
+                            end_date: date!(2023 - 07 - 03),
+                            symbol: "10221".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 03),
+                            end_date: date!(2023 - 07 - 05),
+                            symbol: "10213".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 05),
+                            end_date: date!(2023 - 07 - 06),
+                            symbol: "10209".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 06),
+                            end_date: date!(2023 - 07 - 07),
+                            symbol: "10206".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 07),
+                            end_date: date!(2023 - 07 - 10),
+                            symbol: "10201".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 10),
+                            end_date: date!(2023 - 07 - 11),
+                            symbol: "10193".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 11),
+                            end_date: date!(2023 - 07 - 12),
+                            symbol: "10192".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 12),
+                            end_date: date!(2023 - 07 - 13),
+                            symbol: "10189".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 13),
+                            end_date: date!(2023 - 07 - 14),
+                            symbol: "10191".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 14),
+                            end_date: date!(2023 - 07 - 17),
+                            symbol: "10188".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 17),
+                            end_date: date!(2023 - 07 - 20),
+                            symbol: "10186".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 20),
+                            end_date: date!(2023 - 07 - 21),
+                            symbol: "10184".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 21),
+                            end_date: date!(2023 - 07 - 24),
+                            symbol: "10181".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 24),
+                            end_date: date!(2023 - 07 - 25),
+                            symbol: "10174".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 25),
+                            end_date: date!(2023 - 07 - 26),
+                            symbol: "10172".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 26),
+                            end_date: date!(2023 - 07 - 27),
+                            symbol: "10169".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 27),
+                            end_date: date!(2023 - 07 - 28),
+                            symbol: "10168".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 28),
+                            end_date: date!(2023 - 07 - 31),
+                            symbol: "10164".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 31),
+                            end_date: date!(2023 - 08 - 01),
+                            symbol: "10163".to_owned(),
+                        },
+                    ],
+                },
+                SymbolMapping {
+                    raw_symbol: "MSFT".to_owned(),
+                    intervals: vec![
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 01),
+                            end_date: date!(2023 - 07 - 03),
+                            symbol: "6854".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 03),
+                            end_date: date!(2023 - 07 - 05),
+                            symbol: "6849".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 05),
+                            end_date: date!(2023 - 07 - 06),
+                            symbol: "6846".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 06),
+                            end_date: date!(2023 - 07 - 07),
+                            symbol: "6843".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 07),
+                            end_date: date!(2023 - 07 - 10),
+                            symbol: "6840".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 10),
+                            end_date: date!(2023 - 07 - 11),
+                            symbol: "6833".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 11),
+                            end_date: date!(2023 - 07 - 12),
+                            symbol: "6830".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 12),
+                            end_date: date!(2023 - 07 - 13),
+                            symbol: "6826".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 13),
+                            end_date: date!(2023 - 07 - 17),
+                            symbol: "6827".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 17),
+                            end_date: date!(2023 - 07 - 18),
+                            symbol: "6824".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 18),
+                            end_date: date!(2023 - 07 - 19),
+                            symbol: "6823".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 19),
+                            end_date: date!(2023 - 07 - 20),
+                            symbol: "6822".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 20),
+                            end_date: date!(2023 - 07 - 21),
+                            symbol: "6818".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 21),
+                            end_date: date!(2023 - 07 - 24),
+                            symbol: "6815".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 24),
+                            end_date: date!(2023 - 07 - 25),
+                            symbol: "6814".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 25),
+                            end_date: date!(2023 - 07 - 26),
+                            symbol: "6812".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 26),
+                            end_date: date!(2023 - 07 - 27),
+                            symbol: "6810".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 27),
+                            end_date: date!(2023 - 07 - 28),
+                            symbol: "6808".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 28),
+                            end_date: date!(2023 - 07 - 31),
+                            symbol: "6805".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 31),
+                            end_date: date!(2023 - 08 - 01),
+                            symbol: "6803".to_owned(),
+                        },
+                    ],
+                },
+                SymbolMapping {
+                    raw_symbol: "NVDA".to_owned(),
+                    intervals: vec![
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 01),
+                            end_date: date!(2023 - 07 - 03),
+                            symbol: "7348".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 03),
+                            end_date: date!(2023 - 07 - 05),
+                            symbol: "7343".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 05),
+                            end_date: date!(2023 - 07 - 06),
+                            symbol: "7340".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 06),
+                            end_date: date!(2023 - 07 - 07),
+                            symbol: "7337".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 07),
+                            end_date: date!(2023 - 07 - 10),
+                            symbol: "7335".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 10),
+                            end_date: date!(2023 - 07 - 11),
+                            symbol: "7328".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 11),
+                            end_date: date!(2023 - 07 - 12),
+                            symbol: "7325".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 12),
+                            end_date: date!(2023 - 07 - 13),
+                            symbol: "7321".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 13),
+                            end_date: date!(2023 - 07 - 17),
+                            symbol: "7322".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 17),
+                            end_date: date!(2023 - 07 - 18),
+                            symbol: "7320".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 18),
+                            end_date: date!(2023 - 07 - 19),
+                            symbol: "7319".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 19),
+                            end_date: date!(2023 - 07 - 20),
+                            symbol: "7318".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 20),
+                            end_date: date!(2023 - 07 - 21),
+                            symbol: "7314".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 21),
+                            end_date: date!(2023 - 07 - 24),
+                            symbol: "7311".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 24),
+                            end_date: date!(2023 - 07 - 25),
+                            symbol: "7310".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 25),
+                            end_date: date!(2023 - 07 - 26),
+                            symbol: "7308".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 26),
+                            end_date: date!(2023 - 07 - 27),
+                            symbol: "7303".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 27),
+                            end_date: date!(2023 - 07 - 28),
+                            symbol: "7301".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 28),
+                            end_date: date!(2023 - 07 - 31),
+                            symbol: "7298".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 31),
+                            end_date: date!(2023 - 08 - 01),
+                            symbol: "7295".to_owned(),
+                        },
+                    ],
+                },
+                SymbolMapping {
+                    raw_symbol: "PLTR".to_owned(),
+                    intervals: vec![
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 01),
+                            end_date: date!(2023 - 07 - 03),
+                            symbol: "8043".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 03),
+                            end_date: date!(2023 - 07 - 05),
+                            symbol: "8038".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 05),
+                            end_date: date!(2023 - 07 - 06),
+                            symbol: "8035".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 06),
+                            end_date: date!(2023 - 07 - 07),
+                            symbol: "8032".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 07),
+                            end_date: date!(2023 - 07 - 10),
+                            symbol: "8029".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 10),
+                            end_date: date!(2023 - 07 - 11),
+                            symbol: "8022".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 11),
+                            end_date: date!(2023 - 07 - 12),
+                            symbol: "8019".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 12),
+                            end_date: date!(2023 - 07 - 13),
+                            symbol: "8015".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 13),
+                            end_date: date!(2023 - 07 - 17),
+                            symbol: "8016".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 17),
+                            end_date: date!(2023 - 07 - 19),
+                            symbol: "8014".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 19),
+                            end_date: date!(2023 - 07 - 20),
+                            symbol: "8013".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 20),
+                            end_date: date!(2023 - 07 - 21),
+                            symbol: "8009".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 21),
+                            end_date: date!(2023 - 07 - 24),
+                            symbol: "8006".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 24),
+                            end_date: date!(2023 - 07 - 25),
+                            symbol: "8005".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 25),
+                            end_date: date!(2023 - 07 - 26),
+                            symbol: "8003".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 26),
+                            end_date: date!(2023 - 07 - 27),
+                            symbol: "7999".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 27),
+                            end_date: date!(2023 - 07 - 28),
+                            symbol: "7997".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 28),
+                            end_date: date!(2023 - 07 - 31),
+                            symbol: "7994".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2023 - 07 - 31),
+                            end_date: date!(2023 - 08 - 01),
+                            // test old symbology format
+                            symbol: String::new(),
+                        },
+                    ],
+                },
+            ])
+            .build()
+    }
+
+    #[test]
+    fn test_symbol_map_for_date() {
+        let target = metadata_w_mappings();
+        let symbol_map_for_date = target.symbol_map_for_date(date!(2023 - 07 - 31)).unwrap();
+        assert_eq!(symbol_map_for_date.len(), 4);
+        assert_eq!(symbol_map_for_date[&32], "AAPL");
+        assert_eq!(symbol_map_for_date[&7295], "NVDA");
+        // NVDA from previous day
+        assert!(!symbol_map_for_date.contains_key(&7298));
+        assert_eq!(symbol_map_for_date[&10163], "TSLA");
+        assert_eq!(symbol_map_for_date[&6803], "MSFT");
+    }
+
+    #[test]
+    fn test_symbol_map_for_date_out_of_range() {
+        let target = metadata_w_mappings();
+        let mut res = target.symbol_map_for_date(date!(2023 - 08 - 01));
+        assert!(
+            matches!(res, Err(crate::Error::BadArgument { param_name, desc: _ }) if param_name == "date")
+        );
+        res = target.symbol_map_for_date(date!(2023 - 06 - 30));
+        assert!(
+            matches!(res, Err(crate::Error::BadArgument { param_name, desc: _ }) if param_name == "date")
+        );
+    }
+
+    #[test]
+    fn test_symbol_map() {
+        let target = metadata_w_mappings();
+        let symbol_map = target.symbol_map().unwrap();
+        assert_eq!(symbol_map[&(date!(2023 - 07 - 02), 32)], "AAPL");
+        assert_eq!(symbol_map[&(date!(2023 - 07 - 30), 32)], "AAPL");
+        assert_eq!(symbol_map[&(date!(2023 - 07 - 31), 32)], "AAPL");
+        assert!(!symbol_map.contains_key(&(date!(2023 - 08 - 01), 32)));
+        assert_eq!(symbol_map[&(date!(2023 - 07 - 08), 8029)], "PLTR");
+        assert!(!symbol_map.contains_key(&(date!(2023 - 07 - 10), 8029)));
+        assert_eq!(symbol_map[&(date!(2023 - 07 - 10), 8022)], "PLTR");
+        assert_eq!(symbol_map[&(date!(2023 - 07 - 20), 10184)], "TSLA");
+        assert_eq!(symbol_map[&(date!(2023 - 07 - 21), 10181)], "TSLA");
+        assert_eq!(symbol_map[&(date!(2023 - 07 - 24), 10174)], "TSLA");
+        assert_eq!(symbol_map[&(date!(2023 - 07 - 25), 10172)], "TSLA");
+    }
 }

@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.10.0 - 2023-09-07
+### Enhancements
+- Added `start` and `end` getters to `Metadata` that return `time::OffsetDateTime`
+- Added `symbol_map` and `symbol_map_for_date` methods to `Metadata` to aid historical
+  symbology mapping from the instrument IDs in records
+- Added `DynReader` struct for being agnostic about whether an input stream is
+  zstd-compressed
+- Improved safety of `RecordRef::get` by adding length check
+- Added Python DBN `Transcoder` class for converting DBN to JSON and CSV with optional
+  zstd compression
+- Added optional `has_metadata` parameter to Python `DBNDecoder` to allow
+  decoding plain records by passing `False`. By default `DBNDecoder` expects a complete
+  DBN stream, which begins with metadata
+- Added `get_ref` methods to `dbn::Decoder` and `dbn::RecordDecoder` which return a
+  reference to the inner reader
+- Added `UNDEF_PRICE`, `UNDEF_ORDER_SIZE`, `UNDEF_STAT_QUANTITY`, and `UNDEF_TIMESTAMP`
+  constants to `databento_dbn` Python package to make it easier to filter null values
+- Added `Metadata::builder()` function to create a new builder instance
+
+### Breaking changes
+- Split out `EncodeRecordRef` trait from `EncodeDbn` to have a boxable trait (i.e.
+  `Box<dyn EncodeRecordRef>`) for dynamic encoding
+- Split out `EncodeRecord` trait from `EncodeDbn`
+- Split out `DecodeRecordRef` trait from `DecodeDbn` to have a boxable trait (i.e.
+  `Box<dyn DecodeRecordRef>`) for dynamic decoding
+- Changed `DynWriter` from an enum to a struct with only private fields
+
+### Bug fixes
+- Fixed typo in `BATY.PITCH.BATY` publisher
+- Fixed typo in `README.md` (credit: @thomas-k-cameron)
+
 ## 0.9.0 - 2023-08-24
 ### Enhancements
 - Added `publisher` method to `RecordHeader` and all record types for converting

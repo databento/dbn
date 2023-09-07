@@ -30,7 +30,7 @@ use crate::{
     enums::{Compression, Encoding},
     record::HasRType,
     record_ref::RecordRef,
-    rtype_ts_out_dispatch, Metadata, Result,
+    Metadata, Result,
 };
 
 use self::{csv::serialize::CsvSerialize, json::serialize::JsonSerialize};
@@ -42,8 +42,8 @@ impl<T> DbnEncodable for T where
 {
 }
 
-/// Trait for types that encode DBN records with mixed schemas.
-pub trait EncodeDbn {
+/// Trait for types that encode a DBN record of a specific type.
+pub trait EncodeRecord {
     /// Encodes a single DBN record of type `R`.
     ///
     /// # Errors
@@ -51,6 +51,28 @@ pub trait EncodeDbn {
     /// or there's a serialization error.
     fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<()>;
 
+    /// Flushes any buffered content to the true output.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to flush the underlying writer.
+    fn flush(&mut self) -> Result<()>;
+}
+
+/// Trait for types that encode DBN records with mixed schemas.
+pub trait EncodeRecordRef {
+    /// Encodes a single DBN [`RecordRef`].
+    ///
+    /// # Safety
+    /// `ts_out` must be `false` if `record` does not have an appended `ts_out`.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to write to the underlying writer
+    /// or there's a serialization error.
+    unsafe fn encode_record_ref(&mut self, record: RecordRef, ts_out: bool) -> Result<()>;
+}
+
+/// Trait for types that encode DBN records with a specific record type.
+pub trait EncodeDbn: EncodeRecord + EncodeRecordRef {
     /// Encodes a slice of DBN records.
     ///
     /// # Errors
@@ -78,24 +100,6 @@ pub trait EncodeDbn {
         }
         self.flush()?;
         Ok(())
-    }
-
-    /// Flushes any buffered content to the true output.
-    ///
-    /// # Errors
-    /// This function returns an error if it's unable to flush the underlying writer.
-    fn flush(&mut self) -> Result<()>;
-
-    /// Encodes a single DBN record.
-    ///
-    /// # Safety
-    /// `ts_out` must be `false` if `record` does not have an appended `ts_out
-    ///
-    /// # Errors
-    /// This function returns an error if it's unable to write to the underlying writer
-    /// or there's a serialization error.
-    unsafe fn encode_record_ref(&mut self, record: RecordRef, ts_out: bool) -> Result<()> {
-        rtype_ts_out_dispatch!(record, ts_out, |rec| self.encode_record(rec))?
     }
 
     /// Encodes DBN records directly from a DBN decoder.
@@ -146,13 +150,15 @@ const ZSTD_COMPRESSION_LEVEL: i32 = 0;
 
 /// Type for runtime polymorphism over whether encoding uncompressed or ZStd-compressed
 /// DBN records. Implements [`std::io::Write`].
-pub enum DynWriter<'a, W>
+pub struct DynWriter<'a, W>(DynWriterImpl<'a, W>)
+where
+    W: io::Write;
+
+enum DynWriterImpl<'a, W>
 where
     W: io::Write,
 {
-    /// For writing uncompressed records.
     Uncompressed(W),
-    /// For writing Zstandard-compressed records.
     ZStd(zstd::stream::AutoFinishEncoder<'a, W>),
 }
 
@@ -166,16 +172,16 @@ where
     /// This function returns an error if it fails to initialize the Zstd compression.
     pub fn new(writer: W, compression: Compression) -> Result<Self> {
         match compression {
-            Compression::None => Ok(Self::Uncompressed(writer)),
-            Compression::ZStd => zstd_encoder(writer).map(Self::ZStd),
+            Compression::None => Ok(Self(DynWriterImpl::Uncompressed(writer))),
+            Compression::ZStd => zstd_encoder(writer).map(|enc| Self(DynWriterImpl::ZStd(enc))),
         }
     }
 
     /// Returns a mutable reference to the underlying writer.
     pub fn get_mut(&mut self) -> &mut W {
-        match self {
-            DynWriter::Uncompressed(w) => w,
-            DynWriter::ZStd(enc) => enc.get_mut(),
+        match &mut self.0 {
+            DynWriterImpl::Uncompressed(w) => w,
+            DynWriterImpl::ZStd(enc) => enc.get_mut(),
         }
     }
 }
@@ -194,37 +200,37 @@ where
     W: io::Write,
 {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        match self {
-            DynWriter::Uncompressed(writer) => writer.write(buf),
-            DynWriter::ZStd(writer) => writer.write(buf),
+        match &mut self.0 {
+            DynWriterImpl::Uncompressed(writer) => writer.write(buf),
+            DynWriterImpl::ZStd(writer) => writer.write(buf),
         }
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        match self {
-            DynWriter::Uncompressed(writer) => writer.flush(),
-            DynWriter::ZStd(writer) => writer.flush(),
+        match &mut self.0 {
+            DynWriterImpl::Uncompressed(writer) => writer.flush(),
+            DynWriterImpl::ZStd(writer) => writer.flush(),
         }
     }
 
     fn write_vectored(&mut self, bufs: &[io::IoSlice<'_>]) -> io::Result<usize> {
-        match self {
-            DynWriter::Uncompressed(writer) => writer.write_vectored(bufs),
-            DynWriter::ZStd(writer) => writer.write_vectored(bufs),
+        match &mut self.0 {
+            DynWriterImpl::Uncompressed(writer) => writer.write_vectored(bufs),
+            DynWriterImpl::ZStd(writer) => writer.write_vectored(bufs),
         }
     }
 
     fn write_all(&mut self, buf: &[u8]) -> io::Result<()> {
-        match self {
-            DynWriter::Uncompressed(writer) => writer.write_all(buf),
-            DynWriter::ZStd(writer) => writer.write_all(buf),
+        match &mut self.0 {
+            DynWriterImpl::Uncompressed(writer) => writer.write_all(buf),
+            DynWriterImpl::ZStd(writer) => writer.write_all(buf),
         }
     }
 
     fn write_fmt(&mut self, fmt: std::fmt::Arguments<'_>) -> io::Result<()> {
-        match self {
-            DynWriter::Uncompressed(writer) => writer.write_fmt(fmt),
-            DynWriter::ZStd(writer) => writer.write_fmt(fmt),
+        match &mut self.0 {
+            DynWriterImpl::Uncompressed(writer) => writer.write_fmt(fmt),
+            DynWriterImpl::ZStd(writer) => writer.write_fmt(fmt),
         }
     }
 }
@@ -287,7 +293,7 @@ where
     }
 }
 
-impl<'a, W> EncodeDbn for DynEncoder<'a, W>
+impl<'a, W> EncodeRecord for DynEncoder<'a, W>
 where
     W: io::Write,
 {
@@ -295,6 +301,24 @@ where
         self.0.encode_record(record)
     }
 
+    fn flush(&mut self) -> Result<()> {
+        self.0.flush()
+    }
+}
+
+impl<'a, W> EncodeRecordRef for DynEncoder<'a, W>
+where
+    W: io::Write,
+{
+    unsafe fn encode_record_ref(&mut self, record: RecordRef, ts_out: bool) -> Result<()> {
+        self.0.encode_record_ref(record, ts_out)
+    }
+}
+
+impl<'a, W> EncodeDbn for DynEncoder<'a, W>
+where
+    W: io::Write,
+{
     fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> Result<()> {
         self.0.encode_records(records)
     }
@@ -306,16 +330,42 @@ where
         self.0.encode_stream(stream)
     }
 
-    fn flush(&mut self) -> Result<()> {
-        self.0.flush()
-    }
-
-    unsafe fn encode_record_ref(&mut self, record: RecordRef, ts_out: bool) -> Result<()> {
-        self.0.encode_record_ref(record, ts_out)
-    }
-
     fn encode_decoded<D: DecodeDbn>(&mut self, decoder: D) -> Result<()> {
         self.0.encode_decoded(decoder)
+    }
+}
+
+impl<'a, W> EncodeRecord for DynEncoderImpl<'a, W>
+where
+    W: io::Write,
+{
+    fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<()> {
+        match self {
+            DynEncoderImpl::Dbn(enc) => enc.encode_record(record),
+            DynEncoderImpl::Csv(enc) => enc.encode_record(record),
+            DynEncoderImpl::Json(enc) => enc.encode_record(record),
+        }
+    }
+
+    fn flush(&mut self) -> Result<()> {
+        match self {
+            DynEncoderImpl::Dbn(enc) => enc.flush(),
+            DynEncoderImpl::Csv(enc) => enc.flush(),
+            DynEncoderImpl::Json(enc) => enc.flush(),
+        }
+    }
+}
+
+impl<'a, W> EncodeRecordRef for DynEncoderImpl<'a, W>
+where
+    W: io::Write,
+{
+    unsafe fn encode_record_ref(&mut self, record: RecordRef, ts_out: bool) -> Result<()> {
+        match self {
+            DynEncoderImpl::Dbn(enc) => enc.encode_record_ref(record, ts_out),
+            DynEncoderImpl::Csv(enc) => enc.encode_record_ref(record, ts_out),
+            DynEncoderImpl::Json(enc) => enc.encode_record_ref(record, ts_out),
+        }
     }
 }
 
@@ -330,12 +380,6 @@ where
 /// inner value.
 macro_rules! encoder_enum_dispatch {
     ($($variant:ident),*) => {
-        fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<()> {
-            match self {
-                $(Self::$variant(v) => v.encode_record(record),)*
-            }
-        }
-
         fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> Result<()> {
             match self {
                 $(Self::$variant(v) => v.encode_records(records),)*
@@ -348,22 +392,6 @@ macro_rules! encoder_enum_dispatch {
         ) -> Result<()> {
             match self {
                 $(Self::$variant(v) => v.encode_stream(stream),)*
-            }
-        }
-
-        fn flush(&mut self) -> Result<()> {
-            match self {
-                $(Self::$variant(v) => v.flush(),)*
-            }
-        }
-
-        unsafe fn encode_record_ref(
-            &mut self,
-            record: RecordRef,
-            ts_out: bool,
-        ) -> Result<()> {
-            match self {
-                $(Self::$variant(v) => v.encode_record_ref(record, ts_out),)*
             }
         }
 

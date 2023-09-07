@@ -9,11 +9,13 @@ use dbn::{
         BidAskPair, ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
         RecordHeader, StatMsg, StatusMsg, SymbolMappingMsg, SystemMsg, TradeMsg,
     },
-    Metadata, FIXED_PRICE_SCALE,
+    Metadata, FIXED_PRICE_SCALE, UNDEF_ORDER_SIZE, UNDEF_PRICE, UNDEF_STAT_QUANTITY,
+    UNDEF_TIMESTAMP,
 };
 
 mod dbn_decoder;
 mod encode;
+mod transcoder;
 
 /// A Python module wrapping dbn functions
 #[pymodule] // The name of the function must match `lib.name` in `Cargo.toml`
@@ -27,6 +29,7 @@ fn databento_dbn(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(encode::update_encoded_metadata))?;
     m.add_wrapped(wrap_pyfunction!(encode::write_dbn_file))?;
     checked_add_class::<dbn_decoder::DbnDecoder>(m)?;
+    checked_add_class::<transcoder::Transcoder>(m)?;
     checked_add_class::<Metadata>(m)?;
     checked_add_class::<EnumIterator>(m)?;
     // Records
@@ -51,6 +54,10 @@ fn databento_dbn(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     checked_add_class::<SType>(m)?;
     // constants
     m.add("FIXED_PRICE_SCALE", FIXED_PRICE_SCALE)?;
+    m.add("UNDEF_PRICE", UNDEF_PRICE)?;
+    m.add("UNDEF_ORDER_SIZE", UNDEF_ORDER_SIZE)?;
+    m.add("UNDEF_STAT_QUANTITY", UNDEF_STAT_QUANTITY)?;
+    m.add("UNDEF_TIMESTAMP", UNDEF_TIMESTAMP)?;
     Ok(())
 }
 

@@ -6,7 +6,7 @@ use std::{
 
 use crate::cfile::CFileRef;
 use dbn::{
-    encode::{csv, json, DbnEncodable, EncodeDbn},
+    encode::{csv, json, DbnEncodable, EncodeRecordRef},
     enums::{rtype, Schema},
     record::RecordHeader,
     record_ref::RecordRef,

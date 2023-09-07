@@ -3,8 +3,10 @@ use std::{io, num::NonZeroU64};
 
 use streaming_iterator::StreamingIterator;
 
-use super::EncodeDbn;
-use crate::{decode::DecodeDbn, enums::RType, schema_method_dispatch, Error, Result};
+use super::{EncodeDbn, EncodeRecord, EncodeRecordRef};
+use crate::{
+    decode::DecodeDbn, enums::RType, rtype_ts_out_dispatch, schema_method_dispatch, Error, Result,
+};
 
 /// Type for encoding files and streams of DBN records in CSV.
 ///
@@ -50,7 +52,7 @@ where
     }
 }
 
-impl<W> EncodeDbn for Encoder<W>
+impl<W> EncodeRecord for Encoder<W>
 where
     W: io::Write,
 {
@@ -73,6 +75,27 @@ where
         }
     }
 
+    fn flush(&mut self) -> Result<()> {
+        self.writer
+            .flush()
+            .map_err(|e| Error::io(e, "flushing output"))
+    }
+}
+
+impl<W> EncodeRecordRef for Encoder<W>
+where
+    W: io::Write,
+{
+    unsafe fn encode_record_ref(&mut self, record: crate::RecordRef, ts_out: bool) -> Result<()> {
+        #[allow(clippy::redundant_closure_call)]
+        rtype_ts_out_dispatch!(record, ts_out, |rec| self.encode_record(rec))?
+    }
+}
+
+impl<W> EncodeDbn for Encoder<W>
+where
+    W: io::Write,
+{
     fn encode_records<R: super::DbnEncodable>(&mut self, records: &[R]) -> Result<()> {
         self.encode_header::<R>()?;
         for record in records {
@@ -97,12 +120,6 @@ where
         }
         self.flush()?;
         Ok(())
-    }
-
-    fn flush(&mut self) -> Result<()> {
-        self.writer
-            .flush()
-            .map_err(|e| Error::io(e, "flushing output"))
     }
 
     /// Encode DBN records directly from a DBN decoder. This implemented outside
