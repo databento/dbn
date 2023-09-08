@@ -96,7 +96,7 @@ impl Metadata {
     /// # Errors
     /// This function returns an error if it can't parse a symbol into a `u32`
     /// instrument ID.
-    pub fn symbol_map_for_date(&self, date: time::Date) -> crate::Result<HashMap<u32, &str>> {
+    pub fn symbol_map_for_date(&self, date: time::Date) -> crate::Result<HashMap<u32, String>> {
         if date < self.start().date() || self.end().map_or(false, |end| end.date() <= date) {
             return Err(crate::Error::BadArgument {
                 param_name: "date".to_owned(),
@@ -118,7 +118,7 @@ impl Metadata {
                     .symbol
                     .parse()
                     .map_err(|_| crate::Error::conversion::<u32>(interval.symbol.as_str()))?;
-                index.insert(iid, mapping.raw_symbol.as_str());
+                index.insert(iid, mapping.raw_symbol.clone());
             }
         }
         Ok(index)
@@ -132,7 +132,7 @@ impl Metadata {
     /// # Errors
     /// This function returns an error if it can't parse a symbol into a `u32`
     /// instrument ID.
-    pub fn symbol_map(&self) -> crate::Result<HashMap<(time::Date, u32), &str>> {
+    pub fn symbol_map(&self) -> crate::Result<HashMap<(time::Date, u32), String>> {
         let mut index = HashMap::new();
         for mapping in self.mappings.iter() {
             for interval in mapping.intervals.iter() {
@@ -146,7 +146,7 @@ impl Metadata {
                     .parse()
                     .map_err(|_| crate::Error::conversion::<u32>(interval.symbol.as_str()))?;
                 loop {
-                    index.insert((day, iid), mapping.raw_symbol.as_str());
+                    index.insert((day, iid), mapping.raw_symbol.clone());
                     day = day.next_day().unwrap();
                     if day == interval.end_date {
                         break;

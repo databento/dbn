@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.1 - 2023-09-07
+
+### Bug fixes
+- Changed `Metadata::symbol_map` and `symbol_map_for_date` to return `String` values
+  instead of `&str`, which made it difficult to use
+
 ## 0.10.0 - 2023-09-07
 ### Enhancements
 - Added `start` and `end` getters to `Metadata` that return `time::OffsetDateTime`
