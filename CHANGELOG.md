@@ -3,6 +3,7 @@
 ## 0.10.2 - 2023-09-12
 ### Bug fixes
 - Fixed query range checking in `Metadata::symbol_map_for_date`
+- Added `debug_assert_eq!` check for alignment in `RecordRef::new`
 
 ## 0.10.1 - 2023-09-07
 ### Bug fixes
