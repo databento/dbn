@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.3 - TBD
+### Enhancements
+- Added `ARCX.PILLAR.ARCX` publisher
+
 ## 0.10.2 - 2023-09-12
 ### Bug fixes
 - Fixed query range checking in `Metadata::symbol_map_for_date`
