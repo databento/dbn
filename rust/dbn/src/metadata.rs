@@ -9,6 +9,7 @@ use std::num::NonZeroU64;
 pub use dbn_macros::MockPyo3;
 #[cfg(feature = "serde")]
 use serde::Deserialize;
+use time::{macros::time, PrimitiveDateTime};
 
 use crate::enums::{SType, Schema};
 use crate::record::as_u8_slice;
@@ -97,7 +98,9 @@ impl Metadata {
     /// This function returns an error if it can't parse a symbol into a `u32`
     /// instrument ID.
     pub fn symbol_map_for_date(&self, date: time::Date) -> crate::Result<HashMap<u32, String>> {
-        if date < self.start().date() || self.end().map_or(false, |end| end.date() <= date) {
+        let datetime = PrimitiveDateTime::new(date, time!(0:00)).assume_utc();
+        // need to compare with `end` as a datetime to handle midnight case
+        if date < self.start().date() || self.end().map_or(false, |end| datetime >= end) {
             return Err(crate::Error::BadArgument {
                 param_name: "date".to_owned(),
                 desc: "Outside the query range".to_owned(),
@@ -890,7 +893,7 @@ mod tests {
 
     #[test]
     fn test_symbol_map_for_date_out_of_range() {
-        let target = metadata_w_mappings();
+        let mut target = metadata_w_mappings();
         let mut res = target.symbol_map_for_date(date!(2023 - 08 - 01));
         assert!(
             matches!(res, Err(crate::Error::BadArgument { param_name, desc: _ }) if param_name == "date")
@@ -899,6 +902,15 @@ mod tests {
         assert!(
             matches!(res, Err(crate::Error::BadArgument { param_name, desc: _ }) if param_name == "date")
         );
+        target.end = NonZeroU64::new(datetime!(2023-07-01 08:00 UTC).unix_timestamp_nanos() as u64);
+        assert!(target.symbol_map_for_date(date!(2023 - 07 - 01)).is_ok());
+        assert!(target.symbol_map_for_date(date!(2023 - 07 - 02)).is_err());
+        target.end = NonZeroU64::new(datetime!(2023-07-02 00:00 UTC).unix_timestamp_nanos() as u64);
+        assert!(target.symbol_map_for_date(date!(2023 - 07 - 02)).is_err());
+        target.end = NonZeroU64::new(
+            datetime!(2023-07-02 00:00:00.000000001 UTC).unix_timestamp_nanos() as u64,
+        );
+        assert!(target.symbol_map_for_date(date!(2023 - 07 - 02)).is_ok());
     }
 
     #[test]

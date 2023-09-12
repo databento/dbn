@@ -1,10 +1,17 @@
-//! The official crate for working with the [Databento](https://databento.com) Binary
-//! Encoding (DBN), a fast message encoding and storage format for normalized market
-//! data. The DBN specification includes a simple metadata header, and a fixed set of
-//! struct definitions, which enforce a standardized way to normalize market data.
+//! The official crate for working with [**D**atabento](https://databento.com)
+//! **B**inary E**n**coding (DBN), an extremely fast message encoding and storage format
+//! for normalized market data. The DBN specification includes a simple, self-describing
+//! metadata header and a fixed set of struct definitions, which enforce a standardized
+//! way to normalize market data.
 //!
-//! The crate supports reading DBN files and streams and converting them to other
-//! [`Encoding`](enums::Encoding)s, as well as updating legacy DBZ files to DBN.
+//! All official Databento client libraries use DBN under the hood, both as a data
+//! interchange format and for in-memory representation of data. DBN is also the default
+//! encoding for all Databento APIs, including live data streaming, historical data
+//! streaming, and batch flat files.
+//!
+//! The crate supports reading and writing DBN files and streams, as well as converting
+//! them to other [`Encoding`](enums::Encoding)s. It can also be used to update legacy
+//! DBZ files to DBN.
 //!
 //! This crate provides:
 //! - [Decoders](crate::decode) for DBN and DBZ (the precursor to DBN), both

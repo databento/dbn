@@ -1,7 +1,10 @@
 # Changelog
 
-## 0.10.1 - 2023-09-07
+## 0.10.2 - 2023-09-12
+### Bug fixes
+- Fixed query range checking in `Metadata::symbol_map_for_date`
 
+## 0.10.1 - 2023-09-07
 ### Bug fixes
 - Changed `Metadata::symbol_map` and `symbol_map_for_date` to return `String` values
   instead of `&str`, which made it difficult to use
