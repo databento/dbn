@@ -4,8 +4,8 @@
 ![license](https://img.shields.io/github/license/databento/dbn?color=blue)
 [![Current Crates.io Version](https://img.shields.io/crates/v/dbn-cli.svg)](https://crates.io/crates/dbn-cli)
 
-This crate provides a CLI tool `dbn` for converting the Databento Binary
-Encoding (DBN) files to text formats, as well as updating legacy DBZ files to
+This crate provides a CLI tool `dbn` for converting [Databento](https://databento.com)
+Binary Encoding (DBN) files to text formats, as well as updating legacy DBZ files to
 DBN.
 
 ## Installation
