@@ -1,9 +1,9 @@
 use std::io;
 
-use super::serialize::to_json_string;
+use super::serialize::{to_json_string, to_json_string_with_sym};
 use crate::{
-    encode::{DbnEncodable, EncodeDbn, EncodeRecord, EncodeRecordRef},
-    rtype_ts_out_dispatch, Error, Metadata, Result,
+    encode::{DbnEncodable, EncodeDbn, EncodeRecord, EncodeRecordRef, EncodeRecordTextExt},
+    rtype_dispatch, rtype_ts_out_dispatch, Error, Metadata, Result,
 };
 
 /// Type for encoding files and streams of DBN records in newline-delimited JSON (ndjson).
@@ -94,13 +94,45 @@ impl<W> EncodeRecordRef for Encoder<W>
 where
     W: io::Write,
 {
-    unsafe fn encode_record_ref(&mut self, record: crate::RecordRef, ts_out: bool) -> Result<()> {
+    fn encode_record_ref(&mut self, record: crate::RecordRef) -> Result<()> {
+        #[allow(clippy::redundant_closure_call)]
+        rtype_dispatch!(record, |rec| self.encode_record(rec))?
+    }
+
+    unsafe fn encode_record_ref_ts_out(
+        &mut self,
+        record: crate::RecordRef,
+        ts_out: bool,
+    ) -> Result<()> {
         #[allow(clippy::redundant_closure_call)]
         rtype_ts_out_dispatch!(record, ts_out, |rec| self.encode_record(rec))?
     }
 }
 
 impl<W> EncodeDbn for Encoder<W> where W: io::Write {}
+
+impl<W> EncodeRecordTextExt for Encoder<W>
+where
+    W: io::Write,
+{
+    fn encode_record_with_sym<R: DbnEncodable>(
+        &mut self,
+        record: &R,
+        symbol: Option<&str>,
+    ) -> Result<()> {
+        let json = to_json_string_with_sym(
+            record,
+            self.should_pretty_print,
+            self.use_pretty_px,
+            self.use_pretty_ts,
+            symbol,
+        );
+        match self.writer.write_all(json.as_bytes()) {
+            Ok(()) => Ok(()),
+            Err(e) => Err(Error::io(e, "writing record")),
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -114,14 +146,14 @@ mod tests {
             test_data::{VecStream, BID_ASK, RECORD_HEADER},
         },
         enums::{
-            InstrumentClass, SType, Schema, SecurityUpdateAction, StatType, StatUpdateAction,
-            UserDefinedInstrument,
+            rtype, InstrumentClass, SType, Schema, SecurityUpdateAction, StatType,
+            StatUpdateAction, UserDefinedInstrument,
         },
         record::{
             str_to_c_chars, ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg,
-            OhlcvMsg, StatMsg, StatusMsg, TradeMsg, WithTsOut,
+            OhlcvMsg, RecordHeader, StatMsg, StatusMsg, TradeMsg, WithTsOut,
         },
-        MappingInterval, SymbolMapping,
+        MappingInterval, RecordRef, SymbolMapping, FIXED_PRICE_SCALE,
     };
 
     fn write_json_to_string<R>(
@@ -134,10 +166,14 @@ mod tests {
         R: DbnEncodable,
     {
         let mut buffer = Vec::new();
-        let writer = BufWriter::new(&mut buffer);
-        Encoder::new(writer, should_pretty_print, use_pretty_px, use_pretty_ts)
-            .encode_records(records)
-            .unwrap();
+        Encoder::new(
+            &mut buffer,
+            should_pretty_print,
+            use_pretty_px,
+            use_pretty_ts,
+        )
+        .encode_records(records)
+        .unwrap();
         String::from_utf8(buffer).expect("valid UTF-8")
     }
 
@@ -594,5 +630,28 @@ mod tests {
         write_c_char_field(&mut writer, "test", 0);
         drop(writer);
         assert_eq!(buf, r#"{"test":null}"#);
+    }
+
+    #[test]
+    fn test_encode_ref_with_sym() {
+        let mut buffer = Vec::new();
+        const BAR: OhlcvMsg = OhlcvMsg {
+            hd: RecordHeader::new::<OhlcvMsg>(rtype::OHLCV_1H, 10, 9, 0),
+            open: 175 * FIXED_PRICE_SCALE,
+            high: 177 * FIXED_PRICE_SCALE,
+            low: 174 * FIXED_PRICE_SCALE,
+            close: 175 * FIXED_PRICE_SCALE,
+            volume: 4033445,
+        };
+        let rec_ref = unsafe { RecordRef::unchecked_from_header(&BAR.hd as *const RecordHeader) };
+        let mut encoder = Encoder::new(&mut buffer, false, false, false);
+        encoder.encode_ref_with_sym(rec_ref, None).unwrap();
+        encoder.encode_ref_with_sym(rec_ref, Some("AAPL")).unwrap();
+        let res = String::from_utf8(buffer).unwrap();
+        assert_eq!(
+            res,
+            "{\"hd\":{\"ts_event\":\"0\",\"rtype\":34,\"publisher_id\":10,\"instrument_id\":9},\"open\":\"175000000000\",\"high\":\"177000000000\",\"low\":\"174000000000\",\"close\":\"175000000000\",\"volume\":\"4033445\",\"symbol\":null}\n\
+            {\"hd\":{\"ts_event\":\"0\",\"rtype\":34,\"publisher_id\":10,\"instrument_id\":9},\"open\":\"175000000000\",\"high\":\"177000000000\",\"low\":\"174000000000\",\"close\":\"175000000000\",\"volume\":\"4033445\",\"symbol\":\"AAPL\"}\n",
+        );
     }
 }

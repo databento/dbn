@@ -40,8 +40,7 @@ pub mod decode;
 pub mod encode;
 pub mod enums;
 pub mod error;
-#[doc(hidden)]
-pub mod json_writer;
+mod json_writer;
 pub mod macros;
 pub mod metadata;
 pub mod pretty;

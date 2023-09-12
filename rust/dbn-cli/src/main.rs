@@ -83,7 +83,7 @@ fn write_dbn_frag<R: io::Read>(
     let mut n = 0;
     while let Some(record) = decoder.decode_record_ref()? {
         // Assume no ts_out for safety
-        match unsafe { encoder.encode_record_ref(record, false) } {
+        match encoder.encode_record_ref(record) {
             // Handle broken pipe as a non-error.
             Err(dbn::Error::Io { source, .. })
                 if source.kind() == std::io::ErrorKind::BrokenPipe =>

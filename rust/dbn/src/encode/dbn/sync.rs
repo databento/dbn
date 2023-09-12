@@ -78,6 +78,10 @@ impl<W> EncodeRecordRef for Encoder<W>
 where
     W: io::Write,
 {
+    fn encode_record_ref(&mut self, record: RecordRef) -> Result<()> {
+        self.record_encoder.encode_record_ref(record)
+    }
+
     /// Encodes a single DBN record.
     ///
     /// # Safety
@@ -87,8 +91,8 @@ where
     /// # Errors
     /// This function will return an error if it fails to encode `record` to
     /// `writer`.
-    unsafe fn encode_record_ref(&mut self, record: RecordRef, ts_out: bool) -> Result<()> {
-        self.record_encoder.encode_record_ref(record, ts_out)
+    unsafe fn encode_record_ref_ts_out(&mut self, record: RecordRef, ts_out: bool) -> Result<()> {
+        self.record_encoder.encode_record_ref_ts_out(record, ts_out)
     }
 }
 
@@ -372,6 +376,13 @@ impl<W> EncodeRecordRef for RecordEncoder<W>
 where
     W: io::Write,
 {
+    fn encode_record_ref(&mut self, record: RecordRef) -> Result<()> {
+        match self.writer.write_all(record.as_ref()) {
+            Ok(()) => Ok(()),
+            Err(e) => Err(Error::io(e, format!("serializing {record:?}"))),
+        }
+    }
+
     /// Encodes a single DBN record.
     ///
     /// # Safety
@@ -381,11 +392,8 @@ where
     /// # Errors
     /// This function will return an error if it fails to encode `record` to
     /// `writer`.
-    unsafe fn encode_record_ref(&mut self, record: RecordRef, _ts_out: bool) -> Result<()> {
-        match self.writer.write_all(record.as_ref()) {
-            Ok(()) => Ok(()),
-            Err(e) => Err(Error::io(e, format!("serializing {record:?}"))),
-        }
+    unsafe fn encode_record_ref_ts_out(&mut self, record: RecordRef, _ts_out: bool) -> Result<()> {
+        self.encode_record_ref(record)
     }
 }
 

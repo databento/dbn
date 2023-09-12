@@ -9,7 +9,7 @@ use crate::{
 
 /// A wrapper around a non-owning immutable reference to a DBN record. This wrapper
 /// allows for mixing of record types and schemas, and runtime record polymorphism.
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct RecordRef<'a> {
     ptr: NonNull<RecordHeader>,
     /// Associates the object with the lifetime of the memory pointed to by `ptr`.

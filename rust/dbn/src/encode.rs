@@ -24,13 +24,12 @@ pub use self::{
     json::Encoder as JsonEncoder,
 };
 
-use crate::Error;
 use crate::{
     decode::DecodeDbn,
     enums::{Compression, Encoding},
     record::HasRType,
     record_ref::RecordRef,
-    Metadata, Result,
+    rtype_dispatch, Error, Metadata, Result,
 };
 
 use self::{csv::serialize::CsvSerialize, json::serialize::JsonSerialize};
@@ -62,13 +61,21 @@ pub trait EncodeRecord {
 pub trait EncodeRecordRef {
     /// Encodes a single DBN [`RecordRef`].
     ///
+    /// # Errors
+    /// This function returns an error if it's unable to write to the underlying writer
+    /// or there's a serialization error.
+    fn encode_record_ref(&mut self, record: RecordRef) -> Result<()>;
+
+    /// Encodes a single DBN [`RecordRef`] with an optional `ts_out` (see
+    /// [`record::WithTsOut`](crate::record::WithTsOut)).
+    ///
     /// # Safety
     /// `ts_out` must be `false` if `record` does not have an appended `ts_out`.
     ///
     /// # Errors
     /// This function returns an error if it's unable to write to the underlying writer
     /// or there's a serialization error.
-    unsafe fn encode_record_ref(&mut self, record: RecordRef, ts_out: bool) -> Result<()>;
+    unsafe fn encode_record_ref_ts_out(&mut self, record: RecordRef, ts_out: bool) -> Result<()>;
 }
 
 /// Trait for types that encode DBN records with a specific record type.
@@ -112,7 +119,7 @@ pub trait EncodeDbn: EncodeRecord + EncodeRecordRef {
         while let Some(record) = decoder.decode_record_ref()? {
             // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
             // from the metadata header.
-            unsafe { self.encode_record_ref(record, ts_out) }?;
+            unsafe { self.encode_record_ref_ts_out(record, ts_out) }?;
         }
         self.flush()?;
         Ok(())
@@ -134,7 +141,7 @@ pub trait EncodeDbn: EncodeRecord + EncodeRecordRef {
         while let Some(record) = decoder.decode_record_ref()? {
             // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
             // from the metadata header.
-            unsafe { self.encode_record_ref(record, ts_out) }?;
+            unsafe { self.encode_record_ref_ts_out(record, ts_out) }?;
             i += 1;
             if i == limit.get() {
                 break;
@@ -142,6 +149,30 @@ pub trait EncodeDbn: EncodeRecord + EncodeRecordRef {
         }
         self.flush()?;
         Ok(())
+    }
+}
+
+/// Extension trait for text encodings.
+pub trait EncodeRecordTextExt: EncodeRecord + EncodeRecordRef {
+    /// Encodes a single DBN record of type `R` along with the record's text symbol.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to write to the underlying writer
+    /// or there's a serialization error.
+    fn encode_record_with_sym<R: DbnEncodable>(
+        &mut self,
+        record: &R,
+        symbol: Option<&str>,
+    ) -> Result<()>;
+
+    /// Encodes a single DBN [`RecordRef`] along with the record's text symbol.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to write to the underlying writer
+    /// or there's a serialization error.
+    fn encode_ref_with_sym(&mut self, record: RecordRef, symbol: Option<&str>) -> Result<()> {
+        #[allow(clippy::redundant_closure_call)]
+        rtype_dispatch!(record, |rec| self.encode_record_with_sym(rec, symbol))?
     }
 }
 
@@ -310,8 +341,12 @@ impl<'a, W> EncodeRecordRef for DynEncoder<'a, W>
 where
     W: io::Write,
 {
-    unsafe fn encode_record_ref(&mut self, record: RecordRef, ts_out: bool) -> Result<()> {
-        self.0.encode_record_ref(record, ts_out)
+    fn encode_record_ref(&mut self, record: RecordRef) -> Result<()> {
+        self.0.encode_record_ref(record)
+    }
+
+    unsafe fn encode_record_ref_ts_out(&mut self, record: RecordRef, ts_out: bool) -> Result<()> {
+        self.0.encode_record_ref_ts_out(record, ts_out)
     }
 }
 
@@ -360,11 +395,19 @@ impl<'a, W> EncodeRecordRef for DynEncoderImpl<'a, W>
 where
     W: io::Write,
 {
-    unsafe fn encode_record_ref(&mut self, record: RecordRef, ts_out: bool) -> Result<()> {
+    fn encode_record_ref(&mut self, record: RecordRef) -> Result<()> {
         match self {
-            DynEncoderImpl::Dbn(enc) => enc.encode_record_ref(record, ts_out),
-            DynEncoderImpl::Csv(enc) => enc.encode_record_ref(record, ts_out),
-            DynEncoderImpl::Json(enc) => enc.encode_record_ref(record, ts_out),
+            DynEncoderImpl::Dbn(enc) => enc.encode_record_ref(record),
+            DynEncoderImpl::Csv(enc) => enc.encode_record_ref(record),
+            DynEncoderImpl::Json(enc) => enc.encode_record_ref(record),
+        }
+    }
+
+    unsafe fn encode_record_ref_ts_out(&mut self, record: RecordRef, ts_out: bool) -> Result<()> {
+        match self {
+            DynEncoderImpl::Dbn(enc) => enc.encode_record_ref_ts_out(record, ts_out),
+            DynEncoderImpl::Csv(enc) => enc.encode_record_ref_ts_out(record, ts_out),
+            DynEncoderImpl::Json(enc) => enc.encode_record_ref_ts_out(record, ts_out),
         }
     }
 }

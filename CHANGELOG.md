@@ -1,8 +1,19 @@
 # Changelog
 
-## 0.10.3 - TBD
+## 0.11.0 - TBD
 ### Enhancements
+- Added new `EncodeRecordTextExt` trait which is implemented for the CSV and JSON
+  encoders. It adds two methods for encoding a `symbol` field along side the rest of the
+  record fields, matching the behavior of `map_symbols` in the historical API
+- Added `encode_header` and `encode_header_for_schema` methods to `CsvEncoder` to give
+  more flexibility for encoding CSV headers
+- Implemented `Copy` for `RecordRef` to make it behave more like a reference
 - Added `ARCX.PILLAR.ARCX` publisher
+
+## Breaking changes
+- Split `encode_record_ref` into a safe method with no arguments and an unsafe method
+  with a `ts_out` parameter to reduce `unsafe` usage when not working with live data
+  that may contain `ts_out`
 
 ## 0.10.2 - 2023-09-12
 ### Bug fixes
