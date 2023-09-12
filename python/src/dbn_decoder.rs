@@ -140,13 +140,13 @@ mod tests {
         )
         .unwrap();
         decoder.write(encoder.get_ref().as_slice()).unwrap();
-        let metadata_pos = encoder.get_ref().len() as usize;
+        let metadata_pos = encoder.get_ref().len();
         assert!(matches!(decoder.decode(), Ok(recs) if recs.len() == 1));
         assert!(decoder.has_decoded_metadata);
         let rec = ErrorMsg::new(1680708278000000000, "Python");
         encoder.encode_record(&rec).unwrap();
         assert!(decoder.buffer.get_ref().is_empty());
-        let record_pos = encoder.get_ref().len() as usize;
+        let record_pos = encoder.get_ref().len();
         for i in metadata_pos..record_pos {
             decoder.write(&encoder.get_ref()[i..i + 1]).unwrap();
             assert_eq!(decoder.buffer.get_ref().len(), i + 1 - metadata_pos);
@@ -179,7 +179,7 @@ mod tests {
         )
         .unwrap();
         decoder.write(encoder.get_ref().as_slice()).unwrap();
-        let metadata_pos = encoder.get_ref().len() as usize;
+        let metadata_pos = encoder.get_ref().len();
         assert!(matches!(decoder.decode(), Ok(recs) if recs.len() == 1));
         assert!(decoder.has_decoded_metadata);
         let rec1 = ErrorMsg::new(1680708278000000000, "Python");
@@ -192,7 +192,7 @@ mod tests {
             volume: 1000,
         };
         encoder.encode_record(&rec1).unwrap();
-        let rec1_pos = encoder.get_ref().len() as usize;
+        let rec1_pos = encoder.get_ref().len();
         encoder.encode_record(&rec2).unwrap();
         assert!(decoder.buffer.get_ref().is_empty());
         // Write first record and part of second

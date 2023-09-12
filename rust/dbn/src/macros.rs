@@ -238,7 +238,7 @@ mod tests {
     #[test]
     fn test_no_args() {
         let ret = schema_method_dispatch!(Schema::Definition, Dummy {}, on_rtype);
-        assert_eq!(ret, false);
+        assert!(!ret);
     }
 
     #[cfg(feature = "async")]
@@ -257,8 +257,8 @@ mod tests {
             );
             let ret_false =
                 schema_async_method_dispatch!(Schema::Trades, target, do_something, 0xff);
-            assert_eq!(ret_true, true);
-            assert_eq!(ret_false, false);
+            assert!(ret_true);
+            assert!(!ret_false);
         }
     }
 }

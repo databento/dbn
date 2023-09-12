@@ -1473,7 +1473,7 @@ pub unsafe fn transmute_record_bytes<T: HasRType>(bytes: &[u8]) -> Option<&T> {
         "Passing a slice smaller than `{}` to `transmute_record_bytes` is invalid",
         std::any::type_name::<T>()
     );
-    let non_null = NonNull::new_unchecked(bytes.as_ptr() as *mut u8);
+    let non_null = NonNull::new_unchecked(bytes.as_ptr().cast_mut());
     if T::has_rtype(non_null.cast::<RecordHeader>().as_ref().rtype) {
         Some(non_null.cast::<T>().as_ref())
     } else {
@@ -1488,7 +1488,11 @@ pub unsafe fn transmute_record_bytes<T: HasRType>(bytes: &[u8]) -> Option<&T> {
 ///
 /// # Safety
 /// `bytes` must contain a complete record (not only the header). This is so that
-/// the header can be subsequently passed to transmute_record
+/// the header can be subsequently passed to `transmute_record`.
+///
+/// # Panics
+/// This function will panic if `bytes` is shorter the length of [`RecordHeader`], the
+/// minimum length a record can have.
 pub unsafe fn transmute_header_bytes(bytes: &[u8]) -> Option<&RecordHeader> {
     assert!(
         bytes.len() >= mem::size_of::<RecordHeader>(),
@@ -1498,7 +1502,7 @@ pub unsafe fn transmute_header_bytes(bytes: &[u8]) -> Option<&RecordHeader> {
             "` to `transmute_header_bytes` is invalid"
         )
     );
-    let non_null = NonNull::new_unchecked(bytes.as_ptr() as *mut u8);
+    let non_null = NonNull::new_unchecked(bytes.as_ptr().cast_mut());
     let header = non_null.cast::<RecordHeader>().as_ref();
     if header.record_size() > bytes.len() {
         None
@@ -1530,7 +1534,7 @@ pub unsafe fn transmute_record<T: HasRType>(header: &RecordHeader) -> Option<&T>
 /// # Safety
 /// `data` must be sized and plain old data (POD), i.e. no pointers.
 pub(crate) unsafe fn as_u8_slice<T: Sized>(data: &T) -> &[u8] {
-    slice::from_raw_parts(data as *const T as *const u8, mem::size_of::<T>())
+    slice::from_raw_parts((data as *const T).cast(), mem::size_of::<T>())
 }
 
 /// Provides a _relatively safe_ method for converting a mut reference to a
