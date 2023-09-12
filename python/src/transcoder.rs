@@ -226,11 +226,11 @@ mod tests {
         // Metadata doesn't get transcoded for JSON
         assert!(output_buf.lock().unwrap().get_ref().is_empty());
         assert!(transcoder.has_decoded_metadata);
-        let metadata_pos = encoder.get_ref().len() as usize;
+        let metadata_pos = encoder.get_ref().len();
         let rec = ErrorMsg::new(1680708278000000000, "This is a test");
         encoder.encode_record(&rec).unwrap();
         assert!(transcoder.buffer.get_ref().is_empty());
-        let record_pos = encoder.get_ref().len() as usize;
+        let record_pos = encoder.get_ref().len();
         // write record byte by byte
         for i in metadata_pos..record_pos {
             transcoder.write(&encoder.get_ref()[i..i + 1]).unwrap();
@@ -281,7 +281,7 @@ mod tests {
         )
         .unwrap();
         transcoder.write(encoder.get_ref().as_slice()).unwrap();
-        let metadata_pos = encoder.get_ref().len() as usize;
+        let metadata_pos = encoder.get_ref().len();
         assert!(transcoder.has_decoded_metadata);
         let rec1 = ErrorMsg::new(1680708278000000000, "This is a test");
         let rec2 = OhlcvMsg {
@@ -293,7 +293,7 @@ mod tests {
             volume: 1000,
         };
         encoder.encode_record(&rec1).unwrap();
-        let rec1_pos = encoder.get_ref().len() as usize;
+        let rec1_pos = encoder.get_ref().len();
         encoder.encode_record(&rec2).unwrap();
         assert!(transcoder.buffer.get_ref().is_empty());
         // Write first record and part of second

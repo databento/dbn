@@ -116,7 +116,7 @@ mod tests {
         });
         let fields = syn::parse2::<FieldsNamed>(input).unwrap();
         assert_eq!(fields.named.len(), 1);
-        assert!(find_encode_order_attr(&fields.named.first().unwrap())
+        assert!(find_encode_order_attr(fields.named.first().unwrap())
             .unwrap()
             .is_none());
     }
@@ -129,7 +129,7 @@ mod tests {
         });
         let fields = syn::parse2::<FieldsNamed>(input).unwrap();
         assert_eq!(fields.named.len(), 1);
-        assert!(find_encode_order_attr(&fields.named.first().unwrap())
+        assert!(find_encode_order_attr(fields.named.first().unwrap())
             .unwrap()
             .is_none());
     }
@@ -143,7 +143,7 @@ mod tests {
         let fields = syn::parse2::<FieldsNamed>(input).unwrap();
         assert_eq!(fields.named.len(), 1);
         assert_eq!(
-            find_encode_order_attr(&fields.named.first().unwrap())
+            find_encode_order_attr(fields.named.first().unwrap())
                 .unwrap()
                 .unwrap(),
             3
@@ -159,7 +159,7 @@ mod tests {
         let fields = syn::parse2::<FieldsNamed>(input).unwrap();
         assert_eq!(fields.named.len(), 1);
         assert_eq!(
-            find_encode_order_attr(&fields.named.first().unwrap())
+            find_encode_order_attr(fields.named.first().unwrap())
                 .unwrap()
                 .unwrap(),
             2
@@ -175,7 +175,7 @@ mod tests {
         let fields = syn::parse2::<FieldsNamed>(input).unwrap();
         assert_eq!(fields.named.len(), 1);
         assert_eq!(
-            find_encode_order_attr(&fields.named.first().unwrap())
+            find_encode_order_attr(fields.named.first().unwrap())
                 .unwrap()
                 .unwrap(),
             4
@@ -191,7 +191,7 @@ mod tests {
         let fields = syn::parse2::<FieldsNamed>(input).unwrap();
         assert_eq!(fields.named.len(), 1);
         assert_eq!(
-            find_encode_order_attr(&fields.named.first().unwrap())
+            find_encode_order_attr(fields.named.first().unwrap())
                 .unwrap()
                 .unwrap(),
             0

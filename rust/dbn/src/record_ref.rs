@@ -35,6 +35,11 @@ impl<'a> RecordRef<'a> {
         // as an immutable reference
         let raw_ptr = buffer.as_ptr() as *mut RecordHeader;
 
+        // Check if alignment of pointer
+        debug_assert_eq!(
+            raw_ptr.align_offset(std::mem::align_of::<RecordHeader>()),
+            0
+        );
         let ptr = NonNull::new_unchecked(raw_ptr.cast::<RecordHeader>());
         Self {
             ptr,
@@ -49,7 +54,7 @@ impl<'a> RecordRef<'a> {
     pub unsafe fn unchecked_from_header(header: *const RecordHeader) -> Self {
         Self {
             // `NonNull` requires `mut` but it is never mutated
-            ptr: NonNull::new_unchecked(header as *mut RecordHeader),
+            ptr: NonNull::new_unchecked(header.cast_mut()),
             _marker: PhantomData,
         }
     }
