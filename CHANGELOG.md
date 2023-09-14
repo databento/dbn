@@ -7,6 +7,8 @@
   record fields, matching the behavior of `map_symbols` in the historical API
 - Added `encode_header` and `encode_header_for_schema` methods to `CsvEncoder` to give
   more flexibility for encoding CSV headers
+- Added `from_file` and `from_zstd_file` functions to `AsyncDbnDecoder` to match
+  synchronous decoder
 - Implemented `Copy` for `RecordRef` to make it behave more like a reference
 - Added `ARCX.PILLAR.ARCX` publisher
 

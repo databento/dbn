@@ -48,7 +48,7 @@ thiserror = "1.0"
 # date and datetime support
 time = { version = "0.3", features = ["formatting", "macros"] }
 # async traits
-tokio = { version = "1", features = ["io-util"], optional = true }
+tokio = { version = "1", features = ["fs", "io-util"], optional = true }
 # (de)compression
 zstd = "0.12"
 
