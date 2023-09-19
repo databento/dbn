@@ -104,6 +104,17 @@ where
             self.encode_record(rec).await
         })?
     }
+
+    /// Flushes any buffered content to the true output.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to flush the underlying writer.
+    pub async fn flush(&mut self) -> Result<()> {
+        self.writer
+            .flush()
+            .await
+            .map_err(|e| Error::io(e, "flushing output"))
+    }
 }
 
 #[cfg(test)]

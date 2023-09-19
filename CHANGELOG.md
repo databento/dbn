@@ -10,6 +10,7 @@
 - Added `from_file` and `from_zstd_file` functions to `AsyncDbnDecoder` to match
   synchronous decoder
 - Implemented `Copy` for `RecordRef` to make it behave more like a reference
+- Added `AsyncDbnEncoder` for simpler DBN encoding and to match sync API
 - Added `ARCX.PILLAR.ARCX` publisher
 
 ## Breaking changes
