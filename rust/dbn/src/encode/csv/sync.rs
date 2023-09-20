@@ -614,7 +614,7 @@ mod tests {
             close: 175 * FIXED_PRICE_SCALE,
             volume: 4033445,
         };
-        let rec_ref = unsafe { RecordRef::unchecked_from_header(&BAR.hd as *const RecordHeader) };
+        let rec_ref = RecordRef::from(&BAR);
         let mut encoder = Encoder::new(&mut buffer, false, false);
         encoder.encode_ref_with_sym(rec_ref, None).unwrap();
         encoder.encode_ref_with_sym(rec_ref, Some("AAPL")).unwrap();

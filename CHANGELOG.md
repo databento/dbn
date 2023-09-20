@@ -11,12 +11,20 @@
   synchronous decoder
 - Implemented `Copy` for `RecordRef` to make it behave more like a reference
 - Added `AsyncDbnEncoder` for simpler DBN encoding and to match sync API
+- Added `RecordEnum` and `RecordRefEnum` to more easily be able to pattern match on
+  records of different types
 - Added `ARCX.PILLAR.ARCX` publisher
+- Added `From` DBN records for `RecordRef`
+- Added re-exports to the top level of the crate for all enums and records for simpler
+  imports
 
 ## Breaking changes
 - Split `encode_record_ref` into a safe method with no arguments and an unsafe method
   with a `ts_out` parameter to reduce `unsafe` usage when not working with live data
   that may contain `ts_out`
+
+## Bug fixes
+- Fixed lifetime on return value from `RecordRef::get_unchecked`
 
 ## 0.10.2 - 2023-09-12
 ### Bug fixes

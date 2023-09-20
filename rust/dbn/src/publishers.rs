@@ -1,3 +1,5 @@
+//! Enumerations for different data sources, venues, and publishers.
+
 use std::fmt::{self, Display, Formatter};
 
 use num_enum::{IntoPrimitive, TryFromPrimitive};
