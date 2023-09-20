@@ -25,6 +25,7 @@
 
 ## Bug fixes
 - Fixed lifetime on return value from `RecordRef::get_unchecked`
+- Fixed missing check for `stype_out` before building `Metadata` symbology maps
 
 ## 0.10.2 - 2023-09-12
 ### Bug fixes

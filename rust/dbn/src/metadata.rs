@@ -95,9 +95,16 @@ impl Metadata {
     /// time range of the request. Otherwise, [`Self::symbol_map()`] is recommmended.
     ///
     /// # Errors
-    /// This function returns an error if it can't parse a symbol into a `u32`
-    /// instrument ID.
+    /// This function returns an error if `stype_out` is not [`SType::InstrumentId`] or
+    /// it can't parse a symbol into a `u32` instrument ID. It will also return an error
+    /// if `date` is outside the query range.
     pub fn symbol_map_for_date(&self, date: time::Date) -> crate::Result<HashMap<u32, String>> {
+        if self.stype_out != SType::InstrumentId {
+            return Err(crate::Error::BadArgument {
+                param_name: "stype_out".to_owned(),
+                desc: "Can only create symbol maps with an stype_out of instrument ID".to_owned(),
+            });
+        }
         let datetime = PrimitiveDateTime::new(date, time!(0:00)).assume_utc();
         // need to compare with `end` as a datetime to handle midnight case
         if date < self.start().date() || self.end().map_or(false, |end| datetime >= end) {
@@ -133,9 +140,15 @@ impl Metadata {
     /// change, [`Self::symbol_map_for_date()`] is recommended.
     ///
     /// # Errors
-    /// This function returns an error if it can't parse a symbol into a `u32`
-    /// instrument ID.
+    /// This function returns an error if `stype_out` is not [`SType::InstrumentId`] or
+    /// it can't parse a symbol into a `u32` instrument ID.
     pub fn symbol_map(&self) -> crate::Result<HashMap<(time::Date, u32), String>> {
+        if self.stype_out != SType::InstrumentId {
+            return Err(crate::Error::BadArgument {
+                param_name: "stype_out".to_owned(),
+                desc: "Can only create symbol maps with an stype_out of instrument ID".to_owned(),
+            });
+        }
         let mut index = HashMap::new();
         for mapping in self.mappings.iter() {
             for interval in mapping.intervals.iter() {
@@ -928,5 +941,13 @@ mod tests {
         assert_eq!(symbol_map[&(date!(2023 - 07 - 21), 10181)], "TSLA");
         assert_eq!(symbol_map[&(date!(2023 - 07 - 24), 10174)], "TSLA");
         assert_eq!(symbol_map[&(date!(2023 - 07 - 25), 10172)], "TSLA");
+    }
+
+    #[test]
+    fn test_other_stype_errors() {
+        let mut target = metadata_w_mappings();
+        target.stype_out = SType::RawSymbol;
+        assert!(target.symbol_map().is_err());
+        assert!(target.symbol_map_for_date(date!(2023 - 07 - 31)).is_err());
     }
 }
