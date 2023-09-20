@@ -5,8 +5,8 @@
 - Added new `EncodeRecordTextExt` trait which is implemented for the CSV and JSON
   encoders. It adds two methods for encoding a `symbol` field along side the rest of the
   record fields, matching the behavior of `map_symbols` in the historical API
-- Added `encode_header` and `encode_header_for_schema` methods to `CsvEncoder` to give
-  more flexibility for encoding CSV headers
+- Added `encode_header` and `encode_header_for_schema` methods to `CsvEncoder` and
+  `DynEncoder` to give more flexibility for encoding CSV headers
 - Added `from_file` and `from_zstd_file` functions to `AsyncDbnDecoder` to match
   synchronous decoder
 - Implemented `Copy` for `RecordRef` to make it behave more like a reference
@@ -24,6 +24,8 @@
   that may contain `ts_out`
 
 ## Bug fixes
+- Fixed `dbn` CLI not writing CSV header when using `--fragment` and `--zstd-fragment`
+  flags
 - Fixed lifetime on return value from `RecordRef::get_unchecked`
 - Fixed missing check for `stype_out` before building `Metadata` symbology maps
 

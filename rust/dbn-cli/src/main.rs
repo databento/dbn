@@ -3,9 +3,9 @@ use std::{fs::File, io};
 use clap::Parser;
 use dbn::{
     decode::{DbnRecordDecoder, DecodeDbn, DecodeRecordRef, DynDecoder},
-    encode::{json, DynEncoder, EncodeDbn, EncodeRecordRef},
+    encode::{json, DbnEncodable, DynEncoder, EncodeDbn, EncodeRecordRef},
     enums::SType,
-    MetadataBuilder,
+    rtype_dispatch, Encoding, MetadataBuilder,
 };
 use dbn_cli::{infer_encoding_and_compression, output_from_args, Args};
 
@@ -81,7 +81,18 @@ fn write_dbn_frag<R: io::Read>(
         args.should_pretty_print,
     )?;
     let mut n = 0;
+    let mut has_written_header = encoding != Encoding::Csv;
+    fn write_header<T: DbnEncodable>(
+        _record: &T,
+        encoder: &mut DynEncoder<Box<dyn io::Write>>,
+    ) -> dbn::Result<()> {
+        encoder.encode_header::<T>(false)
+    }
     while let Some(record) = decoder.decode_record_ref()? {
+        if !has_written_header {
+            rtype_dispatch!(record, write_header, &mut encoder)??;
+            has_written_header = true;
+        }
         // Assume no ts_out for safety
         match encoder.encode_record_ref(record) {
             // Handle broken pipe as a non-error.

@@ -24,6 +24,7 @@ pub use self::{
     json::Encoder as JsonEncoder,
 };
 
+use crate::Schema;
 use crate::{
     decode::DecodeDbn,
     enums::{Compression, Encoding},
@@ -320,6 +321,34 @@ where
                 use_pretty_px,
                 use_pretty_ts,
             )))),
+        }
+    }
+
+    /// Encodes the CSV header for the record type `R`, i.e. the names of each of the
+    /// fields to the output.
+    ///
+    /// If `with_symbol` is `true`, will add a header field for "symbol".
+    ///
+    /// # Errors
+    /// This function returns an error if there's an error writing to `writer`.
+    pub fn encode_header<R: DbnEncodable>(&mut self, with_symbol: bool) -> Result<()> {
+        match &mut self.0 {
+            DynEncoderImpl::Csv(encoder) => encoder.encode_header::<R>(with_symbol),
+            _ => Ok(()),
+        }
+    }
+
+    /// Encodes the CSV header for `schema`, i.e. the names of each of the fields to
+    /// the output.
+    ///
+    /// If `with_symbol` is `true`, will add a header field for "symbol".
+    ///
+    /// # Errors
+    /// This function returns an error if there's an error writing to `writer`.
+    pub fn encode_header_for_schema(&mut self, schema: Schema, with_symbol: bool) -> Result<()> {
+        match &mut self.0 {
+            DynEncoderImpl::Csv(encoder) => encoder.encode_header_for_schema(schema, with_symbol),
+            _ => Ok(()),
         }
     }
 }

@@ -69,8 +69,8 @@ pub trait DecodeDbn: DecodeRecordRef + private::BufferSlice {
     /// [`Error::Decode`](crate::Error::Decode) will be returned.
     fn decode_record<T: HasRType>(&mut self) -> crate::Result<Option<&T>>;
 
-    /// Tries to convert the decoder into a streaming iterator. This lazily decodes the
-    /// data.
+    /// Converts the decoder into a streaming iterator of records of type `T`. This
+    /// lazily decodes the data.
     fn decode_stream<T: HasRType>(self) -> StreamIterDecoder<Self, T>
     where
         Self: Sized;
