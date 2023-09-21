@@ -17,6 +17,7 @@
 - Added `From` DBN records for `RecordRef`
 - Added re-exports to the top level of the crate for all enums and records for simpler
   imports
+- Added `ClosePrice` and `NetChange` `StatType`s used in the `OPRA.PILLAR` dataset
 
 ## Breaking changes
 - Split `encode_record_ref` into a safe method with no arguments and an unsafe method
