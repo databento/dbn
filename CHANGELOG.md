@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.11.0 - 2023-09-21
+### Enhancements
+- Added new `EncodeRecordTextExt` trait which is implemented for the CSV and JSON
+  encoders. It adds two methods for encoding a `symbol` field along side the rest of the
+  record fields, matching the behavior of `map_symbols` in the historical API
+- Added `encode_header` and `encode_header_for_schema` methods to `CsvEncoder` and
+  `DynEncoder` to give more flexibility for encoding CSV headers
+- Added `from_file` and `from_zstd_file` functions to `AsyncDbnDecoder` to match
+  synchronous decoder
+- Implemented `Copy` for `RecordRef` to make it behave more like a reference
+- Added `AsyncDbnEncoder` for simpler DBN encoding and to match sync API
+- Added `RecordEnum` and `RecordRefEnum` to more easily be able to pattern match on
+  records of different types
+- Added `ARCX.PILLAR.ARCX` publisher
+- Added `From` DBN records for `RecordRef`
+- Added re-exports to the top level of the crate for all enums and records for simpler
+  imports
+- Added `ClosePrice` and `NetChange` `StatType`s used in the `OPRA.PILLAR` dataset
+
+### Breaking changes
+- Split `encode_record_ref` into a safe method with no arguments and an unsafe method
+  with a `ts_out` parameter to reduce `unsafe` usage when not working with live data
+  that may contain `ts_out`
+
+### Bug fixes
+- Fixed `dbn` CLI not writing CSV header when using `--fragment` and `--zstd-fragment`
+  flags
+- Fixed lifetime on return value from `RecordRef::get_unchecked`
+- Fixed missing check for `stype_out` before building `Metadata` symbology maps
+
 ## 0.10.2 - 2023-09-12
 ### Bug fixes
 - Fixed query range checking in `Metadata::symbol_map_for_date`

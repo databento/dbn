@@ -1,5 +1,10 @@
+use std::path::Path;
+
 use async_compression::tokio::bufread::ZstdDecoder;
-use tokio::io::{self, BufReader};
+use tokio::{
+    fs::File,
+    io::{self, BufReader},
+};
 
 use crate::{
     decode::FromLittleEndianSlice,
@@ -87,7 +92,7 @@ where
     }
 }
 
-impl<'a, R> Decoder<ZstdDecoder<BufReader<R>>>
+impl<R> Decoder<ZstdDecoder<BufReader<R>>>
 where
     R: io::AsyncReadExt + Unpin,
 {
@@ -100,7 +105,7 @@ where
     }
 }
 
-impl<'a, R> Decoder<ZstdDecoder<R>>
+impl<R> Decoder<ZstdDecoder<R>>
 where
     R: io::AsyncBufReadExt + Unpin,
 {
@@ -110,6 +115,46 @@ where
     /// This function will return an error if it is unable to parse the metadata in `reader`.
     pub async fn with_zstd_buffer(reader: R) -> crate::Result<Self> {
         Decoder::new(zstd_decoder(reader)).await
+    }
+}
+
+impl Decoder<BufReader<File>> {
+    /// Creates a new async DBN [`Decoder`] from the file at `path`.
+    ///
+    /// # Errors
+    /// This function will return an error if it is unable to read the file at `path` or
+    /// if it is unable to parse the metadata in the file.
+    pub async fn from_file(path: impl AsRef<Path>) -> crate::Result<Self> {
+        let file = File::open(path.as_ref()).await.map_err(|e| {
+            crate::Error::io(
+                e,
+                format!(
+                    "Error opening DBN file at path '{}'",
+                    path.as_ref().display()
+                ),
+            )
+        })?;
+        Self::new(BufReader::new(file)).await
+    }
+}
+
+impl Decoder<ZstdDecoder<BufReader<File>>> {
+    /// Creates a new async DBN [`Decoder`] from the Zstandard-compressed file at `path`.
+    ///
+    /// # Errors
+    /// This function will return an error if it is unable to read the file at `path` or
+    /// if it is unable to parse the metadata in the file.
+    pub async fn from_zstd_file(path: impl AsRef<Path>) -> crate::Result<Self> {
+        let file = File::open(path.as_ref()).await.map_err(|e| {
+            crate::Error::io(
+                e,
+                format!(
+                    "Error opening Zstandard-compressed DBN file at path '{}'",
+                    path.as_ref().display()
+                ),
+            )
+        })?;
+        Self::with_zstd(file).await
     }
 }
 

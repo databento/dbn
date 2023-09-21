@@ -5,11 +5,12 @@ use std::{marker::PhantomData, mem, ptr::NonNull};
 use crate::{
     enums::RType,
     record::{HasRType, RecordHeader},
+    RecordEnum, RecordRefEnum,
 };
 
 /// A wrapper around a non-owning immutable reference to a DBN record. This wrapper
 /// allows for mixing of record types and schemas, and runtime record polymorphism.
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct RecordRef<'a> {
     ptr: NonNull<RecordHeader>,
     /// Associates the object with the lifetime of the memory pointed to by `ptr`.
@@ -81,7 +82,7 @@ impl<'a> RecordRef<'a> {
     /// # Errors
     /// This function returns an error if the `rtype` field does not
     /// contain a valid, known [`RType`].
-    pub fn rtype(&self) -> crate::error::Result<RType> {
+    pub fn rtype(&self) -> crate::Result<RType> {
         self.header().rtype()
     }
 
@@ -110,6 +111,16 @@ impl<'a> RecordRef<'a> {
         }
     }
 
+    /// Returns a native Rust enum with a variant for each record type. This allows for
+    /// pattern `match`ing.
+    ///
+    /// # Errors
+    /// This function returns a conversion error if the rtype does not correspond with
+    /// any known DBN record type.
+    pub fn as_enum(&self) -> crate::Result<RecordRefEnum> {
+        RecordRefEnum::try_from(*self)
+    }
+
     /// Returns a reference to the underlying record of type `T` without checking if
     /// this object references a record of type `T`.
     ///
@@ -117,10 +128,27 @@ impl<'a> RecordRef<'a> {
     ///
     /// # Safety
     /// The caller needs to validate this object points to a `T`.
-    pub unsafe fn get_unchecked<T: HasRType>(&self) -> &T {
+    pub unsafe fn get_unchecked<T: HasRType>(&self) -> &'a T {
         debug_assert!(self.has::<T>());
         debug_assert!(self.record_size() >= mem::size_of::<T>());
         self.ptr.cast::<T>().as_ref()
+    }
+}
+
+impl<'a, R> From<&'a R> for RecordRef<'a>
+where
+    R: HasRType,
+{
+    /// Constructs a new reference to a DBN record.
+    fn from(rec: &'a R) -> Self {
+        Self {
+            // Safe: `R` must be a record because it implements `HasRType`. Casting to `mut`
+            // is required for `NonNull`, but it is never mutated.
+            ptr: unsafe {
+                NonNull::new_unchecked((rec.header() as *const RecordHeader).cast_mut())
+            },
+            _marker: PhantomData,
+        }
     }
 }
 
@@ -129,6 +157,44 @@ impl<'a> AsRef<[u8]> for RecordRef<'a> {
         // # Safety
         // Assumes the encoded record length is correct.
         unsafe { std::slice::from_raw_parts(self.ptr.as_ptr() as *const u8, self.record_size()) }
+    }
+}
+
+impl<'a> From<&'a RecordEnum> for RecordRef<'a> {
+    fn from(rec_enum: &'a RecordEnum) -> Self {
+        match rec_enum {
+            RecordEnum::Mbo(rec) => Self::from(rec),
+            RecordEnum::Trade(rec) => Self::from(rec),
+            RecordEnum::Mbp1(rec) => Self::from(rec),
+            RecordEnum::Mbp10(rec) => Self::from(rec),
+            RecordEnum::Ohlcv(rec) => Self::from(rec),
+            RecordEnum::Status(rec) => Self::from(rec),
+            RecordEnum::InstrumentDef(rec) => Self::from(rec),
+            RecordEnum::Imbalance(rec) => Self::from(rec),
+            RecordEnum::Stat(rec) => Self::from(rec),
+            RecordEnum::Error(rec) => Self::from(rec),
+            RecordEnum::SymbolMapping(rec) => Self::from(rec),
+            RecordEnum::System(rec) => Self::from(rec),
+        }
+    }
+}
+
+impl<'a> From<RecordRefEnum<'a>> for RecordRef<'a> {
+    fn from(rec_enum: RecordRefEnum<'a>) -> Self {
+        match rec_enum {
+            RecordRefEnum::Mbo(rec) => Self::from(rec),
+            RecordRefEnum::Trade(rec) => Self::from(rec),
+            RecordRefEnum::Mbp1(rec) => Self::from(rec),
+            RecordRefEnum::Mbp10(rec) => Self::from(rec),
+            RecordRefEnum::Ohlcv(rec) => Self::from(rec),
+            RecordRefEnum::Status(rec) => Self::from(rec),
+            RecordRefEnum::InstrumentDef(rec) => Self::from(rec),
+            RecordRefEnum::Imbalance(rec) => Self::from(rec),
+            RecordRefEnum::Stat(rec) => Self::from(rec),
+            RecordRefEnum::Error(rec) => Self::from(rec),
+            RecordRefEnum::SymbolMapping(rec) => Self::from(rec),
+            RecordRefEnum::System(rec) => Self::from(rec),
+        }
     }
 }
 
@@ -165,7 +231,7 @@ mod tests {
 
     #[test]
     fn test_has_and_get() {
-        let target = unsafe { RecordRef::new(SOURCE_RECORD.as_ref()) };
+        let target = RecordRef::from(&SOURCE_RECORD);
         assert!(!target.has::<Mbp1Msg>());
         assert!(!target.has::<Mbp10Msg>());
         assert!(!target.has::<TradeMsg>());
@@ -178,7 +244,7 @@ mod tests {
 
     #[test]
     fn test_as_ref() {
-        let target = unsafe { RecordRef::new(SOURCE_RECORD.as_ref()) };
+        let target = RecordRef::from(&SOURCE_RECORD);
         let byte_slice = target.as_ref();
         assert_eq!(SOURCE_RECORD.record_size(), byte_slice.len());
         assert_eq!(target.record_size(), byte_slice.len());

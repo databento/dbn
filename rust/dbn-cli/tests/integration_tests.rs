@@ -428,6 +428,20 @@ fn test_fragment() {
 }
 
 #[test]
+fn test_writes_csv_header_for_fragment() {
+    cmd()
+        .args([
+            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.frag"),
+            "--fragment",
+            "--csv",
+        ])
+        .assert()
+        .success()
+        .stdout(contains('\n').count(3))
+        .stderr(is_empty());
+}
+
+#[test]
 fn test_zstd_fragment() {
     cmd()
         .args([
@@ -438,6 +452,20 @@ fn test_zstd_fragment() {
         .assert()
         .success()
         .stdout(contains('\n').count(2))
+        .stderr(is_empty());
+}
+
+#[test]
+fn test_writes_csv_header_for_zstd_fragment() {
+    cmd()
+        .args([
+            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.frag.zst"),
+            "--zstd-fragment",
+            "--csv",
+        ])
+        .assert()
+        .success()
+        .stdout(contains('\n').count(3))
         .stderr(is_empty());
 }
 

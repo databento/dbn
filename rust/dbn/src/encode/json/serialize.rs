@@ -29,6 +29,29 @@ pub fn to_json_string<T: JsonSerialize>(
     res
 }
 
+/// Serializes `obj` to a JSON string with an optional `symbol`.
+pub fn to_json_string_with_sym<T: JsonSerialize>(
+    obj: &T,
+    should_pretty_print: bool,
+    use_pretty_px: bool,
+    use_pretty_ts: bool,
+    symbol: Option<&str>,
+) -> String {
+    let mut res = String::new();
+    if should_pretty_print {
+        let mut pretty = pretty_writer(&mut res);
+        let mut writer = JsonObjectWriter::new(&mut pretty);
+        to_json_with_writer(obj, &mut writer, use_pretty_px, use_pretty_ts);
+        writer.value("symbol", symbol);
+    } else {
+        let mut writer = JsonObjectWriter::new(&mut res);
+        to_json_with_writer(obj, &mut writer, use_pretty_px, use_pretty_ts);
+        writer.value("symbol", symbol);
+    }
+    res.push('\n');
+    res
+}
+
 fn to_json_with_writer<T: JsonSerialize, J: crate::json_writer::JsonWriter>(
     obj: &T,
     writer: &mut JsonObjectWriter<J>,

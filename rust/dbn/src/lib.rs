@@ -40,21 +40,32 @@ pub mod decode;
 pub mod encode;
 pub mod enums;
 pub mod error;
-#[doc(hidden)]
-pub mod json_writer;
+mod json_writer;
 pub mod macros;
 pub mod metadata;
 pub mod pretty;
-/// Enumerations for different data sources, venues, and publishers.
 pub mod publishers;
 #[cfg(feature = "python")]
 pub mod python;
 pub mod record;
+mod record_enum;
 pub mod record_ref;
 
-pub use crate::error::{Error, Result};
-pub use crate::metadata::{MappingInterval, Metadata, MetadataBuilder, SymbolMapping};
-pub use crate::record_ref::RecordRef;
+pub use crate::{
+    enums::{
+        Action, Compression, Encoding, InstrumentClass, MatchAlgorithm, RType, SType, Schema,
+        SecurityUpdateAction, Side, StatType, StatUpdateAction, UserDefinedInstrument,
+    },
+    error::{Error, Result},
+    metadata::{MappingInterval, Metadata, MetadataBuilder, SymbolMapping},
+    publishers::{Dataset, Publisher, Venue},
+    record::{
+        ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatMsg,
+        StatusMsg, SymbolMappingMsg, SystemMsg, TbboMsg, TradeMsg,
+    },
+    record_enum::{RecordEnum, RecordRefEnum},
+    record_ref::RecordRef,
+};
 
 /// The current version of the DBN encoding, which is different from the crate version.
 pub const DBN_VERSION: u8 = 1;

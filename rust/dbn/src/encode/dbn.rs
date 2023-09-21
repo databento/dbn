@@ -5,4 +5,7 @@ pub use sync::{Encoder, MetadataEncoder, RecordEncoder};
 #[cfg(feature = "async")]
 mod r#async;
 #[cfg(feature = "async")]
-pub use r#async::{MetadataEncoder as AsyncMetadataEncoder, RecordEncoder as AsyncRecordEncoder};
+pub use r#async::{
+    Encoder as AsyncEncoder, MetadataEncoder as AsyncMetadataEncoder,
+    RecordEncoder as AsyncRecordEncoder,
+};

@@ -1,3 +1,5 @@
+//! Enumerations for different data sources, venues, and publishers.
+
 use std::fmt::{self, Display, Formatter};
 
 use num_enum::{IntoPrimitive, TryFromPrimitive};
@@ -406,10 +408,12 @@ pub enum Publisher {
     DbeqBasicIexg = 41,
     /// DBEQ Basic - MIAX Pearl
     DbeqBasicEprl = 42,
+    /// NYSE Arca Integrated
+    ArcxPillarArcx = 43,
 }
 
 /// The number of Publisher variants.
-pub const PUBLISHER_COUNT: usize = 42;
+pub const PUBLISHER_COUNT: usize = 43;
 
 impl Publisher {
     /// Convert a Publisher to its `str` representation.
@@ -457,6 +461,7 @@ impl Publisher {
             Self::DbeqBasicXcis => "DBEQ.BASIC.XCIS",
             Self::DbeqBasicIexg => "DBEQ.BASIC.IEXG",
             Self::DbeqBasicEprl => "DBEQ.BASIC.EPRL",
+            Self::ArcxPillarArcx => "ARCX.PILLAR.ARCX",
         }
     }
 
@@ -505,6 +510,7 @@ impl Publisher {
             Self::DbeqBasicXcis => Venue::Xcis,
             Self::DbeqBasicIexg => Venue::Iexg,
             Self::DbeqBasicEprl => Venue::Eprl,
+            Self::ArcxPillarArcx => Venue::Arcx,
         }
     }
 
@@ -553,6 +559,7 @@ impl Publisher {
             Self::DbeqBasicXcis => Dataset::DbeqBasic,
             Self::DbeqBasicIexg => Dataset::DbeqBasic,
             Self::DbeqBasicEprl => Dataset::DbeqBasic,
+            Self::ArcxPillarArcx => Dataset::ArcxPillar,
         }
     }
 }
@@ -616,6 +623,7 @@ impl std::str::FromStr for Publisher {
             "DBEQ.BASIC.XCIS" => Ok(Self::DbeqBasicXcis),
             "DBEQ.BASIC.IEXG" => Ok(Self::DbeqBasicIexg),
             "DBEQ.BASIC.EPRL" => Ok(Self::DbeqBasicEprl),
+            "ARCX.PILLAR.ARCX" => Ok(Self::ArcxPillarArcx),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }

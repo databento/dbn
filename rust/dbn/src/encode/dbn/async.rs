@@ -1,12 +1,72 @@
-use std::{fmt, num::NonZeroU64};
+use std::num::NonZeroU64;
 
 use async_compression::tokio::write::ZstdEncoder;
 use tokio::io;
 
 use crate::{
-    record::HasRType, record_ref::RecordRef, Error, Metadata, Result, SymbolMapping, DBN_VERSION,
-    NULL_LIMIT, NULL_RECORD_COUNT, NULL_SCHEMA, NULL_STYPE, UNDEF_TIMESTAMP,
+    encode::DbnEncodable, record_ref::RecordRef, Error, Metadata, Result, SymbolMapping,
+    DBN_VERSION, NULL_LIMIT, NULL_RECORD_COUNT, NULL_SCHEMA, NULL_STYPE, UNDEF_TIMESTAMP,
 };
+
+/// An async encoder for DBN streams.
+pub struct Encoder<W>
+where
+    W: io::AsyncWriteExt + Unpin,
+{
+    record_encoder: RecordEncoder<W>,
+}
+
+impl<W> Encoder<W>
+where
+    W: io::AsyncWriteExt + Unpin,
+{
+    /// Creates a new async DBN encoder that will write to `writer`.
+    ///
+    /// # Errors
+    /// This function will return an error if it fails to encode `metadata` to
+    /// `writer`.
+    pub async fn new(mut writer: W, metadata: &Metadata) -> Result<Self> {
+        MetadataEncoder::new(&mut writer).encode(metadata).await?;
+        let record_encoder = RecordEncoder::new(writer);
+        Ok(Self { record_encoder })
+    }
+
+    /// Returns a reference to the underlying writer.
+    pub fn get_ref(&self) -> &W {
+        self.record_encoder.get_ref()
+    }
+
+    /// Returns a mutable reference to the underlying writer.
+    pub fn get_mut(&mut self) -> &mut W {
+        self.record_encoder.get_mut()
+    }
+
+    /// Encode a single DBN record of type `R`.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to write to the underlying
+    /// writer.
+    pub async fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<()> {
+        self.record_encoder.encode(record).await
+    }
+
+    /// Encodes a single DBN [`RecordRef`].
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to write to the underlying writer
+    /// or there's a serialization error.
+    pub async fn encode_record_ref(&mut self, record_ref: RecordRef<'_>) -> Result<()> {
+        self.record_encoder.encode_ref(record_ref).await
+    }
+
+    /// Flushes any buffered content to the true output.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to flush the underlying writer.
+    pub async fn flush(&mut self) -> Result<()> {
+        self.record_encoder.flush().await
+    }
+}
 
 /// An async encoder of DBN records.
 pub struct RecordEncoder<W>
@@ -31,10 +91,7 @@ where
     /// # Errors
     /// This function returns an error if it's unable to write to the underlying
     /// writer.
-    pub async fn encode<R: AsRef<[u8]> + HasRType + fmt::Debug>(
-        &mut self,
-        record: &R,
-    ) -> Result<()> {
+    pub async fn encode<R: DbnEncodable>(&mut self, record: &R) -> Result<()> {
         match self.writer.write_all(record.as_ref()).await {
             Ok(()) => Ok(()),
             Err(e) => Err(Error::io(e, format!("serializing {record:?}"))),
@@ -51,6 +108,22 @@ where
             Ok(()) => Ok(()),
             Err(e) => Err(Error::io(e, format!("serializing {record_ref:?}"))),
         }
+    }
+
+    /// Flushes any buffered content to the true output.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to flush the underlying writer.
+    pub async fn flush(&mut self) -> Result<()> {
+        self.writer
+            .flush()
+            .await
+            .map_err(|e| Error::io(e, "flushing output".to_owned()))
+    }
+
+    /// Returns a reference to the underlying writer.
+    pub fn get_ref(&self) -> &W {
+        &self.writer
     }
 
     /// Returns a mutable reference to the underlying writer.
@@ -281,7 +354,7 @@ mod tests {
     use super::*;
     use crate::{
         datasets::{GLBX_MDP3, XNAS_ITCH},
-        decode::{dbn::MetadataDecoder, FromLittleEndianSlice},
+        decode::{dbn::AsyncMetadataDecoder as MetadataDecoder, FromLittleEndianSlice},
         enums::{SType, Schema},
         MappingInterval, MetadataBuilder,
     };
@@ -347,6 +420,7 @@ mod tests {
         dbg!(&buffer);
         let res = MetadataDecoder::new(&mut buffer.as_slice())
             .decode()
+            .await
             .unwrap();
         dbg!(&res, &metadata);
         assert_eq!(res, metadata);
@@ -421,7 +495,10 @@ mod tests {
             .encode(&metadata)
             .await
             .unwrap();
-        let decoded = MetadataDecoder::new(buffer.as_slice()).decode().unwrap();
+        let decoded = MetadataDecoder::new(buffer.as_slice())
+            .decode()
+            .await
+            .unwrap();
         assert!(decoded.end.is_none());
         assert!(decoded.limit.is_none());
     }

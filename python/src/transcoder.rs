@@ -92,7 +92,8 @@ impl Transcoder {
         loop {
             match decoder.decode_record_ref() {
                 Ok(Some(rec)) => {
-                    unsafe { encoder.encode_record_ref(rec, self.ts_out) }.map_err(to_val_err)?;
+                    unsafe { encoder.encode_record_ref_ts_out(rec, self.ts_out) }
+                        .map_err(to_val_err)?;
                     // keep track of position after last _successful_ decoding to
                     // ensure buffer is left in correct state in the case where one
                     // or more successful decodings is followed by a partial one, i.e.
