@@ -19,12 +19,12 @@
   imports
 - Added `ClosePrice` and `NetChange` `StatType`s used in the `OPRA.PILLAR` dataset
 
-## Breaking changes
+### Breaking changes
 - Split `encode_record_ref` into a safe method with no arguments and an unsafe method
   with a `ts_out` parameter to reduce `unsafe` usage when not working with live data
   that may contain `ts_out`
 
-## Bug fixes
+### Bug fixes
 - Fixed `dbn` CLI not writing CSV header when using `--fragment` and `--zstd-fragment`
   flags
 - Fixed lifetime on return value from `RecordRef::get_unchecked`
