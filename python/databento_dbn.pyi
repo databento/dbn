@@ -5,14 +5,7 @@ from collections.abc import Iterable
 from collections.abc import Sequence
 from datetime import datetime
 from enum import Enum
-from typing import (
-    Any,
-    BinaryIO,
-    ClassVar,
-    SupportsBytes,
-    TextIO,
-    Union,
-)
+from typing import Any, BinaryIO, ClassVar, SupportsBytes, TextIO, Union
 
 
 FIXED_PRICE_SCALE: int
