@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.1 - TBD
+### Bug fixes
+- Changed DBN stream detection to ignore the DBN version
+
 ## 0.11.0 - 2023-09-21
 ### Enhancements
 - Added new `EncodeRecordTextExt` trait which is implemented for the CSV and JSON
