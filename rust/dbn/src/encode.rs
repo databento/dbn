@@ -24,7 +24,6 @@ pub use self::{
     json::Encoder as JsonEncoder,
 };
 
-use crate::Schema;
 use crate::{
     decode::DecodeDbn,
     enums::{Compression, Encoding},
@@ -32,6 +31,7 @@ use crate::{
     record_ref::RecordRef,
     rtype_dispatch, Error, Metadata, Result,
 };
+use crate::{rtype_ts_out_dispatch, Schema};
 
 use self::{csv::serialize::CsvSerialize, json::serialize::JsonSerialize};
 
@@ -174,6 +174,27 @@ pub trait EncodeRecordTextExt: EncodeRecord + EncodeRecordRef {
     fn encode_ref_with_sym(&mut self, record: RecordRef, symbol: Option<&str>) -> Result<()> {
         #[allow(clippy::redundant_closure_call)]
         rtype_dispatch!(record, |rec| self.encode_record_with_sym(rec, symbol))?
+    }
+
+    /// Encodes a single DBN [`RecordRef`] with an optional `ts_out` (see
+    /// [`record::WithTsOut`](crate::record::WithTsOut)) along with the record's text
+    /// symbol.
+    ///
+    /// # Safety
+    /// `ts_out` must be `false` if `record` does not have an appended `ts_out`.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to write to the underlying writer
+    /// or there's a serialization error.
+    unsafe fn encode_ref_ts_out_with_sym(
+        &mut self,
+        record: RecordRef,
+        ts_out: bool,
+        symbol: Option<&str>,
+    ) -> Result<()> {
+        #[allow(clippy::redundant_closure_call)]
+        rtype_ts_out_dispatch!(record, ts_out, |rec| self
+            .encode_record_with_sym(rec, symbol))?
     }
 }
 

@@ -4,7 +4,7 @@ use pyo3::{
     intern,
     prelude::*,
     pyclass::CompareOp,
-    types::{PyBytes, PyDate, PyDateAccess, PyDict, PyType},
+    types::{PyBytes, PyDate, PyDict, PyType},
 };
 
 use crate::{
@@ -14,7 +14,7 @@ use crate::{
     MappingInterval, Metadata, SymbolMapping,
 };
 
-use super::to_val_err;
+use super::{py_to_time_date, to_val_err};
 
 #[pymethods]
 impl Metadata {
@@ -172,8 +172,5 @@ impl IntoPy<PyObject> for MappingInterval {
 
 fn extract_date(any: &PyAny) -> PyResult<time::Date> {
     let py_date = any.downcast::<PyDate>().map_err(PyErr::from)?;
-    let month =
-        time::Month::try_from(py_date.get_month()).map_err(|e| to_val_err(e.to_string()))?;
-    time::Date::from_calendar_date(py_date.get_year(), month, py_date.get_day())
-        .map_err(|e| to_val_err(e.to_string()))
+    py_to_time_date(py_date)
 }
