@@ -458,6 +458,19 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn test_detects_any_dbn_version_as_dbn() {
+        let mut buf = Vec::new();
+        let mut file = File::open(format!("{TEST_DATA_PATH}/test_data.mbo.dbn")).unwrap();
+        file.read_to_end(&mut buf).unwrap();
+        // change version
+        buf[3] = crate::DBN_VERSION + 1;
+        let res = DynDecoder::new_inferred(io::Cursor::new(buf));
+        assert!(matches!(res, Err(e) if e
+            .to_string()
+            .contains("Can't decode newer version of DBN")));
+    }
 }
 
 #[cfg(feature = "async")]

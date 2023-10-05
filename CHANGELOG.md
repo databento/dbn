@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.1 - 2023-10-05
+### Enhancements
+- Upgraded `async-compression` to 0.4.3
+- Upgraded `csv` to 1.3
+- Upgraded `num_enum` to 0.7
+
+### Bug fixes
+- Changed DBN stream detection to ignore the DBN version
+
 ## 0.11.0 - 2023-09-21
 ### Enhancements
 - Added new `EncodeRecordTextExt` trait which is implemented for the CSV and JSON

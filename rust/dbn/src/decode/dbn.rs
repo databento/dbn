@@ -4,9 +4,7 @@ const DBN_PREFIX_LEN: usize = DBN_PREFIX.len();
 
 /// Returns `true` if `bytes` starts with valid uncompressed DBN.
 pub fn starts_with_prefix(bytes: &[u8]) -> bool {
-    bytes.len() > DBN_PREFIX_LEN
-        && &bytes[..DBN_PREFIX_LEN] == DBN_PREFIX
-        && bytes[DBN_PREFIX_LEN] <= crate::DBN_VERSION
+    bytes.len() > DBN_PREFIX_LEN && &bytes[..DBN_PREFIX_LEN] == DBN_PREFIX
 }
 
 mod sync;
