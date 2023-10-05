@@ -1,7 +1,7 @@
 [package]
 name = "dbn"
 authors = ["Databento <support@databento.com>"]
-version = "0.11.0"
+version = "0.11.1"
 edition = "2021"
 description = "Library for working with Databento Binary Encoding (DBN)"
 license = "Apache-2.0"
@@ -25,14 +25,14 @@ serde = ["dep:serde", "time/parsing", "time/serde"]
 trivial_copy = []
 
 [dependencies]
-dbn-macros = { version = "=0.11.0", path = "../dbn-macros" }
+dbn-macros = { version = "=0.11.1", path = "../dbn-macros" }
 
 # async (de)compression
-async-compression = { version = "0.4.1", features = ["tokio", "zstd"], optional = true }
+async-compression = { version = "0.4.3", features = ["tokio", "zstd"], optional = true }
 # CSV serialization
-csv = ">=1.2.2"
+csv = "1.3"
 # Deriving translation between integers and enums
-num_enum = "0.6"
+num_enum = "0.7"
 # Python bindings for Rust
 pyo3 = { version = "0.19", optional = true }
 # JSON serialization
@@ -54,4 +54,4 @@ zstd = "0.12"
 
 [dev-dependencies]
 strum = { version = "0.25", features = ["derive"] }
-tokio = { version = "1.29", features = ["fs", "io-util", "macros", "rt-multi-thread"] }
+tokio = { version = "1", features = ["fs", "io-util", "macros", "rt-multi-thread"] }
