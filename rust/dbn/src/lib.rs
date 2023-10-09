@@ -97,7 +97,7 @@ pub const UNDEF_TIMESTAMP: u64 = u64::MAX;
 pub mod datasets {
     use crate::publishers::Dataset;
 
-    /// The dataset code for Databento Equity Basic.
+    /// The dataset code for Databento Equities Basic.
     pub const DBEQ_BASIC: &str = Dataset::DbeqBasic.as_str();
     /// The dataset code for CME Globex MDP 3.0.
     pub const GLBX_MDP3: &str = Dataset::GlbxMdp3.as_str();
