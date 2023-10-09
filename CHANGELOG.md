@@ -11,12 +11,13 @@
   `record::WithTsOut` to simplify imports
 - Added `--fragment` CLI flag for writing DBN without the metadata header
 - Added `serde::Deserialize` implementations for `Dataset`, `Venue`, and `Publisher`
+- Added support for Python 3.12 to `databento_dbn`
 
 ### Breaking changes
 - Changed `Default` implementation for `BidAskPair` by setting prices to `UNDEF_PRICE`
-- Renamed `--fragment` and `--zstd-fragment` CLI flags to `--input-fragment` and
-  `--input-zstd-fragment` respectively as part of adding the capability for writing
-  fragments
+- Added new publisher values in preparation for DBEQ.PLUS
+- Added `from_dataset_venue` function to `Publisher` to facilitate
+  destructuring.
 
 ## 0.11.1 - 2023-10-05
 ### Enhancements

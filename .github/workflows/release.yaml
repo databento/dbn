@@ -11,7 +11,7 @@ on:
 jobs:
   tag-release:
     if: ${{ github.event.workflow_run.conclusion == 'success' }} || ${{ github.event.workflow_dispatch }}
-    name: tag-release - Python 3.11 (ubuntu-latest)
+    name: tag-release - Python 3.12 (ubuntu-latest)
     runs-on: ubuntu-latest
     outputs:
       upload_url: ${{ steps.create-release.outputs.upload_url }}
@@ -36,7 +36,7 @@ jobs:
       - name: Set up Python environment
         uses: actions/setup-python@v4
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       # Tag the commit with the library version
       - name: Create git tag
@@ -69,7 +69,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
     runs-on: macos-latest
     steps:
       - name: Checkout repository
@@ -114,7 +114,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
     runs-on: windows-latest
     steps:
       - name: Checkout repository
@@ -154,7 +154,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
         target: [x86_64, aarch64]
     runs-on: ubuntu-latest
     steps:
@@ -195,7 +195,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
         target: [x86_64-unknown-linux-musl, aarch64-unknown-linux-musl]
     runs-on: ubuntu-latest
     steps:
