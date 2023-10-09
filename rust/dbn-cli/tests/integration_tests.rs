@@ -5,7 +5,11 @@ use std::{
 };
 
 use assert_cmd::Command;
-use predicates::str::{contains, ends_with, is_empty, is_match, starts_with};
+use dbn::Schema;
+use predicates::{
+    ord::eq,
+    str::{contains, ends_with, is_empty, is_match, starts_with},
+};
 use rstest::rstest;
 use tempfile::{tempdir, NamedTempFile};
 
@@ -362,8 +366,8 @@ fn metadata_conflicts_with_limit() {
 }
 
 #[rstest]
-#[case::uncompressed("--fragment", "dbn.frag")]
-#[case::zstd("--zstd-fragment", "dbn.frag.zst")]
+#[case::uncompressed("--input-fragment", "dbn.frag")]
+#[case::zstd("--input-zstd-fragment", "dbn.frag.zst")]
 fn fragment_conflicts_with_metadata(#[case] flag: &str, #[case] extension: &str) {
     cmd()
         .args([
@@ -380,8 +384,8 @@ fn fragment_conflicts_with_metadata(#[case] flag: &str, #[case] extension: &str)
 }
 
 #[rstest]
-#[case::uncompressed("--fragment", "dbn.frag")]
-#[case::zstd("--zstd-fragment", "dbn.frag.zst")]
+#[case::uncompressed("--input-fragment", "dbn.frag")]
+#[case::zstd("--input-zstd-fragment", "dbn.frag.zst")]
 fn fragment_conflicts_with_dbn_output(#[case] flag: &str, #[case] extension: &str) {
     cmd()
         .args([
@@ -395,11 +399,11 @@ fn fragment_conflicts_with_dbn_output(#[case] flag: &str, #[case] extension: &st
 }
 
 #[rstest]
-#[case::uncompressed_to_csv("csv", "--fragment", "dbn.frag", 3)]
-#[case::uncompressed_to_json("json", "--fragment", "dbn.frag", 2)]
-#[case::zstd_to_csv("csv", "--zstd-fragment", "dbn.frag.zst", 3)]
-#[case::zstd_to_json("json", "--zstd-fragment", "dbn.frag.zst", 2)]
-fn test_fragment(
+#[case::uncompressed_to_csv("csv", "--input-fragment", "dbn.frag", 3)]
+#[case::uncompressed_to_json("json", "--input-fragment", "dbn.frag", 2)]
+#[case::zstd_to_csv("csv", "--input-zstd-fragment", "dbn.frag.zst", 3)]
+#[case::zstd_to_json("json", "--input-zstd-fragment", "dbn.frag.zst", 2)]
+fn input_fragment(
     #[case] output_enc: &str,
     #[case] flag: &str,
     #[case] extension: &str,
@@ -415,6 +419,48 @@ fn test_fragment(
         .success()
         .stdout(contains('\n').count(exp_line_count))
         .stderr(is_empty());
+}
+
+#[rstest]
+#[case::uncompressed_trades("--input-fragment", Schema::Trades, "dbn.frag", "")]
+#[case::zstd_trades("--input-zstd-fragment", Schema::Trades, "dbn.frag.zst", "--zstd")]
+#[case::uncompressed_mbo("--input-fragment", Schema::Mbo, "dbn.frag", "")]
+#[case::zstd_mbo("--input-zstd-fragment", Schema::Mbo, "dbn.frag.zst", "--zstd")]
+#[case::uncompressed_definition("--input-fragment", Schema::Definition, "dbn.frag", "")]
+#[case::zstd_definition("--input-zstd-fragment", Schema::Definition, "dbn.frag.zst", "--zstd")]
+fn write_fragment(
+    #[case] input_flag: &str,
+    #[case] schema: Schema,
+    #[case] extension: &str,
+    #[case] zstd_flag: &str,
+) {
+    let output_dir = tempdir().unwrap();
+    let orig_csv = format!("{}/a.csv", output_dir.path().to_str().unwrap());
+    let frag_output = format!("{}/a.{extension}", output_dir.path().to_str().unwrap());
+    let input_path = format!("{TEST_DATA_PATH}/test_data.{schema}.dbn");
+    cmd()
+        .args(&[&input_path, "--csv", "--output", &orig_csv])
+        .assert()
+        .success()
+        .stderr(is_empty())
+        .stdout(is_empty());
+    let orig_csv_contents = std::fs::read_to_string(orig_csv).unwrap();
+    let mut write_frag_cmd = cmd();
+    write_frag_cmd.args([&input_path, "--fragment", "--output", &frag_output]);
+    if !zstd_flag.is_empty() {
+        write_frag_cmd.arg(zstd_flag);
+    }
+    write_frag_cmd
+        .assert()
+        .success()
+        .stderr(is_empty())
+        .stdout(is_empty());
+    cmd()
+        .args(&[&frag_output, input_flag, "--csv"])
+        .assert()
+        .success()
+        .stderr(is_empty())
+        .stdout(eq(orig_csv_contents));
 }
 
 #[test]
@@ -469,12 +515,20 @@ fn test_limit_updates_metadata() {
 #[rstest]
 #[case::uncompressed_to_csv("test_data.mbo.dbn", "--csv", "")]
 #[case::zstd_to_csv("test_data.mbo.dbn.zst", "--csv", "")]
-#[case::uncompressed_fragment_to_csv("test_data.definition.dbn.frag", "--csv", "--fragment")]
-#[case::zstd_fragment_to_csv("test_data.definition.dbn.frag.zst", "--csv", "--zstd-fragment")]
+#[case::uncompressed_fragment_to_csv("test_data.definition.dbn.frag", "--csv", "--input-fragment")]
+#[case::zstd_fragment_to_csv("test_data.definition.dbn.frag.zst", "--csv", "--input-zstd-fragment")]
 #[case::uncompressed_to_json("test_data.mbo.dbn", "--json", "")]
 #[case::zstd_to_json("test_data.mbo.dbn.zst", "--json", "")]
-#[case::uncompressed_fragment_to_json("test_data.definition.dbn.frag", "--json", "--fragment")]
-#[case::zstd_fragment_to_json("test_data.definition.dbn.frag.zst", "--json", "--zstd-fragment")]
+#[case::uncompressed_fragment_to_json(
+    "test_data.definition.dbn.frag",
+    "--json",
+    "--input-fragment"
+)]
+#[case::zstd_fragment_to_json(
+    "test_data.definition.dbn.frag.zst",
+    "--json",
+    "--input-zstd-fragment"
+)]
 fn broken_pipe_is_silent(
     #[case] file_name: &str,
     #[case] output_flag: &str,

@@ -9,10 +9,14 @@
 - Added `from_zstd` function to `AsyncDbnEncoder` to match synchronous encoder
 - Added re-exports for `enums::rtype`, `record::BidAskPair`, `record::RecordHeader`, and
   `record::WithTsOut` to simplify imports
+- Added `--fragment` CLI flag for writing DBN without the metadata header
 - Added `serde::Deserialize` implementations for `Dataset`, `Venue`, and `Publisher`
 
 ### Breaking changes
 - Changed `Default` implementation for `BidAskPair` by setting prices to `UNDEF_PRICE`
+- Renamed `--fragment` and `--zstd-fragment` CLI flags to `--input-fragment` and
+  `--input-zstd-fragment` respectively as part of adding the capability for writing
+  fragments
 
 ## 0.11.1 - 2023-10-05
 ### Enhancements

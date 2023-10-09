@@ -10,6 +10,8 @@ use clap::{ArgAction, Parser, ValueEnum};
 
 use dbn::enums::{Compression, Encoding};
 
+pub mod encode;
+
 /// How the output of the `dbn` command will be encoded.
 #[derive(Clone, Copy, Debug, ValueEnum)]
 pub enum OutputEncoding {
@@ -18,6 +20,7 @@ pub enum OutputEncoding {
     Dbn,
     Csv,
     Json,
+    DbnFragment,
 }
 
 #[derive(Debug, Parser)]
@@ -62,6 +65,15 @@ pub struct Args {
         help = "Output the result as DBN"
     )]
     pub dbn: bool,
+    #[clap(
+        short = 'F',
+        long,
+        action = ArgAction::SetTrue,
+        default_value = "false",
+        conflicts_with = "json",
+        help = "Output the resulta as a DBN fragment (no metadata)"
+    )]
+    pub fragment: bool,
     #[clap(short, long, action = ArgAction::SetTrue, default_value = "false", help = "Zstd compress the output")]
     pub zstd: bool,
     #[clap(
@@ -99,21 +111,21 @@ pub struct Args {
     )]
     pub limit: Option<NonZeroU64>,
     #[clap(
-        long = "fragment",
+        long = "input-fragment",
         action = ArgAction::SetTrue,
         default_value = "false",
-        conflicts_with_all = ["is_zstd_fragment", "should_output_metadata", "dbn"],
+        conflicts_with_all = ["is_input_zstd_fragment", "should_output_metadata", "dbn"],
         help = "Interpret the input as an uncompressed DBN fragment, i.e. records without metadata. Only valid with text output encodings"
     )]
-    pub is_fragment: bool,
+    pub is_input_fragment: bool,
     #[clap(
-        long = "zstd-fragment",
+        long = "input-zstd-fragment",
         action = ArgAction::SetTrue,
         default_value = "false",
         conflicts_with_all = ["should_output_metadata", "dbn"],
         help = "Interpret the input as a Zstd-compressed DBN fragment, i.e. records without metadata. Only valid with text output encodings"
     )]
-    pub is_zstd_fragment: bool,
+    pub is_input_zstd_fragment: bool,
 }
 
 impl Args {
@@ -125,6 +137,8 @@ impl Args {
             OutputEncoding::Csv
         } else if self.dbn {
             OutputEncoding::Dbn
+        } else if self.fragment {
+            OutputEncoding::DbnFragment
         } else {
             OutputEncoding::Infer
         }
@@ -140,7 +154,7 @@ pub fn infer_encoding_and_compression(args: &Args) -> anyhow::Result<(Encoding, 
         Compression::None
     };
     match args.output_encoding() {
-        OutputEncoding::Dbn => Ok((Encoding::Dbn, compression)),
+        OutputEncoding::DbnFragment | OutputEncoding::Dbn => Ok((Encoding::Dbn, compression)),
         OutputEncoding::Csv => Ok((Encoding::Csv, compression)),
         OutputEncoding::Json => Ok((Encoding::Json, compression)),
         OutputEncoding::Infer => {
