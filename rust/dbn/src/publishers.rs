@@ -241,10 +241,20 @@ pub enum Dataset {
     ArcxPillar = 21,
     /// IEX TOPS
     IexgTops = 22,
+    /// Databento Equities Plus
+    DbeqPlus = 23,
+    /// NYSE BBO
+    XnysBbo = 24,
+    /// NYSE Trades
+    XnysTrades = 25,
+    /// Nasdaq QBBO
+    XnasQbbo = 26,
+    /// Nasdaq NLS
+    XnasNls = 27,
 }
 
 /// The number of Dataset variants.
-pub const DATASET_COUNT: usize = 22;
+pub const DATASET_COUNT: usize = 27;
 
 impl Dataset {
     /// Convert a Dataset to its `str` representation.
@@ -272,6 +282,11 @@ impl Dataset {
             Self::DbeqBasic => "DBEQ.BASIC",
             Self::ArcxPillar => "ARCX.PILLAR",
             Self::IexgTops => "IEXG.TOPS",
+            Self::DbeqPlus => "DBEQ.PLUS",
+            Self::XnysBbo => "XNYS.BBO",
+            Self::XnysTrades => "XNYS.TRADES",
+            Self::XnasQbbo => "XNAS.QBBO",
+            Self::XnasNls => "XNAS.NLS",
         }
     }
 }
@@ -315,6 +330,11 @@ impl std::str::FromStr for Dataset {
             "DBEQ.BASIC" => Ok(Self::DbeqBasic),
             "ARCX.PILLAR" => Ok(Self::ArcxPillar),
             "IEXG.TOPS" => Ok(Self::IexgTops),
+            "DBEQ.PLUS" => Ok(Self::DbeqPlus),
+            "XNYS.BBO" => Ok(Self::XnysBbo),
+            "XNYS.TRADES" => Ok(Self::XnysTrades),
+            "XNAS.QBBO" => Ok(Self::XnasQbbo),
+            "XNAS.NLS" => Ok(Self::XnasNls),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
@@ -410,10 +430,36 @@ pub enum Publisher {
     DbeqBasicEprl = 42,
     /// NYSE Arca Integrated
     ArcxPillarArcx = 43,
+    /// NYSE BBO
+    XnysBboXnys = 44,
+    /// NYSE Trades
+    XnysTradesXnys = 45,
+    /// Nasdaq QBBO
+    XnasQbboXnas = 46,
+    /// Nasdaq Trades
+    XnasNlsXnas = 47,
+    /// DBEQ Plus - NYSE Chicago
+    DbeqPlusXchi = 48,
+    /// DBEQ Plus - NYSE National
+    DbeqPlusXcis = 49,
+    /// DBEQ Plus - IEX
+    DbeqPlusIexg = 50,
+    /// DBEQ Plus - MIAX Pearl
+    DbeqPlusEprl = 51,
+    /// DBEQ Plus - Nasdaq
+    DbeqPlusXnas = 52,
+    /// DBEQ Plus - NYSE
+    DbeqPlusXnys = 53,
+    /// DBEQ Plus - FINRA/NYSE TRF
+    DbeqPlusFinn = 54,
+    /// DBEQ Plus - FINRA/Nasdaq TRF Carteret
+    DbeqPlusFiny = 55,
+    /// DBEQ Plus - FINRA/Nasdaq TRF Chicago
+    DbeqPlusFinc = 56,
 }
 
 /// The number of Publisher variants.
-pub const PUBLISHER_COUNT: usize = 43;
+pub const PUBLISHER_COUNT: usize = 56;
 
 impl Publisher {
     /// Convert a Publisher to its `str` representation.
@@ -462,6 +508,19 @@ impl Publisher {
             Self::DbeqBasicIexg => "DBEQ.BASIC.IEXG",
             Self::DbeqBasicEprl => "DBEQ.BASIC.EPRL",
             Self::ArcxPillarArcx => "ARCX.PILLAR.ARCX",
+            Self::XnysBboXnys => "XNYS.BBO.XNYS",
+            Self::XnysTradesXnys => "XNYS.TRADES.XNYS",
+            Self::XnasQbboXnas => "XNAS.QBBO.XNAS",
+            Self::XnasNlsXnas => "XNAS.NLS.XNAS",
+            Self::DbeqPlusXchi => "DBEQ.PLUS.XCHI",
+            Self::DbeqPlusXcis => "DBEQ.PLUS.XCIS",
+            Self::DbeqPlusIexg => "DBEQ.PLUS.IEXG",
+            Self::DbeqPlusEprl => "DBEQ.PLUS.EPRL",
+            Self::DbeqPlusXnas => "DBEQ.PLUS.XNAS",
+            Self::DbeqPlusXnys => "DBEQ.PLUS.XNYS",
+            Self::DbeqPlusFinn => "DBEQ.PLUS.FINN",
+            Self::DbeqPlusFiny => "DBEQ.PLUS.FINY",
+            Self::DbeqPlusFinc => "DBEQ.PLUS.FINC",
         }
     }
 
@@ -511,6 +570,19 @@ impl Publisher {
             Self::DbeqBasicIexg => Venue::Iexg,
             Self::DbeqBasicEprl => Venue::Eprl,
             Self::ArcxPillarArcx => Venue::Arcx,
+            Self::XnysBboXnys => Venue::Xnys,
+            Self::XnysTradesXnys => Venue::Xnys,
+            Self::XnasQbboXnas => Venue::Xnas,
+            Self::XnasNlsXnas => Venue::Xnas,
+            Self::DbeqPlusXchi => Venue::Xchi,
+            Self::DbeqPlusXcis => Venue::Xcis,
+            Self::DbeqPlusIexg => Venue::Iexg,
+            Self::DbeqPlusEprl => Venue::Eprl,
+            Self::DbeqPlusXnas => Venue::Xnas,
+            Self::DbeqPlusXnys => Venue::Xnys,
+            Self::DbeqPlusFinn => Venue::Finn,
+            Self::DbeqPlusFiny => Venue::Finy,
+            Self::DbeqPlusFinc => Venue::Finc,
         }
     }
 
@@ -560,6 +632,84 @@ impl Publisher {
             Self::DbeqBasicIexg => Dataset::DbeqBasic,
             Self::DbeqBasicEprl => Dataset::DbeqBasic,
             Self::ArcxPillarArcx => Dataset::ArcxPillar,
+            Self::XnysBboXnys => Dataset::XnysBbo,
+            Self::XnysTradesXnys => Dataset::XnysTrades,
+            Self::XnasQbboXnas => Dataset::XnasQbbo,
+            Self::XnasNlsXnas => Dataset::XnasNls,
+            Self::DbeqPlusXchi => Dataset::DbeqPlus,
+            Self::DbeqPlusXcis => Dataset::DbeqPlus,
+            Self::DbeqPlusIexg => Dataset::DbeqPlus,
+            Self::DbeqPlusEprl => Dataset::DbeqPlus,
+            Self::DbeqPlusXnas => Dataset::DbeqPlus,
+            Self::DbeqPlusXnys => Dataset::DbeqPlus,
+            Self::DbeqPlusFinn => Dataset::DbeqPlus,
+            Self::DbeqPlusFiny => Dataset::DbeqPlus,
+            Self::DbeqPlusFinc => Dataset::DbeqPlus,
+        }
+    }
+
+    /// Construct a Publisher from its components.
+    /// # Errors
+    /// Returns an error if there's no `Publisher` with the corresponding `Dataset`/`Venue` combination.
+    pub fn from_dataset_venue(dataset: Dataset, venue: Venue) -> Result<Self> {
+        match (dataset, venue) {
+            (Dataset::GlbxMdp3, Venue::Glbx) => Ok(Self::GlbxMdp3Glbx),
+            (Dataset::XnasItch, Venue::Xnas) => Ok(Self::XnasItchXnas),
+            (Dataset::XbosItch, Venue::Xbos) => Ok(Self::XbosItchXbos),
+            (Dataset::XpsxItch, Venue::Xpsx) => Ok(Self::XpsxItchXpsx),
+            (Dataset::BatsPitch, Venue::Bats) => Ok(Self::BatsPitchBats),
+            (Dataset::BatyPitch, Venue::Baty) => Ok(Self::BatyPitchBaty),
+            (Dataset::EdgaPitch, Venue::Edga) => Ok(Self::EdgaPitchEdga),
+            (Dataset::EdgxPitch, Venue::Edgx) => Ok(Self::EdgxPitchEdgx),
+            (Dataset::XnysPillar, Venue::Xnys) => Ok(Self::XnysPillarXnys),
+            (Dataset::XcisPillar, Venue::Xcis) => Ok(Self::XcisPillarXcis),
+            (Dataset::XasePillar, Venue::Xase) => Ok(Self::XasePillarXase),
+            (Dataset::XchiPillar, Venue::Xchi) => Ok(Self::XchiPillarXchi),
+            (Dataset::XcisBbo, Venue::Xcis) => Ok(Self::XcisBboXcis),
+            (Dataset::XcisTrades, Venue::Xcis) => Ok(Self::XcisTradesXcis),
+            (Dataset::MemxMemoir, Venue::Memx) => Ok(Self::MemxMemoirMemx),
+            (Dataset::EprlDom, Venue::Eprl) => Ok(Self::EprlDomEprl),
+            (Dataset::FinnNls, Venue::Finn) => Ok(Self::FinnNlsFinn),
+            (Dataset::FinnNls, Venue::Finc) => Ok(Self::FinnNlsFinc),
+            (Dataset::FinyTrades, Venue::Finy) => Ok(Self::FinyTradesFiny),
+            (Dataset::OpraPillar, Venue::Amxo) => Ok(Self::OpraPillarAmxo),
+            (Dataset::OpraPillar, Venue::Xbox) => Ok(Self::OpraPillarXbox),
+            (Dataset::OpraPillar, Venue::Xcbo) => Ok(Self::OpraPillarXcbo),
+            (Dataset::OpraPillar, Venue::Emld) => Ok(Self::OpraPillarEmld),
+            (Dataset::OpraPillar, Venue::Edgo) => Ok(Self::OpraPillarEdgo),
+            (Dataset::OpraPillar, Venue::Gmni) => Ok(Self::OpraPillarGmni),
+            (Dataset::OpraPillar, Venue::Xisx) => Ok(Self::OpraPillarXisx),
+            (Dataset::OpraPillar, Venue::Mcry) => Ok(Self::OpraPillarMcry),
+            (Dataset::OpraPillar, Venue::Xmio) => Ok(Self::OpraPillarXmio),
+            (Dataset::OpraPillar, Venue::Arco) => Ok(Self::OpraPillarArco),
+            (Dataset::OpraPillar, Venue::Opra) => Ok(Self::OpraPillarOpra),
+            (Dataset::OpraPillar, Venue::Mprl) => Ok(Self::OpraPillarMprl),
+            (Dataset::OpraPillar, Venue::Xndq) => Ok(Self::OpraPillarXndq),
+            (Dataset::OpraPillar, Venue::Xbxo) => Ok(Self::OpraPillarXbxo),
+            (Dataset::OpraPillar, Venue::C2Ox) => Ok(Self::OpraPillarC2Ox),
+            (Dataset::OpraPillar, Venue::Xphl) => Ok(Self::OpraPillarXphl),
+            (Dataset::OpraPillar, Venue::Bato) => Ok(Self::OpraPillarBato),
+            (Dataset::OpraPillar, Venue::Mxop) => Ok(Self::OpraPillarMxop),
+            (Dataset::IexgTops, Venue::Iexg) => Ok(Self::IexgTopsIexg),
+            (Dataset::DbeqBasic, Venue::Xchi) => Ok(Self::DbeqBasicXchi),
+            (Dataset::DbeqBasic, Venue::Xcis) => Ok(Self::DbeqBasicXcis),
+            (Dataset::DbeqBasic, Venue::Iexg) => Ok(Self::DbeqBasicIexg),
+            (Dataset::DbeqBasic, Venue::Eprl) => Ok(Self::DbeqBasicEprl),
+            (Dataset::ArcxPillar, Venue::Arcx) => Ok(Self::ArcxPillarArcx),
+            (Dataset::XnysBbo, Venue::Xnys) => Ok(Self::XnysBboXnys),
+            (Dataset::XnysTrades, Venue::Xnys) => Ok(Self::XnysTradesXnys),
+            (Dataset::XnasQbbo, Venue::Xnas) => Ok(Self::XnasQbboXnas),
+            (Dataset::XnasNls, Venue::Xnas) => Ok(Self::XnasNlsXnas),
+            (Dataset::DbeqPlus, Venue::Xchi) => Ok(Self::DbeqPlusXchi),
+            (Dataset::DbeqPlus, Venue::Xcis) => Ok(Self::DbeqPlusXcis),
+            (Dataset::DbeqPlus, Venue::Iexg) => Ok(Self::DbeqPlusIexg),
+            (Dataset::DbeqPlus, Venue::Eprl) => Ok(Self::DbeqPlusEprl),
+            (Dataset::DbeqPlus, Venue::Xnas) => Ok(Self::DbeqPlusXnas),
+            (Dataset::DbeqPlus, Venue::Xnys) => Ok(Self::DbeqPlusXnys),
+            (Dataset::DbeqPlus, Venue::Finn) => Ok(Self::DbeqPlusFinn),
+            (Dataset::DbeqPlus, Venue::Finy) => Ok(Self::DbeqPlusFiny),
+            (Dataset::DbeqPlus, Venue::Finc) => Ok(Self::DbeqPlusFinc),
+            _ => Err(Error::conversion::<Self>(format!("{dataset}, {venue}"))),
         }
     }
 }
@@ -624,6 +774,19 @@ impl std::str::FromStr for Publisher {
             "DBEQ.BASIC.IEXG" => Ok(Self::DbeqBasicIexg),
             "DBEQ.BASIC.EPRL" => Ok(Self::DbeqBasicEprl),
             "ARCX.PILLAR.ARCX" => Ok(Self::ArcxPillarArcx),
+            "XNYS.BBO.XNYS" => Ok(Self::XnysBboXnys),
+            "XNYS.TRADES.XNYS" => Ok(Self::XnysTradesXnys),
+            "XNAS.QBBO.XNAS" => Ok(Self::XnasQbboXnas),
+            "XNAS.NLS.XNAS" => Ok(Self::XnasNlsXnas),
+            "DBEQ.PLUS.XCHI" => Ok(Self::DbeqPlusXchi),
+            "DBEQ.PLUS.XCIS" => Ok(Self::DbeqPlusXcis),
+            "DBEQ.PLUS.IEXG" => Ok(Self::DbeqPlusIexg),
+            "DBEQ.PLUS.EPRL" => Ok(Self::DbeqPlusEprl),
+            "DBEQ.PLUS.XNAS" => Ok(Self::DbeqPlusXnas),
+            "DBEQ.PLUS.XNYS" => Ok(Self::DbeqPlusXnys),
+            "DBEQ.PLUS.FINN" => Ok(Self::DbeqPlusFinn),
+            "DBEQ.PLUS.FINY" => Ok(Self::DbeqPlusFiny),
+            "DBEQ.PLUS.FINC" => Ok(Self::DbeqPlusFinc),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }

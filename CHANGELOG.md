@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.2 - TBD
+### Enhancements
+- Added new publisher values in preparation for DBEQ.PLUS
+- Added `from_dataset_venue` function to `Publisher` to facilitate
+  destructuring.
+
 ## 0.11.1 - 2023-10-05
 ### Enhancements
 - Upgraded `async-compression` to 0.4.3
