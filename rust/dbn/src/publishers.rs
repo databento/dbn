@@ -791,3 +791,39 @@ impl std::str::FromStr for Publisher {
         }
     }
 }
+
+#[cfg(feature = "serde")]
+mod deserialize {
+    use std::str::FromStr;
+
+    use serde::{de, Deserialize, Deserializer};
+
+    use super::*;
+
+    impl<'de> Deserialize<'de> for Venue {
+        fn deserialize<D: Deserializer<'de>>(
+            deserializer: D,
+        ) -> std::result::Result<Self, D::Error> {
+            let str = String::deserialize(deserializer)?;
+            FromStr::from_str(&str).map_err(de::Error::custom)
+        }
+    }
+
+    impl<'de> Deserialize<'de> for Dataset {
+        fn deserialize<D: Deserializer<'de>>(
+            deserializer: D,
+        ) -> std::result::Result<Self, D::Error> {
+            let str = String::deserialize(deserializer)?;
+            FromStr::from_str(&str).map_err(de::Error::custom)
+        }
+    }
+
+    impl<'de> Deserialize<'de> for Publisher {
+        fn deserialize<D: Deserializer<'de>>(
+            deserializer: D,
+        ) -> std::result::Result<Self, D::Error> {
+            let str = String::deserialize(deserializer)?;
+            FromStr::from_str(&str).map_err(de::Error::custom)
+        }
+    }
+}

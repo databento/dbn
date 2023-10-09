@@ -9,6 +9,7 @@
 - Added `from_zstd` function to `AsyncDbnEncoder` to match synchronous encoder
 - Added re-exports for `enums::rtype`, `record::BidAskPair`, `record::RecordHeader`, and
   `record::WithTsOut` to simplify imports
+- Added `serde::Deserialize` implementations for `Dataset`, `Venue`, and `Publisher`
 
 ### Breaking changes
 - Changed `Default` implementation for `BidAskPair` by setting prices to `UNDEF_PRICE`
