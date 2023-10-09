@@ -1,10 +1,17 @@
 # Changelog
 
-## 0.11.2 - TBD
+## 0.12.0 - TBD
 ### Enhancements
-- Added new publisher values in preparation for DBEQ.PLUS
-- Added `from_dataset_venue` function to `Publisher` to facilitate
-  destructuring.
+- Added `map_symbols` support to Python `Transcoder`
+- Added new publisher variants in preparation for DBEQ.PLUS dataset
+- Added `from_dataset_venue` function to `Publisher` to facilitate destructuring
+- Implemented `Default` for most records to make testing easier
+- Added `from_zstd` function to `AsyncDbnEncoder` to match synchronous encoder
+- Added re-exports for `enums::rtype`, `record::BidAskPair`, `record::RecordHeader`, and
+  `record::WithTsOut` to simplify imports
+
+### Breaking changes
+- Changed `Default` implementation for `BidAskPair` by setting prices to `UNDEF_PRICE`
 
 ## 0.11.1 - 2023-10-05
 ### Enhancements

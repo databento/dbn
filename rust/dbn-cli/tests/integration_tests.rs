@@ -6,6 +6,7 @@ use std::{
 
 use assert_cmd::Command;
 use predicates::str::{contains, ends_with, is_empty, is_match, starts_with};
+use rstest::rstest;
 use tempfile::{tempdir, NamedTempFile};
 
 fn cmd() -> Command {
@@ -14,14 +15,14 @@ fn cmd() -> Command {
 
 const TEST_DATA_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/data");
 
-#[test]
-fn write_json_to_path() {
+#[rstest]
+fn write_json_to_path(#[values("dbn", "dbn.zst")] extension: &str) {
     // create a directory whose contents will be cleaned up at the end of the test
     let output_dir = tempdir().unwrap();
     let output_path = format!("{}/a.json", output_dir.path().to_str().unwrap());
     cmd()
         .args([
-            &format!("{TEST_DATA_PATH}/test_data.mbp-1.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.mbp-1.{extension}"),
             "--output",
             &output_path,
             "--json",
@@ -79,14 +80,14 @@ fn read_from_nonexistent_path() {
         .stderr(contains("Error opening file to decode"));
 }
 
-#[test]
-fn write_csv() {
+#[rstest]
+fn write_csv(#[values("dbn", "dbn.zst")] extension: &str) {
     // create a directory whose contents will be cleaned up at the end of the test
     let output_dir = tempdir().unwrap();
-    let output_path = format!("{}/a.json", output_dir.path().to_str().unwrap());
+    let output_path = format!("{}/a.csv", output_dir.path().to_str().unwrap());
     cmd()
         .args([
-            &format!("{TEST_DATA_PATH}/test_data.mbp-1.dbn"),
+            &format!("{TEST_DATA_PATH}/test_data.mbp-1.{extension}"),
             "--output",
             &output_path,
             "--csv",
@@ -307,20 +308,23 @@ fn pretty_print_data_metadata() {
         .stderr(is_empty());
 }
 
-#[test]
-fn read_from_stdin() {
+#[rstest]
+fn read_from_stdin(#[values("csv", "json")] output_enc: &str) {
     let path = format!("{TEST_DATA_PATH}/test_data.mbp-10.dbn.zst");
     let read_from_stdin_output = cmd()
         .args([
             "-", // STDIN
-            "--json",
+            &format!("--{output_enc}"),
         ])
         // Pipe input from file
         .pipe_stdin(&path)
         .unwrap()
         .ok()
         .unwrap();
-    let read_from_file_output = cmd().args([&path, "--json"]).ok().unwrap();
+    let read_from_file_output = cmd()
+        .args([&path, &format!("--{output_enc}")])
+        .ok()
+        .unwrap();
     assert_eq!(read_from_stdin_output.stdout, read_from_file_output.stdout);
     assert!(read_from_stdin_output.stderr.is_empty());
     assert!(read_from_file_output.stderr.is_empty());
@@ -357,115 +361,59 @@ fn metadata_conflicts_with_limit() {
         .stderr(contains("'--metadata' cannot be used with '--limit"));
 }
 
-#[test]
-fn fragment_conflicts_with_metadata() {
+#[rstest]
+#[case::uncompressed("--fragment", "dbn.frag")]
+#[case::zstd("--zstd-fragment", "dbn.frag.zst")]
+fn fragment_conflicts_with_metadata(#[case] flag: &str, #[case] extension: &str) {
     cmd()
         .args([
-            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.frag"),
-            "--fragment",
+            &format!("{TEST_DATA_PATH}/test_data.definition.{extension}"),
+            flag,
             "--json",
             "--metadata",
         ])
         .assert()
         .failure()
-        .stderr(contains("'--fragment' cannot be used with '--metadata'"));
+        .stderr(contains(&format!(
+            "'{flag}' cannot be used with '--metadata'"
+        )));
 }
 
-#[test]
-fn zstd_fragment_conflicts_with_metadata() {
+#[rstest]
+#[case::uncompressed("--fragment", "dbn.frag")]
+#[case::zstd("--zstd-fragment", "dbn.frag.zst")]
+fn fragment_conflicts_with_dbn_output(#[case] flag: &str, #[case] extension: &str) {
     cmd()
         .args([
-            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.frag.zst"),
-            "--zstd-fragment",
-            "--json",
-            "--metadata",
-        ])
-        .assert()
-        .failure()
-        .stderr(contains(
-            "'--zstd-fragment' cannot be used with '--metadata'",
-        ));
-}
-
-#[test]
-fn fragment_conflicts_with_dbn_output() {
-    cmd()
-        .args([
-            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.frag"),
-            "--fragment",
+            &format!("{TEST_DATA_PATH}/test_data.definition.{extension}"),
+            flag,
             "--dbn",
         ])
         .assert()
         .failure()
-        .stderr(contains("'--fragment' cannot be used with '--dbn'"));
+        .stderr(contains(&format!("'{flag}' cannot be used with '--dbn'")));
 }
 
-#[test]
-fn zstd_fragment_conflicts_with_dbn_output() {
+#[rstest]
+#[case::uncompressed_to_csv("csv", "--fragment", "dbn.frag", 3)]
+#[case::uncompressed_to_json("json", "--fragment", "dbn.frag", 2)]
+#[case::zstd_to_csv("csv", "--zstd-fragment", "dbn.frag.zst", 3)]
+#[case::zstd_to_json("json", "--zstd-fragment", "dbn.frag.zst", 2)]
+fn test_fragment(
+    #[case] output_enc: &str,
+    #[case] flag: &str,
+    #[case] extension: &str,
+    #[case] exp_line_count: usize,
+) {
     cmd()
         .args([
-            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.frag.zst"),
-            "--zstd-fragment",
-            "--dbn",
-        ])
-        .assert()
-        .failure()
-        .stderr(contains("'--zstd-fragment' cannot be used with '--dbn'"));
-}
-
-#[test]
-fn test_fragment() {
-    cmd()
-        .args([
-            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.frag"),
-            "--fragment",
-            "--json",
+            &format!("{TEST_DATA_PATH}/test_data.definition.{extension}"),
+            flag,
+            &format!("--{output_enc}"),
         ])
         .assert()
         .success()
-        .stdout(contains('\n').count(2))
-        .stderr(is_empty());
-}
-
-#[test]
-fn test_writes_csv_header_for_fragment() {
-    cmd()
-        .args([
-            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.frag"),
-            "--fragment",
-            "--csv",
-        ])
-        .assert()
-        .success()
-        .stdout(contains('\n').count(3))
-        .stderr(is_empty());
-}
-
-#[test]
-fn test_zstd_fragment() {
-    cmd()
-        .args([
-            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.frag.zst"),
-            "--zstd-fragment",
-            "--json",
-        ])
-        .assert()
-        .success()
-        .stdout(contains('\n').count(2))
-        .stderr(is_empty());
-}
-
-#[test]
-fn test_writes_csv_header_for_zstd_fragment() {
-    cmd()
-        .args([
-            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.frag.zst"),
-            "--zstd-fragment",
-            "--csv",
-        ])
-        .assert()
-        .success()
-        .stdout(contains('\n').count(3))
+        .stdout(contains('\n').count(exp_line_count))
         .stderr(is_empty());
 }
 
@@ -517,50 +465,40 @@ fn test_limit_updates_metadata() {
         .stdout(contains('\n').count(1));
 }
 
-#[cfg(not(target_os = "windows"))] // no `false`
-#[test]
-fn broken_pipe_is_silent() {
-    let dbn_cmd = process::Command::new(assert_cmd::cargo::cargo_bin("dbn"))
-        .args([&format!("{TEST_DATA_PATH}/test_data.mbo.dbn.zst"), "--json"])
+#[cfg(not(target_os = "windows"))]
+#[rstest]
+#[case::uncompressed_to_csv("test_data.mbo.dbn", "--csv", "")]
+#[case::zstd_to_csv("test_data.mbo.dbn.zst", "--csv", "")]
+#[case::uncompressed_fragment_to_csv("test_data.definition.dbn.frag", "--csv", "--fragment")]
+#[case::zstd_fragment_to_csv("test_data.definition.dbn.frag.zst", "--csv", "--zstd-fragment")]
+#[case::uncompressed_to_json("test_data.mbo.dbn", "--json", "")]
+#[case::zstd_to_json("test_data.mbo.dbn.zst", "--json", "")]
+#[case::uncompressed_fragment_to_json("test_data.definition.dbn.frag", "--json", "--fragment")]
+#[case::zstd_fragment_to_json("test_data.definition.dbn.frag.zst", "--json", "--zstd-fragment")]
+fn broken_pipe_is_silent(
+    #[case] file_name: &str,
+    #[case] output_flag: &str,
+    #[case] fragment_flag: &str,
+) {
+    let mut dbn_cmd = process::Command::new(assert_cmd::cargo::cargo_bin("dbn"));
+    dbn_cmd.args([&format!("{TEST_DATA_PATH}/{file_name}"), output_flag]);
+    if !fragment_flag.is_empty() {
+        dbn_cmd.arg(fragment_flag);
+    }
+    let dbn_res = dbn_cmd
         .stdout(process::Stdio::piped())
         .stderr(process::Stdio::piped())
         .spawn()
         .unwrap();
     let mut false_cmd = process::Command::new("false");
-    false_cmd.stdin(dbn_cmd.stdout.unwrap());
+    false_cmd.stdin(dbn_res.stdout.unwrap());
     Command::from_std(false_cmd)
         .assert()
         .failure()
         .stdout(is_empty())
         .stderr(is_empty());
     let mut stderr = String::new();
-    dbn_cmd.stderr.unwrap().read_to_string(&mut stderr).unwrap();
-    assert!(stderr.is_empty(), "Stderr: {stderr}");
-}
-
-#[cfg(not(target_os = "windows"))] // no `false`
-#[test]
-fn broken_pipe_is_silent_fragment() {
-    // Test fragment separately because it's a different code path
-    let dbn_cmd = process::Command::new(assert_cmd::cargo::cargo_bin("dbn"))
-        .args([
-            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.frag"),
-            "--fragment",
-            "--csv",
-        ])
-        .stdout(process::Stdio::piped())
-        .stderr(process::Stdio::piped())
-        .spawn()
-        .unwrap();
-    let mut false_cmd = process::Command::new("false");
-    false_cmd.stdin(dbn_cmd.stdout.unwrap());
-    Command::from_std(false_cmd)
-        .assert()
-        .failure()
-        .stdout(is_empty())
-        .stderr(is_empty());
-    let mut stderr = String::new();
-    dbn_cmd.stderr.unwrap().read_to_string(&mut stderr).unwrap();
+    dbn_res.stderr.unwrap().read_to_string(&mut stderr).unwrap();
     assert!(stderr.is_empty(), "Stderr: {stderr}");
 }
 

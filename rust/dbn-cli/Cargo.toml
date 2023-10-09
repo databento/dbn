@@ -32,5 +32,6 @@ zstd = "0.12.4"
 assert_cmd = "2.0.12"
 # assert_cmd companion
 predicates = "3.0.3"
+rstest = "0.18.2"
 # A library for managing temporary files and directories
 tempfile = "3.7.0"

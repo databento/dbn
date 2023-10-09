@@ -529,17 +529,18 @@ pub(crate) fn decode_iso8601(raw: u32) -> Result<time::Date, String> {
 mod tests {
     use std::fs::File;
 
+    use rstest::rstest;
+
     use super::*;
     use crate::{
         datasets::XNAS_ITCH,
-        decode::tests::TEST_DATA_PATH,
-        encode::{dbn::Encoder, EncodeDbn, EncodeRecord},
-        enums::rtype,
-        record::{
-            ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
-            RecordHeader, StatMsg, TbboMsg, TradeMsg,
+        decode::{tests::TEST_DATA_PATH, DynReader},
+        encode::{
+            dbn::Encoder, DbnEncodable, DbnRecordEncoder, DynWriter, EncodeDbn, EncodeRecord,
         },
-        Error, MetadataBuilder, SYMBOL_CSTR_LEN,
+        rtype, Compression, Error, ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg,
+        Mbp1Msg, MetadataBuilder, OhlcvMsg, RecordHeader, Result, StatMsg, TbboMsg, TradeMsg,
+        WithTsOut, SYMBOL_CSTR_LEN,
     };
 
     #[test]
@@ -584,92 +585,130 @@ mod tests {
         dbg!(&res);
         assert!(matches!(res, Err(e) if e.contains("a valid date")));
     }
-
-    macro_rules! test_dbn_identity {
-        ($test_name:ident, $record_type:ident, $schema:expr) => {
-            #[test]
-            fn $test_name() {
-                let file_decoder = Decoder::from_file(format!(
-                    "{TEST_DATA_PATH}/test_data.{}.dbn",
-                    $schema.as_str()
-                ))
-                .unwrap();
-                let file_metadata = file_decoder.metadata().clone();
-                let decoded_records = file_decoder.decode_records::<$record_type>().unwrap();
-                let mut buffer = Vec::new();
-                Encoder::new(&mut buffer, &file_metadata)
-                    .unwrap()
-                    .encode_records(decoded_records.as_slice())
-                    .unwrap();
-                let buf_decoder = Decoder::new(buffer.as_slice()).unwrap();
-                assert_eq!(buf_decoder.metadata(), &file_metadata);
-                assert_eq!(decoded_records, buf_decoder.decode_records().unwrap());
+    #[rstest]
+    #[case::uncompressed_mbo(Schema::Mbo, Compression::None, MboMsg::default())]
+    #[case::uncompressed_trades(Schema::Trades, Compression::None, TradeMsg::default())]
+    #[case::uncompressed_tbbo(Schema::Tbbo, Compression::None, TbboMsg::default())]
+    #[case::uncompressed_mbp1(Schema::Mbp1, Compression::None, Mbp1Msg::default())]
+    #[case::uncompressed_mbp10(Schema::Mbp10, Compression::None, Mbp10Msg::default())]
+    #[case::uncompressed_ohlcv1d(
+        Schema::Ohlcv1D,
+        Compression::None,
+        OhlcvMsg::default_for_schema(Schema::Ohlcv1D)
+    )]
+    #[case::uncompressed_ohlcv1h(
+        Schema::Ohlcv1H,
+        Compression::None,
+        OhlcvMsg::default_for_schema(Schema::Ohlcv1H)
+    )]
+    #[case::uncompressed_ohlcv1m(
+        Schema::Ohlcv1M,
+        Compression::None,
+        OhlcvMsg::default_for_schema(Schema::Ohlcv1M)
+    )]
+    #[case::uncompressed_ohlcv1s(
+        Schema::Ohlcv1S,
+        Compression::None,
+        OhlcvMsg::default_for_schema(Schema::Ohlcv1S)
+    )]
+    #[case::uncompressed_definitions(
+        Schema::Definition,
+        Compression::None,
+        InstrumentDefMsg::default()
+    )]
+    #[case::uncompressed_imbalance(Schema::Imbalance, Compression::None, ImbalanceMsg::default())]
+    #[case::uncompressed_statistics(Schema::Statistics, Compression::None, StatMsg::default())]
+    #[case::zstd_mbo(Schema::Mbo, Compression::ZStd, MboMsg::default())]
+    #[case::zstd_trades(Schema::Trades, Compression::ZStd, TradeMsg::default())]
+    #[case::zstd_tbbo(Schema::Tbbo, Compression::ZStd, TbboMsg::default())]
+    #[case::zstd_mbp1(Schema::Mbp1, Compression::ZStd, Mbp1Msg::default())]
+    #[case::zstd_mbp10(Schema::Mbp10, Compression::ZStd, Mbp10Msg::default())]
+    #[case::zstd_ohlcv1d(
+        Schema::Ohlcv1D,
+        Compression::ZStd,
+        OhlcvMsg::default_for_schema(Schema::Ohlcv1D)
+    )]
+    #[case::zstd_ohlcv1h(
+        Schema::Ohlcv1H,
+        Compression::ZStd,
+        OhlcvMsg::default_for_schema(Schema::Ohlcv1H)
+    )]
+    #[case::zstd_ohlcv1m(
+        Schema::Ohlcv1M,
+        Compression::ZStd,
+        OhlcvMsg::default_for_schema(Schema::Ohlcv1M)
+    )]
+    #[case::zstd_ohlcv1s(
+        Schema::Ohlcv1S,
+        Compression::ZStd,
+        OhlcvMsg::default_for_schema(Schema::Ohlcv1S)
+    )]
+    #[case::zstd_definitions(Schema::Definition, Compression::ZStd, InstrumentDefMsg::default())]
+    #[case::zstd_imbalance(Schema::Imbalance, Compression::ZStd, ImbalanceMsg::default())]
+    #[case::zstd_statistics(Schema::Statistics, Compression::ZStd, StatMsg::default())]
+    fn test_dbn_identity<R: DbnEncodable + PartialEq + Clone>(
+        #[case] schema: Schema,
+        #[case] compression: Compression,
+        #[case] _rec: R,
+    ) -> Result<()> {
+        let file_decoder = Decoder::new(DynReader::from_file(format!(
+            "{TEST_DATA_PATH}/test_data.{schema}.{}",
+            if compression == Compression::ZStd {
+                "dbn.zst"
+            } else {
+                "dbn"
             }
-        };
-    }
-    macro_rules! test_dbn_zstd_identity {
-        ($test_name:ident, $record_type:ident, $schema:expr) => {
-            #[test]
-            fn $test_name() {
-                let file_decoder = Decoder::from_zstd_file(format!(
-                    "{TEST_DATA_PATH}/test_data.{}.dbn.zst",
-                    $schema.as_str()
-                ))
-                .unwrap();
-                let file_metadata = file_decoder.metadata().clone();
-                let decoded_records = file_decoder.decode_records::<$record_type>().unwrap();
-                let mut buffer = Vec::new();
-                Encoder::with_zstd(&mut buffer, &file_metadata)
-                    .unwrap()
-                    .encode_records(decoded_records.as_slice())
-                    .unwrap();
-                let buf_decoder = Decoder::with_zstd(buffer.as_slice()).unwrap();
-                assert_eq!(buf_decoder.metadata(), &file_metadata);
-                assert_eq!(decoded_records, buf_decoder.decode_records().unwrap());
-            }
-        };
+        ))?)?;
+        let file_metadata = file_decoder.metadata().clone();
+        let decoded_records = file_decoder.decode_records::<R>()?;
+        let mut buffer = Vec::new();
+
+        Encoder::new(DynWriter::new(&mut buffer, compression)?, &file_metadata)?
+            .encode_records(decoded_records.as_slice())?;
+        let buf_decoder = Decoder::new(DynReader::inferred_with_buffer(buffer.as_slice())?)?;
+        assert_eq!(buf_decoder.metadata(), &file_metadata);
+        assert_eq!(decoded_records, buf_decoder.decode_records()?);
+        Ok(())
     }
 
-    test_dbn_identity!(test_dbn_identity_mbo, MboMsg, Schema::Mbo);
-    test_dbn_zstd_identity!(test_dbn_zstd_identity_mbo, MboMsg, Schema::Mbo);
-    test_dbn_identity!(test_dbn_identity_mbp1, Mbp1Msg, Schema::Mbp1);
-    test_dbn_zstd_identity!(test_dbn_zstd_identity_mbp1, Mbp1Msg, Schema::Mbp1);
-    test_dbn_identity!(test_dbn_identity_mbp10, Mbp10Msg, Schema::Mbp10);
-    test_dbn_zstd_identity!(test_dbn_zstd_identity_mbp10, Mbp10Msg, Schema::Mbp10);
-    test_dbn_identity!(test_dbn_identity_ohlcv1d, OhlcvMsg, Schema::Ohlcv1D);
-    test_dbn_zstd_identity!(test_dbn_zstd_identity_ohlcv1d, OhlcvMsg, Schema::Ohlcv1D);
-    test_dbn_identity!(test_dbn_identity_ohlcv1h, OhlcvMsg, Schema::Ohlcv1H);
-    test_dbn_zstd_identity!(test_dbn_zstd_identity_ohlcv1h, OhlcvMsg, Schema::Ohlcv1H);
-    test_dbn_identity!(test_dbn_identity_ohlcv1m, OhlcvMsg, Schema::Ohlcv1M);
-    test_dbn_zstd_identity!(test_dbn_zstd_identity_ohlcv1m, OhlcvMsg, Schema::Ohlcv1M);
-    test_dbn_identity!(test_dbn_identity_ohlcv1s, OhlcvMsg, Schema::Ohlcv1S);
-    test_dbn_zstd_identity!(test_dbn_zstd_identity_ohlcv1s, OhlcvMsg, Schema::Ohlcv1S);
-    test_dbn_identity!(test_dbn_identity_tbbo, TbboMsg, Schema::Tbbo);
-    test_dbn_zstd_identity!(test_dbn_zstd_identity_tbbo, TbboMsg, Schema::Tbbo);
-    test_dbn_identity!(test_dbn_identity_trades, TradeMsg, Schema::Trades);
-    test_dbn_zstd_identity!(test_dbn_zstd_identity_trades, TradeMsg, Schema::Trades);
-    test_dbn_identity!(
-        test_dbn_identity_instrument_def,
-        InstrumentDefMsg,
-        Schema::Definition
-    );
-    test_dbn_zstd_identity!(
-        test_dbn_zstd_identity_instrument_def,
-        InstrumentDefMsg,
-        Schema::Definition
-    );
-    test_dbn_identity!(test_dbn_identity_imbalance, ImbalanceMsg, Schema::Imbalance);
-    test_dbn_zstd_identity!(
-        test_dbn_zstd_identity_imbalance,
-        ImbalanceMsg,
-        Schema::Imbalance
-    );
-    test_dbn_identity!(test_dbn_identity_statistics, StatMsg, Schema::Statistics);
-    test_dbn_zstd_identity!(
-        test_dbn_zstd_identity_statistics,
-        StatMsg,
-        Schema::Statistics
-    );
+    #[test]
+    fn test_dbn_identity_with_ts_out() -> Result<()> {
+        let rec1 = WithTsOut {
+            rec: OhlcvMsg {
+                hd: RecordHeader::new::<WithTsOut<OhlcvMsg>>(rtype::OHLCV_1D, 1, 446, 1678284110),
+                open: 160270000000,
+                high: 161870000000,
+                low: 157510000000,
+                close: 158180000000,
+                volume: 3170000,
+            },
+            ts_out: 1678486110,
+        };
+        let mut rec2 = rec1.clone();
+        rec2.rec.hd.instrument_id += 1;
+        rec2.ts_out = 1678486827;
+        let mut buffer = Vec::new();
+        let mut encoder = DbnRecordEncoder::new(&mut buffer);
+        encoder.encode_record(&rec1)?;
+        encoder.encode_record(&rec2)?;
+        let mut decoder_with = RecordDecoder::new(buffer.as_slice());
+        let res1_with = decoder_with
+            .decode::<WithTsOut<OhlcvMsg>>()?
+            .unwrap()
+            .clone();
+        let res2_with = decoder_with
+            .decode::<WithTsOut<OhlcvMsg>>()?
+            .unwrap()
+            .clone();
+        assert_eq!(rec1, res1_with);
+        assert_eq!(rec2, res2_with);
+        let mut decoder_without = RecordDecoder::new(buffer.as_slice());
+        let res1_without = decoder_without.decode::<OhlcvMsg>()?.unwrap().clone();
+        let res2_without = decoder_without.decode::<OhlcvMsg>()?.unwrap().clone();
+        assert_eq!(rec1.rec, res1_without);
+        assert_eq!(rec2.rec, res2_without);
+        Ok(())
+    }
 
     #[test]
     fn test_decode_record_ref() {

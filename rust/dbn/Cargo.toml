@@ -53,5 +53,6 @@ tokio = { version = "1", features = ["fs", "io-util"], optional = true }
 zstd = "0.12"
 
 [dev-dependencies]
+rstest = "0.18.2"
 strum = { version = "0.25", features = ["derive"] }
 tokio = { version = "1", features = ["fs", "io-util", "macros", "rt-multi-thread"] }
