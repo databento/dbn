@@ -66,7 +66,7 @@ where
     }
 
     /// Tries to decode a single record and returns a reference to the record that
-    /// lasts until the next method call. Returns `None` if `reader` has been
+    /// lasts until the next method call. Returns `Ok(None)` if `reader` has been
     /// exhausted.
     ///
     /// # Errors
@@ -80,7 +80,7 @@ where
     }
 
     /// Tries to decode a single record and returns a reference to the record that
-    /// lasts until the next method call. Returns `None` if `reader` has been
+    /// lasts until the next method call. Returns `Ok(None)` if `reader` has been
     /// exhausted.
     ///
     /// # Errors

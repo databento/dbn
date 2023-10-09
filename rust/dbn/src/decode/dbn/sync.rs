@@ -231,7 +231,8 @@ where
         }
     }
 
-    /// Tries to decode a generic reference a record.
+    /// Tries to decode a generic reference a record. Returns `Ok(None)` if
+    /// the reader is exhausted.
     ///
     /// # Errors
     /// This function returns an error if the underlying reader returns an
