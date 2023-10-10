@@ -571,6 +571,37 @@ fn writes_csv_header_for_0_records() {
 }
 
 #[test]
+fn passing_current_dbn_version_is_accepted() {
+    cmd()
+        .args([
+            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.frag"),
+            "--input-fragment",
+            "--input-dbn-version",
+            &dbn::DBN_VERSION.to_string(),
+            "--json",
+        ])
+        .assert()
+        .success()
+        .stderr(is_empty());
+}
+
+#[test]
+fn passing_next_dbn_version_is_rejected() {
+    cmd()
+        .args([
+            &format!("{TEST_DATA_PATH}/test_data.definition.v1.dbn.frag"),
+            "--input-fragment",
+            "--input-dbn-version",
+            &(dbn::DBN_VERSION + 1).to_string(),
+            "--json",
+        ])
+        .assert()
+        .failure()
+        .stderr(contains("invalid value"))
+        .stderr(contains("--input-dbn-version"));
+}
+
+#[test]
 fn help() {
     cmd()
         .arg("--help")

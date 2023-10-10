@@ -53,7 +53,7 @@ pub mod record_ref;
 
 pub use crate::{
     enums::{
-        rtype, Action, Compression, Encoding, InstrumentClass, MatchAlgorithm, RType, SType,
+        flags, rtype, Action, Compression, Encoding, InstrumentClass, MatchAlgorithm, RType, SType,
         Schema, SecurityUpdateAction, Side, StatType, StatUpdateAction, UserDefinedInstrument,
     },
     error::{Error, Result},

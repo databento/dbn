@@ -11,9 +11,13 @@ const STDIN_SENTINEL: &str = "-";
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
+    let version = args.dbn_version_override.unwrap_or(dbn::DBN_VERSION);
     if args.is_input_fragment {
         if args.input.as_os_str() == STDIN_SENTINEL {
-            encode_from_frag(DbnRecordDecoder::new(io::stdin().lock()), &args)
+            encode_from_frag(
+                DbnRecordDecoder::with_version(io::stdin().lock(), version)?,
+                &args,
+            )
         } else {
             encode_from_frag(
                 DbnRecordDecoder::new(File::open(args.input.clone())?),
@@ -23,7 +27,10 @@ fn main() -> anyhow::Result<()> {
     } else if args.is_input_zstd_fragment {
         if args.input.as_os_str() == STDIN_SENTINEL {
             encode_from_frag(
-                DbnRecordDecoder::new(zstd::stream::Decoder::with_buffer(io::stdin().lock())?),
+                DbnRecordDecoder::with_version(
+                    zstd::stream::Decoder::with_buffer(io::stdin().lock())?,
+                    version,
+                )?,
                 &args,
             )
         } else {
@@ -32,7 +39,7 @@ fn main() -> anyhow::Result<()> {
                 &args,
             )
         }
-    } else if args.input.as_os_str() == "-" {
+    } else if args.input.as_os_str() == STDIN_SENTINEL {
         encode_from_dbn(DynDecoder::inferred_with_buffer(io::stdin().lock())?, &args)
     } else {
         encode_from_dbn(DynDecoder::from_file(&args.input)?, &args)

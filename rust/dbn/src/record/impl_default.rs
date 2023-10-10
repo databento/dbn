@@ -98,12 +98,25 @@ impl OhlcvMsg {
     /// Creates a new default OHLCV bar for the given `schema`.
     pub fn default_for_schema(schema: Schema) -> Self {
         Self {
-            hd: RecordHeader::default::<OhlcvMsg>(RType::from(schema) as u8),
+            hd: RecordHeader::default::<Self>(RType::from(schema) as u8),
             open: UNDEF_PRICE,
             high: UNDEF_PRICE,
             low: UNDEF_PRICE,
             close: UNDEF_PRICE,
             volume: 0,
+        }
+    }
+}
+
+impl Default for StatusMsg {
+    fn default() -> Self {
+        Self {
+            hd: RecordHeader::default::<Self>(rtype::STATUS),
+            ts_recv: UNDEF_TIMESTAMP,
+            group: Default::default(),
+            trading_status: 0,
+            halt_reason: 0,
+            trading_event: 0,
         }
     }
 }

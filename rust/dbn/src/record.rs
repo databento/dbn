@@ -32,6 +32,7 @@ use crate::{
     pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn"),
     derive(crate::macros::PyFieldDesc)
 )]
+#[cfg_attr(test, derive(type_layout::TypeLayout))]
 pub struct RecordHeader {
     /// The length of the record in 32-bit words.
     #[dbn(skip)]
@@ -62,6 +63,7 @@ pub struct RecordHeader {
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
+#[cfg_attr(test, derive(type_layout::TypeLayout))]
 #[dbn_record(rtype::MBO)]
 pub struct MboMsg {
     /// The common header.
@@ -116,6 +118,7 @@ pub struct MboMsg {
     pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn"),
     derive(crate::macros::PyFieldDesc)
 )]
+#[cfg_attr(test, derive(type_layout::TypeLayout))]
 pub struct BidAskPair {
     /// The bid price.
     #[dbn(fixed_price)]
@@ -144,6 +147,7 @@ pub struct BidAskPair {
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
+#[cfg_attr(test, derive(type_layout::TypeLayout))]
 #[dbn_record(rtype::MBP_0)]
 pub struct TradeMsg {
     /// The common header.
@@ -195,6 +199,7 @@ pub struct TradeMsg {
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
+#[cfg_attr(test, derive(type_layout::TypeLayout))]
 #[dbn_record(rtype::MBP_1)]
 pub struct Mbp1Msg {
     /// The common header.
@@ -250,6 +255,7 @@ pub struct Mbp1Msg {
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
+#[cfg_attr(test, derive(type_layout::TypeLayout))]
 #[dbn_record(rtype::MBP_10)]
 pub struct Mbp10Msg {
     /// The common header.
@@ -311,6 +317,7 @@ pub type TbboMsg = Mbp1Msg;
     pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn", name = "OHLCVMsg"),
     derive(crate::macros::PyFieldDesc)
 )]
+#[cfg_attr(test, derive(type_layout::TypeLayout))]
 #[dbn_record(
     rtype::OHLCV_1S,
     rtype::OHLCV_1M,
@@ -350,6 +357,7 @@ pub struct OhlcvMsg {
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
+#[cfg_attr(test, derive(type_layout::TypeLayout))]
 #[dbn_record(rtype::STATUS)]
 pub struct StatusMsg {
     /// The common header.
@@ -380,6 +388,7 @@ pub struct StatusMsg {
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
+#[cfg_attr(test, derive(type_layout::TypeLayout))]
 #[dbn_record(rtype::INSTRUMENT_DEF)]
 pub struct InstrumentDefMsg {
     /// The common header.
@@ -604,6 +613,7 @@ pub struct InstrumentDefMsg {
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
+#[cfg_attr(test, derive(type_layout::TypeLayout))]
 #[dbn_record(rtype::IMBALANCE)]
 pub struct ImbalanceMsg {
     /// The common header.
@@ -695,6 +705,7 @@ pub struct ImbalanceMsg {
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
+#[cfg_attr(test, derive(type_layout::TypeLayout))]
 #[dbn_record(rtype::STATISTICS)]
 pub struct StatMsg {
     /// The common header.
@@ -745,6 +756,7 @@ pub struct StatMsg {
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
+#[cfg_attr(test, derive(type_layout::TypeLayout))]
 #[dbn_record(rtype::ERROR)]
 pub struct ErrorMsg {
     /// The common header.
@@ -765,6 +777,7 @@ pub struct ErrorMsg {
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
+#[cfg_attr(test, derive(type_layout::TypeLayout))]
 #[dbn_record(rtype::SYMBOL_MAPPING)]
 pub struct SymbolMappingMsg {
     /// The common header.
@@ -800,6 +813,7 @@ pub struct SymbolMappingMsg {
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
+#[cfg_attr(test, derive(type_layout::TypeLayout))]
 #[dbn_record(rtype::SYSTEM)]
 pub struct SystemMsg {
     /// The common header.
@@ -993,6 +1007,9 @@ pub fn c_chars_to_str<const N: usize>(chars: &[c_char; N]) -> Result<&str> {
 
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
+    use type_layout::{Field, TypeLayout};
+
     use crate::UNDEF_TIMESTAMP;
 
     use super::*;
@@ -1052,22 +1069,51 @@ mod tests {
         assert_eq!(*ohlcv_ref, OHLCV_MSG);
     }
 
-    #[test]
-    fn test_sizes() {
-        assert_eq!(mem::size_of::<RecordHeader>(), 16);
-        assert_eq!(mem::size_of::<MboMsg>(), 56);
-        assert_eq!(mem::size_of::<Mbp1Msg>(), 80);
-        assert_eq!(mem::size_of::<Mbp10Msg>(), 368);
-        assert_eq!(mem::size_of::<OhlcvMsg>(), 56);
-        assert_eq!(mem::size_of::<StatusMsg>(), 48);
-        assert_eq!(mem::size_of::<InstrumentDefMsg>(), 360);
-        assert_eq!(mem::size_of::<StatMsg>(), 64);
-        assert_eq!(mem::size_of::<ErrorMsg>(), 80);
-        assert_eq!(mem::size_of::<SymbolMappingMsg>(), 80);
-        assert_eq!(mem::size_of::<SystemMsg>(), 80);
+    #[rstest]
+    #[case::header(RecordHeader::default::<MboMsg>(rtype::MBO), 16)]
+    #[case::mbo(MboMsg::default(), 56)]
+    #[case::ba_pair(BidAskPair::default(), 32)]
+    #[case::mbp1(Mbp1Msg::default(), mem::size_of::<TradeMsg>() + mem::size_of::<BidAskPair>())]
+    #[case::mbp10(Mbp10Msg::default(), mem::size_of::<TradeMsg>() + mem::size_of::<BidAskPair>() * 10)]
+    #[case::trade(TradeMsg::default(), 48)]
+    #[case::definition(InstrumentDefMsg::default(), 360)]
+    #[case::status(StatusMsg::default(), 48)]
+    #[case::imbalance(ImbalanceMsg::default(), 112)]
+    #[case::stat(StatMsg::default(), 64)]
+    #[case::error(ErrorMsg::default(), 80)]
+    #[case::symbol_mapping(SymbolMappingMsg::default(), 80)]
+    #[case::system(SystemMsg::default(), 80)]
+    #[case::with_ts_out(WithTsOut::new(SystemMsg::default(), 0), mem::size_of::<SystemMsg>() + 8)]
+    fn test_sizes<R: Sized>(#[case] _rec: R, #[case] exp: usize) {
+        assert_eq!(mem::size_of::<R>(), exp);
     }
 
-    #[test]
+    #[rstest]
+    #[case::header(RecordHeader::default::<MboMsg>(rtype::MBO))]
+    #[case::mbo(MboMsg::default())]
+    #[case::ba_pair(BidAskPair::default())]
+    #[case::mbp1(Mbp1Msg::default())]
+    #[case::mbp10(Mbp10Msg::default())]
+    #[case::trade(TradeMsg::default())]
+    #[case::definition(InstrumentDefMsg::default())]
+    #[case::status(StatusMsg::default())]
+    #[case::imbalance(ImbalanceMsg::default())]
+    #[case::stat(StatMsg::default())]
+    #[case::error(ErrorMsg::default())]
+    #[case::symbol_mapping(SymbolMappingMsg::default())]
+    #[case::system(SystemMsg::default())]
+    fn test_alignment_and_no_padding<R: TypeLayout>(#[case] _rec: R) {
+        let layout = R::type_layout();
+        assert_eq!(layout.alignment, 8, "Unexpected alignment: {layout}");
+        for field in layout.fields.iter() {
+            assert!(
+                matches!(field, Field::Field { .. }),
+                "Detected padding: {layout}"
+            );
+        }
+    }
+
+    #[rstest]
     fn test_db_ts_always_valid_time_offsetdatetime() {
         assert!(time::OffsetDateTime::from_unix_timestamp_nanos(0).is_ok());
         assert!(time::OffsetDateTime::from_unix_timestamp_nanos((u64::MAX - 1) as i128).is_ok());

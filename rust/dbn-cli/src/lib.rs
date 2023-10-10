@@ -126,6 +126,12 @@ pub struct Args {
         help = "Interpret the input as a Zstd-compressed DBN fragment, i.e. records without metadata. Only valid with text output encodings"
     )]
     pub is_input_zstd_fragment: bool,
+    #[clap(
+        long = "input-dbn-version",
+        help = "Specify the DBN version of the fragment. By default the fragment is assumed to be of the current version",
+        value_parser = clap::value_parser!(u8).range(1..=1) // TODO(carter): keep up to date
+    )]
+    pub dbn_version_override: Option<u8>,
 }
 
 impl Args {

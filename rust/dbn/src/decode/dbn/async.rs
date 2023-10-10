@@ -41,12 +41,13 @@ where
     /// Creates a new async DBN [`Decoder`] from `reader`.
     ///
     /// # Errors
-    /// This function will return an error if it is unable to parse the metadata in `reader`.
+    /// This function will return an error if it is unable to parse the metadata in
+    /// `reader` or the input is encoded in a newer version of DBN.
     pub async fn new(mut reader: R) -> crate::Result<Self> {
         let metadata = MetadataDecoder::new(&mut reader).decode().await?;
         Ok(Self {
+            decoder: RecordDecoder::with_version(reader, metadata.version)?,
             metadata,
-            decoder: RecordDecoder::new(reader),
         })
     }
 
@@ -163,6 +164,8 @@ pub struct RecordDecoder<R>
 where
     R: io::AsyncReadExt + Unpin,
 {
+    /// For future use with reading different DBN versions.
+    _version: u8,
     reader: R,
     buffer: Vec<u8>,
 }
@@ -174,10 +177,28 @@ where
     /// Creates a new DBN [`RecordDecoder`] from `reader`.
     pub fn new(reader: R) -> Self {
         Self {
+            _version: DBN_VERSION,
             reader,
             // `buffer` should have capacity for reading `length`
             buffer: vec![0],
         }
+    }
+
+    /// Creates a new `RecordDecoder` that will decode from `reader`
+    /// with the specified DBN version.
+    ///
+    /// # Errors
+    /// This function will return an error if the `version` exceeds the supported version.
+    pub fn with_version(reader: R, version: u8) -> crate::Result<Self> {
+        if version > DBN_VERSION {
+            return Err(crate::Error::decode(format!("Can't decode newer version of DBN. Decoder version is {DBN_VERSION}, input version is {version}")));
+        }
+        Ok(Self {
+            _version: version,
+            reader,
+            // `buffer` should have capacity for reading `length`
+            buffer: vec![0],
+        })
     }
 
     /// Tries to decode a single record and returns a reference to the record that
@@ -296,7 +317,8 @@ where
     /// Decodes and returns a DBN [`Metadata`].
     ///
     /// # Errors
-    /// This function will return an error if it is unable to parse the metadata.
+    /// This function will return an error if it is unable to parse the metadata or the
+    /// input is encoded in a newere version of DBN.
     pub async fn decode(&mut self) -> Result<Metadata> {
         let mut prelude_buffer = [0u8; 8];
         self.reader

@@ -129,7 +129,6 @@ fn encode_fragment<D: DecodeRecordRef>(
     compression: Compression,
     args: &Args,
 ) -> dbn::Result<()> {
-    // FIXME: refactor boxed writer and dyn writer
     let mut encoder = DbnRecordEncoder::new(DynWriter::new(writer, compression)?);
     let mut n = 0;
     while let Some(record) = decoder.decode_record_ref()? {

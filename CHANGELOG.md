@@ -7,11 +7,15 @@
 - Added `from_dataset_venue` function to `Publisher` to facilitate destructuring
 - Implemented `Default` for most records to make testing easier
 - Added `from_zstd` function to `AsyncDbnEncoder` to match synchronous encoder
-- Added re-exports for `enums::rtype`, `record::BidAskPair`, `record::RecordHeader`, and
-  `record::WithTsOut` to simplify imports
+- Added re-exports for `enums::flags`, `enums::rtype`, `record::BidAskPair`,
+  `record::RecordHeader`, and `record::WithTsOut` to simplify imports
 - Added `--fragment` CLI flag for writing DBN without the metadata header
+- Added `--input-dbn-version` CLI option for specifying the DBN version of a DBN
+  fragment
 - Added `serde::Deserialize` implementations for `Dataset`, `Venue`, and `Publisher`
 - Added support for Python 3.12 to `databento_dbn`
+- Added `RecordDecoder::with_version` for future use when dealing with compatibility
+  between different DBN versions
 
 ### Breaking changes
 - Changed `Default` implementation for `BidAskPair` by setting prices to `UNDEF_PRICE`
