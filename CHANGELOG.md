@@ -19,6 +19,8 @@
 - Added new dispatch macros: `rtype_ts_out_method_dispatch`,
   `rtype_ts_out_async_method_dispatch`, `rtype_method_dispatch`, and
   `schema_ts_out_method_dispatch`
+- Added `InstrumentDefMsgV2` and `SymbolMappingMsgV2` for forward compatibility with a
+  version of DBN
 
 ### Breaking changes
 - Changed `Default` implementation for `BidAskPair` by setting prices to `UNDEF_PRICE`

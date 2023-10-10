@@ -36,6 +36,7 @@
 #![deny(rustdoc::broken_intra_doc_links)]
 #![deny(clippy::missing_errors_doc)]
 
+pub mod compat;
 pub mod decode;
 pub mod encode;
 pub mod enums;
@@ -71,7 +72,7 @@ pub use crate::{
 /// The current version of the DBN encoding, which is different from the crate version.
 pub const DBN_VERSION: u8 = 1;
 /// The length of symbol fields (21 characters plus null terminator).
-pub const SYMBOL_CSTR_LEN: usize = 22;
+pub const SYMBOL_CSTR_LEN: usize = compat::SYMBOL_CSTR_LEN_V1;
 
 const METADATA_DATASET_CSTR_LEN: usize = 16;
 const METADATA_RESERVED_LEN: usize = 47;
