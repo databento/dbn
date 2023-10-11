@@ -6,7 +6,8 @@ use crate::{
     decode::DecodeDbn,
     encode::{DbnEncodable, EncodeDbn, EncodeRecord, EncodeRecordRef, EncodeRecordTextExt},
     enums::{RType, Schema},
-    rtype_dispatch, rtype_ts_out_dispatch, schema_method_dispatch, Error, Result,
+    rtype_method_dispatch, rtype_ts_out_method_dispatch, schema_method_dispatch,
+    schema_ts_out_method_dispatch, Error, Result,
 };
 
 /// Type for encoding files and streams of DBN records in CSV.
@@ -67,15 +68,22 @@ where
     /// Encodes the CSV header for `schema`, i.e. the names of each of the fields to
     /// the output.
     ///
-    /// If `with_symbol` is `true`, will add a header field for "symbol". This should
+    /// If `ts_out` is `true`, it will add a header field "ts_out".
+    ///
+    /// If `with_symbol` is `true`, it will add a header field for "symbol". This should
     /// only be used with  [`Self::encode_record_with_sym()`] and
     /// [`Self::encode_ref_with_sym()`], otherwise there will be a mismatch between the
     /// number of fields in the header and the body.
     ///
     /// # Errors
     /// This function returns an error if there's an error writing to `writer`.
-    pub fn encode_header_for_schema(&mut self, schema: Schema, with_symbol: bool) -> Result<()> {
-        schema_method_dispatch!(schema, self, encode_header, with_symbol)
+    pub fn encode_header_for_schema(
+        &mut self,
+        schema: Schema,
+        ts_out: bool,
+        with_symbol: bool,
+    ) -> Result<()> {
+        schema_ts_out_method_dispatch!(schema, ts_out, self, encode_header, with_symbol)
     }
 
     fn encode_record_impl<R: DbnEncodable>(&mut self, record: &R) -> csv::Result<()> {
@@ -122,8 +130,7 @@ where
     W: io::Write,
 {
     fn encode_record_ref(&mut self, record: crate::RecordRef) -> Result<()> {
-        #[allow(clippy::redundant_closure_call)]
-        rtype_dispatch!(record, |rec| self.encode_record(rec))?
+        rtype_method_dispatch!(record, self, encode_record)?
     }
 
     unsafe fn encode_record_ref_ts_out(
@@ -131,8 +138,7 @@ where
         record: crate::RecordRef,
         ts_out: bool,
     ) -> Result<()> {
-        #[allow(clippy::redundant_closure_call)]
-        rtype_ts_out_dispatch!(record, ts_out, |rec| self.encode_record(rec))?
+        rtype_ts_out_method_dispatch!(record, ts_out, self, encode_record)?
     }
 }
 
@@ -633,20 +639,20 @@ mod tests {
         {
             let mut encoder = Encoder::new(&mut buffer, false, false);
             encoder
-                .encode_header_for_schema(Schema::Statistics, false)
+                .encode_header_for_schema(Schema::Statistics, false, false)
                 .unwrap();
         }
         {
             let mut encoder = Encoder::new(&mut buffer, false, false);
             encoder
-                .encode_header_for_schema(Schema::Statistics, true)
+                .encode_header_for_schema(Schema::Statistics, true, true)
                 .unwrap();
         }
 
         let res = String::from_utf8(buffer).unwrap();
         let (fst_line, snd_line) = res.split_once('\n').unwrap();
         assert!(snd_line.ends_with(",symbol\n"));
-        let orig_header = snd_line.split_once(",symbol").unwrap().0;
+        let orig_header = snd_line.split_once(",ts_out,symbol").unwrap().0;
         assert_eq!(fst_line, orig_header);
     }
 }

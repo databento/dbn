@@ -2498,6 +2498,9 @@ class Transcoder:
     symbol_map : dict[int, list[tuple[datetime.date, datetime.date, str]]], default None
         Specify the initial symbol mappings to use with map_symbols. If not specified,
         only the mappings in the metadata header will be used.
+    schema : Schema | None, default None
+        The data record schema to encode. This is required for transcoding Live CSV data,
+        as the tabular format is incompatible with mixed schemas.
     """
 
     def __init__(
@@ -2512,6 +2515,7 @@ class Transcoder:
         ts_out: bool = False,
         input_compression: Compression | None = None,
         symbol_map: dict[int, list[tuple[datetime.date, datetime.date, str]]] | None = None,
+        schema: Schema | None = None,
     ): ...
     def buffer(self) -> bytes:
         """

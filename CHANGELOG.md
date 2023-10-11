@@ -16,10 +16,15 @@
 - Added support for Python 3.12 to `databento_dbn`
 - Added `RecordDecoder::with_version` for future use when dealing with compatibility
   between different DBN versions
+- Added new dispatch macros: `rtype_ts_out_method_dispatch`,
+  `rtype_ts_out_async_method_dispatch`, `rtype_method_dispatch`, and
+  `schema_ts_out_method_dispatch`
 
 ### Breaking changes
 - Changed `Default` implementation for `BidAskPair` by setting prices to `UNDEF_PRICE`
 - Added new publisher values in preparation for DBEQ.PLUS
+- Added `ts_out` parameter to `encode_header_for_schema` in `CsvEncoder` and
+  `DynEncoder` to allow controlling whether "ts_out" is in the header
 - Added `from_dataset_venue` function to `Publisher` to facilitate
   destructuring.
 

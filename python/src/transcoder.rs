@@ -15,6 +15,7 @@ use dbn::{
     },
     enums::{Compression, Encoding},
     python::{py_to_time_date, to_val_err},
+    Schema,
 };
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyDate};
 
@@ -39,6 +40,7 @@ impl Transcoder {
         ts_out: Option<bool>,
         input_compression: Option<Compression>,
         symbol_map: Option<PySymbolMap>,
+        schema: Option<Schema>,
     ) -> PyResult<Self> {
         let symbol_map = if let Some(py_symbol_map) = symbol_map {
             let mut symbol_map = HashMap::new();
@@ -74,6 +76,7 @@ impl Transcoder {
                 ts_out,
                 input_compression,
                 symbol_map,
+                schema,
             )?),
             Encoding::Csv => Box::new(Inner::<{ Encoding::Csv as u8 }>::new(
                 file,
@@ -85,6 +88,7 @@ impl Transcoder {
                 ts_out,
                 input_compression,
                 symbol_map,
+                schema,
             )?),
             Encoding::Json => Box::new(Inner::<{ Encoding::Json as u8 }>::new(
                 file,
@@ -96,6 +100,7 @@ impl Transcoder {
                 ts_out,
                 input_compression,
                 symbol_map,
+                schema,
             )?),
         }))
     }
@@ -132,6 +137,7 @@ struct Inner<const E: u8> {
     ts_out: bool,
     input_compression: Option<Compression>,
     symbol_map: HashMap<(time::Date, u32), String>,
+    schema: Option<Schema>,
 }
 
 impl<const E: u8> Transcode for Inner<E> {
@@ -162,6 +168,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
         ts_out: Option<bool>,
         input_compression: Option<Compression>,
         symbol_map: Option<HashMap<(time::Date, u32), String>>,
+        schema: Option<Schema>,
     ) -> PyResult<Self> {
         if OUTPUT_ENC == Encoding::Dbn as u8 && map_symbols.unwrap_or(false) {
             return Err(PyValueError::new_err(
@@ -178,6 +185,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
             ts_out: ts_out.unwrap_or(false),
             input_compression,
             symbol_map: symbol_map.unwrap_or_default(),
+            schema,
         })
     }
 
@@ -338,6 +346,9 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
                 Ok(metadata) => {
                     self.ts_out = metadata.ts_out;
                     self.has_decoded_metadata = true;
+                    if self.schema.is_none() {
+                        self.schema = metadata.schema;
+                    }
                     if OUTPUT_ENC == Encoding::Dbn as u8 {
                         DbnMetadataEncoder::new(&mut self.output)
                             .encode(&metadata)
@@ -352,6 +363,19 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
                     // haven't read enough data for metadata
                     return Err(to_val_err(err));
                 }
+            }
+            // decoding metadata and the header are both done once at the beginning
+            if OUTPUT_ENC == Encoding::Csv as u8 {
+                let Some(schema) = self.schema else {
+                    return Err(PyValueError::new_err(
+                        "A schema must be transcoding mixed schema DBN to CSV",
+                    ));
+                };
+                let mut encoder =
+                    CsvEncoder::new(&mut self.output, self.use_pretty_px, self.use_pretty_ts);
+                encoder
+                    .encode_header_for_schema(schema, self.ts_out, self.map_symbols)
+                    .map_err(to_val_err)?;
             }
         }
         Ok(())
@@ -404,6 +428,7 @@ mod tests {
                 Py::new(py, file).unwrap().extract(py).unwrap(),
                 Encoding::Json,
                 Compression::None,
+                None,
                 None,
                 None,
                 None,
@@ -479,6 +504,7 @@ mod tests {
                 None,
                 None,
                 None,
+                None,
             )
             .unwrap()
         });
@@ -525,7 +551,9 @@ mod tests {
         transcoder.flush().unwrap();
         let output = output_buf.lock().unwrap();
         let output = std::str::from_utf8(output.get_ref().as_slice()).unwrap();
-        assert_eq!(output.chars().filter(|c| *c == '\n').count(), 2);
+        // header + 2 lines
+        dbg!(&output);
+        assert_eq!(output.chars().filter(|c| *c == '\n').count(), 3);
     }
 
     #[rstest]
@@ -547,6 +575,7 @@ mod tests {
                 Some(map_symbols),
                 None,
                 Some(true),
+                None,
                 None,
                 None,
             )
@@ -634,11 +663,13 @@ mod tests {
         dbg!(&lines);
         if encoding == Encoding::Csv {
             if map_symbols {
-                assert!(lines[0].contains(",1,NFLX"));
-                assert!(lines[1].contains(",2,QQQ"));
+                assert!(lines[0].ends_with(",ts_out,symbol"));
+                assert!(lines[1].contains(",1,NFLX"));
+                assert!(lines[2].contains(",2,QQQ"));
             } else {
-                assert!(lines[0].ends_with(",1"));
-                assert!(lines[1].ends_with(",2"));
+                assert!(lines[0].ends_with(",ts_out"));
+                assert!(lines[1].ends_with(",1"));
+                assert!(lines[2].ends_with(",2"));
             }
         } else {
             assert_eq!(lines[0].contains("\"symbol\":\"NFLX\""), map_symbols);

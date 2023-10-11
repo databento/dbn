@@ -3,7 +3,7 @@ use std::io;
 use super::serialize::{to_json_string, to_json_string_with_sym};
 use crate::{
     encode::{DbnEncodable, EncodeDbn, EncodeRecord, EncodeRecordRef, EncodeRecordTextExt},
-    rtype_dispatch, rtype_ts_out_dispatch, Error, Metadata, Result,
+    rtype_method_dispatch, rtype_ts_out_method_dispatch, Error, Metadata, Result,
 };
 
 /// Type for encoding files and streams of DBN records in newline-delimited JSON (ndjson).
@@ -95,8 +95,7 @@ where
     W: io::Write,
 {
     fn encode_record_ref(&mut self, record: crate::RecordRef) -> Result<()> {
-        #[allow(clippy::redundant_closure_call)]
-        rtype_dispatch!(record, |rec| self.encode_record(rec))?
+        rtype_method_dispatch!(record, self, encode_record)?
     }
 
     unsafe fn encode_record_ref_ts_out(
@@ -104,8 +103,7 @@ where
         record: crate::RecordRef,
         ts_out: bool,
     ) -> Result<()> {
-        #[allow(clippy::redundant_closure_call)]
-        rtype_ts_out_dispatch!(record, ts_out, |rec| self.encode_record(rec))?
+        rtype_ts_out_method_dispatch!(record, ts_out, self, encode_record)?
     }
 }
 
