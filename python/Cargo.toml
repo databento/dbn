@@ -17,7 +17,12 @@ name = "databento_dbn" # Python modules can't contain dashes
 dbn = { path = "../rust/dbn", features = ["python"] }
 # Python bindings for Rust
 pyo3 = "0.19"
+# Dates and datetimes
 time = "0.3.29"
 
 [build-dependencies]
 pyo3-build-config = { version = "0.19" }
+
+[dev-dependencies]
+# parameterized testing
+rstest = "0.18.2"

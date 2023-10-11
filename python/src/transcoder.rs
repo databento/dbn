@@ -242,13 +242,17 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
         loop {
             match decoder.decode_record_ref() {
                 Ok(Some(rec)) => {
-                    let symbol = rec.header().ts_event().and_then(|ts_event| {
-                        self.symbol_map
-                            .get(&(ts_event.date(), rec.header().instrument_id))
-                            .map(|s| s.as_str())
-                    });
-                    unsafe { encoder.encode_ref_ts_out_with_sym(rec, self.ts_out, symbol) }
-                        .map_err(to_val_err)?;
+                    if self.map_symbols {
+                        let symbol = rec.header().ts_event().and_then(|ts_event| {
+                            self.symbol_map
+                                .get(&(ts_event.date(), rec.header().instrument_id))
+                                .map(|s| s.as_str())
+                        });
+                        unsafe { encoder.encode_ref_ts_out_with_sym(rec, self.ts_out, symbol) }
+                    } else {
+                        unsafe { encoder.encode_record_ref_ts_out(rec, self.ts_out) }
+                    }
+                    .map_err(to_val_err)?;
                     // keep track of position after last _successful_ decoding to
                     // ensure buffer is left in correct state in the case where one
                     // or more successful decodings is followed by a partial one, i.e.
@@ -284,13 +288,17 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
         loop {
             match decoder.decode_record_ref() {
                 Ok(Some(rec)) => {
-                    let symbol = rec.header().ts_event().and_then(|ts_event| {
-                        self.symbol_map
-                            .get(&(ts_event.date(), rec.header().instrument_id))
-                            .map(|s| s.as_str())
-                    });
-                    unsafe { encoder.encode_ref_ts_out_with_sym(rec, self.ts_out, symbol) }
-                        .map_err(to_val_err)?;
+                    if self.map_symbols {
+                        let symbol = rec.header().ts_event().and_then(|ts_event| {
+                            self.symbol_map
+                                .get(&(ts_event.date(), rec.header().instrument_id))
+                                .map(|s| s.as_str())
+                        });
+                        unsafe { encoder.encode_ref_ts_out_with_sym(rec, self.ts_out, symbol) }
+                    } else {
+                        unsafe { encoder.encode_record_ref_ts_out(rec, self.ts_out) }
+                    }
+                    .map_err(to_val_err)?;
                     // keep track of position after last _successful_ decoding to
                     // ensure buffer is left in correct state in the case where one
                     // or more successful decodings is followed by a partial one, i.e.
@@ -370,6 +378,7 @@ mod tests {
         record::{ErrorMsg, OhlcvMsg, RecordHeader},
         MappingInterval, MetadataBuilder, SymbolMapping, WithTsOut,
     };
+    use rstest::rstest;
     use time::macros::{date, datetime};
 
     use crate::{encode::tests::MockPyFile, tests::setup};
@@ -519,19 +528,23 @@ mod tests {
         assert_eq!(output.chars().filter(|c| *c == '\n').count(), 2);
     }
 
-    #[test]
-    fn test_map_symbols() {
+    #[rstest]
+    #[case::csv(Encoding::Csv, false)]
+    #[case::csv_map_symbols(Encoding::Csv, true)]
+    #[case::json(Encoding::Json, false)]
+    #[case::json_map_symbols(Encoding::Json, true)]
+    fn test_map_symbols(#[case] encoding: Encoding, #[case] map_symbols: bool) {
         setup();
         let file = MockPyFile::new();
         let output_buf = file.inner();
         let mut transcoder = Python::with_gil(|py| {
             Transcoder::new(
                 Py::new(py, file).unwrap().extract(py).unwrap(),
-                Encoding::Json,
+                encoding,
                 Compression::None,
                 None,
                 Some(false),
-                Some(true),
+                Some(map_symbols),
                 None,
                 Some(true),
                 None,
@@ -619,9 +632,19 @@ mod tests {
         let output = std::str::from_utf8(output.get_ref().as_slice()).unwrap();
         let lines = output.lines().collect::<Vec<_>>();
         dbg!(&lines);
-        assert!(lines[0].contains("\"symbol\":\"NFLX\""));
-        assert!(lines[0].contains("\"ts_out\":\"1\""));
-        assert!(lines[1].contains("\"symbol\":\"QQQ\""));
-        assert!(lines[1].contains("\"ts_out\":\"2\""));
+        if encoding == Encoding::Csv {
+            if map_symbols {
+                assert!(lines[0].contains(",1,NFLX"));
+                assert!(lines[1].contains(",2,QQQ"));
+            } else {
+                assert!(lines[0].ends_with(",1"));
+                assert!(lines[1].ends_with(",2"));
+            }
+        } else {
+            assert_eq!(lines[0].contains("\"symbol\":\"NFLX\""), map_symbols);
+            assert!(lines[0].contains("\"ts_out\":\"1\""));
+            assert_eq!(lines[1].contains("\"symbol\":\"QQQ\""), map_symbols);
+            assert!(lines[1].contains("\"ts_out\":\"2\""));
+        }
     }
 }
