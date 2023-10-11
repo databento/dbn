@@ -14,9 +14,8 @@ use dbn::{
         CsvEncoder, DbnMetadataEncoder, DbnRecordEncoder, DynWriter, EncodeRecordRef,
         EncodeRecordTextExt, JsonEncoder,
     },
-    enums::{Compression, Encoding},
     python::{py_to_time_date, to_val_err},
-    Schema, SymbolIndex, TsSymbolMap,
+    Compression, Encoding, PitSymbolMap, RType, RecordRef, Schema, SymbolIndex, TsSymbolMap,
 };
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyDate};
 
@@ -132,7 +131,7 @@ struct Inner<const E: u8> {
     has_decoded_metadata: bool,
     ts_out: bool,
     input_compression: Option<Compression>,
-    symbol_map: TsSymbolMap,
+    symbol_map: SymbolMap,
     schema: Option<Schema>,
 }
 
@@ -180,7 +179,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
             has_decoded_metadata: !has_metadata.unwrap_or(true),
             ts_out: ts_out.unwrap_or(false),
             input_compression,
-            symbol_map: symbol_map.unwrap_or_default(),
+            symbol_map: symbol_map.map(SymbolMap::Historical).unwrap_or_default(),
             schema,
         })
     }
@@ -247,12 +246,23 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
             match decoder.decode_record_ref() {
                 Ok(Some(rec)) => {
                     if self.map_symbols {
-                        let symbol = self.symbol_map.get_for_rec_ref(rec).map(|s| s.as_str());
-                        unsafe { encoder.encode_ref_ts_out_with_sym(rec, self.ts_out, symbol) }
-                    } else {
-                        unsafe { encoder.encode_record_ref_ts_out(rec, self.ts_out) }
+                        self.symbol_map.update_live(rec);
                     }
-                    .map_err(to_val_err)?;
+                    // Filter by rtype based on metadata schema or schema parameter
+                    if rec
+                        .rtype()
+                        // Schema must be set for CSV. Checked in [`maybe_decode_metadata`]
+                        .map(|rtype| rtype == RType::from(self.schema.unwrap()))
+                        .unwrap_or(false)
+                    {
+                        if self.map_symbols {
+                            let symbol = self.symbol_map.get_for_rec_ref(rec).map(|s| s.as_str());
+                            unsafe { encoder.encode_ref_ts_out_with_sym(rec, self.ts_out, symbol) }
+                        } else {
+                            unsafe { encoder.encode_record_ref_ts_out(rec, self.ts_out) }
+                        }
+                        .map_err(to_val_err)?;
+                    }
                     // keep track of position after last _successful_ decoding to
                     // ensure buffer is left in correct state in the case where one
                     // or more successful decodings is followed by a partial one, i.e.
@@ -289,6 +299,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
             match decoder.decode_record_ref() {
                 Ok(Some(rec)) => {
                     if self.map_symbols {
+                        self.symbol_map.update_live(rec);
                         let symbol = self.symbol_map.get_for_rec_ref(rec).map(|s| s.as_str());
                         unsafe { encoder.encode_ref_ts_out_with_sym(rec, self.ts_out, symbol) }
                     } else {
@@ -337,13 +348,27 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
                     if self.schema.is_none() {
                         self.schema = metadata.schema;
                     }
+                    // Setup live symbol mapping
                     if OUTPUT_ENC == Encoding::Dbn as u8 {
                         DbnMetadataEncoder::new(&mut self.output)
                             .encode(&metadata)
                             .map_err(to_val_err)?;
                     // CSV or JSON
                     } else if self.map_symbols {
-                        self.symbol_map = metadata.symbol_map().map_err(to_val_err)?;
+                        if metadata.schema.is_some() {
+                            // historical
+                            // only read from metadata mappings if symbol_map is unpopulated,
+                            // i.e. no `symbol_map` was passed in
+                            if self.symbol_map.is_empty() {
+                                self.symbol_map = metadata
+                                    .symbol_map()
+                                    .map(SymbolMap::Historical)
+                                    .map_err(to_val_err)?;
+                            }
+                        } else {
+                            // live
+                            self.symbol_map = SymbolMap::Live(Default::default());
+                        }
                     }
                 }
                 Err(err) => {
@@ -379,6 +404,51 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
     }
 }
 
+#[derive(Debug)]
+enum SymbolMap {
+    Historical(TsSymbolMap),
+    Live(PitSymbolMap),
+}
+
+impl SymbolIndex for SymbolMap {
+    fn get_for_rec<R: dbn::record::HasRType>(&self, record: &R) -> Option<&String> {
+        match self {
+            SymbolMap::Historical(sm) => sm.get_for_rec(record),
+            SymbolMap::Live(sm) => sm.get_for_rec(record),
+        }
+    }
+
+    fn get_for_rec_ref(&self, rec_ref: RecordRef) -> Option<&String> {
+        match self {
+            SymbolMap::Historical(sm) => sm.get_for_rec_ref(rec_ref),
+            SymbolMap::Live(sm) => sm.get_for_rec_ref(rec_ref),
+        }
+    }
+}
+
+impl SymbolMap {
+    fn is_empty(&self) -> bool {
+        match self {
+            SymbolMap::Historical(symbol_map) => symbol_map.is_empty(),
+            SymbolMap::Live(symbol_map) => symbol_map.is_empty(),
+        }
+    }
+
+    fn update_live(&mut self, rec: RecordRef) {
+        let SymbolMap::Live(ref mut symbol_map) = self else {
+            return;
+        };
+        // ignore errors
+        let _ = symbol_map.on_record(rec);
+    }
+}
+
+impl Default for SymbolMap {
+    fn default() -> Self {
+        Self::Historical(TsSymbolMap::default())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::num::NonZeroU64;
@@ -386,9 +456,8 @@ mod tests {
     use dbn::{
         datasets::XNAS_ITCH,
         encode::{DbnEncoder, EncodeRecord},
-        enums::{rtype, SType, Schema},
-        record::{ErrorMsg, OhlcvMsg, RecordHeader},
-        MappingInterval, MetadataBuilder, SymbolMapping, WithTsOut,
+        rtype, ErrorMsg, MappingInterval, MetadataBuilder, OhlcvMsg, RecordHeader, SType, Schema,
+        SymbolMapping, SymbolMappingMsg, WithTsOut, UNDEF_TIMESTAMP,
     };
     use rstest::rstest;
     use time::macros::{date, datetime};
@@ -539,9 +608,9 @@ mod tests {
         transcoder.flush().unwrap();
         let output = output_buf.lock().unwrap();
         let output = std::str::from_utf8(output.get_ref().as_slice()).unwrap();
-        // header + 2 lines
+        // header + 1 record, ErrorMsg ignored because of a different schema
         dbg!(&output);
-        assert_eq!(output.chars().filter(|c| *c == '\n').count(), 3);
+        assert_eq!(output.chars().filter(|c| *c == '\n').count(), 2);
     }
 
     #[rstest]
@@ -549,7 +618,7 @@ mod tests {
     #[case::csv_map_symbols(Encoding::Csv, true)]
     #[case::json(Encoding::Json, false)]
     #[case::json_map_symbols(Encoding::Json, true)]
-    fn test_map_symbols(#[case] encoding: Encoding, #[case] map_symbols: bool) {
+    fn test_map_symbols_historical(#[case] encoding: Encoding, #[case] map_symbols: bool) {
         setup();
         let file = MockPyFile::new();
         let output_buf = file.inner();
@@ -650,6 +719,7 @@ mod tests {
         let lines = output.lines().collect::<Vec<_>>();
         dbg!(&lines);
         if encoding == Encoding::Csv {
+            assert_eq!(lines.len(), 3);
             if map_symbols {
                 assert!(lines[0].ends_with(",ts_out,symbol"));
                 assert!(lines[1].contains(",1,NFLX"));
@@ -660,10 +730,115 @@ mod tests {
                 assert!(lines[2].ends_with(",2"));
             }
         } else {
+            assert_eq!(lines.len(), 2);
             assert_eq!(lines[0].contains("\"symbol\":\"NFLX\""), map_symbols);
             assert!(lines[0].contains("\"ts_out\":\"1\""));
             assert_eq!(lines[1].contains("\"symbol\":\"QQQ\""), map_symbols);
             assert!(lines[1].contains("\"ts_out\":\"2\""));
+        }
+    }
+
+    #[rstest]
+    #[case::csv(Encoding::Csv, false)]
+    #[case::csv_map_symbols(Encoding::Csv, true)]
+    #[case::json(Encoding::Json, false)]
+    #[case::json_map_symbols(Encoding::Json, true)]
+    fn test_map_symbols_live(#[case] encoding: Encoding, #[case] map_symbols: bool) {
+        setup();
+        let file = MockPyFile::new();
+        let output_buf = file.inner();
+        let mut transcoder = Python::with_gil(|py| {
+            Transcoder::new(
+                Py::new(py, file).unwrap().extract(py).unwrap(),
+                encoding,
+                Compression::None,
+                None,
+                None,
+                Some(map_symbols),
+                None,
+                None,
+                None,
+                None,
+                Some(Schema::Ohlcv1S),
+            )
+            .unwrap()
+        });
+        const QQQ: &str = "QQQ";
+        const QQQ_ID: u32 = 48933;
+        const NFLX: &str = "NFLX";
+        const NFLX_ID: u32 = 58501;
+        let buffer = Vec::new();
+        let mut encoder = DbnEncoder::new(
+            buffer,
+            &MetadataBuilder::new()
+                .dataset(XNAS_ITCH.to_owned())
+                .schema(None) // Live: mixed schema
+                .stype_in(Some(SType::RawSymbol))
+                .stype_out(SType::InstrumentId)
+                .start(datetime!(2023-09-27 00:00:00 UTC).unix_timestamp_nanos() as u64)
+                .end(None)
+                .build(),
+        )
+        .unwrap();
+        let rec1 = OhlcvMsg {
+            hd: RecordHeader::new::<OhlcvMsg>(
+                rtype::OHLCV_1S,
+                1,
+                NFLX_ID,
+                datetime!(2023-09-27 00:10:07 UTC).unix_timestamp_nanos() as u64,
+            ),
+            open: 100,
+            high: 200,
+            low: 50,
+            close: 150,
+            volume: 1000,
+        };
+        let rec2 = OhlcvMsg {
+            hd: RecordHeader::new::<OhlcvMsg>(
+                rtype::OHLCV_1S,
+                1,
+                QQQ_ID,
+                datetime!(2023-09-27 00:10:10 UTC).unix_timestamp_nanos() as u64,
+            ),
+            open: 100,
+            high: 200,
+            low: 50,
+            close: 150,
+            volume: 1000,
+        };
+        encoder
+            .encode_record(
+                &SymbolMappingMsg::new(NFLX_ID, 0, NFLX, NFLX, 0, UNDEF_TIMESTAMP).unwrap(),
+            )
+            .unwrap();
+        encoder
+            .encode_record(&SymbolMappingMsg::new(QQQ_ID, 1, QQQ, QQQ, 1, UNDEF_TIMESTAMP).unwrap())
+            .unwrap();
+        encoder.encode_record(&rec1).unwrap();
+        encoder.encode_record(&rec2).unwrap();
+        assert!(transcoder.buffer().is_empty());
+        // Write first record and part of second
+        transcoder.write(&encoder.get_ref()).unwrap();
+        transcoder.flush().unwrap();
+        let output = output_buf.lock().unwrap();
+        let output = std::str::from_utf8(output.get_ref().as_slice()).unwrap();
+        let lines = output.lines().collect::<Vec<_>>();
+        dbg!(&lines);
+        if encoding == Encoding::Csv {
+            assert_eq!(lines.len(), 3);
+            if map_symbols {
+                assert!(lines[0].ends_with(",symbol"));
+            } else {
+                assert!(lines[0].ends_with(",volume"));
+            }
+            assert_eq!(lines[1].contains(",NFLX"), map_symbols);
+            assert_eq!(lines[2].contains(",QQQ"), map_symbols);
+        } else {
+            assert_eq!(lines.len(), 4);
+            assert!(lines[0].contains("\"stype_out_symbol\":\"NFLX\""));
+            assert!(lines[1].contains("\"stype_out_symbol\":\"QQQ\""));
+            assert_eq!(lines[2].contains("\"symbol\":\"NFLX\""), map_symbols);
+            assert_eq!(lines[3].contains("\"symbol\":\"QQQ\""), map_symbols);
         }
     }
 }
