@@ -21,8 +21,12 @@
   `schema_ts_out_method_dispatch`
 - Added `InstrumentDefMsgV2` and `SymbolMappingMsgV2` for forward compatibility with a
   version of DBN
+- Added `TsSymbolMap` and `PitSymbolMap` to aid with both historical and live symbology
+  - Added support for inverse symbology, i.e. with `stype_in=InstrumentId`
 
 ### Breaking changes
+- Changed `Metadata::symbol_map` to return `TsSymbolMap`
+- Changed `Metadata::symbol_map_for_date` to return `PitSymbolMap`
 - Changed `Default` implementation for `BidAskPair` by setting prices to `UNDEF_PRICE`
 - Added new publisher values in preparation for DBEQ.PLUS
 - Added `ts_out` parameter to `encode_header_for_schema` in `CsvEncoder` and

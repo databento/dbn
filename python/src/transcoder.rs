@@ -3,6 +3,7 @@
 use std::{
     collections::HashMap,
     io::{self, BufWriter, Write},
+    sync::Arc,
 };
 
 use dbn::{
@@ -15,7 +16,7 @@ use dbn::{
     },
     enums::{Compression, Encoding},
     python::{py_to_time_date, to_val_err},
-    Schema,
+    Schema, SymbolIndex, TsSymbolMap,
 };
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyDate};
 
@@ -43,7 +44,7 @@ impl Transcoder {
         schema: Option<Schema>,
     ) -> PyResult<Self> {
         let symbol_map = if let Some(py_symbol_map) = symbol_map {
-            let mut symbol_map = HashMap::new();
+            let mut symbol_map = TsSymbolMap::new();
             for (iid, py_intervals) in py_symbol_map {
                 for (start_date, end_date, symbol) in py_intervals {
                     if symbol.is_empty() {
@@ -51,14 +52,9 @@ impl Transcoder {
                     }
                     let start_date = py_to_time_date(start_date)?;
                     let end_date = py_to_time_date(end_date)?;
-                    let mut day = start_date;
-                    loop {
-                        symbol_map.insert((day, iid), symbol.clone());
-                        day = day.next_day().unwrap();
-                        if day == end_date {
-                            break;
-                        }
-                    }
+                    symbol_map
+                        .insert(iid, start_date, end_date, Arc::new(symbol))
+                        .map_err(to_val_err)?;
                 }
             }
             Some(symbol_map)
@@ -136,7 +132,7 @@ struct Inner<const E: u8> {
     has_decoded_metadata: bool,
     ts_out: bool,
     input_compression: Option<Compression>,
-    symbol_map: HashMap<(time::Date, u32), String>,
+    symbol_map: TsSymbolMap,
     schema: Option<Schema>,
 }
 
@@ -167,7 +163,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
         has_metadata: Option<bool>,
         ts_out: Option<bool>,
         input_compression: Option<Compression>,
-        symbol_map: Option<HashMap<(time::Date, u32), String>>,
+        symbol_map: Option<TsSymbolMap>,
         schema: Option<Schema>,
     ) -> PyResult<Self> {
         if OUTPUT_ENC == Encoding::Dbn as u8 && map_symbols.unwrap_or(false) {
@@ -251,11 +247,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
             match decoder.decode_record_ref() {
                 Ok(Some(rec)) => {
                     if self.map_symbols {
-                        let symbol = rec.header().ts_event().and_then(|ts_event| {
-                            self.symbol_map
-                                .get(&(ts_event.date(), rec.header().instrument_id))
-                                .map(|s| s.as_str())
-                        });
+                        let symbol = self.symbol_map.get_for_rec_ref(rec).map(|s| s.as_str());
                         unsafe { encoder.encode_ref_ts_out_with_sym(rec, self.ts_out, symbol) }
                     } else {
                         unsafe { encoder.encode_record_ref_ts_out(rec, self.ts_out) }
@@ -297,11 +289,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
             match decoder.decode_record_ref() {
                 Ok(Some(rec)) => {
                     if self.map_symbols {
-                        let symbol = rec.header().ts_event().and_then(|ts_event| {
-                            self.symbol_map
-                                .get(&(ts_event.date(), rec.header().instrument_id))
-                                .map(|s| s.as_str())
-                        });
+                        let symbol = self.symbol_map.get_for_rec_ref(rec).map(|s| s.as_str());
                         unsafe { encoder.encode_ref_ts_out_with_sym(rec, self.ts_out, symbol) }
                     } else {
                         unsafe { encoder.encode_record_ref_ts_out(rec, self.ts_out) }

@@ -51,6 +51,7 @@ pub mod python;
 pub mod record;
 mod record_enum;
 pub mod record_ref;
+pub mod symbol_map;
 
 pub use crate::{
     enums::{
@@ -67,6 +68,7 @@ pub use crate::{
     },
     record_enum::{RecordEnum, RecordRefEnum},
     record_ref::RecordRef,
+    symbol_map::{PitSymbolMap, SymbolIndex, TsSymbolMap},
 };
 
 /// The current version of the DBN encoding, which is different from the crate version.
