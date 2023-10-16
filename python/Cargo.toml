@@ -1,7 +1,7 @@
 [package]
 name = "databento-dbn"
 authors = ["Databento <support@databento.com>"]
-version = "0.11.1"
+version = "0.12.0"
 edition = "2021"
 description = "Python library written in Rust for working with Databento Binary Encoding (DBN)"
 license = "Apache-2.0"
@@ -16,7 +16,13 @@ name = "databento_dbn" # Python modules can't contain dashes
 # DBN library
 dbn = { path = "../rust/dbn", features = ["python"] }
 # Python bindings for Rust
-pyo3 = "0.19"
+pyo3 = "0.20"
+# Dates and datetimes
+time = "0.3.30"
 
 [build-dependencies]
-pyo3-build-config = { version = "0.19" }
+pyo3-build-config = { version = "0.20" }
+
+[dev-dependencies]
+# parameterized testing
+rstest = "0.18.2"

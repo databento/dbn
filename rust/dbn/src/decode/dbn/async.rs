@@ -41,12 +41,13 @@ where
     /// Creates a new async DBN [`Decoder`] from `reader`.
     ///
     /// # Errors
-    /// This function will return an error if it is unable to parse the metadata in `reader`.
+    /// This function will return an error if it is unable to parse the metadata in
+    /// `reader` or the input is encoded in a newer version of DBN.
     pub async fn new(mut reader: R) -> crate::Result<Self> {
         let metadata = MetadataDecoder::new(&mut reader).decode().await?;
         Ok(Self {
+            decoder: RecordDecoder::with_version(reader, metadata.version)?,
             metadata,
-            decoder: RecordDecoder::new(reader),
         })
     }
 
@@ -66,7 +67,7 @@ where
     }
 
     /// Tries to decode a single record and returns a reference to the record that
-    /// lasts until the next method call. Returns `None` if `reader` has been
+    /// lasts until the next method call. Returns `Ok(None)` if `reader` has been
     /// exhausted.
     ///
     /// # Errors
@@ -80,7 +81,7 @@ where
     }
 
     /// Tries to decode a single record and returns a reference to the record that
-    /// lasts until the next method call. Returns `None` if `reader` has been
+    /// lasts until the next method call. Returns `Ok(None)` if `reader` has been
     /// exhausted.
     ///
     /// # Errors
@@ -163,6 +164,8 @@ pub struct RecordDecoder<R>
 where
     R: io::AsyncReadExt + Unpin,
 {
+    /// For future use with reading different DBN versions.
+    _version: u8,
     reader: R,
     buffer: Vec<u8>,
 }
@@ -174,10 +177,28 @@ where
     /// Creates a new DBN [`RecordDecoder`] from `reader`.
     pub fn new(reader: R) -> Self {
         Self {
+            _version: DBN_VERSION,
             reader,
             // `buffer` should have capacity for reading `length`
             buffer: vec![0],
         }
+    }
+
+    /// Creates a new `RecordDecoder` that will decode from `reader`
+    /// with the specified DBN version.
+    ///
+    /// # Errors
+    /// This function will return an error if the `version` exceeds the supported version.
+    pub fn with_version(reader: R, version: u8) -> crate::Result<Self> {
+        if version > DBN_VERSION {
+            return Err(crate::Error::decode(format!("Can't decode newer version of DBN. Decoder version is {DBN_VERSION}, input version is {version}")));
+        }
+        Ok(Self {
+            _version: version,
+            reader,
+            // `buffer` should have capacity for reading `length`
+            buffer: vec![0],
+        })
     }
 
     /// Tries to decode a single record and returns a reference to the record that
@@ -296,7 +317,8 @@ where
     /// Decodes and returns a DBN [`Metadata`].
     ///
     /// # Errors
-    /// This function will return an error if it is unable to parse the metadata.
+    /// This function will return an error if it is unable to parse the metadata or the
+    /// input is encoded in a newere version of DBN.
     pub async fn decode(&mut self) -> Result<Metadata> {
         let mut prelude_buffer = [0u8; 8];
         self.reader
@@ -358,138 +380,110 @@ where
 
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
     use tokio::io::AsyncWriteExt;
 
     use super::*;
     use crate::{
         decode::tests::TEST_DATA_PATH,
-        encode::dbn::{AsyncMetadataEncoder, AsyncRecordEncoder},
+        encode::{
+            dbn::{AsyncEncoder, AsyncRecordEncoder},
+            DbnEncodable,
+        },
         enums::{rtype, Schema},
         record::{
             ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
             RecordHeader, StatMsg, TbboMsg, TradeMsg, WithTsOut,
         },
-        Error,
+        Error, Result,
     };
 
-    macro_rules! test_dbn_identity {
-        ($test_name:ident, $record_type:ident, $schema:expr) => {
-            #[tokio::test]
-            async fn $test_name() {
-                let mut file =
-                    tokio::fs::File::open(format!("{TEST_DATA_PATH}/test_data.{}.dbn", $schema))
-                        .await
-                        .unwrap();
-                let file_metadata = MetadataDecoder::new(&mut file).decode().await.unwrap();
-                let mut file_decoder = RecordDecoder::new(&mut file);
-                let mut file_records = Vec::new();
-                while let Ok(Some(record)) = file_decoder.decode::<$record_type>().await {
-                    file_records.push(record.clone());
-                }
-                let mut buffer = Vec::new();
-                AsyncMetadataEncoder::new(&mut buffer)
-                    .encode(&file_metadata)
-                    .await
-                    .unwrap();
-                assert_eq!(file_records.is_empty(), $schema == Schema::Ohlcv1D);
-                let mut buf_encoder = AsyncRecordEncoder::new(&mut buffer);
-                for record in file_records.iter() {
-                    buf_encoder.encode(record).await.unwrap();
-                }
-                let mut buf_cursor = std::io::Cursor::new(&mut buffer);
-                let buf_metadata = MetadataDecoder::new(&mut buf_cursor)
-                    .decode()
-                    .await
-                    .unwrap();
-                assert_eq!(buf_metadata, file_metadata);
-                let mut buf_decoder = RecordDecoder::new(&mut buf_cursor);
-                let mut buf_records = Vec::new();
-                while let Ok(Some(record)) = buf_decoder.decode::<$record_type>().await {
-                    buf_records.push(record.clone());
-                }
-                assert_eq!(buf_records, file_records);
-            }
-        };
+    #[rstest]
+    #[case::mbo(Schema::Mbo, MboMsg::default())]
+    #[case::trades(Schema::Trades, TradeMsg::default())]
+    #[case::tbbo(Schema::Tbbo, TbboMsg::default())]
+    #[case::mbp1(Schema::Mbp1, Mbp1Msg::default())]
+    #[case::mbp10(Schema::Mbp10, Mbp10Msg::default())]
+    #[case::ohlcv1d(Schema::Ohlcv1D, OhlcvMsg::default_for_schema(Schema::Ohlcv1D))]
+    #[case::ohlcv1h(Schema::Ohlcv1H, OhlcvMsg::default_for_schema(Schema::Ohlcv1H))]
+    #[case::ohlcv1m(Schema::Ohlcv1M, OhlcvMsg::default_for_schema(Schema::Ohlcv1M))]
+    #[case::ohlcv1s(Schema::Ohlcv1S, OhlcvMsg::default_for_schema(Schema::Ohlcv1S))]
+    #[case::definitions(Schema::Definition, InstrumentDefMsg::default())]
+    #[case::imbalance(Schema::Imbalance, ImbalanceMsg::default())]
+    #[case::statistics(Schema::Statistics, StatMsg::default())]
+    #[tokio::test]
+    async fn test_dbn_identity<R: DbnEncodable + PartialEq + Clone>(
+        #[case] schema: Schema,
+        #[case] _rec: R,
+    ) -> Result<()> {
+        let mut file_decoder =
+            Decoder::from_file(format!("{TEST_DATA_PATH}/test_data.{schema}.dbn")).await?;
+        let file_metadata = file_decoder.metadata().clone();
+        let mut file_records = Vec::new();
+        while let Some(record) = file_decoder.decode_record::<R>().await? {
+            file_records.push(record.clone());
+        }
+        assert_eq!(file_records.is_empty(), schema == Schema::Ohlcv1D);
+        let mut buffer = Vec::new();
+        let mut buf_encoder = AsyncEncoder::new(&mut buffer, &file_metadata).await?;
+
+        for record in file_records.iter() {
+            buf_encoder.encode_record(record).await.unwrap();
+        }
+        let mut buf_cursor = std::io::Cursor::new(&mut buffer);
+        let mut buf_decoder = Decoder::new(&mut buf_cursor).await?;
+        assert_eq!(*buf_decoder.metadata(), file_metadata);
+        let mut buf_records = Vec::new();
+        while let Some(record) = buf_decoder.decode_record::<R>().await? {
+            buf_records.push(record.clone());
+        }
+        assert_eq!(buf_records, file_records);
+        Ok(())
     }
 
-    macro_rules! test_dbn_zstd_identity {
-        ($test_name:ident, $record_type:ident, $schema:expr) => {
-            #[tokio::test]
-            async fn $test_name() {
-                let file = tokio::fs::File::open(format!(
-                    "{TEST_DATA_PATH}/test_data.{}.dbn.zst",
-                    $schema
-                ))
-                .await
-                .unwrap();
-                let mut file_decoder = Decoder::with_zstd(file).await.unwrap();
-                let file_metadata = file_decoder.metadata().clone();
-                let mut file_records = Vec::new();
-                while let Ok(Some(record)) = file_decoder.decode_record::<$record_type>().await {
-                    file_records.push(record.clone());
-                }
-                let mut buffer = Vec::new();
-                let mut meta_encoder = AsyncMetadataEncoder::with_zstd(&mut buffer);
-                meta_encoder.encode(&file_metadata).await.unwrap();
-                assert_eq!(file_records.is_empty(), $schema == Schema::Ohlcv1D);
-                let mut buf_encoder = AsyncRecordEncoder::from(meta_encoder);
-                for record in file_records.iter() {
-                    buf_encoder.encode(record).await.unwrap();
-                }
-                buf_encoder.into_inner().shutdown().await.unwrap();
-                let mut buf_cursor = std::io::Cursor::new(&mut buffer);
-                let mut buf_decoder = Decoder::with_zstd_buffer(&mut buf_cursor).await.unwrap();
-                let buf_metadata = buf_decoder.metadata().clone();
-                assert_eq!(buf_metadata, file_metadata);
-                let mut buf_records = Vec::new();
-                while let Ok(Some(record)) = buf_decoder.decode_record::<$record_type>().await {
-                    buf_records.push(record.clone());
-                }
-                assert_eq!(buf_records, file_records);
-            }
-        };
-    }
+    #[rstest]
+    #[case::mbo(Schema::Mbo, MboMsg::default())]
+    #[case::trades(Schema::Trades, TradeMsg::default())]
+    #[case::tbbo(Schema::Tbbo, TbboMsg::default())]
+    #[case::mbp1(Schema::Mbp1, Mbp1Msg::default())]
+    #[case::mbp10(Schema::Mbp10, Mbp10Msg::default())]
+    #[case::ohlcv1d(Schema::Ohlcv1D, OhlcvMsg::default_for_schema(Schema::Ohlcv1D))]
+    #[case::ohlcv1h(Schema::Ohlcv1H, OhlcvMsg::default_for_schema(Schema::Ohlcv1H))]
+    #[case::ohlcv1m(Schema::Ohlcv1M, OhlcvMsg::default_for_schema(Schema::Ohlcv1M))]
+    #[case::ohlcv1s(Schema::Ohlcv1S, OhlcvMsg::default_for_schema(Schema::Ohlcv1S))]
+    #[case::definitions(Schema::Definition, InstrumentDefMsg::default())]
+    #[case::imbalance(Schema::Imbalance, ImbalanceMsg::default())]
+    #[case::statistics(Schema::Statistics, StatMsg::default())]
+    #[tokio::test]
+    async fn test_dbn_zstd_identity<R: DbnEncodable + PartialEq + Clone>(
+        #[case] schema: Schema,
+        #[case] _rec: R,
+    ) -> Result<()> {
+        let mut file_decoder =
+            Decoder::from_zstd_file(format!("{TEST_DATA_PATH}/test_data.{schema}.dbn.zst")).await?;
+        let file_metadata = file_decoder.metadata().clone();
+        let mut file_records = Vec::new();
+        while let Some(record) = file_decoder.decode_record::<R>().await? {
+            file_records.push(record.clone());
+        }
+        assert_eq!(file_records.is_empty(), schema == Schema::Ohlcv1D);
+        let mut buffer = Vec::new();
+        let mut buf_encoder = AsyncEncoder::with_zstd(&mut buffer, &file_metadata).await?;
 
-    test_dbn_identity!(test_dbn_identity_mbo, MboMsg, Schema::Mbo);
-    test_dbn_zstd_identity!(test_dbn_zstd_identity_mbo, MboMsg, Schema::Mbo);
-    test_dbn_identity!(test_dbn_identity_mbp1, Mbp1Msg, Schema::Mbp1);
-    test_dbn_zstd_identity!(test_dbn_zstd_identity_mbp1, Mbp1Msg, Schema::Mbp1);
-    test_dbn_identity!(test_dbn_identity_mbp10, Mbp10Msg, Schema::Mbp10);
-    test_dbn_zstd_identity!(test_dbn_zstd_identity_mbp10, Mbp10Msg, Schema::Mbp10);
-    test_dbn_identity!(test_dbn_identity_ohlcv1d, OhlcvMsg, Schema::Ohlcv1D);
-    test_dbn_zstd_identity!(test_dbn_zstd_identity_ohlcv1d, OhlcvMsg, Schema::Ohlcv1D);
-    test_dbn_identity!(test_dbn_identity_ohlcv1h, OhlcvMsg, Schema::Ohlcv1H);
-    test_dbn_zstd_identity!(test_dbn_zstd_identity_ohlcv1h, OhlcvMsg, Schema::Ohlcv1H);
-    test_dbn_identity!(test_dbn_identity_ohlcv1m, OhlcvMsg, Schema::Ohlcv1M);
-    test_dbn_zstd_identity!(test_dbn_zstd_identity_ohlcv1m, OhlcvMsg, Schema::Ohlcv1M);
-    test_dbn_identity!(test_dbn_identity_ohlcv1s, OhlcvMsg, Schema::Ohlcv1S);
-    test_dbn_zstd_identity!(test_dbn_zstd_identity_ohlcv1s, OhlcvMsg, Schema::Ohlcv1S);
-    test_dbn_identity!(test_dbn_identity_tbbo, TbboMsg, Schema::Tbbo);
-    test_dbn_zstd_identity!(test_dbn_zstd_identity_tbbo, TbboMsg, Schema::Tbbo);
-    test_dbn_identity!(test_dbn_identity_trades, TradeMsg, Schema::Trades);
-    test_dbn_zstd_identity!(test_dbn_zstd_identity_trades, TradeMsg, Schema::Trades);
-    test_dbn_identity!(
-        test_dbn_identity_instrument_def,
-        InstrumentDefMsg,
-        Schema::Definition
-    );
-    test_dbn_zstd_identity!(
-        test_dbn_zstd_identity_instrument_def,
-        InstrumentDefMsg,
-        Schema::Definition
-    );
-    test_dbn_identity!(test_dbn_identity_imbalance, ImbalanceMsg, Schema::Imbalance);
-    test_dbn_zstd_identity!(
-        test_dbn_zstd_identity_imbalance,
-        ImbalanceMsg,
-        Schema::Imbalance
-    );
-    test_dbn_identity!(test_dbn_identity_statistics, StatMsg, Schema::Statistics);
-    test_dbn_zstd_identity!(
-        test_dbn_zstd_identity_statistics,
-        StatMsg,
-        Schema::Statistics
-    );
+        for record in file_records.iter() {
+            buf_encoder.encode_record(record).await.unwrap();
+        }
+        buf_encoder.get_mut().shutdown().await.unwrap();
+        let mut buf_cursor = std::io::Cursor::new(&mut buffer);
+        let mut buf_decoder = Decoder::with_zstd(&mut buf_cursor).await?;
+        assert_eq!(*buf_decoder.metadata(), file_metadata);
+        let mut buf_records = Vec::new();
+        while let Some(record) = buf_decoder.decode_record::<R>().await? {
+            buf_records.push(record.clone());
+        }
+        assert_eq!(buf_records, file_records);
+        Ok(())
+    }
 
     #[tokio::test]
     async fn test_dbn_identity_with_ts_out() {

@@ -24,13 +24,12 @@ pub use self::{
     json::Encoder as JsonEncoder,
 };
 
-use crate::Schema;
 use crate::{
     decode::DecodeDbn,
     enums::{Compression, Encoding},
     record::HasRType,
     record_ref::RecordRef,
-    rtype_dispatch, Error, Metadata, Result,
+    rtype_method_dispatch, rtype_ts_out_method_dispatch, Error, Metadata, Result, Schema,
 };
 
 use self::{csv::serialize::CsvSerialize, json::serialize::JsonSerialize};
@@ -172,8 +171,26 @@ pub trait EncodeRecordTextExt: EncodeRecord + EncodeRecordRef {
     /// This function returns an error if it's unable to write to the underlying writer
     /// or there's a serialization error.
     fn encode_ref_with_sym(&mut self, record: RecordRef, symbol: Option<&str>) -> Result<()> {
-        #[allow(clippy::redundant_closure_call)]
-        rtype_dispatch!(record, |rec| self.encode_record_with_sym(rec, symbol))?
+        rtype_method_dispatch!(record, self, encode_record_with_sym, symbol)?
+    }
+
+    /// Encodes a single DBN [`RecordRef`] with an optional `ts_out` (see
+    /// [`record::WithTsOut`](crate::record::WithTsOut)) along with the record's text
+    /// symbol.
+    ///
+    /// # Safety
+    /// `ts_out` must be `false` if `record` does not have an appended `ts_out`.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to write to the underlying writer
+    /// or there's a serialization error.
+    unsafe fn encode_ref_ts_out_with_sym(
+        &mut self,
+        record: RecordRef,
+        ts_out: bool,
+        symbol: Option<&str>,
+    ) -> Result<()> {
+        rtype_ts_out_method_dispatch!(record, ts_out, self, encode_record_with_sym, symbol)?
     }
 }
 
@@ -341,13 +358,21 @@ where
     /// Encodes the CSV header for `schema`, i.e. the names of each of the fields to
     /// the output.
     ///
-    /// If `with_symbol` is `true`, will add a header field for "symbol".
+    /// If `ts_out` is `true`, will add a header field "ts_out". If `with_symbol` is
+    /// `true`, will add a header field "symbol".
     ///
     /// # Errors
     /// This function returns an error if there's an error writing to `writer`.
-    pub fn encode_header_for_schema(&mut self, schema: Schema, with_symbol: bool) -> Result<()> {
+    pub fn encode_header_for_schema(
+        &mut self,
+        schema: Schema,
+        ts_out: bool,
+        with_symbol: bool,
+    ) -> Result<()> {
         match &mut self.0 {
-            DynEncoderImpl::Csv(encoder) => encoder.encode_header_for_schema(schema, with_symbol),
+            DynEncoderImpl::Csv(encoder) => {
+                encoder.encode_header_for_schema(schema, ts_out, with_symbol)
+            }
             _ => Ok(()),
         }
     }

@@ -68,6 +68,21 @@ where
     }
 }
 
+impl<W> Encoder<ZstdEncoder<W>>
+where
+    W: io::AsyncWriteExt + Unpin,
+{
+    /// Creates a new async [`Encoder`] that will Zstandard compress the DBN data
+    /// written to `writer`.
+    ///
+    /// # Errors
+    /// This function will return an error if it fails to encode `metadata` to
+    /// `writer`.
+    pub async fn with_zstd(writer: W, metadata: &Metadata) -> Result<Self> {
+        Self::new(ZstdEncoder::new(writer), metadata).await
+    }
+}
+
 /// An async encoder of DBN records.
 pub struct RecordEncoder<W>
 where

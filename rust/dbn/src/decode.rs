@@ -39,7 +39,8 @@ use crate::{
 
 /// Trait for types that decode references to DBN records of a dynamic type.
 pub trait DecodeRecordRef {
-    /// Tries to decode a generic reference a record.
+    /// Tries to decode a generic reference a record. Returns `Ok(None)` if input
+    /// has been exhausted.
     ///
     /// # Errors
     /// This function returns an error if the underlying reader returns an error of a

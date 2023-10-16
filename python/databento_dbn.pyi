@@ -2482,6 +2482,10 @@ class Transcoder:
     pretty_ts : bool, default True
         Whether to serialize nanosecond UNIX timestamps as ISO8601 datetime strings.
         Only applicable to CSV and JSON.
+    map_symbols : bool, default True
+        If symbology mappings from the metadata should be used to create
+        a 'symbol' field, mapping the instrument ID to its requested symbol for
+        every record.
     has_metadata : bool, default True
         Whether the input bytes begin with DBN metadata. Pass False to transcode
         individual records or a fragment of a DBN stream.
@@ -2491,6 +2495,12 @@ class Transcoder:
     input_compression: Compression | None, default None
         Override the compression of the input. By default it will attempt to detect
         whether the input is compressed.
+    symbol_map : dict[int, list[tuple[datetime.date, datetime.date, str]]], default None
+        Specify the initial symbol mappings to use with map_symbols. If not specified,
+        only the mappings in the metadata header will be used.
+    schema : Schema | None, default None
+        The data record schema to encode. This is required for transcoding Live CSV data,
+        as the tabular format is incompatible with mixed schemas.
     """
 
     def __init__(
@@ -2500,9 +2510,12 @@ class Transcoder:
         compression: Compression,
         pretty_px: bool = True,
         pretty_ts: bool = True,
+        map_symbols: bool = True,
         has_metadata: bool = True,
         ts_out: bool = False,
-        input_compression: Compression | None = None
+        input_compression: Compression | None = None,
+        symbol_map: dict[int, list[tuple[datetime.date, datetime.date, str]]] | None = None,
+        schema: Schema | None = None,
     ): ...
     def buffer(self) -> bytes:
         """

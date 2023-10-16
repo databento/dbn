@@ -4,7 +4,11 @@
 
 use std::fmt;
 
-use pyo3::{exceptions::PyValueError, prelude::*};
+use pyo3::{
+    exceptions::PyValueError,
+    prelude::*,
+    types::{PyDate, PyDateAccess},
+};
 use strum::IntoEnumIterator;
 
 mod enums;
@@ -51,6 +55,17 @@ impl EnumIterator {
             ),
         }
     }
+}
+
+/// Tries to convert `py_date` to a [`time::Date`].
+///
+/// # Errors
+/// This function returns an error if input has an invalid month.
+pub fn py_to_time_date(py_date: &PyDate) -> PyResult<time::Date> {
+    let month =
+        time::Month::try_from(py_date.get_month()).map_err(|e| to_val_err(e.to_string()))?;
+    time::Date::from_calendar_date(py_date.get_year(), month, py_date.get_day())
+        .map_err(|e| to_val_err(e.to_string()))
 }
 
 /// A trait for records that provide descriptions of their fields.

@@ -10,7 +10,7 @@
 //! streaming, and batch flat files.
 //!
 //! The crate supports reading and writing DBN files and streams, as well as converting
-//! them to other [`Encoding`](enums::Encoding)s. It can also be used to update legacy
+//! them to other [`Encoding`]s. It can also be used to update legacy
 //! DBZ files to DBN.
 //!
 //! This crate provides:
@@ -36,6 +36,7 @@
 #![deny(rustdoc::broken_intra_doc_links)]
 #![deny(clippy::missing_errors_doc)]
 
+pub mod compat;
 pub mod decode;
 pub mod encode;
 pub mod enums;
@@ -50,27 +51,30 @@ pub mod python;
 pub mod record;
 mod record_enum;
 pub mod record_ref;
+pub mod symbol_map;
 
 pub use crate::{
     enums::{
-        Action, Compression, Encoding, InstrumentClass, MatchAlgorithm, RType, SType, Schema,
-        SecurityUpdateAction, Side, StatType, StatUpdateAction, UserDefinedInstrument,
+        flags, rtype, Action, Compression, Encoding, InstrumentClass, MatchAlgorithm, RType, SType,
+        Schema, SecurityUpdateAction, Side, StatType, StatUpdateAction, UserDefinedInstrument,
     },
     error::{Error, Result},
     metadata::{MappingInterval, Metadata, MetadataBuilder, SymbolMapping},
     publishers::{Dataset, Publisher, Venue},
     record::{
-        ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatMsg,
-        StatusMsg, SymbolMappingMsg, SystemMsg, TbboMsg, TradeMsg,
+        BidAskPair, ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
+        RecordHeader, StatMsg, StatusMsg, SymbolMappingMsg, SystemMsg, TbboMsg, TradeMsg,
+        WithTsOut,
     },
     record_enum::{RecordEnum, RecordRefEnum},
     record_ref::RecordRef,
+    symbol_map::{PitSymbolMap, SymbolIndex, TsSymbolMap},
 };
 
 /// The current version of the DBN encoding, which is different from the crate version.
 pub const DBN_VERSION: u8 = 1;
 /// The length of symbol fields (21 characters plus null terminator).
-pub const SYMBOL_CSTR_LEN: usize = 22;
+pub const SYMBOL_CSTR_LEN: usize = compat::SYMBOL_CSTR_LEN_V1;
 
 const METADATA_DATASET_CSTR_LEN: usize = 16;
 const METADATA_RESERVED_LEN: usize = 47;
@@ -96,7 +100,7 @@ pub const UNDEF_TIMESTAMP: u64 = u64::MAX;
 pub mod datasets {
     use crate::publishers::Dataset;
 
-    /// The dataset code for Databento Equity Basic.
+    /// The dataset code for Databento Equities Basic.
     pub const DBEQ_BASIC: &str = Dataset::DbeqBasic.as_str();
     /// The dataset code for CME Globex MDP 3.0.
     pub const GLBX_MDP3: &str = Dataset::GlbxMdp3.as_str();

@@ -72,6 +72,17 @@ dbn 20221212.mbo.dbz -o 20221212.dbn.zst
 ```
 or pass `--dbn` to set the output encoding explicitly.
 
+### Reading and writing fragments
+`dbn` can also read and write DBN files without the metadata header, these are called "DBN fragments".
+Pass the `--input-fragment` or `--input-zstd-fragment` flag to read a DBN file without a metadata header.
+```
+dbn 120000_121000.mbo.dbn.frag --input-fragment --json
+```
+You can also write DBN files without the metadata header with the `--fragment` or `-F` flag.
+```sh
+dbn ohlcv-1d.dbn -F -o ohlcv-1d.dbn.frag
+```
+
 ## License
 
 Distributed under the [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0.html).

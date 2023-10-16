@@ -91,6 +91,31 @@ macro_rules! rtype_ts_out_dispatch {
     }};
 }
 
+/// Specializes a generic method to all record types and dispatches based on the
+/// `rtype` and `ts_out`.
+///
+/// # Safety
+/// Assumes `$rec_ref` contains a record with `ts_out` appended. If this is not the
+/// case, the reading the record will read beyond the end of the record.
+///
+/// # Errors
+/// This macro returns an error if the rtype is not recognized.
+#[macro_export]
+macro_rules! rtype_ts_out_method_dispatch {
+    ($rec_ref:expr, $ts_out:expr, $this:expr, $generic_method:ident $(,$arg:expr)*) => {{
+        macro_rules! maybe_ts_out {
+            ($r:ty) => {{
+                if $ts_out {
+                    $this.$generic_method($rec_ref.get_unchecked::<WithTsOut<$r>>() $(, $arg)*)
+                } else {
+                    $this.$generic_method(unsafe { $rec_ref.get_unchecked::<$r>() } $(, $arg)*)
+                }
+            }};
+        }
+        $crate::rtype_dispatch_base!($rec_ref, maybe_ts_out)
+    }};
+}
+
 /// Specializes a generic async function to all record types and dispatches based
 /// `rtype` and `ts_out`.
 ///
@@ -112,6 +137,27 @@ macro_rules! rtype_ts_out_async_dispatch {
     }};
 }
 
+/// Specializes a generic async method to all record types and dispatches based
+/// `rtype` and `ts_out`.
+///
+/// # Errors
+/// This macro returns an error if the rtype is not recognized.
+#[macro_export]
+macro_rules! rtype_ts_out_async_method_dispatch {
+    ($rec_ref:expr, $ts_out:expr, $this:expr, $generic_method:ident $(,$arg:expr)*) => {{
+        macro_rules! maybe_ts_out {
+            ($r:ty) => {{
+                if $ts_out {
+                    $this.$generic_method($rec_ref.get_unchecked::<WithTsOut<$r>>() $(, $arg)*).await
+                } else {
+                    $this.$generic_method(unsafe { $rec_ref.get_unchecked::<$r>() } $(, $arg)*).await
+                }
+            }};
+        }
+        $crate::rtype_dispatch_base!($rec_ref, maybe_ts_out)
+    }};
+}
+
 /// Specializes a generic function to all record types and dispatches based `rtype`.
 ///
 /// # Errors
@@ -123,6 +169,23 @@ macro_rules! rtype_dispatch {
             ($r:ty) => {{
                 // Safety: checks rtype before converting.
                 $generic_fn( unsafe { $rec_ref.get_unchecked::<$r>() } $(, $arg)*)
+            }}
+        }
+        $crate::rtype_dispatch_base!($rec_ref, handler)
+    }};
+}
+
+/// Specializes a generic method to all record types and dispatches based `rtype`.
+///
+/// # Errors
+/// This macro returns an error if the rtype is not recognized.
+#[macro_export]
+macro_rules! rtype_method_dispatch {
+    ($rec_ref:expr, $this:expr, $generic_method:ident $(,$arg:expr)*) => {{
+        macro_rules! handler {
+            ($r:ty) => {{
+                // Safety: checks rtype before converting.
+                $this.$generic_method( unsafe { $rec_ref.get_unchecked::<$r>() } $(, $arg)*)
             }}
         }
         $crate::rtype_dispatch_base!($rec_ref, handler)
@@ -175,6 +238,24 @@ macro_rules! schema_method_dispatch {
         macro_rules! handler {
             ($r:ty) => {{
                 $this.$generic_method::<$r>($($arg),*)
+            }}
+        }
+        $crate::schema_dispatch_base!($schema, handler)
+    }};
+}
+
+/// Specializes a generic method to all record types based on the associated type for
+/// `schema` and `ts_out`.
+#[macro_export]
+macro_rules! schema_ts_out_method_dispatch {
+    ($schema:expr, $ts_out:expr, $this:expr, $generic_method:ident $(,$arg:expr)*) => {{
+        macro_rules! handler {
+            ($r:ty) => {{
+                if $ts_out {
+                    $this.$generic_method::<WithTsOut<$r>>($($arg),*)
+                } else {
+                    $this.$generic_method::<$r>($($arg),*)
+                }
             }}
         }
         $crate::schema_dispatch_base!($schema, handler)

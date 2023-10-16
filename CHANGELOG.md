@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.12.0 - 2023-10-16
+### Enhancements
+- Added `map_symbols` support to Python `Transcoder`
+- Added new publisher variants in preparation for DBEQ.PLUS dataset
+- Added `from_dataset_venue` function to `Publisher` to facilitate destructuring
+- Implemented `Default` for most records to make testing easier
+- Added `from_zstd` function to `AsyncDbnEncoder` to match synchronous encoder
+- Added re-exports for `enums::flags`, `enums::rtype`, `record::BidAskPair`,
+  `record::RecordHeader`, and `record::WithTsOut` to simplify imports
+- Added `--fragment` CLI flag for writing DBN without the metadata header
+- Added `--input-dbn-version` CLI option for specifying the DBN version of a DBN
+  fragment
+- Added `serde::Deserialize` implementations for `Dataset`, `Venue`, and `Publisher`
+- Added support for Python 3.12 to `databento_dbn`
+- Added `RecordDecoder::with_version` for future use when dealing with compatibility
+  between different DBN versions
+- Added new dispatch macros: `rtype_ts_out_method_dispatch`,
+  `rtype_ts_out_async_method_dispatch`, `rtype_method_dispatch`, and
+  `schema_ts_out_method_dispatch`
+- Added `InstrumentDefMsgV2` and `SymbolMappingMsgV2` for forward compatibility with a
+  version of DBN
+- Added `TsSymbolMap` and `PitSymbolMap` to aid with both historical and live symbology
+  - Added support for inverse symbology, i.e. with `stype_in=InstrumentId`
+
+### Breaking changes
+- Changed `Metadata::symbol_map` to return `TsSymbolMap`
+- Changed `Metadata::symbol_map_for_date` to return `PitSymbolMap`
+- Changed `Default` implementation for `BidAskPair` by setting prices to `UNDEF_PRICE`
+- Added new publisher values in preparation for DBEQ.PLUS
+- Added `ts_out` parameter to `encode_header_for_schema` in `CsvEncoder` and
+  `DynEncoder` to allow controlling whether "ts_out" is in the header
+- Added `from_dataset_venue` function to `Publisher` to facilitate
+  destructuring.
+
 ## 0.11.1 - 2023-10-05
 ### Enhancements
 - Upgraded `async-compression` to 0.4.3

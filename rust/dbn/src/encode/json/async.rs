@@ -2,8 +2,8 @@ use tokio::io;
 
 use super::serialize::to_json_string;
 use crate::{
-    encode::DbnEncodable, record_ref::RecordRef, rtype_ts_out_async_dispatch, Error, Metadata,
-    Result,
+    encode::DbnEncodable, record_ref::RecordRef, rtype_ts_out_async_method_dispatch, Error,
+    Metadata, Result,
 };
 
 /// Type for encoding files and streams of DBN records in newline-delimited JSON (ndjson).
@@ -99,10 +99,7 @@ where
         record_ref: RecordRef<'_>,
         ts_out: bool,
     ) -> Result<()> {
-        #[allow(clippy::redundant_closure_call)]
-        rtype_ts_out_async_dispatch!(record_ref, ts_out, |rec| async move {
-            self.encode_record(rec).await
-        })?
+        rtype_ts_out_async_method_dispatch!(record_ref, ts_out, self, encode_record)?
     }
 
     /// Flushes any buffered content to the true output.
