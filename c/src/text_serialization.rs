@@ -1,12 +1,13 @@
 use std::{
     ffi::c_char,
     io::{self, Write},
-    slice,
+    mem, slice,
 };
 
 use crate::cfile::CFileRef;
 use dbn::{
-    encode::{csv, json, DbnEncodable, EncodeRecordRef},
+    compat::InstrumentDefMsgV2,
+    encode::{csv, json, DbnEncodable, EncodeRecord, EncodeRecordRef},
     enums::{rtype, Schema},
     record::RecordHeader,
     record_ref::RecordRef,
@@ -71,9 +72,7 @@ pub unsafe extern "C" fn s_serialize_record_header(
     } else {
         return SerializeError::NullRecord as libc::c_int;
     };
-    let options = if let Some(options) = options.as_ref() {
-        options
-    } else {
+    let Some(options) = options.as_ref() else {
         return SerializeError::NullOptions as libc::c_int;
     };
     let mut cursor = io::Cursor::new(buffer);
@@ -84,14 +83,9 @@ pub unsafe extern "C" fn s_serialize_record_header(
             rtype_ts_out_dispatch!(record, options.ts_out, serialize_csv_header, &mut encoder)
         }
     }
-    .map_err(|e| anyhow::format_err!(e))
-    // null byte
-    .and_then(|_| Ok(cursor.write_all(&[0])?));
-    if res.is_ok() {
-        cursor.position() as i32
-    } else {
-        SerializeError::Serialization as libc::c_int
-    }
+    // flatten
+    .and_then(|res| res);
+    write_null_and_ret(cursor, res)
 }
 
 /// Serializes the header to the C file stream if the specified encoding is CSV,
@@ -111,9 +105,7 @@ pub unsafe extern "C" fn f_serialize_record_header(
     record: *const RecordHeader,
     options: *const SerializeRecordOptions,
 ) -> libc::c_int {
-    let mut cfile = if let Some(cfile) = CFileRef::new(file) {
-        cfile
-    } else {
+    let Some(mut cfile) = CFileRef::new(file) else {
         return SerializeError::NullFile as libc::c_int;
     };
     let record = if let Some(record) = record.as_ref() {
@@ -121,9 +113,7 @@ pub unsafe extern "C" fn f_serialize_record_header(
     } else {
         return SerializeError::NullRecord as libc::c_int;
     };
-    let options = if let Some(options) = options.as_ref() {
-        options
-    } else {
+    let Some(options) = options.as_ref() else {
         return SerializeError::NullOptions as libc::c_int;
     };
     let res = match options.encoding {
@@ -135,11 +125,8 @@ pub unsafe extern "C" fn f_serialize_record_header(
             rtype_ts_out_dispatch!(record, options.ts_out, serialize_csv_header, &mut encoder)
         }
     };
-    if res.is_ok() {
-        cfile.bytes_written() as i32
-    } else {
-        SerializeError::Serialization as libc::c_int
-    }
+    res.map(|_| cfile.bytes_written() as i32)
+        .unwrap_or(SerializeError::Serialization as libc::c_int)
 }
 
 /// Serializes `record` to the specified text encoding, writing the output to `buffer`.
@@ -170,12 +157,26 @@ pub unsafe extern "C" fn s_serialize_record(
     } else {
         return SerializeError::NullRecord as libc::c_int;
     };
-    let options = if let Some(options) = options.as_ref() {
-        options
-    } else {
+    let Some(options) = options.as_ref() else {
         return SerializeError::NullOptions as libc::c_int;
     };
     let mut cursor = io::Cursor::new(buffer);
+    // TODO(carter): reverse when V2 becomes the default
+    if record.record_size() >= mem::size_of::<InstrumentDefMsgV2>() {
+        if let Some(def_v2) = record.get::<InstrumentDefMsgV2>() {
+            let res = match options.encoding {
+                TextEncoding::Json => {
+                    json::Encoder::new(&mut cursor, false, options.pretty_px, options.pretty_ts)
+                        .encode_record(def_v2)
+                }
+                TextEncoding::Csv => {
+                    csv::Encoder::new(&mut cursor, options.pretty_px, options.pretty_ts)
+                        .encode_record(def_v2)
+                }
+            };
+            return write_null_and_ret(cursor, res);
+        }
+    };
     let res = match options.encoding {
         TextEncoding::Json => {
             json::Encoder::new(&mut cursor, false, options.pretty_px, options.pretty_ts)
@@ -183,19 +184,8 @@ pub unsafe extern "C" fn s_serialize_record(
         }
         TextEncoding::Csv => csv::Encoder::new(&mut cursor, options.pretty_px, options.pretty_ts)
             .encode_record_ref_ts_out(record, options.ts_out),
-    }
-    // null byte
-    .and_then(|_| {
-        cursor
-            .write_all(&[0])
-            .map_err(|e| dbn::Error::io(e, "writing null byte"))
-    });
-    if res.is_ok() {
-        // subtract for null byte
-        cursor.position() as i32 - 1
-    } else {
-        SerializeError::Serialization as libc::c_int
-    }
+    };
+    write_null_and_ret(cursor, res)
 }
 
 /// Serializes `record` to the C file stream. Returns the number of bytes written.
@@ -214,9 +204,7 @@ pub unsafe extern "C" fn f_serialize_record(
     record: *const RecordHeader,
     options: *const SerializeRecordOptions,
 ) -> libc::c_int {
-    let mut cfile = if let Some(cfile) = CFileRef::new(file) {
-        cfile
-    } else {
+    let Some(mut cfile) = CFileRef::new(file) else {
         return SerializeError::NullFile as libc::c_int;
     };
     let record = if let Some(record) = record.as_ref() {
@@ -224,9 +212,7 @@ pub unsafe extern "C" fn f_serialize_record(
     } else {
         return SerializeError::NullRecord as libc::c_int;
     };
-    let options = if let Some(options) = options.as_ref() {
-        options
-    } else {
+    let Some(options) = options.as_ref() else {
         return SerializeError::NullOptions as libc::c_int;
     };
     let res = match options.encoding {
@@ -237,11 +223,8 @@ pub unsafe extern "C" fn f_serialize_record(
         TextEncoding::Csv => csv::Encoder::new(&mut cfile, options.pretty_px, options.pretty_ts)
             .encode_record_ref_ts_out(record, options.ts_out),
     };
-    if res.is_ok() {
-        cfile.bytes_written() as i32
-    } else {
-        SerializeError::Serialization as libc::c_int
-    }
+    res.map(|_| cfile.bytes_written() as i32)
+        .unwrap_or(SerializeError::Serialization as libc::c_int)
 }
 
 /// Tries to convert `rtype` to a [`Schema`].
@@ -267,4 +250,81 @@ fn serialize_csv_header<W: io::Write, R: DbnEncodable>(
     encoder: &mut csv::Encoder<W>,
 ) -> dbn::Result<()> {
     encoder.encode_header::<R>(false)
+}
+
+fn write_null_and_ret(mut cursor: io::Cursor<&mut [u8]>, res: dbn::Result<()>) -> libc::c_int {
+    let res = res.and_then(|_| {
+        cursor
+            .write_all(&[0])
+            .map_err(|e| dbn::Error::io(e, "writing null byte"))
+    });
+    // subtract 1 for null byte
+    res.map(|_| cursor.position() as i32 - 1)
+        .unwrap_or(SerializeError::Serialization as libc::c_int)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::os::raw::c_char;
+
+    use dbn::InstrumentDefMsg;
+
+    use super::*;
+
+    #[test]
+    fn test_serialize_def_v1() {
+        // TODO(carter): update once DBNv2 is the default
+        let mut def_v1 = InstrumentDefMsg::default();
+        def_v1.raw_symbol = [b'a' as c_char; dbn::compat::SYMBOL_CSTR_LEN_V1];
+        def_v1.raw_symbol[dbn::compat::SYMBOL_CSTR_LEN_V1 - 1] = 0;
+        let mut buf = [0; 5000];
+        assert!(
+            unsafe {
+                s_serialize_record(
+                    buf.as_mut_ptr().cast(),
+                    buf.len(),
+                    &def_v1.hd,
+                    &SerializeRecordOptions {
+                        encoding: TextEncoding::Json,
+                        ts_out: false,
+                        pretty_px: false,
+                        pretty_ts: false,
+                    },
+                )
+            } > 0
+        );
+        let res = std::str::from_utf8(buf.as_slice()).unwrap();
+        assert!(res.contains(&format!(
+            "\"raw_symbol\":\"{}\",",
+            "a".repeat(dbn::compat::SYMBOL_CSTR_LEN_V1 - 1)
+        )));
+    }
+
+    #[test]
+    fn test_serialize_def_v2() {
+        let mut def_v2 = InstrumentDefMsgV2::from(&InstrumentDefMsg::default());
+        def_v2.raw_symbol = [b'a' as c_char; dbn::compat::SYMBOL_CSTR_LEN_V2];
+        def_v2.raw_symbol[dbn::compat::SYMBOL_CSTR_LEN_V2 - 1] = 0;
+        let mut buf = [0; 5000];
+        assert!(
+            unsafe {
+                s_serialize_record(
+                    buf.as_mut_ptr().cast(),
+                    buf.len(),
+                    &def_v2.hd,
+                    &SerializeRecordOptions {
+                        encoding: TextEncoding::Json,
+                        ts_out: false,
+                        pretty_px: false,
+                        pretty_ts: false,
+                    },
+                )
+            } > 0
+        );
+        let res = std::str::from_utf8(buf.as_slice()).unwrap();
+        assert!(res.contains(&format!(
+            "\"raw_symbol\":\"{}\",",
+            "a".repeat(dbn::compat::SYMBOL_CSTR_LEN_V2 - 1)
+        )));
+    }
 }
