@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.12.0 - TBD
+## 0.12.0 - 2023-10-16
 ### Enhancements
 - Added `map_symbols` support to Python `Transcoder`
 - Added new publisher variants in preparation for DBEQ.PLUS dataset

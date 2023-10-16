@@ -10,7 +10,7 @@
 //! streaming, and batch flat files.
 //!
 //! The crate supports reading and writing DBN files and streams, as well as converting
-//! them to other [`Encoding`](enums::Encoding)s. It can also be used to update legacy
+//! them to other [`Encoding`]s. It can also be used to update legacy
 //! DBZ files to DBN.
 //!
 //! This crate provides:

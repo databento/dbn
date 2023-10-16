@@ -1,7 +1,7 @@
 [package]
 name = "dbn-cli"
 authors = ["Databento <support@databento.com>"]
-version = "0.11.1"
+version = "0.12.0"
 edition = "2021"
 description = "Command-line utility for converting Databento Binary Encoding (DBN) files to text-based formats"
 default-run = "dbn"
@@ -17,7 +17,7 @@ path = "src/main.rs"
 
 [dependencies]
 # Databento common DBN library
-dbn = { path = "../dbn", version = "=0.11.1", default-features = false }
+dbn = { path = "../dbn", version = "=0.12.0", default-features = false }
 
 # Error handling
 anyhow = "1.0"
@@ -25,13 +25,13 @@ anyhow = "1.0"
 clap = { version = "4.4", features = ["derive"] }
 # deserialization for CLI args
 serde = { version = "1.0", features = ["derive"] }
-zstd = "0.12.4"
+zstd = "0.13"
 
 [dev-dependencies]
 # CLI integration tests
 assert_cmd = "2.0.12"
 # assert_cmd companion
-predicates = "3.0.3"
+predicates = "3.0.4"
 rstest = "0.18.2"
 # A library for managing temporary files and directories
-tempfile = "3.7.0"
+tempfile = "3.8.0"

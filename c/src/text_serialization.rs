@@ -244,7 +244,7 @@ pub unsafe extern "C" fn f_serialize_record(
     }
 }
 
-/// Tries to convert `rtype` to a [`Schema`](dbn::enums::Schema).
+/// Tries to convert `rtype` to a [`Schema`].
 /// Returns `true` if `res` was set.
 ///
 /// # Safety
