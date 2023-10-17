@@ -1,3 +1,5 @@
+use crate::{compat::SymbolMappingMsgV2, SType};
+
 use super::*;
 
 impl RecordHeader {
@@ -474,8 +476,8 @@ impl SymbolMappingMsg {
         start_ts: u64,
         end_ts: u64,
     ) -> crate::Result<Self> {
-        // symbol mappings aren't publisher-specific
         Ok(Self {
+            // symbol mappings aren't publisher-specific
             hd: RecordHeader::new::<Self>(rtype::SYMBOL_MAPPING, 0, instrument_id, ts_event),
             stype_in_symbol: str_to_c_chars(stype_in_symbol)?,
             stype_out_symbol: str_to_c_chars(stype_out_symbol)?,
@@ -521,6 +523,36 @@ impl SymbolMappingMsg {
             // u64::MAX is within maximum allowable range
             Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.end_ts as i128).unwrap())
         }
+    }
+}
+
+impl SymbolMappingMsgV2 {
+    /// Creates a new `SymbolMappingMsgV2`.
+    ///
+    /// # Errors
+    /// This function returns an error if `stype_in_symbol` or `stype_out_symbol`
+    /// contain more than maximum number of characters of 70.
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        instrument_id: u32,
+        ts_event: u64,
+        stype_in: SType,
+        stype_in_symbol: &str,
+        stype_out: SType,
+        stype_out_symbol: &str,
+        start_ts: u64,
+        end_ts: u64,
+    ) -> crate::Result<Self> {
+        Ok(Self {
+            // symbol mappings aren't publisher-specific
+            hd: RecordHeader::new::<Self>(rtype::SYMBOL_MAPPING, 0, instrument_id, ts_event),
+            stype_in: stype_in as u8,
+            stype_in_symbol: str_to_c_chars(stype_in_symbol)?,
+            stype_out: stype_out as u8,
+            stype_out_symbol: str_to_c_chars(stype_out_symbol)?,
+            start_ts,
+            end_ts,
+        })
     }
 }
 

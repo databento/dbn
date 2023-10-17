@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.12.1 - TBD
+### Enhancements
+- Added `SymbolMappingMsgV2::new` method
+
 ## 0.12.0 - 2023-10-16
 ### Enhancements
 - Added `map_symbols` support to Python `Transcoder`
@@ -31,8 +35,6 @@
 - Added new publisher values in preparation for DBEQ.PLUS
 - Added `ts_out` parameter to `encode_header_for_schema` in `CsvEncoder` and
   `DynEncoder` to allow controlling whether "ts_out" is in the header
-- Added `from_dataset_venue` function to `Publisher` to facilitate
-  destructuring.
 
 ## 0.11.1 - 2023-10-05
 ### Enhancements
