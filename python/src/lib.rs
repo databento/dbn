@@ -67,6 +67,8 @@ mod tests {
 
     use super::*;
 
+    pub const TEST_DATA_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../tests/data");
+
     pub fn setup() {
         if unsafe { pyo3::ffi::Py_IsInitialized() } == 0 {
             // add to available modules

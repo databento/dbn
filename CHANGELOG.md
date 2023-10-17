@@ -16,6 +16,7 @@
   safe: they can be used in `Box<dyn>`. `RecordRef` also implements `Record`, so it's
   easier to write code that works for both concrete records as well as `RecordRef`
 - Removed `RecordRef` methods made redundant by it implementing `Record`
+- Removed `input_compression` parameter from Python `Transcoder`
 
 ### Deprecations
 - Deprecated `SymbolIndex::get_for_rec_ref`, which was made redundant by loosening the

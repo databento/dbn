@@ -19,20 +19,30 @@ pub fn starts_with_prefix(bytes: &[u8]) -> bool {
 mod tests {
     use std::{fs::File, io::Read};
 
-    use super::*;
-    use crate::decode::tests::TEST_DATA_PATH;
+    use rstest::rstest;
 
-    #[test]
-    fn test_starts_with_prefix_valid() {
-        let mut file = File::open(format!("{TEST_DATA_PATH}/test_data.mbp-10.dbn.zst")).unwrap();
+    use super::*;
+    use crate::{decode::tests::TEST_DATA_PATH, Schema};
+
+    #[rstest]
+    #[case::mbo(Schema::Mbo)]
+    #[case::mbp1(Schema::Mbp1)]
+    #[case::mbp10(Schema::Mbp10)]
+    #[case::definition(Schema::Definition)]
+    fn test_starts_with_prefix_valid(#[case] schema: Schema) {
+        let mut file = File::open(format!("{TEST_DATA_PATH}/test_data.{schema}.dbn.zst")).unwrap();
         let mut buf = [0u8; 4];
         file.read_exact(&mut buf).unwrap();
         assert!(starts_with_prefix(buf.as_slice()));
     }
 
-    #[test]
-    fn test_starts_with_prefix_other() {
-        let mut file = File::open(concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.toml")).unwrap();
+    #[rstest]
+    #[case::mbo(Schema::Mbo)]
+    #[case::mbp1(Schema::Mbp1)]
+    #[case::mbp10(Schema::Mbp10)]
+    #[case::definition(Schema::Definition)]
+    fn test_starts_with_prefix_other(#[case] schema: Schema) {
+        let mut file = File::open(format!("{TEST_DATA_PATH}/test_data.{schema}.dbn")).unwrap();
         let mut buf = [0u8; 4];
         file.read_exact(&mut buf).unwrap();
         assert!(!starts_with_prefix(buf.as_slice()));
