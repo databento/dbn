@@ -3,9 +3,8 @@
 use std::{marker::PhantomData, mem, ptr::NonNull};
 
 use crate::{
-    enums::RType,
-    record::{HasRType, RecordHeader},
-    RecordEnum, RecordRefEnum,
+    record::{HasRType, Record, RecordHeader},
+    rtype_dispatch, RecordEnum, RecordRefEnum,
 };
 
 /// A wrapper around a non-owning immutable reference to a DBN record. This wrapper
@@ -60,30 +59,9 @@ impl<'a> RecordRef<'a> {
         }
     }
 
-    /// Returns a reference to the [`RecordHeader`] of the referenced record.
-    pub fn header(&self) -> &RecordHeader {
-        // Safety: assumes `ptr` passes to a `RecordHeader`.
-        unsafe { self.ptr.as_ref() }
-    }
-
     /// Returns `true` if the object points to a record of type `T`.
     pub fn has<T: HasRType>(&self) -> bool {
         T::has_rtype(self.header().rtype)
-    }
-
-    /// Returns the size of the record in bytes.
-    pub fn record_size(&self) -> usize {
-        self.header().record_size()
-    }
-
-    /// Tries to convert the raw `rtype` into an enum which is useful for exhaustive
-    /// pattern matching.
-    ///
-    /// # Errors
-    /// This function returns an error if the `rtype` field does not
-    /// contain a valid, known [`RType`].
-    pub fn rtype(&self) -> crate::Result<RType> {
-        self.header().rtype()
     }
 
     /// Returns a reference to the underlying record of type `T` or `None` if it points
@@ -153,10 +131,21 @@ where
 }
 
 impl<'a> AsRef<[u8]> for RecordRef<'a> {
-    fn as_ref(&self) -> &[u8] {
+    fn as_ref(&self) -> &'a [u8] {
         // # Safety
         // Assumes the encoded record length is correct.
         unsafe { std::slice::from_raw_parts(self.ptr.as_ptr() as *const u8, self.record_size()) }
+    }
+}
+
+impl<'a> Record for RecordRef<'a> {
+    fn header(&self) -> &'a RecordHeader {
+        // Safety: assumes `ptr` passes to a `RecordHeader`.
+        unsafe { self.ptr.as_ref() }
+    }
+
+    fn raw_index_ts(&self) -> u64 {
+        rtype_dispatch!(self, Record::raw_index_ts).unwrap_or_else(|_| self.header().ts_event)
     }
 }
 

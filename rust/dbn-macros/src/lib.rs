@@ -17,6 +17,7 @@ pub fn derive_mock_pyo3(_item: TokenStream) -> TokenStream {
 
 /// Derive macro for CSV serialization. Supports the following `dbn` attributes:
 /// - `c_char`: serializes the field as a `char`
+/// - `encode_order`: overrides the position of the field in the CSV table
 /// - `fixed_price`: serializes the field as fixed-price, with the output format
 ///   depending on `PRETTY_PX`
 /// - `skip`: does not serialize the field
@@ -47,6 +48,9 @@ pub fn derive_json_serialize(input: TokenStream) -> TokenStream {
 
 /// Derive macro for field descriptions exposed to Python. Supports the following `dbn`
 /// attributes:
+/// - `c_char`: indicates the field dtype should be a single-character string rather
+///   than an integer
+/// - `encode_order`: overrides the position of the field in the ordered list
 /// - `fixed_price`: indicates this is a fixed-precision field
 /// - `skip`: indicates this field should be hidden
 /// - `unix_nanos`: indicates this is a UNIX nanosecond timestamp field
@@ -60,6 +64,9 @@ pub fn derive_py_field_desc(input: TokenStream) -> TokenStream {
 ///
 /// Expects 1 or more paths to `u8` constants that are the RTypes associated
 /// with this record.
+///
+/// Supports the following `dbn` attributes:
+/// - `index_ts`: indicates this field is the primary timestamp for the record
 #[proc_macro_attribute]
 pub fn dbn_record(attr: TokenStream, input: TokenStream) -> TokenStream {
     has_rtype::attribute_macro_impl(attr, input)

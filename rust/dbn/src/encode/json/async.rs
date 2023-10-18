@@ -120,11 +120,7 @@ mod tests {
 
     use tokio::io::{AsyncWriteExt, BufWriter};
 
-    use crate::{
-        encode::test_data::RECORD_HEADER,
-        enums::rtype,
-        record::{HasRType, MboMsg, RecordHeader},
-    };
+    use crate::{encode::test_data::RECORD_HEADER, enums::rtype, MboMsg, RecordHeader};
 
     use super::*;
 
@@ -196,13 +192,7 @@ mod tests {
             sequence: 1_002_375,
         };
         let res = write_to_json_string(&record, false, true, false).await;
-        let ref_res = write_ref_to_json_string(
-            unsafe { RecordRef::unchecked_from_header(record.header()) },
-            false,
-            true,
-            false,
-        )
-        .await;
+        let ref_res = write_ref_to_json_string(RecordRef::from(&record), false, true, false).await;
 
         assert_eq!(res, ref_res);
         assert_eq!(

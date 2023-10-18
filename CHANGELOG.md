@@ -1,8 +1,29 @@
 # Changelog
 
-## 0.12.1 - TBD
+## 0.13.0 - TBD
 ### Enhancements
 - Added `SymbolMappingMsgV2::new` method
+- Added `Record` trait for all types beginning with a `RecordHeader`
+  - Added new `index_ts` and `raw_index_ts` methods to `Record` trait, which returns the
+    primary timestamp for a record
+- Added `RecordMut` trait for accessing a mutable reference to a `RecordHeader`
+- Implemented `PartialOrd` for all record types, based on `raw_index_ts`
+- Loosened `DbnEncodable` from requiring `HasRType` to only requiring `Record`. This means
+  `RecordRef`s and concrete records can be encoded with the same methods
+
+### Breaking changes
+- Split part of `HasRType` into new `Record` and `RecordMut` traits, which are object-
+  safe: they can be used in `Box<dyn>`. `RecordRef` also implements `Record`, so it's
+  easier to write code that works for both concrete records as well as `RecordRef`
+- Removed `RecordRef` methods made redundant by it implementing `Record`
+
+### Deprecations
+- Deprecated `SymbolIndex::get_for_rec_ref`, which was made redundant by loosening the
+  trait bound on `SymbolIndex::get_for_rec` to accept `RecordRef`s
+
+### Bug fixes
+- Fixed `TsSymbolMap` not always using the correct timestamp for getting the mapped
+  symbol
 
 ## 0.12.0 - 2023-10-16
 ### Enhancements

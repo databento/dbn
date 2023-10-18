@@ -15,7 +15,8 @@ use dbn::{
         EncodeRecordTextExt, JsonEncoder,
     },
     python::{py_to_time_date, to_val_err},
-    Compression, Encoding, PitSymbolMap, RType, RecordRef, Schema, SymbolIndex, TsSymbolMap,
+    Compression, Encoding, PitSymbolMap, RType, Record, RecordRef, Schema, SymbolIndex,
+    TsSymbolMap,
 };
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyDate};
 
@@ -256,7 +257,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
                         .unwrap_or(false)
                     {
                         if self.map_symbols {
-                            let symbol = self.symbol_map.get_for_rec_ref(rec).map(|s| s.as_str());
+                            let symbol = self.symbol_map.get_for_rec(&rec).map(|s| s.as_str());
                             unsafe { encoder.encode_ref_ts_out_with_sym(rec, self.ts_out, symbol) }
                         } else {
                             unsafe { encoder.encode_record_ref_ts_out(rec, self.ts_out) }
@@ -300,7 +301,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
                 Ok(Some(rec)) => {
                     if self.map_symbols {
                         self.symbol_map.update_live(rec);
-                        let symbol = self.symbol_map.get_for_rec_ref(rec).map(|s| s.as_str());
+                        let symbol = self.symbol_map.get_for_rec(&rec).map(|s| s.as_str());
                         unsafe { encoder.encode_ref_ts_out_with_sym(rec, self.ts_out, symbol) }
                     } else {
                         unsafe { encoder.encode_record_ref_ts_out(rec, self.ts_out) }
@@ -411,17 +412,10 @@ enum SymbolMap {
 }
 
 impl SymbolIndex for SymbolMap {
-    fn get_for_rec<R: dbn::record::HasRType>(&self, record: &R) -> Option<&String> {
+    fn get_for_rec<R: Record>(&self, record: &R) -> Option<&String> {
         match self {
             SymbolMap::Historical(sm) => sm.get_for_rec(record),
             SymbolMap::Live(sm) => sm.get_for_rec(record),
-        }
-    }
-
-    fn get_for_rec_ref(&self, rec_ref: RecordRef) -> Option<&String> {
-        match self {
-            SymbolMap::Historical(sm) => sm.get_for_rec_ref(rec_ref),
-            SymbolMap::Live(sm) => sm.get_for_rec_ref(rec_ref),
         }
     }
 }

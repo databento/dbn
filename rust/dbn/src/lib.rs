@@ -62,9 +62,9 @@ pub use crate::{
     metadata::{MappingInterval, Metadata, MetadataBuilder, SymbolMapping},
     publishers::{Dataset, Publisher, Venue},
     record::{
-        BidAskPair, ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
-        RecordHeader, StatMsg, StatusMsg, SymbolMappingMsg, SystemMsg, TbboMsg, TradeMsg,
-        WithTsOut,
+        BidAskPair, ErrorMsg, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg,
+        OhlcvMsg, Record, RecordHeader, RecordMut, StatMsg, StatusMsg, SymbolMappingMsg, SystemMsg,
+        TbboMsg, TradeMsg, WithTsOut,
     },
     record_enum::{RecordEnum, RecordRefEnum},
     record_ref::RecordRef,

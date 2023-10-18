@@ -2,8 +2,12 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, Data, DeriveInput, Field};
 
-use crate::dbn_attr::{
-    find_dbn_attr_id, get_sorted_fields, is_hidden, C_CHAR_ATTR, FIXED_PRICE_ATTR, UNIX_NANOS_ATTR,
+use crate::{
+    dbn_attr::{
+        find_dbn_serialize_attr, get_sorted_fields, is_hidden, C_CHAR_ATTR, FIXED_PRICE_ATTR,
+        UNIX_NANOS_ATTR,
+    },
+    utils::crate_name,
 };
 
 pub fn derive_csv_macro_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -11,6 +15,7 @@ pub fn derive_csv_macro_impl(input: proc_macro::TokenStream) -> proc_macro::Toke
 
     if let Data::Struct(data_struct) = data {
         if let syn::Fields::Named(fields) = data_struct.fields {
+            let crate_name = crate_name();
             let fields = match get_sorted_fields(fields) {
                 Ok(fields) => fields,
                 Err(ts) => {
@@ -24,9 +29,9 @@ pub fn derive_csv_macro_impl(input: proc_macro::TokenStream) -> proc_macro::Toke
                 .collect::<syn::Result<Vec<_>>>()
                 .unwrap_or_else(|e| vec![syn::Error::to_compile_error(&e)]);
             return quote! {
-                impl crate::encode::csv::serialize::CsvSerialize for #ident {
+                impl #crate_name::encode::csv::serialize::CsvSerialize for #ident {
                     fn serialize_header<W: ::std::io::Write>(writer: &mut ::csv::Writer<W>) -> ::csv::Result<()> {
-                        use crate::encode::csv::serialize::WriteField;
+                        use #crate_name::encode::csv::serialize::WriteField;
 
                         #(#serialize_header_iter)*
                         Ok(())
@@ -36,7 +41,7 @@ pub fn derive_csv_macro_impl(input: proc_macro::TokenStream) -> proc_macro::Toke
                         &self,
                         writer: &mut ::csv::Writer<W>
                     ) -> ::csv::Result<()> {
-                        use crate::encode::csv::serialize::WriteField;
+                        use #crate_name::encode::csv::serialize::WriteField;
 
                         #(#serialize_fields)*
                         Ok(())
@@ -56,6 +61,7 @@ pub fn derive_json_macro_impl(input: proc_macro::TokenStream) -> proc_macro::Tok
 
     if let Data::Struct(data_struct) = data {
         if let syn::Fields::Named(fields) = data_struct.fields {
+            let crate_name = crate_name();
             let fields = match get_sorted_fields(fields) {
                 Ok(fields) => fields,
                 Err(ts) => {
@@ -69,11 +75,11 @@ pub fn derive_json_macro_impl(input: proc_macro::TokenStream) -> proc_macro::Tok
                 .unwrap_or_else(|e| vec![syn::Error::to_compile_error(&e)]);
             return quote! {
                 impl crate::encode::json::serialize::JsonSerialize for #ident {
-                    fn to_json<J: crate::json_writer::JsonWriter, const PRETTY_PX: bool, const PRETTY_TS: bool>(
+                    fn to_json<J: #crate_name::json_writer::JsonWriter, const PRETTY_PX: bool, const PRETTY_TS: bool>(
                         &self,
-                        writer: &mut crate::json_writer::JsonObjectWriter<J>,
+                        writer: &mut #crate_name::json_writer::JsonObjectWriter<J>,
                     ) {
-                        use crate::encode::json::serialize::WriteField;
+                        use #crate_name::encode::json::serialize::WriteField;
 
                         #(#serialize_fields)*
                     }
@@ -105,7 +111,7 @@ fn write_csv_field_token_stream(field: &Field) -> syn::Result<TokenStream> {
     if is_hidden(field) {
         return Ok(quote! {});
     }
-    if let Some(dbn_attr_id) = find_dbn_attr_id(field)? {
+    if let Some(dbn_attr_id) = find_dbn_serialize_attr(field)? {
         if dbn_attr_id == UNIX_NANOS_ATTR {
             Ok(quote! {
                 crate::encode::csv::serialize::write_ts_field::<_, PRETTY_TS>(writer, self.#ident)?;
@@ -137,7 +143,7 @@ fn write_json_field_token_stream(field: &Field) -> syn::Result<TokenStream> {
     if is_hidden(field) {
         return Ok(quote! {});
     }
-    if let Some(dbn_attr_id) = find_dbn_attr_id(field)? {
+    if let Some(dbn_attr_id) = find_dbn_serialize_attr(field)? {
         if dbn_attr_id == UNIX_NANOS_ATTR {
             Ok(quote! {
                 crate::encode::json::serialize::write_ts_field::<_, PRETTY_TS>(writer, stringify!(#ident), self.#ident);

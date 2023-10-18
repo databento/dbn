@@ -85,12 +85,7 @@ impl MboMsg {
     /// Parses the raw capture-server-received timestamp into a datetime. Returns `None`
     /// if `ts_recv` contains the sentinel for a null timestamp.
     pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
-        if self.ts_recv == crate::UNDEF_TIMESTAMP {
-            None
-        } else {
-            // u64::MAX is within maximum allowable range
-            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.ts_recv as i128).unwrap())
-        }
+        ts_to_dt(self.ts_recv)
     }
 
     /// Parses the raw `ts_in_delta`—the delta of `ts_recv - ts_exchange_send`—into a duration.
@@ -123,12 +118,7 @@ impl TradeMsg {
     /// Parses the raw capture-server-received timestamp into a datetime. Returns `None`
     /// if `ts_recv` contains the sentinel for a null timestamp.
     pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
-        if self.ts_recv == crate::UNDEF_TIMESTAMP {
-            None
-        } else {
-            // u64::MAX is within maximum allowable range
-            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.ts_recv as i128).unwrap())
-        }
+        ts_to_dt(self.ts_recv)
     }
 
     /// Parses the raw `ts_in_delta`—the delta of `ts_recv - ts_exchange_send`—into a duration.
@@ -161,12 +151,7 @@ impl Mbp1Msg {
     /// Parses the raw capture-server-received timestamp into a datetime. Returns `None`
     /// if `ts_recv` contains the sentinel for a null timestamp.
     pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
-        if self.ts_recv == crate::UNDEF_TIMESTAMP {
-            None
-        } else {
-            // u64::MAX is within maximum allowable range
-            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.ts_recv as i128).unwrap())
-        }
+        ts_to_dt(self.ts_recv)
     }
 
     /// Parses the raw `ts_in_delta`—the delta of `ts_recv - ts_exchange_send`—into a duration.
@@ -199,12 +184,7 @@ impl Mbp10Msg {
     /// Parses the raw capture-server-received timestamp into a datetime. Returns `None`
     /// if `ts_recv` contains the sentinel for a null timestamp.
     pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
-        if self.ts_recv == crate::UNDEF_TIMESTAMP {
-            None
-        } else {
-            // u64::MAX is within maximum allowable range
-            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.ts_recv as i128).unwrap())
-        }
+        ts_to_dt(self.ts_recv)
     }
 
     /// Parses the raw `ts_in_delta`—the delta of `ts_recv - ts_exchange_send`—into a duration.
@@ -227,34 +207,19 @@ impl InstrumentDefMsg {
     /// Parses the raw capture-server-received timestamp into a datetime. Returns `None`
     /// if `ts_recv` contains the sentinel for a null timestamp.
     pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
-        if self.ts_recv == crate::UNDEF_TIMESTAMP {
-            None
-        } else {
-            // u64::MAX is within maximum allowable range
-            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.ts_recv as i128).unwrap())
-        }
+        ts_to_dt(self.ts_recv)
     }
 
     /// Parses the raw last eligible trade time into a datetime. Returns `None` if
     /// `expiration` contains the sentinel for a null timestamp.
     pub fn expiration(&self) -> Option<time::OffsetDateTime> {
-        if self.expiration == crate::UNDEF_TIMESTAMP {
-            None
-        } else {
-            // u64::MAX is within maximum allowable range
-            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.expiration as i128).unwrap())
-        }
+        ts_to_dt(self.expiration)
     }
 
     /// Parses the raw time of instrument action into a datetime. Returns `None` if
     /// `activation` contains the sentinel for a null timestamp.
     pub fn activation(&self) -> Option<time::OffsetDateTime> {
-        if self.activation == crate::UNDEF_TIMESTAMP {
-            None
-        } else {
-            // u64::MAX is within maximum allowable range
-            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.activation as i128).unwrap())
-        }
+        ts_to_dt(self.activation)
     }
 
     /// Returns currency used for price fields as a `&str`.
@@ -382,12 +347,7 @@ impl ImbalanceMsg {
     /// Parses the raw capture-server-received timestamp into a datetime. Returns `None`
     /// if `ts_recv` contains the sentinel for a null timestamp.
     pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
-        if self.ts_recv == crate::UNDEF_TIMESTAMP {
-            None
-        } else {
-            // u64::MAX is within maximum allowable range
-            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.ts_recv as i128).unwrap())
-        }
+        ts_to_dt(self.ts_recv)
     }
 }
 
@@ -395,23 +355,13 @@ impl StatMsg {
     /// Parses the raw capture-server-received timestamp into a datetime. Returns `None`
     /// if `ts_recv` contains the sentinel for a null timestamp.
     pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
-        if self.ts_recv == crate::UNDEF_TIMESTAMP {
-            None
-        } else {
-            // u64::MAX is within maximum allowable range
-            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.ts_recv as i128).unwrap())
-        }
+        ts_to_dt(self.ts_recv)
     }
 
     /// Parses the raw reference timestamp of the statistic value into a datetime.
     /// Returns `None` if `ts_ref` contains the sentinel for a null timestamp.
     pub fn ts_ref(&self) -> Option<time::OffsetDateTime> {
-        if self.ts_ref == crate::UNDEF_TIMESTAMP {
-            None
-        } else {
-            // u64::MAX is within maximum allowable range
-            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.ts_ref as i128).unwrap())
-        }
+        ts_to_dt(self.ts_ref)
     }
 
     /// Tries to convert the raw type of the statistic value to an enum.
@@ -506,23 +456,13 @@ impl SymbolMappingMsg {
     /// Parses the raw start of the mapping interval into a datetime. Returns `None` if
     /// `start_ts` contains the sentinel for a null timestamp.
     pub fn start_ts(&self) -> Option<time::OffsetDateTime> {
-        if self.start_ts == crate::UNDEF_TIMESTAMP {
-            None
-        } else {
-            // u64::MAX is within maximum allowable range
-            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.start_ts as i128).unwrap())
-        }
+        ts_to_dt(self.start_ts)
     }
 
     /// Parses the raw end of the mapping interval into a datetime. Returns `None` if
     /// `end_ts` contains the sentinel for a null timestamp.
     pub fn end_ts(&self) -> Option<time::OffsetDateTime> {
-        if self.end_ts == crate::UNDEF_TIMESTAMP {
-            None
-        } else {
-            // u64::MAX is within maximum allowable range
-            Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.end_ts as i128).unwrap())
-        }
+        ts_to_dt(self.end_ts)
     }
 }
 
@@ -557,7 +497,7 @@ impl SymbolMappingMsgV2 {
 }
 
 impl SystemMsg {
-    const HEARTBEAT: &str = "Heartbeat";
+    const HEARTBEAT: &'static str = "Heartbeat";
 
     /// Creates a new `SystemMsg`.
     ///
@@ -595,17 +535,25 @@ impl SystemMsg {
     }
 }
 
-impl<T: HasRType> HasRType for WithTsOut<T> {
-    fn has_rtype(rtype: u8) -> bool {
-        T::has_rtype(rtype)
-    }
-
+impl<T: HasRType> Record for WithTsOut<T> {
     fn header(&self) -> &RecordHeader {
         self.rec.header()
     }
 
+    fn raw_index_ts(&self) -> u64 {
+        self.rec.raw_index_ts()
+    }
+}
+
+impl<T: HasRType> RecordMut for WithTsOut<T> {
     fn header_mut(&mut self) -> &mut RecordHeader {
         self.rec.header_mut()
+    }
+}
+
+impl<T: HasRType> HasRType for WithTsOut<T> {
+    fn has_rtype(rtype: u8) -> bool {
+        T::has_rtype(rtype)
     }
 }
 

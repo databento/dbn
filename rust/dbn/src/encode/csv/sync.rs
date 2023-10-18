@@ -5,9 +5,8 @@ use streaming_iterator::StreamingIterator;
 use crate::{
     decode::DecodeDbn,
     encode::{DbnEncodable, EncodeDbn, EncodeRecord, EncodeRecordRef, EncodeRecordTextExt},
-    enums::{RType, Schema},
     rtype_method_dispatch, rtype_ts_out_method_dispatch, schema_method_dispatch,
-    schema_ts_out_method_dispatch, Error, Result,
+    schema_ts_out_method_dispatch, Error, RType, Record, Result, Schema,
 };
 
 /// Type for encoding files and streams of DBN records in CSV.

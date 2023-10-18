@@ -10,9 +10,7 @@ use std::{
 
 use dbn::{
     decode::{DecodeDbn, DecodeRecordRef, DynDecoder},
-    enums::Compression,
-    record::RecordHeader,
-    Metadata,
+    Compression, Metadata, Record, RecordHeader,
 };
 
 pub type Decoder = DynDecoder<'static, BufReader<File>>;

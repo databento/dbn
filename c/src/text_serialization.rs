@@ -8,10 +8,7 @@ use crate::cfile::CFileRef;
 use dbn::{
     compat::InstrumentDefMsgV2,
     encode::{csv, json, DbnEncodable, EncodeRecord, EncodeRecordRef},
-    enums::{rtype, Schema},
-    record::RecordHeader,
-    record_ref::RecordRef,
-    rtype_ts_out_dispatch,
+    rtype, rtype_ts_out_dispatch, Record, RecordHeader, RecordRef, Schema,
 };
 
 /// The encoding to serialize as.

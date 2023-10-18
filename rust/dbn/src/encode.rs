@@ -25,17 +25,14 @@ pub use self::{
 };
 
 use crate::{
-    decode::DecodeDbn,
-    enums::{Compression, Encoding},
-    record::HasRType,
-    record_ref::RecordRef,
-    rtype_method_dispatch, rtype_ts_out_method_dispatch, Error, Metadata, Result, Schema,
+    decode::DecodeDbn, rtype_method_dispatch, rtype_ts_out_method_dispatch, Compression, Encoding,
+    Error, HasRType, Metadata, Record, RecordRef, Result, Schema,
 };
 
 use self::{csv::serialize::CsvSerialize, json::serialize::JsonSerialize};
 
 /// Trait alias for [`HasRType`], `AsRef<[u8]>`, `CsvSerialize`, [`fmt::Debug`], and `JsonSerialize`.
-pub trait DbnEncodable: HasRType + AsRef<[u8]> + CsvSerialize + fmt::Debug + JsonSerialize {}
+pub trait DbnEncodable: Record + AsRef<[u8]> + CsvSerialize + fmt::Debug + JsonSerialize {}
 impl<T> DbnEncodable for T where
     T: HasRType + AsRef<[u8]> + CsvSerialize + fmt::Debug + JsonSerialize
 {
