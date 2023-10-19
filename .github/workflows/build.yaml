@@ -41,6 +41,9 @@ jobs:
           target: x86_64
           args: --release --out dist --manifest-path python/Cargo.toml --interpreter python${{ matrix.python-version }}
 
+      - name: Install rustfmt
+        run: rustup component add rustfmt
+        shell: bash
       - name: Format
         run: scripts/format.sh
         shell: bash

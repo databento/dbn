@@ -2,6 +2,7 @@
 .idea/
 .profile/
 .vscode/
+.helix/
 
 target/
 **/*.rs.bk

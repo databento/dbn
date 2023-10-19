@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.13.0 - TBD
+## 0.13.0 - 2023-10-20
 ### Enhancements
 - Added `SymbolMappingMsgV2::new` method
 - Added `Record` trait for all types beginning with a `RecordHeader`
