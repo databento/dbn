@@ -41,8 +41,8 @@ jobs:
           target: x86_64
           args: --release --out dist --manifest-path python/Cargo.toml --interpreter python${{ matrix.python-version }}
 
-      - name: Install rustfmt
-        run: rustup component add rustfmt
+      - name: Install clippy and rustfmt
+        run: rustup component add clippy rustfmt
         shell: bash
       - name: Format
         run: scripts/format.sh
@@ -92,6 +92,9 @@ jobs:
           manylinux: auto
           args: --release --out dist --manifest-path python/Cargo.toml --interpreter python${{ matrix.python-version }}
 
+      - name: Install clippy and rustfmt
+        run: rustup component add clippy rustfmt
+        shell: bash
       - name: Format
         run: scripts/format.sh
       - name: Build
@@ -141,6 +144,9 @@ jobs:
         with:
           args: --release --target universal2-apple-darwin --out dist --manifest-path python/Cargo.toml --interpreter python${{ matrix.python-version }}
 
+      - name: Install clippy and rustfmt
+        run: rustup component add clippy rustfmt
+        shell: bash
       - name: Format
         run: scripts/format.sh
       - name: Build
