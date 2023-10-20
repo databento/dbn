@@ -2492,9 +2492,6 @@ class Transcoder:
     ts_out : bool, default False
         Whether the records include the server send timestamp ts_out. Only needs to be
         specified if `has_metadata` is False.
-    input_compression: Compression | None, default None
-        Override the compression of the input. By default it will attempt to detect
-        whether the input is compressed.
     symbol_map : dict[int, list[tuple[datetime.date, datetime.date, str]]], default None
         Specify the initial symbol mappings to use with map_symbols. If not specified,
         only the mappings in the metadata header will be used.
@@ -2513,7 +2510,6 @@ class Transcoder:
         map_symbols: bool = True,
         has_metadata: bool = True,
         ts_out: bool = False,
-        input_compression: Compression | None = None,
         symbol_map: dict[int, list[tuple[datetime.date, datetime.date, str]]] | None = None,
         schema: Schema | None = None,
     ): ...

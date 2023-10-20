@@ -12,12 +12,9 @@ use crate::{
     decode::{
         private::BufferSlice, DecodeDbn, DecodeRecordRef, FromLittleEndianSlice, StreamIterDecoder,
     },
-    enums::{SType, Schema},
     error::silence_eof_error,
-    record::{HasRType, RecordHeader},
-    record_ref::RecordRef,
-    MappingInterval, Metadata, SymbolMapping, DBN_VERSION, METADATA_FIXED_LEN, NULL_SCHEMA,
-    NULL_STYPE, UNDEF_TIMESTAMP,
+    HasRType, MappingInterval, Metadata, Record, RecordHeader, RecordRef, SType, Schema,
+    SymbolMapping, DBN_VERSION, METADATA_FIXED_LEN, NULL_SCHEMA, NULL_STYPE, UNDEF_TIMESTAMP,
 };
 
 /// Type for decoding files and streams in Databento Binary Encoding (DBN), both metadata and records.
@@ -667,7 +664,7 @@ mod tests {
     #[case::zstd_definitions(Schema::Definition, Compression::ZStd, InstrumentDefMsg::default())]
     #[case::zstd_imbalance(Schema::Imbalance, Compression::ZStd, ImbalanceMsg::default())]
     #[case::zstd_statistics(Schema::Statistics, Compression::ZStd, StatMsg::default())]
-    fn test_dbn_identity<R: DbnEncodable + PartialEq + Clone>(
+    fn test_dbn_identity<R: DbnEncodable + HasRType + PartialEq + Clone>(
         #[case] schema: Schema,
         #[case] compression: Compression,
         #[case] _rec: R,

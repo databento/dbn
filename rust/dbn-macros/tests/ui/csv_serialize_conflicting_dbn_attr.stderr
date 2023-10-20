@@ -1,11 +1,11 @@
-error: unrecognized dbn attr argument unknown
- --> tests/ui/csv_serialize_invalid_dbn_attr.rs:6:11
+error: Passed incompatible serialization arguments to dbn attr
+ --> tests/ui/csv_serialize_conflicting_dbn_attr.rs:6:5
   |
-6 |     #[dbn(unknown)]
-  |           ^^^^^^^
+6 |     #[dbn(fixed_price, unix_nanos)]
+  |     ^
 
 error[E0603]: module `serialize` is private
- --> tests/ui/csv_serialize_invalid_dbn_attr.rs:3:10
+ --> tests/ui/csv_serialize_conflicting_dbn_attr.rs:3:10
   |
 3 | #[derive(CsvSerialize)]
   |          ^^^^^^^^^^^^
@@ -20,7 +20,7 @@ note: the module `serialize` is defined here
   | ^^^^^^^^^^^^^^^^^^^^^^^^
 
 error[E0599]: no function or associated item named `write_header` found for type `u8` in the current scope
- --> tests/ui/csv_serialize_invalid_dbn_attr.rs:3:10
+ --> tests/ui/csv_serialize_conflicting_dbn_attr.rs:3:10
   |
 3 | #[derive(CsvSerialize)]
   |          ^^^^^^^^^^^^ function or associated item not found in `u8`

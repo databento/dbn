@@ -1,6 +1,6 @@
 use crate::{
     Error, ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, RType,
-    RecordRef, StatMsg, StatusMsg, SymbolMappingMsg, SystemMsg, TradeMsg,
+    Record, RecordMut, RecordRef, StatMsg, StatusMsg, SymbolMappingMsg, SystemMsg, TradeMsg,
 };
 
 /// An owned DBN record type of flexible type.
@@ -251,5 +251,96 @@ impl From<SystemMsg> for RecordEnum {
 impl<'a> From<&'a SystemMsg> for RecordRefEnum<'a> {
     fn from(rec: &'a SystemMsg) -> Self {
         Self::System(rec)
+    }
+}
+
+impl Record for RecordEnum {
+    fn header(&self) -> &crate::RecordHeader {
+        match self {
+            RecordEnum::Mbo(rec) => rec.header(),
+            RecordEnum::Trade(rec) => rec.header(),
+            RecordEnum::Mbp1(rec) => rec.header(),
+            RecordEnum::Mbp10(rec) => rec.header(),
+            RecordEnum::Ohlcv(rec) => rec.header(),
+            RecordEnum::Status(rec) => rec.header(),
+            RecordEnum::InstrumentDef(rec) => rec.header(),
+            RecordEnum::Imbalance(rec) => rec.header(),
+            RecordEnum::Stat(rec) => rec.header(),
+            RecordEnum::Error(rec) => rec.header(),
+            RecordEnum::SymbolMapping(rec) => rec.header(),
+            RecordEnum::System(rec) => rec.header(),
+        }
+    }
+
+    fn raw_index_ts(&self) -> u64 {
+        match self {
+            RecordEnum::Mbo(rec) => rec.raw_index_ts(),
+            RecordEnum::Trade(rec) => rec.raw_index_ts(),
+            RecordEnum::Mbp1(rec) => rec.raw_index_ts(),
+            RecordEnum::Mbp10(rec) => rec.raw_index_ts(),
+            RecordEnum::Ohlcv(rec) => rec.raw_index_ts(),
+            RecordEnum::Status(rec) => rec.raw_index_ts(),
+            RecordEnum::InstrumentDef(rec) => rec.raw_index_ts(),
+            RecordEnum::Imbalance(rec) => rec.raw_index_ts(),
+            RecordEnum::Stat(rec) => rec.raw_index_ts(),
+            RecordEnum::Error(rec) => rec.raw_index_ts(),
+            RecordEnum::SymbolMapping(rec) => rec.raw_index_ts(),
+            RecordEnum::System(rec) => rec.raw_index_ts(),
+        }
+    }
+}
+
+impl RecordMut for RecordEnum {
+    fn header_mut(&mut self) -> &mut crate::RecordHeader {
+        match self {
+            RecordEnum::Mbo(rec) => rec.header_mut(),
+            RecordEnum::Trade(rec) => rec.header_mut(),
+            RecordEnum::Mbp1(rec) => rec.header_mut(),
+            RecordEnum::Mbp10(rec) => rec.header_mut(),
+            RecordEnum::Ohlcv(rec) => rec.header_mut(),
+            RecordEnum::Status(rec) => rec.header_mut(),
+            RecordEnum::InstrumentDef(rec) => rec.header_mut(),
+            RecordEnum::Imbalance(rec) => rec.header_mut(),
+            RecordEnum::Stat(rec) => rec.header_mut(),
+            RecordEnum::Error(rec) => rec.header_mut(),
+            RecordEnum::SymbolMapping(rec) => rec.header_mut(),
+            RecordEnum::System(rec) => rec.header_mut(),
+        }
+    }
+}
+
+impl<'a> Record for RecordRefEnum<'a> {
+    fn header(&self) -> &crate::RecordHeader {
+        match self {
+            RecordRefEnum::Mbo(rec) => rec.header(),
+            RecordRefEnum::Trade(rec) => rec.header(),
+            RecordRefEnum::Mbp1(rec) => rec.header(),
+            RecordRefEnum::Mbp10(rec) => rec.header(),
+            RecordRefEnum::Ohlcv(rec) => rec.header(),
+            RecordRefEnum::Status(rec) => rec.header(),
+            RecordRefEnum::InstrumentDef(rec) => rec.header(),
+            RecordRefEnum::Imbalance(rec) => rec.header(),
+            RecordRefEnum::Stat(rec) => rec.header(),
+            RecordRefEnum::Error(rec) => rec.header(),
+            RecordRefEnum::SymbolMapping(rec) => rec.header(),
+            RecordRefEnum::System(rec) => rec.header(),
+        }
+    }
+
+    fn raw_index_ts(&self) -> u64 {
+        match self {
+            RecordRefEnum::Mbo(rec) => rec.raw_index_ts(),
+            RecordRefEnum::Trade(rec) => rec.raw_index_ts(),
+            RecordRefEnum::Mbp1(rec) => rec.raw_index_ts(),
+            RecordRefEnum::Mbp10(rec) => rec.raw_index_ts(),
+            RecordRefEnum::Ohlcv(rec) => rec.raw_index_ts(),
+            RecordRefEnum::Status(rec) => rec.raw_index_ts(),
+            RecordRefEnum::InstrumentDef(rec) => rec.raw_index_ts(),
+            RecordRefEnum::Imbalance(rec) => rec.raw_index_ts(),
+            RecordRefEnum::Stat(rec) => rec.raw_index_ts(),
+            RecordRefEnum::Error(rec) => rec.raw_index_ts(),
+            RecordRefEnum::SymbolMapping(rec) => rec.raw_index_ts(),
+            RecordRefEnum::System(rec) => rec.raw_index_ts(),
+        }
     }
 }

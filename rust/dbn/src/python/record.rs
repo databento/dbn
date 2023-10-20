@@ -8,13 +8,10 @@ use pyo3::{
 };
 
 use crate::{
-    enums::{rtype, SecurityUpdateAction, StatUpdateAction, UserDefinedInstrument},
-    record::{
-        str_to_c_chars, BidAskPair, ErrorMsg, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg,
-        Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader, StatMsg, StatusMsg, SymbolMappingMsg, SystemMsg,
-        TradeMsg, WithTsOut,
-    },
-    FIXED_PRICE_SCALE, UNDEF_ORDER_SIZE, UNDEF_PRICE, UNDEF_TIMESTAMP,
+    record::str_to_c_chars, rtype, BidAskPair, ErrorMsg, HasRType, ImbalanceMsg, InstrumentDefMsg,
+    MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, Record, RecordHeader, SecurityUpdateAction, StatMsg,
+    StatUpdateAction, StatusMsg, SymbolMappingMsg, SystemMsg, TradeMsg, UserDefinedInstrument,
+    WithTsOut, FIXED_PRICE_SCALE, UNDEF_ORDER_SIZE, UNDEF_PRICE, UNDEF_TIMESTAMP,
 };
 
 use super::{to_val_err, PyFieldDesc};

@@ -1,6 +1,7 @@
 //! Market data types for encoding different Databento [`Schema`](crate::enums::Schema)s
 //! and conversion functions.
 
+mod conv;
 mod impl_default;
 mod methods;
 
@@ -20,6 +21,11 @@ use crate::{
     macros::{dbn_record, CsvSerialize, JsonSerialize},
     publishers::Publisher,
     Error, Result, SYMBOL_CSTR_LEN,
+};
+pub(crate) use conv::as_u8_slice;
+pub use conv::{
+    c_chars_to_str, str_to_c_chars, transmute_header_bytes, transmute_record,
+    transmute_record_bytes, transmute_record_mut, ts_to_dt,
 };
 
 /// Common data for all Databento records. Always found at the beginning of a record
@@ -98,7 +104,7 @@ pub struct MboMsg {
     pub side: c_char,
     /// The capture-server-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
-    #[dbn(encode_order(0), unix_nanos)]
+    #[dbn(encode_order(0), index_ts, unix_nanos)]
     #[pyo3(get)]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
@@ -177,7 +183,7 @@ pub struct TradeMsg {
     pub depth: u8,
     /// The capture-server-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
-    #[dbn(encode_order(0), unix_nanos)]
+    #[dbn(encode_order(0), index_ts, unix_nanos)]
     #[pyo3(get)]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
@@ -230,7 +236,7 @@ pub struct Mbp1Msg {
     pub depth: u8,
     /// The capture-server-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
-    #[dbn(encode_order(0), unix_nanos)]
+    #[dbn(encode_order(0), index_ts, unix_nanos)]
     #[pyo3(get)]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
@@ -286,7 +292,7 @@ pub struct Mbp10Msg {
     pub depth: u8,
     /// The capture-server-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
-    #[dbn(encode_order(0), unix_nanos)]
+    #[dbn(encode_order(0), index_ts, unix_nanos)]
     #[pyo3(get)]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
@@ -396,7 +402,7 @@ pub struct InstrumentDefMsg {
     pub hd: RecordHeader,
     /// The capture-server-received timestamp expressed as number of nanoseconds since the
     /// UNIX epoch.
-    #[dbn(encode_order(0), unix_nanos)]
+    #[dbn(encode_order(0), index_ts, unix_nanos)]
     #[pyo3(get, set)]
     pub ts_recv: u64,
     /// The minimum constant tick for the instrument in units of 1e-9, i.e.
@@ -621,7 +627,7 @@ pub struct ImbalanceMsg {
     pub hd: RecordHeader,
     /// The capture-server-received timestamp expressed as the number of nanoseconds
     /// since the UNIX epoch.
-    #[dbn(encode_order(0), unix_nanos)]
+    #[dbn(encode_order(0), index_ts, unix_nanos)]
     #[pyo3(get)]
     pub ts_recv: u64,
     /// The price at which the imbalance shares are calculated, where every 1 unit corresponds to
@@ -712,7 +718,7 @@ pub struct StatMsg {
     pub hd: RecordHeader,
     /// The capture-server-received timestamp expressed as the number of nanoseconds
     /// since the UNIX epoch.
-    #[dbn(encode_order(0), unix_nanos)]
+    #[dbn(encode_order(0), index_ts, unix_nanos)]
     pub ts_recv: u64,
     /// The reference timestamp of the statistic value expressed as the number of
     /// nanoseconds since the UNIX epoch. Will be [`crate::UNDEF_TIMESTAMP`] when
@@ -823,19 +829,12 @@ pub struct SystemMsg {
     pub msg: [c_char; 64],
 }
 
-/// A trait for objects with polymorphism based around [`RecordHeader::rtype`]. All implementing
-/// types begin with a [`RecordHeader`].
-pub trait HasRType {
-    /// Returns `true` if `rtype` matches the value associated with the implementing type.
-    fn has_rtype(rtype: u8) -> bool;
-
+/// Used for polymorphism around types all beginning with a [`RecordHeader`] where
+/// `rtype` is the discriminant used for indicating the type of record.
+pub trait Record {
     /// Returns a reference to the `RecordHeader` that comes at the beginning of all
     /// record types.
     fn header(&self) -> &RecordHeader;
-
-    /// Returns a mutable reference to the `RecordHeader` that comes at the beginning of
-    /// all record types.
-    fn header_mut(&mut self) -> &mut RecordHeader;
 
     /// Returns the size of the record in bytes.
     fn record_size(&self) -> usize {
@@ -861,6 +860,44 @@ pub trait HasRType {
     fn publisher(&self) -> crate::Result<Publisher> {
         self.header().publisher()
     }
+
+    /// Returns the raw primary timestamp for the record.
+    ///
+    /// This timestamp should be used for sorting records as well as indexing into any
+    /// symbology data structure.
+    fn raw_index_ts(&self) -> u64 {
+        self.header().ts_event
+    }
+
+    /// Returns the primary timestamp for the record. Returns `None` if the primary
+    /// timestamp contains the sentinel value for a null timestamp.
+    ///
+    /// This timestamp should be used for sorting records as well as indexing into any
+    /// symbology data structure.
+    fn index_ts(&self) -> Option<time::OffsetDateTime> {
+        ts_to_dt(self.raw_index_ts())
+    }
+
+    /// Returns the primary date for the record; the date component of the primary
+    /// timestamp (`index_ts()`). Returns `None` if the primary timestamp contains the
+    /// sentinel value for a null timestamp.
+    fn index_date(&self) -> Option<time::Date> {
+        self.index_ts().map(|dt| dt.date())
+    }
+}
+
+/// Used for polymorphism around mutable types beginning with a [`RecordHeader`].
+pub trait RecordMut {
+    /// Returns a mutable reference to the `RecordHeader` that comes at the beginning of
+    /// all record types.
+    fn header_mut(&mut self) -> &mut RecordHeader;
+}
+
+/// An extension of the [`Record`] trait for types with a static [`RType`]. Used for
+/// determining if a rtype matches a type.
+pub trait HasRType: Record + RecordMut {
+    /// Returns `true` if `rtype` matches the value associated with the implementing type.
+    fn has_rtype(rtype: u8) -> bool;
 }
 
 /// Wrapper object for records that include the live gateway send timestamp (`ts_out`).
@@ -872,137 +909,6 @@ pub struct WithTsOut<T: HasRType> {
     pub rec: T,
     /// The live gateway send timestamp expressed as number of nanoseconds since the UNIX epoch.
     pub ts_out: u64,
-}
-
-/// Provides a _relatively safe_ method for converting a reference to
-/// [`RecordHeader`] to a struct beginning with the header. Because it accepts a
-/// reference, the lifetime of the returned reference is tied to the input. This
-/// function checks `rtype` before casting to ensure `bytes` contains a `T`.
-///
-/// # Safety
-/// `raw` must contain at least `std::mem::size_of::<T>()` bytes and a valid
-/// [`RecordHeader`] instance.
-pub unsafe fn transmute_record_bytes<T: HasRType>(bytes: &[u8]) -> Option<&T> {
-    assert!(
-        bytes.len() >= mem::size_of::<T>(),
-        "Passing a slice smaller than `{}` to `transmute_record_bytes` is invalid",
-        std::any::type_name::<T>()
-    );
-    let non_null = NonNull::new_unchecked(bytes.as_ptr().cast_mut());
-    if T::has_rtype(non_null.cast::<RecordHeader>().as_ref().rtype) {
-        Some(non_null.cast::<T>().as_ref())
-    } else {
-        None
-    }
-}
-
-/// Provides a _relatively safe_ method for converting a view on bytes into a
-/// a [`RecordHeader`].
-/// Because it accepts a reference, the lifetime of the returned reference is
-/// tied to the input.
-///
-/// # Safety
-/// `bytes` must contain a complete record (not only the header). This is so that
-/// the header can be subsequently passed to `transmute_record`.
-///
-/// # Panics
-/// This function will panic if `bytes` is shorter the length of [`RecordHeader`], the
-/// minimum length a record can have.
-pub unsafe fn transmute_header_bytes(bytes: &[u8]) -> Option<&RecordHeader> {
-    assert!(
-        bytes.len() >= mem::size_of::<RecordHeader>(),
-        concat!(
-            "Passing a slice smaller than `",
-            stringify!(RecordHeader),
-            "` to `transmute_header_bytes` is invalid"
-        )
-    );
-    let non_null = NonNull::new_unchecked(bytes.as_ptr().cast_mut());
-    let header = non_null.cast::<RecordHeader>().as_ref();
-    if header.record_size() > bytes.len() {
-        None
-    } else {
-        Some(header)
-    }
-}
-
-/// Provides a _relatively safe_ method for converting a reference to a
-/// [`RecordHeader`] to a struct beginning with the header. Because it accepts a reference,
-/// the lifetime of the returned reference is tied to the input.
-///
-/// # Safety
-/// Although this function accepts a reference to a [`RecordHeader`], it's assumed this is
-/// part of a larger `T` struct.
-pub unsafe fn transmute_record<T: HasRType>(header: &RecordHeader) -> Option<&T> {
-    if T::has_rtype(header.rtype) {
-        // Safety: because it comes from a reference, `header` must not be null. It's ok
-        // to cast to `mut` because it's never mutated.
-        let non_null = NonNull::from(header);
-        Some(non_null.cast::<T>().as_ref())
-    } else {
-        None
-    }
-}
-
-/// Aliases `data` as a slice of raw bytes.
-///
-/// # Safety
-/// `data` must be sized and plain old data (POD), i.e. no pointers.
-pub(crate) unsafe fn as_u8_slice<T: Sized>(data: &T) -> &[u8] {
-    slice::from_raw_parts((data as *const T).cast(), mem::size_of::<T>())
-}
-
-/// Provides a _relatively safe_ method for converting a mut reference to a
-/// [`RecordHeader`] to a struct beginning with the header. Because it accepts a reference,
-/// the lifetime of the returned reference is tied to the input.
-///
-/// # Safety
-/// Although this function accepts a reference to a [`RecordHeader`], it's assumed this is
-/// part of a larger `T` struct.
-pub unsafe fn transmute_record_mut<T: HasRType>(header: &mut RecordHeader) -> Option<&mut T> {
-    if T::has_rtype(header.rtype) {
-        // Safety: because it comes from a reference, `header` must not be null.
-        let non_null = NonNull::from(header);
-        Some(non_null.cast::<T>().as_mut())
-    } else {
-        None
-    }
-}
-
-/// Tries to convert a str slice to fixed-length null-terminated C char array.
-///
-/// # Errors
-/// This function returns an error if `s` contains more than N - 1 characters. The last
-/// character is reserved for the null byte.
-pub fn str_to_c_chars<const N: usize>(s: &str) -> Result<[c_char; N]> {
-    if s.len() > (N - 1) {
-        return Err(Error::encode(format!(
-            "String cannot be longer than {}; received str of length {}",
-            N - 1,
-            s.len(),
-        )));
-    }
-    let mut res = [0; N];
-    for (i, byte) in s.as_bytes().iter().enumerate() {
-        res[i] = *byte as c_char;
-    }
-    Ok(res)
-}
-
-/// Tries to convert a slice of `c_char`s to a UTF-8 `str`.
-///
-/// # Safety
-/// This should always be safe.
-///
-/// # Preconditions
-/// None.
-///
-/// # Errors
-/// This function returns an error if `chars` contains invalid UTF-8.
-pub fn c_chars_to_str<const N: usize>(chars: &[c_char; N]) -> Result<&str> {
-    let cstr = unsafe { CStr::from_ptr(chars.as_ptr()) };
-    cstr.to_str()
-        .map_err(|e| Error::utf8(e, format!("converting c_char array: {chars:?}")))
 }
 
 #[cfg(test)]
@@ -1113,10 +1019,29 @@ mod tests {
         }
     }
 
-    #[rstest]
+    #[test]
+    fn test_mbo_index_ts() {
+        let mut rec = MboMsg::default();
+        rec.ts_recv = 1;
+        assert_eq!(rec.raw_index_ts(), 1);
+    }
+
+    #[test]
+    fn test_def_index_ts() {
+        let mut rec = InstrumentDefMsg::default();
+        rec.ts_recv = 1;
+        assert_eq!(rec.raw_index_ts(), 1);
+    }
+
+    #[test]
     fn test_db_ts_always_valid_time_offsetdatetime() {
         assert!(time::OffsetDateTime::from_unix_timestamp_nanos(0).is_ok());
         assert!(time::OffsetDateTime::from_unix_timestamp_nanos((u64::MAX - 1) as i128).is_ok());
         assert!(time::OffsetDateTime::from_unix_timestamp_nanos(UNDEF_TIMESTAMP as i128).is_ok());
+    }
+
+    #[test]
+    fn test_record_object_safe() {
+        let _record: Box<dyn Record> = Box::new(ErrorMsg::new(1, "Boxed record"));
     }
 }

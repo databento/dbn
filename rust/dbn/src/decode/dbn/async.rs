@@ -7,11 +7,8 @@ use tokio::{
 };
 
 use crate::{
-    decode::FromLittleEndianSlice,
-    error::silence_eof_error,
-    record::{HasRType, RecordHeader},
-    record_ref::RecordRef,
-    Metadata, Result, DBN_VERSION, METADATA_FIXED_LEN,
+    decode::FromLittleEndianSlice, error::silence_eof_error, HasRType, Metadata, Record,
+    RecordHeader, RecordRef, Result, DBN_VERSION, METADATA_FIXED_LEN,
 };
 
 /// Helper to always set multiple members.
@@ -412,7 +409,7 @@ mod tests {
     #[case::imbalance(Schema::Imbalance, ImbalanceMsg::default())]
     #[case::statistics(Schema::Statistics, StatMsg::default())]
     #[tokio::test]
-    async fn test_dbn_identity<R: DbnEncodable + PartialEq + Clone>(
+    async fn test_dbn_identity<R: DbnEncodable + HasRType + PartialEq + Clone>(
         #[case] schema: Schema,
         #[case] _rec: R,
     ) -> Result<()> {
@@ -455,7 +452,7 @@ mod tests {
     #[case::imbalance(Schema::Imbalance, ImbalanceMsg::default())]
     #[case::statistics(Schema::Statistics, StatMsg::default())]
     #[tokio::test]
-    async fn test_dbn_zstd_identity<R: DbnEncodable + PartialEq + Clone>(
+    async fn test_dbn_zstd_identity<R: DbnEncodable + HasRType + PartialEq + Clone>(
         #[case] schema: Schema,
         #[case] _rec: R,
     ) -> Result<()> {

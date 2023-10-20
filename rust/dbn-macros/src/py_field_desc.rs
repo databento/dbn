@@ -5,7 +5,8 @@ use quote::quote;
 use syn::{parse_macro_input, Data, DeriveInput, Field};
 
 use crate::dbn_attr::{
-    find_dbn_attr_id, get_sorted_fields, is_hidden, C_CHAR_ATTR, FIXED_PRICE_ATTR, UNIX_NANOS_ATTR,
+    find_dbn_serialize_attr, get_sorted_fields, is_hidden, C_CHAR_ATTR, FIXED_PRICE_ATTR,
+    UNIX_NANOS_ATTR,
 };
 
 pub fn derive_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -30,21 +31,26 @@ pub fn derive_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let dtype_iter = raw_fields.iter().map(|f| {
         let ident = f.ident.as_ref().unwrap();
         let f_type = &f.ty;
-        if matches!(find_dbn_attr_id(f).unwrap_or_default(), Some(id) if id == C_CHAR_ATTR) {
-            quote! {
-                res.push((
-                    stringify!(#ident).to_owned(),
-                    "S1".to_owned(),
-                ));
+
+        match find_dbn_serialize_attr(f) {
+            Ok(attr) => {
+                if matches!(attr, Some(id) if id == C_CHAR_ATTR) {
+                    quote! {
+                        res.push((
+                            stringify!(#ident).to_owned(),
+                            "S1".to_owned(),
+                        ));
+                    }
+                } else {
+                    quote! { res.extend(<#f_type>::field_dtypes(stringify!(#ident))); }
+                }
             }
-        } else {
-            quote! { res.extend(<#f_type>::field_dtypes(stringify!(#ident))); }
+            Err(e) => e.into_compile_error(),
         }
     });
-    let price_fields = fields_with_attr_ts(&raw_fields, FIXED_PRICE_ATTR, quote!(price_fields));
+    let price_fields = fields_with_attr(&raw_fields, FIXED_PRICE_ATTR, quote!(price_fields));
     let hidden_fields = hidden_fields(&raw_fields);
-    let timestamp_fields =
-        fields_with_attr_ts(&raw_fields, UNIX_NANOS_ATTR, quote!(timestamp_fields));
+    let timestamp_fields = fields_with_attr(&raw_fields, UNIX_NANOS_ATTR, quote!(timestamp_fields));
     let ordered_fields = sorted_fields.iter().filter(|f| !is_hidden(f)).map(|f| {
         let ident = f.ident.as_ref().unwrap();
         let f_type = &f.ty;
@@ -85,10 +91,10 @@ pub fn derive_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     .into()
 }
 
-fn fields_with_attr_ts(fields: &VecDeque<Field>, attr: &str, method: TokenStream) -> TokenStream {
+fn fields_with_attr(fields: &VecDeque<Field>, attr: &str, method: TokenStream) -> TokenStream {
     let fields_iter = fields.iter().map(|f| {
         let ident = f.ident.as_ref().unwrap();
-        if matches!(find_dbn_attr_id(f).unwrap_or_default(), Some(id) if id == attr) {
+        if matches!(find_dbn_serialize_attr(f).unwrap_or(None), Some(id) if id == attr) {
             quote! { res.push(stringify!(#ident).to_owned()); }
         } else {
             let f_type = &f.ty;

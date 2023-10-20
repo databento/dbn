@@ -1,11 +1,11 @@
-error: unrecognized dbn attr argument unknown
- --> tests/ui/json_serialize_invalid_dbn_attr.rs:6:11
+error: Passed incompatible serialization arguments to dbn attr
+ --> tests/ui/json_serialize_conflicting_dbn_attr.rs:6:5
   |
-6 |     #[dbn(unknown)]
-  |           ^^^^^^^
+6 |     #[dbn(fixed_price, unix_nanos)]
+  |     ^
 
 error[E0433]: failed to resolve: unresolved import
- --> tests/ui/json_serialize_invalid_dbn_attr.rs:3:10
+ --> tests/ui/json_serialize_conflicting_dbn_attr.rs:3:10
   |
 3 | #[derive(JsonSerialize)]
   |          ^^^^^^^^^^^^^
@@ -16,7 +16,7 @@ error[E0433]: failed to resolve: unresolved import
   = note: this error originates in the derive macro `JsonSerialize` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0603]: module `serialize` is private
- --> tests/ui/json_serialize_invalid_dbn_attr.rs:3:10
+ --> tests/ui/json_serialize_conflicting_dbn_attr.rs:3:10
   |
 3 | #[derive(JsonSerialize)]
   |          ^^^^^^^^^^^^^

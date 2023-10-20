@@ -7,15 +7,14 @@ use std::{
 };
 
 use dbn::{
-    decode::{
-        zstd::starts_with_prefix, DbnMetadataDecoder, DbnRecordDecoder, DecodeRecordRef, DynReader,
-    },
+    decode::{DbnMetadataDecoder, DbnRecordDecoder, DecodeRecordRef},
     encode::{
         CsvEncoder, DbnMetadataEncoder, DbnRecordEncoder, DynWriter, EncodeRecordRef,
         EncodeRecordTextExt, JsonEncoder,
     },
     python::{py_to_time_date, to_val_err},
-    Compression, Encoding, PitSymbolMap, RType, RecordRef, Schema, SymbolIndex, TsSymbolMap,
+    Compression, Encoding, PitSymbolMap, RType, Record, RecordRef, Schema, SymbolIndex,
+    TsSymbolMap,
 };
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyDate};
 
@@ -38,7 +37,6 @@ impl Transcoder {
         map_symbols: Option<bool>,
         has_metadata: Option<bool>,
         ts_out: Option<bool>,
-        input_compression: Option<Compression>,
         symbol_map: Option<PySymbolMap>,
         schema: Option<Schema>,
     ) -> PyResult<Self> {
@@ -69,7 +67,6 @@ impl Transcoder {
                 map_symbols,
                 has_metadata,
                 ts_out,
-                input_compression,
                 symbol_map,
                 schema,
             )?),
@@ -81,7 +78,6 @@ impl Transcoder {
                 map_symbols,
                 has_metadata,
                 ts_out,
-                input_compression,
                 symbol_map,
                 schema,
             )?),
@@ -93,7 +89,6 @@ impl Transcoder {
                 map_symbols,
                 has_metadata,
                 ts_out,
-                input_compression,
                 symbol_map,
                 schema,
             )?),
@@ -130,7 +125,6 @@ struct Inner<const E: u8> {
     map_symbols: bool,
     has_decoded_metadata: bool,
     ts_out: bool,
-    input_compression: Option<Compression>,
     symbol_map: SymbolMap,
     schema: Option<Schema>,
 }
@@ -161,7 +155,6 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
         map_symbols: Option<bool>,
         has_metadata: Option<bool>,
         ts_out: Option<bool>,
-        input_compression: Option<Compression>,
         symbol_map: Option<TsSymbolMap>,
         schema: Option<Schema>,
     ) -> PyResult<Self> {
@@ -178,7 +171,6 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
             map_symbols: map_symbols.unwrap_or(true),
             has_decoded_metadata: !has_metadata.unwrap_or(true),
             ts_out: ts_out.unwrap_or(false),
-            input_compression,
             symbol_map: symbol_map.map(SymbolMap::Historical).unwrap_or_default(),
             schema,
         })
@@ -187,9 +179,6 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
     fn encode(&mut self) -> PyResult<()> {
         let orig_position = self.buffer.position();
         self.buffer.set_position(0);
-        if !self.detect_compression() {
-            return Ok(());
-        }
         self.maybe_decode_metadata(orig_position)?;
         let read_position = if OUTPUT_ENC == Encoding::Dbn as u8 {
             self.encode_dbn(orig_position)
@@ -204,11 +193,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
 
     fn encode_dbn(&mut self, orig_position: u64) -> PyResult<usize> {
         let mut read_position = self.buffer.position() as usize;
-        // Ok to unwrap `input_compression` because it will be set in `detect_compression`
-        let mut decoder = DbnRecordDecoder::new(
-            DynReader::with_buffer(&mut self.buffer, self.input_compression.unwrap())
-                .map_err(to_val_err)?,
-        );
+        let mut decoder = DbnRecordDecoder::new(&mut self.buffer);
         let mut encoder = DbnRecordEncoder::new(&mut self.output);
         loop {
             match decoder.decode_record_ref() {
@@ -219,7 +204,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
                     // ensure buffer is left in correct state in the case where one
                     // or more successful decodings is followed by a partial one, i.e.
                     // `decode_record_ref` returning `Ok(None)`
-                    read_position = decoder.get_ref().get_ref().position() as usize;
+                    read_position = decoder.get_ref().position() as usize;
                 }
                 Ok(None) => {
                     break;
@@ -235,11 +220,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
 
     fn encode_csv(&mut self, orig_position: u64) -> PyResult<usize> {
         let mut read_position = self.buffer.position() as usize;
-        // Ok to unwrap `input_compression` because it will be set in `detect_compression`
-        let mut decoder = DbnRecordDecoder::new(
-            DynReader::with_buffer(&mut self.buffer, self.input_compression.unwrap())
-                .map_err(to_val_err)?,
-        );
+        let mut decoder = DbnRecordDecoder::new(&mut self.buffer);
 
         let mut encoder = CsvEncoder::new(&mut self.output, self.use_pretty_px, self.use_pretty_ts);
         loop {
@@ -256,7 +237,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
                         .unwrap_or(false)
                     {
                         if self.map_symbols {
-                            let symbol = self.symbol_map.get_for_rec_ref(rec).map(|s| s.as_str());
+                            let symbol = self.symbol_map.get_for_rec(&rec).map(|s| s.as_str());
                             unsafe { encoder.encode_ref_ts_out_with_sym(rec, self.ts_out, symbol) }
                         } else {
                             unsafe { encoder.encode_record_ref_ts_out(rec, self.ts_out) }
@@ -267,7 +248,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
                     // ensure buffer is left in correct state in the case where one
                     // or more successful decodings is followed by a partial one, i.e.
                     // `decode_record_ref` returning `Ok(None)`
-                    read_position = decoder.get_ref().get_ref().position() as usize;
+                    read_position = decoder.get_ref().position() as usize;
                 }
                 Ok(None) => {
                     break;
@@ -283,11 +264,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
 
     fn encode_json(&mut self, orig_position: u64) -> PyResult<usize> {
         let mut read_position = self.buffer.position() as usize;
-        // Ok to unwrap `input_compression` because it will be set in `detect_compression`
-        let mut decoder = DbnRecordDecoder::new(
-            DynReader::with_buffer(&mut self.buffer, self.input_compression.unwrap())
-                .map_err(to_val_err)?,
-        );
+        let mut decoder = DbnRecordDecoder::new(&mut self.buffer);
 
         let mut encoder = JsonEncoder::new(
             &mut self.output,
@@ -300,7 +277,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
                 Ok(Some(rec)) => {
                     if self.map_symbols {
                         self.symbol_map.update_live(rec);
-                        let symbol = self.symbol_map.get_for_rec_ref(rec).map(|s| s.as_str());
+                        let symbol = self.symbol_map.get_for_rec(&rec).map(|s| s.as_str());
                         unsafe { encoder.encode_ref_ts_out_with_sym(rec, self.ts_out, symbol) }
                     } else {
                         unsafe { encoder.encode_record_ref_ts_out(rec, self.ts_out) }
@@ -310,7 +287,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
                     // ensure buffer is left in correct state in the case where one
                     // or more successful decodings is followed by a partial one, i.e.
                     // `decode_record_ref` returning `Ok(None)`
-                    read_position = decoder.get_ref().get_ref().position() as usize;
+                    read_position = decoder.get_ref().position() as usize;
                 }
                 Ok(None) => {
                     break;
@@ -322,21 +299,6 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
             }
         }
         Ok(read_position)
-    }
-
-    fn detect_compression(&mut self) -> bool {
-        if self.input_compression.is_none() {
-            if self.buffer.get_ref().len() < 4 {
-                return false;
-            }
-            self.input_compression =
-                Some(if starts_with_prefix(self.buffer.get_ref().as_slice()) {
-                    Compression::ZStd
-                } else {
-                    Compression::None
-                });
-        }
-        true
     }
 
     fn maybe_decode_metadata(&mut self, orig_position: u64) -> PyResult<()> {
@@ -411,17 +373,10 @@ enum SymbolMap {
 }
 
 impl SymbolIndex for SymbolMap {
-    fn get_for_rec<R: dbn::record::HasRType>(&self, record: &R) -> Option<&String> {
+    fn get_for_rec<R: Record>(&self, record: &R) -> Option<&String> {
         match self {
             SymbolMap::Historical(sm) => sm.get_for_rec(record),
             SymbolMap::Live(sm) => sm.get_for_rec(record),
-        }
-    }
-
-    fn get_for_rec_ref(&self, rec_ref: RecordRef) -> Option<&String> {
-        match self {
-            SymbolMap::Historical(sm) => sm.get_for_rec_ref(rec_ref),
-            SymbolMap::Live(sm) => sm.get_for_rec_ref(rec_ref),
         }
     }
 }
@@ -451,7 +406,7 @@ impl Default for SymbolMap {
 
 #[cfg(test)]
 mod tests {
-    use std::num::NonZeroU64;
+    use std::{io::Read, num::NonZeroU64};
 
     use dbn::{
         datasets::XNAS_ITCH,
@@ -462,7 +417,10 @@ mod tests {
     use rstest::rstest;
     use time::macros::{date, datetime};
 
-    use crate::{encode::tests::MockPyFile, tests::setup};
+    use crate::{
+        encode::tests::MockPyFile,
+        tests::{setup, TEST_DATA_PATH},
+    };
 
     use super::*;
 
@@ -485,7 +443,6 @@ mod tests {
                 Py::new(py, file).unwrap().extract(py).unwrap(),
                 Encoding::Json,
                 Compression::None,
-                None,
                 None,
                 None,
                 None,
@@ -554,7 +511,6 @@ mod tests {
                 Py::new(py, file).unwrap().extract(py).unwrap(),
                 Encoding::Csv,
                 Compression::None,
-                None,
                 None,
                 None,
                 None,
@@ -632,7 +588,6 @@ mod tests {
                 Some(map_symbols),
                 None,
                 Some(true),
-                None,
                 None,
                 None,
             )
@@ -758,7 +713,6 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
                 Some(Schema::Ohlcv1S),
             )
             .unwrap()
@@ -839,6 +793,52 @@ mod tests {
             assert!(lines[1].contains("\"stype_out_symbol\":\"QQQ\""));
             assert_eq!(lines[2].contains("\"symbol\":\"NFLX\""), map_symbols);
             assert_eq!(lines[3].contains("\"symbol\":\"QQQ\""), map_symbols);
+        }
+    }
+
+    #[rstest]
+    #[case::csv_mbo(Encoding::Csv, Schema::Mbo)]
+    #[case::csv_definition(Encoding::Csv, Schema::Definition)]
+    #[case::csv_trades(Encoding::Csv, Schema::Trades)]
+    fn test_from_test_data_file(#[case] encoding: Encoding, #[case] schema: Schema) {
+        setup();
+
+        let mut input = Vec::new();
+        let mut input_file =
+            std::fs::File::open(format!("{TEST_DATA_PATH}/test_data.{schema}.dbn"))
+                .map_err(|e| dbn::Error::io(e, "opening file"))
+                .unwrap();
+        input_file.read_to_end(&mut input).unwrap();
+        let file = MockPyFile::new();
+        let output_buf = file.inner();
+        let mut transcoder = Python::with_gil(|py| {
+            Transcoder::new(
+                Py::new(py, file).unwrap().extract(py).unwrap(),
+                encoding,
+                Compression::None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                Some(schema),
+            )
+            .unwrap()
+        });
+        // Write first record and part of second
+        transcoder.write(&input).unwrap();
+        transcoder.flush().unwrap();
+        let output = output_buf.lock().unwrap();
+        let output = std::str::from_utf8(output.get_ref().as_slice()).unwrap();
+        let lines = output.lines().collect::<Vec<_>>();
+        dbg!(&lines);
+        if encoding == Encoding::Csv {
+            assert_eq!(lines.len(), 3);
+            assert!(lines[0].ends_with(",symbol"));
+            // ensure ends with a symbol not an empty cell
+            assert!(!lines[1].ends_with(","));
+            assert!(!lines[2].ends_with(","));
         }
     }
 }

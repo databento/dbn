@@ -14,11 +14,9 @@ use super::{
 };
 use crate::{
     decode::{dbn::decode_iso8601, FromLittleEndianSlice},
-    enums::{Compression, SType, Schema},
     error::silence_eof_error,
-    record::{HasRType, RecordHeader},
-    record_ref::RecordRef,
-    MappingInterval, Metadata, SymbolMapping,
+    Compression, HasRType, MappingInterval, Metadata, Record, RecordHeader, RecordRef, SType,
+    Schema, SymbolMapping,
 };
 
 /// Object for reading, parsing, and serializing a legacy Databento Binary Encoding (DBZ) file.
@@ -157,7 +155,7 @@ impl MetadataDecoder {
     const SCHEMA_VERSION: u8 = 1;
     const VERSION_CSTR_LEN: usize = 4;
     const RESERVED_LEN: usize = 39;
-    const DBZ_PREFIX: &[u8] = b"DBZ";
+    const DBZ_PREFIX: &'static [u8] = b"DBZ";
 
     pub(crate) fn read(reader: &mut impl io::Read) -> crate::Result<Metadata> {
         let mut prelude_buffer = [0u8; 2 * mem::size_of::<i32>()];

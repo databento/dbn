@@ -5,8 +5,7 @@ use pyo3::prelude::*;
 use dbn::{
     decode::dbn::{MetadataDecoder, RecordDecoder},
     python::to_val_err,
-    record::HasRType,
-    rtype_ts_out_dispatch,
+    rtype_ts_out_dispatch, HasRType, Record,
 };
 
 #[pyclass(module = "databento_dbn", name = "DBNDecoder")]

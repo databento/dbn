@@ -183,6 +183,7 @@ fn py_to_rs_io_err(e: PyErr) -> io::Error {
 pub mod tests {
 
     use std::io::{Cursor, Seek, Write};
+
     use std::sync::{Arc, Mutex};
 
     use dbn::datasets::GLBX_MDP3;

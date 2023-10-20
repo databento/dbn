@@ -4,7 +4,7 @@ use std::{collections::HashMap, ops::Deref, sync::Arc};
 
 use time::{macros::time, PrimitiveDateTime};
 
-use crate::{record::HasRType, Error, Metadata, RecordRef, SType, SymbolMappingMsg};
+use crate::{Error, HasRType, Metadata, Record, RecordRef, SType, SymbolMappingMsg};
 
 /// A timeseries symbol map. Generally useful for working with historical data
 /// and is commonly built from a [`Metadata`] object via [`Self::from_metadata()`].
@@ -21,11 +21,17 @@ pub struct PitSymbolMap(HashMap<u32, String>);
 pub trait SymbolIndex {
     /// Returns the associated symbol mapping for `record`. Returns `None` if no mapping
     /// exists.
-    fn get_for_rec<R: HasRType>(&self, record: &R) -> Option<&String>;
+    fn get_for_rec<R: Record>(&self, record: &R) -> Option<&String>;
 
     /// Returns the associated symbol mapping for `rec_ref`. Returns `None` if no mapping
     /// exists.
-    fn get_for_rec_ref(&self, rec_ref: RecordRef) -> Option<&String>;
+    #[deprecated(
+        since = "0.13.0",
+        note = "The trait bound for get_for_rec was loosened to accept RecordRefs, making this function redundant"
+    )]
+    fn get_for_rec_ref(&self, rec_ref: RecordRef) -> Option<&String> {
+        self.get_for_rec(&rec_ref)
+    }
 }
 
 impl TsSymbolMap {
@@ -102,18 +108,10 @@ impl TsSymbolMap {
 }
 
 impl SymbolIndex for TsSymbolMap {
-    fn get_for_rec<R: HasRType>(&self, record: &R) -> Option<&String> {
-        let Some(date) = record.header().ts_event().map(|ts| ts.date()) else {
-            return None;
-        };
-        self.get(date, record.header().instrument_id)
-    }
-
-    fn get_for_rec_ref(&self, record: RecordRef) -> Option<&String> {
-        let Some(date) = record.header().ts_event().map(|ts| ts.date()) else {
-            return None;
-        };
-        self.get(date, record.header().instrument_id)
+    fn get_for_rec<R: Record>(&self, record: &R) -> Option<&String> {
+        record
+            .index_date()
+            .and_then(|date| self.get(date, record.header().instrument_id))
     }
 }
 
@@ -260,12 +258,8 @@ impl PitSymbolMap {
 }
 
 impl SymbolIndex for PitSymbolMap {
-    fn get_for_rec<R: HasRType>(&self, record: &R) -> Option<&String> {
+    fn get_for_rec<R: Record>(&self, record: &R) -> Option<&String> {
         self.get(record.header().instrument_id)
-    }
-
-    fn get_for_rec_ref(&self, rec_ref: RecordRef) -> Option<&String> {
-        self.get(rec_ref.header().instrument_id)
     }
 }
 
