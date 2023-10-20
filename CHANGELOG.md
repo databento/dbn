@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.14.0 - TBD
+### Enhancements
+- Added `TOB` flag to denote top-of-book messages
+
 ## 0.13.0 - 2023-10-20
 ### Enhancements
 - Added `SymbolMappingMsgV2::new` method

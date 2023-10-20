@@ -580,6 +580,8 @@ pub mod flags {
     /// Indicates it's the last message in the packet from the venue for a given
     /// `instrument_id`.
     pub const LAST: u8 = 1 << 7;
+    /// Indicates a top-of-book message, not an individual order.
+    pub const TOB: u8 = 1 << 6;
     /// Indicates the message was sourced from a replay, such as a snapshot server.
     pub const SNAPSHOT: u8 = 1 << 5;
     /// Indicates an aggregated price level message, not an individual order.
