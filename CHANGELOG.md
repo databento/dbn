@@ -4,6 +4,10 @@
 ### Enhancements
 - Added `TOB` flag to denote top-of-book messages
 
+### Breaking changes
+- Renamed `symbol_map` parameter to Python Transcoder to `symbol_interval_map` to
+  better reflect the date intervals it contains
+
 ## 0.13.0 - 2023-10-20
 ### Enhancements
 - Added `SymbolMappingMsgV2::new` method

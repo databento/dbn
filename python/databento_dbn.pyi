@@ -2492,7 +2492,7 @@ class Transcoder:
     ts_out : bool, default False
         Whether the records include the server send timestamp ts_out. Only needs to be
         specified if `has_metadata` is False.
-    symbol_map : dict[int, list[tuple[datetime.date, datetime.date, str]]], default None
+    symbol_interval_map : dict[int, list[tuple[datetime.date, datetime.date, str]]], default None
         Specify the initial symbol mappings to use with map_symbols. If not specified,
         only the mappings in the metadata header will be used.
     schema : Schema | None, default None
@@ -2510,7 +2510,7 @@ class Transcoder:
         map_symbols: bool = True,
         has_metadata: bool = True,
         ts_out: bool = False,
-        symbol_map: dict[int, list[tuple[datetime.date, datetime.date, str]]] | None = None,
+        symbol_interval_map: dict[int, list[tuple[datetime.date, datetime.date, str]]] | None = None,
         schema: Schema | None = None,
     ): ...
     def buffer(self) -> bytes:

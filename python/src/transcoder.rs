@@ -23,7 +23,7 @@ use crate::encode::PyFileLike;
 #[pyclass(module = "databento_dbn")]
 pub struct Transcoder(Box<dyn Transcode + Send>);
 
-pub type PySymbolMap<'py> = HashMap<u32, Vec<(&'py PyDate, &'py PyDate, String)>>;
+pub type PySymbolIntervalMap<'py> = HashMap<u32, Vec<(&'py PyDate, &'py PyDate, String)>>;
 
 #[pymethods]
 impl Transcoder {
@@ -37,12 +37,12 @@ impl Transcoder {
         map_symbols: Option<bool>,
         has_metadata: Option<bool>,
         ts_out: Option<bool>,
-        symbol_map: Option<PySymbolMap>,
+        symbol_interval_map: Option<PySymbolIntervalMap>,
         schema: Option<Schema>,
     ) -> PyResult<Self> {
-        let symbol_map = if let Some(py_symbol_map) = symbol_map {
+        let symbol_map = if let Some(symbol_interval_map) = symbol_interval_map {
             let mut symbol_map = TsSymbolMap::new();
-            for (iid, py_intervals) in py_symbol_map {
+            for (iid, py_intervals) in symbol_interval_map {
                 for (start_date, end_date, symbol) in py_intervals {
                     if symbol.is_empty() {
                         continue;
