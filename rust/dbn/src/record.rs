@@ -455,6 +455,11 @@ pub struct InstrumentDefMsg {
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub price_ratio: i64,
+    /// The strike price of the option. Converted to units of 1e-9, i.e. 1/1,000,000,000
+    /// or 0.000000001.
+    #[dbn(fixed_price, encode_order(46))]
+    #[pyo3(get, set)]
+    pub strike_price: i64,
     /// A bitmap of instrument eligibility attributes.
     #[pyo3(get, set)]
     pub inst_attrib_value: i32,
@@ -489,8 +494,6 @@ pub struct InstrumentDefMsg {
     /// The minimum trading volume for the instrument.
     #[pyo3(get, set)]
     pub min_trade_vol: u32,
-    #[doc(hidden)]
-    pub _reserved2: [u8; 4],
     /// The number of deliverables per instrument, i.e. peak days.
     #[pyo3(get, set)]
     pub contract_multiplier: i32,
@@ -501,8 +504,6 @@ pub struct InstrumentDefMsg {
     /// The fixed contract value assigned to each instrument.
     #[pyo3(get, set)]
     pub original_contract_size: i32,
-    #[doc(hidden)]
-    pub _reserved3: [u8; 4],
     /// The trading session date corresponding to the settlement price in
     /// `trading_reference_price`, in number of days since the UNIX epoch.
     #[pyo3(get, set)]
@@ -541,6 +542,7 @@ pub struct InstrumentDefMsg {
     /// The unit of measure for the instrument’s original contract size, e.g. USD or LBS.
     pub unit_of_measure: [c_char; 31],
     /// The symbol of the first underlying instrument.
+    // TODO(carter): finalize if this size also needs to be increased
     pub underlying: [c_char; 21],
     /// The currency of [`strike_price`](Self::strike_price).
     pub strike_price_currency: [c_char; 4],
@@ -548,15 +550,6 @@ pub struct InstrumentDefMsg {
     #[dbn(c_char, encode_order(4))]
     #[pyo3(set)]
     pub instrument_class: c_char,
-    #[doc(hidden)]
-    pub _reserved4: [u8; 2],
-    /// The strike price of the option. Converted to units of 1e-9, i.e. 1/1,000,000,000
-    /// or 0.000000001.
-    #[dbn(fixed_price)]
-    #[pyo3(get, set)]
-    pub strike_price: i64,
-    #[doc(hidden)]
-    pub _reserved5: [u8; 6],
     /// The matching algorithm used for the instrument, typically **F**IFO.
     #[dbn(c_char)]
     #[pyo3(set)]
@@ -580,9 +573,9 @@ pub struct InstrumentDefMsg {
     #[pyo3(get, set)]
     pub underlying_product: u8,
     /// Indicates if the instrument definition has been added, modified, or deleted.
-    #[dbn(encode_order(3))]
+    #[dbn(c_char, encode_order(3))]
     #[pyo3(set)]
-    pub security_update_action: SecurityUpdateAction,
+    pub security_update_action: c_char,
     /// The calendar month reflected in the instrument symbol.
     #[pyo3(get, set)]
     pub maturity_month: u8,
@@ -606,7 +599,7 @@ pub struct InstrumentDefMsg {
     pub tick_rule: u8,
     // Filler for alignment.
     #[doc(hidden)]
-    pub _dummy: [u8; 3],
+    pub _reserved: [u8; 10],
 }
 
 /// An auction imbalance message.
@@ -789,13 +782,17 @@ pub struct SymbolMappingMsg {
     /// The common header.
     #[pyo3(get, set)]
     pub hd: RecordHeader,
+    // TODO(carter): special serialization to string?
+    /// The input symbology type of `stype_in_symbol`.
+    #[pyo3(get, set)]
+    pub stype_in: u8,
     /// The input symbol.
     pub stype_in_symbol: [c_char; SYMBOL_CSTR_LEN],
+    /// The output symbology type of `stype_out_symbol`.
+    #[pyo3(get, set)]
+    pub stype_out: u8,
     /// The output symbol.
     pub stype_out_symbol: [c_char; SYMBOL_CSTR_LEN],
-    // Filler for alignment.
-    #[doc(hidden)]
-    pub _dummy: [u8; 4],
     /// The start of the mapping interval expressed as the number of nanoseconds since
     /// the UNIX epoch.
     #[dbn(unix_nanos)]
@@ -982,16 +979,17 @@ mod tests {
     #[case::mbp1(Mbp1Msg::default(), mem::size_of::<TradeMsg>() + mem::size_of::<BidAskPair>())]
     #[case::mbp10(Mbp10Msg::default(), mem::size_of::<TradeMsg>() + mem::size_of::<BidAskPair>() * 10)]
     #[case::trade(TradeMsg::default(), 48)]
-    #[case::definition(InstrumentDefMsg::default(), 360)]
+    #[case::definition(InstrumentDefMsg::default(), 400)]
     #[case::status(StatusMsg::default(), 48)]
     #[case::imbalance(ImbalanceMsg::default(), 112)]
     #[case::stat(StatMsg::default(), 64)]
     #[case::error(ErrorMsg::default(), 80)]
-    #[case::symbol_mapping(SymbolMappingMsg::default(), 80)]
+    #[case::symbol_mapping(SymbolMappingMsg::default(), 176)]
     #[case::system(SystemMsg::default(), 80)]
     #[case::with_ts_out(WithTsOut::new(SystemMsg::default(), 0), mem::size_of::<SystemMsg>() + 8)]
     fn test_sizes<R: Sized>(#[case] _rec: R, #[case] exp: usize) {
         assert_eq!(mem::size_of::<R>(), exp);
+        assert!(mem::size_of::<R>() <= crate::MAX_RECORD_LEN);
     }
 
     #[rstest]

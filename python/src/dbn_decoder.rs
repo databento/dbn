@@ -5,7 +5,7 @@ use pyo3::prelude::*;
 use dbn::{
     decode::dbn::{MetadataDecoder, RecordDecoder},
     python::to_val_err,
-    rtype_ts_out_dispatch, HasRType, Record,
+    rtype_ts_out_dispatch, HasRType, Record, VersionUpgradePolicy,
 };
 
 #[pyclass(module = "databento_dbn", name = "DBNDecoder")]
@@ -13,16 +13,25 @@ pub struct DbnDecoder {
     buffer: io::Cursor<Vec<u8>>,
     has_decoded_metadata: bool,
     ts_out: bool,
+    input_version: u8,
+    upgrade_policy: VersionUpgradePolicy,
 }
 
 #[pymethods]
 impl DbnDecoder {
     #[new]
-    fn new(has_metadata: Option<bool>, ts_out: Option<bool>) -> Self {
+    fn new(
+        has_metadata: Option<bool>,
+        ts_out: Option<bool>,
+        input_version: Option<u8>,
+        upgrade_policy: Option<VersionUpgradePolicy>,
+    ) -> Self {
         Self {
             buffer: io::Cursor::default(),
             has_decoded_metadata: !has_metadata.unwrap_or(true),
             ts_out: ts_out.unwrap_or_default(),
+            input_version: input_version.unwrap_or(dbn::DBN_VERSION),
+            upgrade_policy: upgrade_policy.unwrap_or_default(),
         }
     }
 
@@ -40,8 +49,10 @@ impl DbnDecoder {
         self.buffer.set_position(0);
         if !self.has_decoded_metadata {
             match MetadataDecoder::new(&mut self.buffer).decode() {
-                Ok(metadata) => {
+                Ok(mut metadata) => {
+                    self.input_version = metadata.version;
                     self.ts_out = metadata.ts_out;
+                    metadata.upgrade(self.upgrade_policy);
                     Python::with_gil(|py| recs.push(metadata.into_py(py)));
                     self.has_decoded_metadata = true;
                 }
@@ -53,7 +64,9 @@ impl DbnDecoder {
             }
         }
         let mut read_position = self.buffer.position() as usize;
-        let mut decoder = RecordDecoder::new(&mut self.buffer);
+        let mut decoder =
+            RecordDecoder::with_version(&mut self.buffer, self.input_version, self.upgrade_policy)
+                .map_err(to_val_err)?;
         Python::with_gil(|py| -> PyResult<()> {
             while let Some(rec) = decoder.decode_ref().map_err(to_val_err)? {
                 // Bug in clippy generates an error here. trivial_copy feature isn't enabled,
@@ -125,7 +138,7 @@ mod tests {
     #[test]
     fn test_partial_records() {
         setup();
-        let mut decoder = DbnDecoder::new(None, None);
+        let mut decoder = DbnDecoder::new(None, None, None, None);
         let buffer = Vec::new();
         let mut encoder = Encoder::new(
             buffer,
@@ -164,7 +177,7 @@ mod tests {
     #[test]
     fn test_full_with_partial_record() {
         setup();
-        let mut decoder = DbnDecoder::new(None, None);
+        let mut decoder = DbnDecoder::new(None, None, None, None);
         let buffer = Vec::new();
         let mut encoder = Encoder::new(
             buffer,

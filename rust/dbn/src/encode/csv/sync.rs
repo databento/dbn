@@ -493,7 +493,7 @@ mod tests {
             settl_price_type: 9,
             sub_fraction: 23,
             underlying_product: 10,
-            security_update_action: SecurityUpdateAction::Add,
+            security_update_action: SecurityUpdateAction::Add as c_char,
             maturity_month: 8,
             maturity_day: 9,
             maturity_week: 11,
@@ -501,11 +501,7 @@ mod tests {
             contract_multiplier_unit: 0,
             flow_schedule_type: 5,
             tick_rule: 0,
-            _reserved2: Default::default(),
-            _reserved3: Default::default(),
-            _reserved4: Default::default(),
-            _reserved5: Default::default(),
-            _dummy: [0; 3],
+            _reserved: Default::default(),
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);

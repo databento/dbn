@@ -3,7 +3,9 @@ use std::os::raw::c_char;
 
 use crate::{
     macros::{dbn_record, CsvSerialize, JsonSerialize},
-    rtype, InstrumentDefMsg, RecordHeader, SymbolMappingMsg, UserDefinedInstrument,
+    record::{transmute_header_bytes, transmute_record_bytes},
+    rtype, InstrumentDefMsg, RecordHeader, RecordRef, SecurityUpdateAction, SymbolMappingMsg,
+    UserDefinedInstrument, VersionUpgradePolicy,
 };
 
 // Dummy derive macro to get around `cfg_attr` incompatibility of several
@@ -15,6 +17,7 @@ use dbn_macros::MockPyo3;
 pub const SYMBOL_CSTR_LEN_V1: usize = 22;
 /// The length of symbol fields in DBN version 2 (future version).
 pub const SYMBOL_CSTR_LEN_V2: usize = 71;
+pub(crate) const METADATA_RESERVED_LEN_V1: usize = 47;
 
 /// Returns the length of symbol fields in the given DBN version
 pub const fn version_symbol_cstr_len(version: u8) -> usize {
@@ -24,8 +27,48 @@ pub const fn version_symbol_cstr_len(version: u8) -> usize {
         SYMBOL_CSTR_LEN_V2
     }
 }
+pub use crate::record::InstrumentDefMsg as InstrumentDefMsgV2;
+pub use crate::record::SymbolMappingMsg as SymbolMappingMsgV2;
 
-/// Definition of an instrument in DBN version 2. The record of the
+/// Decodes bytes into a [`RecordRef`], optionally applying conversion from structs
+/// of a prior DBN version to the current DBN version, according to the `version` and
+/// `upgrade_policy`.
+///
+/// # Panics
+/// This function will panic if it's passed only a single partial record in `input`.
+///
+/// # Safety
+/// Assumes `input` contains a full record.
+pub unsafe fn decode_record_ref<'a>(
+    version: u8,
+    upgrade_policy: VersionUpgradePolicy,
+    compat_buffer: &'a mut [u8; crate::MAX_RECORD_LEN],
+    input: &'a [u8],
+) -> RecordRef<'a> {
+    if version == 1 && upgrade_policy == VersionUpgradePolicy::Upgrade {
+        let header = transmute_header_bytes(input).unwrap();
+        match header.rtype {
+            rtype::INSTRUMENT_DEF => {
+                let definition = InstrumentDefMsg::from(
+                    transmute_record_bytes::<InstrumentDefMsgV1>(input).unwrap(),
+                );
+                std::ptr::copy_nonoverlapping(&definition, compat_buffer.as_mut_ptr().cast(), 1);
+                return RecordRef::new(compat_buffer);
+            }
+            rtype::SYMBOL_MAPPING => {
+                let definition = SymbolMappingMsg::from(
+                    transmute_record_bytes::<SymbolMappingMsgV1>(input).unwrap(),
+                );
+                std::ptr::copy_nonoverlapping(&definition, compat_buffer.as_mut_ptr().cast(), 1);
+                return RecordRef::new(compat_buffer);
+            }
+            _ => (),
+        }
+    }
+    RecordRef::new(input)
+}
+
+/// Definition of an instrument in DBN version 1. The record of the
 /// [`Definition`](crate::enums::Schema::Definition) schema.
 ///
 /// Note: This will be renamed to `InstrumentDefMsg` in DBN version 2.
@@ -40,13 +83,13 @@ pub const fn version_symbol_cstr_len(version: u8) -> usize {
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[cfg_attr(test, derive(type_layout::TypeLayout))]
 #[dbn_record(rtype::INSTRUMENT_DEF)]
-pub struct InstrumentDefMsgV2 {
+pub struct InstrumentDefMsgV1 {
     /// The common header.
     #[pyo3(get, set)]
     pub hd: RecordHeader,
     /// The capture-server-received timestamp expressed as number of nanoseconds since the
     /// UNIX epoch.
-    #[dbn(encode_order(0), unix_nanos)]
+    #[dbn(encode_order(0), index_ts, unix_nanos)]
     #[pyo3(get, set)]
     pub ts_recv: u64,
     /// The minimum constant tick for the instrument in units of 1e-9, i.e.
@@ -99,11 +142,6 @@ pub struct InstrumentDefMsgV2 {
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub price_ratio: i64,
-    /// The strike price of the option. Converted to units of 1e-9, i.e. 1/1,000,000,000
-    /// or 0.000000001.
-    #[dbn(fixed_price, encode_order(46))]
-    #[pyo3(get, set)]
-    pub strike_price: i64,
     /// A bitmap of instrument eligibility attributes.
     #[pyo3(get, set)]
     pub inst_attrib_value: i32,
@@ -138,6 +176,8 @@ pub struct InstrumentDefMsgV2 {
     /// The minimum trading volume for the instrument.
     #[pyo3(get, set)]
     pub min_trade_vol: u32,
+    #[doc(hidden)]
+    pub _reserved2: [u8; 4],
     /// The number of deliverables per instrument, i.e. peak days.
     #[pyo3(get, set)]
     pub contract_multiplier: i32,
@@ -148,6 +188,8 @@ pub struct InstrumentDefMsgV2 {
     /// The fixed contract value assigned to each instrument.
     #[pyo3(get, set)]
     pub original_contract_size: i32,
+    #[doc(hidden)]
+    pub _reserved3: [u8; 4],
     /// The trading session date corresponding to the settlement price in
     /// `trading_reference_price`, in number of days since the UNIX epoch.
     #[pyo3(get, set)]
@@ -172,7 +214,7 @@ pub struct InstrumentDefMsgV2 {
     pub secsubtype: [c_char; 6],
     /// The instrument raw symbol assigned by the publisher.
     #[dbn(encode_order(2))]
-    pub raw_symbol: [c_char; SYMBOL_CSTR_LEN_V2],
+    pub raw_symbol: [c_char; SYMBOL_CSTR_LEN_V1],
     /// The security group code of the instrument.
     pub group: [c_char; 21],
     /// The exchange used to identify the instrument.
@@ -186,7 +228,6 @@ pub struct InstrumentDefMsgV2 {
     /// The unit of measure for the instrument’s original contract size, e.g. USD or LBS.
     pub unit_of_measure: [c_char; 31],
     /// The symbol of the first underlying instrument.
-    // TODO(carter): finalize if this size also needs to be increased
     pub underlying: [c_char; 21],
     /// The currency of [`strike_price`](Self::strike_price).
     pub strike_price_currency: [c_char; 4],
@@ -194,6 +235,15 @@ pub struct InstrumentDefMsgV2 {
     #[dbn(c_char, encode_order(4))]
     #[pyo3(set)]
     pub instrument_class: c_char,
+    #[doc(hidden)]
+    pub _reserved4: [u8; 2],
+    /// The strike price of the option. Converted to units of 1e-9, i.e. 1/1,000,000,000
+    /// or 0.000000001.
+    #[dbn(fixed_price)]
+    #[pyo3(get, set)]
+    pub strike_price: i64,
+    #[doc(hidden)]
+    pub _reserved5: [u8; 6],
     /// The matching algorithm used for the instrument, typically **F**IFO.
     #[dbn(c_char)]
     #[pyo3(set)]
@@ -219,7 +269,7 @@ pub struct InstrumentDefMsgV2 {
     /// Indicates if the instrument definition has been added, modified, or deleted.
     #[dbn(encode_order(3))]
     #[pyo3(set)]
-    pub security_update_action: u8,
+    pub security_update_action: SecurityUpdateAction,
     /// The calendar month reflected in the instrument symbol.
     #[pyo3(get, set)]
     pub maturity_month: u8,
@@ -243,9 +293,9 @@ pub struct InstrumentDefMsgV2 {
     pub tick_rule: u8,
     // Filler for alignment.
     #[doc(hidden)]
-    pub _reserved: [u8; 10],
+    pub _dummy: [u8; 3],
 }
-/// A symbol mapping message in DBN version 2 which maps a symbol of one
+/// A symbol mapping message in DBN version 1 which maps a symbol of one
 /// [`SType`](crate::SType) to another.
 ///
 /// Note: This will be renamed to `SymbolMappingMsg` in DBN version 2.
@@ -260,21 +310,17 @@ pub struct InstrumentDefMsgV2 {
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[cfg_attr(test, derive(type_layout::TypeLayout))]
 #[dbn_record(rtype::SYMBOL_MAPPING)]
-pub struct SymbolMappingMsgV2 {
+pub struct SymbolMappingMsgV1 {
     /// The common header.
     #[pyo3(get, set)]
     pub hd: RecordHeader,
-    // TODO(carter): special serialization to string?
-    /// The input symbology type of `stype_in_symbol`.
-    #[pyo3(get, set)]
-    pub stype_in: u8,
     /// The input symbol.
-    pub stype_in_symbol: [c_char; SYMBOL_CSTR_LEN_V2],
-    /// The output symbology type of `stype_out_symbol`.
-    #[pyo3(get, set)]
-    pub stype_out: u8,
+    pub stype_in_symbol: [c_char; SYMBOL_CSTR_LEN_V1],
     /// The output symbol.
-    pub stype_out_symbol: [c_char; SYMBOL_CSTR_LEN_V2],
+    pub stype_out_symbol: [c_char; SYMBOL_CSTR_LEN_V1],
+    // Filler for alignment.
+    #[doc(hidden)]
+    pub _dummy: [u8; 4],
     /// The start of the mapping interval expressed as the number of nanoseconds since
     /// the UNIX epoch.
     #[dbn(unix_nanos)]
@@ -287,8 +333,8 @@ pub struct SymbolMappingMsgV2 {
     pub end_ts: u64,
 }
 
-impl From<&InstrumentDefMsg> for InstrumentDefMsgV2 {
-    fn from(old: &InstrumentDefMsg) -> Self {
+impl From<&InstrumentDefMsgV1> for InstrumentDefMsg {
+    fn from(old: &InstrumentDefMsgV1) -> Self {
         let mut res = Self {
             // recalculate length
             hd: RecordHeader::new::<Self>(
@@ -349,7 +395,7 @@ impl From<&InstrumentDefMsg> for InstrumentDefMsgV2 {
             settl_price_type: old.settl_price_type,
             sub_fraction: old.sub_fraction,
             underlying_product: old.underlying_product,
-            security_update_action: old.security_update_action as u8,
+            security_update_action: old.security_update_action as c_char,
             maturity_month: old.maturity_month,
             maturity_day: old.maturity_day,
             maturity_week: old.maturity_week,
@@ -371,8 +417,8 @@ impl From<&InstrumentDefMsg> for InstrumentDefMsgV2 {
     }
 }
 
-impl From<&SymbolMappingMsg> for SymbolMappingMsgV2 {
-    fn from(old: &SymbolMappingMsg) -> Self {
+impl From<&SymbolMappingMsgV1> for SymbolMappingMsg {
+    fn from(old: &SymbolMappingMsgV1) -> Self {
         let mut res = Self {
             hd: RecordHeader::new::<Self>(
                 rtype::SYMBOL_MAPPING,
@@ -425,9 +471,17 @@ mod tests {
     }
 
     #[test]
+    fn test_default_equivalency() {
+        assert_eq!(
+            InstrumentDefMsgV2::from(&InstrumentDefMsgV1::default()),
+            InstrumentDefMsgV2::default()
+        );
+    }
+
+    #[test]
     fn test_definition_size_alignment_and_padding() {
-        assert_eq!(mem::size_of::<InstrumentDefMsgV2>(), 400);
-        let layout = InstrumentDefMsgV2::type_layout();
+        assert_eq!(mem::size_of::<InstrumentDefMsgV1>(), 360);
+        let layout = InstrumentDefMsgV1::type_layout();
         assert_eq!(layout.alignment, 8);
         for field in layout.fields.iter() {
             assert!(
@@ -439,8 +493,8 @@ mod tests {
 
     #[test]
     fn test_symbol_mapping_size_alignment_and_padding() {
-        assert_eq!(mem::size_of::<SymbolMappingMsgV2>(), 176);
-        let layout = SymbolMappingMsgV2::type_layout();
+        assert_eq!(mem::size_of::<SymbolMappingMsgV1>(), 80);
+        let layout = SymbolMappingMsgV1::type_layout();
         assert_eq!(layout.alignment, 8);
         for field in layout.fields.iter() {
             assert!(

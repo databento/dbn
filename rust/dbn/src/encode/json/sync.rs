@@ -138,6 +138,7 @@ mod tests {
 
     use super::*;
     use crate::{
+        compat::SYMBOL_CSTR_LEN_V1,
         datasets::GLBX_MDP3,
         encode::{
             json::serialize::write_c_char_field,
@@ -418,7 +419,7 @@ mod tests {
             unit_of_measure: str_to_c_chars("IPNT").unwrap(),
             underlying: str_to_c_chars("ESZ4").unwrap(),
             strike_price_currency: str_to_c_chars("USD").unwrap(),
-            instrument_class: InstrumentClass::Call as u8 as c_char,
+            instrument_class: InstrumentClass::Call as c_char,
             strike_price: 4_100_000_000_000,
             match_algorithm: 'F' as c_char,
             md_security_trading_status: 2,
@@ -427,7 +428,7 @@ mod tests {
             settl_price_type: 9,
             sub_fraction: 23,
             underlying_product: 10,
-            security_update_action: SecurityUpdateAction::Add,
+            security_update_action: SecurityUpdateAction::Add as c_char,
             maturity_month: 8,
             maturity_day: 9,
             maturity_week: 11,
@@ -435,11 +436,7 @@ mod tests {
             contract_multiplier_unit: 0,
             flow_schedule_type: 5,
             tick_rule: 0,
-            _reserved2: Default::default(),
-            _reserved3: Default::default(),
-            _reserved4: Default::default(),
-            _reserved5: Default::default(),
-            _dummy: [0; 3],
+            _reserved: Default::default(),
         }];
         let slice_res = write_json_to_string(data.as_slice(), false, true, true);
         let stream_res = write_json_stream_to_string(data, false, true, true);
@@ -556,6 +553,7 @@ mod tests {
             stype_in: Some(SType::InstrumentId),
             stype_out: SType::RawSymbol,
             ts_out: false,
+            symbol_cstr_len: SYMBOL_CSTR_LEN_V1,
             symbols: vec!["ESZ2".to_owned()],
             partial: Vec::new(),
             not_found: Vec::new(),
@@ -575,7 +573,7 @@ mod tests {
             res,
             "{\"version\":1,\"dataset\":\"GLBX.MDP3\",\"schema\":\"ohlcv-1h\",\"start\"\
             :\"2022-09-09T14:45:05.128748281Z\",\"end\":\"2022-09-09T14:45:20.914876944Z\",\"limit\":null,\
-            \"stype_in\":\"instrument_id\",\"stype_out\":\"raw_symbol\",\"ts_out\":false,\"symbols\"\
+            \"stype_in\":\"instrument_id\",\"stype_out\":\"raw_symbol\",\"ts_out\":false,\"symbol_cstr_len\":22,\"symbols\"\
             :[\"ESZ2\"],\"partial\":[],\"not_found\":[],\"mappings\":[{\"raw_symbol\":\"ESZ2\",\
             \"intervals\":[{\"start_date\":\"2022-09-09\",\"end_date\":\"2022-09-10\",\"symbol\":\
             \"ESH2\"}]}]}\n"

@@ -7,8 +7,10 @@ use tokio::{
 };
 
 use crate::{
-    decode::FromLittleEndianSlice, error::silence_eof_error, HasRType, Metadata, Record,
-    RecordHeader, RecordRef, Result, DBN_VERSION, METADATA_FIXED_LEN,
+    compat,
+    decode::{FromLittleEndianSlice, VersionUpgradePolicy},
+    error::silence_eof_error,
+    HasRType, Metadata, Record, RecordHeader, RecordRef, Result, DBN_VERSION, METADATA_FIXED_LEN,
 };
 
 /// Helper to always set multiple members.
@@ -35,7 +37,8 @@ impl<R> Decoder<R>
 where
     R: io::AsyncReadExt + Unpin,
 {
-    /// Creates a new async DBN [`Decoder`] from `reader`.
+    /// Creates a new async DBN [`Decoder`] from `reader`. Will decode records from
+    /// previous DBN versions as-is.
     ///
     /// # Errors
     /// This function will return an error if it is unable to parse the metadata in
@@ -43,7 +46,31 @@ where
     pub async fn new(mut reader: R) -> crate::Result<Self> {
         let metadata = MetadataDecoder::new(&mut reader).decode().await?;
         Ok(Self {
-            decoder: RecordDecoder::with_version(reader, metadata.version)?,
+            decoder: RecordDecoder::with_version(
+                reader,
+                metadata.version,
+                VersionUpgradePolicy::AsIs,
+            )?,
+            metadata,
+        })
+    }
+
+    /// Creates a new async DBN [`Decoder`] from `reader`. It will decode records from
+    /// previous DBN versions according to `upgrade_policy`.
+    ///
+    /// # Errors
+    /// This function will return an error if it is unable to parse the metadata in
+    /// `reader` or the input is encoded in a newer version of DBN.
+    pub async fn with_upgrade_policy(
+        mut reader: R,
+        upgrade_policy: VersionUpgradePolicy,
+    ) -> crate::Result<Self> {
+        let mut metadata = MetadataDecoder::new(&mut reader).decode().await?;
+        // need to get the original version
+        let version = metadata.version;
+        metadata.upgrade(upgrade_policy);
+        Ok(Self {
+            decoder: RecordDecoder::with_version(reader, version, upgrade_policy)?,
             metadata,
         })
     }
@@ -161,10 +188,11 @@ pub struct RecordDecoder<R>
 where
     R: io::AsyncReadExt + Unpin,
 {
-    /// For future use with reading different DBN versions.
-    _version: u8,
+    version: u8,
+    upgrade_policy: VersionUpgradePolicy,
     reader: R,
-    buffer: Vec<u8>,
+    read_buffer: Vec<u8>,
+    compat_buffer: [u8; crate::MAX_RECORD_LEN],
 }
 
 impl<R> RecordDecoder<R>
@@ -172,13 +200,11 @@ where
     R: io::AsyncReadExt + Unpin,
 {
     /// Creates a new DBN [`RecordDecoder`] from `reader`.
+    ///
+    /// Note: assumes the input is of the current DBN version. To decode records from a
+    /// previous version, use [`RecordDecoder::with_version()`].
     pub fn new(reader: R) -> Self {
-        Self {
-            _version: DBN_VERSION,
-            reader,
-            // `buffer` should have capacity for reading `length`
-            buffer: vec![0],
-        }
+        Self::with_version(reader, DBN_VERSION, VersionUpgradePolicy::AsIs).unwrap()
     }
 
     /// Creates a new `RecordDecoder` that will decode from `reader`
@@ -186,16 +212,36 @@ where
     ///
     /// # Errors
     /// This function will return an error if the `version` exceeds the supported version.
-    pub fn with_version(reader: R, version: u8) -> crate::Result<Self> {
+    pub fn with_version(
+        reader: R,
+        version: u8,
+        upgrade_policy: VersionUpgradePolicy,
+    ) -> crate::Result<Self> {
         if version > DBN_VERSION {
             return Err(crate::Error::decode(format!("Can't decode newer version of DBN. Decoder version is {DBN_VERSION}, input version is {version}")));
         }
         Ok(Self {
-            _version: version,
+            version,
+            upgrade_policy,
             reader,
-            // `buffer` should have capacity for reading `length`
-            buffer: vec![0],
+            // `read_buffer` should have capacity for reading `length`
+            read_buffer: vec![0],
+            compat_buffer: [0; crate::MAX_RECORD_LEN],
         })
+    }
+
+    /// Sets the DBN version to expect when decoding.
+    ///
+    /// # Errors
+    /// This function will return an error if the `version` exceeds the highest
+    /// supported version.
+    pub fn set_version(&mut self, version: u8) -> crate::Result<()> {
+        if version > DBN_VERSION {
+            Err(crate::Error::decode(format!("Can't decode newer version of DBN. Decoder version is {DBN_VERSION}, input version is {version}")))
+        } else {
+            self.version = version;
+            Ok(())
+        }
     }
 
     /// Tries to decode a single record and returns a reference to the record that
@@ -235,23 +281,34 @@ where
     /// It will also return an error if it encounters an invalid record.
     pub async fn decode_ref(&mut self) -> Result<Option<RecordRef>> {
         let io_err = |e| crate::Error::io(e, "decoding record reference");
-        if let Err(err) = self.reader.read_exact(&mut self.buffer[..1]).await {
+        if let Err(err) = self.reader.read_exact(&mut self.read_buffer[..1]).await {
             return silence_eof_error(err).map_err(io_err);
         }
-        let length = self.buffer[0] as usize * RecordHeader::LENGTH_MULTIPLIER;
-        if length > self.buffer.len() {
-            self.buffer.resize(length, 0);
+        let length = self.read_buffer[0] as usize * RecordHeader::LENGTH_MULTIPLIER;
+        if length > self.read_buffer.len() {
+            self.read_buffer.resize(length, 0);
         }
         if length < std::mem::size_of::<RecordHeader>() {
             return Err(crate::Error::decode(format!(
                 "Invalid record with length {length} shorter than header"
             )));
         }
-        if let Err(err) = self.reader.read_exact(&mut self.buffer[1..length]).await {
+        if let Err(err) = self
+            .reader
+            .read_exact(&mut self.read_buffer[1..length])
+            .await
+        {
             return silence_eof_error(err).map_err(io_err);
         }
-        // Safety: `buffer` is resized to contain at least `length` bytes.
-        Ok(Some(unsafe { RecordRef::new(self.buffer.as_mut_slice()) }))
+        // Safety: `read_buffer` is resized to contain at least `length` bytes.
+        Ok(Some(unsafe {
+            compat::decode_record_ref(
+                self.version,
+                self.upgrade_policy,
+                &mut self.compat_buffer,
+                &self.read_buffer,
+            )
+        }))
     }
 
     /// Returns a mutable reference to the inner reader.
@@ -382,17 +439,14 @@ mod tests {
 
     use super::*;
     use crate::{
+        compat::InstrumentDefMsgV1,
         decode::tests::TEST_DATA_PATH,
         encode::{
             dbn::{AsyncEncoder, AsyncRecordEncoder},
             DbnEncodable,
         },
-        enums::{rtype, Schema},
-        record::{
-            ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
-            RecordHeader, StatMsg, TbboMsg, TradeMsg, WithTsOut,
-        },
-        Error, Result,
+        rtype, Error, ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg,
+        OhlcvMsg, RecordHeader, Result, Schema, StatMsg, TbboMsg, TradeMsg, WithTsOut,
     };
 
     #[rstest]
@@ -565,15 +619,34 @@ mod tests {
     async fn test_decode_multiframe_zst() {
         let mut decoder = RecordDecoder::with_zstd(
             tokio::fs::File::open(format!(
-                "{TEST_DATA_PATH}/multi-frame.definition.dbn.frag.zst"
+                "{TEST_DATA_PATH}/multi-frame.definition.v1.dbn.frag.zst"
             ))
             .await
             .unwrap(),
         );
         let mut count = 0;
-        while let Some(_rec) = decoder.decode::<InstrumentDefMsg>().await.unwrap() {
+        while let Some(_rec) = decoder.decode::<InstrumentDefMsgV1>().await.unwrap() {
             count += 1;
         }
         assert_eq!(count, 8);
+    }
+
+    #[tokio::test]
+    async fn test_decode_upgrade() -> crate::Result<()> {
+        let mut decoder = Decoder::with_upgrade_policy(
+            tokio::fs::File::open(format!("{TEST_DATA_PATH}/test_data.definition.v1.dbn"))
+                .await
+                .unwrap(),
+            VersionUpgradePolicy::Upgrade,
+        )
+        .await?;
+        assert_eq!(decoder.metadata().version, crate::DBN_VERSION);
+        assert_eq!(decoder.metadata().symbol_cstr_len, crate::SYMBOL_CSTR_LEN);
+        let mut has_decoded = false;
+        while let Some(_rec) = decoder.decode_record::<InstrumentDefMsg>().await? {
+            has_decoded = true;
+        }
+        assert!(has_decoded);
+        Ok(())
     }
 }

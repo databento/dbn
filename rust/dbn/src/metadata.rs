@@ -9,7 +9,10 @@ pub use dbn_macros::MockPyo3;
 #[cfg(feature = "serde")]
 use serde::Deserialize;
 
-use crate::{record::as_u8_slice, PitSymbolMap, SType, Schema, TsSymbolMap};
+use crate::{
+    compat::version_symbol_cstr_len, record::as_u8_slice, PitSymbolMap, SType, Schema, TsSymbolMap,
+    VersionUpgradePolicy,
+};
 
 /// Information about the data contained in a DBN file or stream. DBN requires the
 /// Metadata to be included at the start of the encoded data.
@@ -50,6 +53,10 @@ pub struct Metadata {
     /// record.
     #[pyo3(get)]
     pub ts_out: bool,
+    /// The length in bytes of fixed-length symbol strings, including a null terminator
+    /// byte.
+    #[pyo3(get)]
+    pub symbol_cstr_len: usize,
     /// The original query input symbols from the request.
     #[pyo3(get)]
     pub symbols: Vec<String>,
@@ -110,6 +117,14 @@ impl Metadata {
     pub fn symbol_map(&self) -> crate::Result<TsSymbolMap> {
         TsSymbolMap::from_metadata(self)
     }
+
+    /// Upgrades the metadata according to `upgrade_policy` if necessary.
+    pub fn upgrade(&mut self, upgrade_policy: VersionUpgradePolicy) {
+        if self.version < crate::DBN_VERSION && upgrade_policy == VersionUpgradePolicy::Upgrade {
+            self.version = crate::DBN_VERSION;
+            self.symbol_cstr_len = crate::SYMBOL_CSTR_LEN;
+        }
+    }
 }
 
 /// Helper for constructing [`Metadata`] structs with defaults.
@@ -157,6 +172,12 @@ impl AsRef<[u8]> for Metadata {
 }
 
 impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
+    /// Sets the [`version`](Metadata::version) and returns the builder.
+    pub fn version(mut self, version: u8) -> Self {
+        self.version = version;
+        self
+    }
+
     /// Sets the [`dataset`](Metadata::dataset) and returns the builder.
     pub fn dataset(self, dataset: String) -> MetadataBuilder<String, Sch, Start, StIn, StOut> {
         MetadataBuilder {
@@ -319,6 +340,7 @@ impl MetadataBuilder<String, Option<Schema>, u64, Option<SType>, SType> {
             partial: self.partial,
             not_found: self.not_found,
             mappings: self.mappings,
+            symbol_cstr_len: version_symbol_cstr_len(self.version),
         }
     }
 }

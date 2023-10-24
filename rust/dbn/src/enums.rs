@@ -1,7 +1,10 @@
 #![allow(deprecated)] // TODO: remove with SType::Smart
 
 //! Enums used in Databento APIs.
-use std::fmt::{self, Display, Formatter};
+use std::{
+    fmt::{self, Display, Formatter},
+    str::FromStr,
+};
 
 // Dummy derive macro to get around `cfg_attr` incompatibility of several
 // of pyo3's attribute macros. See https://github.com/PyO3/pyo3/issues/780
@@ -135,34 +138,29 @@ impl From<UserDefinedInstrument> for char {
 /// for more information.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
 #[repr(u8)]
-#[cfg_attr(feature = "python", pyo3::pyclass(module = "databento_dbn"))]
-#[cfg_attr(not(feature = "python"), derive(MockPyo3))]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(module = "databento_dbn", rename_all = "SCREAMING_SNAKE_CASE")
+)]
 #[cfg_attr(feature = "python", derive(strum::EnumIter))]
 pub enum SType {
     /// Symbology using a unique numeric ID.
-    #[pyo3(name = "INSTRUMENT_ID")]
     InstrumentId = 0,
     /// Symbology using the original symbols provided by the publisher.
-    #[pyo3(name = "RAW_SYMBOL")]
     RawSymbol = 1,
     /// A set of Databento-specific symbologies for referring to groups of symbols.
     #[deprecated(since = "0.5.0", note = "Smart was split into Continuous and Parent.")]
-    #[pyo3(name = "SMART")]
     Smart = 2,
     /// A Databento-specific symbology where one symbol may point to different
     /// instruments at different points of time, e.g. to always refer to the front month
     /// future.
-    #[pyo3(name = "CONTINUOUS")]
     Continuous = 3,
     /// A Databento-specific symbology for referring to a group of symbols by one
     /// "parent" symbol, e.g. ES.FUT to refer to all ES futures.
-    #[pyo3(name = "PARENT")]
     Parent = 4,
     /// Symbology for US equities using NASDAQ Integrated suffix conventions.
-    #[pyo3(name = "NASDAQ")]
     Nasdaq = 5,
     /// Symbology for US equities using CMS suffix conventions.
-    #[pyo3(name = "CMS")]
     Cms = 6,
 }
 
@@ -603,6 +601,7 @@ pub enum SecurityUpdateAction {
     Modify = b'M',
     /// Removal of an instrument definition.
     Delete = b'D',
+    // FIXME: can this be removed?
     #[doc(hidden)]
     #[deprecated = "Still present in legacy files."]
     Invalid = b'~',
@@ -658,6 +657,35 @@ pub enum StatUpdateAction {
     New = 1,
     /// A removal of a statistic.
     Delete = 2,
+}
+
+/// How to handle decoding DBN data from a prior version.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(module = "databento_dbn", rename_all = "SCREAMING_SNAKE_CASE")
+)]
+#[cfg_attr(feature = "python", derive(strum::EnumIter))]
+pub enum VersionUpgradePolicy {
+    /// Decode data from previous versions as-is. Currently the default.
+    #[default]
+    AsIs,
+    /// Decode data from previous versions converting it to the latest version. This
+    /// breaks zero-copy decoding for structs that need updating, but makes usage
+    /// simpler.
+    Upgrade,
+}
+
+impl FromStr for VersionUpgradePolicy {
+    type Err = crate::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "AsIs" => Ok(Self::AsIs),
+            "Upgrade" => Ok(Self::Upgrade),
+            _ => Err(crate::Error::conversion::<VersionUpgradePolicy>(s)),
+        }
+    }
 }
 
 #[cfg(feature = "serde")]

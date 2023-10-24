@@ -154,6 +154,25 @@ class SType(Enum):
     @classmethod
     def variants(cls) -> Iterable[SType]: ...
 
+class VersionUpgradePolicy(Enum):
+    """
+    How to handle decoding a DBN data from a prior version.
+
+    AS_IS
+        Decode data from previous versions as-is.
+    UPGRADE
+        Decode data from previous versions converting it to the latest version.
+
+    """
+
+    AS_IS: str
+    UPGRADE: str
+
+    @classmethod
+    def from_str(cls, str) -> SType: ...
+    @classmethod
+    def variants(cls) -> Iterable[SType]: ...
+
 class Metadata(SupportsBytes):
     """
     Information about the data contained in a DBN file or stream. DBN requires
@@ -233,23 +252,23 @@ class Metadata(SupportsBytes):
 
         """
     @property
-    def stype_in(self) -> str | None:
+    def stype_in(self) -> SType | None:
         """
         The input symbology type to map from.
 
         Returns
         -------
-        str | None
+        SType | None
 
         """
     @property
-    def stype_out(self) -> str:
+    def stype_out(self) -> SType:
         """
         The output symbology type to map to.
 
         Returns
         -------
-        str
+        SType
 
         """
     @property
@@ -305,7 +324,7 @@ class Metadata(SupportsBytes):
 
         """
     @classmethod
-    def decode(cls, data: bytes) -> Metadata:
+    def decode(cls, data: bytes, upgrade_policy: VersionUpgradePolicy | None = None) -> Metadata:
         """
         Decode the given Python `bytes` to `Metadata`. Returns a `Metadata`
         object with all the DBN metadata attributes.
@@ -314,6 +333,8 @@ class Metadata(SupportsBytes):
         ----------
         data : bytes
             The bytes to decode from.
+        upgrade_policy : VersionUpgradePolicy
+            How to decode data from prior DBN versions. Defaults to decoding as-is.
 
         Returns
         -------
@@ -2306,6 +2327,16 @@ class SymbolMappingMsg(Record):
     """
 
     @property
+    def stype_in(self) -> SType:
+        """
+        The input symbology type.
+
+        Returns
+        -------
+        SType
+
+        """
+    @property
     def stype_in_symbol(self) -> str:
         """
         The input symbol.
@@ -2313,6 +2344,16 @@ class SymbolMappingMsg(Record):
         Returns
         -------
         str
+
+        """
+    @property
+    def stype_out(self) -> SType:
+        """
+        The output symbology type.
+
+        Returns
+        -------
+        SType
 
         """
     @property
@@ -2412,9 +2453,17 @@ class DBNDecoder:
     ts_out : bool, default False
         Whether the records include the server send timestamp ts_out. Only needs to be
         specified if `has_metadata` is False.
+    input_version : int, default current DBN version
+        Specify the DBN version of the input. Only used when transcoding data without
+        metadata.
+    upgrade_policy : VersionUpgradePolicy
+        How to decode data from prior DBN versions. Defaults to decoding as-is.
     """
 
-    def __init__(self, has_metadata: bool = True, ts_out: bool = False): ...
+    def __init__(self, has_metadata: bool = True, ts_out: bool = False,
+        input_version: int = 2,
+        upgrade_policy: VersionUpgradePolicy | None = None,
+                 ): ...
 
     def buffer(self) -> bytes:
         """
@@ -2498,6 +2547,11 @@ class Transcoder:
     schema : Schema | None, default None
         The data record schema to encode. This is required for transcoding Live CSV data,
         as the tabular format is incompatible with mixed schemas.
+    input_version : int, default current DBN version
+        Specify the DBN version of the input. Only used when transcoding data without
+        metadata.
+    upgrade_policy : VersionUpgradePolicy
+        How to decode data from prior DBN versions. Defaults to decoding as-is.
     """
 
     def __init__(
@@ -2512,6 +2566,8 @@ class Transcoder:
         ts_out: bool = False,
         symbol_interval_map: dict[int, list[tuple[datetime.date, datetime.date, str]]] | None = None,
         schema: Schema | None = None,
+        input_version: int = 2,
+        upgrade_policy: VersionUpgradePolicy | None = None,
     ): ...
     def buffer(self) -> bytes:
         """

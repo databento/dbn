@@ -858,7 +858,9 @@ mod tests {
         target.on_symbol_mapping(&SymbolMappingMsg::new(
             1,
             2,
+            SType::InstrumentId,
             "",
+            SType::RawSymbol,
             "AAPL",
             UNDEF_TIMESTAMP,
             UNDEF_TIMESTAMP,
@@ -866,7 +868,9 @@ mod tests {
         target.on_symbol_mapping(&SymbolMappingMsg::new(
             2,
             2,
+            SType::InstrumentId,
             "",
+            SType::RawSymbol,
             "TSLA",
             UNDEF_TIMESTAMP,
             UNDEF_TIMESTAMP,
@@ -874,7 +878,9 @@ mod tests {
         target.on_symbol_mapping(&SymbolMappingMsg::new(
             3,
             2,
+            SType::InstrumentId,
             "",
+            SType::RawSymbol,
             "MSFT",
             UNDEF_TIMESTAMP,
             UNDEF_TIMESTAMP,
@@ -890,7 +896,9 @@ mod tests {
         target.on_symbol_mapping(&SymbolMappingMsg::new(
             10,
             2,
+            SType::InstrumentId,
             "",
+            SType::RawSymbol,
             "AAPL",
             UNDEF_TIMESTAMP,
             UNDEF_TIMESTAMP,
@@ -899,7 +907,9 @@ mod tests {
         target.on_symbol_mapping(&SymbolMappingMsg::new(
             9,
             2,
+            SType::InstrumentId,
             "",
+            SType::RawSymbol,
             "MSFT",
             UNDEF_TIMESTAMP,
             UNDEF_TIMESTAMP,

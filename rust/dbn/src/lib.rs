@@ -57,6 +57,7 @@ pub use crate::{
     enums::{
         flags, rtype, Action, Compression, Encoding, InstrumentClass, MatchAlgorithm, RType, SType,
         Schema, SecurityUpdateAction, Side, StatType, StatUpdateAction, UserDefinedInstrument,
+        VersionUpgradePolicy,
     },
     error::{Error, Result},
     metadata::{MappingInterval, Metadata, MetadataBuilder, SymbolMapping},
@@ -72,12 +73,12 @@ pub use crate::{
 };
 
 /// The current version of the DBN encoding, which is different from the crate version.
-pub const DBN_VERSION: u8 = 1;
+pub const DBN_VERSION: u8 = 2;
 /// The length of symbol fields (21 characters plus null terminator).
-pub const SYMBOL_CSTR_LEN: usize = compat::SYMBOL_CSTR_LEN_V1;
+pub const SYMBOL_CSTR_LEN: usize = compat::SYMBOL_CSTR_LEN_V2;
 
 const METADATA_DATASET_CSTR_LEN: usize = 16;
-const METADATA_RESERVED_LEN: usize = 47;
+const METADATA_RESERVED_LEN: usize = 53;
 /// Excludes magic string, version, and length.
 const METADATA_FIXED_LEN: usize = 100;
 const NULL_LIMIT: u64 = 0;
@@ -95,6 +96,8 @@ pub const UNDEF_ORDER_SIZE: u32 = u32::MAX;
 pub const UNDEF_STAT_QUANTITY: i32 = i32::MAX;
 /// The sentinel value for an unset or null timestamp.
 pub const UNDEF_TIMESTAMP: u64 = u64::MAX;
+/// The length in bytes of the longest record.
+pub const MAX_RECORD_LEN: usize = std::mem::size_of::<InstrumentDefMsg>();
 
 /// Contains dataset code constants.
 pub mod datasets {

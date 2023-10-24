@@ -2,12 +2,51 @@
 
 ## 0.14.0 - TBD
 ### Enhancements
+- This version begins the transition to DBN version 2 (DBNv2). In this version, the
+  decoders support decoding both versions of DBN and the DBN encoders default to
+  keeping version of the input. However, in a future version, decoders will by default
+  convert DBNv1 to DBNv2 and support will be dropped for encoding DBNv1.
+  - Affects `SymbolMappingMsg`, `InstrumentDefMsg`, and `Metadata`. All other record
+    types and market data schemas are unchanged
+  - Version 1 structs can be converted to version 2 structs with the `From` trait
+- Added `symbol_cstr_len` field to `Metadata` to indicate the length of fixed symbol
+  strings
+- Added `stype_in` and `stype_out` fields to `SymbolMappingMsg` to provide more context
+  with live symbology updates
+- Added smart wrapping to `dbn` CLI help output
+- Updated `rtype_dispatch` family of macros to check record length to handle both
+  versions of records. This is temporary during the transition period
+- Added `VersionUpgradePolicy` enum and associated methods to the decoders to
+  allow specifying how to handle decoding records
+- Added `Metadata::upgrade()` method to update `Metadata` from a prior DBN version to
+  the latest version
+- Added `-u`/`--upgrade` flags to `dbn` CLI that when passed upgrades DBN data from
+  previous versions. By default data is decoded as-is
 - Added `TOB` flag to denote top-of-book messages
 - Added new publisher values in preparation for IFEU.IMPACT and NDEX.IMPACT datasets
 
 ### Breaking changes
+- The old `InstrumentDefMsg` is now `compat::InstrumentDefMsgV1`
+- `compat::InstrumentDefMsgV2` is now an alias for `InstrumentDefMsg`
+- The old `SymbolMappingMsg` is now `compat::SymbolMappingMsgV1`
+- `compat::SymbolMappingMsgV2` is now an alias for `SymbolMappingMsg`
+- Changed `SYMBOL_CSTR_LEN` constant to 71. Previous value is now in
+  `compat::SYMBOL_CSTR_V1`
+- Changed `DBN_VERSION` constant to 2
+- `security_update_action` was converted to a raw `c_char` to safely support adding
+  variants in the future
+- Renamed `_dummy` in `InstrumentDefMsg` to `_reserved`
+- Removed `_reserved2`, `_reserved3`, and `_reserved5` from `InstrumentDefMsg`
+- Removed `_dummy` from `SymbolMappingMsg`
+- Added `upgrade_policy` parameter to `RecordDecoder::with_version` constructor to
+  control whether records of previous versions will be upgraded
+- Added `upgrade_policy` parameter to `DynDecoder` constructors to control whether
+  records of previous versions will be upgraded
 - Renamed `symbol_map` parameter to Python Transcoder to `symbol_interval_map` to
   better reflect the date intervals it contains
+
+### Bug fixes
+- Fixed type signature for `Metadata.stype_in` and `Metadata.stype_out` Python methods
 
 ## 0.13.0 - 2023-10-20
 ### Enhancements
@@ -372,7 +411,8 @@
 
 ## 0.2.1 - 2022-12-02
 - Added Python DBZ writing example
-- Changed [databento-defs](https://crates.io/crates/databento-defs) dependency to crates.io version
+- Changed [databento-defs](https://crates.io/crates/databento-defs) dependency to
+  crates.io version
 
 ## 0.2.0 - 2022-11-28
 ### Enhancements

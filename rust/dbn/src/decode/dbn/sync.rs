@@ -9,8 +9,10 @@ use std::{
 
 use super::{DBN_PREFIX, DBN_PREFIX_LEN};
 use crate::{
+    compat::{self, SYMBOL_CSTR_LEN_V1},
     decode::{
         private::BufferSlice, DecodeDbn, DecodeRecordRef, FromLittleEndianSlice, StreamIterDecoder,
+        VersionUpgradePolicy,
     },
     error::silence_eof_error,
     HasRType, MappingInterval, Metadata, Record, RecordHeader, RecordRef, SType, Schema,
@@ -30,7 +32,8 @@ impl<R> Decoder<R>
 where
     R: io::Read,
 {
-    /// Creates a new DBN [`Decoder`] from `reader`.
+    /// Creates a new DBN [`Decoder`] from `reader`. Will decode records from previous
+    /// DBN versions as-is.
     ///
     /// # Errors
     /// This function will return an error if it is unable to parse the metadata in
@@ -38,7 +41,31 @@ where
     pub fn new(mut reader: R) -> crate::Result<Self> {
         let metadata = MetadataDecoder::new(&mut reader).decode()?;
         Ok(Self {
-            decoder: RecordDecoder::with_version(reader, metadata.version)?,
+            decoder: RecordDecoder::with_version(
+                reader,
+                metadata.version,
+                VersionUpgradePolicy::AsIs,
+            )?,
+            metadata,
+        })
+    }
+
+    /// Creates a new DBN [`Decoder`] from `reader`. It will decode records from
+    /// previous DBN versions according to `upgrade_policy`.
+    ///
+    /// # Errors
+    /// This function will return an error if it is unable to parse the metadata in
+    /// `reader` or the input is encoded in a newer version of DBN.
+    pub fn with_upgrade_policy(
+        mut reader: R,
+        upgrade_policy: VersionUpgradePolicy,
+    ) -> crate::Result<Self> {
+        let mut metadata = MetadataDecoder::new(&mut reader).decode()?;
+        // need to get the original version
+        let version = metadata.version;
+        metadata.upgrade(upgrade_policy);
+        Ok(Self {
+            decoder: RecordDecoder::with_version(reader, version, upgrade_policy)?,
             metadata,
         })
     }
@@ -172,9 +199,11 @@ where
     R: io::Read,
 {
     /// For future use with reading different DBN versions.
-    _version: u8,
+    version: u8,
+    upgrade_policy: VersionUpgradePolicy,
     reader: R,
-    buffer: Vec<u8>,
+    read_buffer: Vec<u8>,
+    compat_buffer: [u8; crate::MAX_RECORD_LEN],
 }
 
 impl<R> RecordDecoder<R>
@@ -182,30 +211,50 @@ where
     R: io::Read,
 {
     /// Creates a new `RecordDecoder` that will decode from `reader`.
+    ///
+    /// Note: assumes the input is of the current DBN version. To decode records from a
+    /// previous version, use [`RecordDecoder::with_version()`].
     pub fn new(reader: R) -> Self {
-        Self {
-            _version: DBN_VERSION,
-            reader,
-            // `buffer` should have capacity for reading `length`
-            buffer: vec![0],
-        }
+        // upgrade policy doesn't matter when decoding current DBN version
+        Self::with_version(reader, DBN_VERSION, VersionUpgradePolicy::AsIs).unwrap()
     }
 
-    /// Creates a new `RecordDecoder` that will decode from `reader`
-    /// with the specified DBN version.
+    /// Creates a new `RecordDecoder` that will decode from `reader` with the specified
+    /// DBN version and update records according to `upgrade_policy`.
     ///
     /// # Errors
-    /// This function will return an error if the `version` exceeds the supported version.
-    pub fn with_version(reader: R, version: u8) -> crate::Result<Self> {
+    /// This function will return an error if the `version` exceeds the highest
+    /// supported version.
+    pub fn with_version(
+        reader: R,
+        version: u8,
+        upgrade_policy: VersionUpgradePolicy,
+    ) -> crate::Result<Self> {
         if version > DBN_VERSION {
             return Err(crate::Error::decode(format!("Can't decode newer version of DBN. Decoder version is {DBN_VERSION}, input version is {version}")));
         }
         Ok(Self {
-            _version: version,
+            version,
+            upgrade_policy,
             reader,
-            // `buffer` should have capacity for reading `length`
-            buffer: vec![0],
+            // `read_buffer` should have capacity for reading `length`
+            read_buffer: vec![0],
+            compat_buffer: [0; crate::MAX_RECORD_LEN],
         })
+    }
+
+    /// Sets the DBN version to expect when decoding.
+    ///
+    /// # Errors
+    /// This function will return an error if the `version` exceeds the highest
+    /// supported version.
+    pub fn set_version(&mut self, version: u8) -> crate::Result<()> {
+        if version > DBN_VERSION {
+            Err(crate::Error::decode(format!("Can't decode newer version of DBN. Decoder version is {DBN_VERSION}, input version is {version}")))
+        } else {
+            self.version = version;
+            Ok(())
+        }
     }
 
     /// Returns a mutable reference to the inner reader.
@@ -258,23 +307,30 @@ where
     /// It will also return an error if it encounters an invalid record.
     pub fn decode_ref(&mut self) -> crate::Result<Option<RecordRef>> {
         let io_err = |e| crate::Error::io(e, "decoding record reference");
-        if let Err(err) = self.reader.read_exact(&mut self.buffer[..1]) {
+        if let Err(err) = self.reader.read_exact(&mut self.read_buffer[..1]) {
             return silence_eof_error(err).map_err(io_err);
         }
-        let length = self.buffer[0] as usize * RecordHeader::LENGTH_MULTIPLIER;
+        let length = self.read_buffer[0] as usize * RecordHeader::LENGTH_MULTIPLIER;
         if length < mem::size_of::<RecordHeader>() {
             return Err(crate::Error::decode(format!(
                 "Invalid record with length {length} shorter than header"
             )));
         }
-        if length > self.buffer.len() {
-            self.buffer.resize(length, 0);
+        if length > self.read_buffer.len() {
+            self.read_buffer.resize(length, 0);
         }
-        if let Err(err) = self.reader.read_exact(&mut self.buffer[1..length]) {
+        if let Err(err) = self.reader.read_exact(&mut self.read_buffer[1..length]) {
             return silence_eof_error(err).map_err(io_err);
         }
-        // Safety: `buffer` is resized to contain at least `length` bytes.
-        Ok(Some(unsafe { RecordRef::new(self.buffer.as_mut_slice()) }))
+        // Safety: `read_buffer` is resized to contain at least `length` bytes.
+        Ok(Some(unsafe {
+            compat::decode_record_ref(
+                self.version,
+                self.upgrade_policy,
+                &mut self.compat_buffer,
+                &self.read_buffer,
+            )
+        }))
     }
 }
 
@@ -292,7 +348,7 @@ where
     R: io::Read,
 {
     fn buffer_slice(&self) -> &[u8] {
-        self.buffer.as_slice()
+        self.read_buffer.as_slice()
     }
 }
 
@@ -369,8 +425,10 @@ where
         pos += U64_SIZE;
         let limit = NonZeroU64::new(u64::from_le_slice(&buffer[pos..]));
         pos += U64_SIZE;
-        // skip deprecated record_count
-        pos += U64_SIZE;
+        if version == 1 {
+            // skip deprecated record_count
+            pos += U64_SIZE;
+        }
         let stype_in = if buffer[pos] == NULL_STYPE {
             None
         } else {
@@ -385,8 +443,19 @@ where
         pos += mem::size_of::<SType>();
         let ts_out = buffer[pos] != 0;
         pos += mem::size_of::<bool>();
+        let symbol_cstr_len = if version == 1 {
+            SYMBOL_CSTR_LEN_V1
+        } else {
+            let res = u16::from_le_slice(&buffer[pos..]);
+            pos += mem::size_of::<u16>();
+            res as usize
+        };
         // skip reserved
-        pos += crate::METADATA_RESERVED_LEN;
+        pos += if version == 1 {
+            crate::compat::METADATA_RESERVED_LEN_V1
+        } else {
+            crate::METADATA_RESERVED_LEN
+        };
         let schema_definition_length = u32::from_le_slice(&buffer[pos..]);
         if schema_definition_length != 0 {
             return Err(crate::Error::decode(
@@ -394,10 +463,13 @@ where
             ));
         }
         pos += Self::U32_SIZE + (schema_definition_length as usize);
-        let symbols = Self::decode_repeated_symbol_cstr(buffer.as_slice(), &mut pos)?;
-        let partial = Self::decode_repeated_symbol_cstr(buffer.as_slice(), &mut pos)?;
-        let not_found = Self::decode_repeated_symbol_cstr(buffer.as_slice(), &mut pos)?;
-        let mappings = Self::decode_symbol_mappings(buffer.as_slice(), &mut pos)?;
+        let symbols =
+            Self::decode_repeated_symbol_cstr(symbol_cstr_len, buffer.as_slice(), &mut pos)?;
+        let partial =
+            Self::decode_repeated_symbol_cstr(symbol_cstr_len, buffer.as_slice(), &mut pos)?;
+        let not_found =
+            Self::decode_repeated_symbol_cstr(symbol_cstr_len, buffer.as_slice(), &mut pos)?;
+        let mappings = Self::decode_symbol_mappings(symbol_cstr_len, buffer.as_slice(), &mut pos)?;
 
         Ok(Metadata {
             version,
@@ -413,6 +485,7 @@ where
             },
             limit,
             ts_out,
+            symbol_cstr_len,
             symbols,
             partial,
             not_found,
@@ -420,7 +493,11 @@ where
         })
     }
 
-    fn decode_repeated_symbol_cstr(buffer: &[u8], pos: &mut usize) -> crate::Result<Vec<String>> {
+    fn decode_repeated_symbol_cstr(
+        symbol_cstr_len: usize,
+        buffer: &[u8],
+        pos: &mut usize,
+    ) -> crate::Result<Vec<String>> {
         if *pos + Self::U32_SIZE > buffer.len() {
             return Err(crate::Error::decode("Unexpected end of metadata buffer"));
         }
@@ -432,14 +509,20 @@ where
         }
         let mut res = Vec::with_capacity(count);
         for i in 0..count {
-            res.push(Self::decode_symbol(buffer, pos).map_err(|e| {
-                crate::Error::utf8(e, format!("Failed to decode symbol at index {i}"))
-            })?);
+            res.push(
+                Self::decode_symbol(symbol_cstr_len, buffer, pos).map_err(|e| {
+                    crate::Error::utf8(e, format!("Failed to decode symbol at index {i}"))
+                })?,
+            );
         }
         Ok(res)
     }
 
-    fn decode_symbol_mappings(buffer: &[u8], pos: &mut usize) -> crate::Result<Vec<SymbolMapping>> {
+    fn decode_symbol_mappings(
+        symbol_cstr_len: usize,
+        buffer: &[u8],
+        pos: &mut usize,
+    ) -> crate::Result<Vec<SymbolMapping>> {
         if *pos + Self::U32_SIZE > buffer.len() {
             return Err(crate::Error::decode("Unexpected end of metadata buffer"));
         }
@@ -448,36 +531,39 @@ where
         let mut res = Vec::with_capacity(count);
         // Because each `SymbolMapping` itself is of a variable length, decoding it requires frequent bounds checks
         for i in 0..count {
-            res.push(Self::decode_symbol_mapping(i, buffer, pos)?);
+            res.push(Self::decode_symbol_mapping(
+                symbol_cstr_len,
+                i,
+                buffer,
+                pos,
+            )?);
         }
         Ok(res)
     }
 
     fn decode_symbol_mapping(
+        symbol_cstr_len: usize,
         idx: usize,
         buffer: &[u8],
         pos: &mut usize,
     ) -> crate::Result<SymbolMapping> {
-        const MIN_SYMBOL_MAPPING_ENCODED_LEN: usize =
-            crate::SYMBOL_CSTR_LEN + mem::size_of::<u32>();
-        const MAPPING_INTERVAL_ENCODED_LEN: usize =
-            mem::size_of::<u32>() * 2 + crate::SYMBOL_CSTR_LEN;
-
-        if *pos + MIN_SYMBOL_MAPPING_ENCODED_LEN > buffer.len() {
+        let min_symbol_mapping_encoded_len = symbol_cstr_len + mem::size_of::<u32>();
+        let mapping_interval_encoded_len = mem::size_of::<u32>() * 2 + symbol_cstr_len;
+        if *pos + min_symbol_mapping_encoded_len > buffer.len() {
             return Err(crate::Error::decode(format!(
                 "Unexpected end of metadata buffer while parsing symbol mapping at index {idx}"
             )));
         }
-        let raw_symbol = Self::decode_symbol(buffer, pos)
+        let raw_symbol = Self::decode_symbol(symbol_cstr_len, buffer, pos)
             .map_err(|e| crate::Error::utf8(e, "parsing raw symbol"))?;
         let interval_count = u32::from_le_slice(&buffer[*pos..]) as usize;
         *pos += Self::U32_SIZE;
-        let read_size = interval_count * MAPPING_INTERVAL_ENCODED_LEN;
+        let read_size = interval_count * mapping_interval_encoded_len;
         if *pos + read_size > buffer.len() {
             return Err(crate::Error::decode(format!(
                 "Symbol mapping at index {idx} with interval_count ({interval_count}) doesn't match size of buffer \
                 which only contains space for {} intervals",
-                (buffer.len() - *pos) / MAPPING_INTERVAL_ENCODED_LEN
+                (buffer.len() - *pos) / mapping_interval_encoded_len
             )));
         }
         let mut intervals = Vec::with_capacity(interval_count);
@@ -492,7 +578,7 @@ where
             let end_date = decode_iso8601(raw_end_date).map_err(|e| {
                 crate::Error::decode(format!("{e} while parsing end date of mapping interval at index {i} within mapping at index {idx}"))
             })?;
-            let symbol = Self::decode_symbol(buffer, pos).map_err(|e| {
+            let symbol = Self::decode_symbol(symbol_cstr_len, buffer, pos).map_err(|e| {
                 crate::Error::utf8(e, format!("Failed to parse symbol for mapping interval at index {i} within mapping at index {idx}"))
             })?;
             intervals.push(MappingInterval {
@@ -507,13 +593,17 @@ where
         })
     }
 
-    fn decode_symbol(buffer: &[u8], pos: &mut usize) -> Result<String, Utf8Error> {
-        let symbol_slice = &buffer[*pos..*pos + crate::SYMBOL_CSTR_LEN];
+    fn decode_symbol(
+        symbol_cstr_len: usize,
+        buffer: &[u8],
+        pos: &mut usize,
+    ) -> Result<String, Utf8Error> {
+        let symbol_slice = &buffer[*pos..*pos + symbol_cstr_len];
         let symbol = std::str::from_utf8(symbol_slice)?
             // remove null bytes
             .trim_end_matches('\0')
             .to_owned();
-        *pos += crate::SYMBOL_CSTR_LEN;
+        *pos += symbol_cstr_len;
         Ok(symbol)
     }
 
@@ -551,6 +641,7 @@ mod tests {
 
     use super::*;
     use crate::{
+        compat::InstrumentDefMsgV1,
         datasets::XNAS_ITCH,
         decode::{tests::TEST_DATA_PATH, DynReader},
         encode::{
@@ -564,21 +655,22 @@ mod tests {
     #[test]
     fn test_decode_symbol() {
         let bytes = b"SPX.1.2\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
-        assert_eq!(bytes.len(), SYMBOL_CSTR_LEN);
+        assert_eq!(bytes.len(), SYMBOL_CSTR_LEN_V1);
         let mut pos = 0;
-        let res = MetadataDecoder::<File>::decode_symbol(bytes.as_slice(), &mut pos).unwrap();
-        assert_eq!(pos, crate::SYMBOL_CSTR_LEN);
+        let res =
+            MetadataDecoder::<File>::decode_symbol(SYMBOL_CSTR_LEN_V1, bytes.as_slice(), &mut pos)
+                .unwrap();
+        assert_eq!(pos, SYMBOL_CSTR_LEN_V1);
         assert_eq!(&res, "SPX.1.2");
     }
 
     #[test]
     fn test_decode_symbol_invalid_utf8() {
-        const BYTES: [u8; SYMBOL_CSTR_LEN] = [
-            // continuation byte
-            0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ];
+        let mut bytes = [0; SYMBOL_CSTR_LEN];
+        // continuation byte
+        bytes[0] = 0x80;
         let mut pos = 0;
-        let res = MetadataDecoder::<File>::decode_symbol(BYTES.as_slice(), &mut pos);
+        let res = MetadataDecoder::<File>::decode_symbol(bytes.len(), bytes.as_slice(), &mut pos);
         assert!(res.is_err());
     }
 
@@ -603,74 +695,185 @@ mod tests {
         dbg!(&res);
         assert!(matches!(res, Err(e) if e.contains("a valid date")));
     }
+
     #[rstest]
-    #[case::uncompressed_mbo(Schema::Mbo, Compression::None, MboMsg::default())]
-    #[case::uncompressed_trades(Schema::Trades, Compression::None, TradeMsg::default())]
-    #[case::uncompressed_tbbo(Schema::Tbbo, Compression::None, TbboMsg::default())]
-    #[case::uncompressed_mbp1(Schema::Mbp1, Compression::None, Mbp1Msg::default())]
-    #[case::uncompressed_mbp10(Schema::Mbp10, Compression::None, Mbp10Msg::default())]
-    #[case::uncompressed_ohlcv1d(
+    #[case::uncompressed_mbo_v1(1, Schema::Mbo, Compression::None, MboMsg::default())]
+    #[case::uncompressed_trades_v1(1, Schema::Trades, Compression::None, TradeMsg::default())]
+    #[case::uncompressed_tbbo_v1(1, Schema::Tbbo, Compression::None, TbboMsg::default())]
+    #[case::uncompressed_mbp1_v1(1, Schema::Mbp1, Compression::None, Mbp1Msg::default())]
+    #[case::uncompressed_mbp10_v1(1, Schema::Mbp10, Compression::None, Mbp10Msg::default())]
+    #[case::uncompressed_ohlcv1d_v1(
+        1,
         Schema::Ohlcv1D,
         Compression::None,
         OhlcvMsg::default_for_schema(Schema::Ohlcv1D)
     )]
-    #[case::uncompressed_ohlcv1h(
+    #[case::uncompressed_ohlcv1h_v1(
+        1,
         Schema::Ohlcv1H,
         Compression::None,
         OhlcvMsg::default_for_schema(Schema::Ohlcv1H)
     )]
-    #[case::uncompressed_ohlcv1m(
+    #[case::uncompressed_ohlcv1m_v1(
+        1,
         Schema::Ohlcv1M,
         Compression::None,
         OhlcvMsg::default_for_schema(Schema::Ohlcv1M)
     )]
-    #[case::uncompressed_ohlcv1s(
+    #[case::uncompressed_ohlcv1s_v1(
+        1,
         Schema::Ohlcv1S,
         Compression::None,
         OhlcvMsg::default_for_schema(Schema::Ohlcv1S)
     )]
-    #[case::uncompressed_definitions(
+    #[case::uncompressed_definitions_v1(
+        1,
+        Schema::Definition,
+        Compression::None,
+        InstrumentDefMsgV1::default()
+    )]
+    #[case::uncompressed_imbalance_v1(
+        1,
+        Schema::Imbalance,
+        Compression::None,
+        ImbalanceMsg::default()
+    )]
+    #[case::uncompressed_statistics_v1(
+        1,
+        Schema::Statistics,
+        Compression::None,
+        StatMsg::default()
+    )]
+    #[case::zstd_mbo_v1(1, Schema::Mbo, Compression::ZStd, MboMsg::default())]
+    #[case::zstd_trades_v1(1, Schema::Trades, Compression::ZStd, TradeMsg::default())]
+    #[case::zstd_tbbo_v1(1, Schema::Tbbo, Compression::ZStd, TbboMsg::default())]
+    #[case::zstd_mbp1_v1(1, Schema::Mbp1, Compression::ZStd, Mbp1Msg::default())]
+    #[case::zstd_mbp10_v1(1, Schema::Mbp10, Compression::ZStd, Mbp10Msg::default())]
+    #[case::zstd_ohlcv1d_v1(
+        1,
+        Schema::Ohlcv1D,
+        Compression::ZStd,
+        OhlcvMsg::default_for_schema(Schema::Ohlcv1D)
+    )]
+    #[case::zstd_ohlcv1h_v1(
+        1,
+        Schema::Ohlcv1H,
+        Compression::ZStd,
+        OhlcvMsg::default_for_schema(Schema::Ohlcv1H)
+    )]
+    #[case::zstd_ohlcv1m_v1(
+        1,
+        Schema::Ohlcv1M,
+        Compression::ZStd,
+        OhlcvMsg::default_for_schema(Schema::Ohlcv1M)
+    )]
+    #[case::zstd_ohlcv1s_v1(
+        1,
+        Schema::Ohlcv1S,
+        Compression::ZStd,
+        OhlcvMsg::default_for_schema(Schema::Ohlcv1S)
+    )]
+    #[case::zstd_definitions_v1(
+        1,
+        Schema::Definition,
+        Compression::ZStd,
+        InstrumentDefMsgV1::default()
+    )]
+    #[case::zstd_imbalance_v1(1, Schema::Imbalance, Compression::ZStd, ImbalanceMsg::default())]
+    #[case::zstd_statistics_v1(1, Schema::Statistics, Compression::ZStd, StatMsg::default())]
+    #[case::uncompressed_mbo_v2(2, Schema::Mbo, Compression::None, MboMsg::default())]
+    #[case::uncompressed_trades_v2(2, Schema::Trades, Compression::None, TradeMsg::default())]
+    #[case::uncompressed_tbbo_v2(2, Schema::Tbbo, Compression::None, TbboMsg::default())]
+    #[case::uncompressed_mbp1_v2(2, Schema::Mbp1, Compression::None, Mbp1Msg::default())]
+    #[case::uncompressed_mbp10_v2(2, Schema::Mbp10, Compression::None, Mbp10Msg::default())]
+    #[case::uncompressed_ohlcv1d_v2(
+        2,
+        Schema::Ohlcv1D,
+        Compression::None,
+        OhlcvMsg::default_for_schema(Schema::Ohlcv1D)
+    )]
+    #[case::uncompressed_ohlcv1h_v2(
+        2,
+        Schema::Ohlcv1H,
+        Compression::None,
+        OhlcvMsg::default_for_schema(Schema::Ohlcv1H)
+    )]
+    #[case::uncompressed_ohlcv1m_v2(
+        2,
+        Schema::Ohlcv1M,
+        Compression::None,
+        OhlcvMsg::default_for_schema(Schema::Ohlcv1M)
+    )]
+    #[case::uncompressed_ohlcv1s_v2(
+        2,
+        Schema::Ohlcv1S,
+        Compression::None,
+        OhlcvMsg::default_for_schema(Schema::Ohlcv1S)
+    )]
+    #[case::uncompressed_definitions_v2(
+        2,
         Schema::Definition,
         Compression::None,
         InstrumentDefMsg::default()
     )]
-    #[case::uncompressed_imbalance(Schema::Imbalance, Compression::None, ImbalanceMsg::default())]
-    #[case::uncompressed_statistics(Schema::Statistics, Compression::None, StatMsg::default())]
-    #[case::zstd_mbo(Schema::Mbo, Compression::ZStd, MboMsg::default())]
-    #[case::zstd_trades(Schema::Trades, Compression::ZStd, TradeMsg::default())]
-    #[case::zstd_tbbo(Schema::Tbbo, Compression::ZStd, TbboMsg::default())]
-    #[case::zstd_mbp1(Schema::Mbp1, Compression::ZStd, Mbp1Msg::default())]
-    #[case::zstd_mbp10(Schema::Mbp10, Compression::ZStd, Mbp10Msg::default())]
-    #[case::zstd_ohlcv1d(
+    #[case::uncompressed_imbalance_v2(
+        2,
+        Schema::Imbalance,
+        Compression::None,
+        ImbalanceMsg::default()
+    )]
+    #[case::uncompressed_statistics_v2(
+        2,
+        Schema::Statistics,
+        Compression::None,
+        StatMsg::default()
+    )]
+    #[case::zstd_mbo_v2(2, Schema::Mbo, Compression::ZStd, MboMsg::default())]
+    #[case::zstd_trades_v2(2, Schema::Trades, Compression::ZStd, TradeMsg::default())]
+    #[case::zstd_tbbo_v2(2, Schema::Tbbo, Compression::ZStd, TbboMsg::default())]
+    #[case::zstd_mbp1_v2(2, Schema::Mbp1, Compression::ZStd, Mbp1Msg::default())]
+    #[case::zstd_mbp10_v2(2, Schema::Mbp10, Compression::ZStd, Mbp10Msg::default())]
+    #[case::zstd_ohlcv1d_v2(
+        2,
         Schema::Ohlcv1D,
         Compression::ZStd,
         OhlcvMsg::default_for_schema(Schema::Ohlcv1D)
     )]
-    #[case::zstd_ohlcv1h(
+    #[case::zstd_ohlcv1h_v2(
+        2,
         Schema::Ohlcv1H,
         Compression::ZStd,
         OhlcvMsg::default_for_schema(Schema::Ohlcv1H)
     )]
-    #[case::zstd_ohlcv1m(
+    #[case::zstd_ohlcv1m_v2(
+        2,
         Schema::Ohlcv1M,
         Compression::ZStd,
         OhlcvMsg::default_for_schema(Schema::Ohlcv1M)
     )]
-    #[case::zstd_ohlcv1s(
+    #[case::zstd_ohlcv1s_v2(
+        2,
         Schema::Ohlcv1S,
         Compression::ZStd,
         OhlcvMsg::default_for_schema(Schema::Ohlcv1S)
     )]
-    #[case::zstd_definitions(Schema::Definition, Compression::ZStd, InstrumentDefMsg::default())]
-    #[case::zstd_imbalance(Schema::Imbalance, Compression::ZStd, ImbalanceMsg::default())]
-    #[case::zstd_statistics(Schema::Statistics, Compression::ZStd, StatMsg::default())]
+    #[case::zstd_definitions_v2(
+        2,
+        Schema::Definition,
+        Compression::ZStd,
+        InstrumentDefMsg::default()
+    )]
+    #[case::zstd_imbalance_v2(2, Schema::Imbalance, Compression::ZStd, ImbalanceMsg::default())]
+    #[case::zstd_statistics_v2(2, Schema::Statistics, Compression::ZStd, StatMsg::default())]
     fn test_dbn_identity<R: DbnEncodable + HasRType + PartialEq + Clone>(
+        #[case] version: u8,
         #[case] schema: Schema,
         #[case] compression: Compression,
         #[case] _rec: R,
     ) -> Result<()> {
         let file_decoder = Decoder::new(DynReader::from_file(format!(
-            "{TEST_DATA_PATH}/test_data.{schema}.{}",
+            "{TEST_DATA_PATH}/test_data.{schema}{}.{}",
+            if version == 1 { ".v1" } else { "" },
             if compression == Compression::ZStd {
                 "dbn.zst"
             } else {
@@ -789,21 +992,41 @@ mod tests {
         assert!(matches!(target.decode_ref(), Ok(None)));
     }
 
-    #[test]
-    fn test_decode_multiframe_zst() {
-        let mut decoder = RecordDecoder::new(
+    #[rstest]
+    #[case::v1_as_is(InstrumentDefMsgV1::default(), VersionUpgradePolicy::AsIs)]
+    #[case::v1_upgrade(InstrumentDefMsg::default(), VersionUpgradePolicy::Upgrade)]
+    fn test_decode_multiframe_zst_from_v1<R: HasRType>(
+        #[case] _r: R,
+        #[case] upgrade_policy: VersionUpgradePolicy,
+    ) {
+        let mut decoder = RecordDecoder::with_version(
             zstd::stream::Decoder::new(
                 File::open(format!(
-                    "{TEST_DATA_PATH}/multi-frame.definition.dbn.frag.zst"
+                    "{TEST_DATA_PATH}/multi-frame.definition.v1.dbn.frag.zst"
                 ))
                 .unwrap(),
             )
             .unwrap(),
-        );
+            1,
+            upgrade_policy,
+        )
+        .unwrap();
         let mut count = 0;
-        while let Some(_rec) = decoder.decode::<InstrumentDefMsg>().unwrap() {
+        while let Some(_rec) = decoder.decode::<R>().unwrap() {
             count += 1;
         }
         assert_eq!(count, 8);
+    }
+
+    #[test]
+    fn test_decode_upgrade() -> crate::Result<()> {
+        let decoder = Decoder::with_upgrade_policy(
+            File::open(format!("{TEST_DATA_PATH}/test_data.definition.v1.dbn")).unwrap(),
+            VersionUpgradePolicy::Upgrade,
+        )?;
+        assert_eq!(decoder.metadata().version, crate::DBN_VERSION);
+        assert_eq!(decoder.metadata().symbol_cstr_len, crate::SYMBOL_CSTR_LEN);
+        decoder.decode_records::<InstrumentDefMsg>()?;
+        Ok(())
     }
 }

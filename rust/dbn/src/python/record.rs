@@ -9,9 +9,10 @@ use pyo3::{
 
 use crate::{
     record::str_to_c_chars, rtype, BidAskPair, ErrorMsg, HasRType, ImbalanceMsg, InstrumentDefMsg,
-    MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, Record, RecordHeader, SecurityUpdateAction, StatMsg,
-    StatUpdateAction, StatusMsg, SymbolMappingMsg, SystemMsg, TradeMsg, UserDefinedInstrument,
-    WithTsOut, FIXED_PRICE_SCALE, UNDEF_ORDER_SIZE, UNDEF_PRICE, UNDEF_TIMESTAMP,
+    MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, Record, RecordHeader, SType, SecurityUpdateAction,
+    StatMsg, StatUpdateAction, StatusMsg, SymbolMappingMsg, SystemMsg, TradeMsg,
+    UserDefinedInstrument, WithTsOut, FIXED_PRICE_SCALE, UNDEF_ORDER_SIZE, UNDEF_PRICE,
+    UNDEF_TIMESTAMP,
 };
 
 use super::{to_val_err, PyFieldDesc};
@@ -1009,7 +1010,7 @@ impl InstrumentDefMsg {
             settl_price_type: settl_price_type.unwrap_or(u8::MAX),
             sub_fraction: sub_fraction.unwrap_or(u8::MAX),
             underlying_product: underlying_product.unwrap_or(u8::MAX),
-            security_update_action,
+            security_update_action: security_update_action as c_char,
             maturity_month: maturity_month.unwrap_or(u8::MAX),
             maturity_day: maturity_day.unwrap_or(u8::MAX),
             maturity_week: maturity_week.unwrap_or(u8::MAX),
@@ -1017,11 +1018,7 @@ impl InstrumentDefMsg {
             contract_multiplier_unit: contract_multiplier_unit.unwrap_or(i8::MAX),
             flow_schedule_type: flow_schedule_type.unwrap_or(i8::MAX),
             tick_rule: tick_rule.unwrap_or(u8::MAX),
-            _reserved2: Default::default(),
-            _reserved3: Default::default(),
-            _reserved4: Default::default(),
-            _reserved5: Default::default(),
-            _dummy: Default::default(),
+            _reserved: Default::default(),
         })
     }
 
@@ -1706,7 +1703,9 @@ impl SymbolMappingMsg {
         publisher_id: u16,
         instrument_id: u32,
         ts_event: u64,
+        stype_in: SType,
         stype_in_symbol: &str,
+        stype_out: SType,
         stype_out_symbol: &str,
         start_ts: u64,
         end_ts: u64,
@@ -1718,10 +1717,11 @@ impl SymbolMappingMsg {
                 instrument_id,
                 ts_event,
             ),
+            stype_in: stype_in as u8,
             stype_in_symbol: str_to_c_chars(stype_in_symbol).map_err(to_val_err)?,
+            stype_out: stype_out as u8,
             stype_out_symbol: str_to_c_chars(stype_out_symbol).map_err(to_val_err)?,
             start_ts,
-            _dummy: [0; 4],
             end_ts,
         })
     }
@@ -1791,9 +1791,21 @@ impl SymbolMappingMsg {
     }
 
     #[getter]
+    #[pyo3(name = "stype_in")]
+    fn py_stype_in(&self) -> PyResult<SType> {
+        self.stype_in().map_err(to_val_err)
+    }
+
+    #[getter]
     #[pyo3(name = "stype_in_symbol")]
     fn py_stype_in_symbol(&self) -> PyResult<&str> {
         self.stype_in_symbol().map_err(to_val_err)
+    }
+
+    #[getter]
+    #[pyo3(name = "stype_out")]
+    fn py_stype_out(&self) -> PyResult<SType> {
+        self.stype_out().map_err(to_val_err)
     }
 
     #[getter]

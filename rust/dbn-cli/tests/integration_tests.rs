@@ -421,6 +421,38 @@ fn input_fragment(
         .stderr(is_empty());
 }
 
+#[test]
+fn upgraded_definitions_data_is_same_but_larger() {
+    let output_dir = tempdir().unwrap();
+    let orig_csv = format!("{}/a.csv", output_dir.path().to_str().unwrap());
+    let upgraded_dbn_output = format!("{}/a.dbn", output_dir.path().to_str().unwrap());
+    let input_path = format!("{TEST_DATA_PATH}/test_data.definition.v1.dbn");
+    cmd()
+        .args(&[&input_path, "--csv", "--output", &orig_csv])
+        .assert()
+        .success()
+        .stderr(is_empty())
+        .stdout(is_empty());
+    let orig_csv_contents = std::fs::read_to_string(orig_csv).unwrap();
+    let mut upgrade_cmd = cmd();
+    upgrade_cmd.args([&input_path, "--upgrade", "--output", &upgraded_dbn_output]);
+    upgrade_cmd
+        .assert()
+        .success()
+        .stderr(is_empty())
+        .stdout(is_empty());
+    cmd()
+        .args(&[&upgraded_dbn_output, "--csv"])
+        .assert()
+        .success()
+        .stderr(is_empty())
+        .stdout(eq(orig_csv_contents));
+    assert!(
+        std::fs::metadata(input_path).unwrap().len()
+            < std::fs::metadata(upgraded_dbn_output).unwrap().len()
+    );
+}
+
 #[rstest]
 #[case::uncompressed_trades("--input-fragment", Schema::Trades, "dbn.frag", "")]
 #[case::zstd_trades("--input-zstd-fragment", Schema::Trades, "dbn.frag.zst", "--zstd")]
@@ -599,6 +631,27 @@ fn passing_next_dbn_version_is_rejected() {
         .failure()
         .stderr(contains("invalid value"))
         .stderr(contains("--input-dbn-version"));
+}
+
+#[rstest]
+#[case::csv("--csv")]
+#[case::dbn("--dbn")]
+#[case::fragment("--fragment")]
+#[case::json("--json")]
+fn passing_dbn_version_conflicts_with_non_fragment_input(#[case] output_flag: &str) {
+    cmd()
+        .args([
+            &format!("{TEST_DATA_PATH}/test_data.mbo.dbn.zst"),
+            output_flag,
+            "--input-dbn-version",
+            "1",
+        ])
+        .assert()
+        .failure()
+        .stdout(is_empty())
+        .stderr(contains(
+            "the following required arguments were not provided:",
+        ));
 }
 
 #[test]

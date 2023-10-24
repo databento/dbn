@@ -105,6 +105,7 @@ impl JsonSerialize for Metadata {
         writer.value("stype_in", self.stype_in.map(|s| s.as_str()));
         writer.value("stype_out", self.stype_out.as_str());
         writer.value("ts_out", self.ts_out);
+        writer.value("symbol_cstr_len", self.symbol_cstr_len as u32);
         for (key, sym_list) in [
             ("symbols", &self.symbols),
             ("partial", &self.partial),

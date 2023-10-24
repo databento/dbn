@@ -11,7 +11,7 @@ use crate::{
     decode::{DecodeDbn, DynDecoder},
     encode::dbn::MetadataEncoder,
     enums::{SType, Schema},
-    MappingInterval, Metadata, SymbolMapping,
+    MappingInterval, Metadata, SymbolMapping, VersionUpgradePolicy,
 };
 
 use super::{py_to_time_date, to_val_err};
@@ -77,12 +77,19 @@ impl Metadata {
 
     #[pyo3(name = "decode")]
     #[classmethod]
-    fn py_decode(_cls: &PyType, data: &PyBytes) -> PyResult<Metadata> {
+    fn py_decode(
+        _cls: &PyType,
+        data: &PyBytes,
+        upgrade_policy: Option<VersionUpgradePolicy>,
+    ) -> PyResult<Metadata> {
+        let upgrade_policy = upgrade_policy.unwrap_or_default();
         let reader = io::BufReader::new(data.as_bytes());
-        Ok(DynDecoder::inferred_with_buffer(reader)
+        let mut metadata = DynDecoder::inferred_with_buffer(reader, upgrade_policy)
             .map_err(to_val_err)?
             .metadata()
-            .clone())
+            .clone();
+        metadata.upgrade(upgrade_policy);
+        Ok(metadata)
     }
 
     #[pyo3(name = "encode")]
