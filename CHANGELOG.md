@@ -42,7 +42,7 @@
   control whether records of previous versions will be upgraded
 - Added `upgrade_policy` parameter to `DynDecoder` constructors to control whether
   records of previous versions will be upgraded
-- Renamed `symbol_map` parameter to Python Transcoder to `symbol_interval_map` to
+- Renamed `symbol_map` parameter for Python Transcoder to `symbol_interval_map` to
   better reflect the date intervals it contains
 
 ### Bug fixes
