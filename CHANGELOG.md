@@ -45,6 +45,10 @@
 - Renamed `symbol_map` parameter for Python Transcoder to `symbol_interval_map` to
   better reflect the date intervals it contains
 
+### Deprecations
+- Deprecated unused `write_dbn_file` function from Python interface. Please use
+  `Transcoder` instead
+
 ### Bug fixes
 - Fixed type signature for `Metadata.stype_in` and `Metadata.stype_out` Python methods
 

@@ -17,7 +17,7 @@ use dbn::{
     Metadata,
 };
 use pyo3::{
-    exceptions::{PyTypeError, PyValueError},
+    exceptions::{PyDeprecationWarning, PyTypeError, PyValueError},
     intern,
     prelude::*,
     types::PyBytes,
@@ -57,12 +57,18 @@ pub fn update_encoded_metadata(
 /// the encoded to bytes or an expected field is missing from one of the dicts.
 #[pyfunction]
 pub fn write_dbn_file(
-    _py: Python<'_>,
+    py: Python<'_>,
     file: PyFileLike,
     compression: Compression,
     metadata: &Metadata,
     records: Vec<&PyAny>,
 ) -> PyResult<()> {
+    PyErr::warn(
+        py,
+        py.get_type::<PyDeprecationWarning>(),
+        "This function is deprecated. Please switch to using Transcoder",
+        0,
+    )?;
     let writer = DynWriter::new(file, compression).map_err(to_val_err)?;
     let encoder = DbnEncoder::new(writer, metadata).map_err(to_val_err)?;
     match metadata.schema {
