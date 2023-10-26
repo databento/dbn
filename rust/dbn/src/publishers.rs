@@ -84,10 +84,14 @@ pub enum Venue {
     Bato = 36,
     /// MEMX LLC Options
     Mxop = 37,
+    /// ICE Futures Europe (Commodities)
+    Ifeu = 38,
+    /// ICE Endex
+    Ndex = 39,
 }
 
 /// The number of Venue variants.
-pub const VENUE_COUNT: usize = 37;
+pub const VENUE_COUNT: usize = 39;
 
 impl Venue {
     /// Convert a Venue to its `str` representation.
@@ -130,6 +134,8 @@ impl Venue {
             Self::Xphl => "XPHL",
             Self::Bato => "BATO",
             Self::Mxop => "MXOP",
+            Self::Ifeu => "IFEU",
+            Self::Ndex => "NDEX",
         }
     }
 }
@@ -188,6 +194,8 @@ impl std::str::FromStr for Venue {
             "XPHL" => Ok(Self::Xphl),
             "BATO" => Ok(Self::Bato),
             "MXOP" => Ok(Self::Mxop),
+            "IFEU" => Ok(Self::Ifeu),
+            "NDEX" => Ok(Self::Ndex),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
@@ -251,10 +259,14 @@ pub enum Dataset {
     XnasQbbo = 26,
     /// Nasdaq NLS
     XnasNls = 27,
+    /// ICE Futures Europe (Commodities) iMpact
+    IfeuImpact = 28,
+    /// ICE Endex iMpact
+    NdexImpact = 29,
 }
 
 /// The number of Dataset variants.
-pub const DATASET_COUNT: usize = 27;
+pub const DATASET_COUNT: usize = 29;
 
 impl Dataset {
     /// Convert a Dataset to its `str` representation.
@@ -287,6 +299,8 @@ impl Dataset {
             Self::XnysTrades => "XNYS.TRADES",
             Self::XnasQbbo => "XNAS.QBBO",
             Self::XnasNls => "XNAS.NLS",
+            Self::IfeuImpact => "IFEU.IMPACT",
+            Self::NdexImpact => "NDEX.IMPACT",
         }
     }
 }
@@ -335,6 +349,8 @@ impl std::str::FromStr for Dataset {
             "XNYS.TRADES" => Ok(Self::XnysTrades),
             "XNAS.QBBO" => Ok(Self::XnasQbbo),
             "XNAS.NLS" => Ok(Self::XnasNls),
+            "IFEU.IMPACT" => Ok(Self::IfeuImpact),
+            "NDEX.IMPACT" => Ok(Self::NdexImpact),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
@@ -456,10 +472,14 @@ pub enum Publisher {
     DbeqPlusFiny = 55,
     /// DBEQ Plus - FINRA/Nasdaq TRF Chicago
     DbeqPlusFinc = 56,
+    /// ICE Futures Europe (Commodities)
+    IfeuImpactIfeu = 57,
+    /// ICE Endex
+    NdexImpactNdex = 58,
 }
 
 /// The number of Publisher variants.
-pub const PUBLISHER_COUNT: usize = 56;
+pub const PUBLISHER_COUNT: usize = 58;
 
 impl Publisher {
     /// Convert a Publisher to its `str` representation.
@@ -521,6 +541,8 @@ impl Publisher {
             Self::DbeqPlusFinn => "DBEQ.PLUS.FINN",
             Self::DbeqPlusFiny => "DBEQ.PLUS.FINY",
             Self::DbeqPlusFinc => "DBEQ.PLUS.FINC",
+            Self::IfeuImpactIfeu => "IFEU.IMPACT.IFEU",
+            Self::NdexImpactNdex => "NDEX.IMPACT.NDEX",
         }
     }
 
@@ -583,6 +605,8 @@ impl Publisher {
             Self::DbeqPlusFinn => Venue::Finn,
             Self::DbeqPlusFiny => Venue::Finy,
             Self::DbeqPlusFinc => Venue::Finc,
+            Self::IfeuImpactIfeu => Venue::Ifeu,
+            Self::NdexImpactNdex => Venue::Ndex,
         }
     }
 
@@ -645,6 +669,8 @@ impl Publisher {
             Self::DbeqPlusFinn => Dataset::DbeqPlus,
             Self::DbeqPlusFiny => Dataset::DbeqPlus,
             Self::DbeqPlusFinc => Dataset::DbeqPlus,
+            Self::IfeuImpactIfeu => Dataset::IfeuImpact,
+            Self::NdexImpactNdex => Dataset::NdexImpact,
         }
     }
 
@@ -709,6 +735,8 @@ impl Publisher {
             (Dataset::DbeqPlus, Venue::Finn) => Ok(Self::DbeqPlusFinn),
             (Dataset::DbeqPlus, Venue::Finy) => Ok(Self::DbeqPlusFiny),
             (Dataset::DbeqPlus, Venue::Finc) => Ok(Self::DbeqPlusFinc),
+            (Dataset::IfeuImpact, Venue::Ifeu) => Ok(Self::IfeuImpactIfeu),
+            (Dataset::NdexImpact, Venue::Ndex) => Ok(Self::NdexImpactNdex),
             _ => Err(Error::conversion::<Self>(format!("{dataset}, {venue}"))),
         }
     }
@@ -787,6 +815,8 @@ impl std::str::FromStr for Publisher {
             "DBEQ.PLUS.FINN" => Ok(Self::DbeqPlusFinn),
             "DBEQ.PLUS.FINY" => Ok(Self::DbeqPlusFiny),
             "DBEQ.PLUS.FINC" => Ok(Self::DbeqPlusFinc),
+            "IFEU.IMPACT.IFEU" => Ok(Self::IfeuImpactIfeu),
+            "NDEX.IMPACT.NDEX" => Ok(Self::NdexImpactNdex),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }

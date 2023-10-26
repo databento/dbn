@@ -3,6 +3,7 @@
 ## 0.14.0 - TBD
 ### Enhancements
 - Added `TOB` flag to denote top-of-book messages
+- Added new publisher values in preparation for IFEU.IMPACT and NDEX.IMPACT datasets
 
 ### Breaking changes
 - Renamed `symbol_map` parameter to Python Transcoder to `symbol_interval_map` to
