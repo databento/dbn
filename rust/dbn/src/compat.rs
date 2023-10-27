@@ -21,7 +21,7 @@ pub(crate) const METADATA_RESERVED_LEN_V1: usize = 47;
 
 /// Returns the length of symbol fields in the given DBN version
 pub const fn version_symbol_cstr_len(version: u8) -> usize {
-    if version == 1 {
+    if version < 2 {
         SYMBOL_CSTR_LEN_V1
     } else {
         SYMBOL_CSTR_LEN_V2

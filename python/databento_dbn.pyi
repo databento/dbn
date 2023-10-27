@@ -1188,7 +1188,7 @@ class InstrumentDefMsg(Record):
 
         """
     @property
-    def prety_high_limit_price(self) -> float:
+    def pretty_high_limit_price(self) -> float:
         """
         The allowable high limit price for the trading day as a float.
 

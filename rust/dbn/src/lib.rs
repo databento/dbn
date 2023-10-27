@@ -74,7 +74,7 @@ pub use crate::{
 
 /// The current version of the DBN encoding, which is different from the crate version.
 pub const DBN_VERSION: u8 = 2;
-/// The length of symbol fields (21 characters plus null terminator).
+/// The length of fixed-length symbol strings.
 pub const SYMBOL_CSTR_LEN: usize = compat::SYMBOL_CSTR_LEN_V2;
 
 const METADATA_DATASET_CSTR_LEN: usize = 16;
@@ -96,7 +96,7 @@ pub const UNDEF_ORDER_SIZE: u32 = u32::MAX;
 pub const UNDEF_STAT_QUANTITY: i32 = i32::MAX;
 /// The sentinel value for an unset or null timestamp.
 pub const UNDEF_TIMESTAMP: u64 = u64::MAX;
-/// The length in bytes of the longest record.
+/// The length in bytes of the largest record type.
 pub const MAX_RECORD_LEN: usize = std::mem::size_of::<InstrumentDefMsg>();
 
 /// Contains dataset code constants.

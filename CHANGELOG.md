@@ -17,13 +17,14 @@
 - Updated `rtype_dispatch` family of macros to check record length to handle both
   versions of records. This is temporary during the transition period
 - Added `VersionUpgradePolicy` enum and associated methods to the decoders to
-  allow specifying how to handle decoding records
+  allow specifying how to handle decoding records from prior DBN versions
 - Added `Metadata::upgrade()` method to update `Metadata` from a prior DBN version to
   the latest version
 - Added `-u`/`--upgrade` flags to `dbn` CLI that when passed upgrades DBN data from
   previous versions. By default data is decoded as-is
 - Added `TOB` flag to denote top-of-book messages
 - Added new publisher values in preparation for IFEU.IMPACT and NDEX.IMPACT datasets
+- Added `MAX_RECORD_LEN` constant for the length of the largest record type
 
 ### Breaking changes
 - The old `InstrumentDefMsg` is now `compat::InstrumentDefMsgV1`
@@ -38,6 +39,8 @@
 - Renamed `_dummy` in `InstrumentDefMsg` to `_reserved`
 - Removed `_reserved2`, `_reserved3`, and `_reserved5` from `InstrumentDefMsg`
 - Removed `_dummy` from `SymbolMappingMsg`
+- Moved position of `strike_price` within `InstrumentDefMsg` but left text serialization
+  order unchanged
 - Added `upgrade_policy` parameter to `RecordDecoder::with_version` constructor to
   control whether records of previous versions will be upgraded
 - Added `upgrade_policy` parameter to `DynDecoder` constructors to control whether
@@ -50,6 +53,7 @@
   `Transcoder` instead
 
 ### Bug fixes
+- Fixed typo in Python type definition for `InstrumentDefMsg.pretty_high_limit_price`
 - Fixed type signature for `Metadata.stype_in` and `Metadata.stype_out` Python methods
 
 ## 0.13.0 - 2023-10-20
