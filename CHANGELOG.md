@@ -55,6 +55,7 @@
 ### Bug fixes
 - Fixed typo in Python type definition for `InstrumentDefMsg.pretty_high_limit_price`
 - Fixed type signature for `Metadata.stype_in` and `Metadata.stype_out` Python methods
+- Fixed incorrect version in `pyproject.toml`
 
 ## 0.13.0 - 2023-10-20
 ### Enhancements

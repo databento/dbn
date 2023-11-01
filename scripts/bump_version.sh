@@ -26,3 +26,9 @@ find \
     -type f \
     -name "*.toml" \
     -exec sed -Ei "s/version\s*=\s*\"=${OLD_VERSION}\"/version = \"=${NEW_VERSION}\"/" {} \;
+# Replace Python TOML version
+find \
+    "${PROJECT_ROOT_DIR}" \
+    -type f \
+    -name "pyproject.toml" \
+    -exec sed -Ei "s/version\s*=\s*\"${OLD_VERSION}\"/version = \"=${NEW_VERSION}\"/" {} \;
