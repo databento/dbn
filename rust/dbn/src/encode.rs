@@ -11,7 +11,8 @@ use streaming_iterator::StreamingIterator;
 // Re-exports
 #[cfg(feature = "async")]
 pub use self::dbn::{
-    AsyncMetadataEncoder as AsyncDbnMetadataEncoder, AsyncRecordEncoder as AsyncDbnRecordEncoder,
+    AsyncEncoder as AsyncDbnEncoder, AsyncMetadataEncoder as AsyncDbnMetadataEncoder,
+    AsyncRecordEncoder as AsyncDbnRecordEncoder,
 };
 #[cfg(feature = "async")]
 pub use self::json::AsyncEncoder as AsyncJsonEncoder;
