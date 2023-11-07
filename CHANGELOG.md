@@ -25,6 +25,7 @@
 - Added `TOB` flag to denote top-of-book messages
 - Added new publisher values in preparation for IFEU.IMPACT and NDEX.IMPACT datasets
 - Added `MAX_RECORD_LEN` constant for the length of the largest record type
+- Exposed record flag constants in `databento_dbn` with `F_` prefix
 
 ### Breaking changes
 - The old `InstrumentDefMsg` is now `compat::InstrumentDefMsgV1`

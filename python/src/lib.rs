@@ -4,6 +4,7 @@ use pyo3::{prelude::*, wrap_pyfunction, PyClass};
 
 use dbn::{
     enums::{Compression, Encoding, SType, Schema},
+    flags,
     python::EnumIterator,
     record::{
         BidAskPair, ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
@@ -58,6 +59,12 @@ fn databento_dbn(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add("UNDEF_ORDER_SIZE", UNDEF_ORDER_SIZE)?;
     m.add("UNDEF_STAT_QUANTITY", UNDEF_STAT_QUANTITY)?;
     m.add("UNDEF_TIMESTAMP", UNDEF_TIMESTAMP)?;
+    m.add("F_LAST", flags::LAST)?;
+    m.add("F_TOB", flags::TOB)?;
+    m.add("F_SNAPSHOT", flags::SNAPSHOT)?;
+    m.add("F_MBP", flags::MBP)?;
+    m.add("F_BAD_TS_RECV", flags::BAD_TS_RECV)?;
+    m.add("F_MAYBE_BAD_BOOK", flags::MAYBE_BAD_BOOK)?;
     Ok(())
 }
 
