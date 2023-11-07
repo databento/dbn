@@ -499,13 +499,17 @@ where
         pos: &mut usize,
     ) -> crate::Result<Vec<String>> {
         if *pos + Self::U32_SIZE > buffer.len() {
-            return Err(crate::Error::decode("Unexpected end of metadata buffer"));
+            return Err(crate::Error::decode(
+                "Unexpected end of metadata buffer in symbol cstr",
+            ));
         }
         let count = u32::from_le_slice(&buffer[*pos..]) as usize;
         *pos += Self::U32_SIZE;
-        let read_size = count * crate::SYMBOL_CSTR_LEN;
+        let read_size = count * symbol_cstr_len;
         if *pos + read_size > buffer.len() {
-            return Err(crate::Error::decode("Unexpected end of metadata buffer"));
+            return Err(crate::Error::decode(
+                "Unexpected end of metadata buffer in symbol cstr",
+            ));
         }
         let mut res = Vec::with_capacity(count);
         for i in 0..count {
@@ -524,7 +528,9 @@ where
         pos: &mut usize,
     ) -> crate::Result<Vec<SymbolMapping>> {
         if *pos + Self::U32_SIZE > buffer.len() {
-            return Err(crate::Error::decode("Unexpected end of metadata buffer"));
+            return Err(crate::Error::decode(
+                "Unexpected end of metadata buffer in symbol mapping",
+            ));
         }
         let count = u32::from_le_slice(&buffer[*pos..]) as usize;
         *pos += Self::U32_SIZE;
