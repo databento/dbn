@@ -221,6 +221,11 @@ pub mod rtype {
     /// A type of record, i.e. a struct implementing [`HasRType`](crate::record::HasRType).
     #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
     #[repr(u8)]
+    #[cfg_attr(
+        feature = "python",
+        pyo3::pyclass(module = "databento_dbn", rename_all = "SCREAMING_SNAKE_CASE")
+    )]
+    #[cfg_attr(feature = "python", derive(strum::EnumIter))]
     pub enum RType {
         /// Denotes a market-by-price record with a book depth of 0 (used for the
         /// [`Trades`](super::Schema::Trades) schema).
@@ -350,6 +355,58 @@ pub mod rtype {
             STATISTICS => Some(Schema::Statistics),
             MBO => Some(Schema::Mbo),
             _ => None,
+        }
+    }
+
+    impl std::str::FromStr for RType {
+        type Err = crate::Error;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            match s {
+                "mbp-0" => Ok(RType::Mbp0),
+                "mbp-1" => Ok(RType::Mbp1),
+                "mbp-10" => Ok(RType::Mbp10),
+                "ohlcv-deprecated" => Ok(RType::OhlcvDeprecated),
+                "ohlcv-1s" => Ok(RType::Ohlcv1S),
+                "ohlcv-1m" => Ok(RType::Ohlcv1M),
+                "ohlcv-1h" => Ok(RType::Ohlcv1H),
+                "ohlcv-1d" => Ok(RType::Ohlcv1D),
+                "ohlcv-eod" => Ok(RType::OhlcvEod),
+                "status" => Ok(RType::Status),
+                "instrument-def" => Ok(RType::InstrumentDef),
+                "imbalance" => Ok(RType::Imbalance),
+                "error" => Ok(RType::Error),
+                "symbol-mapping" => Ok(RType::SymbolMapping),
+                "system" => Ok(RType::System),
+                "statistics" => Ok(RType::Statistics),
+                "mbo" => Ok(RType::Mbo),
+                _ => Err(crate::Error::conversion::<Self>(s.to_owned())),
+            }
+        }
+    }
+
+    impl RType {
+        /// Convert the RType type to its `str` representation.
+        pub const fn as_str(&self) -> &'static str {
+            match self {
+                RType::Mbp0 => "mbp-0",
+                RType::Mbp1 => "mbp-1",
+                RType::Mbp10 => "mbp-10",
+                RType::OhlcvDeprecated => "ohlcv-deprecated",
+                RType::Ohlcv1S => "ohlcv-1s",
+                RType::Ohlcv1M => "ohlcv-1m",
+                RType::Ohlcv1H => "ohlcv-1h",
+                RType::Ohlcv1D => "ohlcv-1d",
+                RType::OhlcvEod => "ohlcv-eod",
+                RType::Status => "status",
+                RType::InstrumentDef => "instrument-def",
+                RType::Imbalance => "imbalance",
+                RType::Error => "error",
+                RType::SymbolMapping => "symbol-mapping",
+                RType::System => "system",
+                RType::Statistics => "statistics",
+                RType::Mbo => "mbo",
+            }
         }
     }
 }

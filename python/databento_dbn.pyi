@@ -14,7 +14,6 @@ UNDEF_ORDER_SIZE: int
 UNDEF_STAT_QUANTITY: int
 UNDEF_TIMESTAMP: int
 
-
 _DBNRecord = Union[
     Metadata,
     MBOMsg,
@@ -153,6 +152,57 @@ class SType(Enum):
     def from_str(cls, str) -> SType: ...
     @classmethod
     def variants(cls) -> Iterable[SType]: ...
+
+class RType(Enum):
+    """
+    A DBN record type.
+
+    MBP0
+        Denotes a market-by-price record with a book depth of 0 (used for the `Trades` schema).
+    MBP1
+        Denotes a market-by-price record with a book depth of 1 (also used for the
+        `Tbbo` schema).
+    MBP10
+        Denotes a market-by-price record with a book depth of 10.
+    OHLCV_DEPRECATED
+        Denotes an open, high, low, close, and volume record at an unspecified cadence.
+    OHLCV_1S
+        Denotes an open, high, low, close, and volume record at a 1-second cadence.
+    OHLCV_1M
+        Denotes an open, high, low, close, and volume record at a 1-minute cadence.
+    OHLCV_1H
+        Denotes an open, high, low, close, and volume record at an hourly cadence.
+    OHLCV_1D
+        Denotes an open, high, low, close, and volume record at a daily cadence
+        based on the UTC date.
+    OHLCV_EOD
+        Denotes an open, high, low, close, and volume record at a daily cadence
+        based on the end of the trading session.
+    STATUS
+        Denotes an exchange status record.
+    INSTRUMENT_DEF
+        Denotes an instrument definition record.
+    IMBALANCE
+        Denotes an order imbalance record.
+    ERROR
+        Denotes an error from gateway.
+    SYMBOL_MAPPING
+        Denotes a symbol mapping record.
+    SYSTEM
+        Denotes a non-error message from the gateway. Also used for heartbeats.
+    STATISTICS
+        Denotes a statistics record from the publisher (not calculated by Databento).
+    MBO
+        Denotes a market by order record.
+
+    """  # noqa: D405 D407 D411
+
+    @classmethod
+    def from_int(cls, int) -> RType: ...
+    @classmethod
+    def from_str(cls, str) -> RType: ...
+    @classmethod
+    def variants(cls) -> Iterable[RType]: ...
 
 class VersionUpgradePolicy(Enum):
     """
@@ -324,7 +374,9 @@ class Metadata(SupportsBytes):
 
         """
     @classmethod
-    def decode(cls, data: bytes, upgrade_policy: VersionUpgradePolicy | None = None) -> Metadata:
+    def decode(
+        cls, data: bytes, upgrade_policy: VersionUpgradePolicy | None = None
+    ) -> Metadata:
         """
         Decode the given Python `bytes` to `Metadata`. Returns a `Metadata`
         object with all the DBN metadata attributes.
@@ -2460,11 +2512,13 @@ class DBNDecoder:
         How to decode data from prior DBN versions. Defaults to decoding as-is.
     """
 
-    def __init__(self, has_metadata: bool = True, ts_out: bool = False,
+    def __init__(
+        self,
+        has_metadata: bool = True,
+        ts_out: bool = False,
         input_version: int = 2,
         upgrade_policy: VersionUpgradePolicy | None = None,
-                 ): ...
-
+    ): ...
     def buffer(self) -> bytes:
         """
         Return the internal buffer of the decoder.
@@ -2564,7 +2618,8 @@ class Transcoder:
         map_symbols: bool = True,
         has_metadata: bool = True,
         ts_out: bool = False,
-        symbol_interval_map: dict[int, list[tuple[datetime.date, datetime.date, str]]] | None = None,
+        symbol_interval_map: dict[int, list[tuple[datetime.date, datetime.date, str]]]
+        | None = None,
         schema: Schema | None = None,
         input_version: int = 2,
         upgrade_policy: VersionUpgradePolicy | None = None,
@@ -2600,7 +2655,6 @@ class Transcoder:
         ValueError
             When the write to the output fails.
         """
-
 
 def update_encoded_metadata(
     file: BinaryIO,
