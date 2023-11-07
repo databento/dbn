@@ -88,10 +88,12 @@ pub enum Venue {
     Ifeu = 38,
     /// ICE Endex
     Ndex = 39,
+    /// Databento Equities - Consolidated
+    Dbeq = 40,
 }
 
 /// The number of Venue variants.
-pub const VENUE_COUNT: usize = 39;
+pub const VENUE_COUNT: usize = 40;
 
 impl Venue {
     /// Convert a Venue to its `str` representation.
@@ -136,6 +138,7 @@ impl Venue {
             Self::Mxop => "MXOP",
             Self::Ifeu => "IFEU",
             Self::Ndex => "NDEX",
+            Self::Dbeq => "DBEQ",
         }
     }
 }
@@ -196,6 +199,7 @@ impl std::str::FromStr for Venue {
             "MXOP" => Ok(Self::Mxop),
             "IFEU" => Ok(Self::Ifeu),
             "NDEX" => Ok(Self::Ndex),
+            "DBEQ" => Ok(Self::Dbeq),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
@@ -476,10 +480,14 @@ pub enum Publisher {
     IfeuImpactIfeu = 57,
     /// ICE Endex
     NdexImpactNdex = 58,
+    /// DBEQ Basic - Consolidated
+    DbeqBasicDbeq = 59,
+    /// DBEQ Plus - Consolidated
+    DbeqPlusDbeq = 60,
 }
 
 /// The number of Publisher variants.
-pub const PUBLISHER_COUNT: usize = 58;
+pub const PUBLISHER_COUNT: usize = 60;
 
 impl Publisher {
     /// Convert a Publisher to its `str` representation.
@@ -543,6 +551,8 @@ impl Publisher {
             Self::DbeqPlusFinc => "DBEQ.PLUS.FINC",
             Self::IfeuImpactIfeu => "IFEU.IMPACT.IFEU",
             Self::NdexImpactNdex => "NDEX.IMPACT.NDEX",
+            Self::DbeqBasicDbeq => "DBEQ.BASIC.DBEQ",
+            Self::DbeqPlusDbeq => "DBEQ.PLUS.DBEQ",
         }
     }
 
@@ -607,6 +617,8 @@ impl Publisher {
             Self::DbeqPlusFinc => Venue::Finc,
             Self::IfeuImpactIfeu => Venue::Ifeu,
             Self::NdexImpactNdex => Venue::Ndex,
+            Self::DbeqBasicDbeq => Venue::Dbeq,
+            Self::DbeqPlusDbeq => Venue::Dbeq,
         }
     }
 
@@ -671,6 +683,8 @@ impl Publisher {
             Self::DbeqPlusFinc => Dataset::DbeqPlus,
             Self::IfeuImpactIfeu => Dataset::IfeuImpact,
             Self::NdexImpactNdex => Dataset::NdexImpact,
+            Self::DbeqBasicDbeq => Dataset::DbeqBasic,
+            Self::DbeqPlusDbeq => Dataset::DbeqPlus,
         }
     }
 
@@ -737,6 +751,8 @@ impl Publisher {
             (Dataset::DbeqPlus, Venue::Finc) => Ok(Self::DbeqPlusFinc),
             (Dataset::IfeuImpact, Venue::Ifeu) => Ok(Self::IfeuImpactIfeu),
             (Dataset::NdexImpact, Venue::Ndex) => Ok(Self::NdexImpactNdex),
+            (Dataset::DbeqBasic, Venue::Dbeq) => Ok(Self::DbeqBasicDbeq),
+            (Dataset::DbeqPlus, Venue::Dbeq) => Ok(Self::DbeqPlusDbeq),
             _ => Err(Error::conversion::<Self>(format!("{dataset}, {venue}"))),
         }
     }
@@ -817,6 +833,8 @@ impl std::str::FromStr for Publisher {
             "DBEQ.PLUS.FINC" => Ok(Self::DbeqPlusFinc),
             "IFEU.IMPACT.IFEU" => Ok(Self::IfeuImpactIfeu),
             "NDEX.IMPACT.NDEX" => Ok(Self::NdexImpactNdex),
+            "DBEQ.BASIC.DBEQ" => Ok(Self::DbeqBasicDbeq),
+            "DBEQ.PLUS.DBEQ" => Ok(Self::DbeqPlusDbeq),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }

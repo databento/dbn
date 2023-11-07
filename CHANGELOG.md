@@ -24,6 +24,7 @@
   previous versions. By default data is decoded as-is
 - Added `TOB` flag to denote top-of-book messages
 - Added new publisher values in preparation for IFEU.IMPACT and NDEX.IMPACT datasets
+- Added new publisher values for consolidated DBEQ.BASIC and DBEQ.PLUS
 - Added `MAX_RECORD_LEN` constant for the length of the largest record type
 - Exposed record flag constants in `databento_dbn` with `F_` prefix
 - Added export to Python for `RType`
