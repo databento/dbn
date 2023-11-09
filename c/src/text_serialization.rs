@@ -254,8 +254,10 @@ mod tests {
 
     #[test]
     fn test_serialize_def_v1() {
-        let mut def_v1 = InstrumentDefMsgV1::default();
-        def_v1.raw_symbol = [b'a' as c_char; dbn::compat::SYMBOL_CSTR_LEN_V1];
+        let mut def_v1 = InstrumentDefMsgV1 {
+            raw_symbol: [b'a' as c_char; dbn::compat::SYMBOL_CSTR_LEN_V1],
+            ..Default::default()
+        };
         def_v1.raw_symbol[dbn::compat::SYMBOL_CSTR_LEN_V1 - 1] = 0;
         let mut buf = [0; 5000];
         assert!(
@@ -282,8 +284,10 @@ mod tests {
 
     #[test]
     fn test_serialize_def_v2() {
-        let mut def_v2 = InstrumentDefMsg::default();
-        def_v2.raw_symbol = [b'a' as c_char; dbn::compat::SYMBOL_CSTR_LEN_V2];
+        let mut def_v2 = InstrumentDefMsg {
+            raw_symbol: [b'a' as c_char; dbn::compat::SYMBOL_CSTR_LEN_V2],
+            ..Default::default()
+        };
         def_v2.raw_symbol[dbn::compat::SYMBOL_CSTR_LEN_V2 - 1] = 0;
         let mut buf = [0; 5000];
         assert!(

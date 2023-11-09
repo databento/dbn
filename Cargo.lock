@@ -288,6 +288,7 @@ dependencies = [
  "async-compression",
  "csv",
  "dbn-macros",
+ "itoa",
  "json-writer",
  "num_enum",
  "pyo3",

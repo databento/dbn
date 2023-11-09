@@ -378,7 +378,7 @@ fn fragment_conflicts_with_metadata(#[case] flag: &str, #[case] extension: &str)
         ])
         .assert()
         .failure()
-        .stderr(contains(&format!(
+        .stderr(contains(format!(
             "'{flag}' cannot be used with '--metadata'"
         )));
 }
@@ -395,7 +395,7 @@ fn fragment_conflicts_with_dbn_output(#[case] flag: &str, #[case] extension: &st
         ])
         .assert()
         .failure()
-        .stderr(contains(&format!("'{flag}' cannot be used with '--dbn'")));
+        .stderr(contains(format!("'{flag}' cannot be used with '--dbn'")));
 }
 
 #[rstest]
@@ -428,7 +428,7 @@ fn upgraded_definitions_data_is_same_but_larger() {
     let upgraded_dbn_output = format!("{}/a.dbn", output_dir.path().to_str().unwrap());
     let input_path = format!("{TEST_DATA_PATH}/test_data.definition.v1.dbn");
     cmd()
-        .args(&[&input_path, "--csv", "--output", &orig_csv])
+        .args([&input_path, "--csv", "--output", &orig_csv])
         .assert()
         .success()
         .stderr(is_empty())
@@ -442,7 +442,7 @@ fn upgraded_definitions_data_is_same_but_larger() {
         .stderr(is_empty())
         .stdout(is_empty());
     cmd()
-        .args(&[&upgraded_dbn_output, "--csv"])
+        .args([&upgraded_dbn_output, "--csv"])
         .assert()
         .success()
         .stderr(is_empty())
@@ -471,7 +471,7 @@ fn write_fragment(
     let frag_output = format!("{}/a.{extension}", output_dir.path().to_str().unwrap());
     let input_path = format!("{TEST_DATA_PATH}/test_data.{schema}.dbn");
     cmd()
-        .args(&[&input_path, "--csv", "--output", &orig_csv])
+        .args([&input_path, "--csv", "--output", &orig_csv])
         .assert()
         .success()
         .stderr(is_empty())
@@ -488,7 +488,7 @@ fn write_fragment(
         .stderr(is_empty())
         .stdout(is_empty());
     cmd()
-        .args(&[&frag_output, input_flag, "--csv"])
+        .args([&frag_output, input_flag, "--csv"])
         .assert()
         .success()
         .stderr(is_empty())

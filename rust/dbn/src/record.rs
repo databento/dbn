@@ -1019,15 +1019,19 @@ mod tests {
 
     #[test]
     fn test_mbo_index_ts() {
-        let mut rec = MboMsg::default();
-        rec.ts_recv = 1;
+        let rec = MboMsg {
+            ts_recv: 1,
+            ..Default::default()
+        };
         assert_eq!(rec.raw_index_ts(), 1);
     }
 
     #[test]
     fn test_def_index_ts() {
-        let mut rec = InstrumentDefMsg::default();
-        rec.ts_recv = 1;
+        let rec = InstrumentDefMsg {
+            ts_recv: 1,
+            ..Default::default()
+        };
         assert_eq!(rec.raw_index_ts(), 1);
     }
 

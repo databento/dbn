@@ -704,7 +704,7 @@ mod tests {
         encoder.encode_record(&rec2).unwrap();
         assert!(transcoder.buffer().is_empty());
         // Write first record and part of second
-        transcoder.write(&encoder.get_ref()).unwrap();
+        transcoder.write(encoder.get_ref()).unwrap();
         transcoder.flush().unwrap();
         let output = output_buf.lock().unwrap();
         let output = std::str::from_utf8(output.get_ref().as_slice()).unwrap();
@@ -833,7 +833,7 @@ mod tests {
         encoder.encode_record(&rec2).unwrap();
         assert!(transcoder.buffer().is_empty());
         // Write first record and part of second
-        transcoder.write(&encoder.get_ref()).unwrap();
+        transcoder.write(encoder.get_ref()).unwrap();
         transcoder.flush().unwrap();
         let output = output_buf.lock().unwrap();
         let output = std::str::from_utf8(output.get_ref().as_slice()).unwrap();
@@ -900,8 +900,8 @@ mod tests {
             assert_eq!(lines.len(), 3);
             assert!(lines[0].ends_with(",symbol"));
             // ensure ends with a symbol not an empty cell
-            assert!(!lines[1].ends_with(","));
-            assert!(!lines[2].ends_with(","));
+            assert!(!lines[1].ends_with(','));
+            assert!(!lines[2].ends_with(','));
         }
     }
 }
