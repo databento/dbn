@@ -54,6 +54,8 @@ pub mod record;
 mod record_enum;
 pub mod record_ref;
 pub mod symbol_map;
+#[cfg(test)]
+mod test_utils;
 pub mod v1;
 pub mod v2;
 pub mod v3;

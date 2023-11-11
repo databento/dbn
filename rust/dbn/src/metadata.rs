@@ -1,11 +1,16 @@
 //! Contains [`Metadata`] struct which comes at the beginning of any DBN file or
 //! stream and [`MetadataBuilder`] for creating a [`Metadata`] with defaults.
+
+mod merge;
+
 use std::num::NonZeroU64;
 
 // Dummy derive macro to get around `cfg_attr` incompatibility of several
 // of pyo3's attribute macros. See https://github.com/PyO3/pyo3/issues/780
 #[cfg(not(feature = "python"))]
-pub use dbn_macros::MockPyo3;
+use dbn_macros::MockPyo3;
+
+use merge::MetadataMerger;
 #[cfg(feature = "serde")]
 use serde::Deserialize;
 
@@ -143,6 +148,32 @@ impl Metadata {
                 }
             }
         }
+    }
+
+    /// Attempts to merge another metadata into this one. This is useful for merging
+    /// DBN streams.
+    ///
+    /// If merging data from multiple schemas, the resulting metadata will have a schema
+    /// of `None`.
+    ///
+    /// # Errors
+    /// Merging metadata where any of the following fields don't match will result in
+    /// an error:
+    /// - `version`: upgrade the metadata of the lower version before merging
+    /// - `dataset`
+    /// - `stype_in`
+    /// - `stype_out`
+    /// - `ts_out`
+    /// - `symbol_cstr_len`: upgrade the metadata of the lower version before merging
+    ///
+    /// This function will also return an error if there are conflicting symbology
+    /// mappings.
+    pub fn merge(self, other: impl IntoIterator<Item = Metadata>) -> crate::Result<Self> {
+        let mut merger = MetadataMerger::new(self);
+        for metadata in other {
+            merger.merge(metadata)?;
+        }
+        Ok(merger.finalize())
     }
 }
 

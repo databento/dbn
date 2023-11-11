@@ -14,6 +14,13 @@
   functions to the C API
 - Updated the value of the `MAX_RECORD_LEN` constant for the changes to
   `InstrumentDefMsg` in version 3
+- Added initial support for merging DBN:
+  - Decoding streams: `MergeDecoder` and `MergeRecordDecoder` structs
+  - Metadata: `MergeDecoder` struct and `Metadata::merge()` method
+  - In the CLI: specify more than one input file to initiate a merge
+- Relaxed `DecodeRecord` trait constraint on `StreamIterDecoder`'s inner decoder
+- Added `DbnMetadata` implementation for `StreamInnerDecoder` if the inner decoder
+  implements `DbnMetadata`
 
 ## 0.25.0 - 2024-12-17
 

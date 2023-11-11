@@ -207,7 +207,7 @@ mod tests {
     use super::*;
     use crate::{
         compat::SYMBOL_CSTR_LEN_V1,
-        encode::test_data::{VecStream, BID_ASK, RECORD_HEADER},
+        encode::test_data::{BID_ASK, RECORD_HEADER},
         enums::{
             rtype, InstrumentClass, SType, Schema, SecurityUpdateAction, StatType,
             StatUpdateAction, UserDefinedInstrument,
@@ -216,6 +216,7 @@ mod tests {
             str_to_c_chars, ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg,
             OhlcvMsg, RecordHeader, StatMsg, StatusMsg, TradeMsg, WithTsOut,
         },
+        test_utils::VecStream,
         Dataset, MappingInterval, RecordRef, SymbolMapping, FIXED_PRICE_SCALE,
     };
 

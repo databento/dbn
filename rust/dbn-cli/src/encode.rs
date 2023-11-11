@@ -22,7 +22,7 @@ pub fn silence_broken_pipe(err: anyhow::Error) -> anyhow::Result<()> {
     Err(err)
 }
 
-pub fn encode_from_dbn<D>(mut decoder: D, args: &Args) -> anyhow::Result<()>
+pub fn encode_from_dbn<D>(args: &Args, mut decoder: D) -> anyhow::Result<()>
 where
     D: DecodeRecordRef + DbnMetadata,
 {
@@ -67,7 +67,7 @@ where
     Ok(())
 }
 
-pub fn encode_from_frag<D>(mut decoder: D, args: &Args) -> anyhow::Result<()>
+pub fn encode_from_frag<D>(args: &Args, mut decoder: D) -> anyhow::Result<()>
 where
     D: DecodeRecordRef,
 {

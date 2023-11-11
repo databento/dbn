@@ -6,10 +6,8 @@ use std::{
 
 use crate::{
     encode::{zstd_encoder, DbnEncodable, EncodeDbn, EncodeRecord, EncodeRecordRef},
-    enums::Schema,
-    record_ref::RecordRef,
-    Error, Metadata, Result, SymbolMapping, DBN_VERSION, NULL_LIMIT, NULL_RECORD_COUNT,
-    NULL_SCHEMA, NULL_STYPE, UNDEF_TIMESTAMP,
+    Error, Metadata, RecordRef, Result, Schema, SymbolMapping, DBN_VERSION, NULL_LIMIT,
+    NULL_RECORD_COUNT, NULL_SCHEMA, NULL_STYPE, UNDEF_TIMESTAMP,
 };
 
 /// Type for encoding files and streams in Databento Binary Encoding (DBN).

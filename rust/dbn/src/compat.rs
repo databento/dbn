@@ -93,6 +93,24 @@ pub unsafe fn decode_record_ref<'a>(
     RecordRef::new(input)
 }
 
+pub(crate) unsafe fn choose_record_ref<'a>(
+    version: u8,
+    upgrade_policy: VersionUpgradePolicy,
+    buffer: &'a [u8],
+    compat_buffer: &'a [u8],
+) -> RecordRef<'a> {
+    if version == 1 && upgrade_policy == VersionUpgradePolicy::UpgradeToV2 {
+        let header = transmute_header_bytes(buffer).unwrap();
+        match header.rtype {
+            rtype::INSTRUMENT_DEF | rtype::SYMBOL_MAPPING | rtype::ERROR | rtype::SYSTEM => {
+                return RecordRef::new(compat_buffer);
+            }
+            _ => (),
+        }
+    }
+    RecordRef::new(buffer)
+}
+
 unsafe fn upgrade_record<'a, T, U>(
     ts_out: bool,
     compat_buffer: &'a mut [u8; crate::MAX_RECORD_LEN],
