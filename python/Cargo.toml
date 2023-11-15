@@ -1,7 +1,7 @@
 [package]
 name = "databento-dbn"
 authors = ["Databento <support@databento.com>"]
-version = "0.13.0"
+version = "0.14.0"
 edition = "2021"
 description = "Python library written in Rust for working with Databento Binary Encoding (DBN)"
 license = "Apache-2.0"

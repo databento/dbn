@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.14.0 - TBD
+## 0.14.0 - 2023-11-15
 ### Enhancements
 - This version begins the transition to DBN version 2 (DBNv2). In this version, the
   decoders support decoding both versions of DBN and the DBN encoders default to
