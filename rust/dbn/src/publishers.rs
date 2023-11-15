@@ -753,7 +753,7 @@ impl Publisher {
             (Dataset::NdexImpact, Venue::Ndex) => Ok(Self::NdexImpactNdex),
             (Dataset::DbeqBasic, Venue::Dbeq) => Ok(Self::DbeqBasicDbeq),
             (Dataset::DbeqPlus, Venue::Dbeq) => Ok(Self::DbeqPlusDbeq),
-            _ => Err(Error::conversion::<Self>(format!("{dataset}, {venue}"))),
+            _ => Err(Error::conversion::<Self>(format!("({dataset}, {venue})"))),
         }
     }
 }

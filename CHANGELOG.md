@@ -27,6 +27,7 @@
   cancellation safe. This makes them safe to use within a
   `tokio::select!`(https://docs.rs/tokio/latest/tokio/macro.select.html) statement
 - Added documention around cancellation safety for async APIs
+- Improved error messages for conversion errors
 - Added `TOB` flag to denote top-of-book messages
 - Added new publisher values in preparation for IFEU.IMPACT and NDEX.IMPACT datasets
 - Added new publisher values for consolidated DBEQ.BASIC and DBEQ.PLUS
@@ -49,6 +50,8 @@
 - Removed `_dummy` from `SymbolMappingMsg`
 - Moved position of `strike_price` within `InstrumentDefMsg` but left text serialization
   order unchanged
+- Made `Error` non-exhaustive, meaning it can no longer be exhaustively matched against.
+  This allows adding additional error variants in the future without a breaking change
 - Added `upgrade_policy` parameter to `RecordDecoder::with_version` constructor to
   control whether records of previous versions will be upgraded
 - Added `upgrade_policy` parameter to `DynDecoder` constructors to control whether

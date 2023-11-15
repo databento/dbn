@@ -304,7 +304,7 @@ where
                 .get::<T>()
                 .ok_or_else(|| {
                     crate::Error::conversion::<T>(format!(
-                        "record with rtype {}",
+                        "record with rtype {:#04X}",
                         rec_ref.header().rtype
                     ))
                 })

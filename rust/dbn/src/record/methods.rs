@@ -38,7 +38,7 @@ impl RecordHeader {
     /// contain a valid, known [`RType`].
     pub fn rtype(&self) -> crate::Result<RType> {
         RType::try_from(self.rtype)
-            .map_err(|_| Error::conversion::<RType>(format!("{:#02X}", self.rtype)))
+            .map_err(|_| Error::conversion::<RType>(format!("{:#04X}", self.rtype)))
     }
 
     /// Tries to convert the raw `publisher_id` into an enum which is useful for
@@ -49,7 +49,7 @@ impl RecordHeader {
     /// any known [`Publisher`].
     pub fn publisher(&self) -> crate::Result<Publisher> {
         Publisher::try_from(self.publisher_id)
-            .map_err(|_| Error::conversion::<Publisher>(format!("{}", self.publisher_id)))
+            .map_err(|_| Error::conversion::<Publisher>(self.publisher_id))
     }
 
     /// Parses the raw matching-engine-received timestamp into a datetime. Returns
@@ -72,7 +72,7 @@ impl MboMsg {
     /// contain a valid [`Side`].
     pub fn side(&self) -> crate::Result<Side> {
         Side::try_from(self.side as u8)
-            .map_err(|_| Error::conversion::<Side>(format!("{:#02X}", self.side as u8)))
+            .map_err(|_| Error::conversion::<Side>(format!("{:#04X}", self.side as u8)))
     }
 
     /// Tries to convert the raw event action to an enum.
@@ -82,7 +82,7 @@ impl MboMsg {
     /// contain a valid [`Action`].
     pub fn action(&self) -> crate::Result<Action> {
         Action::try_from(self.action as u8)
-            .map_err(|_| Error::conversion::<Action>(format!("{:#02X}", self.action as u8)))
+            .map_err(|_| Error::conversion::<Action>(format!("{:#04X}", self.action as u8)))
     }
 
     /// Parses the raw capture-server-received timestamp into a datetime. Returns `None`
@@ -105,7 +105,7 @@ impl TradeMsg {
     /// contain a valid [`Side`].
     pub fn side(&self) -> crate::Result<Side> {
         Side::try_from(self.side as u8)
-            .map_err(|_| Error::conversion::<Side>(format!("{:#02X}", self.side as u8)))
+            .map_err(|_| Error::conversion::<Side>(format!("{:#04X}", self.side as u8)))
     }
 
     /// Tries to convert the raw event action to an enum.
@@ -115,7 +115,7 @@ impl TradeMsg {
     /// contain a valid [`Action`].
     pub fn action(&self) -> crate::Result<Action> {
         Action::try_from(self.action as u8)
-            .map_err(|_| Error::conversion::<Action>(format!("{:#02X}", self.action as u8)))
+            .map_err(|_| Error::conversion::<Action>(format!("{:#04X}", self.action as u8)))
     }
 
     /// Parses the raw capture-server-received timestamp into a datetime. Returns `None`
@@ -138,7 +138,7 @@ impl Mbp1Msg {
     /// contain a valid [`Side`].
     pub fn side(&self) -> crate::Result<Side> {
         Side::try_from(self.side as u8)
-            .map_err(|_| Error::conversion::<Side>(format!("{:#02X}", self.side as u8)))
+            .map_err(|_| Error::conversion::<Side>(format!("{:#04X}", self.side as u8)))
     }
 
     /// Tries to convert the raw event action to an enum.
@@ -148,7 +148,7 @@ impl Mbp1Msg {
     /// contain a valid [`Action`].
     pub fn action(&self) -> crate::Result<Action> {
         Action::try_from(self.action as u8)
-            .map_err(|_| Error::conversion::<Action>(format!("{:#02X}", self.action as u8)))
+            .map_err(|_| Error::conversion::<Action>(format!("{:#04X}", self.action as u8)))
     }
 
     /// Parses the raw capture-server-received timestamp into a datetime. Returns `None`
@@ -171,7 +171,7 @@ impl Mbp10Msg {
     /// contain a valid [`Side`].
     pub fn side(&self) -> Result<Side> {
         Side::try_from(self.side as u8)
-            .map_err(|_| Error::conversion::<Side>(format!("{:#02X}", self.side as u8)))
+            .map_err(|_| Error::conversion::<Side>(format!("{:#04X}", self.side as u8)))
     }
 
     /// Tries to convert the raw event action to an enum.
@@ -181,7 +181,7 @@ impl Mbp10Msg {
     /// contain a valid [`Action`].
     pub fn action(&self) -> Result<Action> {
         Action::try_from(self.action as u8)
-            .map_err(|_| Error::conversion::<Action>(format!("{:#02X}", self.action as u8)))
+            .map_err(|_| Error::conversion::<Action>(format!("{:#04X}", self.action as u8)))
     }
 
     /// Parses the raw capture-server-received timestamp into a datetime. Returns `None`
@@ -330,7 +330,7 @@ impl InstrumentDefMsg {
     /// contain a valid [`InstrumentClass`].
     pub fn instrument_class(&self) -> Result<InstrumentClass> {
         InstrumentClass::try_from(self.instrument_class as u8).map_err(|_| {
-            Error::conversion::<InstrumentClass>(format!("{:#02X}", self.instrument_class as u8))
+            Error::conversion::<InstrumentClass>(format!("{:#04X}", self.instrument_class as u8))
         })
     }
 
@@ -341,7 +341,7 @@ impl InstrumentDefMsg {
     /// contain a valid [`MatchAlgorithm`].
     pub fn match_algorithm(&self) -> Result<MatchAlgorithm> {
         MatchAlgorithm::try_from(self.match_algorithm as u8).map_err(|_| {
-            Error::conversion::<MatchAlgorithm>(format!("{:#02X}", self.match_algorithm as u8))
+            Error::conversion::<MatchAlgorithm>(format!("{:#04X}", self.match_algorithm as u8))
         })
     }
 
@@ -354,7 +354,7 @@ impl InstrumentDefMsg {
     pub fn security_update_action(&self) -> Result<SecurityUpdateAction> {
         SecurityUpdateAction::try_from(self.security_update_action as u8).map_err(|_| {
             Error::conversion::<SecurityUpdateAction>(format!(
-                "{:#02X}",
+                "{:#04X}",
                 self.security_update_action as u8
             ))
         })
@@ -485,7 +485,7 @@ impl InstrumentDefMsgV1 {
     /// contain a valid [`InstrumentClass`].
     pub fn instrument_class(&self) -> Result<InstrumentClass> {
         InstrumentClass::try_from(self.instrument_class as u8).map_err(|_| {
-            Error::conversion::<InstrumentClass>(format!("{:#02X}", self.instrument_class as u8))
+            Error::conversion::<InstrumentClass>(format!("{:#04X}", self.instrument_class as u8))
         })
     }
 
@@ -496,7 +496,7 @@ impl InstrumentDefMsgV1 {
     /// contain a valid [`MatchAlgorithm`].
     pub fn match_algorithm(&self) -> Result<MatchAlgorithm> {
         MatchAlgorithm::try_from(self.match_algorithm as u8).map_err(|_| {
-            Error::conversion::<MatchAlgorithm>(format!("{:#02X}", self.match_algorithm as u8))
+            Error::conversion::<MatchAlgorithm>(format!("{:#04X}", self.match_algorithm as u8))
         })
     }
 }
@@ -529,7 +529,7 @@ impl StatMsg {
     /// contain a valid [`StatType`].
     pub fn stat_type(&self) -> Result<StatType> {
         StatType::try_from(self.stat_type)
-            .map_err(|_| Error::conversion::<StatType>(format!("{:02X}", self.stat_type)))
+            .map_err(|_| Error::conversion::<StatType>(self.stat_type))
     }
 
     /// Tries to convert the raw `update_action` to an enum.
@@ -539,7 +539,7 @@ impl StatMsg {
     /// contain a valid [`StatUpdateAction`].
     pub fn update_action(&self) -> Result<StatUpdateAction> {
         StatUpdateAction::try_from(self.update_action).map_err(|_| {
-            Error::conversion::<StatUpdateAction>(format!("{:02X}", self.update_action))
+            Error::conversion::<StatUpdateAction>(format!("{:04X}", self.update_action))
         })
     }
 }
@@ -604,8 +604,7 @@ impl SymbolMappingMsg {
     /// # Errors
     /// This function returns an error if `stype_in` does not contain a valid [`SType`].
     pub fn stype_in(&self) -> Result<SType> {
-        SType::try_from(self.stype_in)
-            .map_err(|_| Error::conversion::<SType>(format!("{:02X}", self.stype_in)))
+        SType::try_from(self.stype_in).map_err(|_| Error::conversion::<SType>(self.stype_in))
     }
 
     /// Returns the input symbol as a `&str`.
@@ -621,8 +620,7 @@ impl SymbolMappingMsg {
     /// # Errors
     /// This function returns an error if `stype_out` does not contain a valid [`SType`].
     pub fn stype_out(&self) -> Result<SType> {
-        SType::try_from(self.stype_out)
-            .map_err(|_| Error::conversion::<SType>(format!("{:02X}", self.stype_out)))
+        SType::try_from(self.stype_out).map_err(|_| Error::conversion::<SType>(self.stype_out))
     }
 
     /// Returns the output symbol as a `&str`.
@@ -783,5 +781,19 @@ impl<T: HasRType> WithTsOut<T> {
     pub fn ts_out(&self) -> time::OffsetDateTime {
         // u64::MAX is within maximum allowable range
         time::OffsetDateTime::from_unix_timestamp_nanos(self.ts_out as i128).unwrap()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn invalid_rtype_error() {
+        let header = RecordHeader::new::<MboMsg>(0xE, 1, 2, 3);
+        assert_eq!(
+            header.rtype().unwrap_err().to_string(),
+            "couldn't convert 0x0E to dbn::enums::rtype::RType"
+        );
     }
 }

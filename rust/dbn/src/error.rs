@@ -3,6 +3,7 @@ use thiserror::Error;
 
 /// An error that can occur while processing DBN data.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum Error {
     /// An I/O error while reading or writing DBN or another encoding.
     #[error("IO error: {source:?} while {context}")]

@@ -285,7 +285,7 @@ where
                 .get::<T>()
                 .ok_or_else(|| {
                     crate::Error::conversion::<T>(format!(
-                        "record with rtype {}",
+                        "record with rtype {:#04X}",
                         rec_ref.header().rtype
                     ))
                 })
@@ -431,12 +431,12 @@ where
         } else {
             Some(
                 SType::try_from(buffer[pos])
-                    .map_err(|_| crate::Error::conversion::<SType>(format!("{}", buffer[pos])))?,
+                    .map_err(|_| crate::Error::conversion::<SType>(buffer[pos]))?,
             )
         };
         pos += mem::size_of::<SType>();
         let stype_out = SType::try_from(buffer[pos])
-            .map_err(|_| crate::Error::conversion::<SType>(format!("{}", buffer[pos])))?;
+            .map_err(|_| crate::Error::conversion::<SType>(buffer[pos]))?;
         pos += mem::size_of::<SType>();
         let ts_out = buffer[pos] != 0;
         pos += mem::size_of::<bool>();

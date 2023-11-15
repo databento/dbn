@@ -139,7 +139,7 @@ impl<R: io::BufRead> DecodeDbn for Decoder<R> {
                 .get::<T>()
                 .ok_or_else(|| {
                     crate::Error::conversion::<T>(format!(
-                        "record with rtype {}",
+                        "record with rtype {:#04X}",
                         rec_ref.header().rtype
                     ))
                 })
@@ -243,15 +243,14 @@ impl MetadataDecoder {
         // skip over deprecated record_count
         pos += U64_SIZE;
         // Unused in new Metadata
-        let _compression = Compression::try_from(metadata_buffer[pos]).map_err(|_| {
-            crate::Error::conversion::<Compression>(format!("{}", metadata_buffer[pos]))
-        })?;
+        let _compression = Compression::try_from(metadata_buffer[pos])
+            .map_err(|_| crate::Error::conversion::<Compression>(metadata_buffer[pos]))?;
         pos += mem::size_of::<Compression>();
         let stype_in = SType::try_from(metadata_buffer[pos])
-            .map_err(|_| crate::Error::conversion::<SType>(format!("{}", metadata_buffer[pos])))?;
+            .map_err(|_| crate::Error::conversion::<SType>(metadata_buffer[pos]))?;
         pos += mem::size_of::<SType>();
         let stype_out = SType::try_from(metadata_buffer[pos])
-            .map_err(|_| crate::Error::conversion::<SType>(format!("{}", metadata_buffer[pos])))?;
+            .map_err(|_| crate::Error::conversion::<SType>(metadata_buffer[pos]))?;
         pos += mem::size_of::<SType>();
         // skip reserved
         pos += Self::RESERVED_LEN;
