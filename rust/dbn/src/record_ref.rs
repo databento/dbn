@@ -35,7 +35,7 @@ impl<'a> RecordRef<'a> {
         // as an immutable reference
         let raw_ptr = buffer.as_ptr() as *mut RecordHeader;
 
-        // Check if alignment of pointer
+        // Check if alignment of pointer matches that of header (and all records)
         debug_assert_eq!(
             raw_ptr.align_offset(std::mem::align_of::<RecordHeader>()),
             0
@@ -120,7 +120,7 @@ where
     /// Constructs a new reference to a DBN record.
     fn from(rec: &'a R) -> Self {
         Self {
-            // Safe: `R` must be a record because it implements `HasRType`. Casting to `mut`
+            // Safety: `R` must be a record because it implements `HasRType`. Casting to `mut`
             // is required for `NonNull`, but it is never mutated.
             ptr: unsafe {
                 NonNull::new_unchecked((rec.header() as *const RecordHeader).cast_mut())

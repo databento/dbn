@@ -207,7 +207,7 @@ where
                 )?,
             )))
         } else {
-            Err(crate::Error::decode("Unable to determine encoding"))
+            Err(crate::Error::decode("unable to determine encoding"))
         }
     }
 }
@@ -227,7 +227,7 @@ impl<'a> DynDecoder<'a, BufReader<File>> {
             crate::Error::io(
                 e,
                 format!(
-                    "Error opening file to decode at path '{}'",
+                    "opening file to decode at path '{}'",
                     path.as_ref().display()
                 ),
             )
@@ -382,7 +382,7 @@ impl<'a> DynReader<'a, BufReader<File>> {
             crate::Error::io(
                 e,
                 format!(
-                    "Error opening file to decode at path '{}'",
+                    "opening file to decode at path '{}'",
                     path.as_ref().display()
                 ),
             )
@@ -505,7 +505,7 @@ mod tests {
         let res = DynDecoder::new_inferred(io::Cursor::new(buf), VersionUpgradePolicy::default());
         assert!(matches!(res, Err(e) if e
             .to_string()
-            .contains("Can't decode newer version of DBN")));
+            .contains("can't decode newer version of DBN")));
     }
 }
 

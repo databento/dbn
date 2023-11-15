@@ -25,6 +25,12 @@ where
     /// # Errors
     /// This function will return an error if it fails to encode `metadata` to
     /// `writer`.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If the method is used in
+    /// `tokio::select!` statement and another branch completes first, then the
+    /// metadata may have been partially written, but future calls will begin writing
+    /// the encoded metadata from the beginning.
     pub async fn new(mut writer: W, metadata: &Metadata) -> Result<Self> {
         MetadataEncoder::new(&mut writer).encode(metadata).await?;
         let record_encoder = RecordEncoder::new(writer);
@@ -46,6 +52,12 @@ where
     /// # Errors
     /// This function returns an error if it's unable to write to the underlying
     /// writer.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If the method is used in
+    /// `tokio::select!` statement and another branch completes first, then the
+    /// record may have been partially written, but future calls will begin writing the
+    /// encoded record from the beginning.
     pub async fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<()> {
         self.record_encoder.encode(record).await
     }
@@ -55,6 +67,12 @@ where
     /// # Errors
     /// This function returns an error if it's unable to write to the underlying writer
     /// or there's a serialization error.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If the method is used in
+    /// `tokio::select!` statement and another branch completes first, then the
+    /// record may have been partially written, but future calls will begin writing the
+    /// encoded record from the beginning.
     pub async fn encode_record_ref(&mut self, record_ref: RecordRef<'_>) -> Result<()> {
         self.record_encoder.encode_ref(record_ref).await
     }
@@ -78,6 +96,12 @@ where
     /// # Errors
     /// This function will return an error if it fails to encode `metadata` to
     /// `writer`.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If the method is used in
+    /// `tokio::select!` statement and another branch completes first, then the
+    /// metadata may have been partially written, but future calls will begin writing
+    /// the encoded metadata from the beginning.
     pub async fn with_zstd(writer: W, metadata: &Metadata) -> Result<Self> {
         Self::new(ZstdEncoder::new(writer), metadata).await
     }
@@ -106,6 +130,12 @@ where
     /// # Errors
     /// This function returns an error if it's unable to write to the underlying
     /// writer.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If the method is used in
+    /// `tokio::select!` statement and another branch completes first, then the
+    /// record may have been partially written, but future calls will begin writing the
+    /// encoded record from the beginning.
     pub async fn encode<R: DbnEncodable>(&mut self, record: &R) -> Result<()> {
         match self.writer.write_all(record.as_ref()).await {
             Ok(()) => Ok(()),
@@ -116,8 +146,13 @@ where
     /// Encodes a single DBN record of type `R`.
     ///
     /// # Errors
-    /// This function returns an error if it's unable to write to the underlying writer
-    /// or there's a serialization error.
+    /// This function returns an error if it's unable to write to the underlying writer.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If the method is used in
+    /// `tokio::select!` statement and another branch completes first, then the
+    /// record may have been partially written, but future calls will begin writing the
+    /// encoded record from the beginning.
     pub async fn encode_ref(&mut self, record_ref: RecordRef<'_>) -> Result<()> {
         match self.writer.write_all(record_ref.as_ref()).await {
             Ok(()) => Ok(()),
@@ -183,6 +218,12 @@ where
     /// # Errors
     /// This function returns an error if it's unable to write to the underlying
     /// writer.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If the method is used in
+    /// `tokio::select!` statement and another branch completes first, then the
+    /// metadata may have been partially written, but future calls will begin writing
+    /// the encoded metadata from the beginning.
     pub async fn encode(&mut self, metadata: &Metadata) -> Result<()> {
         let metadata_err = |e| Error::io(e, "writing DBN metadata");
         self.writer.write_all(b"DBN").await.map_err(metadata_err)?;

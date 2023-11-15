@@ -103,7 +103,7 @@ pub unsafe fn transmute_record_mut<T: HasRType>(header: &mut RecordHeader) -> Op
 pub fn str_to_c_chars<const N: usize>(s: &str) -> Result<[c_char; N]> {
     if s.len() > (N - 1) {
         return Err(Error::encode(format!(
-            "String cannot be longer than {}; received str of length {}",
+            "string cannot be longer than {}; received str of length {}",
             N - 1,
             s.len(),
         )));

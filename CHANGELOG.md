@@ -22,6 +22,11 @@
   the latest version
 - Added `-u`/`--upgrade` flags to `dbn` CLI that when passed upgrades DBN data from
   previous versions. By default data is decoded as-is
+- Made `AsyncDbnDecoder::decode_record`, `AsyncDbnDecoder::decode_record_ref`,
+  `dbn::AsyncRecordDecoder::decode`, and `dbn::AsyncRecordDecoder::decode_ref`
+  cancellation safe. This makes them safe to use within a
+  `tokio::select!`(https://docs.rs/tokio/latest/tokio/macro.select.html) statement
+- Added documention around cancellation safety for async APIs
 - Added `TOB` flag to denote top-of-book messages
 - Added new publisher values in preparation for IFEU.IMPACT and NDEX.IMPACT datasets
 - Added new publisher values for consolidated DBEQ.BASIC and DBEQ.PLUS

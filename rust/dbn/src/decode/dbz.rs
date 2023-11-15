@@ -53,10 +53,7 @@ impl Decoder<BufReader<File>> {
         let file = File::open(path.as_ref()).map_err(|e| {
             crate::Error::io(
                 e,
-                format!(
-                    "Error opening dbn file at path '{}'",
-                    path.as_ref().display()
-                ),
+                format!("opening dbn file at path '{}'", path.as_ref().display()),
             )
         })?;
         let reader = BufReader::new(file);
@@ -108,7 +105,7 @@ impl<R: io::BufRead> DecodeRecordRef for Decoder<R> {
         let length = self.read_buffer[0] as usize * RecordHeader::LENGTH_MULTIPLIER;
         if length < mem::size_of::<RecordHeader>() {
             return Err(crate::Error::decode(format!(
-                "Invalid record with length {length} shorter than header"
+                "invalid record with length {length} shorter than header"
             )));
         }
         if length > self.read_buffer.len() {
@@ -192,14 +189,14 @@ impl MetadataDecoder {
         let magic = u32::from_le_slice(&prelude_buffer[..4]);
         if !ZSTD_SKIPPABLE_MAGIC_RANGE.contains(&magic) {
             return Err(crate::Error::decode(
-                "Invalid metadata: no zstd magic number",
+                "invalid metadata: no zstd magic number",
             ));
         }
         let frame_size = u32::from_le_slice(&prelude_buffer[4..]);
         // debug!("magic={magic}, frame_size={frame_size}");
         if (frame_size as usize) < Self::FIXED_METADATA_LEN {
             return Err(crate::Error::Decode(
-                "Frame length cannot be shorter than the fixed metadata size".to_owned(),
+                "frame length cannot be shorter than the fixed metadata size".to_owned(),
             ));
         }
 
@@ -272,7 +269,7 @@ impl MetadataDecoder {
         let schema_definition_length = u32::from_le_slice(&var_buffer[pos..]);
         if schema_definition_length != 0 {
             return Err(crate::Error::decode(
-                "This version of dbn can't parse schema definitions",
+                "DBZ doesn't support schema definitions",
             ));
         }
         pos += Self::U32_SIZE + (schema_definition_length as usize);
@@ -301,19 +298,20 @@ impl MetadataDecoder {
 
     fn decode_repeated_symbol_cstr(buffer: &[u8], pos: &mut usize) -> crate::Result<Vec<String>> {
         if *pos + Self::U32_SIZE > buffer.len() {
-            return Err(crate::Error::decode("Unexpected end of metadata buffer"));
+            return Err(crate::Error::decode("unexpected end of metadata buffer"));
         }
         let count = u32::from_le_slice(&buffer[*pos..]) as usize;
         *pos += Self::U32_SIZE;
         let read_size = count * crate::compat::SYMBOL_CSTR_LEN_V1;
         if *pos + read_size > buffer.len() {
-            return Err(crate::Error::decode("Unexpected end of metadata buffer"));
+            return Err(crate::Error::decode("unexpected end of metadata buffer"));
         }
         let mut res = Vec::with_capacity(count);
         for i in 0..count {
-            res.push(Self::decode_symbol(buffer, pos).map_err(|e| {
-                crate::Error::utf8(e, format!("Failed to decode symbol at index {i}"))
-            })?);
+            res.push(
+                Self::decode_symbol(buffer, pos)
+                    .map_err(|e| crate::Error::utf8(e, format!("decoding symbol at index {i}")))?,
+            );
         }
         Ok(res)
     }
@@ -321,7 +319,7 @@ impl MetadataDecoder {
     fn decode_symbol_mappings(buffer: &[u8], pos: &mut usize) -> crate::Result<Vec<SymbolMapping>> {
         if *pos + Self::U32_SIZE > buffer.len() {
             return Err(crate::Error::decode(
-                "Unexpected end of metadata buffer while decoding symbol mappings",
+                "unexpected end of metadata buffer while decoding symbol mappings",
             ));
         }
         let count = u32::from_le_slice(&buffer[*pos..]) as usize;
@@ -342,7 +340,7 @@ impl MetadataDecoder {
 
         if *pos + MIN_SYMBOL_MAPPING_ENCODED_SIZE > buffer.len() {
             return Err(crate::Error::decode(
-                "Unexpected end of metadata buffer while parsing symbol mapping",
+                "unexpected end of metadata buffer while parsing symbol mapping",
             ));
         }
         let raw_symbol = Self::decode_symbol(buffer, pos)
@@ -352,7 +350,7 @@ impl MetadataDecoder {
         let read_size = interval_count * MAPPING_INTERVAL_ENCODED_SIZE;
         if *pos + read_size > buffer.len() {
             return Err(crate::Error::decode(format!(
-                "Symbol mapping interval_count ({interval_count}) doesn't match size of buffer \
+                "symbol mapping interval_count ({interval_count}) doesn't match size of buffer \
                 which only contains space for {} intervals",
                 (buffer.len() - *pos) / MAPPING_INTERVAL_ENCODED_SIZE
             )));

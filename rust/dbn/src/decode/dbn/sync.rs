@@ -128,10 +128,7 @@ impl Decoder<BufReader<File>> {
         let file = File::open(path.as_ref()).map_err(|e| {
             crate::Error::io(
                 e,
-                format!(
-                    "Error opening DBN file at path '{}'",
-                    path.as_ref().display()
-                ),
+                format!("opening DBN file at path '{}'", path.as_ref().display()),
             )
         })?;
         Self::new(BufReader::new(file))
@@ -149,7 +146,7 @@ impl<'a> Decoder<zstd::stream::Decoder<'a, BufReader<File>>> {
             crate::Error::io(
                 e,
                 format!(
-                    "Error opening Zstandard-compressed DBN file at path '{}'",
+                    "opening Zstandard-compressed DBN file at path '{}'",
                     path.as_ref().display()
                 ),
             )
@@ -231,7 +228,7 @@ where
         upgrade_policy: VersionUpgradePolicy,
     ) -> crate::Result<Self> {
         if version > DBN_VERSION {
-            return Err(crate::Error::decode(format!("Can't decode newer version of DBN. Decoder version is {DBN_VERSION}, input version is {version}")));
+            return Err(crate::Error::decode(format!("can't decode newer version of DBN. Decoder version is {DBN_VERSION}, input version is {version}")));
         }
         Ok(Self {
             version,
@@ -250,7 +247,7 @@ where
     /// supported version.
     pub fn set_version(&mut self, version: u8) -> crate::Result<()> {
         if version > DBN_VERSION {
-            Err(crate::Error::decode(format!("Can't decode newer version of DBN. Decoder version is {DBN_VERSION}, input version is {version}")))
+            Err(crate::Error::decode(format!("can't decode newer version of DBN. Decoder version is {DBN_VERSION}, input version is {version}")))
         } else {
             self.version = version;
             Ok(())
@@ -313,7 +310,7 @@ where
         let length = self.read_buffer[0] as usize * RecordHeader::LENGTH_MULTIPLIER;
         if length < mem::size_of::<RecordHeader>() {
             return Err(crate::Error::decode(format!(
-                "Invalid record with length {length} shorter than header"
+                "invalid record with length {length} shorter than header"
             )));
         }
         if length > self.read_buffer.len() {
@@ -381,16 +378,16 @@ where
             .read_exact(&mut prelude_buffer)
             .map_err(|e| crate::Error::io(e, "reading metadata prelude"))?;
         if &prelude_buffer[..DBN_PREFIX_LEN] != DBN_PREFIX {
-            return Err(crate::Error::decode("Invalid DBN header"));
+            return Err(crate::Error::decode("invalid DBN header"));
         }
         let version = prelude_buffer[DBN_PREFIX_LEN];
         if version > DBN_VERSION {
-            return Err(crate::Error::decode(format!("Can't decode newer version of DBN. Decoder version is {DBN_VERSION}, input version is {version}")));
+            return Err(crate::Error::decode(format!("can't decode newer version of DBN. Decoder version is {DBN_VERSION}, input version is {version}")));
         }
         let length = u32::from_le_slice(&prelude_buffer[4..]);
         if (length as usize) < METADATA_FIXED_LEN {
             return Err(crate::Error::decode(
-                "Invalid DBN metadata. Metadata length shorter than fixed length.",
+                "invalid DBN metadata. Metadata length shorter than fixed length.",
             ));
         }
         let mut metadata_buffer = vec![0u8; length as usize];
@@ -459,7 +456,7 @@ where
         let schema_definition_length = u32::from_le_slice(&buffer[pos..]);
         if schema_definition_length != 0 {
             return Err(crate::Error::decode(
-                "This version of dbn can't parse schema definitions",
+                "this version of dbn can't parse schema definitions",
             ));
         }
         pos += Self::U32_SIZE + (schema_definition_length as usize);
@@ -500,7 +497,7 @@ where
     ) -> crate::Result<Vec<String>> {
         if *pos + Self::U32_SIZE > buffer.len() {
             return Err(crate::Error::decode(
-                "Unexpected end of metadata buffer in symbol cstr",
+                "unexpected end of metadata buffer in symbol cstr",
             ));
         }
         let count = u32::from_le_slice(&buffer[*pos..]) as usize;
@@ -508,15 +505,14 @@ where
         let read_size = count * symbol_cstr_len;
         if *pos + read_size > buffer.len() {
             return Err(crate::Error::decode(
-                "Unexpected end of metadata buffer in symbol cstr",
+                "unexpected end of metadata buffer in symbol cstr",
             ));
         }
         let mut res = Vec::with_capacity(count);
         for i in 0..count {
             res.push(
-                Self::decode_symbol(symbol_cstr_len, buffer, pos).map_err(|e| {
-                    crate::Error::utf8(e, format!("Failed to decode symbol at index {i}"))
-                })?,
+                Self::decode_symbol(symbol_cstr_len, buffer, pos)
+                    .map_err(|e| crate::Error::utf8(e, format!("decoding symbol at index {i}")))?,
             );
         }
         Ok(res)
@@ -529,7 +525,7 @@ where
     ) -> crate::Result<Vec<SymbolMapping>> {
         if *pos + Self::U32_SIZE > buffer.len() {
             return Err(crate::Error::decode(
-                "Unexpected end of metadata buffer in symbol mapping",
+                "unexpected end of metadata buffer in symbol mapping",
             ));
         }
         let count = u32::from_le_slice(&buffer[*pos..]) as usize;
@@ -557,7 +553,7 @@ where
         let mapping_interval_encoded_len = mem::size_of::<u32>() * 2 + symbol_cstr_len;
         if *pos + min_symbol_mapping_encoded_len > buffer.len() {
             return Err(crate::Error::decode(format!(
-                "Unexpected end of metadata buffer while parsing symbol mapping at index {idx}"
+                "unexpected end of metadata buffer while parsing symbol mapping at index {idx}"
             )));
         }
         let raw_symbol = Self::decode_symbol(symbol_cstr_len, buffer, pos)
@@ -567,7 +563,7 @@ where
         let read_size = interval_count * mapping_interval_encoded_len;
         if *pos + read_size > buffer.len() {
             return Err(crate::Error::decode(format!(
-                "Symbol mapping at index {idx} with interval_count ({interval_count}) doesn't match size of buffer \
+                "symbol mapping at index {idx} with `interval_count` {interval_count} doesn't match size of buffer \
                 which only contains space for {} intervals",
                 (buffer.len() - *pos) / mapping_interval_encoded_len
             )));
@@ -585,7 +581,7 @@ where
                 crate::Error::decode(format!("{e} while parsing end date of mapping interval at index {i} within mapping at index {idx}"))
             })?;
             let symbol = Self::decode_symbol(symbol_cstr_len, buffer, pos).map_err(|e| {
-                crate::Error::utf8(e, format!("Failed to parse symbol for mapping interval at index {i} within mapping at index {idx}"))
+                crate::Error::utf8(e, format!("parsing symbol for mapping interval at index {i} within mapping at index {idx}"))
             })?;
             intervals.push(MappingInterval {
                 start_date,
@@ -629,14 +625,13 @@ pub(crate) fn decode_iso8601(raw: u32) -> Result<time::Date, String> {
     let remaining = raw % 10_000;
     let raw_month = remaining / 100;
     let month = u8::try_from(raw_month)
-        .map_err(|e| format!("Error {e:?} while parsing {raw} into date"))
+        .map_err(|e| format!("{e:?} while parsing {raw} into date"))
         .and_then(|m| {
-            time::Month::try_from(m)
-                .map_err(|e| format!("Error {e:?} while parsing {raw} into date"))
+            time::Month::try_from(m).map_err(|e| format!("{e:?} while parsing {raw} into date"))
         })?;
     let day = remaining % 100;
     time::Date::from_calendar_date(year as i32, month, day as u8)
-        .map_err(|e| format!("Couldn't convert {raw} to a valid date: {e:?}"))
+        .map_err(|e| format!("couldn't convert {raw} to a valid date: {e:?}"))
 }
 
 #[cfg(test)]
@@ -976,7 +971,7 @@ mod tests {
         let buf = vec![0];
         let mut target = RecordDecoder::new(buf.as_slice());
         assert!(
-            matches!(target.decode_ref(), Err(Error::Decode(msg)) if msg.starts_with("Invalid record with length"))
+            matches!(target.decode_ref(), Err(Error::Decode(msg)) if msg.starts_with("invalid record with length"))
         );
     }
 
@@ -987,7 +982,7 @@ mod tests {
 
         let mut target = RecordDecoder::new(buf.as_slice());
         assert!(
-            matches!(target.decode_ref(), Err(Error::Decode(msg)) if msg.starts_with("Invalid record with length"))
+            matches!(target.decode_ref(), Err(Error::Decode(msg)) if msg.starts_with("invalid record with length"))
         );
     }
 

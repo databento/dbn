@@ -81,7 +81,7 @@ fn read_from_nonexistent_path() {
         ])
         .assert()
         .failure()
-        .stderr(contains("Error opening file to decode"));
+        .stderr(contains("while opening file to decode"));
 }
 
 #[rstest]

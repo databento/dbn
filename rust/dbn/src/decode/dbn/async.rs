@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{io::Cursor, path::Path};
 
 use async_compression::tokio::bufread::ZstdDecoder;
 use tokio::{
@@ -9,7 +9,6 @@ use tokio::{
 use crate::{
     compat,
     decode::{FromLittleEndianSlice, VersionUpgradePolicy},
-    error::silence_eof_error,
     HasRType, Metadata, Record, RecordHeader, RecordRef, Result, DBN_VERSION, METADATA_FIXED_LEN,
 };
 
@@ -43,6 +42,11 @@ where
     /// # Errors
     /// This function will return an error if it is unable to parse the metadata in
     /// `reader` or the input is encoded in a newer version of DBN.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If the method is used in
+    /// `tokio::select!` statement and another branch completes first, the metadata
+    /// may have been partially read, corrupting the stream.
     pub async fn new(mut reader: R) -> crate::Result<Self> {
         let metadata = MetadataDecoder::new(&mut reader).decode().await?;
         Ok(Self {
@@ -61,6 +65,11 @@ where
     /// # Errors
     /// This function will return an error if it is unable to parse the metadata in
     /// `reader` or the input is encoded in a newer version of DBN.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If the method is used in
+    /// `tokio::select!` statement and another branch completes first, the metadata
+    /// may have been partially read, corrupting the stream.
     pub async fn with_upgrade_policy(
         mut reader: R,
         upgrade_policy: VersionUpgradePolicy,
@@ -95,11 +104,13 @@ where
     /// exhausted.
     ///
     /// # Errors
-    /// This function returns an error if the underlying reader returns an
-    /// error of a kind other than `io::ErrorKind::UnexpectedEof` upon reading.
+    /// This function returns an error if the underlying reader returns an error. If
+    /// the next record is of a different type than `T`, this function returns a
+    /// [`Error::Conversion`](crate::Error::Conversion) error.
     ///
-    /// If the next record is of a different type than `T`,
-    /// this function returns an error of kind `io::ErrorKind::InvalidData`.
+    /// # Cancel safety
+    /// This method is cancel safe. It can be used within a `tokio::select!` statement
+    /// without the potential for corrupting the input stream.
     pub async fn decode_record<'a, T: HasRType + 'a>(&'a mut self) -> Result<Option<&T>> {
         self.decoder.decode().await
     }
@@ -109,9 +120,12 @@ where
     /// exhausted.
     ///
     /// # Errors
-    /// This function returns an error if the underlying reader returns an
-    /// error of a kind other than `io::ErrorKind::UnexpectedEof` upon reading.
-    /// It will also return an error if it encounters an invalid record.
+    /// This function returns an error if the underlying reader returns an error. It
+    /// will also return an error if it encounters an invalid record.
+    ///
+    /// # Cancel safety
+    /// This method is cancel safe. It can be used within a `tokio::select!` statement
+    /// without the potential for corrupting the input stream.
     pub async fn decode_record_ref(&mut self) -> Result<Option<RecordRef>> {
         self.decoder.decode_ref().await
     }
@@ -125,6 +139,11 @@ where
     ///
     /// # Errors
     /// This function will return an error if it is unable to parse the metadata in `reader`.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If the method is used in
+    /// `tokio::select!` statement and another branch completes first, the metadata
+    /// may have been partially read, corrupting the stream.
     pub async fn with_zstd(reader: R) -> crate::Result<Self> {
         Decoder::new(zstd_decoder(BufReader::new(reader))).await
     }
@@ -138,6 +157,11 @@ where
     ///
     /// # Errors
     /// This function will return an error if it is unable to parse the metadata in `reader`.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If the method is used in
+    /// `tokio::select!` statement and another branch completes first, the metadata
+    /// may have been partially read, corrupting the stream.
     pub async fn with_zstd_buffer(reader: R) -> crate::Result<Self> {
         Decoder::new(zstd_decoder(reader)).await
     }
@@ -149,14 +173,16 @@ impl Decoder<BufReader<File>> {
     /// # Errors
     /// This function will return an error if it is unable to read the file at `path` or
     /// if it is unable to parse the metadata in the file.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If the method is used in
+    /// `tokio::select!` statement and another branch completes first, the metadata
+    /// may have been partially read, corrupting the stream.
     pub async fn from_file(path: impl AsRef<Path>) -> crate::Result<Self> {
         let file = File::open(path.as_ref()).await.map_err(|e| {
             crate::Error::io(
                 e,
-                format!(
-                    "Error opening DBN file at path '{}'",
-                    path.as_ref().display()
-                ),
+                format!("opening DBN file at path '{}'", path.as_ref().display()),
             )
         })?;
         Self::new(BufReader::new(file)).await
@@ -169,12 +195,17 @@ impl Decoder<ZstdDecoder<BufReader<File>>> {
     /// # Errors
     /// This function will return an error if it is unable to read the file at `path` or
     /// if it is unable to parse the metadata in the file.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If the method is used in
+    /// `tokio::select!` statement and another branch completes first, the metadata
+    /// may have been partially read, corrupting the stream.
     pub async fn from_zstd_file(path: impl AsRef<Path>) -> crate::Result<Self> {
         let file = File::open(path.as_ref()).await.map_err(|e| {
             crate::Error::io(
                 e,
                 format!(
-                    "Error opening Zstandard-compressed DBN file at path '{}'",
+                    "opening Zstandard-compressed DBN file at path '{}'",
                     path.as_ref().display()
                 ),
             )
@@ -191,8 +222,17 @@ where
     version: u8,
     upgrade_policy: VersionUpgradePolicy,
     reader: R,
-    read_buffer: Vec<u8>,
-    compat_buffer: [u8; crate::MAX_RECORD_LEN],
+    state: DecoderState,
+    framer: RecordFrameDecoder,
+    read_buf: Cursor<Vec<u8>>,
+    compat_buf: [u8; crate::MAX_RECORD_LEN],
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DecoderState {
+    Read,
+    Yield,
+    Eof,
 }
 
 impl<R> RecordDecoder<R>
@@ -218,15 +258,16 @@ where
         upgrade_policy: VersionUpgradePolicy,
     ) -> crate::Result<Self> {
         if version > DBN_VERSION {
-            return Err(crate::Error::decode(format!("Can't decode newer version of DBN. Decoder version is {DBN_VERSION}, input version is {version}")));
+            return Err(crate::Error::decode(format!("can't decode newer version of DBN. Decoder version is {DBN_VERSION}, input version is {version}")));
         }
         Ok(Self {
             version,
             upgrade_policy,
             reader,
-            // `read_buffer` should have capacity for reading `length`
-            read_buffer: vec![0],
-            compat_buffer: [0; crate::MAX_RECORD_LEN],
+            state: DecoderState::Read,
+            framer: RecordFrameDecoder::Head,
+            read_buf: Cursor::default(),
+            compat_buf: [0; crate::MAX_RECORD_LEN],
         })
     }
 
@@ -237,7 +278,7 @@ where
     /// supported version.
     pub fn set_version(&mut self, version: u8) -> crate::Result<()> {
         if version > DBN_VERSION {
-            Err(crate::Error::decode(format!("Can't decode newer version of DBN. Decoder version is {DBN_VERSION}, input version is {version}")))
+            Err(crate::Error::decode(format!("can't decode newer version of DBN. Decoder version is {DBN_VERSION}, input version is {version}")))
         } else {
             self.version = version;
             Ok(())
@@ -249,11 +290,13 @@ where
     /// exhausted.
     ///
     /// # Errors
-    /// This function returns an error if the underlying reader returns an
-    /// error of a kind other than `io::ErrorKind::UnexpectedEof` upon reading.
+    /// This function returns an error if the underlying reader returns an error. If
+    /// the next record is of a different type than `T`, this function returns a
+    /// [`Error::Conversion`](crate::Error::Conversion) error.
     ///
-    /// If the next record is of a different type than `T`,
-    /// this function returns an error of kind `io::ErrorKind::InvalidData`.
+    /// # Cancel safety
+    /// This method is cancel safe. It can be used within a `tokio::select!` statement
+    /// without the potential for corrupting the input stream.
     pub async fn decode<'a, T: HasRType + 'a>(&'a mut self) -> Result<Option<&T>> {
         let rec_ref = self.decode_ref().await?;
         if let Some(rec_ref) = rec_ref {
@@ -281,34 +324,55 @@ where
     /// It will also return an error if it encounters an invalid record.
     pub async fn decode_ref(&mut self) -> Result<Option<RecordRef>> {
         let io_err = |e| crate::Error::io(e, "decoding record reference");
-        if let Err(err) = self.reader.read_exact(&mut self.read_buffer[..1]).await {
-            return silence_eof_error(err).map_err(io_err);
+        loop {
+            // maybe read more into buffer
+            if self.state == DecoderState::Read {
+                // read_buf is cancellation safe
+                let bytes_read = self
+                    .reader
+                    .read_buf(self.read_buf.get_mut())
+                    .await
+                    .map_err(io_err)?;
+                self.state = if bytes_read == 0 {
+                    DecoderState::Eof
+                } else {
+                    DecoderState::Yield
+                };
+            }
+            // yield if a complete record is in the buffer
+            if let Some(frame) = self.framer.decode(&mut self.read_buf) {
+                // sanity check
+                return if frame.len() < std::mem::size_of::<RecordHeader>() {
+                    Err(crate::Error::decode(format!(
+                        "invalid record with length {} shorter than header",
+                        frame.len()
+                    )))
+                } else {
+                    Ok(Some(unsafe {
+                        compat::decode_record_ref(
+                            self.version,
+                            self.upgrade_policy,
+                            &mut self.compat_buf,
+                            // Recreate slice to get around borrow checker
+                            std::slice::from_raw_parts(frame.as_ptr(), frame.len()),
+                        )
+                    }))
+                };
+            } else if self.state == DecoderState::Eof {
+                // there should be no remaining bytes in the buffer after reaching EOF
+                // and yielding all complete records
+                return if self.read_buf.remaining() == 0 {
+                    Ok(None)
+                } else {
+                    Err(crate::Error::decode(format!(
+                        "unexpected partial record remaining in stream: {} bytes",
+                        self.read_buf.remaining()
+                    )))
+                };
+            } else {
+                self.state = DecoderState::Read;
+            }
         }
-        let length = self.read_buffer[0] as usize * RecordHeader::LENGTH_MULTIPLIER;
-        if length > self.read_buffer.len() {
-            self.read_buffer.resize(length, 0);
-        }
-        if length < std::mem::size_of::<RecordHeader>() {
-            return Err(crate::Error::decode(format!(
-                "Invalid record with length {length} shorter than header"
-            )));
-        }
-        if let Err(err) = self
-            .reader
-            .read_exact(&mut self.read_buffer[1..length])
-            .await
-        {
-            return silence_eof_error(err).map_err(io_err);
-        }
-        // Safety: `read_buffer` is resized to contain at least `length` bytes.
-        Ok(Some(unsafe {
-            compat::decode_record_ref(
-                self.version,
-                self.upgrade_policy,
-                &mut self.compat_buffer,
-                &self.read_buffer,
-            )
-        }))
     }
 
     /// Returns a mutable reference to the inner reader.
@@ -373,6 +437,11 @@ where
     /// # Errors
     /// This function will return an error if it is unable to parse the metadata or the
     /// input is encoded in a newere version of DBN.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If the method is used in
+    /// `tokio::select!` statement and another branch completes first, the metadata
+    /// may have been partially read, corrupting the stream.
     pub async fn decode(&mut self) -> Result<Metadata> {
         let mut prelude_buffer = [0u8; 8];
         self.reader
@@ -380,16 +449,16 @@ where
             .await
             .map_err(|e| crate::Error::io(e, "reading metadata prelude"))?;
         if &prelude_buffer[..super::DBN_PREFIX_LEN] != super::DBN_PREFIX {
-            return Err(crate::Error::decode("Invalid DBN header"));
+            return Err(crate::Error::decode("invalid DBN header"));
         }
         let version = prelude_buffer[super::DBN_PREFIX_LEN];
         if version > DBN_VERSION {
-            return Err(crate::Error::decode(format!("Can't decode newer version of DBN. Decoder version is {DBN_VERSION}, input version is {version}")));
+            return Err(crate::Error::decode(format!("can't decode newer version of DBN. Decoder version is {DBN_VERSION}, input version is {version}")));
         }
         let length = u32::from_le_slice(&prelude_buffer[4..]);
         if (length as usize) < METADATA_FIXED_LEN {
             return Err(crate::Error::decode(
-                "Invalid DBN metadata. Metadata length shorter than fixed length.",
+                "invalid DBN metadata. Metadata length shorter than fixed length.",
             ));
         }
 
@@ -429,6 +498,130 @@ where
     /// Creates a new async DBN [`MetadataDecoder`] from a Zstandard-compressed buffered `reader`.
     pub fn with_zstd_buffer(reader: R) -> Self {
         MetadataDecoder::new(zstd_decoder(reader))
+    }
+}
+
+// Reworked version of `tokio_util::codec::LengthDelimitedCodec` because
+// - it lacked support for a multiplier for the length
+// - it assumed some operations were fallible
+// - returning bytes slice didn't work well with the existing lifetime requirements for RecordRef
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(test, derive(PartialEq, Eq))]
+enum RecordFrameDecoder {
+    Head,
+    Data(usize),
+}
+
+impl RecordFrameDecoder {
+    fn decode_head(&mut self, src: &mut Cursor<Vec<u8>>) -> Option<usize> {
+        if src.remaining() == 0 {
+            // Not enough data
+            return None;
+        }
+        // Unlike the original implementation, we don't want to advance the position in buffer
+        // because each record includes the `length`.
+        let n = src.remaining_bytes()[0] as usize * RecordHeader::LENGTH_MULTIPLIER;
+
+        // Ensure that the buffer has enough space to read the incoming
+        // payload
+        let additional = n.saturating_sub(src.remaining());
+        src.reserve(additional);
+
+        Some(n)
+    }
+
+    fn validate_len(&self, n: usize, src: &Cursor<Vec<u8>>) -> Option<usize> {
+        if src.remaining() < n {
+            return None;
+        }
+        Some(n)
+    }
+
+    fn decode<'a>(&mut self, src: &'a mut Cursor<Vec<u8>>) -> Option<&'a [u8]> {
+        let n = match self {
+            RecordFrameDecoder::Head => match self.decode_head(src) {
+                Some(n) => {
+                    *self = RecordFrameDecoder::Data(n);
+                    n
+                }
+                None => return None,
+            },
+            RecordFrameDecoder::Data(n) => *n,
+        };
+        match self.validate_len(n, src) {
+            Some(n) => {
+                // Update the decode state
+                *self = RecordFrameDecoder::Head;
+
+                // Make sure the buffer has enough space to read the next head
+                let additional = 1usize.saturating_sub(src.remaining());
+                src.reserve(additional);
+                // Need to advance position after reserving so as not to free the
+                // slice being returned
+                let pos = src.position() as usize;
+                src.advance(n); // modifies `position`
+                let end = pos + n;
+
+                Some(&src.get_ref()[pos..end])
+            }
+            None => None,
+        }
+    }
+}
+
+/// Helper methods for working with `Cursor<Vec<u8>>`. Inspired by `bytes::BytesMut`.
+trait Buffer {
+    /// Returns the length of the remaining unread bytes.
+    fn remaining(&self) -> usize;
+    /// Returns a slice of the bytes after `position`. Based on unstable `remaining_slice`.
+    fn remaining_bytes(&self) -> &[u8];
+    /// Reserves capacity for `additional` more bytes. May shift `position` to reclaim
+    /// previously read bytes.
+    fn reserve(&mut self, additional: usize);
+    /// Advances the read position by `n` bytes.
+    fn advance(&mut self, n: usize);
+}
+
+impl Buffer for Cursor<Vec<u8>> {
+    fn remaining(&self) -> usize {
+        self.get_ref()
+            .len()
+            .saturating_sub(self.position() as usize)
+    }
+
+    fn remaining_bytes(&self) -> &[u8] {
+        &self.get_ref()[(self.position() as usize).min(self.get_ref().len())..]
+    }
+
+    fn reserve(&mut self, additional: usize) {
+        // short circuit
+        if self.get_ref().capacity() - self.get_ref().len() >= additional {
+            return;
+        }
+        let reclaimable = self.position() as usize;
+        if reclaimable >= additional && reclaimable >= self.remaining() {
+            let pos = (self.position() as usize).min(self.get_ref().len());
+            let remaining = self.remaining();
+            // Safety: Checked `reclaimable` is greater than or equal to `remaining` so there's no overlap
+            unsafe {
+                // Use pointer arithmetic to handle special case where `remaining` = 0. Regular indexing
+                // would panic.
+                let pos_mut_ptr = self.get_mut().as_mut_ptr().add(pos);
+                std::ptr::copy_nonoverlapping(pos_mut_ptr, self.get_mut().as_mut_ptr(), remaining)
+            }
+            // Update vector length so `remaining` remains unchanged and new data will
+            // be read into the correct place
+            self.get_mut().truncate(remaining);
+            self.set_position(0);
+        } else {
+            self.get_mut().reserve(additional);
+        }
+    }
+
+    fn advance(&mut self, n: usize) {
+        let new_pos = self.position() + n as u64;
+        debug_assert!(new_pos as usize <= self.get_ref().len());
+        self.set_position(new_pos);
     }
 }
 
@@ -593,7 +786,7 @@ mod tests {
         let buf = vec![0];
         let mut target = RecordDecoder::new(buf.as_slice());
         assert!(
-            matches!(target.decode_ref().await, Err(Error::Decode(msg)) if msg.starts_with("Invalid record with length"))
+            matches!(target.decode_ref().await, Err(Error::Decode(msg)) if msg.starts_with("invalid record with length"))
         );
     }
 
@@ -603,8 +796,10 @@ mod tests {
         assert_eq!(buf[0] as usize * RecordHeader::LENGTH_MULTIPLIER, buf.len());
 
         let mut target = RecordDecoder::new(buf.as_slice());
+        let res = target.decode_ref().await;
+        dbg!(&res);
         assert!(
-            matches!(target.decode_ref().await, Err(Error::Decode(msg)) if msg.starts_with("Invalid record with length"))
+            matches!(res, Err(Error::Decode(msg)) if msg.starts_with("invalid record with length"))
         );
     }
 
@@ -612,7 +807,9 @@ mod tests {
     async fn test_decode_record_length_longer_than_buffer() {
         let rec = ErrorMsg::new(1680703198000000000, "Test");
         let mut target = RecordDecoder::new(&rec.as_ref()[..rec.record_size() - 1]);
-        assert!(matches!(target.decode_ref().await, Ok(None)));
+        let res = target.decode_ref().await;
+        dbg!(&res);
+        assert!(matches!(res, Err(Error::Decode(msg)) if msg.starts_with("unexpected")));
     }
 
     #[tokio::test]
@@ -648,5 +845,102 @@ mod tests {
         }
         assert!(has_decoded);
         Ok(())
+    }
+
+    fn dummy_buffer(pos: usize, size: usize) -> Cursor<Vec<u8>> {
+        let mut res = Cursor::new((0..size).map(|i| i as u8).collect());
+        res.set_position(pos as u64);
+        res
+    }
+
+    #[rstest]
+    #[case::empty(0, 0, None)]
+    #[case::end(16, 16, None)]
+    #[case::last(15, 16, Some(15 * RecordHeader::LENGTH_MULTIPLIER))]
+    #[case::middle(8, 16, Some(8 * RecordHeader::LENGTH_MULTIPLIER))]
+    fn frame_decoder_decode_head(
+        #[case] pos: usize,
+        #[case] size: usize,
+        #[case] exp: Option<usize>,
+    ) {
+        let mut src = dummy_buffer(pos, size);
+        let res = RecordFrameDecoder::Head.decode_head(&mut src);
+        assert_eq!(res, exp);
+    }
+
+    #[rstest]
+    #[case::empty(0, 0, 32, None)]
+    #[case::end(16, 16, 64, None)]
+    #[case::last(15, 16, 56, None)]
+    #[case::middle(8, 16, 8, Some(8))]
+    #[case::extra(24, 256, 128, Some(128))]
+    fn frame_decoder_validate_len(
+        #[case] pos: usize,
+        #[case] size: usize,
+        #[case] n: usize,
+        #[case] exp: Option<usize>,
+    ) {
+        let src = dummy_buffer(pos, size);
+        let res = RecordFrameDecoder::Head.validate_len(n, &src);
+        assert_eq!(res, exp);
+    }
+
+    #[rstest]
+    #[case::empty(0, 0, RecordFrameDecoder::Head, None, 0, RecordFrameDecoder::Head)]
+    #[case::end(16, 16, RecordFrameDecoder::Head, None, 16, RecordFrameDecoder::Head)]
+    #[case::last(15, 16, RecordFrameDecoder::Head, None, 15, RecordFrameDecoder::Data(15 * RecordHeader::LENGTH_MULTIPLIER))]
+    #[case::last(2, 12, RecordFrameDecoder::Head, Some(2..10), 10, RecordFrameDecoder::Head)]
+    #[case::middle(8, 16, RecordFrameDecoder::Data(8), Some(8..16), 16, RecordFrameDecoder::Head)]
+    #[case::extra(24, 256, RecordFrameDecoder::Data(56), Some(24..80), 80, RecordFrameDecoder::Head)]
+    fn frame_decoder_decode(
+        #[case] pos: usize,
+        #[case] size: usize,
+        #[case] mut decoder: RecordFrameDecoder,
+        #[case] exp: Option<std::ops::Range<u8>>,
+        #[case] exp_pos: usize,
+        #[case] exp_decoder: RecordFrameDecoder,
+    ) {
+        let mut src = dummy_buffer(pos, size);
+        let res = decoder.decode(&mut src);
+        let exp = exp.map(|exp| exp.collect::<Vec<u8>>());
+        assert_eq!(res, exp.as_deref());
+        assert_eq!(decoder, exp_decoder);
+        assert_eq!(src.position() as usize, exp_pos);
+    }
+
+    #[rstest]
+    #[case::short_circuit(4, 8, 16, 4, 4)]
+    #[case::reclaim(100, 142, 150, 32, 0)]
+    #[case::reclaim(124, 124, 148, 56, 0)]
+    #[case::nothing_to_reclaim(0, 10, 16, 16, 0)]
+    #[case::nothing_to_reclaim(0, 16, 16, 16, 0)]
+    #[case::nothing_to_reclaim(16, 16, 16, 32, 16)]
+    #[case::vec_reserve(10, 42, 50, 32, 10)]
+    fn buffer_reserve(
+        #[case] pos: usize,
+        #[case] size: usize,
+        #[case] capacity: usize,
+        #[case] additional: usize,
+        #[case] exp_pos: usize,
+    ) {
+        assert!(capacity >= size);
+        let mut vec = Vec::with_capacity(capacity);
+        assert_eq!(vec.capacity(), capacity);
+        for i in 0..size {
+            vec.push(i as u8);
+        }
+        let mut target = Cursor::new(vec);
+        target.set_position(pos as u64);
+
+        let remaining = target.remaining();
+        assert_eq!(remaining, size - pos);
+        let remaining_bytes = target.remaining_bytes().to_vec();
+
+        target.reserve(additional);
+
+        assert_eq!(target.position() as usize, exp_pos);
+        // the contents should never be changed
+        assert_eq!(target.remaining(), remaining);
+        assert_eq!(target.remaining_bytes(), remaining_bytes.as_slice());
     }
 }
