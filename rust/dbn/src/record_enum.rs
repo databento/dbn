@@ -122,11 +122,27 @@ impl<'a> TryFrom<RecordRef<'a>> for RecordRefEnum<'a> {
                 | RType::Ohlcv1D
                 | RType::OhlcvEod => RecordRefEnum::Ohlcv(rec_ref.get_unchecked()),
                 RType::Status => RecordRefEnum::Status(rec_ref.get_unchecked()),
-                RType::InstrumentDef => RecordRefEnum::InstrumentDef(rec_ref.get_unchecked()),
+                RType::InstrumentDef => {
+                    // can't convert V1 structs here because an immutable reference
+                    if rec_ref.record_size() < std::mem::size_of::<InstrumentDefMsg>() {
+                        return Err(Error::conversion::<RecordRefEnum>(
+                            "InstrumentDefMsgV1 (must be current version)",
+                        ));
+                    }
+                    RecordRefEnum::InstrumentDef(rec_ref.get_unchecked())
+                }
                 RType::Imbalance => RecordRefEnum::Imbalance(rec_ref.get_unchecked()),
                 RType::Statistics => RecordRefEnum::Stat(rec_ref.get_unchecked()),
                 RType::Error => RecordRefEnum::Error(rec_ref.get_unchecked()),
-                RType::SymbolMapping => RecordRefEnum::SymbolMapping(rec_ref.get_unchecked()),
+                RType::SymbolMapping => {
+                    // can't convert V1 structs here because an immutable reference
+                    if rec_ref.record_size() < std::mem::size_of::<SymbolMappingMsg>() {
+                        return Err(Error::conversion::<RecordRefEnum>(
+                            "SymbolMappingMsgV1 (must be current version)",
+                        ));
+                    }
+                    RecordRefEnum::SymbolMapping(rec_ref.get_unchecked())
+                }
                 RType::System => RecordRefEnum::System(rec_ref.get_unchecked()),
             }
         })
@@ -341,6 +357,39 @@ impl<'a> Record for RecordRefEnum<'a> {
             RecordRefEnum::Error(rec) => rec.raw_index_ts(),
             RecordRefEnum::SymbolMapping(rec) => rec.raw_index_ts(),
             RecordRefEnum::System(rec) => rec.raw_index_ts(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        compat::{InstrumentDefMsgV1, SymbolMappingMsgV1},
+        HasRType,
+    };
+
+    use super::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[case::instrument_def_v1(
+        InstrumentDefMsgV1::default(),
+        Some("couldn't convert InstrumentDefMsgV1 (must be current version) to dbn::record_enum::RecordRefEnum")
+    )]
+    #[case::instrument_def_v2(InstrumentDefMsg::default(), None)]
+    #[case::symbol_mapping_v1(
+        SymbolMappingMsgV1::default(),
+        Some("couldn't convert SymbolMappingMsgV1 (must be current version) to dbn::record_enum::RecordRefEnum")
+    )]
+    #[case::symbol_mapping_v2(SymbolMappingMsg::default(), None)]
+    fn test_v1_v2_safety<R: HasRType>(#[case] rec: R, #[case] exp_err: Option<&str>) {
+        let rec_ref = RecordRef::from(&rec);
+        let res = rec_ref.as_enum();
+        dbg!(&res);
+        if let Some(exp_err) = exp_err {
+            assert!(format!("{}", res.unwrap_err()).contains(exp_err));
+        } else {
+            assert!(res.is_ok());
         }
     }
 }

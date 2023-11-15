@@ -8,7 +8,10 @@ use std::{
 use anyhow::{anyhow, Context};
 use clap::{ArgAction, Parser, ValueEnum};
 
-use dbn::enums::{Compression, Encoding};
+use dbn::{
+    enums::{Compression, Encoding},
+    VersionUpgradePolicy,
+};
 
 pub mod encode;
 
@@ -44,6 +47,7 @@ pub struct Args {
         long,
         action = ArgAction::SetTrue,
         default_value = "false",
+        group = "output_encoding",
         help = "Output the result as NDJSON (newline-delimited JSON)"
     )]
     pub json: bool,
@@ -52,7 +56,7 @@ pub struct Args {
         long,
         action = ArgAction::SetTrue,
         default_value = "false",
-        conflicts_with = "json",
+        group = "output_encoding",
         help = "Output the result as CSV"
     )]
     pub csv: bool,
@@ -61,7 +65,7 @@ pub struct Args {
         long,
         action = ArgAction::SetTrue,
         default_value = "false",
-        conflicts_with = "json",
+        group = "output_encoding",
         help = "Output the result as DBN"
     )]
     pub dbn: bool,
@@ -70,12 +74,20 @@ pub struct Args {
         long,
         action = ArgAction::SetTrue,
         default_value = "false",
-        conflicts_with = "json",
-        help = "Output the resulta as a DBN fragment (no metadata)"
+        group = "output_encoding",
+        help = "Output the result as a DBN fragment (no metadata)"
     )]
     pub fragment: bool,
     #[clap(short, long, action = ArgAction::SetTrue, default_value = "false", help = "Zstd compress the output")]
     pub zstd: bool,
+    #[clap(
+        short = 'u',
+        long = "upgrade",
+        default_value = "false",
+        action = ArgAction::SetTrue,
+        help = "Upgrade data when decoding previous DBN versions. By default data is decoded as-is."
+    )]
+    pub should_upgrade: bool,
     #[clap(
         short,
         long,
@@ -89,8 +101,7 @@ pub struct Args {
         long = "metadata",
         action = ArgAction::SetTrue,
         default_value = "false",
-        conflicts_with = "csv",
-        conflicts_with = "dbn",
+        conflicts_with_all = ["csv", "dbn", "fragment"],
         help = "Output the metadata section instead of the body of the DBN file. Only valid for JSON output encoding"
     )]
     pub should_output_metadata: bool,
@@ -99,21 +110,24 @@ pub struct Args {
          long = "pretty",
          action = ArgAction::SetTrue,
          default_value = "false",
+         conflicts_with_all = ["dbn", "fragment"],
          help ="Make the CSV or JSON output easier to read by converting timestamps to ISO 8601 and prices to decimals"
     )]
     pub should_pretty_print: bool,
     #[clap(
         short = 'l',
         long = "limit",
-        value_name = "NUM",
+        value_name = "NUM_RECORDS",
         conflicts_with = "should_output_metadata",
         help = "Limit the number of records in the output to the specified number"
     )]
     pub limit: Option<NonZeroU64>,
+    // Fragment arguments
     #[clap(
         long = "input-fragment",
         action = ArgAction::SetTrue,
         default_value = "false",
+        group = "input_fragment",
         conflicts_with_all = ["is_input_zstd_fragment", "should_output_metadata", "dbn"],
         help = "Interpret the input as an uncompressed DBN fragment, i.e. records without metadata. Only valid with text output encodings"
     )]
@@ -122,6 +136,7 @@ pub struct Args {
         long = "input-zstd-fragment",
         action = ArgAction::SetTrue,
         default_value = "false",
+        group = "input_fragment",
         conflicts_with_all = ["should_output_metadata", "dbn"],
         help = "Interpret the input as a Zstd-compressed DBN fragment, i.e. records without metadata. Only valid with text output encodings"
     )]
@@ -129,9 +144,11 @@ pub struct Args {
     #[clap(
         long = "input-dbn-version",
         help = "Specify the DBN version of the fragment. By default the fragment is assumed to be of the current version",
-        value_parser = clap::value_parser!(u8).range(1..=1) // TODO(carter): keep up to date
+        value_name = "DBN_VERSION",
+        value_parser = clap::value_parser!(u8).range(1..=2),
+        requires = "input_fragment"
     )]
-    pub dbn_version_override: Option<u8>,
+    pub input_dbn_version_override: Option<u8>,
 }
 
 impl Args {
@@ -147,6 +164,14 @@ impl Args {
             OutputEncoding::DbnFragment
         } else {
             OutputEncoding::Infer
+        }
+    }
+
+    pub fn upgrade_policy(&self) -> VersionUpgradePolicy {
+        if self.should_upgrade {
+            VersionUpgradePolicy::Upgrade
+        } else {
+            VersionUpgradePolicy::AsIs
         }
     }
 }

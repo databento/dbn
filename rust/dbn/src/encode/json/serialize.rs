@@ -1,12 +1,11 @@
 use std::ffi::c_char;
 
-use crate::json_writer::{JsonObjectWriter, NULL};
-use crate::pretty::{fmt_px, fmt_ts};
-use crate::UNDEF_TIMESTAMP;
 use crate::{
-    enums::{SecurityUpdateAction, UserDefinedInstrument},
-    record::{c_chars_to_str, BidAskPair, HasRType, RecordHeader, WithTsOut},
-    Metadata, UNDEF_PRICE,
+    json_writer::{JsonObjectWriter, NULL},
+    pretty::{fmt_px, fmt_ts},
+    record::c_chars_to_str,
+    BidAskPair, HasRType, Metadata, RecordHeader, SecurityUpdateAction, UserDefinedInstrument,
+    WithTsOut, UNDEF_PRICE, UNDEF_TIMESTAMP,
 };
 
 /// Serializes `obj` to a JSON string.
@@ -101,10 +100,12 @@ impl JsonSerialize for Metadata {
         } else {
             writer.value("end", NULL);
         }
-        writer.value("limit", self.limit.map(|l| l.to_string()).as_ref());
+        let mut buf = itoa::Buffer::new();
+        writer.value("limit", self.limit.map(|l| buf.format(l.get())));
         writer.value("stype_in", self.stype_in.map(|s| s.as_str()));
         writer.value("stype_out", self.stype_out.as_str());
         writer.value("ts_out", self.ts_out);
+        writer.value("symbol_cstr_len", self.symbol_cstr_len as u32);
         for (key, sym_list) in [
             ("symbols", &self.symbols),
             ("partial", &self.partial),
@@ -202,7 +203,7 @@ impl WriteField for i64 {
         writer: &mut JsonObjectWriter<J>,
         name: &str,
     ) {
-        writer.value(name, &self.to_string());
+        writer.value(name, itoa::Buffer::new().format(*self));
     }
 }
 
@@ -216,7 +217,7 @@ impl WriteField for u64 {
         writer: &mut JsonObjectWriter<J>,
         name: &str,
     ) {
-        writer.value(name, &self.to_string());
+        writer.value(name, itoa::Buffer::new().format(*self));
     }
 }
 
@@ -248,7 +249,8 @@ impl WriteField for SecurityUpdateAction {
         writer: &mut JsonObjectWriter<J>,
         name: &str,
     ) {
-        writer.value(name, &(*self as u8 as char).to_string());
+        let mut buf = [0; 4];
+        writer.value(name, &*(*self as u8 as char).encode_utf8(&mut buf));
     }
 }
 
@@ -262,7 +264,8 @@ impl WriteField for UserDefinedInstrument {
         writer: &mut JsonObjectWriter<J>,
         name: &str,
     ) {
-        writer.value(name, &(*self as u8 as char).to_string());
+        let mut buf = [0; 4];
+        writer.value(name, &*(*self as u8 as char).encode_utf8(&mut buf));
     }
 }
 
@@ -288,7 +291,8 @@ pub fn write_c_char_field<J: crate::json_writer::JsonWriter>(
     if c_char == 0 {
         writer.value(name, NULL);
     } else {
-        writer.value(name, &(c_char as u8 as char).to_string());
+        let mut buf = [0; 4];
+        writer.value(name, &*(c_char as u8 as char).encode_utf8(&mut buf));
     }
 }
 
@@ -305,7 +309,7 @@ pub fn write_px_field<J: crate::json_writer::JsonWriter, const PRETTY_PX: bool>(
         }
     } else {
         // Convert to string to avoid a loss of precision
-        writer.value(key, &px.to_string())
+        writer.value(key, itoa::Buffer::new().format(px))
     }
 }
 
@@ -321,7 +325,7 @@ pub fn write_ts_field<J: crate::json_writer::JsonWriter, const PRETTY_TS: bool>(
         };
     } else {
         // Convert to string to avoid a loss of precision
-        writer.value(key, &ts.to_string());
+        writer.value(key, itoa::Buffer::new().format(ts));
     }
 }
 

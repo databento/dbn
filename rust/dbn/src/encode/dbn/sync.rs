@@ -5,6 +5,7 @@ use std::{
 };
 
 use crate::{
+    compat::version_symbol_cstr_len,
     encode::{zstd_encoder, DbnEncodable, EncodeDbn, EncodeRecord, EncodeRecordRef},
     enums::Schema,
     record_ref::RecordRef,
@@ -128,9 +129,10 @@ where
     pub fn encode(&mut self, metadata: &Metadata) -> Result<()> {
         let metadata_err = |e| Error::io(e, "writing DBN metadata");
         self.writer.write_all(b"DBN").map_err(metadata_err)?;
-        // regardless of version in metadata, should encode crate version
         self.writer
-            .write_all(&[DBN_VERSION])
+            // Never write version=0, which denotes legacy DBZ files or a version
+            // greater than this version of the crate supports
+            .write_all(&[metadata.version.clamp(1, DBN_VERSION)])
             .map_err(metadata_err)?;
         let length = Self::calc_length(metadata);
         self.writer
@@ -144,7 +146,12 @@ where
                     .as_slice(),
             )
             .map_err(metadata_err)?;
-        self.encode_range_and_counts(metadata.start, metadata.end, metadata.limit)?;
+        self.encode_range_and_counts(
+            metadata.version,
+            metadata.start,
+            metadata.end,
+            metadata.limit,
+        )?;
         self.writer
             .write_all(&[
                 metadata.stype_in.map(|s| s as u8).unwrap_or(NULL_STYPE),
@@ -152,46 +159,57 @@ where
                 metadata.ts_out as u8,
             ])
             .map_err(metadata_err)?;
+        if metadata.version > 1 {
+            self.writer
+                .write_all(&(metadata.symbol_cstr_len as u16).to_le_bytes())
+                .map_err(metadata_err)?;
+        }
         // padding
         self.writer
-            .write_all(&[0; crate::METADATA_RESERVED_LEN])
+            .write_all(if metadata.version == 1 {
+                &[0; crate::compat::METADATA_RESERVED_LEN_V1]
+            } else {
+                &[0; crate::METADATA_RESERVED_LEN]
+            })
             .map_err(metadata_err)?;
         // schema_definition_length
         self.writer
             .write_all(0u32.to_le_bytes().as_slice())
             .map_err(metadata_err)?;
 
-        self.encode_repeated_symbol_cstr(metadata.symbols.as_slice())?;
-        self.encode_repeated_symbol_cstr(metadata.partial.as_slice())?;
-        self.encode_repeated_symbol_cstr(metadata.not_found.as_slice())?;
-        self.encode_symbol_mappings(metadata.mappings.as_slice())?;
+        self.encode_repeated_symbol_cstr(metadata.version, metadata.symbols.as_slice())?;
+        self.encode_repeated_symbol_cstr(metadata.version, metadata.partial.as_slice())?;
+        self.encode_repeated_symbol_cstr(metadata.version, metadata.not_found.as_slice())?;
+        self.encode_symbol_mappings(metadata.version, metadata.mappings.as_slice())?;
 
         Ok(())
     }
 
     pub(super) fn calc_length(metadata: &Metadata) -> u32 {
-        const MAPPING_INTERVAL_LEN: usize = mem::size_of::<u32>() * 2 + crate::SYMBOL_CSTR_LEN;
+        let symbol_cstr_len = version_symbol_cstr_len(metadata.version);
+        let mapping_interval_len = mem::size_of::<u32>() * 2 + symbol_cstr_len;
         // schema_definition_length, symbols_count, partial_count, not_found_count, mappings_count
-        const VAR_LEN_COUNTS_SIZE: usize = mem::size_of::<u32>() * 5;
+        let var_len_counts_size = mem::size_of::<u32>() * 5;
 
         let c_str_count =
             metadata.symbols.len() + metadata.partial.len() + metadata.not_found.len();
         (crate::METADATA_FIXED_LEN
-            + VAR_LEN_COUNTS_SIZE
-            + c_str_count * crate::SYMBOL_CSTR_LEN
+            + var_len_counts_size
+            + c_str_count * symbol_cstr_len
             + metadata
                 .mappings
                 .iter()
                 .map(|m| {
-                    crate::SYMBOL_CSTR_LEN
+                    symbol_cstr_len
                         + mem::size_of::<u32>()
-                        + m.intervals.len() * MAPPING_INTERVAL_LEN
+                        + m.intervals.len() * mapping_interval_len
                 })
                 .sum::<usize>()) as u32
     }
 
     fn encode_range_and_counts(
         &mut self,
+        version: u8,
         start: u64,
         end: Option<NonZeroU64>,
         limit: Option<NonZeroU64>,
@@ -217,37 +235,58 @@ where
                     .as_slice(),
             )
             .map_err(metadata_err)?;
-        // backwards compatibility for record_count
-        self.writer
-            .write_all(NULL_RECORD_COUNT.to_le_bytes().as_slice())
-            .map_err(metadata_err)?;
+        if version == 1 {
+            // backwards compatibility for record_count
+            self.writer
+                .write_all(NULL_RECORD_COUNT.to_le_bytes().as_slice())
+                .map_err(metadata_err)?;
+        }
         Ok(())
     }
 
-    fn encode_repeated_symbol_cstr(&mut self, symbols: &[String]) -> Result<()> {
+    fn encode_repeated_symbol_cstr(&mut self, version: u8, symbols: &[String]) -> Result<()> {
         self.writer
             .write_all((symbols.len() as u32).to_le_bytes().as_slice())
             .map_err(|e| Error::io(e, "writing cstr length"))?;
         for symbol in symbols {
-            self.encode_fixed_len_cstr::<{ crate::SYMBOL_CSTR_LEN }>(symbol)?;
+            if version == 1 {
+                self.encode_fixed_len_cstr::<{ crate::compat::SYMBOL_CSTR_LEN_V1 }>(symbol)?;
+            } else {
+                self.encode_fixed_len_cstr::<{ crate::SYMBOL_CSTR_LEN }>(symbol)?;
+            }
         }
 
         Ok(())
     }
 
-    fn encode_symbol_mappings(&mut self, symbol_mappings: &[SymbolMapping]) -> Result<()> {
+    fn encode_symbol_mappings(
+        &mut self,
+        version: u8,
+        symbol_mappings: &[SymbolMapping],
+    ) -> Result<()> {
         // encode mappings_count
         self.writer
             .write_all((symbol_mappings.len() as u32).to_le_bytes().as_slice())
             .map_err(|e| Error::io(e, "writing symbol mappings length"))?;
-        for symbol_mapping in symbol_mappings {
-            self.encode_symbol_mapping(symbol_mapping)?;
+        if version == 1 {
+            for symbol_mapping in symbol_mappings {
+                self.encode_symbol_mapping::<{ crate::compat::SYMBOL_CSTR_LEN_V1 }>(
+                    symbol_mapping,
+                )?;
+            }
+        } else {
+            for symbol_mapping in symbol_mappings {
+                self.encode_symbol_mapping::<{ crate::SYMBOL_CSTR_LEN }>(symbol_mapping)?;
+            }
         }
         Ok(())
     }
 
-    fn encode_symbol_mapping(&mut self, symbol_mapping: &SymbolMapping) -> Result<()> {
-        self.encode_fixed_len_cstr::<{ crate::SYMBOL_CSTR_LEN }>(&symbol_mapping.raw_symbol)?;
+    fn encode_symbol_mapping<const LEN: usize>(
+        &mut self,
+        symbol_mapping: &SymbolMapping,
+    ) -> Result<()> {
+        self.encode_fixed_len_cstr::<LEN>(&symbol_mapping.raw_symbol)?;
         // encode interval_count
         self.writer
             .write_all(
@@ -261,7 +300,7 @@ where
                 .map_err(|e| Error::io(e, "writing start date"))?;
             self.encode_date(interval.end_date)
                 .map_err(|e| Error::io(e, "writing end date"))?;
-            self.encode_fixed_len_cstr::<{ crate::SYMBOL_CSTR_LEN }>(&interval.symbol)?;
+            self.encode_fixed_len_cstr::<LEN>(&interval.symbol)?;
         }
         Ok(())
     }
@@ -307,6 +346,7 @@ where
     /// to update the metadata or it fails to write to the underlying writer.
     pub fn update_encoded(
         &mut self,
+        version: u8,
         start: u64,
         end: Option<NonZeroU64>,
         limit: Option<NonZeroU64>,
@@ -318,7 +358,7 @@ where
         self.writer
             .seek(START_SEEK_FROM)
             .map_err(|e| Error::io(e, "seeking to write position"))?;
-        self.encode_range_and_counts(start, end, limit)?;
+        self.encode_range_and_counts(version, start, end, limit)?;
         self.writer
             .seek(SeekFrom::End(0))
             .map_err(|e| Error::io(e, "seeking back to end"))?;
@@ -401,6 +441,8 @@ where
 mod tests {
     use std::{io::Seek, mem};
 
+    use rstest::rstest;
+
     use super::*;
     use crate::{
         datasets::{GLBX_MDP3, XNAS_ITCH},
@@ -421,6 +463,7 @@ mod tests {
             end: NonZeroU64::new(1658960170000000000),
             limit: None,
             ts_out: true,
+            symbol_cstr_len: crate::SYMBOL_CSTR_LEN,
             symbols: vec!["ES".to_owned(), "NG".to_owned()],
             partial: vec!["ESM2".to_owned()],
             not_found: vec!["QQQQQ".to_owned()],
@@ -486,7 +529,7 @@ mod tests {
             "LNQ".to_owned(),
         ];
         target
-            .encode_repeated_symbol_cstr(symbols.as_slice())
+            .encode_repeated_symbol_cstr(crate::DBN_VERSION, symbols.as_slice())
             .unwrap();
         assert_eq!(
             buffer.len(),
@@ -526,10 +569,12 @@ mod tests {
         assert_eq!(buffer.as_slice(), 20200517u32.to_le_bytes().as_slice());
     }
 
-    #[test]
-    fn test_update_encoded() {
+    #[rstest]
+    #[case(1)]
+    #[case(2)]
+    fn test_update_encoded(#[case] version: u8) {
         let orig_metadata = Metadata {
-            version: crate::DBN_VERSION,
+            version,
             dataset: GLBX_MDP3.to_owned(),
             schema: Some(Schema::Mbo),
             stype_in: Some(SType::Parent),
@@ -538,6 +583,7 @@ mod tests {
             end: NonZeroU64::new(1658960170000000000),
             limit: None,
             ts_out: true,
+            symbol_cstr_len: version_symbol_cstr_len(version),
             symbols: vec![],
             partial: vec![],
             not_found: vec![],
@@ -559,7 +605,7 @@ mod tests {
         let new_end = NonZeroU64::new(17058980170000000000);
         let new_limit = NonZeroU64::new(10);
         MetadataEncoder::new(&mut cursor)
-            .update_encoded(new_start, new_end, new_limit)
+            .update_encoded(crate::DBN_VERSION, new_start, new_end, new_limit)
             .unwrap();
         assert_eq!(before_pos, cursor.position());
         let res = MetadataDecoder::new(&mut buffer.as_slice())
@@ -571,9 +617,12 @@ mod tests {
         assert_eq!(res.limit, new_limit);
     }
 
-    #[test]
-    fn test_encode_decode_nulls() {
+    #[rstest]
+    #[case(1)]
+    #[case(2)]
+    fn test_encode_decode_nulls(#[case] version: u8) {
         let metadata = MetadataBuilder::new()
+            .version(version)
             .dataset(XNAS_ITCH.to_owned())
             .schema(Some(Schema::Mbo))
             .start(1697240529000000000)
@@ -589,9 +638,12 @@ mod tests {
         assert!(decoded.limit.is_none());
     }
 
-    #[test]
-    fn test_metadata_min_encoded_size() {
+    #[rstest]
+    #[case(1)]
+    #[case(2)]
+    fn test_metadata_min_encoded_size(#[case] version: u8) {
         let metadata = MetadataBuilder::new()
+            .version(version)
             .dataset(XNAS_ITCH.to_owned())
             .schema(Some(Schema::Mbo))
             .start(1697240529000000000)

@@ -3,6 +3,7 @@ use thiserror::Error;
 
 /// An error that can occur while processing DBN data.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum Error {
     /// An I/O error while reading or writing DBN or another encoding.
     #[error("IO error: {source:?} while {context}")]
@@ -51,7 +52,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 impl From<csv::Error> for Error {
     fn from(value: csv::Error) -> Self {
         match value.into_kind() {
-            csv::ErrorKind::Io(io) => Self::io(io, "While writing CSV"),
+            csv::ErrorKind::Io(io) => Self::io(io, "while writing CSV"),
             csv::ErrorKind::Utf8 { pos, err } => {
                 Self::Encode(format!("UTF-8 error {err:?}{}", Self::opt_pos(&pos)))
             }

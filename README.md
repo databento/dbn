@@ -1,6 +1,7 @@
 # dbn
 
 [![build](https://github.com/databento/dbn/actions/workflows/build.yaml/badge.svg)](https://github.com/databento/dbn/actions/workflows/build.yaml)
+[![Documentation](https://img.shields.io/docsrs/dbn)](https://docs.rs/dbn/latest/dbn/)
 [![license](https://img.shields.io/github/license/databento/dbn?color=blue)](./LICENSE)
 [![Current Crates.io Version](https://img.shields.io/crates/v/dbn.svg)](https://crates.io/crates/dbn)
 [![pypi-version](https://img.shields.io/pypi/v/databento_dbn)](https://pypi.org/project/databento-dbn)
@@ -14,6 +15,8 @@ DBN is also the default encoding for all Databento APIs, including live data str
 
 This repository contains both  libraries and a CLI tool for working with DBN files and streams.
 Python bindings for `dbn` are provided in the `databento_dbn` package.
+
+For more details, read our [introduction to DBN](https://docs.databento.com/knowledge-base/new-users/dbn-encoding/getting-started-with-dbn).
 
 ## Features
 

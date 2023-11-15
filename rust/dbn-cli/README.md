@@ -8,6 +8,8 @@ This crate provides a CLI tool `dbn` for converting [Databento](https://databent
 Binary Encoding (DBN) files to text formats, as well as updating legacy DBZ files to
 DBN.
 
+For more information about DBN, read our [introduction to DBN](https://docs.databento.com/knowledge-base/new-users/dbn-encoding/getting-started-with-dbn).
+
 ## Installation
 
 To install the latest version, run the following command:

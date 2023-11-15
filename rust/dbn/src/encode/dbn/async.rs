@@ -25,6 +25,12 @@ where
     /// # Errors
     /// This function will return an error if it fails to encode `metadata` to
     /// `writer`.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If the method is used in
+    /// `tokio::select!` statement and another branch completes first, then the
+    /// metadata may have been partially written, but future calls will begin writing
+    /// the encoded metadata from the beginning.
     pub async fn new(mut writer: W, metadata: &Metadata) -> Result<Self> {
         MetadataEncoder::new(&mut writer).encode(metadata).await?;
         let record_encoder = RecordEncoder::new(writer);
@@ -46,6 +52,12 @@ where
     /// # Errors
     /// This function returns an error if it's unable to write to the underlying
     /// writer.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If the method is used in
+    /// `tokio::select!` statement and another branch completes first, then the
+    /// record may have been partially written, but future calls will begin writing the
+    /// encoded record from the beginning.
     pub async fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<()> {
         self.record_encoder.encode(record).await
     }
@@ -55,6 +67,12 @@ where
     /// # Errors
     /// This function returns an error if it's unable to write to the underlying writer
     /// or there's a serialization error.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If the method is used in
+    /// `tokio::select!` statement and another branch completes first, then the
+    /// record may have been partially written, but future calls will begin writing the
+    /// encoded record from the beginning.
     pub async fn encode_record_ref(&mut self, record_ref: RecordRef<'_>) -> Result<()> {
         self.record_encoder.encode_ref(record_ref).await
     }
@@ -78,6 +96,12 @@ where
     /// # Errors
     /// This function will return an error if it fails to encode `metadata` to
     /// `writer`.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If the method is used in
+    /// `tokio::select!` statement and another branch completes first, then the
+    /// metadata may have been partially written, but future calls will begin writing
+    /// the encoded metadata from the beginning.
     pub async fn with_zstd(writer: W, metadata: &Metadata) -> Result<Self> {
         Self::new(ZstdEncoder::new(writer), metadata).await
     }
@@ -106,6 +130,12 @@ where
     /// # Errors
     /// This function returns an error if it's unable to write to the underlying
     /// writer.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If the method is used in
+    /// `tokio::select!` statement and another branch completes first, then the
+    /// record may have been partially written, but future calls will begin writing the
+    /// encoded record from the beginning.
     pub async fn encode<R: DbnEncodable>(&mut self, record: &R) -> Result<()> {
         match self.writer.write_all(record.as_ref()).await {
             Ok(()) => Ok(()),
@@ -116,8 +146,13 @@ where
     /// Encodes a single DBN record of type `R`.
     ///
     /// # Errors
-    /// This function returns an error if it's unable to write to the underlying writer
-    /// or there's a serialization error.
+    /// This function returns an error if it's unable to write to the underlying writer.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If the method is used in
+    /// `tokio::select!` statement and another branch completes first, then the
+    /// record may have been partially written, but future calls will begin writing the
+    /// encoded record from the beginning.
     pub async fn encode_ref(&mut self, record_ref: RecordRef<'_>) -> Result<()> {
         match self.writer.write_all(record_ref.as_ref()).await {
             Ok(()) => Ok(()),
@@ -183,12 +218,18 @@ where
     /// # Errors
     /// This function returns an error if it's unable to write to the underlying
     /// writer.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If the method is used in
+    /// `tokio::select!` statement and another branch completes first, then the
+    /// metadata may have been partially written, but future calls will begin writing
+    /// the encoded metadata from the beginning.
     pub async fn encode(&mut self, metadata: &Metadata) -> Result<()> {
         let metadata_err = |e| Error::io(e, "writing DBN metadata");
         self.writer.write_all(b"DBN").await.map_err(metadata_err)?;
         // regardless of version in metadata, should encode crate version
         self.writer
-            .write_all(&[DBN_VERSION])
+            .write_all(&[metadata.version.clamp(1, DBN_VERSION)])
             .await
             .map_err(metadata_err)?;
         let length = super::MetadataEncoder::<std::fs::File>::calc_length(metadata);
@@ -202,8 +243,13 @@ where
             .write_u16_le(metadata.schema.map(|s| s as u16).unwrap_or(NULL_SCHEMA))
             .await
             .map_err(metadata_err)?;
-        self.encode_range_and_counts(metadata.start, metadata.end, metadata.limit)
-            .await?;
+        self.encode_range_and_counts(
+            metadata.version,
+            metadata.start,
+            metadata.end,
+            metadata.limit,
+        )
+        .await?;
         self.writer
             .write_u8(metadata.stype_in.map(|s| s as u8).unwrap_or(NULL_STYPE))
             .await
@@ -216,20 +262,30 @@ where
             .write_u8(metadata.ts_out as u8)
             .await
             .map_err(metadata_err)?;
+        if metadata.version > 1 {
+            self.writer
+                .write_u16_le(metadata.symbol_cstr_len as u16)
+                .await
+                .map_err(metadata_err)?;
+        }
         // padding
         self.writer
-            .write_all(&[0; crate::METADATA_RESERVED_LEN])
+            .write_all(if metadata.version == 1 {
+                &[0; crate::compat::METADATA_RESERVED_LEN_V1]
+            } else {
+                &[0; crate::METADATA_RESERVED_LEN]
+            })
             .await
             .map_err(metadata_err)?;
         // schema_definition_length
         self.writer.write_u32_le(0).await.map_err(metadata_err)?;
-        self.encode_repeated_symbol_cstr(metadata.symbols.as_slice())
+        self.encode_repeated_symbol_cstr(metadata.version, &metadata.symbols)
             .await?;
-        self.encode_repeated_symbol_cstr(metadata.partial.as_slice())
+        self.encode_repeated_symbol_cstr(metadata.version, &metadata.partial)
             .await?;
-        self.encode_repeated_symbol_cstr(metadata.not_found.as_slice())
+        self.encode_repeated_symbol_cstr(metadata.version, &metadata.not_found)
             .await?;
-        self.encode_symbol_mappings(metadata.mappings.as_slice())
+        self.encode_symbol_mappings(metadata.version, &metadata.mappings)
             .await?;
 
         Ok(())
@@ -247,6 +303,7 @@ where
 
     async fn encode_range_and_counts(
         &mut self,
+        version: u8,
         start: u64,
         end: Option<NonZeroU64>,
         limit: Option<NonZeroU64>,
@@ -264,40 +321,63 @@ where
             .write_u64_le(limit.map(|l| l.get()).unwrap_or(NULL_LIMIT))
             .await
             .map_err(metadata_err)?;
-        // Backwards compatibility with removed metadata field `record_count`
-        self.writer
-            .write_u64_le(NULL_RECORD_COUNT)
-            .await
-            .map_err(metadata_err)
+        if version == 1 {
+            // Backwards compatibility with removed metadata field `record_count`
+            self.writer
+                .write_u64_le(NULL_RECORD_COUNT)
+                .await
+                .map_err(metadata_err)?;
+        }
+        Ok(())
     }
 
-    async fn encode_repeated_symbol_cstr(&mut self, symbols: &[String]) -> Result<()> {
+    async fn encode_repeated_symbol_cstr(&mut self, version: u8, symbols: &[String]) -> Result<()> {
         self.writer
             .write_u32_le(symbols.len() as u32)
             .await
             .map_err(|e| Error::io(e, "writing cstr length"))?;
         for symbol in symbols {
-            self.encode_fixed_len_cstr::<{ crate::SYMBOL_CSTR_LEN }>(symbol)
-                .await?;
+            if version == 1 {
+                self.encode_fixed_len_cstr::<{ crate::compat::SYMBOL_CSTR_LEN_V1 }>(symbol)
+                    .await
+            } else {
+                self.encode_fixed_len_cstr::<{ crate::SYMBOL_CSTR_LEN }>(symbol)
+                    .await
+            }?;
         }
 
         Ok(())
     }
 
-    async fn encode_symbol_mappings(&mut self, symbol_mappings: &[SymbolMapping]) -> Result<()> {
+    async fn encode_symbol_mappings(
+        &mut self,
+        version: u8,
+        symbol_mappings: &[SymbolMapping],
+    ) -> Result<()> {
         // encode mappings_count
         self.writer
             .write_u32_le(symbol_mappings.len() as u32)
             .await
             .map_err(|e| Error::io(e, "writing symbol mappings length"))?;
-        for symbol_mapping in symbol_mappings {
-            self.encode_symbol_mapping(symbol_mapping).await?;
+        if version == 1 {
+            for symbol_mapping in symbol_mappings {
+                self.encode_symbol_mapping::<{ crate::compat::SYMBOL_CSTR_LEN_V1 }>(symbol_mapping)
+                    .await?;
+            }
+        } else {
+            for symbol_mapping in symbol_mappings {
+                self.encode_symbol_mapping::<{ crate::SYMBOL_CSTR_LEN }>(symbol_mapping)
+                    .await?;
+            }
         }
         Ok(())
     }
 
-    async fn encode_symbol_mapping(&mut self, symbol_mapping: &SymbolMapping) -> Result<()> {
-        self.encode_fixed_len_cstr::<{ crate::SYMBOL_CSTR_LEN }>(&symbol_mapping.raw_symbol)
+    async fn encode_symbol_mapping<const LEN: usize>(
+        &mut self,
+        symbol_mapping: &SymbolMapping,
+    ) -> Result<()> {
+        self.encode_fixed_len_cstr::<LEN>(&symbol_mapping.raw_symbol)
             .await?;
         // encode interval_count
         self.writer
@@ -311,8 +391,7 @@ where
             self.encode_date(interval.end_date)
                 .await
                 .map_err(|e| Error::io(e, "writing end date"))?;
-            self.encode_fixed_len_cstr::<{ crate::SYMBOL_CSTR_LEN }>(&interval.symbol)
-                .await?;
+            self.encode_fixed_len_cstr::<LEN>(&interval.symbol).await?;
         }
         Ok(())
     }
@@ -368,6 +447,7 @@ mod tests {
 
     use super::*;
     use crate::{
+        compat::version_symbol_cstr_len,
         datasets::{GLBX_MDP3, XNAS_ITCH},
         decode::{dbn::AsyncMetadataDecoder as MetadataDecoder, FromLittleEndianSlice},
         enums::{SType, Schema},
@@ -386,6 +466,7 @@ mod tests {
             end: NonZeroU64::new(1658960170000000000),
             limit: None,
             ts_out: true,
+            symbol_cstr_len: version_symbol_cstr_len(crate::DBN_VERSION),
             symbols: vec!["ES".to_owned(), "NG".to_owned()],
             partial: vec!["ESM2".to_owned()],
             not_found: vec!["QQQQQ".to_owned()],
@@ -452,7 +533,7 @@ mod tests {
             "LNQ".to_owned(),
         ];
         target
-            .encode_repeated_symbol_cstr(symbols.as_slice())
+            .encode_repeated_symbol_cstr(crate::DBN_VERSION, symbols.as_slice())
             .await
             .unwrap();
         assert_eq!(

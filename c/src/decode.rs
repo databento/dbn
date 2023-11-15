@@ -10,7 +10,7 @@ use std::{
 
 use dbn::{
     decode::{DecodeDbn, DecodeRecordRef, DynDecoder},
-    Compression, Metadata, Record, RecordHeader,
+    Compression, Metadata, Record, RecordHeader, VersionUpgradePolicy,
 };
 
 pub type Decoder = DynDecoder<'static, BufReader<File>>;
@@ -21,7 +21,11 @@ pub type Decoder = DynDecoder<'static, BufReader<File>>;
 /// `file` must be a valid file descriptor. This function assumes ownership of `file`.
 #[no_mangle]
 pub unsafe extern "C" fn DbnDecoder_create(file: RawFd, compression: Compression) -> *mut Decoder {
-    let decoder = match DynDecoder::new(File::from_raw_fd(file), compression) {
+    let decoder = match DynDecoder::new(
+        File::from_raw_fd(file),
+        compression,
+        VersionUpgradePolicy::AsIs,
+    ) {
         Ok(d) => d,
         Err(_) => {
             return null_mut();

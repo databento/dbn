@@ -78,12 +78,12 @@ impl<const N: usize> WriteField for [BidAskPair; N] {
         writer: &mut csv::Writer<W>,
     ) -> csv::Result<()> {
         for level in self.iter() {
-            write_px_field::<_, PRETTY_PX>(writer, level.bid_px)?;
-            write_px_field::<_, PRETTY_PX>(writer, level.ask_px)?;
-            writer.write_field(&level.bid_sz.to_string())?;
-            writer.write_field(&level.ask_sz.to_string())?;
-            writer.write_field(&level.bid_ct.to_string())?;
-            writer.write_field(&level.ask_ct.to_string())?;
+            write_px_field::<W, PRETTY_PX>(writer, level.bid_px)?;
+            write_px_field::<W, PRETTY_PX>(writer, level.ask_px)?;
+            level.bid_sz.write_field::<W, false, false>(writer)?;
+            level.ask_sz.write_field::<W, false, false>(writer)?;
+            level.bid_ct.write_field::<W, false, false>(writer)?;
+            level.ask_ct.write_field::<W, false, false>(writer)?;
         }
         Ok(())
     }
@@ -96,14 +96,24 @@ macro_rules! impl_write_field_for {
                         &self,
                         writer: &mut Writer<W>,
                     ) -> csv::Result<()> {
-                        writer.write_field(&self.to_string())
+                        let mut buf = itoa::Buffer::new();
+                        writer.write_field(buf.format(*self))
                     }
                 }
             )*
         };
     }
 
-impl_write_field_for! {i64, u64, i32, u32, i16, u16, i8, u8, bool}
+impl_write_field_for! {i64, u64, i32, u32, i16, u16, i8, u8}
+
+impl WriteField for bool {
+    fn write_field<W: io::Write, const PRETTY_PX: bool, const PRETTY_TS: bool>(
+        &self,
+        writer: &mut Writer<W>,
+    ) -> csv::Result<()> {
+        writer.write_field(self.to_string())
+    }
+}
 
 impl<const N: usize> WriteField for [c_char; N] {
     fn write_field<W: io::Write, const PRETTY_PX: bool, const PRETTY_TS: bool>(
@@ -119,7 +129,7 @@ impl WriteField for SecurityUpdateAction {
         &self,
         writer: &mut Writer<W>,
     ) -> csv::Result<()> {
-        writer.write_field(&(*self as u8 as char).to_string())
+        writer.write_field([*self as u8])
     }
 }
 
@@ -128,7 +138,7 @@ impl WriteField for UserDefinedInstrument {
         &self,
         writer: &mut Writer<W>,
     ) -> csv::Result<()> {
-        writer.write_field(&(*self as u8 as char).to_string())
+        writer.write_field([*self as u8])
     }
 }
 
@@ -143,7 +153,7 @@ pub fn write_px_field<W: io::Write, const PRETTY_PX: bool>(
             csv_writer.write_field(fmt_px(px))
         }
     } else {
-        csv_writer.write_field(px.to_string())
+        csv_writer.write_field(itoa::Buffer::new().format(px))
     }
 }
 
@@ -157,16 +167,16 @@ pub fn write_ts_field<W: io::Write, const PRETTY_TS: bool>(
             ts => csv_writer.write_field(fmt_ts(ts)),
         }
     } else {
-        csv_writer.write_field(ts.to_string())
+        csv_writer.write_field(itoa::Buffer::new().format(ts))
     }
 }
 
 pub fn write_c_char_field<W: io::Write>(csv_writer: &mut Writer<W>, c: c_char) -> csv::Result<()> {
     // Handle NUL byte
     if c == 0 {
-        csv_writer.write_field(String::new())
+        csv_writer.write_field([])
     } else {
-        csv_writer.write_field((c as u8 as char).to_string())
+        csv_writer.write_field([c as u8])
     }
 }
 

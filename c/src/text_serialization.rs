@@ -1,15 +1,15 @@
 use std::{
     ffi::c_char,
     io::{self, Write},
-    mem, slice,
+    slice,
+};
+
+use dbn::{
+    encode::{csv, json, DbnEncodable, EncodeRecordRef},
+    rtype, rtype_ts_out_dispatch, RecordHeader, RecordRef, Schema,
 };
 
 use crate::cfile::CFileRef;
-use dbn::{
-    compat::InstrumentDefMsgV2,
-    encode::{csv, json, DbnEncodable, EncodeRecord, EncodeRecordRef},
-    rtype, rtype_ts_out_dispatch, Record, RecordHeader, RecordRef, Schema,
-};
 
 /// The encoding to serialize as.
 #[repr(C)]
@@ -158,22 +158,6 @@ pub unsafe extern "C" fn s_serialize_record(
         return SerializeError::NullOptions as libc::c_int;
     };
     let mut cursor = io::Cursor::new(buffer);
-    // TODO(carter): reverse when V2 becomes the default
-    if record.record_size() >= mem::size_of::<InstrumentDefMsgV2>() {
-        if let Some(def_v2) = record.get::<InstrumentDefMsgV2>() {
-            let res = match options.encoding {
-                TextEncoding::Json => {
-                    json::Encoder::new(&mut cursor, false, options.pretty_px, options.pretty_ts)
-                        .encode_record(def_v2)
-                }
-                TextEncoding::Csv => {
-                    csv::Encoder::new(&mut cursor, options.pretty_px, options.pretty_ts)
-                        .encode_record(def_v2)
-                }
-            };
-            return write_null_and_ret(cursor, res);
-        }
-    };
     let res = match options.encoding {
         TextEncoding::Json => {
             json::Encoder::new(&mut cursor, false, options.pretty_px, options.pretty_ts)
@@ -264,15 +248,16 @@ fn write_null_and_ret(mut cursor: io::Cursor<&mut [u8]>, res: dbn::Result<()>) -
 mod tests {
     use std::os::raw::c_char;
 
-    use dbn::InstrumentDefMsg;
+    use dbn::{compat::InstrumentDefMsgV1, InstrumentDefMsg};
 
     use super::*;
 
     #[test]
     fn test_serialize_def_v1() {
-        // TODO(carter): update once DBNv2 is the default
-        let mut def_v1 = InstrumentDefMsg::default();
-        def_v1.raw_symbol = [b'a' as c_char; dbn::compat::SYMBOL_CSTR_LEN_V1];
+        let mut def_v1 = InstrumentDefMsgV1 {
+            raw_symbol: [b'a' as c_char; dbn::compat::SYMBOL_CSTR_LEN_V1],
+            ..Default::default()
+        };
         def_v1.raw_symbol[dbn::compat::SYMBOL_CSTR_LEN_V1 - 1] = 0;
         let mut buf = [0; 5000];
         assert!(
@@ -299,8 +284,10 @@ mod tests {
 
     #[test]
     fn test_serialize_def_v2() {
-        let mut def_v2 = InstrumentDefMsgV2::from(&InstrumentDefMsg::default());
-        def_v2.raw_symbol = [b'a' as c_char; dbn::compat::SYMBOL_CSTR_LEN_V2];
+        let mut def_v2 = InstrumentDefMsg {
+            raw_symbol: [b'a' as c_char; dbn::compat::SYMBOL_CSTR_LEN_V2],
+            ..Default::default()
+        };
         def_v2.raw_symbol[dbn::compat::SYMBOL_CSTR_LEN_V2 - 1] = 0;
         let mut buf = [0; 5000];
         assert!(

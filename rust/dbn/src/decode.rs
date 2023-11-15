@@ -30,7 +30,7 @@ use std::{
 };
 
 use crate::{
-    enums::Compression,
+    enums::{Compression, VersionUpgradePolicy},
     record::HasRType,
     record_ref::RecordRef,
     // record_ref::RecordRef,
@@ -119,23 +119,29 @@ impl<'a, R> DynDecoder<'a, BufReader<R>>
 where
     R: io::Read,
 {
-    /// Creates a new [`DynDecoder`] from a reader, with the specified `compression`.
+    /// Creates a new [`DynDecoder`] from a reader, with the specified `compression`. It
+    /// will decode records from previous DBN versions according to `upgrade_policy`.
     ///
     /// # Errors
     /// This function will return an error if it fails to parse the metadata.
-    pub fn new(reader: R, compression: Compression) -> crate::Result<Self> {
-        Self::with_buffer(BufReader::new(reader), compression)
+    pub fn new(
+        reader: R,
+        compression: Compression,
+        upgrade_policy: VersionUpgradePolicy,
+    ) -> crate::Result<Self> {
+        Self::with_buffer(BufReader::new(reader), compression, upgrade_policy)
     }
 
     /// Creates a new [`DynDecoder`] from a reader, inferring the encoding and
     /// compression. If `reader` also implements [`io::BufRead`], it is better to use
-    /// [`inferred_with_buffer()`](Self::inferred_with_buffer).
+    /// [`inferred_with_buffer()`](Self::inferred_with_buffer). It will decode records
+    /// from previous DBN versions according to `upgrade_policy`.
     ///
     /// # Errors
     /// This function will return an error if it is unable to determine
     /// the encoding of `reader` or it fails to parse the metadata.
-    pub fn new_inferred(reader: R) -> crate::Result<Self> {
-        Self::inferred_with_buffer(BufReader::new(reader))
+    pub fn new_inferred(reader: R, upgrade_policy: VersionUpgradePolicy) -> crate::Result<Self> {
+        Self::inferred_with_buffer(BufReader::new(reader), upgrade_policy)
     }
 }
 
@@ -144,62 +150,89 @@ where
     R: io::BufRead,
 {
     /// Creates a new [`DynDecoder`] from a buffered reader with the specified
-    /// `compression`.
+    /// `compression`.It will decode records from previous DBN versions according to
+    /// `upgrade_policy`.
     ///
     /// # Errors
     /// This function will return an error if it is unable to determine
     /// the encoding of `reader` or it fails to parse the metadata.
-    pub fn with_buffer(reader: R, compression: Compression) -> crate::Result<Self> {
+    pub fn with_buffer(
+        reader: R,
+        compression: Compression,
+        upgrade_policy: VersionUpgradePolicy,
+    ) -> crate::Result<Self> {
         match compression {
-            Compression::None => Ok(Self(DynDecoderImpl::Dbn(dbn::Decoder::new(reader)?))),
+            Compression::None => Ok(Self(DynDecoderImpl::Dbn(
+                dbn::Decoder::with_upgrade_policy(reader, upgrade_policy)?,
+            ))),
             Compression::ZStd => Ok(Self(DynDecoderImpl::ZstdDbn(
-                dbn::Decoder::with_zstd_buffer(reader)?,
+                dbn::Decoder::with_upgrade_policy(
+                    ::zstd::stream::Decoder::with_buffer(reader)
+                        .map_err(|e| crate::Error::io(e, "creating zstd decoder"))?,
+                    upgrade_policy,
+                )?,
             ))),
         }
     }
 
     /// Creates a new [`DynDecoder`] from a buffered reader, inferring the encoding
-    /// and compression.
+    /// and compression.It will decode records from previous DBN versions according
+    /// to `upgrade_policy`.
     ///
     /// # Errors
     /// This function will return an error if it is unable to determine
     /// the encoding of `reader` or it fails to parse the metadata.
-    pub fn inferred_with_buffer(mut reader: R) -> crate::Result<Self> {
+    pub fn inferred_with_buffer(
+        mut reader: R,
+        upgrade_policy: VersionUpgradePolicy,
+    ) -> crate::Result<Self> {
         let first_bytes = reader
             .fill_buf()
             .map_err(|e| crate::Error::io(e, "creating buffer to infer encoding"))?;
         #[allow(deprecated)]
         if dbz::starts_with_prefix(first_bytes) {
-            Ok(Self(DynDecoderImpl::LegacyDbz(dbz::Decoder::new(reader)?)))
+            Ok(Self(DynDecoderImpl::LegacyDbz(
+                dbz::Decoder::with_upgrade_policy(reader, upgrade_policy)?,
+            )))
         } else if dbn::starts_with_prefix(first_bytes) {
-            Ok(Self(DynDecoderImpl::Dbn(dbn::Decoder::new(reader)?)))
+            Ok(Self(DynDecoderImpl::Dbn(
+                dbn::Decoder::with_upgrade_policy(reader, upgrade_policy)?,
+            )))
         } else if zstd::starts_with_prefix(first_bytes) {
             Ok(Self(DynDecoderImpl::ZstdDbn(
-                dbn::Decoder::with_zstd_buffer(reader)?,
+                dbn::Decoder::with_upgrade_policy(
+                    ::zstd::stream::Decoder::with_buffer(reader)
+                        .map_err(|e| crate::Error::io(e, "creating zstd decoder"))?,
+                    upgrade_policy,
+                )?,
             )))
         } else {
-            Err(crate::Error::decode("Unable to determine encoding"))
+            Err(crate::Error::decode("unable to determine encoding"))
         }
     }
 }
 
 impl<'a> DynDecoder<'a, BufReader<File>> {
-    /// Creates a new [`DynDecoder`] from the file at `path`.
+    /// Creates a new [`DynDecoder`] from the file at `path`. It will decode records
+    /// from previous DBN versions according to `upgrade_policy`.
     ///
     /// # Errors
     /// This function will return an error if the file doesn't exist, it is unable to
     /// determine the encoding of the file or it fails to parse the metadata.
-    pub fn from_file(path: impl AsRef<Path>) -> crate::Result<Self> {
+    pub fn from_file(
+        path: impl AsRef<Path>,
+        upgrade_policy: VersionUpgradePolicy,
+    ) -> crate::Result<Self> {
         let file = File::open(path.as_ref()).map_err(|e| {
             crate::Error::io(
                 e,
                 format!(
-                    "Error opening file to decode at path '{}'",
+                    "opening file to decode at path '{}'",
                     path.as_ref().display()
                 ),
             )
         })?;
-        DynDecoder::new_inferred(file)
+        DynDecoder::new_inferred(file, upgrade_policy)
     }
 }
 
@@ -349,7 +382,7 @@ impl<'a> DynReader<'a, BufReader<File>> {
             crate::Error::io(
                 e,
                 format!(
-                    "Error opening file to decode at path '{}'",
+                    "opening file to decode at path '{}'",
                     path.as_ref().display()
                 ),
             )
@@ -432,6 +465,8 @@ impl FromLittleEndianSlice for u16 {
 mod tests {
     use std::io::Read;
 
+    use crate::enums::VersionUpgradePolicy;
+
     use super::*;
 
     pub const TEST_DATA_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/data");
@@ -467,10 +502,10 @@ mod tests {
         file.read_to_end(&mut buf).unwrap();
         // change version
         buf[3] = crate::DBN_VERSION + 1;
-        let res = DynDecoder::new_inferred(io::Cursor::new(buf));
+        let res = DynDecoder::new_inferred(io::Cursor::new(buf), VersionUpgradePolicy::default());
         assert!(matches!(res, Err(e) if e
             .to_string()
-            .contains("Can't decode newer version of DBN")));
+            .contains("can't decode newer version of DBN")));
     }
 }
 

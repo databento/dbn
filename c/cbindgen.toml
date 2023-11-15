@@ -14,8 +14,7 @@ renaming_overrides_prefixing = true
 [export.rename]
 "FILE" = "FILE"
 # Workaround for cbindgen not understanding constants defined in terms of other constants
-# TODO(carter): update for V2
-"SYMBOL_CSTR_LEN_V1" = "DbnSYMBOL_CSTR_LEN"
+"SYMBOL_CSTR_LEN_V2" = "DbnSYMBOL_CSTR_LEN"
 
 [enum]
 prefix_with_name = true

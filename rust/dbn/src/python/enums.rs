@@ -2,8 +2,9 @@ use std::str::FromStr;
 
 use pyo3::{prelude::*, pyclass::CompareOp, type_object::PyTypeInfo, types::PyType};
 
-use crate::enums::{
-    Compression, Encoding, SType, Schema, SecurityUpdateAction, UserDefinedInstrument,
+use crate::{
+    enums::{Compression, Encoding, SType, Schema, SecurityUpdateAction, UserDefinedInstrument},
+    RType,
 };
 
 use super::{to_val_err, EnumIterator, PyFieldDesc};
@@ -252,6 +253,72 @@ impl SType {
         Self::from_str(&tokenized).map_err(to_val_err)
     }
 }
+
+#[pymethods]
+impl RType {
+    #[new]
+    fn py_new(py: Python<'_>, value: &PyAny) -> PyResult<Self> {
+        let t = Self::type_object(py);
+        Self::py_from_str(t, value).or_else(|_| Self::py_from_int(t, value))
+    }
+
+    fn __hash__(&self) -> isize {
+        *self as isize
+    }
+
+    fn __str__(&self) -> &'static str {
+        self.as_str()
+    }
+
+    fn __repr__(&self) -> String {
+        format!("<RType.{}: '{}'>", self.name(), self.value(),)
+    }
+
+    fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        if let Ok(other_enum) = Self::py_from_str(Self::type_object(py), other)
+            .or_else(|_| Self::py_from_int(Self::type_object(py), other))
+        {
+            match op {
+                CompareOp::Eq => self.eq(&other_enum).into_py(py),
+                CompareOp::Ne => self.ne(&other_enum).into_py(py),
+                _ => py.NotImplemented(),
+            }
+        } else {
+            py.NotImplemented()
+        }
+    }
+
+    #[getter]
+    fn name(&self) -> String {
+        self.as_str().to_uppercase()
+    }
+
+    #[getter]
+    fn value(&self) -> u8 {
+        *self as u8
+    }
+
+    #[classmethod]
+    fn variants(_: &PyType, py: Python<'_>) -> EnumIterator {
+        EnumIterator::new::<Self>(py)
+    }
+
+    #[classmethod]
+    #[pyo3(name = "from_str")]
+    fn py_from_str(_: &PyType, data: &PyAny) -> PyResult<Self> {
+        let data_str: &str = data.str().and_then(|s| s.extract())?;
+        let tokenized = data_str.replace('-', "_").to_lowercase();
+        Self::from_str(&tokenized).map_err(to_val_err)
+    }
+
+    #[classmethod]
+    #[pyo3(name = "from_int")]
+    fn py_from_int(_: &PyType, data: &PyAny) -> PyResult<Self> {
+        let value: u8 = data.extract()?;
+        Self::try_from(value).map_err(to_val_err)
+    }
+}
+
 impl PyFieldDesc for SecurityUpdateAction {
     fn field_dtypes(field_name: &str) -> Vec<(String, String)> {
         vec![(field_name.to_owned(), "S1".to_owned())]

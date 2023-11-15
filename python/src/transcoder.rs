@@ -14,7 +14,7 @@ use dbn::{
     },
     python::{py_to_time_date, to_val_err},
     Compression, Encoding, PitSymbolMap, RType, Record, RecordRef, Schema, SymbolIndex,
-    TsSymbolMap,
+    TsSymbolMap, VersionUpgradePolicy,
 };
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyDate};
 
@@ -23,7 +23,7 @@ use crate::encode::PyFileLike;
 #[pyclass(module = "databento_dbn")]
 pub struct Transcoder(Box<dyn Transcode + Send>);
 
-pub type PySymbolMap<'py> = HashMap<u32, Vec<(&'py PyDate, &'py PyDate, String)>>;
+pub type PySymbolIntervalMap<'py> = HashMap<u32, Vec<(&'py PyDate, &'py PyDate, String)>>;
 
 #[pymethods]
 impl Transcoder {
@@ -37,12 +37,14 @@ impl Transcoder {
         map_symbols: Option<bool>,
         has_metadata: Option<bool>,
         ts_out: Option<bool>,
-        symbol_map: Option<PySymbolMap>,
+        symbol_interval_map: Option<PySymbolIntervalMap>,
         schema: Option<Schema>,
+        input_version: Option<u8>,
+        upgrade_policy: Option<VersionUpgradePolicy>,
     ) -> PyResult<Self> {
-        let symbol_map = if let Some(py_symbol_map) = symbol_map {
+        let symbol_map = if let Some(symbol_interval_map) = symbol_interval_map {
             let mut symbol_map = TsSymbolMap::new();
-            for (iid, py_intervals) in py_symbol_map {
+            for (iid, py_intervals) in symbol_interval_map {
                 for (start_date, end_date, symbol) in py_intervals {
                     if symbol.is_empty() {
                         continue;
@@ -69,6 +71,8 @@ impl Transcoder {
                 ts_out,
                 symbol_map,
                 schema,
+                input_version,
+                upgrade_policy,
             )?),
             Encoding::Csv => Box::new(Inner::<{ Encoding::Csv as u8 }>::new(
                 file,
@@ -80,6 +84,8 @@ impl Transcoder {
                 ts_out,
                 symbol_map,
                 schema,
+                input_version,
+                upgrade_policy,
             )?),
             Encoding::Json => Box::new(Inner::<{ Encoding::Json as u8 }>::new(
                 file,
@@ -91,6 +97,8 @@ impl Transcoder {
                 ts_out,
                 symbol_map,
                 schema,
+                input_version,
+                upgrade_policy,
             )?),
         }))
     }
@@ -127,6 +135,8 @@ struct Inner<const E: u8> {
     ts_out: bool,
     symbol_map: SymbolMap,
     schema: Option<Schema>,
+    input_version: u8,
+    upgrade_policy: VersionUpgradePolicy,
 }
 
 impl<const E: u8> Transcode for Inner<E> {
@@ -157,6 +167,8 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
         ts_out: Option<bool>,
         symbol_map: Option<TsSymbolMap>,
         schema: Option<Schema>,
+        input_version: Option<u8>,
+        upgrade_policy: Option<VersionUpgradePolicy>,
     ) -> PyResult<Self> {
         if OUTPUT_ENC == Encoding::Dbn as u8 && map_symbols.unwrap_or(false) {
             return Err(PyValueError::new_err(
@@ -173,6 +185,8 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
             ts_out: ts_out.unwrap_or(false),
             symbol_map: symbol_map.map(SymbolMap::Historical).unwrap_or_default(),
             schema,
+            input_version: input_version.unwrap_or(dbn::DBN_VERSION),
+            upgrade_policy: upgrade_policy.unwrap_or_default(),
         })
     }
 
@@ -193,7 +207,12 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
 
     fn encode_dbn(&mut self, orig_position: u64) -> PyResult<usize> {
         let mut read_position = self.buffer.position() as usize;
-        let mut decoder = DbnRecordDecoder::new(&mut self.buffer);
+        let mut decoder = DbnRecordDecoder::with_version(
+            &mut self.buffer,
+            self.input_version,
+            self.upgrade_policy,
+        )
+        .map_err(to_val_err)?;
         let mut encoder = DbnRecordEncoder::new(&mut self.output);
         loop {
             match decoder.decode_record_ref() {
@@ -220,7 +239,12 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
 
     fn encode_csv(&mut self, orig_position: u64) -> PyResult<usize> {
         let mut read_position = self.buffer.position() as usize;
-        let mut decoder = DbnRecordDecoder::new(&mut self.buffer);
+        let mut decoder = DbnRecordDecoder::with_version(
+            &mut self.buffer,
+            self.input_version,
+            self.upgrade_policy,
+        )
+        .map_err(to_val_err)?;
 
         let mut encoder = CsvEncoder::new(&mut self.output, self.use_pretty_px, self.use_pretty_ts);
         loop {
@@ -264,7 +288,12 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
 
     fn encode_json(&mut self, orig_position: u64) -> PyResult<usize> {
         let mut read_position = self.buffer.position() as usize;
-        let mut decoder = DbnRecordDecoder::new(&mut self.buffer);
+        let mut decoder = DbnRecordDecoder::with_version(
+            &mut self.buffer,
+            self.input_version,
+            self.upgrade_policy,
+        )
+        .map_err(to_val_err)?;
 
         let mut encoder = JsonEncoder::new(
             &mut self.output,
@@ -304,12 +333,14 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
     fn maybe_decode_metadata(&mut self, orig_position: u64) -> PyResult<()> {
         if !self.has_decoded_metadata {
             match DbnMetadataDecoder::new(&mut self.buffer).decode() {
-                Ok(metadata) => {
+                Ok(mut metadata) => {
                     self.ts_out = metadata.ts_out;
+                    self.input_version = metadata.version;
                     self.has_decoded_metadata = true;
                     if self.schema.is_none() {
                         self.schema = metadata.schema;
                     }
+                    metadata.upgrade(self.upgrade_policy);
                     // Setup live symbol mapping
                     if OUTPUT_ENC == Encoding::Dbn as u8 {
                         DbnMetadataEncoder::new(&mut self.output)
@@ -450,6 +481,8 @@ mod tests {
                 None,
                 None,
                 None,
+                None,
+                None,
             )
             .unwrap()
         });
@@ -511,6 +544,8 @@ mod tests {
                 Py::new(py, file).unwrap().extract(py).unwrap(),
                 Encoding::Csv,
                 Compression::None,
+                None,
+                None,
                 None,
                 None,
                 None,
@@ -590,6 +625,8 @@ mod tests {
                 Some(true),
                 None,
                 None,
+                None,
+                None,
             )
             .unwrap()
         });
@@ -667,7 +704,7 @@ mod tests {
         encoder.encode_record(&rec2).unwrap();
         assert!(transcoder.buffer().is_empty());
         // Write first record and part of second
-        transcoder.write(&encoder.get_ref()).unwrap();
+        transcoder.write(encoder.get_ref()).unwrap();
         transcoder.flush().unwrap();
         let output = output_buf.lock().unwrap();
         let output = std::str::from_utf8(output.get_ref().as_slice()).unwrap();
@@ -714,6 +751,8 @@ mod tests {
                 None,
                 None,
                 Some(Schema::Ohlcv1S),
+                None,
+                None,
             )
             .unwrap()
         });
@@ -762,17 +801,39 @@ mod tests {
         };
         encoder
             .encode_record(
-                &SymbolMappingMsg::new(NFLX_ID, 0, NFLX, NFLX, 0, UNDEF_TIMESTAMP).unwrap(),
+                &SymbolMappingMsg::new(
+                    NFLX_ID,
+                    0,
+                    SType::RawSymbol,
+                    NFLX,
+                    SType::RawSymbol,
+                    NFLX,
+                    0,
+                    UNDEF_TIMESTAMP,
+                )
+                .unwrap(),
             )
             .unwrap();
         encoder
-            .encode_record(&SymbolMappingMsg::new(QQQ_ID, 1, QQQ, QQQ, 1, UNDEF_TIMESTAMP).unwrap())
+            .encode_record(
+                &SymbolMappingMsg::new(
+                    QQQ_ID,
+                    1,
+                    SType::RawSymbol,
+                    QQQ,
+                    SType::RawSymbol,
+                    QQQ,
+                    1,
+                    UNDEF_TIMESTAMP,
+                )
+                .unwrap(),
+            )
             .unwrap();
         encoder.encode_record(&rec1).unwrap();
         encoder.encode_record(&rec2).unwrap();
         assert!(transcoder.buffer().is_empty());
         // Write first record and part of second
-        transcoder.write(&encoder.get_ref()).unwrap();
+        transcoder.write(encoder.get_ref()).unwrap();
         transcoder.flush().unwrap();
         let output = output_buf.lock().unwrap();
         let output = std::str::from_utf8(output.get_ref().as_slice()).unwrap();
@@ -823,6 +884,8 @@ mod tests {
                 None,
                 None,
                 Some(schema),
+                None,
+                None,
             )
             .unwrap()
         });
@@ -837,8 +900,8 @@ mod tests {
             assert_eq!(lines.len(), 3);
             assert!(lines[0].ends_with(",symbol"));
             // ensure ends with a symbol not an empty cell
-            assert!(!lines[1].ends_with(","));
-            assert!(!lines[2].ends_with(","));
+            assert!(!lines[1].ends_with(','));
+            assert!(!lines[2].ends_with(','));
         }
     }
 }

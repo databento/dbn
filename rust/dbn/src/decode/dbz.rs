@@ -10,9 +10,10 @@ use std::{
 
 use super::{
     private::BufferSlice, zstd::ZSTD_SKIPPABLE_MAGIC_RANGE, DecodeDbn, DecodeRecordRef,
-    StreamIterDecoder,
+    StreamIterDecoder, VersionUpgradePolicy,
 };
 use crate::{
+    compat,
     decode::{dbn::decode_iso8601, FromLittleEndianSlice},
     error::silence_eof_error,
     Compression, HasRType, MappingInterval, Metadata, Record, RecordHeader, RecordRef, SType,
@@ -21,9 +22,11 @@ use crate::{
 
 /// Object for reading, parsing, and serializing a legacy Databento Binary Encoding (DBZ) file.
 pub struct Decoder<R: io::BufRead> {
+    upgrade_policy: VersionUpgradePolicy,
     reader: zstd::Decoder<'static, R>,
     metadata: Metadata,
-    buffer: Vec<u8>,
+    read_buffer: Vec<u8>,
+    compat_buffer: [u8; crate::MAX_RECORD_LEN],
 }
 
 /// Returns `true` if `bytes` starts with valid DBZ.
@@ -50,10 +53,7 @@ impl Decoder<BufReader<File>> {
         let file = File::open(path.as_ref()).map_err(|e| {
             crate::Error::io(
                 e,
-                format!(
-                    "Error opening dbn file at path '{}'",
-                    path.as_ref().display()
-                ),
+                format!("opening dbn file at path '{}'", path.as_ref().display()),
             )
         })?;
         let reader = BufReader::new(file);
@@ -64,18 +64,34 @@ impl Decoder<BufReader<File>> {
 // `BufRead` instead of `Read` because the [zstd::Decoder] works with `BufRead` so accepting
 // a `Read` could result in redundant `BufReader`s being created.
 impl<R: io::BufRead> Decoder<R> {
-    /// Creates a new [`Decoder`] from `reader`.
+    /// Creates a new DBZ [`Decoder`] from `reader`.
     ///
     /// # Errors
     /// This function will return an error if it is unable to parse the metadata in `reader`.
-    pub fn new(mut reader: R) -> crate::Result<Self> {
-        let metadata = MetadataDecoder::read(&mut reader)?;
+    pub fn new(reader: R) -> crate::Result<Self> {
+        Self::with_upgrade_policy(reader, VersionUpgradePolicy::AsIs)
+    }
+
+    /// Creates a new DBZ [`Decoder`] from `reader`. It will decode records from
+    /// according to `upgrade_policy`.
+    ///
+    /// # Errors
+    /// This function will return an error if it is unable to parse the metadata in
+    /// `reader.
+    pub fn with_upgrade_policy(
+        mut reader: R,
+        upgrade_policy: VersionUpgradePolicy,
+    ) -> crate::Result<Self> {
+        let mut metadata = MetadataDecoder::read(&mut reader)?;
+        metadata.upgrade(upgrade_policy);
         let reader = zstd::Decoder::with_buffer(reader)
             .map_err(|e| crate::Error::io(e, "creating zstd decoder"))?;
         Ok(Self {
+            upgrade_policy,
             reader,
             metadata,
-            buffer: vec![0],
+            read_buffer: vec![0],
+            compat_buffer: [0; crate::MAX_RECORD_LEN],
         })
     }
 }
@@ -83,23 +99,31 @@ impl<R: io::BufRead> Decoder<R> {
 impl<R: io::BufRead> DecodeRecordRef for Decoder<R> {
     fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef>> {
         let io_err = |e| crate::Error::io(e, "decoding record reference");
-        if let Err(err) = self.reader.read_exact(&mut self.buffer[..1]) {
+        if let Err(err) = self.reader.read_exact(&mut self.read_buffer[..1]) {
             return silence_eof_error(err).map_err(io_err);
         }
-        let length = self.buffer[0] as usize * RecordHeader::LENGTH_MULTIPLIER;
+        let length = self.read_buffer[0] as usize * RecordHeader::LENGTH_MULTIPLIER;
         if length < mem::size_of::<RecordHeader>() {
             return Err(crate::Error::decode(format!(
-                "Invalid record with length {length} shorter than header"
+                "invalid record with length {length} shorter than header"
             )));
         }
-        if length > self.buffer.len() {
-            self.buffer.resize(length, 0);
+        if length > self.read_buffer.len() {
+            self.read_buffer.resize(length, 0);
         }
-        if let Err(err) = self.reader.read_exact(&mut self.buffer[1..length]) {
+        if let Err(err) = self.reader.read_exact(&mut self.read_buffer[1..length]) {
             return silence_eof_error(err).map_err(io_err);
         }
         // Safety: `buffer` is resized to contain at least `length` bytes.
-        Ok(Some(unsafe { RecordRef::new(self.buffer.as_mut_slice()) }))
+        Ok(Some(unsafe {
+            // DBZ records are the same as DBN version 1
+            compat::decode_record_ref(
+                1,
+                self.upgrade_policy,
+                &mut self.compat_buffer,
+                &self.read_buffer,
+            )
+        }))
     }
 }
 
@@ -115,7 +139,7 @@ impl<R: io::BufRead> DecodeDbn for Decoder<R> {
                 .get::<T>()
                 .ok_or_else(|| {
                     crate::Error::conversion::<T>(format!(
-                        "record with rtype {}",
+                        "record with rtype {:#04X}",
                         rec_ref.header().rtype
                     ))
                 })
@@ -135,14 +159,14 @@ impl<R: io::BufRead> DecodeDbn for Decoder<R> {
     where
         Self: Sized,
     {
-        self.buffer = vec![0; mem::size_of::<T>()];
+        self.read_buffer = vec![0; mem::size_of::<T>()];
         StreamIterDecoder::new(self)
     }
 }
 
 impl<R: io::BufRead> BufferSlice for Decoder<R> {
     fn buffer_slice(&self) -> &[u8] {
-        self.buffer.as_slice()
+        self.read_buffer.as_slice()
     }
 }
 
@@ -165,14 +189,14 @@ impl MetadataDecoder {
         let magic = u32::from_le_slice(&prelude_buffer[..4]);
         if !ZSTD_SKIPPABLE_MAGIC_RANGE.contains(&magic) {
             return Err(crate::Error::decode(
-                "Invalid metadata: no zstd magic number",
+                "invalid metadata: no zstd magic number",
             ));
         }
         let frame_size = u32::from_le_slice(&prelude_buffer[4..]);
         // debug!("magic={magic}, frame_size={frame_size}");
         if (frame_size as usize) < Self::FIXED_METADATA_LEN {
             return Err(crate::Error::Decode(
-                "Frame length cannot be shorter than the fixed metadata size".to_owned(),
+                "frame length cannot be shorter than the fixed metadata size".to_owned(),
             ));
         }
 
@@ -219,15 +243,14 @@ impl MetadataDecoder {
         // skip over deprecated record_count
         pos += U64_SIZE;
         // Unused in new Metadata
-        let _compression = Compression::try_from(metadata_buffer[pos]).map_err(|_| {
-            crate::Error::conversion::<Compression>(format!("{}", metadata_buffer[pos]))
-        })?;
+        let _compression = Compression::try_from(metadata_buffer[pos])
+            .map_err(|_| crate::Error::conversion::<Compression>(metadata_buffer[pos]))?;
         pos += mem::size_of::<Compression>();
         let stype_in = SType::try_from(metadata_buffer[pos])
-            .map_err(|_| crate::Error::conversion::<SType>(format!("{}", metadata_buffer[pos])))?;
+            .map_err(|_| crate::Error::conversion::<SType>(metadata_buffer[pos]))?;
         pos += mem::size_of::<SType>();
         let stype_out = SType::try_from(metadata_buffer[pos])
-            .map_err(|_| crate::Error::conversion::<SType>(format!("{}", metadata_buffer[pos])))?;
+            .map_err(|_| crate::Error::conversion::<SType>(metadata_buffer[pos]))?;
         pos += mem::size_of::<SType>();
         // skip reserved
         pos += Self::RESERVED_LEN;
@@ -245,7 +268,7 @@ impl MetadataDecoder {
         let schema_definition_length = u32::from_le_slice(&var_buffer[pos..]);
         if schema_definition_length != 0 {
             return Err(crate::Error::decode(
-                "This version of dbn can't parse schema definitions",
+                "DBZ doesn't support schema definitions",
             ));
         }
         pos += Self::U32_SIZE + (schema_definition_length as usize);
@@ -268,24 +291,26 @@ impl MetadataDecoder {
             partial,
             not_found,
             mappings,
+            symbol_cstr_len: crate::compat::SYMBOL_CSTR_LEN_V1,
         })
     }
 
     fn decode_repeated_symbol_cstr(buffer: &[u8], pos: &mut usize) -> crate::Result<Vec<String>> {
         if *pos + Self::U32_SIZE > buffer.len() {
-            return Err(crate::Error::decode("Unexpected end of metadata buffer"));
+            return Err(crate::Error::decode("unexpected end of metadata buffer"));
         }
         let count = u32::from_le_slice(&buffer[*pos..]) as usize;
         *pos += Self::U32_SIZE;
-        let read_size = count * crate::SYMBOL_CSTR_LEN;
+        let read_size = count * crate::compat::SYMBOL_CSTR_LEN_V1;
         if *pos + read_size > buffer.len() {
-            return Err(crate::Error::decode("Unexpected end of metadata buffer"));
+            return Err(crate::Error::decode("unexpected end of metadata buffer"));
         }
         let mut res = Vec::with_capacity(count);
         for i in 0..count {
-            res.push(Self::decode_symbol(buffer, pos).map_err(|e| {
-                crate::Error::utf8(e, format!("Failed to decode symbol at index {i}"))
-            })?);
+            res.push(
+                Self::decode_symbol(buffer, pos)
+                    .map_err(|e| crate::Error::utf8(e, format!("decoding symbol at index {i}")))?,
+            );
         }
         Ok(res)
     }
@@ -293,7 +318,7 @@ impl MetadataDecoder {
     fn decode_symbol_mappings(buffer: &[u8], pos: &mut usize) -> crate::Result<Vec<SymbolMapping>> {
         if *pos + Self::U32_SIZE > buffer.len() {
             return Err(crate::Error::decode(
-                "Unexpected end of metadata buffer while decoding symbol mappings",
+                "unexpected end of metadata buffer while decoding symbol mappings",
             ));
         }
         let count = u32::from_le_slice(&buffer[*pos..]) as usize;
@@ -308,12 +333,13 @@ impl MetadataDecoder {
 
     fn decode_symbol_mapping(buffer: &[u8], pos: &mut usize) -> crate::Result<SymbolMapping> {
         const U32_SIZE: usize = mem::size_of::<u32>();
-        const MIN_SYMBOL_MAPPING_ENCODED_SIZE: usize = crate::SYMBOL_CSTR_LEN + U32_SIZE;
-        const MAPPING_INTERVAL_ENCODED_SIZE: usize = U32_SIZE * 2 + crate::SYMBOL_CSTR_LEN;
+        const MIN_SYMBOL_MAPPING_ENCODED_SIZE: usize = crate::compat::SYMBOL_CSTR_LEN_V1 + U32_SIZE;
+        const MAPPING_INTERVAL_ENCODED_SIZE: usize =
+            U32_SIZE * 2 + crate::compat::SYMBOL_CSTR_LEN_V1;
 
         if *pos + MIN_SYMBOL_MAPPING_ENCODED_SIZE > buffer.len() {
             return Err(crate::Error::decode(
-                "Unexpected end of metadata buffer while parsing symbol mapping",
+                "unexpected end of metadata buffer while parsing symbol mapping",
             ));
         }
         let raw_symbol = Self::decode_symbol(buffer, pos)
@@ -323,7 +349,7 @@ impl MetadataDecoder {
         let read_size = interval_count * MAPPING_INTERVAL_ENCODED_SIZE;
         if *pos + read_size > buffer.len() {
             return Err(crate::Error::decode(format!(
-                "Symbol mapping interval_count ({interval_count}) doesn't match size of buffer \
+                "symbol mapping interval_count ({interval_count}) doesn't match size of buffer \
                 which only contains space for {} intervals",
                 (buffer.len() - *pos) / MAPPING_INTERVAL_ENCODED_SIZE
             )));
@@ -360,12 +386,12 @@ impl MetadataDecoder {
     }
 
     fn decode_symbol(buffer: &[u8], pos: &mut usize) -> Result<String, Utf8Error> {
-        let symbol_slice = &buffer[*pos..*pos + crate::SYMBOL_CSTR_LEN];
+        let symbol_slice = &buffer[*pos..*pos + crate::compat::SYMBOL_CSTR_LEN_V1];
         let symbol = std::str::from_utf8(symbol_slice)?
             // remove null bytes
             .trim_end_matches('\0')
             .to_owned();
-        *pos += crate::SYMBOL_CSTR_LEN;
+        *pos += crate::compat::SYMBOL_CSTR_LEN_V1;
         Ok(symbol)
     }
 }
@@ -375,8 +401,9 @@ mod tests {
     use streaming_iterator::StreamingIterator;
 
     use super::*;
+    use crate::compat::InstrumentDefMsgV1;
     use crate::decode::tests::TEST_DATA_PATH;
-    use crate::record::{InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, TbboMsg, TradeMsg};
+    use crate::record::{MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, TbboMsg, TradeMsg};
 
     /// there are crates like rstest that provide pytest-like parameterized tests, however
     /// they don't support passing types
@@ -409,17 +436,17 @@ mod tests {
     test_reading_dbz!(test_reading_trades, TradeMsg, Schema::Trades);
     test_reading_dbz!(
         test_reading_definition,
-        InstrumentDefMsg,
+        InstrumentDefMsgV1,
         Schema::Definition
     );
 
     #[test]
     fn test_decode_symbol() {
         let bytes = b"SPX.1.2\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
-        assert_eq!(bytes.len(), crate::SYMBOL_CSTR_LEN);
+        assert_eq!(bytes.len(), crate::compat::SYMBOL_CSTR_LEN_V1);
         let mut pos = 0;
         let res = MetadataDecoder::decode_symbol(bytes.as_slice(), &mut pos).unwrap();
-        assert_eq!(pos, crate::SYMBOL_CSTR_LEN);
+        assert_eq!(pos, crate::compat::SYMBOL_CSTR_LEN_V1);
         assert_eq!(&res, "SPX.1.2");
     }
 

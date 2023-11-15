@@ -1,10 +1,14 @@
 # dbn
 
 [![build](https://github.com/databento/dbn/actions/workflows/build.yaml/badge.svg)](https://github.com/databento/dbn/actions/workflows/build.yaml)
+[![Documentation](https://img.shields.io/docsrs/dbn)](https://docs.rs/dbn/latest/dbn/)
 ![license](https://img.shields.io/github/license/databento/dbn?color=blue)
 [![Current Crates.io Version](https://img.shields.io/crates/v/dbn.svg)](https://crates.io/crates/dbn)
 
-The official library for working with the Databento Binary Encoding (DBN, formerly DBZ).
+The official crate for working with Databento Binary Encoding (DBN).
+For more information about DBN, read our [introduction to DBN](https://docs.databento.com/knowledge-base/new-users/dbn-encoding/getting-started-with-dbn).
+
+Check out the [databento crate](https://crates.io/crates/databento) for the official Databento Rust client.
 
 ## Installation
 

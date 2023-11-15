@@ -28,9 +28,23 @@ macro_rules! rtype_dispatch_base {
                 | RType::OhlcvEod => $handler!(OhlcvMsg),
                 RType::Imbalance => $handler!(ImbalanceMsg),
                 RType::Status => $handler!(StatusMsg),
-                RType::InstrumentDef => $handler!(InstrumentDefMsg),
+                RType::InstrumentDef => {
+                    // TODO(carter): remove temporary version handling
+                    if $rec_ref.record_size() < std::mem::size_of::<InstrumentDefMsg>() {
+                        $handler!($crate::compat::InstrumentDefMsgV1)
+                    } else {
+                        $handler!(InstrumentDefMsg)
+                    }
+                }
+                RType::SymbolMapping => {
+                    // TODO(carter): remove temporary version handling
+                    if $rec_ref.record_size() < std::mem::size_of::<SymbolMappingMsg>() {
+                        $handler!($crate::compat::SymbolMappingMsgV1)
+                    } else {
+                        $handler!(SymbolMappingMsg)
+                    }
+                }
                 RType::Error => $handler!(ErrorMsg),
-                RType::SymbolMapping => $handler!(SymbolMappingMsg),
                 RType::System => $handler!(SystemMsg),
                 RType::Statistics => $handler!(StatMsg),
                 RType::Mbo => $handler!(MboMsg),

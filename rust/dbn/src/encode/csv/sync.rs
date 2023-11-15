@@ -112,7 +112,7 @@ where
             Ok(()) => Ok(()),
             Err(e) => Err(match e.into_kind() {
                 csv::ErrorKind::Io(err) => Error::io(err, format!("serializing {record:?}")),
-                e => Error::encode(format!("Failed to serialize {record:?}: {e:?}")),
+                e => Error::encode(format!("failed to serialize {record:?}: {e:?}")),
             }),
         }
     }
@@ -185,7 +185,7 @@ where
             let rtype = RType::from(schema);
             while let Some(record) = decoder.decode_record_ref()? {
                 if record.rtype().map_or(true, |r| r != rtype) {
-                    return Err(Error::encode(format!("Schema indicated {rtype:?}, but found record with rtype {:?}. Mixed schemas cannot be encoded in CSV.", record.rtype())));
+                    return Err(Error::encode(format!("schema indicated {rtype:?}, but found record with rtype {:?}. Mixed schemas cannot be encoded in CSV.", record.rtype())));
                 }
                 // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
                 // from the metadata header.
@@ -194,7 +194,7 @@ where
             self.flush()?;
             Ok(())
         } else {
-            Err(Error::encode("Can't encode a CSV with mixed schemas"))
+            Err(Error::encode("can't encode a CSV with mixed schemas"))
         }
     }
 
@@ -210,7 +210,7 @@ where
             let mut i = 0;
             while let Some(record) = decoder.decode_record_ref()? {
                 if record.rtype().map_or(true, |r| r != rtype) {
-                    return Err(Error::encode(format!("Schema indicated {rtype:?}, but found record with rtype {:?}. Mixed schemas cannot be encoded in CSV.", record.rtype())));
+                    return Err(Error::encode(format!("schema indicated {rtype:?}, but found record with rtype {:?}. Mixed schemas cannot be encoded in CSV.", record.rtype())));
                 }
                 // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
                 // from the metadata header.
@@ -223,7 +223,7 @@ where
             self.flush()?;
             Ok(())
         } else {
-            Err(Error::encode("Can't encode a CSV with mixed schemas"))
+            Err(Error::encode("can't encode a CSV with mixed schemas"))
         }
     }
 }
@@ -246,7 +246,7 @@ where
             Ok(()) => Ok(()),
             Err(e) => Err(match e.into_kind() {
                 csv::ErrorKind::Io(err) => Error::io(err, format!("serializing {record:?}")),
-                e => Error::encode(format!("Failed to serialize {record:?}: {e:?}")),
+                e => Error::encode(format!("failed to serialize {record:?}: {e:?}")),
             }),
         }
     }
@@ -493,7 +493,7 @@ mod tests {
             settl_price_type: 9,
             sub_fraction: 23,
             underlying_product: 10,
-            security_update_action: SecurityUpdateAction::Add,
+            security_update_action: SecurityUpdateAction::Add as c_char,
             maturity_month: 8,
             maturity_day: 9,
             maturity_week: 11,
@@ -501,11 +501,7 @@ mod tests {
             contract_multiplier_unit: 0,
             flow_schedule_type: 5,
             tick_rule: 0,
-            _reserved2: Default::default(),
-            _reserved3: Default::default(),
-            _reserved4: Default::default(),
-            _reserved5: Default::default(),
-            _dummy: [0; 3],
+            _reserved: Default::default(),
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);

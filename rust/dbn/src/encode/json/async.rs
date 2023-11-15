@@ -42,6 +42,12 @@ where
     ///
     /// # Errors
     /// This function returns an error if there's an error writing to `writer`.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If the method is used in
+    /// `tokio::select!` statement and another branch completes first, then the
+    /// metadata JSON may have been partially written, but future calls will begin writing
+    /// the metadata JSON from the beginning.
     pub async fn encode_metadata(&mut self, metadata: &Metadata) -> Result<()> {
         let json = to_json_string(
             metadata,
@@ -73,6 +79,12 @@ where
     /// # Errors
     /// This function returns an error if it's unable to write to the underlying
     /// writer.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If the method is used in
+    /// `tokio::select!` statement and another branch completes first, then the
+    /// record may have been partially written, but future calls will begin writing the
+    /// encoded record from the beginning.
     pub async fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<()> {
         let json = to_json_string(
             record,

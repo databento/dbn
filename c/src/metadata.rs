@@ -20,6 +20,7 @@ pub const METADATA_MIN_ENCODED_SIZE: usize = 128;
 /// - Returns -1 if `buffer` is null.
 /// - Returns -2 if `dataset` cannot be parsed.
 /// - Returns -3 if the metadata cannot be encoded.
+/// - Returns -4 if the version is invalid.
 ///
 /// # Safety
 /// This function assumes `dataset` is a valid pointer and `buffer` is of size
@@ -28,6 +29,7 @@ pub const METADATA_MIN_ENCODED_SIZE: usize = 128;
 pub unsafe extern "C" fn encode_metadata(
     buffer: *mut c_char,
     length: libc::size_t,
+    version: u8,
     dataset: *const c_char,
     schema: Schema,
     start: u64,
@@ -43,7 +45,11 @@ pub unsafe extern "C" fn encode_metadata(
             return -2;
         }
     };
+    if version == 0 || version > dbn::DBN_VERSION {
+        return -4;
+    }
     let metadata = MetadataBuilder::new()
+        .version(version)
         .dataset(dataset)
         .start(start)
         .stype_in(Some(SType::InstrumentId))

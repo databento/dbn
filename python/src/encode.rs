@@ -1,4 +1,7 @@
-use std::{io, num::NonZeroU64};
+use std::{
+    io::{self, Read, Seek},
+    num::NonZeroU64,
+};
 
 use dbn::{
     encode::{
@@ -14,7 +17,7 @@ use dbn::{
     Metadata,
 };
 use pyo3::{
-    exceptions::{PyTypeError, PyValueError},
+    exceptions::{PyDeprecationWarning, PyTypeError, PyValueError},
     intern,
     prelude::*,
     types::PyBytes,
@@ -25,13 +28,18 @@ use pyo3::{
 #[pyfunction]
 pub fn update_encoded_metadata(
     _py: Python<'_>,
-    file: PyFileLike,
+    mut file: PyFileLike,
     start: u64,
     end: Option<u64>,
     limit: Option<u64>,
 ) -> PyResult<()> {
+    file.seek(io::SeekFrom::Start(0))?;
+    let mut buf = [0; 4];
+    file.read_exact(&mut buf)?;
+    let version = buf[3];
     MetadataEncoder::new(file)
         .update_encoded(
+            version,
             start,
             end.and_then(NonZeroU64::new),
             limit.and_then(NonZeroU64::new),
@@ -49,12 +57,18 @@ pub fn update_encoded_metadata(
 /// the encoded to bytes or an expected field is missing from one of the dicts.
 #[pyfunction]
 pub fn write_dbn_file(
-    _py: Python<'_>,
+    py: Python<'_>,
     file: PyFileLike,
     compression: Compression,
     metadata: &Metadata,
     records: Vec<&PyAny>,
 ) -> PyResult<()> {
+    PyErr::warn(
+        py,
+        py.get_type::<PyDeprecationWarning>(),
+        "This function is deprecated. Please switch to using Transcoder",
+        0,
+    )?;
     let writer = DynWriter::new(file, compression).map_err(to_val_err)?;
     let encoder = DbnEncoder::new(writer, metadata).map_err(to_val_err)?;
     match metadata.schema {
@@ -118,6 +132,20 @@ impl<'source> FromPyObject<'source> for PyFileLike {
                 ));
             }
             Ok(PyFileLike { inner: obj })
+        })
+    }
+}
+
+impl io::Read for PyFileLike {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        Python::with_gil(|py| {
+            let bytes: Vec<u8> = self
+                .inner
+                .call_method(py, intern!(py, "read"), (buf.len(),), None)
+                .map_err(py_to_rs_io_err)?
+                .extract(py)?;
+            buf[..bytes.len()].clone_from_slice(&bytes);
+            Ok(bytes.len())
         })
     }
 }

@@ -1,7 +1,10 @@
 #![allow(deprecated)] // TODO: remove with SType::Smart
 
 //! Enums used in Databento APIs.
-use std::fmt::{self, Display, Formatter};
+use std::{
+    fmt::{self, Display, Formatter},
+    str::FromStr,
+};
 
 // Dummy derive macro to get around `cfg_attr` incompatibility of several
 // of pyo3's attribute macros. See https://github.com/PyO3/pyo3/issues/780
@@ -135,34 +138,29 @@ impl From<UserDefinedInstrument> for char {
 /// for more information.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
 #[repr(u8)]
-#[cfg_attr(feature = "python", pyo3::pyclass(module = "databento_dbn"))]
-#[cfg_attr(not(feature = "python"), derive(MockPyo3))]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(module = "databento_dbn", rename_all = "SCREAMING_SNAKE_CASE")
+)]
 #[cfg_attr(feature = "python", derive(strum::EnumIter))]
 pub enum SType {
     /// Symbology using a unique numeric ID.
-    #[pyo3(name = "INSTRUMENT_ID")]
     InstrumentId = 0,
     /// Symbology using the original symbols provided by the publisher.
-    #[pyo3(name = "RAW_SYMBOL")]
     RawSymbol = 1,
     /// A set of Databento-specific symbologies for referring to groups of symbols.
     #[deprecated(since = "0.5.0", note = "Smart was split into Continuous and Parent.")]
-    #[pyo3(name = "SMART")]
     Smart = 2,
     /// A Databento-specific symbology where one symbol may point to different
     /// instruments at different points of time, e.g. to always refer to the front month
     /// future.
-    #[pyo3(name = "CONTINUOUS")]
     Continuous = 3,
     /// A Databento-specific symbology for referring to a group of symbols by one
     /// "parent" symbol, e.g. ES.FUT to refer to all ES futures.
-    #[pyo3(name = "PARENT")]
     Parent = 4,
     /// Symbology for US equities using NASDAQ Integrated suffix conventions.
-    #[pyo3(name = "NASDAQ")]
     Nasdaq = 5,
     /// Symbology for US equities using CMS suffix conventions.
-    #[pyo3(name = "CMS")]
     Cms = 6,
 }
 
@@ -223,6 +221,11 @@ pub mod rtype {
     /// A type of record, i.e. a struct implementing [`HasRType`](crate::record::HasRType).
     #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
     #[repr(u8)]
+    #[cfg_attr(
+        feature = "python",
+        pyo3::pyclass(module = "databento_dbn", rename_all = "SCREAMING_SNAKE_CASE")
+    )]
+    #[cfg_attr(feature = "python", derive(strum::EnumIter))]
     pub enum RType {
         /// Denotes a market-by-price record with a book depth of 0 (used for the
         /// [`Trades`](super::Schema::Trades) schema).
@@ -352,6 +355,58 @@ pub mod rtype {
             STATISTICS => Some(Schema::Statistics),
             MBO => Some(Schema::Mbo),
             _ => None,
+        }
+    }
+
+    impl std::str::FromStr for RType {
+        type Err = crate::Error;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            match s {
+                "mbp-0" => Ok(RType::Mbp0),
+                "mbp-1" => Ok(RType::Mbp1),
+                "mbp-10" => Ok(RType::Mbp10),
+                "ohlcv-deprecated" => Ok(RType::OhlcvDeprecated),
+                "ohlcv-1s" => Ok(RType::Ohlcv1S),
+                "ohlcv-1m" => Ok(RType::Ohlcv1M),
+                "ohlcv-1h" => Ok(RType::Ohlcv1H),
+                "ohlcv-1d" => Ok(RType::Ohlcv1D),
+                "ohlcv-eod" => Ok(RType::OhlcvEod),
+                "status" => Ok(RType::Status),
+                "instrument-def" => Ok(RType::InstrumentDef),
+                "imbalance" => Ok(RType::Imbalance),
+                "error" => Ok(RType::Error),
+                "symbol-mapping" => Ok(RType::SymbolMapping),
+                "system" => Ok(RType::System),
+                "statistics" => Ok(RType::Statistics),
+                "mbo" => Ok(RType::Mbo),
+                _ => Err(crate::Error::conversion::<Self>(s.to_owned())),
+            }
+        }
+    }
+
+    impl RType {
+        /// Convert the RType type to its `str` representation.
+        pub const fn as_str(&self) -> &'static str {
+            match self {
+                RType::Mbp0 => "mbp-0",
+                RType::Mbp1 => "mbp-1",
+                RType::Mbp10 => "mbp-10",
+                RType::OhlcvDeprecated => "ohlcv-deprecated",
+                RType::Ohlcv1S => "ohlcv-1s",
+                RType::Ohlcv1M => "ohlcv-1m",
+                RType::Ohlcv1H => "ohlcv-1h",
+                RType::Ohlcv1D => "ohlcv-1d",
+                RType::OhlcvEod => "ohlcv-eod",
+                RType::Status => "status",
+                RType::InstrumentDef => "instrument-def",
+                RType::Imbalance => "imbalance",
+                RType::Error => "error",
+                RType::SymbolMapping => "symbol-mapping",
+                RType::System => "system",
+                RType::Statistics => "statistics",
+                RType::Mbo => "mbo",
+            }
         }
     }
 }
@@ -580,6 +635,8 @@ pub mod flags {
     /// Indicates it's the last message in the packet from the venue for a given
     /// `instrument_id`.
     pub const LAST: u8 = 1 << 7;
+    /// Indicates a top-of-book message, not an individual order.
+    pub const TOB: u8 = 1 << 6;
     /// Indicates the message was sourced from a replay, such as a snapshot server.
     pub const SNAPSHOT: u8 = 1 << 5;
     /// Indicates an aggregated price level message, not an individual order.
@@ -601,6 +658,7 @@ pub enum SecurityUpdateAction {
     Modify = b'M',
     /// Removal of an instrument definition.
     Delete = b'D',
+    // FIXME: can this be removed?
     #[doc(hidden)]
     #[deprecated = "Still present in legacy files."]
     Invalid = b'~',
@@ -656,6 +714,35 @@ pub enum StatUpdateAction {
     New = 1,
     /// A removal of a statistic.
     Delete = 2,
+}
+
+/// How to handle decoding DBN data from a prior version.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(module = "databento_dbn", rename_all = "SCREAMING_SNAKE_CASE")
+)]
+#[cfg_attr(feature = "python", derive(strum::EnumIter))]
+pub enum VersionUpgradePolicy {
+    /// Decode data from previous versions as-is. Currently the default.
+    #[default]
+    AsIs,
+    /// Decode data from previous versions converting it to the latest version. This
+    /// breaks zero-copy decoding for structs that need updating, but makes usage
+    /// simpler.
+    Upgrade,
+}
+
+impl FromStr for VersionUpgradePolicy {
+    type Err = crate::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "AsIs" => Ok(Self::AsIs),
+            "Upgrade" => Ok(Self::Upgrade),
+            _ => Err(crate::Error::conversion::<VersionUpgradePolicy>(s)),
+        }
+    }
 }
 
 #[cfg(feature = "serde")]

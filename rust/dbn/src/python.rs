@@ -144,7 +144,10 @@ impl<const N: usize> PyFieldDesc for [u8; N] {
 #[cfg(test)]
 mod tests {
     use super::PyFieldDesc;
-    use crate::record::{InstrumentDefMsg, MboMsg, Mbp10Msg};
+    use crate::{
+        record::{InstrumentDefMsg, MboMsg, Mbp10Msg},
+        SYMBOL_CSTR_LEN,
+    };
 
     fn with_record_header_dtype(dtypes: Vec<(String, String)>) -> Vec<(String, String)> {
         let mut res = vec![
@@ -293,6 +296,7 @@ mod tests {
             ("unit_of_measure_qty".to_owned(), "i8".to_owned()),
             ("min_price_increment_amount".to_owned(), "i8".to_owned()),
             ("price_ratio".to_owned(), "i8".to_owned()),
+            ("strike_price".to_owned(), "i8".to_owned()),
             ("inst_attrib_value".to_owned(), "i4".to_owned()),
             ("underlying_id".to_owned(), "u4".to_owned()),
             ("raw_instrument_id".to_owned(), "u4".to_owned()),
@@ -304,11 +308,9 @@ mod tests {
             ("min_lot_size_block".to_owned(), "i4".to_owned()),
             ("min_lot_size_round_lot".to_owned(), "i4".to_owned()),
             ("min_trade_vol".to_owned(), "u4".to_owned()),
-            ("_reserved2".to_owned(), "S4".to_owned()),
             ("contract_multiplier".to_owned(), "i4".to_owned()),
             ("decay_quantity".to_owned(), "i4".to_owned()),
             ("original_contract_size".to_owned(), "i4".to_owned()),
-            ("_reserved3".to_owned(), "S4".to_owned()),
             ("trading_reference_date".to_owned(), "u2".to_owned()),
             ("appl_id".to_owned(), "i2".to_owned()),
             ("maturity_year".to_owned(), "u2".to_owned()),
@@ -317,7 +319,7 @@ mod tests {
             ("currency".to_owned(), "S4".to_owned()),
             ("settl_currency".to_owned(), "S4".to_owned()),
             ("secsubtype".to_owned(), "S6".to_owned()),
-            ("raw_symbol".to_owned(), "S22".to_owned()),
+            ("raw_symbol".to_owned(), format!("S{SYMBOL_CSTR_LEN}")),
             ("group".to_owned(), "S21".to_owned()),
             ("exchange".to_owned(), "S5".to_owned()),
             ("asset".to_owned(), "S7".to_owned()),
@@ -327,9 +329,6 @@ mod tests {
             ("underlying".to_owned(), "S21".to_owned()),
             ("strike_price_currency".to_owned(), "S4".to_owned()),
             ("instrument_class".to_owned(), "S1".to_owned()),
-            ("_reserved4".to_owned(), "S2".to_owned()),
-            ("strike_price".to_owned(), "i8".to_owned()),
-            ("_reserved5".to_owned(), "S6".to_owned()),
             ("match_algorithm".to_owned(), "S1".to_owned()),
             ("md_security_trading_status".to_owned(), "u1".to_owned()),
             ("main_fraction".to_owned(), "u1".to_owned()),
@@ -345,7 +344,7 @@ mod tests {
             ("contract_multiplier_unit".to_owned(), "i1".to_owned()),
             ("flow_schedule_type".to_owned(), "i1".to_owned()),
             ("tick_rule".to_owned(), "u1".to_owned()),
-            ("_dummy".to_owned(), "S3".to_owned()),
+            ("_reserved".to_owned(), "S10".to_owned()),
         ]);
         assert_eq!(dtypes, exp);
     }
@@ -367,14 +366,7 @@ mod tests {
         );
         assert_eq!(
             InstrumentDefMsg::hidden_fields(""),
-            vec![
-                "length".to_owned(),
-                "_reserved2".to_owned(),
-                "_reserved3".to_owned(),
-                "_reserved4".to_owned(),
-                "_reserved5".to_owned(),
-                "_dummy".to_owned(),
-            ]
+            vec!["length".to_owned(), "_reserved".to_owned(),]
         );
         assert_eq!(
             InstrumentDefMsg::timestamp_fields(""),
