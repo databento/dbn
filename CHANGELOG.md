@@ -1,14 +1,20 @@
 # Changelog
 
-## 0.14.1 - 2023-11-16
+## 0.14.1 - 2023-11-17
 ### Enhancements
 - Added new trait `compat::SymbolMappingRec` for code reuse when working with
   both versions of `SymbolMappingMsg`
 - Changed `PitSymbolMap::on_symbol_mapping` to accept either version of
   `SymbolMappingMsg`
 
+
 ### Bug fixes
 - Fixed missing DBNv1 compatibility in `PitSymbolMap::on_record`
+- Fixed missing Python export for `VersionUpgradePolicy`
+- Fixed missing Python export and methods for `InstrumentDefMsgV1` and
+  `SymbolMappingMsgV1`
+- Fixed bug where Python `DbnDecoder` and `Transcoder` would throw exceptions
+  when attempting to decode partial metadata
 
 ## 0.14.0 - 2023-11-15
 ### Enhancements

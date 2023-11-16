@@ -193,7 +193,10 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
     fn encode(&mut self) -> PyResult<()> {
         let orig_position = self.buffer.position();
         self.buffer.set_position(0);
-        self.maybe_decode_metadata(orig_position)?;
+        if !self.maybe_decode_metadata(orig_position)? {
+            // early return for partial metadata
+            return Ok(());
+        }
         let read_position = if OUTPUT_ENC == Encoding::Dbn as u8 {
             self.encode_dbn(orig_position)
         } else if OUTPUT_ENC == Encoding::Csv as u8 {
@@ -330,7 +333,8 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
         Ok(read_position)
     }
 
-    fn maybe_decode_metadata(&mut self, orig_position: u64) -> PyResult<()> {
+    // returns `false` if more data is required to decode the metadata
+    fn maybe_decode_metadata(&mut self, orig_position: u64) -> PyResult<bool> {
         if !self.has_decoded_metadata {
             match DbnMetadataDecoder::new(&mut self.buffer).decode() {
                 Ok(mut metadata) => {
@@ -367,6 +371,10 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
                 Err(err) => {
                     self.buffer.set_position(orig_position);
                     // haven't read enough data for metadata
+                    if matches!(err, dbn::Error::Io { ref source, .. } if source.kind() == std::io::ErrorKind::UnexpectedEof)
+                    {
+                        return Ok(false);
+                    }
                     return Err(to_val_err(err));
                 }
             }
@@ -384,7 +392,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
                     .map_err(to_val_err)?;
             }
         }
-        Ok(())
+        Ok(true)
     }
 
     fn shift_buffer(&mut self, read_position: usize) {
@@ -465,11 +473,11 @@ mod tests {
     }
 
     #[test]
-    fn test_partial_records() {
+    fn test_partial_metadata_and_records() {
         setup();
         let file = MockPyFile::new();
         let output_buf = file.inner();
-        let mut transcoder = Python::with_gil(|py| {
+        let mut target = Python::with_gil(|py| {
             Transcoder::new(
                 Py::new(py, file).unwrap().extract(py).unwrap(),
                 Encoding::Json,
@@ -487,7 +495,7 @@ mod tests {
             .unwrap()
         });
         assert!(
-            !transcoder
+            !target
                 .downcast_unchecked::<{ Encoding::Json as u8 }>()
                 .has_decoded_metadata
         );
@@ -502,33 +510,38 @@ mod tests {
                 .build(),
         )
         .unwrap();
-        transcoder.write(encoder.get_ref().as_slice()).unwrap();
+        let metadata_split = encoder.get_ref().len() / 2;
+        target
+            .write(&encoder.get_ref()[..metadata_split])
+            // no error
+            .unwrap();
+        target.write(&encoder.get_ref()[metadata_split..]).unwrap();
         // Metadata doesn't get transcoded for JSON
         assert!(output_buf.lock().unwrap().get_ref().is_empty());
         assert!(
-            transcoder
+            target
                 .downcast_unchecked::<{ Encoding::Json as u8 }>()
                 .has_decoded_metadata
         );
         let metadata_pos = encoder.get_ref().len();
         let rec = ErrorMsg::new(1680708278000000000, "This is a test");
         encoder.encode_record(&rec).unwrap();
-        assert!(transcoder.buffer().is_empty());
+        assert!(target.buffer().is_empty());
         let record_pos = encoder.get_ref().len();
         // write record byte by byte
         for i in metadata_pos..record_pos {
-            transcoder.write(&encoder.get_ref()[i..i + 1]).unwrap();
+            target.write(&encoder.get_ref()[i..i + 1]).unwrap();
             // wrote last byte
             if i == record_pos - 1 {
                 break;
             }
-            assert_eq!(transcoder.buffer().len(), i + 1 - metadata_pos);
+            assert_eq!(target.buffer().len(), i + 1 - metadata_pos);
         }
         // writing the remainder of the record should have the transcoder
         // transcode the record to the output file
-        assert!(transcoder.buffer().is_empty());
+        assert!(target.buffer().is_empty());
         assert_eq!(record_pos - metadata_pos, std::mem::size_of_val(&rec));
-        transcoder.flush().unwrap();
+        target.flush().unwrap();
         let output = output_buf.lock().unwrap();
         let output = std::str::from_utf8(output.get_ref().as_slice()).unwrap();
         assert_eq!(output.chars().filter(|c| *c == '\n').count(), 1);
