@@ -4,7 +4,7 @@ use std::{collections::HashMap, ops::Deref, sync::Arc};
 
 use time::{macros::time, PrimitiveDateTime};
 
-use crate::{Error, HasRType, Metadata, Record, RecordRef, SType, SymbolMappingMsg};
+use crate::{compat, Error, HasRType, Metadata, RType, Record, RecordRef, SType, SymbolMappingMsg};
 
 /// A timeseries symbol map. Generally useful for working with historical data
 /// and is commonly built from a [`Metadata`] object via [`Self::from_metadata()`].
@@ -223,8 +223,15 @@ impl PitSymbolMap {
     /// This function returns an error when `record` contains a [`SymbolMappingMsg`] but
     /// it contains invalid UTF-8.
     pub fn on_record(&mut self, record: RecordRef) -> crate::Result<()> {
-        if let Some(symbol_mapping) = record.get::<SymbolMappingMsg>() {
-            self.on_symbol_mapping(symbol_mapping)
+        if matches!(record.rtype(), Ok(RType::SymbolMapping)) {
+            // >= to allow WithTsOut
+            if record.record_size() >= std::mem::size_of::<SymbolMappingMsg>() {
+                // Safety: checked rtype and length
+                self.on_symbol_mapping(unsafe { record.get_unchecked::<SymbolMappingMsg>() })
+            } else {
+                // Use get here to get still perform length checks
+                self.on_symbol_mapping(record.get::<compat::SymbolMappingMsgV1>().unwrap())
+            }
         } else {
             Ok(())
         }
@@ -234,10 +241,15 @@ impl PitSymbolMap {
     ///
     /// # Errors
     /// This function returns an error when `symbol_mapping` contains invalid UTF-8.
-    pub fn on_symbol_mapping(&mut self, symbol_mapping: &SymbolMappingMsg) -> crate::Result<()> {
+    pub fn on_symbol_mapping<S: compat::SymbolMappingRec>(
+        &mut self,
+        symbol_mapping: &S,
+    ) -> crate::Result<()> {
         let stype_out_symbol = symbol_mapping.stype_out_symbol()?;
-        self.0
-            .insert(symbol_mapping.hd.instrument_id, stype_out_symbol.to_owned());
+        self.0.insert(
+            symbol_mapping.header().instrument_id,
+            stype_out_symbol.to_owned(),
+        );
         Ok(())
     }
 
@@ -312,13 +324,15 @@ fn is_inverse(metadata: &Metadata) -> crate::Result<bool> {
 
 #[cfg(test)]
 mod tests {
-
     use std::num::NonZeroU64;
 
+    use rstest::rstest;
     use time::macros::{date, datetime};
 
     use crate::{
-        publishers::Dataset, MappingInterval, Metadata, Schema, SymbolMapping, UNDEF_TIMESTAMP,
+        compat::{SymbolMappingMsgV1, SymbolMappingRec},
+        publishers::Dataset,
+        MappingInterval, Metadata, Schema, SymbolMapping, UNDEF_TIMESTAMP,
     };
 
     use super::*;
@@ -850,6 +864,75 @@ mod tests {
         target.stype_out = SType::RawSymbol;
         assert!(target.symbol_map().is_err());
         assert!(target.symbol_map_for_date(date!(2023 - 07 - 31)).is_err());
+    }
+
+    #[rstest]
+    #[case::v1(SymbolMappingMsgV1::default())]
+    #[case::v2(SymbolMappingMsg::default())]
+    fn test_on_record<S: SymbolMappingRec>(#[case] _sm: S) -> crate::Result<()> {
+        let mut target = PitSymbolMap::new();
+        target.on_record(RecordRef::from(&SymbolMappingMsg::new(
+            1,
+            2,
+            SType::InstrumentId,
+            "",
+            SType::RawSymbol,
+            "AAPL",
+            UNDEF_TIMESTAMP,
+            UNDEF_TIMESTAMP,
+        )?))?;
+        target.on_record(RecordRef::from(&SymbolMappingMsg::new(
+            2,
+            2,
+            SType::InstrumentId,
+            "",
+            SType::RawSymbol,
+            "TSLA",
+            UNDEF_TIMESTAMP,
+            UNDEF_TIMESTAMP,
+        )?))?;
+        target.on_record(RecordRef::from(&SymbolMappingMsg::new(
+            3,
+            2,
+            SType::InstrumentId,
+            "",
+            SType::RawSymbol,
+            "MSFT",
+            UNDEF_TIMESTAMP,
+            UNDEF_TIMESTAMP,
+        )?))?;
+        assert_eq!(
+            *target.inner(),
+            HashMap::from([
+                (1, "AAPL".to_owned()),
+                (2, "TSLA".to_owned()),
+                (3, "MSFT".to_owned())
+            ])
+        );
+        target.on_record(RecordRef::from(&SymbolMappingMsg::new(
+            10,
+            2,
+            SType::InstrumentId,
+            "",
+            SType::RawSymbol,
+            "AAPL",
+            UNDEF_TIMESTAMP,
+            UNDEF_TIMESTAMP,
+        )?))?;
+        assert_eq!(target[10], "AAPL");
+        target.on_record(RecordRef::from(&SymbolMappingMsg::new(
+            9,
+            2,
+            SType::InstrumentId,
+            "",
+            SType::RawSymbol,
+            "MSFT",
+            UNDEF_TIMESTAMP,
+            UNDEF_TIMESTAMP,
+        )?))?;
+        assert_eq!(target[9], "MSFT");
+
+        Ok(())
     }
 
     #[test]

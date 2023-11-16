@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.1 - TBD
+### Enhancements
+- Added new trait `compat::SymbolMappingRec` for code reuse when working with
+  both versions of `SymbolMappingMsg`
+- Changed `PitSymbolMap::on_symbol_mapping` to accept either version of
+  `SymbolMappingMsg`
+
+### Bug fixes
+- Fixed missing DBNv1 compatibility in `PitSymbolMap::on_record`
+
 ## 0.14.0 - 2023-11-15
 ### Enhancements
 - This version begins the transition to DBN version 2 (DBNv2). In this version, the
