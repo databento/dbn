@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.14.1 - TBD
+## 0.14.1 - 2023-11-16
 ### Enhancements
 - Added new trait `compat::SymbolMappingRec` for code reuse when working with
   both versions of `SymbolMappingMsg`
