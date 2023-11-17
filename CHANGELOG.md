@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.14.2 - 2023-11-17
+### Enhancements
+- Added `set_upgrade_policy` setters to `DbnDecoder`, `DbnRecordDecoder`,
+  `AsyncDbnDecoder`, and `AsyncDbnRecordDecoder`
+
 ## 0.14.1 - 2023-11-17
 ### Enhancements
 - Added new trait `compat::SymbolMappingRec` for code reuse when working with
