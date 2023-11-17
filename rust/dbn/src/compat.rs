@@ -4,8 +4,8 @@ use std::os::raw::c_char;
 use crate::{
     macros::{dbn_record, CsvSerialize, JsonSerialize},
     record::{transmute_header_bytes, transmute_record_bytes},
-    rtype, InstrumentDefMsg, RecordHeader, RecordRef, SecurityUpdateAction, SymbolMappingMsg,
-    UserDefinedInstrument, VersionUpgradePolicy,
+    rtype, HasRType, InstrumentDefMsg, RecordHeader, RecordRef, SecurityUpdateAction,
+    SymbolMappingMsg, UserDefinedInstrument, VersionUpgradePolicy,
 };
 
 // Dummy derive macro to get around `cfg_attr` incompatibility of several
@@ -448,6 +448,65 @@ impl From<&SymbolMappingMsgV1> for SymbolMappingMsg {
             );
         }
         res
+    }
+}
+
+/// A trait for symbol mapping records.
+pub trait SymbolMappingRec: HasRType {
+    /// Returns the input symbol as a `&str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `stype_in_symbol` contains invalid UTF-8.
+    fn stype_in_symbol(&self) -> crate::Result<&str>;
+
+    /// Returns the output symbol as a `&str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `stype_out_symbol` contains invalid UTF-8.
+    fn stype_out_symbol(&self) -> crate::Result<&str>;
+
+    /// Parses the raw start of the mapping interval into a datetime. Returns `None` if
+    /// `start_ts` contains the sentinel for a null timestamp.
+    fn start_ts(&self) -> Option<time::OffsetDateTime>;
+
+    /// Parses the raw end of the mapping interval into a datetime. Returns `None` if
+    /// `end_ts` contains the sentinel for a null timestamp.
+    fn end_ts(&self) -> Option<time::OffsetDateTime>;
+}
+
+impl SymbolMappingRec for SymbolMappingMsgV1 {
+    fn stype_in_symbol(&self) -> crate::Result<&str> {
+        Self::stype_in_symbol(self)
+    }
+
+    fn stype_out_symbol(&self) -> crate::Result<&str> {
+        Self::stype_out_symbol(self)
+    }
+
+    fn start_ts(&self) -> Option<time::OffsetDateTime> {
+        Self::start_ts(self)
+    }
+
+    fn end_ts(&self) -> Option<time::OffsetDateTime> {
+        Self::end_ts(self)
+    }
+}
+
+impl SymbolMappingRec for SymbolMappingMsgV2 {
+    fn stype_in_symbol(&self) -> crate::Result<&str> {
+        Self::stype_in_symbol(self)
+    }
+
+    fn stype_out_symbol(&self) -> crate::Result<&str> {
+        Self::stype_out_symbol(self)
+    }
+
+    fn start_ts(&self) -> Option<time::OffsetDateTime> {
+        Self::start_ts(self)
+    }
+
+    fn end_ts(&self) -> Option<time::OffsetDateTime> {
+        Self::end_ts(self)
     }
 }
 

@@ -3,6 +3,7 @@
 use pyo3::{prelude::*, wrap_pyfunction, PyClass};
 
 use dbn::{
+    compat::{InstrumentDefMsgV1, SymbolMappingMsgV1},
     enums::{Compression, Encoding, SType, Schema},
     flags,
     python::EnumIterator,
@@ -10,8 +11,8 @@ use dbn::{
         BidAskPair, ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
         RecordHeader, StatMsg, StatusMsg, SymbolMappingMsg, SystemMsg, TradeMsg,
     },
-    Metadata, RType, FIXED_PRICE_SCALE, UNDEF_ORDER_SIZE, UNDEF_PRICE, UNDEF_STAT_QUANTITY,
-    UNDEF_TIMESTAMP,
+    Metadata, RType, VersionUpgradePolicy, FIXED_PRICE_SCALE, UNDEF_ORDER_SIZE, UNDEF_PRICE,
+    UNDEF_STAT_QUANTITY, UNDEF_TIMESTAMP,
 };
 
 mod dbn_decoder;
@@ -44,16 +45,19 @@ fn databento_dbn(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     checked_add_class::<ImbalanceMsg>(m)?;
     checked_add_class::<StatusMsg>(m)?;
     checked_add_class::<InstrumentDefMsg>(m)?;
+    checked_add_class::<InstrumentDefMsgV1>(m)?;
     checked_add_class::<ErrorMsg>(m)?;
     checked_add_class::<SymbolMappingMsg>(m)?;
+    checked_add_class::<SymbolMappingMsgV1>(m)?;
     checked_add_class::<SystemMsg>(m)?;
     checked_add_class::<StatMsg>(m)?;
     // PyClass enums
     checked_add_class::<Compression>(m)?;
     checked_add_class::<Encoding>(m)?;
-    checked_add_class::<Schema>(m)?;
-    checked_add_class::<SType>(m)?;
     checked_add_class::<RType>(m)?;
+    checked_add_class::<SType>(m)?;
+    checked_add_class::<Schema>(m)?;
+    checked_add_class::<VersionUpgradePolicy>(m)?;
     // constants
     m.add("FIXED_PRICE_SCALE", FIXED_PRICE_SCALE)?;
     m.add("UNDEF_PRICE", UNDEF_PRICE)?;

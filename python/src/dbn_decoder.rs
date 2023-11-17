@@ -59,6 +59,10 @@ impl DbnDecoder {
                 Err(err) => {
                     self.buffer.set_position(orig_position);
                     // haven't read enough data for metadata
+                    if matches!(err, dbn::Error::Io { ref source, .. } if source.kind() == std::io::ErrorKind::UnexpectedEof)
+                    {
+                        return Ok(Vec::new());
+                    }
                     return Err(to_val_err(err));
                 }
             }
@@ -136,9 +140,9 @@ mod tests {
     use crate::tests::setup;
 
     #[test]
-    fn test_partial_records() {
+    fn test_partial_metadata_and_records() {
         setup();
-        let mut decoder = DbnDecoder::new(None, None, None, None);
+        let mut target = DbnDecoder::new(None, None, None, None);
         let buffer = Vec::new();
         let mut encoder = Encoder::new(
             buffer,
@@ -151,24 +155,27 @@ mod tests {
                 .build(),
         )
         .unwrap();
-        decoder.write(encoder.get_ref().as_slice()).unwrap();
+        let metadata_split = encoder.get_ref().len() / 2;
+        target.write(&encoder.get_ref()[..metadata_split]).unwrap();
+        assert!(target.decode().unwrap().is_empty());
+        target.write(&encoder.get_ref()[metadata_split..]).unwrap();
         let metadata_pos = encoder.get_ref().len();
-        assert!(matches!(decoder.decode(), Ok(recs) if recs.len() == 1));
-        assert!(decoder.has_decoded_metadata);
+        assert!(matches!(target.decode(), Ok(recs) if recs.len() == 1));
+        assert!(target.has_decoded_metadata);
         let rec = ErrorMsg::new(1680708278000000000, "Python");
         encoder.encode_record(&rec).unwrap();
-        assert!(decoder.buffer.get_ref().is_empty());
+        assert!(target.buffer.get_ref().is_empty());
         let record_pos = encoder.get_ref().len();
         for i in metadata_pos..record_pos {
-            decoder.write(&encoder.get_ref()[i..i + 1]).unwrap();
-            assert_eq!(decoder.buffer.get_ref().len(), i + 1 - metadata_pos);
+            target.write(&encoder.get_ref()[i..i + 1]).unwrap();
+            assert_eq!(target.buffer.get_ref().len(), i + 1 - metadata_pos);
             // wrote last byte
             if i == record_pos - 1 {
-                let res = decoder.decode();
+                let res = target.decode();
                 assert_eq!(record_pos - metadata_pos, std::mem::size_of_val(&rec));
                 assert!(matches!(res, Ok(recs) if recs.len() == 1));
             } else {
-                let res = decoder.decode();
+                let res = target.decode();
                 assert!(matches!(res, Ok(recs) if recs.is_empty()));
             }
         }

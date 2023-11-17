@@ -1,7 +1,7 @@
 [package]
 name = "dbn-c"
 authors = ["Databento <support@databento.com>"]
-version = "0.14.0"
+version = "0.14.1"
 edition = "2021"
 description = "C bindings for working with Databento Binary Encoding (DBN)"
 license = "Apache-2.0"
