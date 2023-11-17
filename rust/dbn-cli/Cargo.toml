@@ -1,7 +1,7 @@
 [package]
 name = "dbn-cli"
 authors = ["Databento <support@databento.com>"]
-version = "0.14.1"
+version = "0.14.2"
 edition = "2021"
 description = "Command-line utility for converting Databento Binary Encoding (DBN) files to text-based formats"
 default-run = "dbn"
@@ -17,7 +17,7 @@ path = "src/main.rs"
 
 [dependencies]
 # Databento common DBN library
-dbn = { path = "../dbn", version = "=0.14.1", default-features = false }
+dbn = { path = "../dbn", version = "=0.14.2", default-features = false }
 
 # Error handling
 anyhow = "1.0"
