@@ -1,9 +1,9 @@
 # ruff: noqa: UP007 PYI021 PYI053
 from __future__ import annotations
 
+import datetime as dt
 from collections.abc import Iterable
 from collections.abc import Sequence
-from datetime import datetime
 from enum import Enum
 from typing import Any, BinaryIO, ClassVar, SupportsBytes, TextIO, Union
 
@@ -46,7 +46,7 @@ class Compression(Enum):
     ZSTD: str
 
     @classmethod
-    def from_str(cls, str) -> Compression: ...
+    def from_str(cls, value: str) -> Compression: ...
     @classmethod
     def variants(cls) -> Iterable[Compression]: ...
 
@@ -68,7 +68,7 @@ class Encoding(Enum):
     JSON: str
 
     @classmethod
-    def from_str(cls, str) -> Encoding: ...
+    def from_str(cls, value: str) -> Encoding: ...
     @classmethod
     def variants(cls) -> Iterable[Encoding]: ...
 
@@ -123,7 +123,7 @@ class Schema(Enum):
     IMBALANCE: str
 
     @classmethod
-    def from_str(cls, str) -> Schema: ...
+    def from_str(cls, value: str) -> Schema: ...
     @classmethod
     def variants(cls) -> Iterable[Schema]: ...
 
@@ -151,7 +151,7 @@ class SType(Enum):
     PARENT: str
 
     @classmethod
-    def from_str(cls, str) -> SType: ...
+    def from_str(cls, value: str) -> SType: ...
     @classmethod
     def variants(cls) -> Iterable[SType]: ...
 
@@ -200,9 +200,11 @@ class RType(Enum):
     """  # noqa: D405 D407 D411
 
     @classmethod
-    def from_int(cls, int) -> RType: ...
+    def from_int(cls, value: int) -> RType: ...
     @classmethod
-    def from_str(cls, str) -> RType: ...
+    def from_schema(cls, value: Schema) -> RType: ...
+    @classmethod
+    def from_str(cls, value: str) -> RType: ...
     @classmethod
     def variants(cls) -> Iterable[RType]: ...
 
@@ -221,7 +223,7 @@ class VersionUpgradePolicy(Enum):
     UPGRADE: str
 
     @classmethod
-    def from_str(cls, str) -> SType: ...
+    def from_str(cls, value: str) -> SType: ...
     @classmethod
     def variants(cls) -> Iterable[SType]: ...
 
@@ -542,14 +544,14 @@ class Record(SupportsBytes):
 
         """
     @property
-    def pretty_ts_event(self) -> datetime:
+    def pretty_ts_event(self) -> dt.datetime:
         """
         The matching-engine-received timestamp expressed as a
         datetime or a `pandas.Timestamp`, if available.
 
         Returns
         -------
-        datetime
+        datetime.datetime
 
         """
     @property
@@ -671,14 +673,14 @@ class _MBOBase:
 
         """
     @property
-    def pretty_ts_recv(self) -> datetime:
+    def pretty_ts_recv(self) -> dt.datetime:
         """
         The capture-server-received timestamp as a datetime or
         `pandas.Timestamp`, if available.
 
         Returns
         -------
-        datetime
+        datetime.datetime
 
         """
     @property
@@ -908,14 +910,14 @@ class _MBPBase:
 
         """
     @property
-    def pretty_ts_recv(self) -> datetime:
+    def pretty_ts_recv(self) -> dt.datetime:
         """
         The capture-server-received timestamp as a datetime or
         `pandas.Timestamp`, if available.
 
         Returns
         -------
-        datetime
+        datetime.datetime
 
         """
     @property
@@ -1136,14 +1138,14 @@ class InstrumentDefMsg(Record):
     """
 
     @property
-    def pretty_ts_recv(self) -> datetime:
+    def pretty_ts_recv(self) -> dt.datetime:
         """
         The capture-server-received timestamp as a datetime or
         `pandas.Timestamp`, if available.
 
         Returns
         -------
-        datetime
+        datetime.datetime
 
         """
     @property
@@ -1198,14 +1200,14 @@ class InstrumentDefMsg(Record):
 
         """
     @property
-    def pretty_expiration(self) -> datetime:
+    def pretty_expiration(self) -> dt.datetime:
         """
         The last eligible trade time expressed as a datetime or
         `pandas.Timestamp`, if available.
 
         Returns
         -------
-        datetime
+        datetime.datetime
 
         """
     @property
@@ -1220,14 +1222,14 @@ class InstrumentDefMsg(Record):
 
         """
     @property
-    def pretty_activation(self) -> datetime:
+    def pretty_activation(self) -> dt.datetime:
         """
         The time of instrument activation expressed as a datetime or
         `pandas.Timestamp`, if available.
 
         Returns
         -------
-        datetime
+        datetime.datetime
 
         """
     @property
@@ -1941,14 +1943,14 @@ class InstrumentDefMsgV1(Record):
     """
 
     @property
-    def pretty_ts_recv(self) -> datetime:
+    def pretty_ts_recv(self) -> dt.datetime:
         """
         The capture-server-received timestamp as a datetime or
         `pandas.Timestamp`, if available.
 
         Returns
         -------
-        datetime
+        datetime.datetime
 
         """
     @property
@@ -2003,14 +2005,14 @@ class InstrumentDefMsgV1(Record):
 
         """
     @property
-    def pretty_expiration(self) -> datetime:
+    def pretty_expiration(self) -> dt.datetime:
         """
         The last eligible trade time expressed as a datetime or
         `pandas.Timestamp`, if available.
 
         Returns
         -------
-        datetime
+        datetime.datetime
 
         """
     @property
@@ -2025,14 +2027,14 @@ class InstrumentDefMsgV1(Record):
 
         """
     @property
-    def pretty_activation(self) -> datetime:
+    def pretty_activation(self) -> dt.datetime:
         """
         The time of instrument activation expressed as a datetime or
         `pandas.Timestamp`, if available.
 
         Returns
         -------
-        datetime
+        datetime.datetime
 
         """
     @property
@@ -2746,14 +2748,14 @@ class ImbalanceMsg(Record):
     """
 
     @property
-    def pretty_ts_recv(self) -> datetime:
+    def pretty_ts_recv(self) -> dt.datetime:
         """
         The capture-server-received timestamp as a datetime or
         `pandas.Timestamp`, if available.
 
         Returns
         -------
-        datetime
+        datetime.datetime
 
         """
     @property
@@ -3030,14 +3032,14 @@ class StatMsg(Record):
     """
 
     @property
-    def pretty_ts_recv(self) -> datetime:
+    def pretty_ts_recv(self) -> dt.datetime:
         """
         The capture-server-received timestamp as a datetime or
         `pandas.Timestamp`, if available.
 
         Returns
         -------
-        datetime
+        datetime.datetime
 
         """
     @property
@@ -3226,14 +3228,14 @@ class SymbolMappingMsg(Record):
 
         """
     @property
-    def pretty_start_ts(self) -> datetime:
+    def pretty_start_ts(self) -> dt.datetime:
         """
         The start of the mapping interval expressed as a datetime
         or `pandas.Timestamp`, if available.
 
         Returns
         -------
-        datetime
+        datetime.datetime
 
         """
     @property
@@ -3248,14 +3250,14 @@ class SymbolMappingMsg(Record):
 
         """
     @property
-    def pretty_end_ts(self) -> datetime:
+    def pretty_end_ts(self) -> dt.datetime:
         """
         The end of the mapping interval expressed as a datetime
         or `pandas.Timestamp`, if available.
 
         Returns
         -------
-        datetime
+        datetime.datetime
 
         """
     @property
@@ -3296,14 +3298,14 @@ class SymbolMappingMsgV1(Record):
 
         """
     @property
-    def pretty_start_ts(self) -> datetime:
+    def pretty_start_ts(self) -> dt.datetime:
         """
         The start of the mapping interval expressed as a datetime
         or `pandas.Timestamp`, if available.
 
         Returns
         -------
-        datetime
+        datetime.datetime
 
         """
     @property
@@ -3318,14 +3320,14 @@ class SymbolMappingMsgV1(Record):
 
         """
     @property
-    def pretty_end_ts(self) -> datetime:
+    def pretty_end_ts(self) -> dt.datetime:
         """
         The end of the mapping interval expressed as a datetime
         or `pandas.Timestamp`, if available.
 
         Returns
         -------
-        datetime
+        datetime.datetime
 
         """
     @property
@@ -3495,7 +3497,7 @@ class Transcoder:
         map_symbols: bool = True,
         has_metadata: bool = True,
         ts_out: bool = False,
-        symbol_interval_map: dict[int, list[tuple[datetime.date, datetime.date, str]]]
+        symbol_interval_map: dict[int, list[tuple[dt.date, dt.date, str]]]
         | None = None,
         schema: Schema | None = None,
         input_version: int = 2,

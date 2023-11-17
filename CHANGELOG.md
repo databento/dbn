@@ -4,6 +4,10 @@
 ### Enhancements
 - Added `set_upgrade_policy` setters to `DbnDecoder`, `DbnRecordDecoder`,
   `AsyncDbnDecoder`, and `AsyncDbnRecordDecoder`
+- Added `from_schema` classmethod for Python `RType` enum
+
+### Breaking changes
+- Renamed parameter for Python Enum classmethod constructors to `value` from `data`.
 
 ## 0.14.1 - 2023-11-17
 ### Enhancements

@@ -82,9 +82,9 @@ impl Compression {
 
     #[classmethod]
     #[pyo3(name = "from_str")]
-    fn py_from_str(_: &PyType, data: &PyAny) -> PyResult<Self> {
-        let data_str: &str = data.str().and_then(|s| s.extract())?;
-        let tokenized = data_str.to_lowercase();
+    fn py_from_str(_: &PyType, value: &PyAny) -> PyResult<Self> {
+        let value_str: &str = value.str().and_then(|s| s.extract())?;
+        let tokenized = value_str.to_lowercase();
         Self::from_str(&tokenized).map_err(to_val_err)
     }
 }
@@ -137,9 +137,9 @@ impl Encoding {
 
     #[classmethod]
     #[pyo3(name = "from_str")]
-    fn py_from_str(_: &PyType, data: &PyAny) -> PyResult<Self> {
-        let data_str: &str = data.str().and_then(|s| s.extract())?;
-        let tokenized = data_str.to_lowercase();
+    fn py_from_str(_: &PyType, value: &PyAny) -> PyResult<Self> {
+        let value_str: &str = value.str().and_then(|s| s.extract())?;
+        let tokenized = value_str.to_lowercase();
         Self::from_str(&tokenized).map_err(to_val_err)
     }
 }
@@ -192,9 +192,9 @@ impl Schema {
 
     #[classmethod]
     #[pyo3(name = "from_str")]
-    fn py_from_str(_: &PyType, data: &PyAny) -> PyResult<Self> {
-        let data_str: &str = data.str().and_then(|s| s.extract())?;
-        let tokenized = data_str.replace('_', "-").to_lowercase();
+    fn py_from_str(_: &PyType, value: &PyAny) -> PyResult<Self> {
+        let value_str: &str = value.str().and_then(|s| s.extract())?;
+        let tokenized = value_str.replace('_', "-").to_lowercase();
         Self::from_str(&tokenized).map_err(to_val_err)
     }
 }
@@ -247,9 +247,9 @@ impl SType {
 
     #[classmethod]
     #[pyo3(name = "from_str")]
-    fn py_from_str(_: &PyType, data: &PyAny) -> PyResult<Self> {
-        let data_str: &str = data.str().and_then(|s| s.extract())?;
-        let tokenized = data_str.replace('-', "_").to_lowercase();
+    fn py_from_str(_: &PyType, value: &PyAny) -> PyResult<Self> {
+        let value_str: &str = value.str().and_then(|s| s.extract())?;
+        let tokenized = value_str.replace('-', "_").to_lowercase();
         Self::from_str(&tokenized).map_err(to_val_err)
     }
 }
@@ -305,17 +305,27 @@ impl RType {
 
     #[classmethod]
     #[pyo3(name = "from_str")]
-    fn py_from_str(_: &PyType, data: &PyAny) -> PyResult<Self> {
-        let data_str: &str = data.str().and_then(|s| s.extract())?;
-        let tokenized = data_str.replace('-', "_").to_lowercase();
+    fn py_from_str(_: &PyType, value: &PyAny) -> PyResult<Self> {
+        let value_str: &str = value.str().and_then(|s| s.extract())?;
+        let tokenized = value_str.replace('-', "_").to_lowercase();
         Self::from_str(&tokenized).map_err(to_val_err)
     }
 
     #[classmethod]
     #[pyo3(name = "from_int")]
-    fn py_from_int(_: &PyType, data: &PyAny) -> PyResult<Self> {
-        let value: u8 = data.extract()?;
+    fn py_from_int(_: &PyType, value: &PyAny) -> PyResult<Self> {
+        let value: u8 = value.extract()?;
         Self::try_from(value).map_err(to_val_err)
+    }
+
+    #[classmethod]
+    #[pyo3(name = "from_schema")]
+    fn py_from_schema(pytype: &PyType, value: &PyAny) -> PyResult<Self> {
+        let schema: Schema = value
+            .extract()
+            .or_else(|_| Schema::py_from_str(Schema::type_object(pytype.py()), value))
+            .map_err(to_val_err)?;
+        Ok(Self::from(schema))
     }
 }
 
