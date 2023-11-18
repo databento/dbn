@@ -99,6 +99,12 @@ where
         &self.metadata
     }
 
+    /// Sets the behavior for decoding DBN data of previous versions.
+    pub fn set_upgrade_policy(&mut self, upgrade_policy: VersionUpgradePolicy) {
+        self.metadata.upgrade(upgrade_policy);
+        self.decoder.set_upgrade_policy(upgrade_policy);
+    }
+
     /// Tries to decode a single record and returns a reference to the record that
     /// lasts until the next method call. Returns `Ok(None)` if `reader` has been
     /// exhausted.
@@ -283,6 +289,11 @@ where
             self.version = version;
             Ok(())
         }
+    }
+
+    /// Sets the behavior for decoding DBN data of previous versions.
+    pub fn set_upgrade_policy(&mut self, upgrade_policy: VersionUpgradePolicy) {
+        self.upgrade_policy = upgrade_policy;
     }
 
     /// Tries to decode a single record and returns a reference to the record that

@@ -510,7 +510,13 @@ mod tests {
 }
 
 #[cfg(feature = "async")]
-pub use self::{dbn::AsyncDecoder as AsyncDbnDecoder, r#async::DynReader as AsyncDynReader};
+pub use self::{
+    dbn::{
+        AsyncDecoder as AsyncDbnDecoder, AsyncMetadataDecoder as AsyncDbnMetadataDecoder,
+        AsyncRecordDecoder as AsyncDbnRecordDecoder,
+    },
+    r#async::DynReader as AsyncDynReader,
+};
 
 #[cfg(feature = "async")]
 mod r#async {
