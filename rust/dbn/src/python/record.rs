@@ -1571,7 +1571,7 @@ impl InstrumentDefMsgV1 {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<InstrumentDefMsg>())
+        Ok(mem::size_of::<InstrumentDefMsgV1>())
     }
 
     #[getter]
@@ -2346,7 +2346,7 @@ impl SymbolMappingMsgV1 {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<SymbolMappingMsg>())
+        Ok(mem::size_of::<SymbolMappingMsgV1>())
     }
 
     #[getter]

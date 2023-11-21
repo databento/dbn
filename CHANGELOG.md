@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.3 - TBD
+
+### Bug fixes
+- Fixed Python `size_hint` return value for `InstrumentDefMsgV1` and
+  `SymbolMappingMsgV1`
+
 ## 0.14.2 - 2023-11-17
 ### Enhancements
 - Added `set_upgrade_policy` setters to `DbnDecoder`, `DbnRecordDecoder`,
