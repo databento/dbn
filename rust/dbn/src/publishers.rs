@@ -366,11 +366,11 @@ impl std::str::FromStr for Dataset {
 pub enum Publisher {
     /// CME Globex MDP 3.0
     GlbxMdp3Glbx = 1,
-    /// Nasdaq TotalView ITCH
+    /// Nasdaq TotalView-ITCH
     XnasItchXnas = 2,
-    /// Nasdaq BX TotalView ITCH
+    /// Nasdaq BX TotalView-ITCH
     XbosItchXbos = 3,
-    /// Nasdaq PSX TotalView ITCH
+    /// Nasdaq PSX TotalView-ITCH
     XpsxItchXpsx = 4,
     /// Cboe BZX Depth Pitch
     BatsPitchBats = 5,
