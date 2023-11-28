@@ -73,7 +73,7 @@ pub unsafe fn decode_record_ref<'a>(
 ///
 /// Note: This will be renamed to `InstrumentDefMsg` in DBN version 2.
 #[repr(C)]
-#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
+#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
@@ -300,7 +300,7 @@ pub struct InstrumentDefMsgV1 {
 ///
 /// Note: This will be renamed to `SymbolMappingMsg` in DBN version 2.
 #[repr(C)]
-#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
+#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",

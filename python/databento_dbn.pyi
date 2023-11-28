@@ -814,7 +814,7 @@ class BidAskPair:
 
         """
     @property
-    def bid_ask_ct(self) -> int:
+    def ask_ct(self) -> int:
         """
         The ask order count.
 

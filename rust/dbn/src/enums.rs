@@ -650,7 +650,7 @@ pub mod flags {
 
 /// The type of [`InstrumentDefMsg`](crate::record::InstrumentDefMsg) update.
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoPrimitive, TryFromPrimitive)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive)]
 pub enum SecurityUpdateAction {
     /// A new instrument definition.
     Add = b'A',
@@ -666,7 +666,7 @@ pub enum SecurityUpdateAction {
 
 /// The type of statistic contained in a [`StatMsg`](crate::record::StatMsg).
 #[repr(u16)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoPrimitive, TryFromPrimitive)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive)]
 pub enum StatType {
     /// The price of the first trade of an instrument. `price` will be set.
     OpeningPrice = 1,
@@ -708,7 +708,7 @@ pub enum StatType {
 
 /// The type of [`StatMsg`](crate::record::StatMsg) update.
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoPrimitive, TryFromPrimitive)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive)]
 pub enum StatUpdateAction {
     /// A new statistic.
     New = 1,
@@ -717,7 +717,7 @@ pub enum StatUpdateAction {
 }
 
 /// How to handle decoding DBN data from a prior version.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(module = "databento_dbn", rename_all = "SCREAMING_SNAKE_CASE")

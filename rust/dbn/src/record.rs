@@ -31,7 +31,7 @@ pub use conv::{
 /// Common data for all Databento records. Always found at the beginning of a record
 /// struct.
 #[repr(C)]
-#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
+#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
@@ -61,7 +61,7 @@ pub struct RecordHeader {
 /// A market-by-order (MBO) tick message. The record of the
 /// [`Mbo`](crate::enums::Schema::Mbo) schema.
 #[repr(C)]
-#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
+#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
@@ -117,7 +117,7 @@ pub struct MboMsg {
 
 /// A level.
 #[repr(C)]
-#[derive(Clone, Debug, JsonSerialize, PartialEq, Eq)]
+#[derive(Clone, Debug, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
@@ -145,7 +145,7 @@ pub struct BidAskPair {
 /// Market by price implementation with a book depth of 0. Equivalent to
 /// MBP-0. The record of the [`Trades`](crate::enums::Schema::Trades) schema.
 #[repr(C)]
-#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
+#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
@@ -197,7 +197,7 @@ pub struct TradeMsg {
 /// Market by price implementation with a known book depth of 1. The record of the
 /// [`Mbp1`](crate::enums::Schema::Mbp1) schema.
 #[repr(C)]
-#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
+#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
@@ -253,7 +253,7 @@ pub struct Mbp1Msg {
 /// Market by price implementation with a known book depth of 10. The record of the
 /// [`Mbp10`](crate::enums::Schema::Mbp10) schema.
 #[repr(C)]
-#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
+#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
@@ -316,7 +316,7 @@ pub type TbboMsg = Mbp1Msg;
 /// - [`Ohlcv1D`](crate::enums::Schema::Ohlcv1D)
 /// - [`OhlcvEod`](crate::enums::Schema::OhlcvEod)
 #[repr(C)]
-#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
+#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
@@ -355,7 +355,7 @@ pub struct OhlcvMsg {
 /// [`Status`](crate::enums::Schema::Status) schema.
 #[doc(hidden)]
 #[repr(C)]
-#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
+#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
@@ -386,7 +386,7 @@ pub struct StatusMsg {
 /// Definition of an instrument. The record of the
 /// [`Definition`](crate::enums::Schema::Definition) schema.
 #[repr(C)]
-#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
+#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
@@ -604,7 +604,7 @@ pub struct InstrumentDefMsg {
 
 /// An auction imbalance message.
 #[repr(C)]
-#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
+#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
@@ -696,7 +696,7 @@ pub struct ImbalanceMsg {
 /// A statistics message. A catchall for various data disseminated by publishers.
 /// The [`stat_type`](Self::stat_type) indicates the statistic contained in the message.
 #[repr(C)]
-#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
+#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
@@ -747,7 +747,7 @@ pub struct StatMsg {
 
 /// An error message from the Databento Live Subscription Gateway (LSG).
 #[repr(C)]
-#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
+#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
@@ -768,7 +768,7 @@ pub struct ErrorMsg {
 /// A symbol mapping message which maps a symbol of one [`SType`](crate::enums::SType)
 /// to another.
 #[repr(C)]
-#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
+#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
@@ -808,7 +808,7 @@ pub struct SymbolMappingMsg {
 /// A non-error message from the Databento Live Subscription Gateway (LSG). Also used
 /// for heartbeating.
 #[repr(C)]
-#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
+#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",
@@ -899,7 +899,7 @@ pub trait HasRType: Record + RecordMut {
 
 /// Wrapper object for records that include the live gateway send timestamp (`ts_out`).
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 pub struct WithTsOut<T: HasRType> {
     /// The inner record.

@@ -197,6 +197,14 @@ impl BidAskPair {
         }
     }
 
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
