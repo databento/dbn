@@ -1,6 +1,8 @@
 # Changelog
 
 ## 0.14.3 - TBD
+### Enhancements
+- Added `version` param to `Metadata::builder` to choose between DBNv1 and DBNv2 specs
 
 ### Bug fixes
 - Fixed Python `size_hint` return value for `InstrumentDefMsgV1` and
