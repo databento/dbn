@@ -5,7 +5,9 @@ import datetime as dt
 from collections.abc import Iterable
 from collections.abc import Sequence
 from enum import Enum
-from typing import Any, BinaryIO, ClassVar, SupportsBytes, TextIO, Union
+from typing import BinaryIO, ClassVar, SupportsBytes, TextIO, TypedDict, Union
+
+from . import SymbolMapping
 
 
 FIXED_PRICE_SCALE: int
@@ -227,18 +229,46 @@ class VersionUpgradePolicy(Enum):
     @classmethod
     def variants(cls) -> Iterable[SType]: ...
 
+class MappingIntervalDict(TypedDict):
+    """
+    Represents a symbol mapping over a start and end date range interval.
+
+    Parameters
+    ----------
+    start_date : dt.date
+        The start of the mapping period.
+    end_date : dt.date
+        The end of the mapping period.
+    symbol : str
+        The symbol value.
+    """
+
+    start_date: dt.date
+    end_date: dt.date
+    symbol: str
+
 class Metadata(SupportsBytes):
     """
     Information about the data contained in a DBN file or stream. DBN requires
     the Metadata to be included at the start of the encoded data.
-
-    See Also
-    --------
-    decode_metadata
-    encode_metadata
-
     """
 
+    def __init__(
+        self,
+        dataset: str,
+        start: int,
+        stype_out: SType,
+        symbols: list[str],
+        partial: list[str],
+        not_found: list[str],
+        mappings: Sequence[SymbolMapping],
+        schema: Schema | None = None,
+        stype_in: SType | None = None,
+        end: int | None = None,
+        limit: int | None = None,
+        ts_out: bool | None = None,
+        version: int | None = None,
+    ) -> None: ...
     def __bytes__(self) -> bytes: ...
     def __eq__(self, other) -> bool: ...
     def __ne__(self, other) -> bool: ...
@@ -368,7 +398,7 @@ class Metadata(SupportsBytes):
 
         """
     @property
-    def mappings(self) -> dict[str, list[dict[str, Any]]]:
+    def mappings(self) -> dict[str, list[MappingIntervalDict]]:
         """
         Symbol mappings containing a native symbol and its mapping intervals.
 

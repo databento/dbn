@@ -32,3 +32,5 @@ classifiers = [
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
+python-source = "python"
+module-name = "databento_dbn._lib"

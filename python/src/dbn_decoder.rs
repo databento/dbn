@@ -241,7 +241,7 @@ mod tests {
             py_run!(
                 py,
                 path,
-                r#"from databento_dbn import DBNDecoder
+                r#"from _lib import DBNDecoder
 
 decoder = DBNDecoder()
 with open(path, 'rb') as fin:
@@ -260,7 +260,7 @@ for record in records[1:]:
         setup();
         Python::with_gil(|py| {
             py.run(
-                r#"from databento_dbn import DBNDecoder, Metadata, Schema, SType
+                r#"from _lib import DBNDecoder, Metadata, Schema, SType
 
 metadata = Metadata(
     dataset="GLBX.MDP3",
@@ -296,7 +296,7 @@ except Exception as ex:
         setup();
         Python::with_gil(|py| {
             py.run(
-                r#"from databento_dbn import DBNDecoder, OHLCVMsg
+                r#"from _lib import DBNDecoder, OHLCVMsg
 
 decoder = DBNDecoder(has_metadata=False)
 record = OHLCVMsg(0x20, 1, 10, 0, 0, 0, 0, 0, 0)

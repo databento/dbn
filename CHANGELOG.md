@@ -2,7 +2,8 @@
 
 ## 0.14.3 - TBD
 ### Enhancements
-- Added `version` param to `Metadata::builder` to choose between DBNv1 and DBNv2 specs
+- Added type definition for `Metadata.__init__`
+- Added `version` param to Python `Metadata` contructor choose between DBNv1 and DBNv2
 
 ### Bug fixes
 - Fixed Python `size_hint` return value for `InstrumentDefMsgV1` and
