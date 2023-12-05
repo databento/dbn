@@ -4,8 +4,10 @@
 ### Enhancements
 - Added type definition for `Metadata.__init__`
 - Added `version` param to Python `Metadata` contructor choose between DBNv1 and DBNv2
+- Implemented `Hash` for all record types
 
 ### Bug fixes
+- Added missing Python `__eq__` and `__ne__` implementations for `BidAskPair`
 - Fixed Python `size_hint` return value for `InstrumentDefMsgV1` and
   `SymbolMappingMsgV1`
 
@@ -24,7 +26,6 @@
   both versions of `SymbolMappingMsg`
 - Changed `PitSymbolMap::on_symbol_mapping` to accept either version of
   `SymbolMappingMsg`
-
 
 ### Bug fixes
 - Fixed missing DBNv1 compatibility in `PitSymbolMap::on_record`
