@@ -38,6 +38,7 @@ pub use conv::{
     pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn"),
     derive(crate::macros::PyFieldDesc)
 )]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[cfg_attr(test, derive(type_layout::TypeLayout))]
 pub struct RecordHeader {
     /// The length of the record in 32-bit words.
@@ -62,6 +63,7 @@ pub struct RecordHeader {
 /// [`Mbo`](crate::enums::Schema::Mbo) schema.
 #[repr(C)]
 #[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(
     feature = "python",

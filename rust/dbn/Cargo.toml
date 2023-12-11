@@ -53,6 +53,9 @@ time = { version = "0.3", features = ["formatting", "macros"] }
 tokio = { version = "1", features = ["fs", "io-util"], optional = true }
 # (de)compression
 zstd = "0.13"
+serde_arrow = { version = "0.8.0", features = ["arrow-45"]}
+polars = { version = "0.35.4", features = ["parquet", "dtype-struct", "dtype-u8", "dtype-i8", "dtype-u16", "lazy", "streaming"] }
+polars-core = { version = "0.35.4", features = ["arrow_rs"] }
 
 [dev-dependencies]
 # Parameterized testing
