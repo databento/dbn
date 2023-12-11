@@ -23,6 +23,8 @@ use crate::{
     Error, Result, SYMBOL_CSTR_LEN,
 };
 pub(crate) use conv::as_u8_slice;
+#[cfg(feature = "serde")]
+pub(crate) use conv::cstr_serde;
 pub use conv::{
     c_chars_to_str, str_to_c_chars, transmute_header_bytes, transmute_record,
     transmute_record_bytes, transmute_record_mut, ts_to_dt,
@@ -33,6 +35,7 @@ pub use conv::{
 #[repr(C)]
 #[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn"),
@@ -63,6 +66,7 @@ pub struct RecordHeader {
 #[repr(C)]
 #[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(set_all, dict, module = "databento_dbn", name = "MBOMsg"),
@@ -119,6 +123,7 @@ pub struct MboMsg {
 #[repr(C)]
 #[derive(Clone, Debug, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn"),
@@ -147,6 +152,7 @@ pub struct BidAskPair {
 #[repr(C)]
 #[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(set_all, dict, module = "databento_dbn"),
@@ -199,6 +205,7 @@ pub struct TradeMsg {
 #[repr(C)]
 #[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(set_all, dict, module = "databento_dbn", name = "MBP1Msg"),
@@ -255,6 +262,7 @@ pub struct Mbp1Msg {
 #[repr(C)]
 #[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(set_all, dict, module = "databento_dbn", name = "MBP10Msg"),
@@ -318,6 +326,7 @@ pub type TbboMsg = Mbp1Msg;
 #[repr(C)]
 #[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn", name = "OHLCVMsg"),
@@ -357,6 +366,7 @@ pub struct OhlcvMsg {
 #[repr(C)]
 #[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(dict, module = "databento_dbn"),
@@ -374,6 +384,7 @@ pub struct StatusMsg {
     #[dbn(unix_nanos)]
     #[pyo3(get, set)]
     pub ts_recv: u64,
+    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub group: [c_char; 21],
     #[pyo3(get, set)]
     pub trading_status: u8,
@@ -388,6 +399,7 @@ pub struct StatusMsg {
 #[repr(C)]
 #[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(dict, module = "databento_dbn"),
@@ -521,30 +533,41 @@ pub struct InstrumentDefMsg {
     #[pyo3(get, set)]
     pub channel_id: u16,
     /// The currency used for price fields.
+    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub currency: [c_char; 4],
     /// The currency used for settlement, if different from `currency`.
+    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub settl_currency: [c_char; 4],
     /// The strategy type of the spread.
+    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub secsubtype: [c_char; 6],
     /// The instrument raw symbol assigned by the publisher.
     #[dbn(encode_order(2))]
+    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub raw_symbol: [c_char; SYMBOL_CSTR_LEN],
     /// The security group code of the instrument.
+    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub group: [c_char; 21],
     /// The exchange used to identify the instrument.
+    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub exchange: [c_char; 5],
     /// The underlying asset code (product code) of the instrument.
+    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub asset: [c_char; 7],
     /// The ISO standard instrument categorization code.
+    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub cfi: [c_char; 7],
     /// The type of the instrument, e.g. FUT for future or future spread.
+    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub security_type: [c_char; 7],
     /// The unit of measure for the instrument’s original contract size, e.g. USD or LBS.
+    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub unit_of_measure: [c_char; 31],
     /// The symbol of the first underlying instrument.
-    // TODO(carter): finalize if this size also needs to be increased
+    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub underlying: [c_char; 21],
     /// The currency of [`strike_price`](Self::strike_price).
+    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub strike_price_currency: [c_char; 4],
     /// The classification of the instrument.
     #[dbn(c_char, encode_order(4))]
@@ -599,6 +622,7 @@ pub struct InstrumentDefMsg {
     pub tick_rule: u8,
     // Filler for alignment.
     #[doc(hidden)]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub _reserved: [u8; 10],
 }
 
@@ -606,6 +630,7 @@ pub struct InstrumentDefMsg {
 #[repr(C)]
 #[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(set_all, dict, module = "databento_dbn"),
@@ -690,6 +715,7 @@ pub struct ImbalanceMsg {
     pub significant_imbalance: c_char,
     // Filler for alignment.
     #[doc(hidden)]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub _dummy: [u8; 1],
 }
 
@@ -698,6 +724,7 @@ pub struct ImbalanceMsg {
 #[repr(C)]
 #[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn"),
@@ -742,6 +769,7 @@ pub struct StatMsg {
     pub stat_flags: u8,
     // Filler for alignment
     #[doc(hidden)]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub _dummy: [u8; 6],
 }
 
@@ -749,6 +777,7 @@ pub struct StatMsg {
 #[repr(C)]
 #[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(dict, module = "databento_dbn"),
@@ -762,6 +791,7 @@ pub struct ErrorMsg {
     #[pyo3(get, set)]
     pub hd: RecordHeader,
     /// The error message.
+    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub err: [c_char; 64],
 }
 
@@ -770,6 +800,7 @@ pub struct ErrorMsg {
 #[repr(C)]
 #[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(dict, module = "databento_dbn"),
@@ -787,11 +818,13 @@ pub struct SymbolMappingMsg {
     #[pyo3(get, set)]
     pub stype_in: u8,
     /// The input symbol.
+    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub stype_in_symbol: [c_char; SYMBOL_CSTR_LEN],
     /// The output symbology type of `stype_out_symbol`.
     #[pyo3(get, set)]
     pub stype_out: u8,
     /// The output symbol.
+    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub stype_out_symbol: [c_char; SYMBOL_CSTR_LEN],
     /// The start of the mapping interval expressed as the number of nanoseconds since
     /// the UNIX epoch.
@@ -810,6 +843,7 @@ pub struct SymbolMappingMsg {
 #[repr(C)]
 #[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(dict, module = "databento_dbn"),
@@ -823,6 +857,7 @@ pub struct SystemMsg {
     #[pyo3(get, set)]
     pub hd: RecordHeader,
     /// The message from the Databento Live Subscription Gateway (LSG).
+    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub msg: [c_char; 64],
 }
 
@@ -901,6 +936,7 @@ pub trait HasRType: Record + RecordMut {
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct WithTsOut<T: HasRType> {
     /// The inner record.
     pub rec: T,

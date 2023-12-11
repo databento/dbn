@@ -87,6 +87,7 @@ impl From<InstrumentClass> for char {
 
 /// The type of matching algorithm used for the instrument at the exchange.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(u8)]
 pub enum MatchAlgorithm {
     /// First-in-first-out matching.
@@ -120,6 +121,7 @@ impl From<MatchAlgorithm> for char {
 /// Whether the instrument is user-defined.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive, Default)]
 #[repr(u8)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum UserDefinedInstrument {
     /// The instrument is not user-defined.
     #[default]
@@ -651,6 +653,7 @@ pub mod flags {
 /// The type of [`InstrumentDefMsg`](crate::record::InstrumentDefMsg) update.
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum SecurityUpdateAction {
     /// A new instrument definition.
     Add = b'A',

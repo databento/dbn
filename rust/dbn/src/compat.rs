@@ -75,6 +75,7 @@ pub unsafe fn decode_record_ref<'a>(
 #[repr(C)]
 #[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(dict, module = "databento_dbn"),
@@ -207,10 +208,13 @@ pub struct InstrumentDefMsgV1 {
     #[pyo3(get, set)]
     pub channel_id: u16,
     /// The currency used for price fields.
+    #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub currency: [c_char; 4],
     /// The currency used for settlement, if different from `currency`.
+    #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub settl_currency: [c_char; 4],
     /// The strategy type of the spread.
+    #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub secsubtype: [c_char; 6],
     /// The instrument raw symbol assigned by the publisher.
     #[dbn(encode_order(2))]
@@ -302,6 +306,7 @@ pub struct InstrumentDefMsgV1 {
 #[repr(C)]
 #[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(dict, module = "databento_dbn"),

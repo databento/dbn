@@ -5,6 +5,9 @@
 - Added type definition for `Metadata.__init__`
 - Added `version` param to Python `Metadata` contructor choose between DBNv1 and DBNv2
 - Implemented `Hash` for all record types
+- Implemented `Deserialize` and `Serialize` for all records and enums (with `serde`
+  feature enabled). This allows serializing records with additional encodings not
+  supported by the DBN crate
 
 ### Bug fixes
 - Added missing Python `__eq__` and `__ne__` implementations for `BidAskPair`
