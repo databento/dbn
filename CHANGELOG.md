@@ -8,6 +8,7 @@
 - Implemented `Deserialize` and `Serialize` for all records and enums (with `serde`
   feature enabled). This allows serializing records with additional encodings not
   supported by the DBN crate
+- Added new publisher value for OPRA MIAX Sapphire
 
 ### Bug fixes
 - Added missing Python `__eq__` and `__ne__` implementations for `BidAskPair`

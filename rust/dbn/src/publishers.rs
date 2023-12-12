@@ -90,10 +90,12 @@ pub enum Venue {
     Ndex = 39,
     /// Databento Equities - Consolidated
     Dbeq = 40,
+    /// MIAX Sapphire
+    Sphr = 41,
 }
 
 /// The number of Venue variants.
-pub const VENUE_COUNT: usize = 40;
+pub const VENUE_COUNT: usize = 41;
 
 impl Venue {
     /// Convert a Venue to its `str` representation.
@@ -139,6 +141,7 @@ impl Venue {
             Self::Ifeu => "IFEU",
             Self::Ndex => "NDEX",
             Self::Dbeq => "DBEQ",
+            Self::Sphr => "SPHR",
         }
     }
 }
@@ -200,6 +203,7 @@ impl std::str::FromStr for Venue {
             "IFEU" => Ok(Self::Ifeu),
             "NDEX" => Ok(Self::Ndex),
             "DBEQ" => Ok(Self::Dbeq),
+            "SPHR" => Ok(Self::Sphr),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
@@ -484,10 +488,12 @@ pub enum Publisher {
     DbeqBasicDbeq = 59,
     /// DBEQ Plus - Consolidated
     DbeqPlusDbeq = 60,
+    /// OPRA - MIAX Sapphire
+    OpraPillarSphr = 61,
 }
 
 /// The number of Publisher variants.
-pub const PUBLISHER_COUNT: usize = 60;
+pub const PUBLISHER_COUNT: usize = 61;
 
 impl Publisher {
     /// Convert a Publisher to its `str` representation.
@@ -553,6 +559,7 @@ impl Publisher {
             Self::NdexImpactNdex => "NDEX.IMPACT.NDEX",
             Self::DbeqBasicDbeq => "DBEQ.BASIC.DBEQ",
             Self::DbeqPlusDbeq => "DBEQ.PLUS.DBEQ",
+            Self::OpraPillarSphr => "OPRA.PILLAR.SPHR",
         }
     }
 
@@ -619,6 +626,7 @@ impl Publisher {
             Self::NdexImpactNdex => Venue::Ndex,
             Self::DbeqBasicDbeq => Venue::Dbeq,
             Self::DbeqPlusDbeq => Venue::Dbeq,
+            Self::OpraPillarSphr => Venue::Sphr,
         }
     }
 
@@ -685,6 +693,7 @@ impl Publisher {
             Self::NdexImpactNdex => Dataset::NdexImpact,
             Self::DbeqBasicDbeq => Dataset::DbeqBasic,
             Self::DbeqPlusDbeq => Dataset::DbeqPlus,
+            Self::OpraPillarSphr => Dataset::OpraPillar,
         }
     }
 
@@ -753,6 +762,7 @@ impl Publisher {
             (Dataset::NdexImpact, Venue::Ndex) => Ok(Self::NdexImpactNdex),
             (Dataset::DbeqBasic, Venue::Dbeq) => Ok(Self::DbeqBasicDbeq),
             (Dataset::DbeqPlus, Venue::Dbeq) => Ok(Self::DbeqPlusDbeq),
+            (Dataset::OpraPillar, Venue::Sphr) => Ok(Self::OpraPillarSphr),
             _ => Err(Error::conversion::<Self>(format!("({dataset}, {venue})"))),
         }
     }
@@ -835,6 +845,7 @@ impl std::str::FromStr for Publisher {
             "NDEX.IMPACT.NDEX" => Ok(Self::NdexImpactNdex),
             "DBEQ.BASIC.DBEQ" => Ok(Self::DbeqBasicDbeq),
             "DBEQ.PLUS.DBEQ" => Ok(Self::DbeqPlusDbeq),
+            "OPRA.PILLAR.SPHR" => Ok(Self::OpraPillarSphr),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
