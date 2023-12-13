@@ -661,7 +661,6 @@ pub enum SecurityUpdateAction {
     Modify = b'M',
     /// Removal of an instrument definition.
     Delete = b'D',
-    // FIXME: can this be removed?
     #[doc(hidden)]
     #[deprecated = "Still present in legacy files."]
     Invalid = b'~',

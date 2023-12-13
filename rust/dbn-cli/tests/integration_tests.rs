@@ -41,6 +41,8 @@ fn write_json_to_path(#[values("dbn", "dbn.zst")] extension: &str) {
     assert!(contents.contains('{'));
     assert!(contents.contains('{'));
     assert!(contents.ends_with('\n'));
+    // no map symbols
+    assert!(!contents.contains("\"symbol\":"));
 }
 
 #[test]
@@ -603,6 +605,43 @@ fn writes_csv_header_for_0_records() {
         .stdout(starts_with("ts_event,"))
         .stdout(contains('\n').count(1))
         .stderr(is_empty());
+}
+
+#[rstest]
+#[case::csv("--csv")]
+#[case::json("--json")]
+fn map_symbols(#[case] output_flag: &str) {
+    let cmd = cmd()
+        .args([
+            &format!("{TEST_DATA_PATH}/test_data.mbo.dbn.zst"),
+            output_flag,
+            "--map-symbols",
+        ])
+        .assert()
+        .success()
+        .stderr(is_empty());
+    if output_flag == "--csv" {
+        cmd.stdout(contains(",symbol\n").count(1));
+    } else {
+        cmd.stdout(contains("\"symbol\":\"").count(2));
+    }
+}
+
+#[rstest]
+#[case::dbn("--dbn")]
+#[case::fragment("--fragment")]
+fn map_symbols_fails_for_invalid_output(#[case] output_flag: &str) {
+    cmd()
+        .args([
+            &format!("{TEST_DATA_PATH}/test_data.mbo.dbn.zst"),
+            output_flag,
+            "--map-symbols",
+        ])
+        .assert()
+        .failure()
+        .stdout(is_empty())
+        .stderr(contains(format!("'{output_flag}'")))
+        .stderr(contains("'--map-symbols'"));
 }
 
 #[test]

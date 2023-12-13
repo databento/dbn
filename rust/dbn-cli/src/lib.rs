@@ -116,6 +116,15 @@ pub struct Args {
     )]
     pub should_pretty_print: bool,
     #[clap(
+         short = 's',
+         long = "map-symbols",
+         action = ArgAction::SetTrue,
+         default_value = "false",
+         conflicts_with_all = ["input_fragment", "dbn", "fragment"],
+         help ="Use symbology mappings from the metadata to create a 'symbol' field mapping the intstrument ID to its requested symbol."
+    )]
+    pub map_symbols: bool,
+    #[clap(
         short = 'l',
         long = "limit",
         value_name = "NUM_RECORDS",

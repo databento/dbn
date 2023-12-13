@@ -17,6 +17,67 @@ where
     use_pretty_ts: bool,
 }
 
+/// Helper for constructing a JSON [`Encoder`].
+///
+/// No fields are required.
+pub struct EncoderBuilder<W>
+where
+    W: io::Write,
+{
+    writer: W,
+    should_pretty_print: bool,
+    use_pretty_px: bool,
+    use_pretty_ts: bool,
+}
+
+impl<W> EncoderBuilder<W>
+where
+    W: io::Write,
+{
+    /// Creates a new JSON encoder builder.
+    pub fn new(writer: W) -> Self {
+        Self {
+            writer,
+            should_pretty_print: false,
+            use_pretty_px: false,
+            use_pretty_ts: false,
+        }
+    }
+
+    /// Sets whether the JSON encoder should encode nicely-formatted JSON objects
+    /// with indentation. Defaults to `false` where each JSON object is compact with
+    /// no spacing.
+    pub fn should_pretty_print(mut self, should_pretty_print: bool) -> Self {
+        self.should_pretty_print = should_pretty_print;
+        self
+    }
+
+    /// Sets whether the JSON encoder will serialize price fields as a decimal. Defaults
+    /// to `false`.
+    pub fn use_pretty_px(mut self, use_pretty_px: bool) -> Self {
+        self.use_pretty_px = use_pretty_px;
+        self
+    }
+
+    /// Sets whether the JSON encoder will serialize timestamp fields as ISO8601
+    /// datetime strings. Defaults to `false`.
+    pub fn use_pretty_ts(mut self, use_pretty_ts: bool) -> Self {
+        self.use_pretty_ts = use_pretty_ts;
+        self
+    }
+
+    /// Creates the new encoder with the previously specified settings and if
+    /// `write_header` is `true`, encodes the header row.
+    pub fn build(self) -> Encoder<W> {
+        Encoder::new(
+            self.writer,
+            self.should_pretty_print,
+            self.use_pretty_px,
+            self.use_pretty_ts,
+        )
+    }
+}
+
 impl<W> Encoder<W>
 where
     W: io::Write,
@@ -36,6 +97,11 @@ where
             use_pretty_px,
             use_pretty_ts,
         }
+    }
+
+    /// Creates a builder for configuring an `Encoder` object.
+    pub fn builder(writer: W) -> EncoderBuilder<W> {
+        EncoderBuilder::new(writer)
     }
 
     /// Encodes `metadata` into JSON.

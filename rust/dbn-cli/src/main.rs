@@ -6,7 +6,7 @@ use std::{
 use clap::Parser;
 use dbn::decode::{DbnMetadata, DbnRecordDecoder, DecodeRecordRef, DynDecoder};
 use dbn_cli::{
-    encode::{encode_from_dbn, encode_from_frag},
+    encode::{encode_from_dbn, encode_from_frag, silence_broken_pipe},
     filter::{LimitFilter, SchemaFilter},
     Args,
 };
@@ -31,6 +31,10 @@ fn wrap<R: io::BufRead>(
 }
 
 fn main() -> anyhow::Result<()> {
+    main_impl().or_else(silence_broken_pipe)
+}
+
+fn main_impl() -> anyhow::Result<()> {
     let args = Args::parse();
     // DBN fragment
     if args.is_input_fragment {

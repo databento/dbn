@@ -6,7 +6,14 @@
   allows outputting saved live data to CSV
 - Allowed passing `--limit` option to `dbn` CLI tool with `--metadata` flag
 - Improved performance of decoding uncompressed DBN fragments with the `dbn` CLI tool
+- Added builders to `CsvEncoder`, `DynEncoder`, and `JsonEncoder` to assist with the
+  growing number of customizations
+  - Added option to write CSV header as part of creating `CsvEncoder` to make it harder
+    to forget
+- Added `-s`/`--map-symbols` flag to CLI to create a `symbol` field in the output with
+  the text symbol mapped from the instrument ID
 - Added `version` param to Python `Metadata` contructor choose between DBNv1 and DBNv2
+- Implemented `EncodeRecordTextExt` for `DynEncoder`
 - Implemented `Deserialize` and `Serialize` for all records and enums (with `serde`
   feature enabled). This allows serializing records with additional encodings not
   supported by the DBN crate
@@ -15,6 +22,7 @@
 - Added Python type definition for `Metadata.__init__`
 - Added `metadata_mut` method to decoders to get a mutable reference to the decoded
   metadata
+- Added `encode::ZSTD_COMPRESSION_LEVEL` constant
 
 ### Breaking changes
 - Split `DecodeDbn` trait into `DecodeRecord` and `DbnMetadata` traits for more
@@ -28,6 +36,8 @@
 - Added missing Python `__eq__` and `__ne__` implementations for `BidAskPair`
 - Fixed Python `size_hint` return value for `InstrumentDefMsgV1` and
   `SymbolMappingMsgV1`
+- Fixed cases where `dbn` CLI tool would write a broken pipe error to standard error
+  such as when piping to `head`
 
 ## 0.14.2 - 2023-11-17
 ### Enhancements

@@ -17,14 +17,122 @@ where
     W: io::Write,
 {
     writer: csv::Writer<W>,
+    // Prevent writing header twice
+    has_written_header: bool,
     use_pretty_px: bool,
     use_pretty_ts: bool,
+}
+
+/// Helper for constructing a CSV [`Encoder`].
+///
+/// If writing a CSV header (`write_header`), which is enabled by default,
+/// `schema` is required, otherwise no fields are required.
+pub struct EncoderBuilder<W>
+where
+    W: io::Write,
+{
+    writer: W,
+    use_pretty_px: bool,
+    use_pretty_ts: bool,
+    write_header: bool,
+    schema: Option<Schema>,
+    ts_out: bool,
+    with_symbol: bool,
+}
+
+impl<W> EncoderBuilder<W>
+where
+    W: io::Write,
+{
+    /// Creates a new CSV encoder builder.
+    pub fn new(writer: W) -> Self {
+        Self {
+            writer,
+            use_pretty_px: false,
+            use_pretty_ts: false,
+            write_header: true,
+            schema: None,
+            ts_out: false,
+            with_symbol: false,
+        }
+    }
+
+    /// Sets whether the CSV encoder will serialize price fields as a decimal. Defaults
+    /// to `false`.
+    pub fn use_pretty_px(mut self, use_pretty_px: bool) -> Self {
+        self.use_pretty_px = use_pretty_px;
+        self
+    }
+
+    /// Sets whether the CSV encoder will serialize timestamp fields as ISO8601 datetime
+    /// strings. Defaults to `false`.
+    pub fn use_pretty_ts(mut self, use_pretty_ts: bool) -> Self {
+        self.use_pretty_ts = use_pretty_ts;
+        self
+    }
+
+    /// Sets whether the CSV encoder will write a header row when it's created.
+    /// Defaults to `true`. If `false`, a header row can still be written with
+    /// [`Encoder::encode_header()`] or [`Encoder::encode_header_for_schema()`].
+    pub fn write_header(mut self, write_header: bool) -> Self {
+        self.write_header = write_header;
+        self
+    }
+
+    /// Sets the schema that will be encoded. This is required if writing a header row.
+    ///
+    /// # Errors
+    /// This function returns an error if `schema` is `None`. It accepts to an `Option` to
+    /// more easily work with [`Metadata::schema`](crate::Metadata::schema).
+    pub fn schema(mut self, schema: Option<Schema>) -> crate::Result<Self> {
+        if schema.is_none() {
+            return Err(Error::encode("can't encode a CSV with mixed schemas"));
+        };
+        self.schema = schema;
+        Ok(self)
+    }
+
+    /// Sets whether to add a header field "ts_out". Defaults to `false`.
+    pub fn ts_out(mut self, ts_out: bool) -> Self {
+        self.ts_out = ts_out;
+        self
+    }
+
+    /// Sets whether to add a header field "symbol". Defaults to `false`.
+    pub fn with_symbol(mut self, with_symbol: bool) -> Self {
+        self.with_symbol = with_symbol;
+        self
+    }
+
+    /// Creates the new encoder with the previously specified settings and if
+    /// `write_header` is `true`, encodes the header row.
+    ///
+    /// # Errors
+    /// This function returns an error if it fails to write the header row.
+    pub fn build(self) -> crate::Result<Encoder<W>> {
+        let mut encoder = Encoder::new(self.writer, self.use_pretty_px, self.use_pretty_ts);
+        if self.write_header {
+            let Some(schema) = self.schema else {
+                return Err(Error::BadArgument {
+                    param_name: "schema".to_owned(),
+                    desc: "need to specify schema in order to write header".to_owned(),
+                });
+            };
+            encoder.encode_header_for_schema(schema, self.ts_out, self.with_symbol)?;
+        }
+        Ok(encoder)
+    }
 }
 
 impl<W> Encoder<W>
 where
     W: io::Write,
 {
+    /// Creates a builder for configuring an `Encoder` object.
+    pub fn builder(writer: W) -> EncoderBuilder<W> {
+        EncoderBuilder::new(writer)
+    }
+
     /// Creates a new [`Encoder`] that will write to `writer`. If `use_pretty_px`
     /// is `true`, price fields will be serialized as a decimal. If `pretty_ts` is
     /// `true`, timestamp fields will be serialized in a ISO8601 datetime string.
@@ -36,6 +144,7 @@ where
             writer: csv_writer,
             use_pretty_px,
             use_pretty_ts,
+            has_written_header: false,
         }
     }
 
@@ -61,6 +170,7 @@ where
         }
         // end of line
         self.writer.write_record(None::<&[u8]>)?;
+        self.has_written_header = true;
         Ok(())
     }
 
@@ -82,7 +192,9 @@ where
         ts_out: bool,
         with_symbol: bool,
     ) -> Result<()> {
-        schema_ts_out_method_dispatch!(schema, ts_out, self, encode_header, with_symbol)
+        schema_ts_out_method_dispatch!(schema, ts_out, self, encode_header, with_symbol)?;
+        self.has_written_header = true;
+        Ok(())
     }
 
     fn encode_record_impl<R: DbnEncodable>(&mut self, record: &R) -> csv::Result<()> {
@@ -146,7 +258,9 @@ where
     W: io::Write,
 {
     fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> Result<()> {
-        self.encode_header::<R>(false)?;
+        if !self.has_written_header {
+            self.encode_header::<R>(false)?;
+        }
         for record in records {
             self.encode_record(record)?;
         }
@@ -163,7 +277,9 @@ where
         &mut self,
         mut stream: impl StreamingIterator<Item = R>,
     ) -> Result<()> {
-        self.encode_header::<R>(false)?;
+        if !self.has_written_header {
+            self.encode_header::<R>(false)?;
+        }
         while let Some(record) = stream.next() {
             self.encode_record(record)?;
         }
@@ -181,7 +297,9 @@ where
     fn encode_decoded<D: DecodeRecordRef + DbnMetadata>(&mut self, mut decoder: D) -> Result<()> {
         let ts_out = decoder.metadata().ts_out;
         if let Some(schema) = decoder.metadata().schema {
-            schema_method_dispatch!(schema, self, encode_header, false)?;
+            if !self.has_written_header {
+                self.encode_header_for_schema(schema, ts_out, false)?;
+            }
             let rtype = RType::from(schema);
             while let Some(record) = decoder.decode_record_ref()? {
                 if record.rtype().map_or(true, |r| r != rtype) {
