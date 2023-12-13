@@ -11,6 +11,7 @@
 - Added new publisher value for OPRA MIAX Sapphire
 
 ### Bug fixes
+- Fixed panic in `TsSymbolMap` when `start_date` == `end_date`
 - Added missing Python `__eq__` and `__ne__` implementations for `BidAskPair`
 - Fixed Python `size_hint` return value for `InstrumentDefMsgV1` and
   `SymbolMappingMsgV1`
