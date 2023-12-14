@@ -51,11 +51,17 @@ pub trait DecodeRecordRef {
     fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef>>;
 }
 
-/// Trait for types that decode DBN records of a particular type.
-pub trait DecodeDbn: DecodeRecordRef + private::BufferSlice {
-    /// Returns a reference to the decoded [`Metadata`].
+/// Trait for decoders with metadata about what's being decoded.
+pub trait DbnMetadata {
+    /// Returns an immutable reference to the decoded [`Metadata`].
     fn metadata(&self) -> &Metadata;
 
+    /// Returns a mutable reference to the decoded [`Metadata`].
+    fn metadata_mut(&mut self) -> &mut Metadata;
+}
+
+/// Trait for types that decode DBN records of a particular type.
+pub trait DecodeRecord {
     /// Tries to decode a reference to a single record of type `T`. Returns `Ok(None)`
     /// if the input has been exhausted.
     ///
@@ -69,12 +75,6 @@ pub trait DecodeDbn: DecodeRecordRef + private::BufferSlice {
     /// If the `length` property of the record is invalid, an
     /// [`Error::Decode`](crate::Error::Decode) will be returned.
     fn decode_record<T: HasRType>(&mut self) -> crate::Result<Option<&T>>;
-
-    /// Converts the decoder into a streaming iterator of records of type `T`. This
-    /// lazily decodes the data.
-    fn decode_stream<T: HasRType>(self) -> StreamIterDecoder<Self, T>
-    where
-        Self: Sized;
 
     /// Tries to decode all records into a `Vec`. This eagerly decodes the data.
     ///
@@ -97,6 +97,18 @@ pub trait DecodeDbn: DecodeRecordRef + private::BufferSlice {
         }
         Ok(res)
     }
+}
+
+/// A trait alias for DBN decoders with metadata.
+pub trait DecodeDbn: DecodeRecord + DecodeRecordRef + DbnMetadata {}
+
+/// A trait for decoders that can be converted to streaming iterators.
+pub trait DecodeStream: DecodeRecord + private::BufferSlice {
+    /// Converts the decoder into a streaming iterator of records of type `T`. This
+    /// lazily decodes the data.
+    fn decode_stream<T: HasRType>(self) -> StreamIterDecoder<Self, T>
+    where
+        Self: Sized;
 }
 
 /// A decoder implementing [`DecodeDbn`] whose [`Encoding`](crate::enums::Encoding) and
@@ -250,7 +262,7 @@ where
 }
 
 #[allow(deprecated)]
-impl<'a, R> DecodeDbn for DynDecoder<'a, R>
+impl<'a, R> DbnMetadata for DynDecoder<'a, R>
 where
     R: io::BufRead,
 {
@@ -262,6 +274,20 @@ where
         }
     }
 
+    fn metadata_mut(&mut self) -> &mut Metadata {
+        match &mut self.0 {
+            DynDecoderImpl::Dbn(decoder) => decoder.metadata_mut(),
+            DynDecoderImpl::ZstdDbn(decoder) => decoder.metadata_mut(),
+            DynDecoderImpl::LegacyDbz(decoder) => decoder.metadata_mut(),
+        }
+    }
+}
+
+#[allow(deprecated)]
+impl<'a, R> DecodeRecord for DynDecoder<'a, R>
+where
+    R: io::BufRead,
+{
     fn decode_record<T: HasRType>(&mut self) -> crate::Result<Option<&T>> {
         match &mut self.0 {
             DynDecoderImpl::Dbn(decoder) => decoder.decode_record(),
@@ -269,7 +295,12 @@ where
             DynDecoderImpl::LegacyDbz(decoder) => decoder.decode_record(),
         }
     }
+}
 
+impl<'a, R> DecodeStream for DynDecoder<'a, R>
+where
+    R: io::BufRead,
+{
     fn decode_stream<T: HasRType>(self) -> StreamIterDecoder<Self, T>
     where
         Self: Sized,

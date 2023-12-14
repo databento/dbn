@@ -9,7 +9,7 @@ use std::{
 };
 
 use dbn::{
-    decode::{DecodeDbn, DecodeRecordRef, DynDecoder},
+    decode::{DbnMetadata, DecodeRecordRef, DynDecoder},
     Compression, Metadata, Record, RecordHeader, VersionUpgradePolicy,
 };
 

@@ -8,7 +8,7 @@ use pyo3::{
 };
 
 use crate::{
-    decode::{DecodeDbn, DynDecoder},
+    decode::{DbnMetadata, DynDecoder},
     encode::dbn::MetadataEncoder,
     enums::{SType, Schema},
     MappingInterval, Metadata, SymbolMapping, VersionUpgradePolicy,

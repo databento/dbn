@@ -210,16 +210,15 @@ fn py_to_rs_io_err(e: PyErr) -> io::Error {
 #[cfg(test)]
 pub mod tests {
 
-    use std::io::{Cursor, Seek, Write};
+    use std::{
+        io::{Cursor, Seek, Write},
+        sync::{Arc, Mutex},
+    };
 
-    use std::sync::{Arc, Mutex};
-
-    use dbn::datasets::GLBX_MDP3;
     use dbn::{
-        decode::{dbn::Decoder as DbnDecoder, DecodeDbn},
-        enums::SType,
-        metadata::MetadataBuilder,
-        record::TbboMsg,
+        datasets::GLBX_MDP3,
+        decode::{dbn::Decoder as DbnDecoder, DbnMetadata, DecodeRecord},
+        SType, TbboMsg,
     };
 
     use super::*;
@@ -298,7 +297,7 @@ pub mod tests {
                     let mock_file = MockPyFile::new();
                     let output_buf = mock_file.inner();
                     let mock_file = Py::new(py, mock_file).unwrap().into_py(py);
-                    let metadata = MetadataBuilder::new()
+                    let metadata = Metadata::builder()
                         .dataset(DATASET.to_owned())
                         .schema(Some($schema))
                         .start(0)

@@ -26,8 +26,9 @@ pub use self::{
 };
 
 use crate::{
-    decode::DecodeDbn, rtype_method_dispatch, rtype_ts_out_method_dispatch, Compression, Encoding,
-    Error, HasRType, Metadata, Record, RecordRef, Result, Schema,
+    decode::{DbnMetadata, DecodeRecordRef},
+    rtype_method_dispatch, rtype_ts_out_method_dispatch, Compression, Encoding, Error, HasRType,
+    Metadata, Record, RecordRef, Result, Schema,
 };
 
 use self::{csv::serialize::CsvSerialize, json::serialize::JsonSerialize};
@@ -112,7 +113,7 @@ pub trait EncodeDbn: EncodeRecord + EncodeRecordRef {
     /// # Errors
     /// This function returns an error if it's unable to write to the underlying writer
     /// or there's a serialization error.
-    fn encode_decoded<D: DecodeDbn>(&mut self, mut decoder: D) -> Result<()> {
+    fn encode_decoded<D: DecodeRecordRef + DbnMetadata>(&mut self, mut decoder: D) -> Result<()> {
         let ts_out = decoder.metadata().ts_out;
         while let Some(record) = decoder.decode_record_ref()? {
             // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
@@ -129,7 +130,7 @@ pub trait EncodeDbn: EncodeRecord + EncodeRecordRef {
     /// # Errors
     /// This function returns an error if it's unable to write to the underlying writer
     /// or there's a serialization error.
-    fn encode_decoded_with_limit<D: DecodeDbn>(
+    fn encode_decoded_with_limit<D: DecodeRecordRef + DbnMetadata>(
         &mut self,
         mut decoder: D,
         limit: NonZeroU64,
@@ -417,7 +418,7 @@ where
         self.0.encode_stream(stream)
     }
 
-    fn encode_decoded<D: DecodeDbn>(&mut self, decoder: D) -> Result<()> {
+    fn encode_decoded<D: DecodeRecordRef + DbnMetadata>(&mut self, decoder: D) -> Result<()> {
         self.0.encode_decoded(decoder)
     }
 }
@@ -490,7 +491,7 @@ macro_rules! encoder_enum_dispatch {
             }
         }
 
-        fn encode_decoded<D: DecodeDbn>(
+        fn encode_decoded<D: DecodeRecordRef + DbnMetadata>(
             &mut self,
             decoder: D,
         ) -> Result<()> {

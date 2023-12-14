@@ -9,8 +9,8 @@ use std::{
 };
 
 use super::{
-    private::BufferSlice, zstd::ZSTD_SKIPPABLE_MAGIC_RANGE, DecodeDbn, DecodeRecordRef,
-    StreamIterDecoder, VersionUpgradePolicy,
+    private::BufferSlice, zstd::ZSTD_SKIPPABLE_MAGIC_RANGE, DbnMetadata, DecodeRecord,
+    DecodeRecordRef, DecodeStream, StreamIterDecoder, VersionUpgradePolicy,
 };
 use crate::{
     compat,
@@ -127,11 +127,17 @@ impl<R: io::BufRead> DecodeRecordRef for Decoder<R> {
     }
 }
 
-impl<R: io::BufRead> DecodeDbn for Decoder<R> {
+impl<R: io::BufRead> DbnMetadata for Decoder<R> {
     fn metadata(&self) -> &Metadata {
         &self.metadata
     }
 
+    fn metadata_mut(&mut self) -> &mut Metadata {
+        &mut self.metadata
+    }
+}
+
+impl<R: io::BufRead> DecodeRecord for Decoder<R> {
     fn decode_record<T: HasRType>(&mut self) -> crate::Result<Option<&T>> {
         let rec_ref = self.decode_record_ref()?;
         if let Some(rec_ref) = rec_ref {
@@ -148,7 +154,9 @@ impl<R: io::BufRead> DecodeDbn for Decoder<R> {
             Ok(None)
         }
     }
+}
 
+impl<R: io::BufRead> DecodeStream for Decoder<R> {
     /// Try to decode the DBZ file into a streaming iterator. This decodes the
     /// data lazily.
     ///

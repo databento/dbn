@@ -3,7 +3,7 @@ use std::{io, num::NonZeroU64};
 use streaming_iterator::StreamingIterator;
 
 use crate::{
-    decode::DecodeDbn,
+    decode::{DbnMetadata, DecodeRecordRef},
     encode::{DbnEncodable, EncodeDbn, EncodeRecord, EncodeRecordRef, EncodeRecordTextExt},
     rtype_method_dispatch, rtype_ts_out_method_dispatch, schema_method_dispatch,
     schema_ts_out_method_dispatch, Error, RType, Record, Result, Schema,
@@ -178,7 +178,7 @@ where
     /// # Errors
     /// This function returns an error if it's unable to write to the underlying writer
     /// or there's a serialization error.
-    fn encode_decoded<D: DecodeDbn>(&mut self, mut decoder: D) -> Result<()> {
+    fn encode_decoded<D: DecodeRecordRef + DbnMetadata>(&mut self, mut decoder: D) -> Result<()> {
         let ts_out = decoder.metadata().ts_out;
         if let Some(schema) = decoder.metadata().schema {
             schema_method_dispatch!(schema, self, encode_header, false)?;
@@ -198,7 +198,7 @@ where
         }
     }
 
-    fn encode_decoded_with_limit<D: DecodeDbn>(
+    fn encode_decoded_with_limit<D: DecodeRecordRef + DbnMetadata>(
         &mut self,
         mut decoder: D,
         limit: NonZeroU64,

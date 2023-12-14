@@ -1,14 +1,27 @@
 # Changelog
 
-## 0.14.3 - TBD
+## 0.15.0 - TBD
 ### Enhancements
-- Added type definition for `Metadata.__init__`
+- Added `--schema` option to `dbn` CLI tool to filter a DBN to a particular schema. This
+  allows outputting saved live data to CSV
+- Allowed passing `--limit` option to `dbn` CLI tool with `--metadata` flag
+- Improved performance of decoding uncompressed DBN fragments with the `dbn` CLI tool
 - Added `version` param to Python `Metadata` contructor choose between DBNv1 and DBNv2
-- Implemented `Hash` for all record types
 - Implemented `Deserialize` and `Serialize` for all records and enums (with `serde`
   feature enabled). This allows serializing records with additional encodings not
   supported by the DBN crate
+- Implemented `Hash` for all record types
 - Added new publisher value for OPRA MIAX Sapphire
+- Added Python type definition for `Metadata.__init__`
+- Added `metadata_mut` method to decoders to get a mutable reference to the decoded
+  metadata
+
+### Breaking changes
+- Split `DecodeDbn` trait into `DecodeRecord` and `DbnMetadata` traits for more
+  flexibility. `DecodeDbn` continues to exist as a trait alias
+- Moved `decode_stream` out of `DecodeDbn` to its own separate trait `DecodeStream`
+- Changed trait bounds of `EncodeDbn::encode_decoded` and `encode_decoded_with_limit` to
+  `DecodeRecordRef + DbnMetadata`
 
 ### Bug fixes
 - Fixed panic in `TsSymbolMap` when `start_date` == `end_date`

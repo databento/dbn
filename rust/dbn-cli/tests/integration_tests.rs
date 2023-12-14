@@ -351,18 +351,21 @@ fn convert_dbz_to_dbn() {
 }
 
 #[test]
-fn metadata_conflicts_with_limit() {
+fn limit_and_schema_filter_update_metadata() {
     cmd()
         .args([
-            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.ohlcv-1m.dbn.zst"),
             "--json",
             "--metadata",
             "--limit",
             "1",
+            "--schema",
+            "ohlcv-1d",
         ])
         .assert()
-        .failure()
-        .stderr(contains("'--metadata' cannot be used with '--limit"));
+        .success()
+        .stdout(contains(r#""limit":"1""#))
+        .stdout(contains(r#""schema":"ohlcv-1d""#));
 }
 
 #[rstest]

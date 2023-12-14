@@ -2,16 +2,16 @@ use std::marker::PhantomData;
 
 use streaming_iterator::StreamingIterator;
 
-use super::DecodeDbn;
+use super::{DecodeRecord, DecodeStream};
 use crate::record::{transmute_record_bytes, HasRType};
 
-/// A consuming iterator wrapping a [`DecodeDbn`]. Lazily decodes the contents of the file
-/// or other input stream.
+/// A consuming iterator wrapping a [`DecodeRecord`]. Lazily decodes the contents of the
+/// file or other input stream.
 ///
 /// Implements [`streaming_iterator::StreamingIterator`].
 pub struct StreamIterDecoder<D, T>
 where
-    D: DecodeDbn,
+    D: DecodeRecord,
     T: HasRType,
 {
     /// The underlying decoder implementation.
@@ -27,7 +27,7 @@ where
 
 impl<D, T> StreamIterDecoder<D, T>
 where
-    D: DecodeDbn,
+    D: DecodeRecord,
     T: HasRType,
 {
     pub(crate) fn new(decoder: D) -> Self {
@@ -47,7 +47,7 @@ where
 
 impl<D, T> StreamingIterator for StreamIterDecoder<D, T>
 where
-    D: DecodeDbn,
+    D: DecodeStream,
     T: HasRType,
 {
     type Item = T;

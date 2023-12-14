@@ -1,7 +1,7 @@
 use std::io;
 
 use dbn::{
-    decode::{DbnRecordDecoder, DecodeDbn, DecodeRecordRef, DynDecoder},
+    decode::{DbnMetadata, DecodeRecordRef},
     encode::{
         json, DbnEncodable, DbnRecordEncoder, DynEncoder, DynWriter, EncodeDbn, EncodeRecordRef,
     },
@@ -10,7 +10,10 @@ use dbn::{
 
 use crate::{infer_encoding_and_compression, output_from_args, Args};
 
-pub fn encode_from_dbn<R: io::BufRead>(decoder: DynDecoder<R>, args: &Args) -> anyhow::Result<()> {
+pub fn encode_from_dbn<D>(decoder: D, args: &Args) -> anyhow::Result<()>
+where
+    D: DecodeRecordRef + DbnMetadata,
+{
     let writer = output_from_args(args)?;
     let (encoding, compression) = infer_encoding_and_compression(args)?;
     let encode_res = if args.should_output_metadata {
@@ -23,21 +26,7 @@ pub fn encode_from_dbn<R: io::BufRead>(decoder: DynDecoder<R>, args: &Args) -> a
         )
         .encode_metadata(decoder.metadata())
     } else if args.fragment {
-        encode_fragment(decoder, writer, compression, args)
-    } else if let Some(limit) = args.limit {
-        let mut metadata = decoder.metadata().clone();
-        // Update metadata
-        metadata.limit = args.limit;
-        DynEncoder::new(
-            writer,
-            encoding,
-            compression,
-            &metadata,
-            args.should_pretty_print,
-            args.should_pretty_print,
-            args.should_pretty_print,
-        )?
-        .encode_decoded_with_limit(decoder, limit)
+        encode_fragment(decoder, writer, compression)
     } else {
         DynEncoder::new(
             writer,
@@ -59,14 +48,14 @@ pub fn encode_from_dbn<R: io::BufRead>(decoder: DynDecoder<R>, args: &Args) -> a
     }
 }
 
-pub fn encode_from_frag<R: io::Read>(
-    mut decoder: DbnRecordDecoder<R>,
-    args: &Args,
-) -> anyhow::Result<()> {
+pub fn encode_from_frag<D>(mut decoder: D, args: &Args) -> anyhow::Result<()>
+where
+    D: DecodeRecordRef,
+{
     let writer = output_from_args(args)?;
     let (encoding, compression) = infer_encoding_and_compression(args)?;
     if args.fragment {
-        encode_fragment(decoder, writer, compression, args)?;
+        encode_fragment(decoder, writer, compression)?;
         return Ok(());
     }
     assert!(!args.should_output_metadata);
@@ -87,7 +76,6 @@ pub fn encode_from_frag<R: io::Read>(
         args.should_pretty_print,
         args.should_pretty_print,
     )?;
-    let mut n = 0;
     let mut has_written_header = encoding != Encoding::Csv;
     fn write_header<T: DbnEncodable>(
         _record: &T,
@@ -115,10 +103,6 @@ pub fn encode_from_frag<R: io::Read>(
             }
             res => res?,
         };
-        n += 1;
-        if args.limit.map_or(false, |l| n >= l.get()) {
-            break;
-        }
     }
     Ok(())
 }
@@ -127,16 +111,10 @@ fn encode_fragment<D: DecodeRecordRef>(
     mut decoder: D,
     writer: Box<dyn io::Write>,
     compression: Compression,
-    args: &Args,
 ) -> dbn::Result<()> {
     let mut encoder = DbnRecordEncoder::new(DynWriter::new(writer, compression)?);
-    let mut n = 0;
     while let Some(record) = decoder.decode_record_ref()? {
         encoder.encode_record_ref(record)?;
-        n += 1;
-        if args.limit.map_or(false, |l| n >= l.get()) {
-            break;
-        }
     }
     Ok(())
 }
