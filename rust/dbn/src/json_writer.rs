@@ -2,7 +2,6 @@
 
 // Re-export for version and casing consistency
 pub use json_writer::{
-    JSONArrayWriter as JsonArrayWriter, JSONObjectWriter as JsonObjectWriter, JSONWriter,
-    JSONWriter as JsonWriter, JSONWriterValue as JsonWriterValue,
+    JSONObjectWriter as JsonObjectWriter, JSONWriter as JsonWriter,
     PrettyJSONWriter as PrettyJsonWriter, NULL,
 };
