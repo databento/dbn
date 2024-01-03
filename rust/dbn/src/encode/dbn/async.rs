@@ -237,7 +237,7 @@ where
             .write_u32_le(length)
             .await
             .map_err(metadata_err)?;
-        self.encode_fixed_len_cstr::<{ crate::METADATA_DATASET_CSTR_LEN }>(&metadata.dataset)
+        self.encode_fixed_len_cstr(crate::METADATA_DATASET_CSTR_LEN, &metadata.dataset)
             .await?;
         self.writer
             .write_u16_le(metadata.schema.map(|s| s as u16).unwrap_or(NULL_SCHEMA))
@@ -279,13 +279,13 @@ where
             .map_err(metadata_err)?;
         // schema_definition_length
         self.writer.write_u32_le(0).await.map_err(metadata_err)?;
-        self.encode_repeated_symbol_cstr(metadata.version, &metadata.symbols)
+        self.encode_repeated_symbol_cstr(metadata.symbol_cstr_len, &metadata.symbols)
             .await?;
-        self.encode_repeated_symbol_cstr(metadata.version, &metadata.partial)
+        self.encode_repeated_symbol_cstr(metadata.symbol_cstr_len, &metadata.partial)
             .await?;
-        self.encode_repeated_symbol_cstr(metadata.version, &metadata.not_found)
+        self.encode_repeated_symbol_cstr(metadata.symbol_cstr_len, &metadata.not_found)
             .await?;
-        self.encode_symbol_mappings(metadata.version, &metadata.mappings)
+        self.encode_symbol_mappings(metadata.symbol_cstr_len, &metadata.mappings)
             .await?;
 
         Ok(())
@@ -331,19 +331,17 @@ where
         Ok(())
     }
 
-    async fn encode_repeated_symbol_cstr(&mut self, version: u8, symbols: &[String]) -> Result<()> {
+    async fn encode_repeated_symbol_cstr(
+        &mut self,
+        symbol_cstr_len: usize,
+        symbols: &[String],
+    ) -> Result<()> {
         self.writer
             .write_u32_le(symbols.len() as u32)
             .await
-            .map_err(|e| Error::io(e, "writing cstr length"))?;
+            .map_err(|e| Error::io(e, "writing repeated symbols length"))?;
         for symbol in symbols {
-            if version == 1 {
-                self.encode_fixed_len_cstr::<{ crate::compat::SYMBOL_CSTR_LEN_V1 }>(symbol)
-                    .await
-            } else {
-                self.encode_fixed_len_cstr::<{ crate::SYMBOL_CSTR_LEN }>(symbol)
-                    .await
-            }?;
+            self.encode_fixed_len_cstr(symbol_cstr_len, symbol).await?;
         }
 
         Ok(())
@@ -351,7 +349,7 @@ where
 
     async fn encode_symbol_mappings(
         &mut self,
-        version: u8,
+        symbol_cstr_len: usize,
         symbol_mappings: &[SymbolMapping],
     ) -> Result<()> {
         // encode mappings_count
@@ -359,25 +357,19 @@ where
             .write_u32_le(symbol_mappings.len() as u32)
             .await
             .map_err(|e| Error::io(e, "writing symbol mappings length"))?;
-        if version == 1 {
-            for symbol_mapping in symbol_mappings {
-                self.encode_symbol_mapping::<{ crate::compat::SYMBOL_CSTR_LEN_V1 }>(symbol_mapping)
-                    .await?;
-            }
-        } else {
-            for symbol_mapping in symbol_mappings {
-                self.encode_symbol_mapping::<{ crate::SYMBOL_CSTR_LEN }>(symbol_mapping)
-                    .await?;
-            }
+        for symbol_mapping in symbol_mappings {
+            self.encode_symbol_mapping(symbol_cstr_len, symbol_mapping)
+                .await?;
         }
         Ok(())
     }
 
-    async fn encode_symbol_mapping<const LEN: usize>(
+    async fn encode_symbol_mapping(
         &mut self,
+        symbol_cstr_len: usize,
         symbol_mapping: &SymbolMapping,
     ) -> Result<()> {
-        self.encode_fixed_len_cstr::<LEN>(&symbol_mapping.raw_symbol)
+        self.encode_fixed_len_cstr(symbol_cstr_len, &symbol_mapping.raw_symbol)
             .await?;
         // encode interval_count
         self.writer
@@ -391,22 +383,23 @@ where
             self.encode_date(interval.end_date)
                 .await
                 .map_err(|e| Error::io(e, "writing end date"))?;
-            self.encode_fixed_len_cstr::<LEN>(&interval.symbol).await?;
+            self.encode_fixed_len_cstr(symbol_cstr_len, &interval.symbol)
+                .await?;
         }
         Ok(())
     }
 
-    async fn encode_fixed_len_cstr<const LEN: usize>(&mut self, string: &str) -> Result<()> {
+    async fn encode_fixed_len_cstr(&mut self, symbol_cstr_len: usize, string: &str) -> Result<()> {
         if !string.is_ascii() {
             return Err(Error::Conversion {
                 input: string.to_owned(),
                 desired_type: "ASCII",
             });
         }
-        if string.len() > LEN {
+        if string.len() > symbol_cstr_len {
             return Err(Error::encode(
                     format!(
-                    "'{string}' is too long to be encoded in DBN; it cannot be longer than {LEN} characters"
+                    "'{string}' is too long to be encoded in DBN; it cannot be longer than {symbol_cstr_len} characters"
                 )));
         }
         let cstr_err = |e| Error::io(e, "writing cstr");
@@ -415,7 +408,7 @@ where
             .await
             .map_err(cstr_err)?;
         // pad remaining space with null bytes
-        for _ in string.len()..LEN {
+        for _ in string.len()..symbol_cstr_len {
             self.writer.write_u8(0).await.map_err(cstr_err)?;
         }
         Ok(())
@@ -533,7 +526,7 @@ mod tests {
             "LNQ".to_owned(),
         ];
         target
-            .encode_repeated_symbol_cstr(crate::DBN_VERSION, symbols.as_slice())
+            .encode_repeated_symbol_cstr(crate::SYMBOL_CSTR_LEN, symbols.as_slice())
             .await
             .unwrap();
         assert_eq!(
@@ -555,7 +548,7 @@ mod tests {
         let mut buffer = Vec::new();
         let mut target = MetadataEncoder::new(&mut buffer);
         target
-            .encode_fixed_len_cstr::<{ crate::SYMBOL_CSTR_LEN }>("NG")
+            .encode_fixed_len_cstr(crate::SYMBOL_CSTR_LEN, "NG")
             .await
             .unwrap();
         assert_eq!(buffer.len(), crate::SYMBOL_CSTR_LEN);

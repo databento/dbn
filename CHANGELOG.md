@@ -38,6 +38,8 @@
   `SymbolMappingMsgV1`
 - Fixed cases where `dbn` CLI tool would write a broken pipe error to standard error
   such as when piping to `head`
+- Fixed bug in sync and async `MetadataEncoder`s where `version` was used to determine
+  the encoded length of fixed-length symbols instead of the `symbol_cstr_len` field
 
 ## 0.14.2 - 2023-11-17
 ### Enhancements
