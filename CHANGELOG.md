@@ -2,6 +2,11 @@
 
 ## 0.15.0 - TBD
 ### Enhancements
+- Improved `Debug` implementation for all record types
+  - Prices are formatted as decimals
+  - Fixed-length strings are formatted as strings
+  - Bit flag fields are formatted as binary
+  - Several fields are formatted as enums instead of their raw representations
 - Added `--schema` option to `dbn` CLI tool to filter a DBN to a particular schema. This
   allows outputting saved live data to CSV
 - Allowed passing `--limit` option to `dbn` CLI tool with `--metadata` flag

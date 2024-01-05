@@ -37,7 +37,7 @@ impl fmt::Debug for Ts {
 
 impl fmt::Debug for Px {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
+        f.write_str(&fmt_px(self.0))
     }
 }
 

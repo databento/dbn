@@ -73,7 +73,7 @@ pub unsafe fn decode_record_ref<'a>(
 ///
 /// Note: This will be renamed to `InstrumentDefMsg` in DBN version 2.
 #[repr(C)]
-#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
+#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
@@ -208,32 +208,43 @@ pub struct InstrumentDefMsgV1 {
     #[pyo3(get, set)]
     pub channel_id: u16,
     /// The currency used for price fields.
+    #[dbn(fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub currency: [c_char; 4],
     /// The currency used for settlement, if different from `currency`.
+    #[dbn(fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub settl_currency: [c_char; 4],
     /// The strategy type of the spread.
+    #[dbn(fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub secsubtype: [c_char; 6],
     /// The instrument raw symbol assigned by the publisher.
-    #[dbn(encode_order(2))]
+    #[dbn(encode_order(2), fmt_method)]
     pub raw_symbol: [c_char; SYMBOL_CSTR_LEN_V1],
     /// The security group code of the instrument.
+    #[dbn(fmt_method)]
     pub group: [c_char; 21],
     /// The exchange used to identify the instrument.
+    #[dbn(fmt_method)]
     pub exchange: [c_char; 5],
     /// The underlying asset code (product code) of the instrument.
+    #[dbn(fmt_method)]
     pub asset: [c_char; 7],
     /// The ISO standard instrument categorization code.
+    #[dbn(fmt_method)]
     pub cfi: [c_char; 7],
     /// The type of the instrument, e.g. FUT for future or future spread.
+    #[dbn(fmt_method)]
     pub security_type: [c_char; 7],
     /// The unit of measure for the instrument’s original contract size, e.g. USD or LBS.
+    #[dbn(fmt_method)]
     pub unit_of_measure: [c_char; 31],
     /// The symbol of the first underlying instrument.
+    #[dbn(fmt_method)]
     pub underlying: [c_char; 21],
     /// The currency of [`strike_price`](Self::strike_price).
+    #[dbn(fmt_method)]
     pub strike_price_currency: [c_char; 4],
     /// The classification of the instrument.
     #[dbn(c_char, encode_order(4))]
@@ -304,7 +315,7 @@ pub struct InstrumentDefMsgV1 {
 ///
 /// Note: This will be renamed to `SymbolMappingMsg` in DBN version 2.
 #[repr(C)]
-#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
+#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
@@ -320,8 +331,10 @@ pub struct SymbolMappingMsgV1 {
     #[pyo3(get, set)]
     pub hd: RecordHeader,
     /// The input symbol.
+    #[dbn(fmt_method)]
     pub stype_in_symbol: [c_char; SYMBOL_CSTR_LEN_V1],
     /// The output symbol.
+    #[dbn(fmt_method)]
     pub stype_out_symbol: [c_char; SYMBOL_CSTR_LEN_V1],
     // Filler for alignment.
     #[doc(hidden)]

@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use crate::{
     compat::{InstrumentDefMsgV1, SymbolMappingMsgV1},
     SType,
@@ -61,6 +63,25 @@ impl RecordHeader {
             // u64::MAX is within maximum allowable range
             Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.ts_event as i128).unwrap())
         }
+    }
+}
+
+impl Debug for RecordHeader {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut debug_struct = f.debug_struct("RecordHeader");
+        debug_struct.field("length", &self.length);
+        match self.rtype() {
+            Ok(rtype) => debug_struct.field("rtype", &format_args!("{rtype:?}")),
+            Err(_) => debug_struct.field("rtype", &format_args!("{:#04X}", &self.rtype)),
+        };
+        match self.publisher() {
+            Ok(p) => debug_struct.field("publisher_id", &format_args!("{p:?}")),
+            Err(_) => debug_struct.field("publisher_id", &self.publisher_id),
+        };
+        debug_struct
+            .field("instrument_id", &self.instrument_id)
+            .field("ts_event", &self.ts_event)
+            .finish()
     }
 }
 
@@ -786,6 +807,8 @@ impl<T: HasRType> WithTsOut<T> {
 
 #[cfg(test)]
 mod tests {
+    use crate::flags;
+
     use super::*;
 
     #[test]
@@ -794,6 +817,92 @@ mod tests {
         assert_eq!(
             header.rtype().unwrap_err().to_string(),
             "couldn't convert 0x0E to dbn::enums::rtype::RType"
+        );
+    }
+
+    #[test]
+    fn debug_mbo() {
+        let rec = MboMsg {
+            hd: RecordHeader::new::<MboMsg>(
+                rtype::MBO,
+                Publisher::OpraPillarXcbo as u16,
+                678,
+                1704468548242628731,
+            ),
+            flags: flags::LAST | flags::BAD_TS_RECV,
+            price: 4_500_500_000_000,
+            side: b'B' as c_char,
+            action: b'A' as c_char,
+            ..Default::default()
+        };
+        assert_eq!(
+            format!("{rec:?}"),
+            "MboMsg { hd: RecordHeader { length: 14, rtype: Mbo, publisher_id: OpraPillarXcbo, \
+            instrument_id: 678, ts_event: 1704468548242628731 }, order_id: 0, \
+            price: 4500.500000000, size: 4294967295, flags: 0b10001000, channel_id: 0, \
+            action: 'A', side: 'B', ts_recv: 18446744073709551615, ts_in_delta: 0, sequence: 0 }"
+        );
+    }
+
+    #[test]
+    fn debug_stats() {
+        let rec = StatMsg {
+            stat_type: StatType::OpenInterest as u16,
+            update_action: StatUpdateAction::New as u8,
+            quantity: 5,
+            stat_flags: 0b00000010,
+            ..Default::default()
+        };
+        assert_eq!(
+            format!("{rec:?}"),
+            "StatMsg { hd: RecordHeader { length: 16, rtype: Statistics, publisher_id: 0, \
+            instrument_id: 0, ts_event: 18446744073709551615 }, ts_recv: 18446744073709551615, \
+            ts_ref: 18446744073709551615, price: UNDEF_PRICE, quantity: 5, sequence: 0, ts_in_delta: 0, \
+            stat_type: OpenInterest, channel_id: 0, update_action: New, stat_flags: 0b00000010 }"
+        );
+    }
+
+    #[test]
+    fn debug_instrument_err() {
+        let rec = ErrorMsg {
+            err: str_to_c_chars("Missing stype_in").unwrap(),
+            ..Default::default()
+        };
+        assert_eq!(
+            format!("{rec:?}"),
+            "ErrorMsg { hd: RecordHeader { length: 20, rtype: Error, publisher_id: 0, \
+            instrument_id: 0, ts_event: 18446744073709551615 }, err: \"Missing stype_in\" }"
+        );
+    }
+
+    #[test]
+    fn debug_instrument_sys() {
+        let rec = SystemMsg::heartbeat(123);
+        assert_eq!(
+            format!("{rec:?}"),
+            "SystemMsg { hd: RecordHeader { length: 20, rtype: System, publisher_id: 0, \
+            instrument_id: 0, ts_event: 123 }, msg: \"Heartbeat\" }"
+        );
+    }
+
+    #[test]
+    fn debug_instrument_symbol_mapping() {
+        let rec = SymbolMappingMsg {
+            hd: RecordHeader::new::<SymbolMappingMsg>(
+                rtype::SYMBOL_MAPPING,
+                0,
+                5602,
+                1704466940331347283,
+            ),
+            stype_in: SType::RawSymbol as u8,
+            stype_in_symbol: str_to_c_chars("ESM4").unwrap(),
+            stype_out: SType::RawSymbol as u8,
+            stype_out_symbol: str_to_c_chars("ESM4").unwrap(),
+            ..Default::default()
+        };
+        assert_eq!(
+            format!("{rec:?}"),
+            "SymbolMappingMsg { hd: RecordHeader { length: 44, rtype: SymbolMapping, publisher_id: 0, instrument_id: 5602, ts_event: 1704466940331347283 }, stype_in: RawSymbol, stype_in_symbol: \"ESM4\", stype_out: RawSymbol, stype_out_symbol: \"ESM4\", start_ts: 18446744073709551615, end_ts: 18446744073709551615 }"
         );
     }
 }
