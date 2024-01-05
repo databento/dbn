@@ -77,7 +77,9 @@ impl<'a> RecordRef<'a> {
         if self.has::<T>() {
             assert!(
                 self.record_size() >= mem::size_of::<T>(),
-                "Malformed record. Expected length of at least {} bytes, found {} bytes",
+                "Malformed `{}` record: expected length of at least {} bytes, found {} bytes. \
+                Confirm the DBN version in the Metadata header and the version upgrade policy",
+                std::any::type_name::<T>(),
                 mem::size_of::<T>(),
                 self.record_size()
             );

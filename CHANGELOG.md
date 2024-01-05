@@ -22,6 +22,8 @@
 - Added Python type definition for `Metadata.__init__`
 - Added `metadata_mut` method to decoders to get a mutable reference to the decoded
   metadata
+- Improved panic message on `RecordRef::get` when length doesn't match expected to be
+  actionable
 - Added `encode::ZSTD_COMPRESSION_LEVEL` constant
 
 ### Breaking changes
