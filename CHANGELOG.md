@@ -7,6 +7,7 @@
   - Fixed-length strings are formatted as strings
   - Bit flag fields are formatted as binary
   - Several fields are formatted as enums instead of their raw representations
+- Improved `Debug` implementation for `RecordRef` to show `RecordHeader`
 - Added `--schema` option to `dbn` CLI tool to filter a DBN to a particular schema. This
   allows outputting saved live data to CSV
 - Allowed passing `--limit` option to `dbn` CLI tool with `--metadata` flag

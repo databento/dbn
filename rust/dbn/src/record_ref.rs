@@ -1,6 +1,6 @@
 //! The [`RecordRef`] struct for non-owning references to DBN records.
 
-use std::{marker::PhantomData, mem, ptr::NonNull};
+use std::{fmt::Debug, marker::PhantomData, mem, ptr::NonNull};
 
 use crate::{
     record::{HasRType, Record, RecordHeader},
@@ -9,7 +9,7 @@ use crate::{
 
 /// A wrapper around a non-owning immutable reference to a DBN record. This wrapper
 /// allows for mixing of record types and schemas, and runtime record polymorphism.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
 pub struct RecordRef<'a> {
     ptr: NonNull<RecordHeader>,
     /// Associates the object with the lifetime of the memory pointed to by `ptr`.
@@ -189,6 +189,17 @@ impl<'a> From<RecordRefEnum<'a>> for RecordRef<'a> {
     }
 }
 
+impl<'a> Debug for RecordRef<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RecordRef")
+            .field(
+                "ptr",
+                &format_args!("{:?} --> {:?}", self.ptr, self.header()),
+            )
+            .finish()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::ffi::c_char;
@@ -216,8 +227,17 @@ mod tests {
 
     #[test]
     fn test_header() {
-        let target = unsafe { RecordRef::new(SOURCE_RECORD.as_ref()) };
+        let target = RecordRef::from(&SOURCE_RECORD);
         assert_eq!(*target.header(), SOURCE_RECORD.hd);
+    }
+
+    #[test]
+    fn test_fmt_debug() {
+        let target = RecordRef::from(&SOURCE_RECORD);
+        let string = format!("{target:?}");
+        dbg!(&string);
+        assert!(string.starts_with("RecordRef { ptr: 0x"));
+        assert!(string.ends_with("--> RecordHeader { length: 14, rtype: Mbo, publisher_id: GlbxMdp3Glbx, instrument_id: 1, ts_event: 0 } }"));
     }
 
     #[test]
@@ -230,7 +250,7 @@ mod tests {
         assert!(!target.has::<OhlcvMsg>());
         assert!(!target.has::<InstrumentDefMsg>());
         assert!(target.has::<MboMsg>());
-        assert_eq!(*unsafe { target.get_unchecked::<MboMsg>() }, SOURCE_RECORD);
+        assert_eq!(*target.get::<MboMsg>().unwrap(), SOURCE_RECORD);
     }
 
     #[test]
@@ -246,7 +266,7 @@ mod tests {
     fn test_get_too_short() {
         let mut src = SOURCE_RECORD;
         src.hd.length -= 1;
-        let target = unsafe { RecordRef::new(src.as_ref()) };
+        let target = RecordRef::from(&src);
         // panic due to unexpected length
         target.get::<MboMsg>();
     }
