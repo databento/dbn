@@ -2037,11 +2037,7 @@ impl ErrorMsg {
     }
 
     fn __repr__(&self) -> String {
-        if let Ok(err_msg) = self.err() {
-            format!("ErrorMsg {{ hd: {:?}, err: '{}' }}", self.hd, err_msg)
-        } else {
-            format!("ErrorMsg {{ hd: {:?}, err: '{:?}' }}", self.hd, self.err)
-        }
+        format!("{self:?}")
     }
 
     #[getter]
@@ -2420,11 +2416,7 @@ impl SystemMsg {
     }
 
     fn __repr__(&self) -> String {
-        if let Ok(sys_msg) = self.msg() {
-            format!("SystemMsg {{ hd: {:?}, msg: '{}' }}", self.hd, sys_msg)
-        } else {
-            format!("SystemMsg {{ hd: {:?}, msg: '{:?}' }}", self.hd, self.msg)
-        }
+        format!("{self:?}")
     }
 
     #[getter]
