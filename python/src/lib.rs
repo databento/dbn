@@ -3,7 +3,7 @@
 use pyo3::{prelude::*, wrap_pyfunction, PyClass};
 
 use dbn::{
-    compat::{InstrumentDefMsgV1, SymbolMappingMsgV1},
+    compat::{ErrorMsgV1, InstrumentDefMsgV1, SymbolMappingMsgV1, SystemMsgV1},
     enums::{Compression, Encoding, SType, Schema},
     flags,
     python::EnumIterator,
@@ -48,9 +48,11 @@ fn databento_dbn(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     checked_add_class::<InstrumentDefMsg>(m)?;
     checked_add_class::<InstrumentDefMsgV1>(m)?;
     checked_add_class::<ErrorMsg>(m)?;
+    checked_add_class::<ErrorMsgV1>(m)?;
     checked_add_class::<SymbolMappingMsg>(m)?;
     checked_add_class::<SymbolMappingMsgV1>(m)?;
     checked_add_class::<SystemMsg>(m)?;
+    checked_add_class::<SystemMsgV1>(m)?;
     checked_add_class::<StatMsg>(m)?;
     // PyClass enums
     checked_add_class::<Compression>(m)?;

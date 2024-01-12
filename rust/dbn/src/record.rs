@@ -1,7 +1,7 @@
 //! Market data types for encoding different Databento [`Schema`](crate::enums::Schema)s
 //! and conversion functions.
 
-mod conv;
+pub(crate) mod conv;
 mod impl_default;
 mod methods;
 
@@ -812,7 +812,14 @@ pub struct ErrorMsg {
     /// The error message.
     #[dbn(fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
-    pub err: [c_char; 64],
+    pub err: [c_char; 302],
+    /// The error code. Currently unused.
+    #[pyo3(get, set)]
+    pub code: u8,
+    /// Sometimes multiple errors are sent together. This field will be non-zero for the
+    /// last error.
+    #[pyo3(get, set)]
+    pub is_last: u8,
 }
 
 /// A symbol mapping message which maps a symbol of one [`SType`](crate::enums::SType)
@@ -883,7 +890,10 @@ pub struct SystemMsg {
     /// The message from the Databento Live Subscription Gateway (LSG).
     #[dbn(fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
-    pub msg: [c_char; 64],
+    pub msg: [c_char; 303],
+    /// Type of system message, currently unused.
+    #[pyo3(get, set)]
+    pub code: u8,
 }
 
 /// Used for polymorphism around types all beginning with a [`RecordHeader`] where
@@ -1044,9 +1054,9 @@ mod tests {
     #[case::status(StatusMsg::default(), 48)]
     #[case::imbalance(ImbalanceMsg::default(), 112)]
     #[case::stat(StatMsg::default(), 64)]
-    #[case::error(ErrorMsg::default(), 80)]
+    #[case::error(ErrorMsg::default(), 320)]
     #[case::symbol_mapping(SymbolMappingMsg::default(), 176)]
-    #[case::system(SystemMsg::default(), 80)]
+    #[case::system(SystemMsg::default(), 320)]
     #[case::with_ts_out(WithTsOut::new(SystemMsg::default(), 0), mem::size_of::<SystemMsg>() + 8)]
     fn test_sizes<R: Sized>(#[case] _rec: R, #[case] exp: usize) {
         assert_eq!(mem::size_of::<R>(), exp);
@@ -1105,6 +1115,6 @@ mod tests {
 
     #[test]
     fn test_record_object_safe() {
-        let _record: Box<dyn Record> = Box::new(ErrorMsg::new(1, "Boxed record"));
+        let _record: Box<dyn Record> = Box::new(ErrorMsg::new(1, "Boxed record", true));
     }
 }

@@ -27,9 +27,11 @@ _DBNRecord = Union[
     InstrumentDefMsgV1,
     ImbalanceMsg,
     ErrorMsg,
+    ErrorMsgV1,
     SymbolMappingMsg,
     SymbolMappingMsgV1,
     SystemMsg,
+    SystemMsgV1,
     StatMsg,
 ]
 
@@ -3211,6 +3213,31 @@ class ErrorMsg(Record):
         str
 
         """
+    @property
+    def is_last(self) -> int:
+        """
+        Whether this is the last record in a chain.
+
+        Returns
+        -------
+        int
+        """
+
+class ErrorMsgV1(Record):
+    """
+    A DBN version 1 error message from the Databento Live Subscription Gateway (LSG).
+    """
+
+    @property
+    def err(self) -> str:
+        """
+        The error message.
+
+        Returns
+        -------
+        str
+
+        """
 
 class SymbolMappingMsg(Record):
     """A symbol mapping message which maps a symbol of one `SType` to
@@ -3375,6 +3402,37 @@ class SymbolMappingMsgV1(Record):
 class SystemMsg(Record):
     """
     A non-error message from the Databento Live Subscription Gateway (LSG).
+
+    Also used for heartbeating.
+
+    """
+
+    @property
+    def msg(self) -> str:
+        """
+        The message from the Databento Live Subscription Gateway (LSG).
+
+        Returns
+        -------
+        str
+
+        """
+    @property
+    def is_heartbeat(self) -> bool:
+        """
+        `true` if this message is a heartbeat, used to indicate the connection
+        with the gateway is still open.
+
+        Returns
+        -------
+        bool
+
+        """
+
+class SystemMsgV1(Record):
+    """
+    A DBN version 1 non-error message from the Databento Live Subscription Gateway
+    (LSG).
 
     Also used for heartbeating.
 

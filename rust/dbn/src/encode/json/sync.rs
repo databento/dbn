@@ -673,14 +673,14 @@ mod tests {
     #[test]
     fn test_serialize_quoted_str_to_json() {
         let json = write_json_to_string(
-            vec![ErrorMsg::new(0, "\"A test")].as_slice(),
+            vec![ErrorMsg::new(0, "\"A test", true)].as_slice(),
             false,
             true,
             true,
         );
         assert_eq!(
             json,
-            r#"{"hd":{"ts_event":null,"rtype":21,"publisher_id":0,"instrument_id":0},"err":"\"A test"}
+            r#"{"hd":{"ts_event":null,"rtype":21,"publisher_id":0,"instrument_id":0},"err":"\"A test","code":255,"is_last":1}
 "#
         );
     }

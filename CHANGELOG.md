@@ -33,6 +33,15 @@
 - Added `encode::ZSTD_COMPRESSION_LEVEL` constant
 
 ### Breaking changes
+- Increased size of `SystemMsg` and `ErrorMsg` to provide better messages from Live
+  gateway
+  - Increased length of `err` and `msg` fields for more detailed messages
+  - Added `is_last` field to `ErrorMsg` to indicate the last error in a chain
+  - Added `code` field to `SystemMsg` and `ErrorMsg`, although currently unused
+  - Added new `is_last` parameter to `ErrorMsg::new`
+  - Decoding these is backwards-compatible and records with longer messages won't be
+    sent during the DBN version 2 migration period
+  - Renamed previous records to `compat::ErrorMsgV1` and `compat::SystemMsgV1`
 - Split `DecodeDbn` trait into `DecodeRecord` and `DbnMetadata` traits for more
   flexibility. `DecodeDbn` continues to exist as a trait alias
 - Moved `decode_stream` out of `DecodeDbn` to its own separate trait `DecodeStream`

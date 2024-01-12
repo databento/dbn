@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use crate::{
-    compat::{InstrumentDefMsgV1, SymbolMappingMsgV1},
+    compat::{ErrorMsgV1, InstrumentDefMsgV1, SymbolMappingMsgV1, SystemMsgV1},
     SType,
 };
 
@@ -565,15 +565,42 @@ impl StatMsg {
     }
 }
 
-impl ErrorMsg {
-    /// Creates a new `ErrorMsg`.
+impl ErrorMsgV1 {
+    /// Creates a new `ErrorMsgV1`.
     ///
     /// # Errors
     /// This function returns an error if `msg` is too long.
     pub fn new(ts_event: u64, msg: &str) -> Self {
         let mut error = Self {
             hd: RecordHeader::new::<Self>(rtype::ERROR, 0, 0, ts_event),
-            err: [0; 64],
+            ..Default::default()
+        };
+        // leave at least one null byte
+        for (i, byte) in msg.as_bytes().iter().take(error.err.len() - 1).enumerate() {
+            error.err[i] = *byte as c_char;
+        }
+        error
+    }
+
+    /// Returns `err` as a `&str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `err` contains invalid UTF-8.
+    pub fn err(&self) -> Result<&str> {
+        c_chars_to_str(&self.err)
+    }
+}
+
+impl ErrorMsg {
+    /// Creates a new `ErrorMsg`.
+    ///
+    /// # Errors
+    /// This function returns an error if `msg` is too long.
+    pub fn new(ts_event: u64, msg: &str, is_last: bool) -> Self {
+        let mut error = Self {
+            hd: RecordHeader::new::<Self>(rtype::ERROR, 0, 0, ts_event),
+            is_last: is_last as u8,
+            ..Default::default()
         };
         // leave at least one null byte
         for (i, byte) in msg.as_bytes().iter().take(error.err.len() - 1).enumerate() {
@@ -730,6 +757,7 @@ impl SystemMsg {
         Ok(Self {
             hd: RecordHeader::new::<Self>(rtype::SYSTEM, 0, 0, ts_event),
             msg: str_to_c_chars(msg)?,
+            ..Default::default()
         })
     }
 
@@ -738,6 +766,7 @@ impl SystemMsg {
         Self {
             hd: RecordHeader::new::<Self>(rtype::SYSTEM, 0, 0, ts_event),
             msg: str_to_c_chars(Self::HEARTBEAT).unwrap(),
+            code: u8::MAX,
         }
     }
 
@@ -745,6 +774,43 @@ impl SystemMsg {
     pub fn is_heartbeat(&self) -> bool {
         self.msg()
             .map(|msg| msg == Self::HEARTBEAT)
+            .unwrap_or_default()
+    }
+
+    /// Returns the message from the Databento Live Subscription Gateway (LSG) as
+    /// a `&str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `msg` contains invalid UTF-8.
+    pub fn msg(&self) -> Result<&str> {
+        c_chars_to_str(&self.msg)
+    }
+}
+
+impl SystemMsgV1 {
+    /// Creates a new `SystemMsgV1`.
+    ///
+    /// # Errors
+    /// This function returns an error if `msg` is too long.
+    pub fn new(ts_event: u64, msg: &str) -> Result<Self> {
+        Ok(Self {
+            hd: RecordHeader::new::<Self>(rtype::SYSTEM, 0, 0, ts_event),
+            msg: str_to_c_chars(msg)?,
+        })
+    }
+
+    /// Creates a new heartbeat `SystemMsg`.
+    pub fn heartbeat(ts_event: u64) -> Self {
+        Self {
+            hd: RecordHeader::new::<Self>(rtype::SYSTEM, 0, 0, ts_event),
+            msg: str_to_c_chars(SystemMsg::HEARTBEAT).unwrap(),
+        }
+    }
+
+    /// Checks whether the message is a heartbeat from the gateway.
+    pub fn is_heartbeat(&self) -> bool {
+        self.msg()
+            .map(|msg| msg == SystemMsg::HEARTBEAT)
             .unwrap_or_default()
     }
 
@@ -870,8 +936,8 @@ mod tests {
         };
         assert_eq!(
             format!("{rec:?}"),
-            "ErrorMsg { hd: RecordHeader { length: 20, rtype: Error, publisher_id: 0, \
-            instrument_id: 0, ts_event: 18446744073709551615 }, err: \"Missing stype_in\" }"
+            "ErrorMsg { hd: RecordHeader { length: 80, rtype: Error, publisher_id: 0, \
+            instrument_id: 0, ts_event: 18446744073709551615 }, err: \"Missing stype_in\", code: 255, is_last: 255 }"
         );
     }
 
@@ -880,8 +946,8 @@ mod tests {
         let rec = SystemMsg::heartbeat(123);
         assert_eq!(
             format!("{rec:?}"),
-            "SystemMsg { hd: RecordHeader { length: 20, rtype: System, publisher_id: 0, \
-            instrument_id: 0, ts_event: 123 }, msg: \"Heartbeat\" }"
+            "SystemMsg { hd: RecordHeader { length: 80, rtype: System, publisher_id: 0, \
+            instrument_id: 0, ts_event: 123 }, msg: \"Heartbeat\", code: 255 }"
         );
     }
 

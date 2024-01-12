@@ -970,7 +970,7 @@ mod tests {
             close: 125,
             volume: 65,
         };
-        let error_msg: ErrorMsg = ErrorMsg::new(0, "Test failed successfully");
+        let error_msg: ErrorMsg = ErrorMsg::new(0, "Test failed successfully", true);
         encoder.encode_record(&OHLCV_MSG).unwrap();
         encoder.encode_record(&error_msg).unwrap();
 
@@ -1004,7 +1004,7 @@ mod tests {
 
     #[test]
     fn test_decode_record_length_longer_than_buffer() {
-        let rec = ErrorMsg::new(1680703198000000000, "Test");
+        let rec = ErrorMsg::new(1680703198000000000, "Test", true);
         let mut target = RecordDecoder::new(&rec.as_ref()[..rec.record_size() - 1]);
         assert!(matches!(target.decode_ref(), Ok(None)));
     }

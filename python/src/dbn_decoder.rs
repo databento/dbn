@@ -162,7 +162,7 @@ mod tests {
         let metadata_pos = encoder.get_ref().len();
         assert!(matches!(target.decode(), Ok(recs) if recs.len() == 1));
         assert!(target.has_decoded_metadata);
-        let rec = ErrorMsg::new(1680708278000000000, "Python");
+        let rec = ErrorMsg::new(1680708278000000000, "Python", true);
         encoder.encode_record(&rec).unwrap();
         assert!(target.buffer.get_ref().is_empty());
         let record_pos = encoder.get_ref().len();
@@ -201,7 +201,7 @@ mod tests {
         let metadata_pos = encoder.get_ref().len();
         assert!(matches!(decoder.decode(), Ok(recs) if recs.len() == 1));
         assert!(decoder.has_decoded_metadata);
-        let rec1 = ErrorMsg::new(1680708278000000000, "Python");
+        let rec1 = ErrorMsg::new(1680708278000000000, "Python", true);
         let rec2 = OhlcvMsg {
             hd: RecordHeader::new::<OhlcvMsg>(rtype::OHLCV_1S, 1, 1, 1681228173000000000),
             open: 100,
