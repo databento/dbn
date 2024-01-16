@@ -87,6 +87,7 @@ impl From<InstrumentClass> for char {
 
 /// The type of matching algorithm used for the instrument at the exchange.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(u8)]
 pub enum MatchAlgorithm {
     /// First-in-first-out matching.
@@ -120,6 +121,7 @@ impl From<MatchAlgorithm> for char {
 /// Whether the instrument is user-defined.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive, Default)]
 #[repr(u8)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum UserDefinedInstrument {
     /// The instrument is not user-defined.
     #[default]
@@ -650,7 +652,8 @@ pub mod flags {
 
 /// The type of [`InstrumentDefMsg`](crate::record::InstrumentDefMsg) update.
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoPrimitive, TryFromPrimitive)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum SecurityUpdateAction {
     /// A new instrument definition.
     Add = b'A',
@@ -658,7 +661,6 @@ pub enum SecurityUpdateAction {
     Modify = b'M',
     /// Removal of an instrument definition.
     Delete = b'D',
-    // FIXME: can this be removed?
     #[doc(hidden)]
     #[deprecated = "Still present in legacy files."]
     Invalid = b'~',
@@ -666,7 +668,7 @@ pub enum SecurityUpdateAction {
 
 /// The type of statistic contained in a [`StatMsg`](crate::record::StatMsg).
 #[repr(u16)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoPrimitive, TryFromPrimitive)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive)]
 pub enum StatType {
     /// The price of the first trade of an instrument. `price` will be set.
     OpeningPrice = 1,
@@ -708,7 +710,7 @@ pub enum StatType {
 
 /// The type of [`StatMsg`](crate::record::StatMsg) update.
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, IntoPrimitive, TryFromPrimitive)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive)]
 pub enum StatUpdateAction {
     /// A new statistic.
     New = 1,
@@ -717,7 +719,7 @@ pub enum StatUpdateAction {
 }
 
 /// How to handle decoding DBN data from a prior version.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(module = "databento_dbn", rename_all = "SCREAMING_SNAKE_CASE")

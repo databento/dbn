@@ -1,5 +1,5 @@
 use crate::{
-    compat::{InstrumentDefMsgV1, SymbolMappingMsgV1, SYMBOL_CSTR_LEN_V1},
+    compat::{ErrorMsgV1, InstrumentDefMsgV1, SymbolMappingMsgV1, SystemMsgV1, SYMBOL_CSTR_LEN_V1},
     SType, Schema, UNDEF_ORDER_SIZE, UNDEF_PRICE, UNDEF_STAT_QUANTITY, UNDEF_TIMESTAMP,
 };
 
@@ -314,11 +314,22 @@ impl Default for StatMsg {
     }
 }
 
-impl Default for ErrorMsg {
+impl Default for ErrorMsgV1 {
     fn default() -> Self {
         Self {
             hd: RecordHeader::default::<Self>(rtype::ERROR),
             err: [0; 64],
+        }
+    }
+}
+
+impl Default for ErrorMsg {
+    fn default() -> Self {
+        Self {
+            hd: RecordHeader::default::<Self>(rtype::ERROR),
+            err: [0; 302],
+            code: u8::MAX,
+            is_last: u8::MAX,
         }
     }
 }
@@ -351,6 +362,16 @@ impl Default for SymbolMappingMsgV1 {
 }
 
 impl Default for SystemMsg {
+    fn default() -> Self {
+        Self {
+            hd: RecordHeader::default::<Self>(rtype::SYSTEM),
+            msg: [0; 303],
+            code: u8::MAX,
+        }
+    }
+}
+
+impl Default for SystemMsgV1 {
     fn default() -> Self {
         Self {
             hd: RecordHeader::default::<Self>(rtype::SYSTEM),

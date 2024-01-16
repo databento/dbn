@@ -10,10 +10,11 @@ use clap::{ArgAction, Parser, ValueEnum};
 
 use dbn::{
     enums::{Compression, Encoding},
-    VersionUpgradePolicy,
+    Schema, VersionUpgradePolicy,
 };
 
 pub mod encode;
+pub mod filter;
 
 /// How the output of the `dbn` command will be encoded.
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -115,10 +116,18 @@ pub struct Args {
     )]
     pub should_pretty_print: bool,
     #[clap(
+         short = 's',
+         long = "map-symbols",
+         action = ArgAction::SetTrue,
+         default_value = "false",
+         conflicts_with_all = ["input_fragment", "dbn", "fragment"],
+         help ="Use symbology mappings from the metadata to create a 'symbol' field mapping the intstrument ID to its requested symbol."
+    )]
+    pub map_symbols: bool,
+    #[clap(
         short = 'l',
         long = "limit",
         value_name = "NUM_RECORDS",
-        conflicts_with = "should_output_metadata",
         help = "Limit the number of records in the output to the specified number"
     )]
     pub limit: Option<NonZeroU64>,
@@ -149,6 +158,12 @@ pub struct Args {
         requires = "input_fragment"
     )]
     pub input_dbn_version_override: Option<u8>,
+    #[clap(
+        long = "schema",
+        help = "Only encode records of this schema. This is particularly useful for transcoding mixed-schema DBN to CSV, which doesn't support mixing schemas",
+        value_name = "SCHEMA"
+    )]
+    pub schema_filter: Option<Schema>,
 }
 
 impl Args {
@@ -173,6 +188,10 @@ impl Args {
         } else {
             VersionUpgradePolicy::AsIs
         }
+    }
+
+    pub fn input_version(&self) -> u8 {
+        self.input_dbn_version_override.unwrap_or(dbn::DBN_VERSION)
     }
 }
 
@@ -228,8 +247,7 @@ pub fn output_from_args(args: &Args) -> anyhow::Result<Box<dyn io::Write>> {
 
 fn open_output_file(path: &PathBuf, force: bool) -> anyhow::Result<File> {
     let mut options = File::options();
-    options.write(true);
-    options.truncate(true);
+    options.write(true).truncate(true);
     if force {
         options.create(true);
     } else if path.exists() {

@@ -75,10 +75,13 @@ pub unsafe extern "C" fn s_serialize_record_header(
     let mut cursor = io::Cursor::new(buffer);
     let res = match options.encoding {
         TextEncoding::Json => return 0,
-        TextEncoding::Csv => {
-            let mut encoder = csv::Encoder::new(&mut cursor, options.pretty_px, options.pretty_ts);
-            rtype_ts_out_dispatch!(record, options.ts_out, serialize_csv_header, &mut encoder)
-        }
+        TextEncoding::Csv => csv::Encoder::builder(&mut cursor)
+            .use_pretty_px(options.pretty_px)
+            .use_pretty_ts(options.pretty_ts)
+            .build()
+            .and_then(|mut encoder| {
+                rtype_ts_out_dispatch!(record, options.ts_out, serialize_csv_header, &mut encoder)
+            }),
     }
     // flatten
     .and_then(|res| res);
@@ -117,10 +120,14 @@ pub unsafe extern "C" fn f_serialize_record_header(
         TextEncoding::Json => {
             return 0;
         }
-        TextEncoding::Csv => {
-            let mut encoder = csv::Encoder::new(&mut cfile, options.pretty_px, options.pretty_ts);
-            rtype_ts_out_dispatch!(record, options.ts_out, serialize_csv_header, &mut encoder)
-        }
+        TextEncoding::Csv => csv::Encoder::builder(&mut cfile)
+            .write_header(false)
+            .use_pretty_px(options.pretty_px)
+            .use_pretty_ts(options.pretty_ts)
+            .build()
+            .and_then(|mut encoder| {
+                rtype_ts_out_dispatch!(record, options.ts_out, serialize_csv_header, &mut encoder)
+            }),
     };
     res.map(|_| cfile.bytes_written() as i32)
         .unwrap_or(SerializeError::Serialization as libc::c_int)
@@ -159,12 +166,17 @@ pub unsafe extern "C" fn s_serialize_record(
     };
     let mut cursor = io::Cursor::new(buffer);
     let res = match options.encoding {
-        TextEncoding::Json => {
-            json::Encoder::new(&mut cursor, false, options.pretty_px, options.pretty_ts)
-                .encode_record_ref_ts_out(record, options.ts_out)
-        }
-        TextEncoding::Csv => csv::Encoder::new(&mut cursor, options.pretty_px, options.pretty_ts)
+        TextEncoding::Json => json::Encoder::builder(&mut cursor)
+            .use_pretty_px(options.pretty_px)
+            .use_pretty_ts(options.pretty_ts)
+            .build()
             .encode_record_ref_ts_out(record, options.ts_out),
+        TextEncoding::Csv => csv::Encoder::builder(&mut cursor)
+            .write_header(false)
+            .use_pretty_px(options.pretty_px)
+            .use_pretty_ts(options.pretty_ts)
+            .build()
+            .and_then(|mut enc| enc.encode_record_ref_ts_out(record, options.ts_out)),
     };
     write_null_and_ret(cursor, res)
 }
@@ -197,12 +209,17 @@ pub unsafe extern "C" fn f_serialize_record(
         return SerializeError::NullOptions as libc::c_int;
     };
     let res = match options.encoding {
-        TextEncoding::Json => {
-            json::Encoder::new(&mut cfile, false, options.pretty_px, options.pretty_ts)
-                .encode_record_ref_ts_out(record, options.ts_out)
-        }
-        TextEncoding::Csv => csv::Encoder::new(&mut cfile, options.pretty_px, options.pretty_ts)
+        TextEncoding::Json => json::Encoder::builder(&mut cfile)
+            .use_pretty_px(options.pretty_px)
+            .use_pretty_ts(options.pretty_ts)
+            .build()
             .encode_record_ref_ts_out(record, options.ts_out),
+        TextEncoding::Csv => csv::Encoder::builder(&mut cfile)
+            .write_header(false)
+            .use_pretty_px(options.pretty_px)
+            .use_pretty_ts(options.pretty_ts)
+            .build()
+            .and_then(|mut enc| enc.encode_record_ref_ts_out(record, options.ts_out)),
     };
     res.map(|_| cfile.bytes_written() as i32)
         .unwrap_or(SerializeError::Serialization as libc::c_int)

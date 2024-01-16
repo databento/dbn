@@ -162,7 +162,7 @@ mod tests {
         let metadata_pos = encoder.get_ref().len();
         assert!(matches!(target.decode(), Ok(recs) if recs.len() == 1));
         assert!(target.has_decoded_metadata);
-        let rec = ErrorMsg::new(1680708278000000000, "Python");
+        let rec = ErrorMsg::new(1680708278000000000, "Python", true);
         encoder.encode_record(&rec).unwrap();
         assert!(target.buffer.get_ref().is_empty());
         let record_pos = encoder.get_ref().len();
@@ -201,7 +201,7 @@ mod tests {
         let metadata_pos = encoder.get_ref().len();
         assert!(matches!(decoder.decode(), Ok(recs) if recs.len() == 1));
         assert!(decoder.has_decoded_metadata);
-        let rec1 = ErrorMsg::new(1680708278000000000, "Python");
+        let rec1 = ErrorMsg::new(1680708278000000000, "Python", true);
         let rec2 = OhlcvMsg {
             hd: RecordHeader::new::<OhlcvMsg>(rtype::OHLCV_1S, 1, 1, 1681228173000000000),
             open: 100,
@@ -241,7 +241,7 @@ mod tests {
             py_run!(
                 py,
                 path,
-                r#"from databento_dbn import DBNDecoder
+                r#"from _lib import DBNDecoder
 
 decoder = DBNDecoder()
 with open(path, 'rb') as fin:
@@ -260,7 +260,7 @@ for record in records[1:]:
         setup();
         Python::with_gil(|py| {
             py.run(
-                r#"from databento_dbn import DBNDecoder, Metadata, Schema, SType
+                r#"from _lib import DBNDecoder, Metadata, Schema, SType
 
 metadata = Metadata(
     dataset="GLBX.MDP3",
@@ -296,7 +296,7 @@ except Exception as ex:
         setup();
         Python::with_gil(|py| {
             py.run(
-                r#"from databento_dbn import DBNDecoder, OHLCVMsg
+                r#"from _lib import DBNDecoder, OHLCVMsg
 
 decoder = DBNDecoder(has_metadata=False)
 record = OHLCVMsg(0x20, 1, 10, 0, 0, 0, 0, 0, 0)

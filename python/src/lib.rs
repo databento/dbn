@@ -3,7 +3,7 @@
 use pyo3::{prelude::*, wrap_pyfunction, PyClass};
 
 use dbn::{
-    compat::{InstrumentDefMsgV1, SymbolMappingMsgV1},
+    compat::{ErrorMsgV1, InstrumentDefMsgV1, SymbolMappingMsgV1, SystemMsgV1},
     enums::{Compression, Encoding, SType, Schema},
     flags,
     python::EnumIterator,
@@ -21,6 +21,7 @@ mod transcoder;
 
 /// A Python module wrapping dbn functions
 #[pymodule] // The name of the function must match `lib.name` in `Cargo.toml`
+#[pyo3(name = "_lib")]
 fn databento_dbn(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     fn checked_add_class<T: PyClass>(m: &PyModule) -> PyResult<()> {
         // ensure a module was specified, otherwise it defaults to builtins
@@ -47,9 +48,11 @@ fn databento_dbn(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     checked_add_class::<InstrumentDefMsg>(m)?;
     checked_add_class::<InstrumentDefMsgV1>(m)?;
     checked_add_class::<ErrorMsg>(m)?;
+    checked_add_class::<ErrorMsgV1>(m)?;
     checked_add_class::<SymbolMappingMsg>(m)?;
     checked_add_class::<SymbolMappingMsgV1>(m)?;
     checked_add_class::<SystemMsg>(m)?;
+    checked_add_class::<SystemMsgV1>(m)?;
     checked_add_class::<StatMsg>(m)?;
     // PyClass enums
     checked_add_class::<Compression>(m)?;
@@ -100,7 +103,7 @@ mod tests {
             pyo3::py_run!(
                   py,
                   stype_in stype_out,
-                  r#"from databento_dbn import Metadata, Schema, SType
+                  r#"from _lib import Metadata, Schema, SType
 
 metadata = Metadata(
     dataset="GLBX.MDP3",
@@ -133,7 +136,7 @@ assert metadata.ts_out is False"#
         setup();
         Python::with_gil(|py| {
             py.run(
-                r#"from databento_dbn import DBNDecoder
+                r#"from _lib import DBNDecoder
 
 decoder = DBNDecoder()
 try:

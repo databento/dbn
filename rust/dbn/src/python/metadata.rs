@@ -8,7 +8,7 @@ use pyo3::{
 };
 
 use crate::{
-    decode::{DecodeDbn, DynDecoder},
+    decode::{DbnMetadata, DynDecoder},
     encode::dbn::MetadataEncoder,
     enums::{SType, Schema},
     MappingInterval, Metadata, SymbolMapping, VersionUpgradePolicy,
@@ -32,6 +32,7 @@ impl Metadata {
         end: Option<u64>,
         limit: Option<u64>,
         ts_out: Option<bool>,
+        version: Option<u8>,
     ) -> Metadata {
         Metadata::builder()
             .dataset(dataset)
@@ -46,6 +47,7 @@ impl Metadata {
             .end(NonZeroU64::new(end.unwrap_or_default()))
             .limit(NonZeroU64::new(limit.unwrap_or_default()))
             .ts_out(ts_out.unwrap_or_default())
+            .version(version.unwrap_or(crate::DBN_VERSION))
             .build()
     }
 

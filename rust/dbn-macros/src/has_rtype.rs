@@ -28,6 +28,7 @@ pub fn attribute_macro_impl(
     let raw_index_ts = get_raw_index_ts(&input_struct).unwrap_or_else(|e| e.into_compile_error());
     let rtypes = args.args.iter();
     let crate_name = crate::utils::crate_name();
+    let impl_debug = crate::debug::record_debug_impl(&input_struct);
     quote! (
         #input_struct
 
@@ -67,11 +68,13 @@ pub fn attribute_macro_impl(
                 }
             }
         }
+
+        #impl_debug
     )
     .into()
 }
 
-struct Args {
+pub(crate) struct Args {
     args: Vec<ExprPath>,
     span: Span,
 }

@@ -8,6 +8,8 @@ use syn::{parenthesized, spanned::Spanned, token, Field, FieldsNamed, Meta};
 
 pub const C_CHAR_ATTR: &str = "c_char";
 pub const FIXED_PRICE_ATTR: &str = "fixed_price";
+pub const FMT_BINARY: &str = "fmt_binary";
+pub const FMT_METHOD: &str = "fmt_method";
 pub const INDEX_TS_ATTR: &str = "index_ts";
 pub const SKIP_ATTR: &str = "skip";
 pub const UNIX_NANOS_ATTR: &str = "unix_nanos";
@@ -62,6 +64,8 @@ pub fn find_dbn_attr_args(field: &Field) -> syn::Result<Vec<Ident>> {
                     } else if let Some(i) = meta.path.get_ident() {
                         if i == C_CHAR_ATTR
                             || i == FIXED_PRICE_ATTR
+                            || i == FMT_BINARY
+                            || i == FMT_METHOD
                             || i == INDEX_TS_ATTR
                             || i == SKIP_ATTR
                             || i == UNIX_NANOS_ATTR
@@ -117,6 +121,23 @@ pub fn is_hidden(field: &Field) -> bool {
             .unwrap_or_default()
             .iter()
             .any(|id| id == SKIP_ATTR)
+}
+
+pub fn find_dbn_debug_attr(field: &Field) -> syn::Result<Option<Ident>> {
+    let mut args: Vec<_> = find_dbn_attr_args(field)?
+        .into_iter()
+        .filter(|id| {
+            id == C_CHAR_ATTR || id == FIXED_PRICE_ATTR || id == FMT_BINARY || id == FMT_METHOD
+        })
+        .collect();
+    match args.len() {
+        0 => Ok(None),
+        1 => Ok(Some(args.pop().unwrap())),
+        _ => Err(syn::Error::new(
+            field.span(),
+            "Passed incompatible format arguments to dbn attr",
+        )),
+    }
 }
 
 pub fn find_dbn_serialize_attr(field: &Field) -> syn::Result<Option<Ident>> {

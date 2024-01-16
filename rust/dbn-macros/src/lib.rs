@@ -1,6 +1,7 @@
 use proc_macro::TokenStream;
 
 mod dbn_attr;
+mod debug;
 mod has_rtype;
 mod py_field_desc;
 mod serialize;
@@ -12,6 +13,15 @@ mod utils;
 /// `MockPyo3` is an invented trait.
 #[proc_macro_derive(MockPyo3, attributes(pyo3))]
 pub fn derive_mock_pyo3(_item: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+/// Dummy derive macro to enable enable the `dbn` helper attribute for record types
+/// using the `dbn_record` proc macro but neither `CsvSerialize` nor `JsonSerialize` as
+/// helper attributes aren't supported for proc macros alone. See
+/// <https://github.com/rust-lang/rust/issues/65823>.
+#[proc_macro_derive(DbnAttr, attributes(dbn))]
+pub fn dbn_attr(_item: TokenStream) -> TokenStream {
     TokenStream::new()
 }
 
@@ -31,7 +41,9 @@ pub fn derive_csv_serialize(input: TokenStream) -> TokenStream {
     serialize::derive_csv_macro_impl(input)
 }
 
-/// Derive macro for JSON serialization. Supports the following `dbn` attributes:
+/// Derive macro for JSON serialization.
+///
+/// Supports the following `dbn` attributes:
 /// - `c_char`: serializes the field as a `char`
 /// - `fixed_price`: serializes the field as fixed-price, with the output format
 ///   depending on `PRETTY_PX`
@@ -46,8 +58,9 @@ pub fn derive_json_serialize(input: TokenStream) -> TokenStream {
     serialize::derive_json_macro_impl(input)
 }
 
-/// Derive macro for field descriptions exposed to Python. Supports the following `dbn`
-/// attributes:
+/// Derive macro for field descriptions exposed to Python.
+///
+/// Supports the following `dbn` attributes:
 /// - `c_char`: indicates the field dtype should be a single-character string rather
 ///   than an integer
 /// - `encode_order`: overrides the position of the field in the ordered list
@@ -59,17 +72,45 @@ pub fn derive_py_field_desc(input: TokenStream) -> TokenStream {
     py_field_desc::derive_impl(input)
 }
 
-/// Attribute macro that acts like a derive macro for for `HasRType` and
-/// `AsRef<[u8]>`.
+/// Attribute macro that acts like a derive macro for for `Debug` (with customization),
+/// `Record`, `RecordMut`, `HasRType`, `PartialOrd`, and `AsRef<[u8]>`.
 ///
 /// Expects 1 or more paths to `u8` constants that are the RTypes associated
 /// with this record.
 ///
 /// Supports the following `dbn` attributes:
+/// - `c_char`: format the type as a `char` instead of as a numeric
+/// - `fixed_price`: format the integer as a fixed-precision decimal
+/// - `fmt_binary`: format as a binary
+/// - `fmt_method`: try to format by calling the getter method with the same name as the
 /// - `index_ts`: indicates this field is the primary timestamp for the record
+///   field. If the getter returns an error, the raw field value will be used
+/// - `skip`: won't be included in the `Debug` output
+///
+/// Note: attribute macros don't support helper attributes on their own. If not deriving
+/// `CsvSerialize` or `JsonSerialize`, derive `DbnAttr` to use the `dbn` helper attribute
+/// without a compiler error.
 #[proc_macro_attribute]
 pub fn dbn_record(attr: TokenStream, input: TokenStream) -> TokenStream {
     has_rtype::attribute_macro_impl(attr, input)
+}
+
+/// Derive macro for Debug representations with the same extensions for DBN records
+/// as `dbn_record`.
+///
+/// Supports the following `dbn` attributes:
+/// - `c_char`: format the type as a `char` instead of as a numeric
+/// - `fixed_price`: format the integer as a fixed-precision decimal
+/// - `fmt_binary`: format as a binary
+/// - `fmt_method`: try to format by calling the getter method with the same name as the
+///   field. If the getter returns an error, the raw field value will be used
+/// - `skip`: won't be included in the `Debug` output
+///
+/// Note: fields beginning with `_` will automatically be skipped, e.g. `_dummy` isn't
+/// included in the `Debug` output.
+#[proc_macro_derive(RecordDebug, attributes(dbn))]
+pub fn derive_record_debug(input: TokenStream) -> TokenStream {
+    debug::derive_impl(input)
 }
 
 #[cfg(test)]

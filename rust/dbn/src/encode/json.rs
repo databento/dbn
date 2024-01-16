@@ -2,7 +2,7 @@
 
 pub(crate) mod serialize;
 mod sync;
-pub use sync::Encoder;
+pub use sync::{Encoder, EncoderBuilder};
 #[cfg(feature = "async")]
 mod r#async;
 #[cfg(feature = "async")]

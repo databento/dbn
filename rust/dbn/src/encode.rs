@@ -2,6 +2,8 @@
 //! [`EncodeDbn`] trait.
 pub mod csv;
 pub mod dbn;
+mod dyn_encoder;
+mod dyn_writer;
 pub mod json;
 
 use std::{fmt, io, num::NonZeroU64};
@@ -9,25 +11,30 @@ use std::{fmt, io, num::NonZeroU64};
 use streaming_iterator::StreamingIterator;
 
 // Re-exports
-#[cfg(feature = "async")]
-pub use self::dbn::{
-    AsyncEncoder as AsyncDbnEncoder, AsyncMetadataEncoder as AsyncDbnMetadataEncoder,
-    AsyncRecordEncoder as AsyncDbnRecordEncoder,
-};
-#[cfg(feature = "async")]
-pub use self::json::AsyncEncoder as AsyncJsonEncoder;
 pub use self::{
     csv::Encoder as CsvEncoder,
     dbn::{
         Encoder as DbnEncoder, MetadataEncoder as DbnMetadataEncoder,
         RecordEncoder as DbnRecordEncoder,
     },
+    dyn_encoder::{DynEncoder, DynEncoderBuilder},
+    dyn_writer::DynWriter,
     json::Encoder as JsonEncoder,
+};
+#[cfg(feature = "async")]
+pub use self::{
+    dbn::{
+        AsyncEncoder as AsyncDbnEncoder, AsyncMetadataEncoder as AsyncDbnMetadataEncoder,
+        AsyncRecordEncoder as AsyncDbnRecordEncoder,
+    },
+    dyn_writer::DynAsyncWriter,
+    json::AsyncEncoder as AsyncJsonEncoder,
 };
 
 use crate::{
-    decode::DecodeDbn, rtype_method_dispatch, rtype_ts_out_method_dispatch, Compression, Encoding,
-    Error, HasRType, Metadata, Record, RecordRef, Result, Schema,
+    decode::{DbnMetadata, DecodeRecordRef},
+    rtype_method_dispatch, rtype_ts_out_method_dispatch, Error, HasRType, Record, RecordRef,
+    Result,
 };
 
 use self::{csv::serialize::CsvSerialize, json::serialize::JsonSerialize};
@@ -112,7 +119,7 @@ pub trait EncodeDbn: EncodeRecord + EncodeRecordRef {
     /// # Errors
     /// This function returns an error if it's unable to write to the underlying writer
     /// or there's a serialization error.
-    fn encode_decoded<D: DecodeDbn>(&mut self, mut decoder: D) -> Result<()> {
+    fn encode_decoded<D: DecodeRecordRef + DbnMetadata>(&mut self, mut decoder: D) -> Result<()> {
         let ts_out = decoder.metadata().ts_out;
         while let Some(record) = decoder.decode_record_ref()? {
             // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
@@ -129,7 +136,7 @@ pub trait EncodeDbn: EncodeRecord + EncodeRecordRef {
     /// # Errors
     /// This function returns an error if it's unable to write to the underlying writer
     /// or there's a serialization error.
-    fn encode_decoded_with_limit<D: DecodeDbn>(
+    fn encode_decoded_with_limit<D: DecodeRecordRef + DbnMetadata>(
         &mut self,
         mut decoder: D,
         limit: NonZeroU64,
@@ -192,46 +199,8 @@ pub trait EncodeRecordTextExt: EncodeRecord + EncodeRecordRef {
     }
 }
 
-/// The default Zstandard compression level.
-const ZSTD_COMPRESSION_LEVEL: i32 = 0;
-
-/// Type for runtime polymorphism over whether encoding uncompressed or ZStd-compressed
-/// DBN records. Implements [`std::io::Write`].
-pub struct DynWriter<'a, W>(DynWriterImpl<'a, W>)
-where
-    W: io::Write;
-
-enum DynWriterImpl<'a, W>
-where
-    W: io::Write,
-{
-    Uncompressed(W),
-    ZStd(zstd::stream::AutoFinishEncoder<'a, W>),
-}
-
-impl<'a, W> DynWriter<'a, W>
-where
-    W: io::Write,
-{
-    /// Create a new instance of [`DynWriter`] which will wrap `writer` with `compression`.
-    ///
-    /// # Errors
-    /// This function returns an error if it fails to initialize the Zstd compression.
-    pub fn new(writer: W, compression: Compression) -> Result<Self> {
-        match compression {
-            Compression::None => Ok(Self(DynWriterImpl::Uncompressed(writer))),
-            Compression::ZStd => zstd_encoder(writer).map(|enc| Self(DynWriterImpl::ZStd(enc))),
-        }
-    }
-
-    /// Returns a mutable reference to the underlying writer.
-    pub fn get_mut(&mut self) -> &mut W {
-        match &mut self.0 {
-            DynWriterImpl::Uncompressed(w) => w,
-            DynWriterImpl::ZStd(enc) => enc.get_mut(),
-        }
-    }
-}
+/// The default Zstandard compression level used.
+pub const ZSTD_COMPRESSION_LEVEL: i32 = 0;
 
 fn zstd_encoder<'a, W: io::Write>(writer: W) -> Result<zstd::stream::AutoFinishEncoder<'a, W>> {
     let mut zstd_encoder = zstd::Encoder::new(writer, ZSTD_COMPRESSION_LEVEL)
@@ -241,267 +210,6 @@ fn zstd_encoder<'a, W: io::Write>(writer: W) -> Result<zstd::stream::AutoFinishE
         .map_err(|e| Error::io(e, "setting zstd checksum"))?;
     Ok(zstd_encoder.auto_finish())
 }
-
-impl<'a, W> io::Write for DynWriter<'a, W>
-where
-    W: io::Write,
-{
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        match &mut self.0 {
-            DynWriterImpl::Uncompressed(writer) => writer.write(buf),
-            DynWriterImpl::ZStd(writer) => writer.write(buf),
-        }
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        match &mut self.0 {
-            DynWriterImpl::Uncompressed(writer) => writer.flush(),
-            DynWriterImpl::ZStd(writer) => writer.flush(),
-        }
-    }
-
-    fn write_vectored(&mut self, bufs: &[io::IoSlice<'_>]) -> io::Result<usize> {
-        match &mut self.0 {
-            DynWriterImpl::Uncompressed(writer) => writer.write_vectored(bufs),
-            DynWriterImpl::ZStd(writer) => writer.write_vectored(bufs),
-        }
-    }
-
-    fn write_all(&mut self, buf: &[u8]) -> io::Result<()> {
-        match &mut self.0 {
-            DynWriterImpl::Uncompressed(writer) => writer.write_all(buf),
-            DynWriterImpl::ZStd(writer) => writer.write_all(buf),
-        }
-    }
-
-    fn write_fmt(&mut self, fmt: std::fmt::Arguments<'_>) -> io::Result<()> {
-        match &mut self.0 {
-            DynWriterImpl::Uncompressed(writer) => writer.write_fmt(fmt),
-            DynWriterImpl::ZStd(writer) => writer.write_fmt(fmt),
-        }
-    }
-}
-
-/// An encoder implementing [`EncodeDbn`] whose [`Encoding`] and [`Compression`] can be
-/// set at runtime.
-pub struct DynEncoder<'a, W>(DynEncoderImpl<'a, W>)
-where
-    W: io::Write;
-
-// [`DynEncoder`] isn't cloned so this isn't a concern.
-#[allow(clippy::large_enum_variant)]
-enum DynEncoderImpl<'a, W>
-where
-    W: io::Write,
-{
-    Dbn(dbn::Encoder<DynWriter<'a, W>>),
-    Csv(csv::Encoder<DynWriter<'a, W>>),
-    Json(json::Encoder<DynWriter<'a, W>>),
-}
-
-impl<'a, W> DynEncoder<'a, W>
-where
-    W: io::Write,
-{
-    /// Constructs a new instance of [`DynEncoder`].
-    ///
-    /// Note: `should_pretty_print`, `user_pretty_px`, and `use_pretty_ts` are ignored
-    /// if `encoding` is `Dbn`.
-    ///
-    /// # Errors
-    /// This function returns an error if it fails to encode the DBN metadata or
-    /// it fails to initialize the Zstd compression.
-    pub fn new(
-        writer: W,
-        encoding: Encoding,
-        compression: Compression,
-        metadata: &Metadata,
-        should_pretty_print: bool,
-        use_pretty_px: bool,
-        use_pretty_ts: bool,
-    ) -> Result<Self> {
-        let writer = DynWriter::new(writer, compression)?;
-        match encoding {
-            Encoding::Dbn => {
-                dbn::Encoder::new(writer, metadata).map(|e| Self(DynEncoderImpl::Dbn(e)))
-            }
-            Encoding::Csv => Ok(Self(DynEncoderImpl::Csv(csv::Encoder::new(
-                writer,
-                use_pretty_px,
-                use_pretty_ts,
-            )))),
-            Encoding::Json => Ok(Self(DynEncoderImpl::Json(json::Encoder::new(
-                writer,
-                should_pretty_print,
-                use_pretty_px,
-                use_pretty_ts,
-            )))),
-        }
-    }
-
-    /// Encodes the CSV header for the record type `R`, i.e. the names of each of the
-    /// fields to the output.
-    ///
-    /// If `with_symbol` is `true`, will add a header field for "symbol".
-    ///
-    /// # Errors
-    /// This function returns an error if there's an error writing to `writer`.
-    pub fn encode_header<R: DbnEncodable>(&mut self, with_symbol: bool) -> Result<()> {
-        match &mut self.0 {
-            DynEncoderImpl::Csv(encoder) => encoder.encode_header::<R>(with_symbol),
-            _ => Ok(()),
-        }
-    }
-
-    /// Encodes the CSV header for `schema`, i.e. the names of each of the fields to
-    /// the output.
-    ///
-    /// If `ts_out` is `true`, will add a header field "ts_out". If `with_symbol` is
-    /// `true`, will add a header field "symbol".
-    ///
-    /// # Errors
-    /// This function returns an error if there's an error writing to `writer`.
-    pub fn encode_header_for_schema(
-        &mut self,
-        schema: Schema,
-        ts_out: bool,
-        with_symbol: bool,
-    ) -> Result<()> {
-        match &mut self.0 {
-            DynEncoderImpl::Csv(encoder) => {
-                encoder.encode_header_for_schema(schema, ts_out, with_symbol)
-            }
-            _ => Ok(()),
-        }
-    }
-}
-
-impl<'a, W> EncodeRecord for DynEncoder<'a, W>
-where
-    W: io::Write,
-{
-    fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<()> {
-        self.0.encode_record(record)
-    }
-
-    fn flush(&mut self) -> Result<()> {
-        self.0.flush()
-    }
-}
-
-impl<'a, W> EncodeRecordRef for DynEncoder<'a, W>
-where
-    W: io::Write,
-{
-    fn encode_record_ref(&mut self, record: RecordRef) -> Result<()> {
-        self.0.encode_record_ref(record)
-    }
-
-    unsafe fn encode_record_ref_ts_out(&mut self, record: RecordRef, ts_out: bool) -> Result<()> {
-        self.0.encode_record_ref_ts_out(record, ts_out)
-    }
-}
-
-impl<'a, W> EncodeDbn for DynEncoder<'a, W>
-where
-    W: io::Write,
-{
-    fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> Result<()> {
-        self.0.encode_records(records)
-    }
-
-    fn encode_stream<R: DbnEncodable>(
-        &mut self,
-        stream: impl StreamingIterator<Item = R>,
-    ) -> Result<()> {
-        self.0.encode_stream(stream)
-    }
-
-    fn encode_decoded<D: DecodeDbn>(&mut self, decoder: D) -> Result<()> {
-        self.0.encode_decoded(decoder)
-    }
-}
-
-impl<'a, W> EncodeRecord for DynEncoderImpl<'a, W>
-where
-    W: io::Write,
-{
-    fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<()> {
-        match self {
-            DynEncoderImpl::Dbn(enc) => enc.encode_record(record),
-            DynEncoderImpl::Csv(enc) => enc.encode_record(record),
-            DynEncoderImpl::Json(enc) => enc.encode_record(record),
-        }
-    }
-
-    fn flush(&mut self) -> Result<()> {
-        match self {
-            DynEncoderImpl::Dbn(enc) => enc.flush(),
-            DynEncoderImpl::Csv(enc) => enc.flush(),
-            DynEncoderImpl::Json(enc) => enc.flush(),
-        }
-    }
-}
-
-impl<'a, W> EncodeRecordRef for DynEncoderImpl<'a, W>
-where
-    W: io::Write,
-{
-    fn encode_record_ref(&mut self, record: RecordRef) -> Result<()> {
-        match self {
-            DynEncoderImpl::Dbn(enc) => enc.encode_record_ref(record),
-            DynEncoderImpl::Csv(enc) => enc.encode_record_ref(record),
-            DynEncoderImpl::Json(enc) => enc.encode_record_ref(record),
-        }
-    }
-
-    unsafe fn encode_record_ref_ts_out(&mut self, record: RecordRef, ts_out: bool) -> Result<()> {
-        match self {
-            DynEncoderImpl::Dbn(enc) => enc.encode_record_ref_ts_out(record, ts_out),
-            DynEncoderImpl::Csv(enc) => enc.encode_record_ref_ts_out(record, ts_out),
-            DynEncoderImpl::Json(enc) => enc.encode_record_ref_ts_out(record, ts_out),
-        }
-    }
-}
-
-impl<'a, W> EncodeDbn for DynEncoderImpl<'a, W>
-where
-    W: io::Write,
-{
-    encoder_enum_dispatch! {Dbn, Csv, Json}
-}
-
-/// An aid the with boilerplate code of calling the same method on each enum variant's
-/// inner value.
-macro_rules! encoder_enum_dispatch {
-    ($($variant:ident),*) => {
-        fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> Result<()> {
-            match self {
-                $(Self::$variant(v) => v.encode_records(records),)*
-            }
-        }
-
-        fn encode_stream<R: DbnEncodable>(
-            &mut self,
-            stream: impl StreamingIterator<Item = R>,
-        ) -> Result<()> {
-            match self {
-                $(Self::$variant(v) => v.encode_stream(stream),)*
-            }
-        }
-
-        fn encode_decoded<D: DecodeDbn>(
-            &mut self,
-            decoder: D,
-        ) -> Result<()> {
-            match self {
-                $(Self::$variant(v) => v.encode_decoded(decoder),)*
-            }
-        }
-    };
-}
-
-pub(crate) use encoder_enum_dispatch;
 
 #[cfg(test)]
 mod test_data {
@@ -550,87 +258,6 @@ mod test_data {
 
         fn get(&self) -> Option<&Self::Item> {
             self.vec.get(self.idx as usize)
-        }
-    }
-}
-
-#[cfg(feature = "async")]
-pub use r#async::DynWriter as DynAsyncWriter;
-
-#[cfg(feature = "async")]
-mod r#async {
-    use std::{
-        pin::Pin,
-        task::{Context, Poll},
-    };
-
-    use async_compression::tokio::write::ZstdEncoder;
-    use tokio::io;
-
-    use crate::enums::Compression;
-
-    /// An object that allows for abstracting over compressed and uncompressed output.
-    pub struct DynWriter<W>(DynWriterImpl<W>)
-    where
-        W: io::AsyncWriteExt + Unpin;
-
-    enum DynWriterImpl<W>
-    where
-        W: io::AsyncWriteExt + Unpin,
-    {
-        Uncompressed(W),
-        ZStd(ZstdEncoder<W>),
-    }
-
-    impl<W> DynWriter<W>
-    where
-        W: io::AsyncWriteExt + Unpin,
-    {
-        /// Creates a new instance of [`DynWriter`] which will wrap `writer` with
-        /// `compression`.
-        pub fn new(writer: W, compression: Compression) -> Self {
-            Self(match compression {
-                Compression::None => DynWriterImpl::Uncompressed(writer),
-                Compression::ZStd => DynWriterImpl::ZStd(ZstdEncoder::new(writer)),
-            })
-        }
-
-        /// Returns a mutable reference to the underlying writer.
-        pub fn get_mut(&mut self) -> &mut W {
-            match &mut self.0 {
-                DynWriterImpl::Uncompressed(w) => w,
-                DynWriterImpl::ZStd(enc) => enc.get_mut(),
-            }
-        }
-    }
-
-    impl<W> io::AsyncWrite for DynWriter<W>
-    where
-        W: io::AsyncWrite + io::AsyncWriteExt + Unpin,
-    {
-        fn poll_write(
-            mut self: Pin<&mut Self>,
-            cx: &mut Context<'_>,
-            buf: &[u8],
-        ) -> Poll<io::Result<usize>> {
-            match &mut self.0 {
-                DynWriterImpl::Uncompressed(w) => io::AsyncWrite::poll_write(Pin::new(w), cx, buf),
-                DynWriterImpl::ZStd(enc) => io::AsyncWrite::poll_write(Pin::new(enc), cx, buf),
-            }
-        }
-
-        fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-            match &mut self.0 {
-                DynWriterImpl::Uncompressed(w) => io::AsyncWrite::poll_flush(Pin::new(w), cx),
-                DynWriterImpl::ZStd(enc) => io::AsyncWrite::poll_flush(Pin::new(enc), cx),
-            }
-        }
-
-        fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-            match &mut self.0 {
-                DynWriterImpl::Uncompressed(w) => io::AsyncWrite::poll_shutdown(Pin::new(w), cx),
-                DynWriterImpl::ZStd(enc) => io::AsyncWrite::poll_shutdown(Pin::new(enc), cx),
-            }
         }
     }
 }

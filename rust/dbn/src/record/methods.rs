@@ -1,5 +1,7 @@
+use std::fmt::Debug;
+
 use crate::{
-    compat::{InstrumentDefMsgV1, SymbolMappingMsgV1},
+    compat::{ErrorMsgV1, InstrumentDefMsgV1, SymbolMappingMsgV1, SystemMsgV1},
     SType,
 };
 
@@ -61,6 +63,25 @@ impl RecordHeader {
             // u64::MAX is within maximum allowable range
             Some(time::OffsetDateTime::from_unix_timestamp_nanos(self.ts_event as i128).unwrap())
         }
+    }
+}
+
+impl Debug for RecordHeader {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut debug_struct = f.debug_struct("RecordHeader");
+        debug_struct.field("length", &self.length);
+        match self.rtype() {
+            Ok(rtype) => debug_struct.field("rtype", &format_args!("{rtype:?}")),
+            Err(_) => debug_struct.field("rtype", &format_args!("{:#04X}", &self.rtype)),
+        };
+        match self.publisher() {
+            Ok(p) => debug_struct.field("publisher_id", &format_args!("{p:?}")),
+            Err(_) => debug_struct.field("publisher_id", &self.publisher_id),
+        };
+        debug_struct
+            .field("instrument_id", &self.instrument_id)
+            .field("ts_event", &self.ts_event)
+            .finish()
     }
 }
 
@@ -544,15 +565,42 @@ impl StatMsg {
     }
 }
 
-impl ErrorMsg {
-    /// Creates a new `ErrorMsg`.
+impl ErrorMsgV1 {
+    /// Creates a new `ErrorMsgV1`.
     ///
     /// # Errors
     /// This function returns an error if `msg` is too long.
     pub fn new(ts_event: u64, msg: &str) -> Self {
         let mut error = Self {
             hd: RecordHeader::new::<Self>(rtype::ERROR, 0, 0, ts_event),
-            err: [0; 64],
+            ..Default::default()
+        };
+        // leave at least one null byte
+        for (i, byte) in msg.as_bytes().iter().take(error.err.len() - 1).enumerate() {
+            error.err[i] = *byte as c_char;
+        }
+        error
+    }
+
+    /// Returns `err` as a `&str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `err` contains invalid UTF-8.
+    pub fn err(&self) -> Result<&str> {
+        c_chars_to_str(&self.err)
+    }
+}
+
+impl ErrorMsg {
+    /// Creates a new `ErrorMsg`.
+    ///
+    /// # Errors
+    /// This function returns an error if `msg` is too long.
+    pub fn new(ts_event: u64, msg: &str, is_last: bool) -> Self {
+        let mut error = Self {
+            hd: RecordHeader::new::<Self>(rtype::ERROR, 0, 0, ts_event),
+            is_last: is_last as u8,
+            ..Default::default()
         };
         // leave at least one null byte
         for (i, byte) in msg.as_bytes().iter().take(error.err.len() - 1).enumerate() {
@@ -709,6 +757,7 @@ impl SystemMsg {
         Ok(Self {
             hd: RecordHeader::new::<Self>(rtype::SYSTEM, 0, 0, ts_event),
             msg: str_to_c_chars(msg)?,
+            ..Default::default()
         })
     }
 
@@ -717,6 +766,7 @@ impl SystemMsg {
         Self {
             hd: RecordHeader::new::<Self>(rtype::SYSTEM, 0, 0, ts_event),
             msg: str_to_c_chars(Self::HEARTBEAT).unwrap(),
+            code: u8::MAX,
         }
     }
 
@@ -724,6 +774,43 @@ impl SystemMsg {
     pub fn is_heartbeat(&self) -> bool {
         self.msg()
             .map(|msg| msg == Self::HEARTBEAT)
+            .unwrap_or_default()
+    }
+
+    /// Returns the message from the Databento Live Subscription Gateway (LSG) as
+    /// a `&str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `msg` contains invalid UTF-8.
+    pub fn msg(&self) -> Result<&str> {
+        c_chars_to_str(&self.msg)
+    }
+}
+
+impl SystemMsgV1 {
+    /// Creates a new `SystemMsgV1`.
+    ///
+    /// # Errors
+    /// This function returns an error if `msg` is too long.
+    pub fn new(ts_event: u64, msg: &str) -> Result<Self> {
+        Ok(Self {
+            hd: RecordHeader::new::<Self>(rtype::SYSTEM, 0, 0, ts_event),
+            msg: str_to_c_chars(msg)?,
+        })
+    }
+
+    /// Creates a new heartbeat `SystemMsg`.
+    pub fn heartbeat(ts_event: u64) -> Self {
+        Self {
+            hd: RecordHeader::new::<Self>(rtype::SYSTEM, 0, 0, ts_event),
+            msg: str_to_c_chars(SystemMsg::HEARTBEAT).unwrap(),
+        }
+    }
+
+    /// Checks whether the message is a heartbeat from the gateway.
+    pub fn is_heartbeat(&self) -> bool {
+        self.msg()
+            .map(|msg| msg == SystemMsg::HEARTBEAT)
             .unwrap_or_default()
     }
 
@@ -786,6 +873,8 @@ impl<T: HasRType> WithTsOut<T> {
 
 #[cfg(test)]
 mod tests {
+    use crate::flags;
+
     use super::*;
 
     #[test]
@@ -794,6 +883,92 @@ mod tests {
         assert_eq!(
             header.rtype().unwrap_err().to_string(),
             "couldn't convert 0x0E to dbn::enums::rtype::RType"
+        );
+    }
+
+    #[test]
+    fn debug_mbo() {
+        let rec = MboMsg {
+            hd: RecordHeader::new::<MboMsg>(
+                rtype::MBO,
+                Publisher::OpraPillarXcbo as u16,
+                678,
+                1704468548242628731,
+            ),
+            flags: flags::LAST | flags::BAD_TS_RECV,
+            price: 4_500_500_000_000,
+            side: b'B' as c_char,
+            action: b'A' as c_char,
+            ..Default::default()
+        };
+        assert_eq!(
+            format!("{rec:?}"),
+            "MboMsg { hd: RecordHeader { length: 14, rtype: Mbo, publisher_id: OpraPillarXcbo, \
+            instrument_id: 678, ts_event: 1704468548242628731 }, order_id: 0, \
+            price: 4500.500000000, size: 4294967295, flags: 0b10001000, channel_id: 0, \
+            action: 'A', side: 'B', ts_recv: 18446744073709551615, ts_in_delta: 0, sequence: 0 }"
+        );
+    }
+
+    #[test]
+    fn debug_stats() {
+        let rec = StatMsg {
+            stat_type: StatType::OpenInterest as u16,
+            update_action: StatUpdateAction::New as u8,
+            quantity: 5,
+            stat_flags: 0b00000010,
+            ..Default::default()
+        };
+        assert_eq!(
+            format!("{rec:?}"),
+            "StatMsg { hd: RecordHeader { length: 16, rtype: Statistics, publisher_id: 0, \
+            instrument_id: 0, ts_event: 18446744073709551615 }, ts_recv: 18446744073709551615, \
+            ts_ref: 18446744073709551615, price: UNDEF_PRICE, quantity: 5, sequence: 0, ts_in_delta: 0, \
+            stat_type: OpenInterest, channel_id: 0, update_action: New, stat_flags: 0b00000010 }"
+        );
+    }
+
+    #[test]
+    fn debug_instrument_err() {
+        let rec = ErrorMsg {
+            err: str_to_c_chars("Missing stype_in").unwrap(),
+            ..Default::default()
+        };
+        assert_eq!(
+            format!("{rec:?}"),
+            "ErrorMsg { hd: RecordHeader { length: 80, rtype: Error, publisher_id: 0, \
+            instrument_id: 0, ts_event: 18446744073709551615 }, err: \"Missing stype_in\", code: 255, is_last: 255 }"
+        );
+    }
+
+    #[test]
+    fn debug_instrument_sys() {
+        let rec = SystemMsg::heartbeat(123);
+        assert_eq!(
+            format!("{rec:?}"),
+            "SystemMsg { hd: RecordHeader { length: 80, rtype: System, publisher_id: 0, \
+            instrument_id: 0, ts_event: 123 }, msg: \"Heartbeat\", code: 255 }"
+        );
+    }
+
+    #[test]
+    fn debug_instrument_symbol_mapping() {
+        let rec = SymbolMappingMsg {
+            hd: RecordHeader::new::<SymbolMappingMsg>(
+                rtype::SYMBOL_MAPPING,
+                0,
+                5602,
+                1704466940331347283,
+            ),
+            stype_in: SType::RawSymbol as u8,
+            stype_in_symbol: str_to_c_chars("ESM4").unwrap(),
+            stype_out: SType::RawSymbol as u8,
+            stype_out_symbol: str_to_c_chars("ESM4").unwrap(),
+            ..Default::default()
+        };
+        assert_eq!(
+            format!("{rec:?}"),
+            "SymbolMappingMsg { hd: RecordHeader { length: 44, rtype: SymbolMapping, publisher_id: 0, instrument_id: 5602, ts_event: 1704466940331347283 }, stype_in: RawSymbol, stype_in_symbol: \"ESM4\", stype_out: RawSymbol, stype_out_symbol: \"ESM4\", start_ts: 18446744073709551615, end_ts: 18446744073709551615 }"
         );
     }
 }

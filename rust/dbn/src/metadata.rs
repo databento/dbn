@@ -172,13 +172,13 @@ impl AsRef<[u8]> for Metadata {
 }
 
 impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
-    /// Sets the [`version`](Metadata::version) and returns the builder.
+    /// Sets [`version`](Metadata::version) and returns the builder.
     pub fn version(mut self, version: u8) -> Self {
         self.version = version;
         self
     }
 
-    /// Sets the [`dataset`](Metadata::dataset) and returns the builder.
+    /// Sets [`dataset`](Metadata::dataset) and returns the builder.
     pub fn dataset(self, dataset: String) -> MetadataBuilder<String, Sch, Start, StIn, StOut> {
         MetadataBuilder {
             version: self.version,
@@ -197,7 +197,7 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
         }
     }
 
-    /// Sets the [`schema`](Metadata::schema) and returns the builder.
+    /// Sets [`schema`](Metadata::schema) and returns the builder.
     pub fn schema(
         self,
         schema: Option<Schema>,
@@ -219,7 +219,7 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
         }
     }
 
-    /// Sets the [`start`](Metadata::start) and returns the builder.
+    /// Sets [`start`](Metadata::start) and returns the builder.
     pub fn start(self, start: u64) -> MetadataBuilder<D, Sch, u64, StIn, StOut> {
         MetadataBuilder {
             version: self.version,
@@ -238,19 +238,19 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
         }
     }
 
-    /// Sets the [`end`](Metadata::end) and returns the builder.
+    /// Sets [`end`](Metadata::end) and returns the builder.
     pub fn end(mut self, end: Option<NonZeroU64>) -> Self {
         self.end = end;
         self
     }
 
-    /// Sets the [`limit`](Metadata::limit) and returns the builder.
+    /// Sets [`limit`](Metadata::limit) and returns the builder.
     pub fn limit(mut self, limit: Option<NonZeroU64>) -> Self {
         self.limit = limit;
         self
     }
 
-    /// Sets the [`stype_in`](Metadata::stype_in) and returns the builder.
+    /// Sets [`stype_in`](Metadata::stype_in) and returns the builder.
     pub fn stype_in(
         self,
         stype_in: Option<SType>,
@@ -272,7 +272,7 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
         }
     }
 
-    /// Sets the [`stype_out`](Metadata::stype_out) and returns the builder.
+    /// Sets [`stype_out`](Metadata::stype_out) and returns the builder.
     pub fn stype_out(self, stype_out: SType) -> MetadataBuilder<D, Sch, Start, StIn, SType> {
         MetadataBuilder {
             version: self.version,
@@ -291,31 +291,31 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
         }
     }
 
-    /// Sets the [`ts_out`](Metadata::ts_out) and returns the builder.
+    /// Sets [`ts_out`](Metadata::ts_out) and returns the builder.
     pub fn ts_out(mut self, ts_out: bool) -> Self {
         self.ts_out = ts_out;
         self
     }
 
-    /// Sets the [`symbols`](Metadata::symbols) and returns the builder.
+    /// Sets [`symbols`](Metadata::symbols) and returns the builder.
     pub fn symbols(mut self, symbols: Vec<String>) -> Self {
         self.symbols = symbols;
         self
     }
 
-    /// Sets the [`partial`](Metadata::partial) and returns the builder.
+    /// Sets [`partial`](Metadata::partial) and returns the builder.
     pub fn partial(mut self, partial: Vec<String>) -> Self {
         self.partial = partial;
         self
     }
 
-    /// Sets the [`not_found`](Metadata::not_found) and returns the builder.
+    /// Sets [`not_found`](Metadata::not_found) and returns the builder.
     pub fn not_found(mut self, not_found: Vec<String>) -> Self {
         self.not_found = not_found;
         self
     }
 
-    /// Sets the [`mappings`](Metadata::mappings) and returns the builder.
+    /// Sets [`mappings`](Metadata::mappings) and returns the builder.
     pub fn mappings(mut self, mappings: Vec<SymbolMapping>) -> Self {
         self.mappings = mappings;
         self

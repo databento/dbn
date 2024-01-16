@@ -3,4 +3,4 @@
 pub(crate) mod serialize;
 mod sync;
 
-pub use sync::Encoder;
+pub use sync::{Encoder, EncoderBuilder};

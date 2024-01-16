@@ -4,8 +4,8 @@ use std::os::raw::c_char;
 use crate::{
     macros::{dbn_record, CsvSerialize, JsonSerialize},
     record::{transmute_header_bytes, transmute_record_bytes},
-    rtype, HasRType, InstrumentDefMsg, RecordHeader, RecordRef, SecurityUpdateAction,
-    SymbolMappingMsg, UserDefinedInstrument, VersionUpgradePolicy,
+    rtype, HasRType, RecordHeader, RecordRef, SecurityUpdateAction, UserDefinedInstrument,
+    VersionUpgradePolicy,
 };
 
 // Dummy derive macro to get around `cfg_attr` incompatibility of several
@@ -13,9 +13,9 @@ use crate::{
 #[cfg(not(feature = "python"))]
 use dbn_macros::MockPyo3;
 
-/// The length of symbol fields in DBN version 1 (current version).
+/// The length of symbol fields in DBN version 1 (prior version being phased out).
 pub const SYMBOL_CSTR_LEN_V1: usize = 22;
-/// The length of symbol fields in DBN version 2 (future version).
+/// The length of symbol fields in DBN version 2 (current version).
 pub const SYMBOL_CSTR_LEN_V2: usize = 71;
 pub(crate) const METADATA_RESERVED_LEN_V1: usize = 47;
 
@@ -27,8 +27,10 @@ pub const fn version_symbol_cstr_len(version: u8) -> usize {
         SYMBOL_CSTR_LEN_V2
     }
 }
+pub use crate::record::ErrorMsg as ErrorMsgV2;
 pub use crate::record::InstrumentDefMsg as InstrumentDefMsgV2;
 pub use crate::record::SymbolMappingMsg as SymbolMappingMsgV2;
+pub use crate::record::SystemMsg as SystemMsgV2;
 
 /// Decodes bytes into a [`RecordRef`], optionally applying conversion from structs
 /// of a prior DBN version to the current DBN version, according to the `version` and
@@ -49,17 +51,28 @@ pub unsafe fn decode_record_ref<'a>(
         let header = transmute_header_bytes(input).unwrap();
         match header.rtype {
             rtype::INSTRUMENT_DEF => {
-                let definition = InstrumentDefMsg::from(
+                let definition = InstrumentDefMsgV2::from(
                     transmute_record_bytes::<InstrumentDefMsgV1>(input).unwrap(),
                 );
                 std::ptr::copy_nonoverlapping(&definition, compat_buffer.as_mut_ptr().cast(), 1);
                 return RecordRef::new(compat_buffer);
             }
             rtype::SYMBOL_MAPPING => {
-                let definition = SymbolMappingMsg::from(
+                let definition = SymbolMappingMsgV2::from(
                     transmute_record_bytes::<SymbolMappingMsgV1>(input).unwrap(),
                 );
                 std::ptr::copy_nonoverlapping(&definition, compat_buffer.as_mut_ptr().cast(), 1);
+                return RecordRef::new(compat_buffer);
+            }
+            rtype::ERROR => {
+                let system = ErrorMsgV2::from(transmute_record_bytes::<ErrorMsgV1>(input).unwrap());
+                std::ptr::copy_nonoverlapping(&system, compat_buffer.as_mut_ptr().cast(), 1);
+                return RecordRef::new(compat_buffer);
+            }
+            rtype::SYSTEM => {
+                let system =
+                    SystemMsgV2::from(transmute_record_bytes::<SystemMsgV1>(input).unwrap());
+                std::ptr::copy_nonoverlapping(&system, compat_buffer.as_mut_ptr().cast(), 1);
                 return RecordRef::new(compat_buffer);
             }
             _ => (),
@@ -70,11 +83,10 @@ pub unsafe fn decode_record_ref<'a>(
 
 /// Definition of an instrument in DBN version 1. The record of the
 /// [`Definition`](crate::enums::Schema::Definition) schema.
-///
-/// Note: This will be renamed to `InstrumentDefMsg` in DBN version 2.
 #[repr(C)]
-#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
+#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(dict, module = "databento_dbn"),
@@ -207,29 +219,43 @@ pub struct InstrumentDefMsgV1 {
     #[pyo3(get, set)]
     pub channel_id: u16,
     /// The currency used for price fields.
+    #[dbn(fmt_method)]
+    #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub currency: [c_char; 4],
     /// The currency used for settlement, if different from `currency`.
+    #[dbn(fmt_method)]
+    #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub settl_currency: [c_char; 4],
     /// The strategy type of the spread.
+    #[dbn(fmt_method)]
+    #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub secsubtype: [c_char; 6],
     /// The instrument raw symbol assigned by the publisher.
-    #[dbn(encode_order(2))]
+    #[dbn(encode_order(2), fmt_method)]
     pub raw_symbol: [c_char; SYMBOL_CSTR_LEN_V1],
     /// The security group code of the instrument.
+    #[dbn(fmt_method)]
     pub group: [c_char; 21],
     /// The exchange used to identify the instrument.
+    #[dbn(fmt_method)]
     pub exchange: [c_char; 5],
     /// The underlying asset code (product code) of the instrument.
+    #[dbn(fmt_method)]
     pub asset: [c_char; 7],
     /// The ISO standard instrument categorization code.
+    #[dbn(fmt_method)]
     pub cfi: [c_char; 7],
     /// The type of the instrument, e.g. FUT for future or future spread.
+    #[dbn(fmt_method)]
     pub security_type: [c_char; 7],
     /// The unit of measure for the instrument’s original contract size, e.g. USD or LBS.
+    #[dbn(fmt_method)]
     pub unit_of_measure: [c_char; 31],
     /// The symbol of the first underlying instrument.
+    #[dbn(fmt_method)]
     pub underlying: [c_char; 21],
     /// The currency of [`strike_price`](Self::strike_price).
+    #[dbn(fmt_method)]
     pub strike_price_currency: [c_char; 4],
     /// The classification of the instrument.
     #[dbn(c_char, encode_order(4))]
@@ -295,13 +321,37 @@ pub struct InstrumentDefMsgV1 {
     #[doc(hidden)]
     pub _dummy: [u8; 3],
 }
+
+/// An error message from the Databento Live Subscription Gateway (LSG) in DBN version
+/// 1.
+#[repr(C)]
+#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(dict, module = "databento_dbn"),
+    derive(crate::macros::PyFieldDesc)
+)]
+#[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
+#[cfg_attr(test, derive(type_layout::TypeLayout))]
+#[dbn_record(rtype::ERROR)]
+pub struct ErrorMsgV1 {
+    /// The common header.
+    #[pyo3(get, set)]
+    pub hd: RecordHeader,
+    /// The error message.
+    #[dbn(fmt_method)]
+    #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
+    pub err: [c_char; 64],
+}
+
 /// A symbol mapping message in DBN version 1 which maps a symbol of one
 /// [`SType`](crate::SType) to another.
-///
-/// Note: This will be renamed to `SymbolMappingMsg` in DBN version 2.
 #[repr(C)]
-#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
+#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(dict, module = "databento_dbn"),
@@ -315,8 +365,10 @@ pub struct SymbolMappingMsgV1 {
     #[pyo3(get, set)]
     pub hd: RecordHeader,
     /// The input symbol.
+    #[dbn(fmt_method)]
     pub stype_in_symbol: [c_char; SYMBOL_CSTR_LEN_V1],
     /// The output symbol.
+    #[dbn(fmt_method)]
     pub stype_out_symbol: [c_char; SYMBOL_CSTR_LEN_V1],
     // Filler for alignment.
     #[doc(hidden)]
@@ -333,7 +385,31 @@ pub struct SymbolMappingMsgV1 {
     pub end_ts: u64,
 }
 
-impl From<&InstrumentDefMsgV1> for InstrumentDefMsg {
+/// A non-error message from the Databento Live Subscription Gateway (LSG) in DBN
+/// version 1. Also used for heartbeating.
+#[repr(C)]
+#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(dict, module = "databento_dbn"),
+    derive(crate::macros::PyFieldDesc)
+)]
+#[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
+#[cfg_attr(test, derive(type_layout::TypeLayout))]
+#[dbn_record(rtype::SYSTEM)]
+pub struct SystemMsgV1 {
+    /// The common header.
+    #[pyo3(get, set)]
+    pub hd: RecordHeader,
+    /// The message from the Databento Live Subscription Gateway (LSG).
+    #[dbn(fmt_method)]
+    #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
+    pub msg: [c_char; 64],
+}
+
+impl From<&InstrumentDefMsgV1> for InstrumentDefMsgV2 {
     fn from(old: &InstrumentDefMsgV1) -> Self {
         let mut res = Self {
             // recalculate length
@@ -377,7 +453,6 @@ impl From<&InstrumentDefMsgV1> for InstrumentDefMsg {
             currency: old.currency,
             settl_currency: old.settl_currency,
             secsubtype: old.secsubtype,
-            raw_symbol: [0; SYMBOL_CSTR_LEN_V2],
             group: old.group,
             exchange: old.exchange,
             asset: old.asset,
@@ -403,7 +478,7 @@ impl From<&InstrumentDefMsgV1> for InstrumentDefMsg {
             contract_multiplier_unit: old.contract_multiplier_unit,
             flow_schedule_type: old.flow_schedule_type,
             tick_rule: old.tick_rule,
-            _reserved: Default::default(),
+            ..Default::default()
         };
         // Safety: SYMBOL_CSTR_LEN_V1 is less than SYMBOL_CSTR_LEN
         unsafe {
@@ -417,7 +492,26 @@ impl From<&InstrumentDefMsgV1> for InstrumentDefMsg {
     }
 }
 
-impl From<&SymbolMappingMsgV1> for SymbolMappingMsg {
+impl From<&ErrorMsgV1> for ErrorMsgV2 {
+    fn from(old: &ErrorMsgV1) -> Self {
+        let mut new = Self {
+            hd: RecordHeader::new::<Self>(
+                rtype::ERROR,
+                old.hd.publisher_id,
+                old.hd.instrument_id,
+                old.hd.ts_event,
+            ),
+            ..Default::default()
+        };
+        // Safety: new `err` is longer than older
+        unsafe {
+            std::ptr::copy_nonoverlapping(old.err.as_ptr(), new.err.as_mut_ptr(), new.err.len());
+        }
+        new
+    }
+}
+
+impl From<&SymbolMappingMsgV1> for SymbolMappingMsgV2 {
     fn from(old: &SymbolMappingMsgV1) -> Self {
         let mut res = Self {
             hd: RecordHeader::new::<Self>(
@@ -426,13 +520,9 @@ impl From<&SymbolMappingMsgV1> for SymbolMappingMsg {
                 old.hd.instrument_id,
                 old.hd.ts_event,
             ),
-            stype_in_symbol: [0; SYMBOL_CSTR_LEN_V2],
-            stype_out_symbol: [0; SYMBOL_CSTR_LEN_V2],
             start_ts: old.start_ts,
             end_ts: old.end_ts,
-            // Invalid
-            stype_in: u8::MAX,
-            stype_out: u8::MAX,
+            ..Default::default()
         };
         // Safety: SYMBOL_CSTR_LEN_V1 is less than SYMBOL_CSTR_LEN
         unsafe {
@@ -448,6 +538,25 @@ impl From<&SymbolMappingMsgV1> for SymbolMappingMsg {
             );
         }
         res
+    }
+}
+
+impl From<&SystemMsgV1> for SystemMsgV2 {
+    fn from(old: &SystemMsgV1) -> Self {
+        let mut new = Self {
+            hd: RecordHeader::new::<Self>(
+                rtype::SYSTEM,
+                old.hd.publisher_id,
+                old.hd.instrument_id,
+                old.hd.ts_event,
+            ),
+            ..Default::default()
+        };
+        // Safety: new `msg` is longer than older
+        unsafe {
+            std::ptr::copy_nonoverlapping(old.msg.as_ptr(), new.msg.as_mut_ptr(), new.msg.len());
+        }
+        new
     }
 }
 
@@ -524,7 +633,7 @@ mod tests {
         use crate::python::PyFieldDesc;
 
         assert_eq!(
-            InstrumentDefMsg::ordered_fields(""),
+            InstrumentDefMsgV1::ordered_fields(""),
             InstrumentDefMsgV2::ordered_fields("")
         );
     }

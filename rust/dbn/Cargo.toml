@@ -1,7 +1,7 @@
 [package]
 name = "dbn"
 authors = ["Databento <support@databento.com>"]
-version = "0.14.2"
+version = "0.15.0"
 edition = "2021"
 description = "Library for working with Databento Binary Encoding (DBN)"
 license = "Apache-2.0"
@@ -25,10 +25,10 @@ serde = ["dep:serde", "time/parsing", "time/serde"]
 trivial_copy = []
 
 [dependencies]
-dbn-macros = { version = "=0.14.2", path = "../dbn-macros" }
+dbn-macros = { version = "=0.15.0", path = "../dbn-macros" }
 
 # async (de)compression
-async-compression = { version = "0.4.4", features = ["tokio", "zstd"], optional = true }
+async-compression = { version = "0.4.5", features = ["tokio", "zstd"], optional = true }
 # CSV serialization
 csv = "1.3"
 # Fast integer to string conversion

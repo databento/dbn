@@ -110,6 +110,6 @@ pub mod datasets {
     pub const GLBX_MDP3: &str = Dataset::GlbxMdp3.as_str();
     /// The dataset code for OPRA PILLAR.
     pub const OPRA_PILLAR: &str = Dataset::OpraPillar.as_str();
-    /// The dataset code for Nasdaq TotalView ITCH.
+    /// The dataset code for Nasdaq TotalView-ITCH.
     pub const XNAS_ITCH: &str = Dataset::XnasItch.as_str();
 }

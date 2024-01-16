@@ -249,7 +249,12 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
         )
         .map_err(to_val_err)?;
 
-        let mut encoder = CsvEncoder::new(&mut self.output, self.use_pretty_px, self.use_pretty_ts);
+        let mut encoder = CsvEncoder::builder(&mut self.output)
+            .use_pretty_px(self.use_pretty_px)
+            .use_pretty_ts(self.use_pretty_ts)
+            .write_header(false)
+            .build()
+            .map_err(to_val_err)?;
         loop {
             match decoder.decode_record_ref() {
                 Ok(Some(rec)) => {
@@ -298,12 +303,10 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
         )
         .map_err(to_val_err)?;
 
-        let mut encoder = JsonEncoder::new(
-            &mut self.output,
-            false,
-            self.use_pretty_px,
-            self.use_pretty_ts,
-        );
+        let mut encoder = JsonEncoder::builder(&mut self.output)
+            .use_pretty_px(self.use_pretty_px)
+            .use_pretty_ts(self.use_pretty_ts)
+            .build();
         loop {
             match decoder.decode_record_ref() {
                 Ok(Some(rec)) => {
@@ -524,7 +527,7 @@ mod tests {
                 .has_decoded_metadata
         );
         let metadata_pos = encoder.get_ref().len();
-        let rec = ErrorMsg::new(1680708278000000000, "This is a test");
+        let rec = ErrorMsg::new(1680708278000000000, "This is a test", true);
         encoder.encode_record(&rec).unwrap();
         assert!(target.buffer().is_empty());
         let record_pos = encoder.get_ref().len();
@@ -588,7 +591,7 @@ mod tests {
                 .downcast_unchecked::<{ Encoding::Csv as u8 }>()
                 .has_decoded_metadata
         );
-        let rec1 = ErrorMsg::new(1680708278000000000, "This is a test");
+        let rec1 = ErrorMsg::new(1680708278000000000, "This is a test", true);
         let rec2 = OhlcvMsg {
             hd: RecordHeader::new::<OhlcvMsg>(rtype::OHLCV_1S, 1, 1, 1681228173000000000),
             open: 100,

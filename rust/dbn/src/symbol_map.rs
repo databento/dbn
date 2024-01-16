@@ -1,6 +1,6 @@
 //! Maps for mapping instrument IDs to human-readable symbols.
 
-use std::{collections::HashMap, ops::Deref, sync::Arc};
+use std::{cmp::Ordering, collections::HashMap, ops::Deref, sync::Arc};
 
 use time::{macros::time, PrimitiveDateTime};
 
@@ -73,21 +73,27 @@ impl TsSymbolMap {
         end_date: time::Date,
         symbol: Arc<String>,
     ) -> crate::Result<()> {
-        if start_date > end_date {
-            return Err(Error::BadArgument {
+        match start_date.cmp(&end_date) {
+            Ordering::Less => {
+                let mut day = start_date;
+                loop {
+                    self.0.insert((day, instrument_id), symbol.clone());
+                    day = day.next_day().unwrap();
+                    if day >= end_date {
+                        break;
+                    }
+                }
+                Ok(())
+            }
+            Ordering::Equal => {
+                // Shouldn't happen but better to just ignore
+                Ok(())
+            }
+            Ordering::Greater => Err(Error::BadArgument {
                 param_name: "start_date".to_owned(),
                 desc: "start_date cannot come after end_date".to_owned(),
-            });
+            }),
         }
-        let mut day = start_date;
-        loop {
-            self.0.insert((day, instrument_id), symbol.clone());
-            day = day.next_day().unwrap();
-            if day == end_date {
-                break;
-            }
-        }
-        Ok(())
     }
 
     /// Returns the symbol mapping for the given date and instrument ID. Returns `None`
@@ -1000,5 +1006,22 @@ mod tests {
         assert_eq!(target[9], "MSFT");
 
         Ok(())
+    }
+
+    // start_date == end_date is generally invalid and
+    // previously caused a panic
+    #[test]
+    fn test_insert_start_end_date_same() {
+        let mut target = TsSymbolMap::new();
+        target
+            .insert(
+                1,
+                date!(2023 - 12 - 03),
+                date!(2023 - 12 - 03),
+                Arc::new("test".to_owned()),
+            )
+            .unwrap();
+        // should have no effect
+        assert!(target.is_empty());
     }
 }

@@ -1,5 +1,63 @@
 # Changelog
 
+## 0.15.0 - 2023-01-16
+### Enhancements
+- Improved `Debug` implementation for all record types
+  - Prices are formatted as decimals
+  - Fixed-length strings are formatted as strings
+  - Bit flag fields are formatted as binary
+  - Several fields are formatted as enums instead of their raw representations
+- Improved `Debug` implementation for `RecordRef` to show `RecordHeader`
+- Added `--schema` option to `dbn` CLI tool to filter a DBN to a particular schema. This
+  allows outputting saved live data to CSV
+- Allowed passing `--limit` option to `dbn` CLI tool with `--metadata` flag
+- Improved performance of decoding uncompressed DBN fragments with the `dbn` CLI tool
+- Added builders to `CsvEncoder`, `DynEncoder`, and `JsonEncoder` to assist with the
+  growing number of customizations
+  - Added option to write CSV header as part of creating `CsvEncoder` to make it harder
+    to forget
+- Added `-s`/`--map-symbols` flag to CLI to create a `symbol` field in the output with
+  the text symbol mapped from the instrument ID
+- Added `version` param to Python `Metadata` contructor choose between DBNv1 and DBNv2
+- Implemented `EncodeRecordTextExt` for `DynEncoder`
+- Implemented `Deserialize` and `Serialize` for all records and enums (with `serde`
+  feature enabled). This allows serializing records with additional encodings not
+  supported by the DBN crate
+- Implemented `Hash` for all record types
+- Added new publisher value for OPRA MIAX Sapphire
+- Added Python type definition for `Metadata.__init__`
+- Added `metadata_mut` method to decoders to get a mutable reference to the decoded
+  metadata
+- Improved panic message on `RecordRef::get` when length doesn't match expected to be
+  actionable
+- Added `encode::ZSTD_COMPRESSION_LEVEL` constant
+
+### Breaking changes
+- Increased size of `SystemMsg` and `ErrorMsg` to provide better messages from Live
+  gateway
+  - Increased length of `err` and `msg` fields for more detailed messages
+  - Added `is_last` field to `ErrorMsg` to indicate the last error in a chain
+  - Added `code` field to `SystemMsg` and `ErrorMsg`, although currently unused
+  - Added new `is_last` parameter to `ErrorMsg::new`
+  - Decoding these is backwards-compatible and records with longer messages won't be
+    sent during the DBN version 2 migration period
+  - Renamed previous records to `compat::ErrorMsgV1` and `compat::SystemMsgV1`
+- Split `DecodeDbn` trait into `DecodeRecord` and `DbnMetadata` traits for more
+  flexibility. `DecodeDbn` continues to exist as a trait alias
+- Moved `decode_stream` out of `DecodeDbn` to its own separate trait `DecodeStream`
+- Changed trait bounds of `EncodeDbn::encode_decoded` and `encode_decoded_with_limit` to
+  `DecodeRecordRef + DbnMetadata`
+
+### Bug fixes
+- Fixed panic in `TsSymbolMap` when `start_date` == `end_date`
+- Added missing Python `__eq__` and `__ne__` implementations for `BidAskPair`
+- Fixed Python `size_hint` return value for `InstrumentDefMsgV1` and
+  `SymbolMappingMsgV1`
+- Fixed cases where `dbn` CLI tool would write a broken pipe error to standard error
+  such as when piping to `head`
+- Fixed bug in sync and async `MetadataEncoder`s where `version` was used to determine
+  the encoded length of fixed-length symbols instead of the `symbol_cstr_len` field
+
 ## 0.14.2 - 2023-11-17
 ### Enhancements
 - Added `set_upgrade_policy` setters to `DbnDecoder`, `DbnRecordDecoder`,
@@ -15,7 +73,6 @@
   both versions of `SymbolMappingMsg`
 - Changed `PitSymbolMap::on_symbol_mapping` to accept either version of
   `SymbolMappingMsg`
-
 
 ### Bug fixes
 - Fixed missing DBNv1 compatibility in `PitSymbolMap::on_record`

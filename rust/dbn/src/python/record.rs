@@ -8,7 +8,7 @@ use pyo3::{
 };
 
 use crate::{
-    compat::{InstrumentDefMsgV1, SymbolMappingMsgV1},
+    compat::{ErrorMsgV1, InstrumentDefMsgV1, SymbolMappingMsgV1, SystemMsgV1},
     record::str_to_c_chars,
     rtype, BidAskPair, ErrorMsg, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg,
     Mbp1Msg, OhlcvMsg, Record, RecordHeader, SType, SecurityUpdateAction, StatMsg,
@@ -194,6 +194,14 @@ impl BidAskPair {
         match self.bid_px {
             UNDEF_PRICE => f64::NAN,
             _ => self.bid_px as f64 / FIXED_PRICE_SCALE as f64,
+        }
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
         }
     }
 
@@ -1571,7 +1579,7 @@ impl InstrumentDefMsgV1 {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<InstrumentDefMsg>())
+        Ok(mem::size_of::<InstrumentDefMsgV1>())
     }
 
     #[getter]
@@ -2012,8 +2020,8 @@ impl StatMsg {
 #[pymethods]
 impl ErrorMsg {
     #[new]
-    fn py_new(ts_event: u64, err: &str) -> PyResult<Self> {
-        Ok(ErrorMsg::new(ts_event, err))
+    fn py_new(ts_event: u64, err: &str, is_last: Option<bool>) -> PyResult<Self> {
+        Ok(ErrorMsg::new(ts_event, err, is_last.unwrap_or(true)))
     }
 
     fn __bytes__(&self) -> &[u8] {
@@ -2029,11 +2037,103 @@ impl ErrorMsg {
     }
 
     fn __repr__(&self) -> String {
-        if let Ok(err_msg) = self.err() {
-            format!("ErrorMsg {{ hd: {:?}, err: '{}' }}", self.hd, err_msg)
-        } else {
-            format!("ErrorMsg {{ hd: {:?}, err: '{:?}' }}", self.hd, self.err)
+        format!("{self:?}")
+    }
+
+    #[getter]
+    fn rtype(&self) -> u8 {
+        self.hd.rtype
+    }
+
+    #[getter]
+    fn publisher_id(&self) -> u16 {
+        self.hd.publisher_id
+    }
+
+    #[getter]
+    fn instrument_id(&self) -> u32 {
+        self.hd.instrument_id
+    }
+
+    #[getter]
+    fn ts_event(&self) -> u64 {
+        self.hd.ts_event
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_event")]
+    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_event())
+    }
+
+    #[pyo3(name = "record_size")]
+    fn py_record_size(&self) -> usize {
+        self.record_size()
+    }
+
+    #[classattr]
+    fn size_hint() -> PyResult<usize> {
+        Ok(mem::size_of::<ErrorMsg>())
+    }
+
+    #[getter]
+    #[pyo3(name = "err")]
+    fn py_err(&self) -> PyResult<&str> {
+        self.err().map_err(to_val_err)
+    }
+
+    #[classattr]
+    #[pyo3(name = "_dtypes")]
+    fn py_dtypes() -> Vec<(String, String)> {
+        Self::field_dtypes("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_price_fields")]
+    fn py_price_fields() -> Vec<String> {
+        Self::price_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_timestamp_fields")]
+    fn py_timestamp_fields() -> Vec<String> {
+        Self::timestamp_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_hidden_fields")]
+    fn py_hidden_fields() -> Vec<String> {
+        Self::hidden_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_ordered_fields")]
+    fn py_ordered_fields() -> Vec<String> {
+        Self::ordered_fields("")
+    }
+}
+
+#[pymethods]
+impl ErrorMsgV1 {
+    #[new]
+    fn py_new(ts_event: u64, err: &str) -> PyResult<Self> {
+        Ok(ErrorMsgV1::new(ts_event, err))
+    }
+
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
         }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
     }
 
     #[getter]
@@ -2346,7 +2446,7 @@ impl SymbolMappingMsgV1 {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<SymbolMappingMsg>())
+        Ok(mem::size_of::<SymbolMappingMsgV1>())
     }
 
     #[getter]
@@ -2412,11 +2512,108 @@ impl SystemMsg {
     }
 
     fn __repr__(&self) -> String {
-        if let Ok(sys_msg) = self.msg() {
-            format!("SystemMsg {{ hd: {:?}, msg: '{}' }}", self.hd, sys_msg)
-        } else {
-            format!("SystemMsg {{ hd: {:?}, msg: '{:?}' }}", self.hd, self.msg)
+        format!("{self:?}")
+    }
+
+    #[getter]
+    fn rtype(&self) -> u8 {
+        self.hd.rtype
+    }
+
+    #[getter]
+    fn publisher_id(&self) -> u16 {
+        self.hd.publisher_id
+    }
+
+    #[getter]
+    fn instrument_id(&self) -> u32 {
+        self.hd.instrument_id
+    }
+
+    #[getter]
+    fn ts_event(&self) -> u64 {
+        self.hd.ts_event
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_event")]
+    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_event())
+    }
+
+    #[pyo3(name = "record_size")]
+    fn py_record_size(&self) -> usize {
+        self.record_size()
+    }
+
+    #[classattr]
+    fn size_hint() -> PyResult<usize> {
+        Ok(mem::size_of::<SystemMsg>())
+    }
+
+    #[getter]
+    #[pyo3(name = "msg")]
+    fn py_msg(&self) -> PyResult<&str> {
+        self.msg().map_err(to_val_err)
+    }
+
+    #[pyo3(name = "is_heartbeat")]
+    fn py_is_heartbeat(&self) -> bool {
+        self.is_heartbeat()
+    }
+
+    #[classattr]
+    #[pyo3(name = "_dtypes")]
+    fn py_dtypes() -> Vec<(String, String)> {
+        Self::field_dtypes("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_price_fields")]
+    fn py_price_fields() -> Vec<String> {
+        Self::price_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_timestamp_fields")]
+    fn py_timestamp_fields() -> Vec<String> {
+        Self::timestamp_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_hidden_fields")]
+    fn py_hidden_fields() -> Vec<String> {
+        Self::hidden_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_ordered_fields")]
+    fn py_ordered_fields() -> Vec<String> {
+        Self::ordered_fields("")
+    }
+}
+
+#[pymethods]
+impl SystemMsgV1 {
+    #[new]
+    fn py_new(ts_event: u64, msg: &str) -> PyResult<Self> {
+        Self::new(ts_event, msg).map_err(to_val_err)
+    }
+
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
         }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
     }
 
     #[getter]

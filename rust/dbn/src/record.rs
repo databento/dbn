@@ -1,7 +1,7 @@
 //! Market data types for encoding different Databento [`Schema`](crate::enums::Schema)s
 //! and conversion functions.
 
-mod conv;
+pub(crate) mod conv;
 mod impl_default;
 mod methods;
 
@@ -18,11 +18,13 @@ use crate::{
         Action, InstrumentClass, MatchAlgorithm, SecurityUpdateAction, Side, StatType,
         StatUpdateAction, UserDefinedInstrument,
     },
-    macros::{dbn_record, CsvSerialize, JsonSerialize},
+    macros::{dbn_record, CsvSerialize, JsonSerialize, RecordDebug},
     publishers::Publisher,
     Error, Result, SYMBOL_CSTR_LEN,
 };
 pub(crate) use conv::as_u8_slice;
+#[cfg(feature = "serde")]
+pub(crate) use conv::cstr_serde;
 pub use conv::{
     c_chars_to_str, str_to_c_chars, transmute_header_bytes, transmute_record,
     transmute_record_bytes, transmute_record_mut, ts_to_dt,
@@ -31,8 +33,9 @@ pub use conv::{
 /// Common data for all Databento records. Always found at the beginning of a record
 /// struct.
 #[repr(C)]
-#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
+#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn"),
@@ -61,8 +64,9 @@ pub struct RecordHeader {
 /// A market-by-order (MBO) tick message. The record of the
 /// [`Mbo`](crate::enums::Schema::Mbo) schema.
 #[repr(C)]
-#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
+#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(set_all, dict, module = "databento_dbn", name = "MBOMsg"),
@@ -89,6 +93,7 @@ pub struct MboMsg {
     pub size: u32,
     /// A combination of packet end with matching engine status. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
+    #[dbn(fmt_binary)]
     #[pyo3(get)]
     pub flags: u8,
     /// A channel ID within the venue.
@@ -117,8 +122,9 @@ pub struct MboMsg {
 
 /// A level.
 #[repr(C)]
-#[derive(Clone, Debug, JsonSerialize, PartialEq, Eq)]
+#[derive(Clone, JsonSerialize, RecordDebug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn"),
@@ -145,8 +151,9 @@ pub struct BidAskPair {
 /// Market by price implementation with a book depth of 0. Equivalent to
 /// MBP-0. The record of the [`Trades`](crate::enums::Schema::Trades) schema.
 #[repr(C)]
-#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
+#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(set_all, dict, module = "databento_dbn"),
@@ -175,6 +182,7 @@ pub struct TradeMsg {
     pub side: c_char,
     /// A combination of packet end with matching engine status. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
+    #[dbn(fmt_binary)]
     #[pyo3(get)]
     pub flags: u8,
     /// The depth of actual book change.
@@ -197,8 +205,9 @@ pub struct TradeMsg {
 /// Market by price implementation with a known book depth of 1. The record of the
 /// [`Mbp1`](crate::enums::Schema::Mbp1) schema.
 #[repr(C)]
-#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
+#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(set_all, dict, module = "databento_dbn", name = "MBP1Msg"),
@@ -228,6 +237,7 @@ pub struct Mbp1Msg {
     pub side: c_char,
     /// A combination of packet end with matching engine status. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
+    #[dbn(fmt_binary)]
     #[pyo3(get)]
     pub flags: u8,
     /// The depth of actual book change.
@@ -253,8 +263,9 @@ pub struct Mbp1Msg {
 /// Market by price implementation with a known book depth of 10. The record of the
 /// [`Mbp10`](crate::enums::Schema::Mbp10) schema.
 #[repr(C)]
-#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
+#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(set_all, dict, module = "databento_dbn", name = "MBP10Msg"),
@@ -284,6 +295,7 @@ pub struct Mbp10Msg {
     pub side: c_char,
     /// A combination of packet end with matching engine status. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
+    #[dbn(fmt_binary)]
     #[pyo3(get)]
     pub flags: u8,
     /// The depth of actual book change.
@@ -316,8 +328,9 @@ pub type TbboMsg = Mbp1Msg;
 /// - [`Ohlcv1D`](crate::enums::Schema::Ohlcv1D)
 /// - [`OhlcvEod`](crate::enums::Schema::OhlcvEod)
 #[repr(C)]
-#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
+#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn", name = "OHLCVMsg"),
@@ -355,8 +368,9 @@ pub struct OhlcvMsg {
 /// [`Status`](crate::enums::Schema::Status) schema.
 #[doc(hidden)]
 #[repr(C)]
-#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
+#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(dict, module = "databento_dbn"),
@@ -374,6 +388,8 @@ pub struct StatusMsg {
     #[dbn(unix_nanos)]
     #[pyo3(get, set)]
     pub ts_recv: u64,
+    #[dbn(fmt_method)]
+    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub group: [c_char; 21],
     #[pyo3(get, set)]
     pub trading_status: u8,
@@ -386,8 +402,9 @@ pub struct StatusMsg {
 /// Definition of an instrument. The record of the
 /// [`Definition`](crate::enums::Schema::Definition) schema.
 #[repr(C)]
-#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
+#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(dict, module = "databento_dbn"),
@@ -521,30 +538,52 @@ pub struct InstrumentDefMsg {
     #[pyo3(get, set)]
     pub channel_id: u16,
     /// The currency used for price fields.
+    #[dbn(fmt_method)]
+    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub currency: [c_char; 4],
     /// The currency used for settlement, if different from `currency`.
+    #[dbn(fmt_method)]
+    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub settl_currency: [c_char; 4],
     /// The strategy type of the spread.
+    #[dbn(fmt_method)]
+    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub secsubtype: [c_char; 6],
     /// The instrument raw symbol assigned by the publisher.
-    #[dbn(encode_order(2))]
+    #[dbn(encode_order(2), fmt_method)]
+    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub raw_symbol: [c_char; SYMBOL_CSTR_LEN],
     /// The security group code of the instrument.
+    #[dbn(fmt_method)]
+    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub group: [c_char; 21],
     /// The exchange used to identify the instrument.
+    #[dbn(fmt_method)]
+    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub exchange: [c_char; 5],
     /// The underlying asset code (product code) of the instrument.
+    #[dbn(fmt_method)]
+    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub asset: [c_char; 7],
     /// The ISO standard instrument categorization code.
+    #[dbn(fmt_method)]
+    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub cfi: [c_char; 7],
     /// The type of the instrument, e.g. FUT for future or future spread.
+    #[dbn(fmt_method)]
+    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub security_type: [c_char; 7],
     /// The unit of measure for the instrument’s original contract size, e.g. USD or LBS.
+    #[dbn(fmt_method)]
+    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub unit_of_measure: [c_char; 31],
     /// The symbol of the first underlying instrument.
-    // TODO(carter): finalize if this size also needs to be increased
+    #[dbn(fmt_method)]
+    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub underlying: [c_char; 21],
     /// The currency of [`strike_price`](Self::strike_price).
+    #[dbn(fmt_method)]
+    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub strike_price_currency: [c_char; 4],
     /// The classification of the instrument.
     #[dbn(c_char, encode_order(4))]
@@ -599,13 +638,15 @@ pub struct InstrumentDefMsg {
     pub tick_rule: u8,
     // Filler for alignment.
     #[doc(hidden)]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub _reserved: [u8; 10],
 }
 
 /// An auction imbalance message.
 #[repr(C)]
-#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
+#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(set_all, dict, module = "databento_dbn"),
@@ -690,14 +731,16 @@ pub struct ImbalanceMsg {
     pub significant_imbalance: c_char,
     // Filler for alignment.
     #[doc(hidden)]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub _dummy: [u8; 1],
 }
 
 /// A statistics message. A catchall for various data disseminated by publishers.
 /// The [`stat_type`](Self::stat_type) indicates the statistic contained in the message.
 #[repr(C)]
-#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
+#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn"),
@@ -732,23 +775,28 @@ pub struct StatMsg {
     pub ts_in_delta: i32,
     /// The type of statistic value contained in the message. Refer to the
     /// [`StatType`](crate::enums::StatType) for variants.
+    #[dbn(fmt_method)]
     pub stat_type: u16,
     /// A channel ID within the venue.
     pub channel_id: u16,
     /// Indicates if the statistic is newly added (1) or deleted (2). (Deleted is only used with
     /// some stat types)
+    #[dbn(fmt_method)]
     pub update_action: u8,
     /// Additional flags associate with certain stat types.
+    #[dbn(fmt_binary)]
     pub stat_flags: u8,
     // Filler for alignment
     #[doc(hidden)]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub _dummy: [u8; 6],
 }
 
 /// An error message from the Databento Live Subscription Gateway (LSG).
 #[repr(C)]
-#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
+#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(dict, module = "databento_dbn"),
@@ -762,14 +810,24 @@ pub struct ErrorMsg {
     #[pyo3(get, set)]
     pub hd: RecordHeader,
     /// The error message.
-    pub err: [c_char; 64],
+    #[dbn(fmt_method)]
+    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
+    pub err: [c_char; 302],
+    /// The error code. Currently unused.
+    #[pyo3(get, set)]
+    pub code: u8,
+    /// Sometimes multiple errors are sent together. This field will be non-zero for the
+    /// last error.
+    #[pyo3(get, set)]
+    pub is_last: u8,
 }
 
 /// A symbol mapping message which maps a symbol of one [`SType`](crate::enums::SType)
 /// to another.
 #[repr(C)]
-#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
+#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(dict, module = "databento_dbn"),
@@ -784,14 +842,20 @@ pub struct SymbolMappingMsg {
     pub hd: RecordHeader,
     // TODO(carter): special serialization to string?
     /// The input symbology type of `stype_in_symbol`.
+    #[dbn(fmt_method)]
     #[pyo3(get, set)]
     pub stype_in: u8,
     /// The input symbol.
+    #[dbn(fmt_method)]
+    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub stype_in_symbol: [c_char; SYMBOL_CSTR_LEN],
     /// The output symbology type of `stype_out_symbol`.
+    #[dbn(fmt_method)]
     #[pyo3(get, set)]
     pub stype_out: u8,
     /// The output symbol.
+    #[dbn(fmt_method)]
+    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub stype_out_symbol: [c_char; SYMBOL_CSTR_LEN],
     /// The start of the mapping interval expressed as the number of nanoseconds since
     /// the UNIX epoch.
@@ -808,8 +872,9 @@ pub struct SymbolMappingMsg {
 /// A non-error message from the Databento Live Subscription Gateway (LSG). Also used
 /// for heartbeating.
 #[repr(C)]
-#[derive(Clone, Debug, CsvSerialize, JsonSerialize, PartialEq, Eq)]
+#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(dict, module = "databento_dbn"),
@@ -823,7 +888,12 @@ pub struct SystemMsg {
     #[pyo3(get, set)]
     pub hd: RecordHeader,
     /// The message from the Databento Live Subscription Gateway (LSG).
-    pub msg: [c_char; 64],
+    #[dbn(fmt_method)]
+    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
+    pub msg: [c_char; 303],
+    /// Type of system message, currently unused.
+    #[pyo3(get, set)]
+    pub code: u8,
 }
 
 /// Used for polymorphism around types all beginning with a [`RecordHeader`] where
@@ -899,8 +969,9 @@ pub trait HasRType: Record + RecordMut {
 
 /// Wrapper object for records that include the live gateway send timestamp (`ts_out`).
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct WithTsOut<T: HasRType> {
     /// The inner record.
     pub rec: T,
@@ -983,9 +1054,9 @@ mod tests {
     #[case::status(StatusMsg::default(), 48)]
     #[case::imbalance(ImbalanceMsg::default(), 112)]
     #[case::stat(StatMsg::default(), 64)]
-    #[case::error(ErrorMsg::default(), 80)]
+    #[case::error(ErrorMsg::default(), 320)]
     #[case::symbol_mapping(SymbolMappingMsg::default(), 176)]
-    #[case::system(SystemMsg::default(), 80)]
+    #[case::system(SystemMsg::default(), 320)]
     #[case::with_ts_out(WithTsOut::new(SystemMsg::default(), 0), mem::size_of::<SystemMsg>() + 8)]
     fn test_sizes<R: Sized>(#[case] _rec: R, #[case] exp: usize) {
         assert_eq!(mem::size_of::<R>(), exp);
@@ -1044,6 +1115,6 @@ mod tests {
 
     #[test]
     fn test_record_object_safe() {
-        let _record: Box<dyn Record> = Box::new(ErrorMsg::new(1, "Boxed record"));
+        let _record: Box<dyn Record> = Box::new(ErrorMsg::new(1, "Boxed record", true));
     }
 }

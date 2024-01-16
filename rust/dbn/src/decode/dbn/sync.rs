@@ -11,8 +11,8 @@ use super::{DBN_PREFIX, DBN_PREFIX_LEN};
 use crate::{
     compat::{self, SYMBOL_CSTR_LEN_V1},
     decode::{
-        private::BufferSlice, DecodeDbn, DecodeRecordRef, FromLittleEndianSlice, StreamIterDecoder,
-        VersionUpgradePolicy,
+        private::BufferSlice, DbnMetadata, DecodeRecord, DecodeRecordRef, DecodeStream,
+        FromLittleEndianSlice, StreamIterDecoder, VersionUpgradePolicy,
     },
     error::silence_eof_error,
     HasRType, MappingInterval, Metadata, Record, RecordHeader, RecordRef, SType, Schema,
@@ -20,10 +20,7 @@ use crate::{
 };
 
 /// Type for decoding files and streams in Databento Binary Encoding (DBN), both metadata and records.
-pub struct Decoder<R>
-where
-    R: io::Read,
-{
+pub struct Decoder<R> {
     metadata: Metadata,
     decoder: RecordDecoder<R>,
 }
@@ -170,18 +167,29 @@ where
     }
 }
 
-impl<R> DecodeDbn for Decoder<R>
-where
-    R: io::Read,
-{
+impl<R> DbnMetadata for Decoder<R> {
     fn metadata(&self) -> &Metadata {
         &self.metadata
     }
 
+    fn metadata_mut(&mut self) -> &mut Metadata {
+        &mut self.metadata
+    }
+}
+
+impl<R> DecodeRecord for Decoder<R>
+where
+    R: io::Read,
+{
     fn decode_record<T: HasRType>(&mut self) -> crate::Result<Option<&T>> {
         self.decoder.decode()
     }
+}
 
+impl<R> DecodeStream for Decoder<R>
+where
+    R: io::Read,
+{
     fn decode_stream<T: HasRType>(self) -> StreamIterDecoder<Self, T> {
         StreamIterDecoder::new(self)
     }
@@ -197,10 +205,7 @@ where
 }
 
 /// A DBN decoder of records
-pub struct RecordDecoder<R>
-where
-    R: io::Read,
-{
+pub struct RecordDecoder<R> {
     /// For future use with reading different DBN versions.
     version: u8,
     upgrade_policy: VersionUpgradePolicy,
@@ -965,7 +970,7 @@ mod tests {
             close: 125,
             volume: 65,
         };
-        let error_msg: ErrorMsg = ErrorMsg::new(0, "Test failed successfully");
+        let error_msg: ErrorMsg = ErrorMsg::new(0, "Test failed successfully", true);
         encoder.encode_record(&OHLCV_MSG).unwrap();
         encoder.encode_record(&error_msg).unwrap();
 
@@ -999,7 +1004,7 @@ mod tests {
 
     #[test]
     fn test_decode_record_length_longer_than_buffer() {
-        let rec = ErrorMsg::new(1680703198000000000, "Test");
+        let rec = ErrorMsg::new(1680703198000000000, "Test", true);
         let mut target = RecordDecoder::new(&rec.as_ref()[..rec.record_size() - 1]);
         assert!(matches!(target.decode_ref(), Ok(None)));
     }

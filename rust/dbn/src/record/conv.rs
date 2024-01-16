@@ -141,3 +141,30 @@ pub fn ts_to_dt(ts: u64) -> Option<time::OffsetDateTime> {
         Some(time::OffsetDateTime::from_unix_timestamp_nanos(ts as i128).unwrap())
     }
 }
+
+#[cfg(feature = "serde")]
+pub(crate) mod cstr_serde {
+    use std::ffi::c_char;
+
+    use serde::{de, ser, Deserialize, Deserializer, Serializer};
+
+    use super::{c_chars_to_str, str_to_c_chars};
+
+    pub fn serialize<S, const N: usize>(
+        chars: &[c_char; N],
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(c_chars_to_str(chars).map_err(ser::Error::custom)?)
+    }
+
+    pub fn deserialize<'de, D, const N: usize>(deserializer: D) -> Result<[c_char; N], D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let str = String::deserialize(deserializer)?;
+        str_to_c_chars(&str).map_err(de::Error::custom)
+    }
+}
