@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.15.0 - 2023-01-13
+## 0.15.0 - 2023-01-16
 ### Enhancements
 - Improved `Debug` implementation for all record types
   - Prices are formatted as decimals
