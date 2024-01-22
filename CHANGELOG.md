@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.15.1 - TBD
+## 0.15.1 - 2024-01-23
 
 ### Bug fixes
 - Fixed an import error in the Python type stub file
