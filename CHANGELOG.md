@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.15.1 - TBD
+
+### Bug fixes
+- Fixed an import error in the Python type stub file
+
 ## 0.15.0 - 2024-01-16
 ### Enhancements
 - Improved `Debug` implementation for all record types
