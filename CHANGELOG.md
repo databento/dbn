@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.16.0 - TBD
+
+### Breaking changes
+- Changed default for `VersionUpgradePolicy` to `Upgrade`
+- Changed default `upgrade_policy` for `DbnDecoder`, `AsyncDbnDecoder`, and Python
+  `DBNDecoder` to `Upgrade` so by default the primary record types can always be used
+- Made `VersionUpgradePolicy` non-exhaustive to allow future additions without breaking
+  changes
+
 ## 0.15.1 - 2024-01-23
 
 ### Bug fixes

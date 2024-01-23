@@ -725,13 +725,14 @@ pub enum StatUpdateAction {
     pyo3::pyclass(module = "databento_dbn", rename_all = "SCREAMING_SNAKE_CASE")
 )]
 #[cfg_attr(feature = "python", derive(strum::EnumIter))]
+#[non_exhaustive]
 pub enum VersionUpgradePolicy {
-    /// Decode data from previous versions as-is. Currently the default.
-    #[default]
+    /// Decode data from previous versions as-is.
     AsIs,
     /// Decode data from previous versions converting it to the latest version. This
     /// breaks zero-copy decoding for structs that need updating, but makes usage
     /// simpler.
+    #[default]
     Upgrade,
 }
 

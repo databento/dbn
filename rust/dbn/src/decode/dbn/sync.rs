@@ -888,22 +888,28 @@ mod tests {
         #[case] compression: Compression,
         #[case] _rec: R,
     ) -> Result<()> {
-        let file_decoder = Decoder::new(DynReader::from_file(format!(
-            "{TEST_DATA_PATH}/test_data.{schema}{}.{}",
-            if version == 1 { ".v1" } else { "" },
-            if compression == Compression::ZStd {
-                "dbn.zst"
-            } else {
-                "dbn"
-            }
-        ))?)?;
+        let file_decoder = Decoder::with_upgrade_policy(
+            DynReader::from_file(format!(
+                "{TEST_DATA_PATH}/test_data.{schema}{}.{}",
+                if version == 1 { ".v1" } else { "" },
+                if compression == Compression::ZStd {
+                    "dbn.zst"
+                } else {
+                    "dbn"
+                }
+            ))?,
+            VersionUpgradePolicy::AsIs,
+        )?;
         let file_metadata = file_decoder.metadata().clone();
         let decoded_records = file_decoder.decode_records::<R>()?;
         let mut buffer = Vec::new();
 
         Encoder::new(DynWriter::new(&mut buffer, compression)?, &file_metadata)?
             .encode_records(decoded_records.as_slice())?;
-        let buf_decoder = Decoder::new(DynReader::inferred_with_buffer(buffer.as_slice())?)?;
+        let buf_decoder = Decoder::with_upgrade_policy(
+            DynReader::inferred_with_buffer(buffer.as_slice())?,
+            VersionUpgradePolicy::AsIs,
+        )?;
         assert_eq!(buf_decoder.metadata(), &file_metadata);
         assert_eq!(decoded_records, buf_decoder.decode_records()?);
         Ok(())

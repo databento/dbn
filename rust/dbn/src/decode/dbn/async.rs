@@ -36,8 +36,8 @@ impl<R> Decoder<R>
 where
     R: io::AsyncReadExt + Unpin,
 {
-    /// Creates a new async DBN [`Decoder`] from `reader`. Will decode records from
-    /// previous DBN versions as-is.
+    /// Creates a new async DBN [`Decoder`] from `reader`. Will upgrade records from
+    /// previous DBN version to the current version.
     ///
     /// # Errors
     /// This function will return an error if it is unable to parse the metadata in
@@ -53,7 +53,7 @@ where
             decoder: RecordDecoder::with_version(
                 reader,
                 metadata.version,
-                VersionUpgradePolicy::AsIs,
+                VersionUpgradePolicy::Upgrade,
             )?,
             metadata,
         })
