@@ -16,7 +16,7 @@ pub fn derive_mock_pyo3(_item: TokenStream) -> TokenStream {
     TokenStream::new()
 }
 
-/// Dummy derive macro to enable enable the `dbn` helper attribute for record types
+/// Dummy derive macro to enable the `dbn` helper attribute for record types
 /// using the `dbn_record` proc macro but neither `CsvSerialize` nor `JsonSerialize` as
 /// helper attributes aren't supported for proc macros alone. See
 /// <https://github.com/rust-lang/rust/issues/65823>.
@@ -72,7 +72,7 @@ pub fn derive_py_field_desc(input: TokenStream) -> TokenStream {
     py_field_desc::derive_impl(input)
 }
 
-/// Attribute macro that acts like a derive macro for for `Debug` (with customization),
+/// Attribute macro that acts like a derive macro for `Debug` (with customization),
 /// `Record`, `RecordMut`, `HasRType`, `PartialOrd`, and `AsRef<[u8]>`.
 ///
 /// Expects 1 or more paths to `u8` constants that are the RTypes associated

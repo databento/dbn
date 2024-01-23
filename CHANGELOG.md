@@ -1,6 +1,11 @@
 # Changelog
 
-## 0.15.0 - 2023-01-16
+## 0.15.1 - 2024-01-23
+
+### Bug fixes
+- Fixed an import error in the Python type stub file
+
+## 0.15.0 - 2024-01-16
 ### Enhancements
 - Improved `Debug` implementation for all record types
   - Prices are formatted as decimals
