@@ -706,6 +706,10 @@ pub enum StatType {
     /// The change in price from the close price of the previous trading session to the
     /// most recent trading session. `price` will be set.
     NetChange = 12,
+    /// The volume-weighted average price (VWAP) during the trading session.
+    /// `price` will be set to the VWAP while `quantity` will be the traded
+    /// volume.
+    Vwap = 13,
 }
 
 /// The type of [`StatMsg`](crate::record::StatMsg) update.

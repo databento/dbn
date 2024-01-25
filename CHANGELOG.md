@@ -9,6 +9,9 @@
 - Made `VersionUpgradePolicy` non-exhaustive to allow future additions without breaking
   changes
 
+### Bug fixes
+- Added missing `StatType::Vwap` variant used in the ICE datasets
+
 ## 0.15.1 - 2024-01-23
 
 ### Bug fixes
