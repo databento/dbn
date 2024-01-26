@@ -11,6 +11,7 @@
 
 ### Bug fixes
 - Added missing `StatType::Vwap` variant used in the ICE datasets
+- Fixed an issue with Python stub file distribution
 
 ## 0.15.1 - 2024-01-23
 
