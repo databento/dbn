@@ -6,8 +6,8 @@
 - Changed default for `VersionUpgradePolicy` to `Upgrade`
 - Changed default `upgrade_policy` for `DbnDecoder`, `AsyncDbnDecoder`, and Python
   `DBNDecoder` to `Upgrade` so by default the primary record types can always be used
-- Made `VersionUpgradePolicy` non-exhaustive to allow future additions without breaking
-  changes
+- Made `StatType` and  `VersionUpgradePolicy` non-exhaustive to allow future additions
+  without breaking changes
 
 ### Bug fixes
 - Added missing `StatType::Vwap` variant used in the ICE datasets

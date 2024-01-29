@@ -669,6 +669,7 @@ pub enum SecurityUpdateAction {
 /// The type of statistic contained in a [`StatMsg`](crate::record::StatMsg).
 #[repr(u16)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive)]
+#[non_exhaustive]
 pub enum StatType {
     /// The price of the first trade of an instrument. `price` will be set.
     OpeningPrice = 1,
