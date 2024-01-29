@@ -35,7 +35,7 @@
     to forget
 - Added `-s`/`--map-symbols` flag to CLI to create a `symbol` field in the output with
   the text symbol mapped from the instrument ID
-- Added `version` param to Python `Metadata` contructor choose between DBNv1 and DBNv2
+- Added `version` param to Python `Metadata` constructor choose between DBNv1 and DBNv2
 - Implemented `EncodeRecordTextExt` for `DynEncoder`
 - Implemented `Deserialize` and `Serialize` for all records and enums (with `serde`
   feature enabled). This allows serializing records with additional encodings not
@@ -125,7 +125,7 @@
   `dbn::AsyncRecordDecoder::decode`, and `dbn::AsyncRecordDecoder::decode_ref`
   cancellation safe. This makes them safe to use within a
   `tokio::select!`(https://docs.rs/tokio/latest/tokio/macro.select.html) statement
-- Added documention around cancellation safety for async APIs
+- Added documentation around cancellation safety for async APIs
 - Improved error messages for conversion errors
 - Added `TOB` flag to denote top-of-book messages
 - Added new publisher values in preparation for IFEU.IMPACT and NDEX.IMPACT datasets
