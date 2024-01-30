@@ -9,7 +9,8 @@ use crate::{
     schema_ts_out_method_dispatch, Error, RType, Record, Result, Schema,
 };
 
-/// Type for encoding files and streams of DBN records in CSV.
+/// Type for encoding files and streams of DBN records in CSV or other text-delimited
+/// tabular file formats including TSV (tab-separated values).
 ///
 /// Note that encoding [`Metadata`](crate::Metadata) in CSV is not supported.
 pub struct Encoder<W>
@@ -38,6 +39,7 @@ where
     schema: Option<Schema>,
     ts_out: bool,
     with_symbol: bool,
+    delimiter: u8,
 }
 
 impl<W> EncoderBuilder<W>
@@ -54,6 +56,7 @@ where
             schema: None,
             ts_out: false,
             with_symbol: false,
+            delimiter: b',',
         }
     }
 
@@ -104,13 +107,27 @@ where
         self
     }
 
+    /// Sets the field delimiter. Defaults to `b','` for comma-separated values (CSV).
+    pub fn delimiter(mut self, delimiter: u8) -> Self {
+        self.delimiter = delimiter;
+        self
+    }
+
     /// Creates the new encoder with the previously specified settings and if
     /// `write_header` is `true`, encodes the header row.
     ///
     /// # Errors
     /// This function returns an error if it fails to write the header row.
     pub fn build(self) -> crate::Result<Encoder<W>> {
-        let mut encoder = Encoder::new(self.writer, self.use_pretty_px, self.use_pretty_ts);
+        let mut encoder = Encoder {
+            writer: csv::WriterBuilder::new()
+                .has_headers(false)
+                .delimiter(self.delimiter)
+                .from_writer(self.writer),
+            has_written_header: false,
+            use_pretty_px: self.use_pretty_px,
+            use_pretty_ts: self.use_pretty_ts,
+        };
         if self.write_header {
             let Some(schema) = self.schema else {
                 return Err(Error::BadArgument {
@@ -137,15 +154,13 @@ where
     /// is `true`, price fields will be serialized as a decimal. If `pretty_ts` is
     /// `true`, timestamp fields will be serialized in a ISO8601 datetime string.
     pub fn new(writer: W, use_pretty_px: bool, use_pretty_ts: bool) -> Self {
-        let csv_writer = csv::WriterBuilder::new()
-            .has_headers(false) // need to write our own custom header
-            .from_writer(writer);
-        Self {
-            writer: csv_writer,
-            use_pretty_px,
-            use_pretty_ts,
-            has_written_header: false,
-        }
+        Self::builder(writer)
+            .write_header(false)
+            .use_pretty_px(use_pretty_px)
+            .use_pretty_ts(use_pretty_ts)
+            .build()
+            // Not setting `schema` or enabling `write_header`
+            .unwrap()
     }
 
     /// Returns a reference to the underlying writer.
@@ -374,6 +389,8 @@ where
 mod tests {
     use std::{array, io::BufWriter, os::raw::c_char};
 
+    use rstest::*;
+
     use super::*;
     use crate::{
         encode::test_data::{VecStream, BID_ASK, RECORD_HEADER},
@@ -388,9 +405,13 @@ mod tests {
         RecordRef, FIXED_PRICE_SCALE,
     };
 
-    const HEADER_CSV: &str = "1658441851000000000,4,1,323";
+    fn header(sep: char) -> String {
+        format!("1658441851000000000{sep}4{sep}1{sep}323")
+    }
 
-    const BID_ASK_CSV: &str = "372000000000000,372500000000000,10,5,5,2";
+    fn bid_ask(sep: char) -> String {
+        format!("372000000000000{sep}372500000000000{sep}10{sep}5{sep}5{sep}2")
+    }
 
     fn extract_2nd_line(buffer: Vec<u8>) -> String {
         let output = String::from_utf8(buffer).expect("valid UTF-8");
@@ -401,8 +422,10 @@ mod tests {
             .to_owned()
     }
 
-    #[test]
-    fn test_mbo_encode_stream() {
+    #[rstest]
+    #[case::csv(b',')]
+    #[case::tsv(b'\t')]
+    fn test_mbo_encode_stream(#[case] sep: u8) {
         let data = vec![MboMsg {
             hd: RECORD_HEADER,
             order_id: 16,
@@ -418,18 +441,28 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        Encoder::new(writer, false, false)
+        Encoder::builder(writer)
+            .delimiter(sep)
+            .write_header(false)
+            .build()
+            .unwrap()
             .encode_stream(VecStream::new(data))
             .unwrap();
         let line = extract_2nd_line(buffer);
+        let sep = sep as char;
         assert_eq!(
             line,
-            format!("1658441891000000000,{HEADER_CSV},B,B,5500,3,14,16,128,22000,1002375")
+            format!(
+                "1658441891000000000{sep}{}{sep}B{sep}B{sep}5500{sep}3{sep}14{sep}16{sep}128{sep}22000{sep}1002375",
+                header(sep)
+            )
         );
     }
 
-    #[test]
-    fn test_mbp1_encode_records() {
+    #[rstest]
+    #[case::csv(b',')]
+    #[case::tsv(b'\t')]
+    fn test_mbp1_encode_records(#[case] sep: u8) {
         let data = vec![Mbp1Msg {
             hd: RECORD_HEADER,
             price: 5500,
@@ -445,20 +478,29 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        Encoder::new(writer, false, false)
+        Encoder::builder(writer)
+            .delimiter(sep)
+            .write_header(false)
+            .build()
+            .unwrap()
             .encode_records(data.as_slice())
             .unwrap();
         let line = extract_2nd_line(buffer);
+        let sep = sep as char;
         assert_eq!(
             line,
             format!(
-                "1658441891000000000,{HEADER_CSV},M,A,9,5500,3,128,22000,1002375,{BID_ASK_CSV}"
+                "1658441891000000000{sep}{}{sep}M{sep}A{sep}9{sep}5500{sep}3{sep}128{sep}22000{sep}1002375{sep}{}",
+                header(sep),
+                bid_ask(sep)
             )
         );
     }
 
-    #[test]
-    fn test_mbp10_encode_stream() {
+    #[rstest]
+    #[case::csv(b',')]
+    #[case::tsv(b'\t')]
+    fn test_mbp10_encode_stream(#[case] sep: u8) {
         let data = vec![Mbp10Msg {
             hd: RECORD_HEADER,
             price: 5500,
@@ -474,18 +516,27 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        Encoder::new(writer, false, false)
+        Encoder::builder(writer)
+            .delimiter(sep)
+            .write_header(false)
+            .build()
+            .unwrap()
             .encode_stream(VecStream::new(data))
             .unwrap();
         let line = extract_2nd_line(buffer);
+        let sep = sep as char;
         assert_eq!(
             line,
-            format!("1658441891000000000,{HEADER_CSV},B,A,9,5500,3,128,22000,1002375,{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV},{BID_ASK_CSV}")
+            format!("1658441891000000000{sep}{}{sep}B{sep}A{sep}9{sep}5500{sep}3{sep}128{sep}22000\
+                     {sep}1002375{sep}{bid_ask}{sep}{bid_ask}{sep}{bid_ask}{sep}{bid_ask}{sep}\
+                     {bid_ask}{sep}{bid_ask}{sep}{bid_ask}{sep}{bid_ask}{sep}{bid_ask}{sep}{bid_ask}",
+                     header(sep), bid_ask = bid_ask(sep))
         );
     }
-
-    #[test]
-    fn test_trade_encode_records() {
+    #[rstest]
+    #[case::csv(b',')]
+    #[case::tsv(b'\t')]
+    fn test_trade_encode_records(#[case] sep: u8) {
         let data = vec![TradeMsg {
             hd: RECORD_HEADER,
             price: 5500,
@@ -500,18 +551,28 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        Encoder::new(writer, false, false)
+        Encoder::builder(writer)
+            .delimiter(sep)
+            .write_header(false)
+            .build()
+            .unwrap()
             .encode_records(data.as_slice())
             .unwrap();
         let line = extract_2nd_line(buffer);
+        let sep = sep as char;
         assert_eq!(
             line,
-            format!("1658441891000000000,{HEADER_CSV},B,B,9,5500,3,128,22000,1002375")
+            format!(
+                "1658441891000000000{sep}{}{sep}B{sep}B{sep}9{sep}5500{sep}3{sep}128{sep}22000{sep}1002375",
+                header(sep)
+            )
         );
     }
 
-    #[test]
-    fn test_ohlcv_encode_stream() {
+    #[rstest]
+    #[case::csv(b',')]
+    #[case::tsv(b'\t')]
+    fn test_ohlcv_encode_stream(#[case] sep: u8) {
         let data = vec![OhlcvMsg {
             hd: RECORD_HEADER,
             open: 5000,
@@ -522,15 +583,28 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        Encoder::new(writer, false, false)
+        Encoder::builder(writer)
+            .delimiter(sep)
+            .write_header(false)
+            .build()
+            .unwrap()
             .encode_stream(VecStream::new(data))
             .unwrap();
         let line = extract_2nd_line(buffer);
-        assert_eq!(line, format!("{HEADER_CSV},5000,8000,3000,6000,55000"));
+        let sep = sep as char;
+        assert_eq!(
+            line,
+            format!(
+                "{}{sep}5000{sep}8000{sep}3000{sep}6000{sep}55000",
+                header(sep)
+            )
+        );
     }
 
-    #[test]
-    fn test_status_encode_records() {
+    #[rstest]
+    #[case::csv(b',')]
+    #[case::tsv(b'\t')]
+    fn test_status_encode_records(#[case] sep: u8) {
         let mut group = [0; 21];
         for (i, c) in "group".chars().enumerate() {
             group[i] = c as c_char;
@@ -545,18 +619,28 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        Encoder::new(writer, false, false)
+        Encoder::builder(writer)
+            .delimiter(sep)
+            .write_header(false)
+            .build()
+            .unwrap()
             .encode_records(data.as_slice())
             .unwrap();
         let line = extract_2nd_line(buffer);
+        let sep = sep as char;
         assert_eq!(
             line,
-            format!("{HEADER_CSV},1658441891000000000,group,3,4,6")
+            format!(
+                "{}{sep}1658441891000000000{sep}group{sep}3{sep}4{sep}6",
+                header(sep)
+            )
         );
     }
 
-    #[test]
-    fn test_instrument_def_encode_stream() {
+    #[rstest]
+    #[case::csv(b',')]
+    #[case::tsv(b'\t')]
+    fn test_instrument_def_encode_stream(#[case] sep: u8) {
         let data = vec![InstrumentDefMsg {
             hd: RECORD_HEADER,
             ts_recv: 1658441891000000000,
@@ -623,15 +707,29 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        Encoder::new(writer, false, false)
+        Encoder::builder(writer)
+            .delimiter(sep)
+            .write_header(false)
+            .build()
+            .unwrap()
             .encode_stream(VecStream::new(data))
             .unwrap();
         let line = extract_2nd_line(buffer);
-        assert_eq!(line, format!("1658441891000000000,{HEADER_CSV},ESZ4 C4100,A,C,100,1000,1698450000000000000,1697350000000000000,1000000,-1000000,0,500000,5,5,10,10,256785,323,0,13,0,10000,1,1000,100,1,0,0,0,0,0,0,0,4,USD,USD,,EW,XCME,ES,OCAFPS,OOF,IPNT,ESZ4,USD,4100000000000,F,2,4,8,9,23,10,8,9,11,N,0,5,0"));
+        let sep = sep as char;
+        assert_eq!(line, format!("1658441891000000000{sep}{}{sep}ESZ4 C4100{sep}A{sep}C{sep}100{sep}\
+                                 1000{sep}1698450000000000000{sep}1697350000000000000{sep}1000000\
+                                 {sep}-1000000{sep}0{sep}500000{sep}5{sep}5{sep}10{sep}10{sep}256785\
+                                 {sep}323{sep}0{sep}13{sep}0{sep}10000{sep}1{sep}1000{sep}100{sep}1\
+                                 {sep}0{sep}0{sep}0{sep}0{sep}0{sep}0{sep}0{sep}4{sep}USD{sep}USD\
+                                 {sep}{sep}EW{sep}XCME{sep}ES{sep}OCAFPS{sep}OOF{sep}IPNT{sep}ESZ4{sep}\
+                                 USD{sep}4100000000000{sep}F{sep}2{sep}4{sep}8{sep}9{sep}23{sep}10\
+                                 {sep}8{sep}9{sep}11{sep}N{sep}0{sep}5{sep}0", header(sep)));
     }
 
-    #[test]
-    fn test_encode_with_ts_out() {
+    #[rstest]
+    #[case::csv(b',')]
+    #[case::tsv(b'\t')]
+    fn test_encode_with_ts_out(#[case] sep: u8) {
         let data = vec![WithTsOut {
             rec: TradeMsg {
                 hd: RECORD_HEADER,
@@ -649,18 +747,28 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        Encoder::new(writer, false, false)
+        Encoder::builder(writer)
+            .delimiter(sep)
+            .write_header(false)
+            .build()
+            .unwrap()
             .encode_records(data.as_slice())
             .unwrap();
         let lines = String::from_utf8(buffer).expect("valid UTF-8");
+        let sep = sep as char;
         assert_eq!(
             lines,
-            format!("ts_recv,ts_event,rtype,publisher_id,instrument_id,action,side,depth,price,size,flags,ts_in_delta,sequence,ts_out\n1658441891000000000,{HEADER_CSV},T,A,9,5500,3,128,22000,1002375,1678480044000000000\n")
+            format!("ts_recv{sep}ts_event{sep}rtype{sep}publisher_id{sep}instrument_id{sep}action\
+                    {sep}side{sep}depth{sep}price{sep}size{sep}flags{sep}ts_in_delta{sep}sequence\
+                    {sep}ts_out\n1658441891000000000{sep}{}{sep}T{sep}A{sep}9{sep}5500{sep}3{sep}128\
+                    {sep}22000{sep}1002375{sep}1678480044000000000\n", header(sep))
         );
     }
 
-    #[test]
-    fn test_imbalance_encode_records() {
+    #[rstest]
+    #[case::csv(b',')]
+    #[case::tsv(b'\t')]
+    fn test_imbalance_encode_records(#[case] sep: u8) {
         let data = vec![ImbalanceMsg {
             hd: RECORD_HEADER,
             ts_recv: 1,
@@ -687,18 +795,29 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        Encoder::new(writer, false, false)
+        Encoder::builder(writer)
+            .delimiter(sep)
+            .write_header(false)
+            .build()
+            .unwrap()
             .encode_records(data.as_slice())
             .unwrap();
         let line = extract_2nd_line(buffer);
+        let sep = sep as char;
         assert_eq!(
             line,
-            format!("1,{HEADER_CSV},2,3,4,5,6,7,8,9,10,11,12,13,B,A,14,15,16,A,N")
+            format!(
+                "1{sep}{}{sep}2{sep}3{sep}4{sep}5{sep}6{sep}7{sep}8{sep}9{sep}10{sep}11{sep}12{sep}\
+                13{sep}B{sep}A{sep}14{sep}15{sep}16{sep}A{sep}N",
+                header(sep)
+            )
         );
     }
 
-    #[test]
-    fn test_stat_encode_stream() {
+    #[rstest]
+    #[case::csv(b',')]
+    #[case::tsv(b'\t')]
+    fn test_stat_encode_stream(#[case] sep: u8) {
         let data = vec![StatMsg {
             hd: RECORD_HEADER,
             ts_recv: 1,
@@ -715,11 +834,22 @@ mod tests {
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
-        Encoder::new(writer, false, false)
+        Encoder::builder(writer)
+            .delimiter(sep)
+            .write_header(false)
+            .build()
+            .unwrap()
             .encode_stream(VecStream::new(data))
             .unwrap();
         let line = extract_2nd_line(buffer);
-        assert_eq!(line, format!("1,{HEADER_CSV},2,3,0,4,5,1,7,1,0"));
+        let sep = sep as char;
+        assert_eq!(
+            line,
+            format!(
+                "1{sep}{}{sep}2{sep}3{sep}0{sep}4{sep}5{sep}1{sep}7{sep}1{sep}0",
+                header(sep)
+            )
+        );
     }
 
     #[test]

@@ -1,14 +1,14 @@
 [package]
 name = "dbn"
-authors = ["Databento <support@databento.com>"]
-version = "0.15.1"
-edition = "2021"
 description = "Library for working with Databento Binary Encoding (DBN)"
-license = "Apache-2.0"
-repository = "https://github.com/databento/dbn"
 keywords = ["finance", "market-data", "conversion", "encoding", "trading"]
 # see https://crates.io/category_slugs
 categories = ["encoding"]
+authors.workspace = true
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [package.metadata.docs.rs]
 # Document all features on docs.rs

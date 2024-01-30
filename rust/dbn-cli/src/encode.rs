@@ -9,7 +9,7 @@ use dbn::{
     rtype_dispatch, Compression, Encoding, MetadataBuilder, SType, SymbolIndex,
 };
 
-use crate::{infer_encoding_and_compression, output_from_args, Args};
+use crate::{infer_encoding, output_from_args, Args};
 
 pub fn silence_broken_pipe(err: anyhow::Error) -> anyhow::Result<()> {
     // Handle broken pipe as a non-error.
@@ -27,7 +27,7 @@ where
     D: DecodeRecordRef + DbnMetadata,
 {
     let writer = output_from_args(args)?;
-    let (encoding, compression) = infer_encoding_and_compression(args)?;
+    let (encoding, compression, delimiter) = infer_encoding(args)?;
     Ok(if args.should_output_metadata {
         if encoding != Encoding::Json {
             return Err(anyhow::format_err!(
@@ -45,6 +45,7 @@ where
         encode_fragment(decoder, writer, compression)
     } else {
         let mut encoder = DynEncoder::builder(writer, encoding, compression, decoder.metadata())
+            .delimiter(delimiter)
             .all_pretty(args.should_pretty_print)
             .with_symbol(args.map_symbols)
             .build()?;
@@ -70,7 +71,7 @@ where
     D: DecodeRecordRef,
 {
     let writer = output_from_args(args)?;
-    let (encoding, compression) = infer_encoding_and_compression(args)?;
+    let (encoding, compression, delimiter) = infer_encoding(args)?;
     if args.fragment {
         encode_fragment(decoder, writer, compression)?;
         return Ok(());
@@ -90,6 +91,7 @@ where
             .stype_out(SType::InstrumentId)
             .build(),
     )
+    .delimiter(delimiter)
     // Can't write header until we know the record type
     .write_header(false)
     .all_pretty(args.should_pretty_print)

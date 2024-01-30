@@ -1,13 +1,13 @@
 [package]
 name = "dbn-c"
-authors = ["Databento <support@databento.com>"]
-version = "0.15.0"
-edition = "2021"
 description = "C bindings for working with Databento Binary Encoding (DBN)"
-license = "Apache-2.0"
-repository = "https://github.com/databento/dbn"
 # This crate should not be published
 publish = false
+authors.workspace = true
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [lib]
 name = "dbn_c"

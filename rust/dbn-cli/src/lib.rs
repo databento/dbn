@@ -23,6 +23,7 @@ pub enum OutputEncoding {
     Infer,
     Dbn,
     Csv,
+    Tsv,
     Json,
     DbnFragment,
 }
@@ -61,6 +62,15 @@ pub struct Args {
         help = "Output the result as CSV"
     )]
     pub csv: bool,
+    #[clap(
+        short = 'T',
+        long,
+        action = ArgAction::SetTrue,
+        default_value = "false",
+        group = "output_encoding",
+        help = "Output the result as tab-separated values (TSV)"
+    )]
+    pub tsv: bool,
     #[clap(
         short = 'D',
         long,
@@ -173,6 +183,8 @@ impl Args {
             OutputEncoding::Json
         } else if self.csv {
             OutputEncoding::Csv
+        } else if self.tsv {
+            OutputEncoding::Tsv
         } else if self.dbn {
             OutputEncoding::Dbn
         } else if self.fragment {
@@ -195,32 +207,37 @@ impl Args {
     }
 }
 
-/// Infer the [`Encoding`] and [`Compression`] from `args` if they aren't already explicitly
-/// set.
-pub fn infer_encoding_and_compression(args: &Args) -> anyhow::Result<(Encoding, Compression)> {
+/// Infer the [`Encoding`], [`Compression`], and delimiter (CSV/TSV) from `args` if they
+/// aren't already explicitly set.
+pub fn infer_encoding(args: &Args) -> anyhow::Result<(Encoding, Compression, u8)> {
     let compression = if args.zstd {
         Compression::ZStd
     } else {
         Compression::None
     };
     match args.output_encoding() {
-        OutputEncoding::DbnFragment | OutputEncoding::Dbn => Ok((Encoding::Dbn, compression)),
-        OutputEncoding::Csv => Ok((Encoding::Csv, compression)),
-        OutputEncoding::Json => Ok((Encoding::Json, compression)),
+        OutputEncoding::DbnFragment | OutputEncoding::Dbn => Ok((Encoding::Dbn, compression, 0)),
+        OutputEncoding::Csv => Ok((Encoding::Csv, compression, b',')),
+        OutputEncoding::Tsv => Ok((Encoding::Csv, compression, b'\t')),
+        OutputEncoding::Json => Ok((Encoding::Json, compression, 0)),
         OutputEncoding::Infer => {
             if let Some(output) = args.output.as_ref().map(|o| o.to_string_lossy()) {
                 if output.ends_with(".dbn.zst") {
-                    Ok((Encoding::Dbn, Compression::ZStd))
+                    Ok((Encoding::Dbn, Compression::ZStd, 0))
                 } else if output.ends_with(".dbn") {
-                    Ok((Encoding::Dbn, Compression::None))
+                    Ok((Encoding::Dbn, Compression::None, 0))
                 } else if output.ends_with(".csv.zst") {
-                    Ok((Encoding::Csv, Compression::ZStd))
+                    Ok((Encoding::Csv, Compression::ZStd, b','))
                 } else if output.ends_with(".csv") {
-                    Ok((Encoding::Csv, Compression::None))
+                    Ok((Encoding::Csv, Compression::None, b','))
+                } else if output.ends_with(".tsv.zst") || output.ends_with(".xls.zst") {
+                    Ok((Encoding::Csv, Compression::ZStd, b'\t'))
+                } else if output.ends_with(".tsv") || output.ends_with(".xls") {
+                    Ok((Encoding::Csv, Compression::None, b'\t'))
                 } else if output.ends_with(".json.zst") {
-                    Ok((Encoding::Json, Compression::ZStd))
+                    Ok((Encoding::Json, Compression::ZStd, 0))
                 } else if output.ends_with(".json") {
-                    Ok((Encoding::Json, Compression::None))
+                    Ok((Encoding::Json, Compression::None, 0))
                 } else {
                     Err(anyhow!(
                         "Unable to infer output encoding from output path '{output}'",
@@ -264,53 +281,98 @@ fn open_output_file(path: &PathBuf, force: bool) -> anyhow::Result<File> {
 
 #[cfg(test)]
 mod tests {
+    use rstest::*;
+
     use super::*;
 
-    #[test]
-    fn test_infer_encoding_and_compression_explicit() {
-        let combinations = [
-            (true, false, false, false, Encoding::Json, Compression::None),
-            (false, true, false, false, Encoding::Csv, Compression::None),
-            (false, false, true, false, Encoding::Dbn, Compression::None),
-            (true, false, false, true, Encoding::Json, Compression::ZStd),
-            (false, true, false, true, Encoding::Csv, Compression::ZStd),
-            (false, false, true, true, Encoding::Dbn, Compression::ZStd),
-        ];
-        for (json, csv, dbn, zstd, exp_enc, exp_comp) in combinations {
-            let args = Args {
-                json,
-                csv,
-                dbn,
-                zstd,
-                ..Default::default()
-            };
-            assert_eq!(
-                infer_encoding_and_compression(&args).unwrap(),
-                (exp_enc, exp_comp)
-            );
-        }
+    #[rstest]
+    #[case(true, false, false, false, false, Encoding::Json, Compression::None, 0)]
+    #[case(
+        false,
+        true,
+        false,
+        false,
+        false,
+        Encoding::Csv,
+        Compression::None,
+        b','
+    )]
+    #[case(
+        false,
+        false,
+        true,
+        false,
+        false,
+        Encoding::Csv,
+        Compression::None,
+        b'\t'
+    )]
+    #[case(false, false, false, true, false, Encoding::Dbn, Compression::None, 0)]
+    #[case(true, false, false, false, true, Encoding::Json, Compression::ZStd, 0)]
+    #[case(
+        false,
+        true,
+        false,
+        false,
+        true,
+        Encoding::Csv,
+        Compression::ZStd,
+        b','
+    )]
+    #[case(
+        false,
+        false,
+        true,
+        false,
+        true,
+        Encoding::Csv,
+        Compression::ZStd,
+        b'\t'
+    )]
+    #[case(false, false, false, true, true, Encoding::Dbn, Compression::ZStd, 0)]
+    fn test_infer_encoding_and_compression_explicit(
+        #[case] json: bool,
+        #[case] csv: bool,
+        #[case] tsv: bool,
+        #[case] dbn: bool,
+        #[case] zstd: bool,
+        #[case] exp_enc: Encoding,
+        #[case] exp_comp: Compression,
+        #[case] exp_sep: u8,
+    ) {
+        let args = Args {
+            json,
+            csv,
+            tsv,
+            dbn,
+            zstd,
+            ..Default::default()
+        };
+        assert_eq!(infer_encoding(&args).unwrap(), (exp_enc, exp_comp, exp_sep));
     }
 
-    #[test]
-    fn test_infer_encoding_and_compression_inference() {
-        let combinations = [
-            ("out.json", Encoding::Json, Compression::None),
-            ("out.csv", Encoding::Csv, Compression::None),
-            ("out.dbn", Encoding::Dbn, Compression::None),
-            ("out.json.zst", Encoding::Json, Compression::ZStd),
-            ("out.csv.zst", Encoding::Csv, Compression::ZStd),
-            ("out.dbn.zst", Encoding::Dbn, Compression::ZStd),
-        ];
-        for (output, exp_enc, exp_comp) in combinations {
-            let args = Args {
-                output: Some(PathBuf::from(output)),
-                ..Default::default()
-            };
-            assert_eq!(
-                infer_encoding_and_compression(&args).unwrap(),
-                (exp_enc, exp_comp)
-            );
-        }
+    #[rstest]
+    #[case("out.json", Encoding::Json, Compression::None, 0)]
+    #[case("out.csv", Encoding::Csv, Compression::None, b',')]
+    #[case("out.tsv", Encoding::Csv, Compression::None, b'\t')]
+    #[case("out.xls", Encoding::Csv, Compression::None, b'\t')]
+    #[case("out.dbn", Encoding::Dbn, Compression::None, 0)]
+    #[case("out.json.zst", Encoding::Json, Compression::ZStd, 0)]
+    #[case("out.csv.zst", Encoding::Csv, Compression::ZStd, b',')]
+    #[case("out.tsv.zst", Encoding::Csv, Compression::ZStd, b'\t')]
+    #[case("out.xls.zst", Encoding::Csv, Compression::ZStd, b'\t')]
+    #[case("out.dbn.zst", Encoding::Dbn, Compression::ZStd, 0)]
+    fn test_infer_encoding_and_compression_inference(
+        #[case] output: &str,
+        #[case] exp_enc: Encoding,
+        #[case] exp_comp: Compression,
+        #[case] exp_sep: u8,
+    ) {
+        let args = Args {
+            output: Some(PathBuf::from(output)),
+            ..Default::default()
+        };
+        assert_eq!(infer_encoding(&args).unwrap(), (exp_enc, exp_comp, exp_sep));
     }
 
     #[test]
@@ -320,7 +382,7 @@ mod tests {
             ..Default::default()
         };
         assert!(
-            matches!(infer_encoding_and_compression(&args), Err(e) if e.to_string().starts_with("Unable to infer"))
+            matches!(infer_encoding(&args), Err(e) if e.to_string().starts_with("Unable to infer"))
         );
     }
 }

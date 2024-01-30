@@ -1,15 +1,15 @@
 [package]
 name = "dbn-cli"
-authors = ["Databento <support@databento.com>"]
-version = "0.15.1"
-edition = "2021"
 description = "Command-line utility for converting Databento Binary Encoding (DBN) files to text-based formats"
 default-run = "dbn"
-license = "Apache-2.0"
-repository = "https://github.com/databento/dbn"
 keywords = ["market-data", "json", "csv", "conversion", "encoding"]
 # see https://crates.io/category_slugs
 categories = ["command-line-utilities", "encoding"]
+authors.workspace = true
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [[bin]]
 name = "dbn"
@@ -25,6 +25,7 @@ anyhow = "1.0"
 clap = { version = "4.4", features = ["derive", "wrap_help"] }
 # deserialization for CLI args
 serde = { version = "1.0", features = ["derive"] }
+# Compression
 zstd = "0.13"
 
 [dev-dependencies]
