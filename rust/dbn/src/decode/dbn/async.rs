@@ -333,6 +333,10 @@ where
     /// This function returns an error if the underlying reader returns an
     /// error of a kind other than `io::ErrorKind::UnexpectedEof` upon reading.
     /// It will also return an error if it encounters an invalid record.
+    ///
+    /// # Cancel safety
+    /// This method is cancel safe. It can be used within a `tokio::select!` statement
+    /// without the potential for corrupting the input stream.
     pub async fn decode_ref(&mut self) -> Result<Option<RecordRef>> {
         let io_err = |e| crate::Error::io(e, "decoding record reference");
         loop {
