@@ -44,7 +44,7 @@ where
     /// `reader` or the input is encoded in a newer version of DBN.
     ///
     /// # Cancel safety
-    /// This method is not cancellation safe. If the method is used in
+    /// This method is not cancellation safe. If this method is used in a
     /// `tokio::select!` statement and another branch completes first, the metadata
     /// may have been partially read, corrupting the stream.
     pub async fn new(mut reader: R) -> crate::Result<Self> {
@@ -67,7 +67,7 @@ where
     /// `reader` or the input is encoded in a newer version of DBN.
     ///
     /// # Cancel safety
-    /// This method is not cancellation safe. If the method is used in
+    /// This method is not cancellation safe. If this method is used in a
     /// `tokio::select!` statement and another branch completes first, the metadata
     /// may have been partially read, corrupting the stream.
     pub async fn with_upgrade_policy(
@@ -147,7 +147,7 @@ where
     /// This function will return an error if it is unable to parse the metadata in `reader`.
     ///
     /// # Cancel safety
-    /// This method is not cancellation safe. If the method is used in
+    /// This method is not cancellation safe. If this method is used in a
     /// `tokio::select!` statement and another branch completes first, the metadata
     /// may have been partially read, corrupting the stream.
     pub async fn with_zstd(reader: R) -> crate::Result<Self> {
@@ -165,7 +165,7 @@ where
     /// This function will return an error if it is unable to parse the metadata in `reader`.
     ///
     /// # Cancel safety
-    /// This method is not cancellation safe. If the method is used in
+    /// This method is not cancellation safe. If this method is used in a
     /// `tokio::select!` statement and another branch completes first, the metadata
     /// may have been partially read, corrupting the stream.
     pub async fn with_zstd_buffer(reader: R) -> crate::Result<Self> {
@@ -181,7 +181,7 @@ impl Decoder<BufReader<File>> {
     /// if it is unable to parse the metadata in the file.
     ///
     /// # Cancel safety
-    /// This method is not cancellation safe. If the method is used in
+    /// This method is not cancellation safe. If this method is used in a
     /// `tokio::select!` statement and another branch completes first, the metadata
     /// may have been partially read, corrupting the stream.
     pub async fn from_file(path: impl AsRef<Path>) -> crate::Result<Self> {
@@ -203,7 +203,7 @@ impl Decoder<ZstdDecoder<BufReader<File>>> {
     /// if it is unable to parse the metadata in the file.
     ///
     /// # Cancel safety
-    /// This method is not cancellation safe. If the method is used in
+    /// This method is not cancellation safe. If this method is used in a
     /// `tokio::select!` statement and another branch completes first, the metadata
     /// may have been partially read, corrupting the stream.
     pub async fn from_zstd_file(path: impl AsRef<Path>) -> crate::Result<Self> {
@@ -333,6 +333,10 @@ where
     /// This function returns an error if the underlying reader returns an
     /// error of a kind other than `io::ErrorKind::UnexpectedEof` upon reading.
     /// It will also return an error if it encounters an invalid record.
+    ///
+    /// # Cancel safety
+    /// This method is cancel safe. It can be used within a `tokio::select!` statement
+    /// without the potential for corrupting the input stream.
     pub async fn decode_ref(&mut self) -> Result<Option<RecordRef>> {
         let io_err = |e| crate::Error::io(e, "decoding record reference");
         loop {
@@ -450,7 +454,7 @@ where
     /// input is encoded in a newere version of DBN.
     ///
     /// # Cancel safety
-    /// This method is not cancellation safe. If the method is used in
+    /// This method is not cancellation safe. If this method is used in a
     /// `tokio::select!` statement and another branch completes first, the metadata
     /// may have been partially read, corrupting the stream.
     pub async fn decode(&mut self) -> Result<Metadata> {

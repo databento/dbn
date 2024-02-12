@@ -654,6 +654,7 @@ pub mod flags {
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::manual_non_exhaustive)] // false positive
 pub enum SecurityUpdateAction {
     /// A new instrument definition.
     Add = b'A',

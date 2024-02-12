@@ -27,7 +27,7 @@ where
     /// `writer`.
     ///
     /// # Cancel safety
-    /// This method is not cancellation safe. If the method is used in
+    /// This method is not cancellation safe. If this method is used in a
     /// `tokio::select!` statement and another branch completes first, then the
     /// metadata may have been partially written, but future calls will begin writing
     /// the encoded metadata from the beginning.
@@ -54,7 +54,7 @@ where
     /// writer.
     ///
     /// # Cancel safety
-    /// This method is not cancellation safe. If the method is used in
+    /// This method is not cancellation safe. If this method is used in a
     /// `tokio::select!` statement and another branch completes first, then the
     /// record may have been partially written, but future calls will begin writing the
     /// encoded record from the beginning.
@@ -69,7 +69,7 @@ where
     /// or there's a serialization error.
     ///
     /// # Cancel safety
-    /// This method is not cancellation safe. If the method is used in
+    /// This method is not cancellation safe. If this method is used in a
     /// `tokio::select!` statement and another branch completes first, then the
     /// record may have been partially written, but future calls will begin writing the
     /// encoded record from the beginning.
@@ -98,7 +98,7 @@ where
     /// `writer`.
     ///
     /// # Cancel safety
-    /// This method is not cancellation safe. If the method is used in
+    /// This method is not cancellation safe. If this method is used in a
     /// `tokio::select!` statement and another branch completes first, then the
     /// metadata may have been partially written, but future calls will begin writing
     /// the encoded metadata from the beginning.
@@ -132,7 +132,7 @@ where
     /// writer.
     ///
     /// # Cancel safety
-    /// This method is not cancellation safe. If the method is used in
+    /// This method is not cancellation safe. If this method is used in a
     /// `tokio::select!` statement and another branch completes first, then the
     /// record may have been partially written, but future calls will begin writing the
     /// encoded record from the beginning.
@@ -149,7 +149,7 @@ where
     /// This function returns an error if it's unable to write to the underlying writer.
     ///
     /// # Cancel safety
-    /// This method is not cancellation safe. If the method is used in
+    /// This method is not cancellation safe. If this method is used in a
     /// `tokio::select!` statement and another branch completes first, then the
     /// record may have been partially written, but future calls will begin writing the
     /// encoded record from the beginning.
@@ -220,7 +220,7 @@ where
     /// writer.
     ///
     /// # Cancel safety
-    /// This method is not cancellation safe. If the method is used in
+    /// This method is not cancellation safe. If this method is used in a
     /// `tokio::select!` statement and another branch completes first, then the
     /// metadata may have been partially written, but future calls will begin writing
     /// the encoded metadata from the beginning.

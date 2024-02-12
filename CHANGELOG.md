@@ -5,6 +5,7 @@
 - Added `-t` and `--tsv` flags to DBN CLI to encode tab-separated values (TSV)
 - Added `delimiter` method to builders for `DynEncoder` and `CsvEncoder` to customize the
   field delimiter character, allowing DBN to be encoded as tab-separated values (TSV)
+- Document cancellation safety for `AsyncRecordDecoder::decode_ref` (credit: @yongqli)
 
 ### Breaking changes
 - Changed default for `VersionUpgradePolicy` to `Upgrade`

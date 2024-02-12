@@ -44,7 +44,7 @@ where
     /// This function returns an error if there's an error writing to `writer`.
     ///
     /// # Cancel safety
-    /// This method is not cancellation safe. If the method is used in
+    /// This method is not cancellation safe. If this method is used in a
     /// `tokio::select!` statement and another branch completes first, then the
     /// metadata JSON may have been partially written, but future calls will begin writing
     /// the metadata JSON from the beginning.
@@ -81,7 +81,7 @@ where
     /// writer.
     ///
     /// # Cancel safety
-    /// This method is not cancellation safe. If the method is used in
+    /// This method is not cancellation safe. If this method is used in a
     /// `tokio::select!` statement and another branch completes first, then the
     /// record may have been partially written, but future calls will begin writing the
     /// encoded record from the beginning.
