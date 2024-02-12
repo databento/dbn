@@ -612,10 +612,13 @@ mod tests {
         let data = vec![StatusMsg {
             hd: RECORD_HEADER,
             ts_recv: 1658441891000000000,
-            group,
-            trading_status: 3,
-            halt_reason: 4,
-            trading_event: 6,
+            action: 1,
+            reason: 2,
+            trading_event: 3,
+            is_trading: b'Y' as c_char,
+            is_quoting: b'Y' as c_char,
+            is_short_sell_restricted: b'~' as c_char,
+            _reserved: Default::default(),
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
@@ -631,7 +634,7 @@ mod tests {
         assert_eq!(
             line,
             format!(
-                "{}{sep}1658441891000000000{sep}group{sep}3{sep}4{sep}6",
+                "1658441891000000000{sep}{}{sep}1{sep}2{sep}3{sep}Y{sep}Y{sep}~",
                 header(sep)
             )
         );

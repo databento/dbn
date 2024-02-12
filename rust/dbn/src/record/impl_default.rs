@@ -1,5 +1,8 @@
+use std::ffi::c_char;
+
 use crate::{
     compat::{ErrorMsgV1, InstrumentDefMsgV1, SymbolMappingMsgV1, SystemMsgV1, SYMBOL_CSTR_LEN_V1},
+    enums::{StatusAction, StatusReason, TradingEvent, TriState},
     SType, Schema, UNDEF_ORDER_SIZE, UNDEF_PRICE, UNDEF_STAT_QUANTITY, UNDEF_TIMESTAMP,
 };
 
@@ -116,10 +119,13 @@ impl Default for StatusMsg {
         Self {
             hd: RecordHeader::default::<Self>(rtype::STATUS),
             ts_recv: UNDEF_TIMESTAMP,
-            group: Default::default(),
-            trading_status: 0,
-            halt_reason: 0,
-            trading_event: 0,
+            action: StatusAction::default() as u16,
+            reason: StatusReason::default() as u16,
+            trading_event: TradingEvent::default() as u16,
+            is_trading: TriState::default() as u8 as c_char,
+            is_quoting: TriState::default() as u8 as c_char,
+            is_short_sell_restricted: TriState::default() as u8 as c_char,
+            _reserved: Default::default(),
         }
     }
 }

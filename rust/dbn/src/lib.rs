@@ -57,8 +57,8 @@ pub mod symbol_map;
 pub use crate::{
     enums::{
         flags, rtype, Action, Compression, Encoding, InstrumentClass, MatchAlgorithm, RType, SType,
-        Schema, SecurityUpdateAction, Side, StatType, StatUpdateAction, UserDefinedInstrument,
-        VersionUpgradePolicy,
+        Schema, SecurityUpdateAction, Side, StatType, StatUpdateAction, StatusAction, StatusReason,
+        TradingEvent, TriState, UserDefinedInstrument, VersionUpgradePolicy,
     },
     error::{Error, Result},
     metadata::{MappingInterval, Metadata, MetadataBuilder, SymbolMapping},

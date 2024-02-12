@@ -1,8 +1,11 @@
 use std::fmt::Debug;
 
+use num_enum::TryFromPrimitive;
+
 use crate::{
     compat::{ErrorMsgV1, InstrumentDefMsgV1, SymbolMappingMsgV1, SystemMsgV1},
-    SType,
+    enums::{StatusAction, StatusReason},
+    SType, TradingEvent, TriState,
 };
 
 use super::*;
@@ -217,13 +220,34 @@ impl Mbp10Msg {
     }
 }
 
+#[doc(hidden)]
 impl StatusMsg {
-    /// Returns `group` as a `&str`.
-    ///
-    /// # Errors
-    /// This function returns an error if `group` contains invalid UTF-8.
-    pub fn group(&self) -> Result<&str> {
-        c_chars_to_str(&self.group)
+    pub fn action(&self) -> Result<StatusAction> {
+        StatusAction::try_from(self.action)
+            .map_err(|_| Error::conversion::<StatusAction>(format!("{:#06X}", self.action)))
+    }
+    pub fn reason(&self) -> Result<StatusReason> {
+        StatusReason::try_from(self.reason)
+            .map_err(|_| Error::conversion::<StatusReason>(format!("{:#06X}", self.reason)))
+    }
+    pub fn trading_event(&self) -> Result<TradingEvent> {
+        TradingEvent::try_from(self.trading_event)
+            .map_err(|_| Error::conversion::<TradingEvent>(format!("{:#06X}", self.trading_event)))
+    }
+    pub fn is_trading(&self) -> Option<bool> {
+        TriState::try_from_primitive(self.is_trading as c_char as u8)
+            .map(Option::<bool>::from)
+            .unwrap_or_default()
+    }
+    pub fn is_quoting(&self) -> Option<bool> {
+        TriState::try_from_primitive(self.is_quoting as c_char as u8)
+            .map(Option::<bool>::from)
+            .unwrap_or_default()
+    }
+    pub fn is_short_sell_restricted(&self) -> Option<bool> {
+        TriState::try_from_primitive(self.is_short_sell_restricted as c_char as u8)
+            .map(Option::<bool>::from)
+            .unwrap_or_default()
     }
 }
 

@@ -366,7 +366,6 @@ pub struct OhlcvMsg {
 
 /// A trrading status update message. The record of the
 /// [`Status`](crate::enums::Schema::Status) schema.
-#[doc(hidden)]
 #[repr(C)]
 #[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
@@ -385,18 +384,37 @@ pub struct StatusMsg {
     pub hd: RecordHeader,
     /// The capture-server-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
-    #[dbn(unix_nanos)]
+    #[dbn(encode_order(0), index_ts, unix_nanos)]
     #[pyo3(get, set)]
     pub ts_recv: u64,
+    /// The type of status change.
     #[dbn(fmt_method)]
-    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
-    pub group: [c_char; 21],
     #[pyo3(get, set)]
-    pub trading_status: u8,
+    pub action: u16,
+    /// Additional details about the cause of the status change.
+    #[dbn(fmt_method)]
     #[pyo3(get, set)]
-    pub halt_reason: u8,
+    pub reason: u16,
+    /// Further information about the status change and its effect on trading.
+    #[dbn(fmt_method)]
     #[pyo3(get, set)]
-    pub trading_event: u8,
+    pub trading_event: u16,
+    /// The state of trading in the instrument.
+    #[dbn(c_char)]
+    #[pyo3(get, set)]
+    pub is_trading: c_char,
+    /// The state of quoting in the instrument.
+    #[dbn(c_char)]
+    #[pyo3(get, set)]
+    pub is_quoting: c_char,
+    /// The state of short sell restrictions for the instrument.
+    #[dbn(c_char)]
+    #[pyo3(get, set)]
+    pub is_short_sell_restricted: c_char,
+    // Filler for alignment.
+    #[doc(hidden)]
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub _reserved: [u8; 7],
 }
 
 /// Definition of an instrument. The record of the
@@ -1053,7 +1071,7 @@ mod tests {
     #[case::mbp10(Mbp10Msg::default(), mem::size_of::<TradeMsg>() + mem::size_of::<BidAskPair>() * 10)]
     #[case::trade(TradeMsg::default(), 48)]
     #[case::definition(InstrumentDefMsg::default(), 400)]
-    #[case::status(StatusMsg::default(), 48)]
+    #[case::status(StatusMsg::default(), 40)]
     #[case::imbalance(ImbalanceMsg::default(), 112)]
     #[case::stat(StatMsg::default(), 64)]
     #[case::error(ErrorMsg::default(), 320)]

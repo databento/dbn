@@ -455,8 +455,7 @@ pub enum Schema {
     /// Additional data disseminated by publishers.
     #[pyo3(name = "STATISTICS")]
     Statistics = 10,
-    /// Exchange status.
-    #[doc(hidden)]
+    /// Trading status events.
     #[pyo3(name = "STATUS")]
     Status = 11,
     /// Auction imbalance events.
@@ -722,6 +721,157 @@ pub enum StatUpdateAction {
     New = 1,
     /// A removal of a statistic.
     Delete = 2,
+}
+
+/// The primary enum for the type of [`StatusMsg`](crate::record::StatusMsg) update.
+#[repr(u16)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive, Default)]
+#[non_exhaustive]
+pub enum StatusAction {
+    /// No change.
+    #[default]
+    None = 0,
+    /// The instrument is in a pre-open period.
+    PreOpen = 1,
+    /// The instrument is in a pre-cross period.
+    PreCross = 2,
+    /// The instrument is quoting but not trading.
+    Quoting = 3,
+    /// The instrument is in a cross/auction.
+    Cross = 4,
+    /// The instrument is being opened through a trading rotation.
+    Rotation = 5,
+    /// A new price indication is available for the instrument.
+    NewPriceIndication = 6,
+    /// The instrument is trading.
+    Trading = 7,
+    /// Trading in the instrument has been halted.
+    Halt = 8,
+    /// Trading in the instrument has been paused.
+    Pause = 9,
+    /// Trading in the instrument has been suspended.
+    Suspend = 10,
+    /// The instrument is in a pre-close period.
+    PreClose = 11,
+    /// Trading in the instrument has closed.
+    Close = 12,
+    /// The instrument is in a post-close period.
+    PostClose = 13,
+    /// A change in short-selling restrictions.
+    SsrChange = 14,
+    /// The instrument is not available for trading, either trading has closed or been
+    /// halted.
+    NotAvailableForTrading = 15,
+}
+
+/// The secondary enum for a [`StatusMsg`](crate::record::StatusMsg) update, explains
+/// the cause of a halt or other change in `action`.
+#[repr(u16)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive, Default)]
+#[non_exhaustive]
+pub enum StatusReason {
+    /// No reason is given.
+    #[default]
+    None = 0,
+    /// The change in status occurred as scheduled.
+    Scheduled = 1,
+    /// The instrument stopped due to a market surveillance intervention.
+    SurveillanceIntervention = 2,
+    /// The status changed due to activity in the market.
+    MarketEvent = 3,
+    /// The derivative instrument began trading.
+    InstrumentActivation = 4,
+    /// The derivative instrument expired.
+    InstrumentExpiration = 5,
+    /// Recovery in progress.
+    RecoveryInProcess = 6,
+    /// The status change was caused by regulatory action.
+    Regulatory = 7,
+    /// The status change was caused by administrative action.
+    Administrative = 8,
+    /// Relevant news is pending.
+    NewsPending = 9,
+    /// Relevant news was released.
+    NewsReleased = 10,
+    /// Halted for order imbalance.
+    OrderImbalance = 11,
+    /// The instrument hit limit up or limit down.
+    LuldPause = 12,
+    /// An operational issue occurred with the venue.
+    Operational = 13,
+    /// The status changed until the exchange receives additional information.
+    AdditionalInformationRequested = 14,
+    /// Trading halted due to merger becoming effective.
+    MergerEffective = 15,
+    /// Trading is halted in an ETF due to conditions with the component securities.
+    Etf = 16,
+    /// Trading is halted for a corporate action.
+    CorporateAction = 17,
+    /// Trading is halted because the instrument is a new offering.
+    NewSecurityOffering = 18,
+    /// Halted due to the market-wide circuit breaker level 1.
+    MarketWideHaltLevel1 = 19,
+    /// Halted due to the market-wide circuit breaker level 2.
+    MarketWideHaltLevel2 = 20,
+    /// Halted due to the market-wide circuit breaker level 3.
+    MarketWideHaltLevel3 = 21,
+    /// Halted due to the carryover of a market-wide circuit breaker from the previous
+    /// trading day.
+    MarketWideHaltCarryover = 22,
+    /// Halted because quotation is not available.
+    QuotationNotAvailable = 23,
+}
+
+/// Further information about a status update.
+#[repr(u16)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive, Default)]
+#[non_exhaustive]
+pub enum TradingEvent {
+    /// No additional information given.
+    #[default]
+    None = 0,
+    /// Order entry and modification are not allowed.
+    NoCancel = 1,
+    /// A change of trading session occurred. Daily statistics are reset.
+    ChangeTradingSession = 2,
+    /// Implied matching is available.
+    ImpliedMatchingOn = 3,
+    /// Implied matching is not available.
+    ImpliedMatchingOff = 4,
+}
+
+/// An enum for representing unknown, true, or false values. Equivalent to
+/// `Option<bool>` but with a human-readable repr.
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive, Default)]
+pub enum TriState {
+    /// The value is not applicable or not known.
+    #[default]
+    NotAvailable = b'~',
+    /// False
+    No = b'N',
+    /// True
+    Yes = b'Y',
+}
+
+impl From<TriState> for Option<bool> {
+    fn from(value: TriState) -> Self {
+        match value {
+            TriState::NotAvailable => None,
+            TriState::No => Some(false),
+            TriState::Yes => Some(true),
+        }
+    }
+}
+
+impl From<Option<bool>> for TriState {
+    fn from(value: Option<bool>) -> Self {
+        match value {
+            Some(true) => Self::Yes,
+            Some(false) => Self::No,
+            None => Self::NotAvailable,
+        }
+    }
 }
 
 /// How to handle decoding DBN data from a prior version.

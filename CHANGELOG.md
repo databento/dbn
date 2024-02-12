@@ -2,6 +2,9 @@
 
 ## 0.16.0 - TBD
 ### Enhancements
+- Updated `StatusMsg` and made it public in preparation for releasing a status schema
+- Added `StatusAction`, `StatusReason`, `TradingEvent`, and `TriState` enums for use in
+  the status schema
 - Added `-t` and `--tsv` flags to DBN CLI to encode tab-separated values (TSV)
 - Added `delimiter` method to builders for `DynEncoder` and `CsvEncoder` to customize the
   field delimiter character, allowing DBN to be encoded as tab-separated values (TSV)
@@ -11,6 +14,8 @@
 - Changed default for `VersionUpgradePolicy` to `Upgrade`
 - Changed default `upgrade_policy` for `DbnDecoder`, `AsyncDbnDecoder`, and Python
   `DBNDecoder` to `Upgrade` so by default the primary record types can always be used
+- Changed fields of previously-hidden `StatusMsg` record type
+- Updated text serialization order of status schema to match other schemas
 - Changed text serialization `unit_of_measure_qty` to be affected by `pretty_px`. While
   it's not a price, it uses the same fixed-price decimal format as other prices
 - Made `StatType` and  `VersionUpgradePolicy` non-exhaustive to allow future additions

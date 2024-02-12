@@ -419,10 +419,13 @@ mod tests {
         let data = vec![StatusMsg {
             hd: RECORD_HEADER,
             ts_recv: 1658441891000000000,
-            group: str_to_c_chars("group").unwrap(),
-            trading_status: 3,
-            halt_reason: 4,
-            trading_event: 6,
+            action: 1,
+            reason: 2,
+            trading_event: 3,
+            is_trading: b'Y' as c_char,
+            is_quoting: b'Y' as c_char,
+            is_short_sell_restricted: b'~' as c_char,
+            _reserved: Default::default(),
         }];
         let slice_res = write_json_to_string(data.as_slice(), false, false, true);
         let stream_res = write_json_stream_to_string(data, false, false, true);
@@ -431,9 +434,10 @@ mod tests {
         assert_eq!(
             slice_res,
             format!(
-                "{{{},{}}}\n",
+                "{{{},{},{}}}\n",
+                r#""ts_recv":"2022-07-21T22:18:11.000000000Z""#,
                 r#""hd":{"ts_event":"2022-07-21T22:17:31.000000000Z","rtype":4,"publisher_id":1,"instrument_id":323}"#,
-                r#""ts_recv":"2022-07-21T22:18:11.000000000Z","group":"group","trading_status":3,"halt_reason":4,"trading_event":6"#,
+                r#""action":1,"reason":2,"trading_event":3,"is_trading":"Y","is_quoting":"Y","is_short_sell_restricted":"~""#,
             )
         );
     }
