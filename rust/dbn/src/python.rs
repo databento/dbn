@@ -359,6 +359,7 @@ mod tests {
                 "low_limit_price".to_owned(),
                 "max_price_variation".to_owned(),
                 "trading_reference_price".to_owned(),
+                "unit_of_measure_qty".to_owned(),
                 "min_price_increment_amount".to_owned(),
                 "price_ratio".to_owned(),
                 "strike_price".to_owned(),

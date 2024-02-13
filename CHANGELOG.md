@@ -11,6 +11,8 @@
 - Changed default for `VersionUpgradePolicy` to `Upgrade`
 - Changed default `upgrade_policy` for `DbnDecoder`, `AsyncDbnDecoder`, and Python
   `DBNDecoder` to `Upgrade` so by default the primary record types can always be used
+- Changed text serialization `unit_of_measure_qty` to be affected by `pretty_px`. While
+  it's not a price, it uses the same fixed-price decimal format as other prices
 - Made `StatType` and  `VersionUpgradePolicy` non-exhaustive to allow future additions
   without breaking changes
 

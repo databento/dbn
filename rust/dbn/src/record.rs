@@ -459,7 +459,9 @@ pub struct InstrumentDefMsg {
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub trading_reference_price: i64,
-    /// The contract size for each instrument, in combination with `unit_of_measure`.
+    /// The contract size for each instrument, in combination with `unit_of_measure`, in units
+    /// of 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub unit_of_measure_qty: i64,
     /// The value currently under development by the venue. Converted to units of 1e-9, i.e.
