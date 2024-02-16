@@ -9,6 +9,7 @@
 - Added `delimiter` method to builders for `DynEncoder` and `CsvEncoder` to customize the
   field delimiter character, allowing DBN to be encoded as tab-separated values (TSV)
 - Document cancellation safety for `AsyncRecordDecoder::decode_ref` (credit: @yongqli)
+- Added new publisher values for consolidated DBEQ.MAX
 
 ### Breaking changes
 - Changed default for `VersionUpgradePolicy` to `Upgrade`
