@@ -21,6 +21,7 @@
   it's not a price, it uses the same fixed-price decimal format as other prices
 - Made `StatType` and  `VersionUpgradePolicy` non-exhaustive to allow future additions
   without breaking changes
+- Renamed `_dummy` field in `ImbalanceMsg` and `StatMsg` to `_reserved`
 
 ### Bug fixes
 - Added missing `StatType::Vwap` variant used in the ICE datasets

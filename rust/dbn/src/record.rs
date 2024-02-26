@@ -752,7 +752,7 @@ pub struct ImbalanceMsg {
     // Filler for alignment.
     #[doc(hidden)]
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub _dummy: [u8; 1],
+    pub _reserved: [u8; 1],
 }
 
 /// A statistics message. A catchall for various data disseminated by publishers.
@@ -809,7 +809,7 @@ pub struct StatMsg {
     // Filler for alignment
     #[doc(hidden)]
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub _dummy: [u8; 6],
+    pub _reserved: [u8; 6],
 }
 
 /// An error message from the Databento Live Subscription Gateway (LSG).

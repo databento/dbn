@@ -557,7 +557,7 @@ mod tests {
             num_extensions: 16,
             unpaired_side: 'A' as c_char,
             significant_imbalance: 'N' as c_char,
-            _dummy: [0],
+            _reserved: [0],
         }];
         let slice_res = write_json_to_string(data.as_slice(), false, false, false);
         let stream_res = write_json_stream_to_string(data, false, false, false);
@@ -592,7 +592,7 @@ mod tests {
             channel_id: 7,
             update_action: StatUpdateAction::New as u8,
             stat_flags: 0,
-            _dummy: Default::default(),
+            _reserved: Default::default(),
         }];
         let slice_res = write_json_to_string(data.as_slice(), false, true, false);
         let stream_res = write_json_stream_to_string(data, false, true, false);

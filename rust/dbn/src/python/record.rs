@@ -1748,7 +1748,7 @@ impl ImbalanceMsg {
             num_extensions: 0,
             unpaired_side: 0,
             significant_imbalance,
-            _dummy: [0],
+            _reserved: [0],
         }
     }
 
@@ -1913,7 +1913,7 @@ impl StatMsg {
             channel_id,
             update_action: update_action.unwrap_or(StatUpdateAction::New as u8),
             stat_flags: stat_flags.unwrap_or_default(),
-            _dummy: Default::default(),
+            _reserved: Default::default(),
         }
     }
 

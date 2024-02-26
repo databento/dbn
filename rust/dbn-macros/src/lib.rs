@@ -34,8 +34,8 @@ pub fn dbn_attr(_item: TokenStream) -> TokenStream {
 /// - `unix_nanos`: serializes the field as a UNIX timestamp, with the output format
 ///   depending on `PRETTY_TS`
 ///
-/// Note: fields beginning with `_` will automatically be skipped, e.g. `_dummy` isn't
-/// serialized.
+/// Note: fields beginning with `_` will automatically be skipped, e.g. `_reserved`
+/// isn't serialized.
 #[proc_macro_derive(CsvSerialize, attributes(dbn))]
 pub fn derive_csv_serialize(input: TokenStream) -> TokenStream {
     serialize::derive_csv_macro_impl(input)
@@ -51,8 +51,8 @@ pub fn derive_csv_serialize(input: TokenStream) -> TokenStream {
 /// - `unix_nanos`: serializes the field as a UNIX timestamp, with the output format
 ///   depending on `PRETTY_TS`
 ///
-/// Note: fields beginning with `_` will automatically be skipped, e.g. `_dummy` isn't
-/// serialized.
+/// Note: fields beginning with `_` will automatically be skipped, e.g. `_reserved`
+/// isn't serialized.
 #[proc_macro_derive(JsonSerialize, attributes(dbn))]
 pub fn derive_json_serialize(input: TokenStream) -> TokenStream {
     serialize::derive_json_macro_impl(input)
@@ -106,8 +106,8 @@ pub fn dbn_record(attr: TokenStream, input: TokenStream) -> TokenStream {
 ///   field. If the getter returns an error, the raw field value will be used
 /// - `skip`: won't be included in the `Debug` output
 ///
-/// Note: fields beginning with `_` will automatically be skipped, e.g. `_dummy` isn't
-/// included in the `Debug` output.
+/// Note: fields beginning with `_` will automatically be skipped, e.g. `_reserved`
+/// isn't included in the `Debug` output.
 #[proc_macro_derive(RecordDebug, attributes(dbn))]
 pub fn derive_record_debug(input: TokenStream) -> TokenStream {
     debug::derive_impl(input)

@@ -296,7 +296,7 @@ impl Default for ImbalanceMsg {
             num_extensions: 0,
             unpaired_side: 0,
             significant_imbalance: b'~' as c_char,
-            _dummy: Default::default(),
+            _reserved: Default::default(),
         }
     }
 }
@@ -315,7 +315,7 @@ impl Default for StatMsg {
             channel_id: 0,
             update_action: StatUpdateAction::New as u8,
             stat_flags: 0,
-            _dummy: Default::default(),
+            _reserved: Default::default(),
         }
     }
 }

@@ -794,7 +794,7 @@ mod tests {
             num_extensions: 16,
             unpaired_side: 'A' as c_char,
             significant_imbalance: 'N' as c_char,
-            _dummy: [0],
+            _reserved: [0],
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
@@ -833,7 +833,7 @@ mod tests {
             channel_id: 7,
             update_action: StatUpdateAction::New as u8,
             stat_flags: 0,
-            _dummy: Default::default(),
+            _reserved: Default::default(),
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
