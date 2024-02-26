@@ -14,10 +14,10 @@ name = "dbn_c"
 crate-type = ["staticlib"]
 
 [dependencies]
-anyhow = "1.0.79"
+anyhow = "1.0.80"
 # DBN library
 dbn = { path = "../rust/dbn", features = [] }
-libc = "0.2.152"
+libc = "0.2.153"
 
 [build-dependencies]
 cbindgen = { version = "0.26.0", default-features = false }

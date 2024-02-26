@@ -10,6 +10,8 @@
   field delimiter character, allowing DBN to be encoded as tab-separated values (TSV)
 - Document cancellation safety for `AsyncRecordDecoder::decode_ref` (credit: @yongqli)
 - Added new publisher values for consolidated DBEQ.MAX
+- Upgraded `async-compression` to 0.4.6
+- Upgraded `strum` to 0.26
 
 ### Breaking changes
 - Changed default for `VersionUpgradePolicy` to `Upgrade`

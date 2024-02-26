@@ -18,7 +18,7 @@ dbn = { path = "../rust/dbn", features = ["python"] }
 # Python bindings for Rust
 pyo3 = "0.20"
 # Dates and datetimes
-time = "0.3.31"
+time = "0.3.34"
 
 [build-dependencies]
 pyo3-build-config = { version = "0.20" }
