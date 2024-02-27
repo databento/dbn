@@ -220,30 +220,55 @@ impl Mbp10Msg {
     }
 }
 
-#[doc(hidden)]
 impl StatusMsg {
+    /// Tries to convert the raw status action to an enum.
+    ///
+    /// # Errors
+    /// This function returns an error if the `action` field does not contain a valid
+    /// [`StatusAction`].
     pub fn action(&self) -> Result<StatusAction> {
         StatusAction::try_from(self.action)
             .map_err(|_| Error::conversion::<StatusAction>(format!("{:#06X}", self.action)))
     }
+
+    /// Tries to convert the raw status reason to an enum.
+    ///
+    /// # Errors
+    /// This function returns an error if the `reason` field does not contain a valid
+    /// [`StatusReason`].
     pub fn reason(&self) -> Result<StatusReason> {
         StatusReason::try_from(self.reason)
             .map_err(|_| Error::conversion::<StatusReason>(format!("{:#06X}", self.reason)))
     }
+
+    /// Tries to convert the raw status trading event to an enum.
+    ///
+    /// # Errors
+    /// This function returns an error if the `trading_event` field does not contain a
+    /// valid [`TradingEvent`].
     pub fn trading_event(&self) -> Result<TradingEvent> {
         TradingEvent::try_from(self.trading_event)
             .map_err(|_| Error::conversion::<TradingEvent>(format!("{:#06X}", self.trading_event)))
     }
+
+    /// Converts the raw `is_trading` state to an `Option<bool>` where `None` indicates
+    /// a value is not applicable or available.
     pub fn is_trading(&self) -> Option<bool> {
         TriState::try_from_primitive(self.is_trading as c_char as u8)
             .map(Option::<bool>::from)
             .unwrap_or_default()
     }
+
+    /// Converts the raw `is_quoting` state to an `Option<bool>` where `None` indicates
+    /// a value is not applicable or available.
     pub fn is_quoting(&self) -> Option<bool> {
         TriState::try_from_primitive(self.is_quoting as c_char as u8)
             .map(Option::<bool>::from)
             .unwrap_or_default()
     }
+
+    /// Converts the raw `is_short_sell_restricted` state to an `Option<bool>` where
+    /// `None` indicates a value is not applicable or available.
     pub fn is_short_sell_restricted(&self) -> Option<bool> {
         TriState::try_from_primitive(self.is_short_sell_restricted as c_char as u8)
             .map(Option::<bool>::from)
