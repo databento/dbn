@@ -54,6 +54,7 @@ where
                 reader,
                 metadata.version,
                 VersionUpgradePolicy::Upgrade,
+                metadata.ts_out,
             )?,
             metadata,
         })
@@ -79,7 +80,7 @@ where
         let version = metadata.version;
         metadata.upgrade(upgrade_policy);
         Ok(Self {
-            decoder: RecordDecoder::with_version(reader, version, upgrade_policy)?,
+            decoder: RecordDecoder::with_version(reader, version, upgrade_policy, metadata.ts_out)?,
             metadata,
         })
     }
@@ -227,6 +228,7 @@ where
 {
     version: u8,
     upgrade_policy: VersionUpgradePolicy,
+    ts_out: bool,
     reader: R,
     state: DecoderState,
     framer: RecordFrameDecoder,
@@ -250,7 +252,7 @@ where
     /// Note: assumes the input is of the current DBN version. To decode records from a
     /// previous version, use [`RecordDecoder::with_version()`].
     pub fn new(reader: R) -> Self {
-        Self::with_version(reader, DBN_VERSION, VersionUpgradePolicy::AsIs).unwrap()
+        Self::with_version(reader, DBN_VERSION, VersionUpgradePolicy::AsIs, false).unwrap()
     }
 
     /// Creates a new `RecordDecoder` that will decode from `reader`
@@ -262,6 +264,7 @@ where
         reader: R,
         version: u8,
         upgrade_policy: VersionUpgradePolicy,
+        ts_out: bool,
     ) -> crate::Result<Self> {
         if version > DBN_VERSION {
             return Err(crate::Error::decode(format!("can't decode newer version of DBN. Decoder version is {DBN_VERSION}, input version is {version}")));
@@ -269,6 +272,7 @@ where
         Ok(Self {
             version,
             upgrade_policy,
+            ts_out,
             reader,
             state: DecoderState::Read,
             framer: RecordFrameDecoder::Head,
@@ -294,6 +298,11 @@ where
     /// Sets the behavior for decoding DBN data of previous versions.
     pub fn set_upgrade_policy(&mut self, upgrade_policy: VersionUpgradePolicy) {
         self.upgrade_policy = upgrade_policy;
+    }
+
+    /// Sets whether to expect a send timestamp appended after every record.
+    pub fn set_ts_out(&mut self, ts_out: bool) {
+        self.ts_out = ts_out;
     }
 
     /// Tries to decode a single record and returns a reference to the record that
@@ -367,6 +376,7 @@ where
                         compat::decode_record_ref(
                             self.version,
                             self.upgrade_policy,
+                            self.ts_out,
                             &mut self.compat_buf,
                             // Recreate slice to get around borrow checker
                             std::slice::from_raw_parts(frame.as_ptr(), frame.len()),

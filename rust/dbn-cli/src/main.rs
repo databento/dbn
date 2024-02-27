@@ -14,9 +14,16 @@ use dbn_cli::{
 const STDIN_SENTINEL: &str = "-";
 
 fn wrap_frag(args: &Args, reader: impl io::Read) -> anyhow::Result<impl DecodeRecordRef> {
+    // assume no ts_out for fragments
+    const TS_OUT: bool = false;
     Ok(LimitFilter::new_no_metadata(
         SchemaFilter::new_no_metadata(
-            DbnRecordDecoder::with_version(reader, args.input_version(), args.upgrade_policy())?,
+            DbnRecordDecoder::with_version(
+                reader,
+                args.input_version(),
+                args.upgrade_policy(),
+                TS_OUT,
+            )?,
             args.schema_filter,
         ),
         args.limit,

@@ -5,7 +5,7 @@ use crate::{
     macros::{dbn_record, CsvSerialize, JsonSerialize},
     record::{transmute_header_bytes, transmute_record_bytes},
     rtype, HasRType, RecordHeader, RecordRef, SecurityUpdateAction, UserDefinedInstrument,
-    VersionUpgradePolicy,
+    VersionUpgradePolicy, WithTsOut,
 };
 
 // Dummy derive macro to get around `cfg_attr` incompatibility of several
@@ -44,6 +44,7 @@ pub use crate::record::SystemMsg as SystemMsgV2;
 pub unsafe fn decode_record_ref<'a>(
     version: u8,
     upgrade_policy: VersionUpgradePolicy,
+    ts_out: bool,
     compat_buffer: &'a mut [u8; crate::MAX_RECORD_LEN],
     input: &'a [u8],
 ) -> RecordRef<'a> {
@@ -51,34 +52,49 @@ pub unsafe fn decode_record_ref<'a>(
         let header = transmute_header_bytes(input).unwrap();
         match header.rtype {
             rtype::INSTRUMENT_DEF => {
-                let definition = InstrumentDefMsgV2::from(
-                    transmute_record_bytes::<InstrumentDefMsgV1>(input).unwrap(),
+                return upgrade_record::<InstrumentDefMsgV1, InstrumentDefMsgV2>(
+                    ts_out,
+                    compat_buffer,
+                    input,
                 );
-                std::ptr::copy_nonoverlapping(&definition, compat_buffer.as_mut_ptr().cast(), 1);
-                return RecordRef::new(compat_buffer);
             }
             rtype::SYMBOL_MAPPING => {
-                let definition = SymbolMappingMsgV2::from(
-                    transmute_record_bytes::<SymbolMappingMsgV1>(input).unwrap(),
+                return upgrade_record::<SymbolMappingMsgV1, SymbolMappingMsgV2>(
+                    ts_out,
+                    compat_buffer,
+                    input,
                 );
-                std::ptr::copy_nonoverlapping(&definition, compat_buffer.as_mut_ptr().cast(), 1);
-                return RecordRef::new(compat_buffer);
             }
             rtype::ERROR => {
-                let system = ErrorMsgV2::from(transmute_record_bytes::<ErrorMsgV1>(input).unwrap());
-                std::ptr::copy_nonoverlapping(&system, compat_buffer.as_mut_ptr().cast(), 1);
-                return RecordRef::new(compat_buffer);
+                return upgrade_record::<ErrorMsgV1, ErrorMsgV2>(ts_out, compat_buffer, input);
             }
             rtype::SYSTEM => {
-                let system =
-                    SystemMsgV2::from(transmute_record_bytes::<SystemMsgV1>(input).unwrap());
-                std::ptr::copy_nonoverlapping(&system, compat_buffer.as_mut_ptr().cast(), 1);
-                return RecordRef::new(compat_buffer);
+                return upgrade_record::<SystemMsgV1, SystemMsgV2>(ts_out, compat_buffer, input);
             }
             _ => (),
         }
     }
     RecordRef::new(input)
+}
+
+unsafe fn upgrade_record<'a, T, U>(
+    ts_out: bool,
+    compat_buffer: &'a mut [u8; crate::MAX_RECORD_LEN],
+    input: &'a [u8],
+) -> RecordRef<'a>
+where
+    T: HasRType,
+    U: HasRType + for<'b> From<&'b T>,
+{
+    if ts_out {
+        let rec = transmute_record_bytes::<WithTsOut<T>>(input).unwrap();
+        let upgraded = WithTsOut::new(U::from(&rec.rec), rec.ts_out);
+        std::ptr::copy_nonoverlapping(&upgraded, compat_buffer.as_mut_ptr().cast(), 1);
+    } else {
+        let upgraded = U::from(transmute_record_bytes::<T>(input).unwrap());
+        std::ptr::copy_nonoverlapping(&upgraded, compat_buffer.as_mut_ptr().cast(), 1);
+    }
+    RecordRef::new(compat_buffer)
 }
 
 /// Definition of an instrument in DBN version 1. The record of the
@@ -621,9 +637,12 @@ impl SymbolMappingRec for SymbolMappingMsgV2 {
 
 #[cfg(test)]
 mod tests {
-    use std::mem;
+    use std::{ffi::c_char, mem};
 
+    use time::OffsetDateTime;
     use type_layout::{Field, TypeLayout};
+
+    use crate::{Mbp1Msg, Record, MAX_RECORD_LEN};
 
     use super::*;
 
@@ -670,5 +689,58 @@ mod tests {
                 "Detected padding: {layout}"
             );
         }
+    }
+
+    #[test]
+    fn upgrade_symbol_mapping_ts_out() -> crate::Result<()> {
+        let orig = WithTsOut::new(
+            SymbolMappingMsgV1::new(1, 2, "ES.c.0", "ESH4", 0, 0)?,
+            OffsetDateTime::now_utc().unix_timestamp_nanos() as u64,
+        );
+        let mut compat_buffer = [0; MAX_RECORD_LEN];
+        let res = unsafe {
+            decode_record_ref(
+                1,
+                VersionUpgradePolicy::Upgrade,
+                true,
+                &mut compat_buffer,
+                orig.as_ref(),
+            )
+        };
+        let upgraded = res.get::<WithTsOut<SymbolMappingMsgV2>>().unwrap();
+        assert_eq!(orig.ts_out, upgraded.ts_out);
+        assert_eq!(orig.rec.stype_in_symbol()?, upgraded.rec.stype_in_symbol()?);
+        assert_eq!(
+            orig.rec.stype_out_symbol()?,
+            upgraded.rec.stype_out_symbol()?
+        );
+        assert_eq!(upgraded.record_size(), std::mem::size_of_val(upgraded));
+        // used compat buffer
+        assert!(std::ptr::addr_eq(upgraded.header(), compat_buffer.as_ptr()));
+        Ok(())
+    }
+
+    #[test]
+    fn upgrade_mbp1_ts_out() -> crate::Result<()> {
+        let rec = Mbp1Msg {
+            price: 1_250_000_000,
+            side: b'A' as c_char,
+            ..Default::default()
+        };
+        let orig = WithTsOut::new(rec, OffsetDateTime::now_utc().unix_timestamp_nanos() as u64);
+        let mut compat_buffer = [0; MAX_RECORD_LEN];
+        let res = unsafe {
+            decode_record_ref(
+                1,
+                VersionUpgradePolicy::Upgrade,
+                true,
+                &mut compat_buffer,
+                orig.as_ref(),
+            )
+        };
+        let upgraded = res.get::<WithTsOut<Mbp1Msg>>().unwrap();
+        // compat buffer unused and pointer unchanged
+        assert!(std::ptr::eq(orig.header(), upgraded.header()));
+        Ok(())
     }
 }

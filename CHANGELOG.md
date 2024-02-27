@@ -10,6 +10,8 @@
   field delimiter character, allowing DBN to be encoded as tab-separated values (TSV)
 - Document cancellation safety for `AsyncRecordDecoder::decode_ref` (credit: @yongqli)
 - Added new publisher values for consolidated DBEQ.MAX
+- Added C FFI conversion functions from `ErrorMsgV1` to `ErrorMsg` and `SystemMsgV1`
+  to `SystemMsg`
 - Upgraded `async-compression` to 0.4.6
 - Upgraded `strum` to 0.26
 
@@ -24,10 +26,14 @@
 - Made `StatType` and  `VersionUpgradePolicy` non-exhaustive to allow future additions
   without breaking changes
 - Renamed `_dummy` field in `ImbalanceMsg` and `StatMsg` to `_reserved`
+- Added `ts_out` parameter to `RecordDecoder` and `AsyncRecordDecoder`
+  `with_upgrade_policy` methods
 
 ### Bug fixes
+- Fixed handling of `ts_out` when upgrading DBNv1 records to version 2
 - Added missing `StatType::Vwap` variant used in the ICE datasets
 - Fixed an issue with Python stub file distribution
+- Fixed missing handling of `ErrorMsgV1` and `SystemMsgV1` in `rtype` dispatch macros
 
 ## 0.15.1 - 2024-01-23
 

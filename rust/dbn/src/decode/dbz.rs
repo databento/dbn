@@ -121,6 +121,7 @@ impl<R: io::BufRead> DecodeRecordRef for Decoder<R> {
             compat::decode_record_ref(
                 1,
                 self.upgrade_policy,
+                self.metadata.ts_out,
                 &mut self.compat_buffer,
                 &self.read_buffer,
             )
