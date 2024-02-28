@@ -785,41 +785,63 @@ pub enum StatusReason {
     InstrumentExpiration = 5,
     /// Recovery in progress.
     RecoveryInProcess = 6,
-    /// The status change was caused by regulatory action.
-    Regulatory = 7,
-    /// The status change was caused by administrative action.
-    Administrative = 8,
+    /// The status change was caused by a regulatory action.
+    Regulatory = 10,
+    /// The status change was caused by an administrative action.
+    Administrative = 11,
+    /// The status change was caused by the issuer not being compliance with regulatory
+    /// requirements.
+    NonCompliance = 12,
+    /// Trading halted because the issuer's filings are not current.
+    FilingsNotCurrent = 13,
+    /// Trading halted due to an SEC trading suspension.
+    SecTradingSuspension = 14,
+    /// The status changed because a new issue is available.
+    NewIssue = 15,
+    /// The status changed because an issue is available.
+    IssueAvailable = 16,
+    /// The status changed because the issue was reviewed.
+    IssuesReviewed = 17,
+    /// The status changed because the filing requirements were satisfied.
+    FilingReqsSatisfied = 18,
     /// Relevant news is pending.
-    NewsPending = 9,
+    NewsPending = 30,
     /// Relevant news was released.
-    NewsReleased = 10,
+    NewsReleased = 31,
+    /// The news has been fully disseminated and times are available for the resumption
+    /// in quoting and trading.
+    NewsAndResumptionTimes = 32,
+    /// The relevants news was not forthcoming.
+    NewsNotForthcoming = 33,
     /// Halted for order imbalance.
-    OrderImbalance = 11,
+    OrderImbalance = 40,
     /// The instrument hit limit up or limit down.
-    LuldPause = 12,
+    LuldPause = 50,
     /// An operational issue occurred with the venue.
-    Operational = 13,
+    Operational = 60,
     /// The status changed until the exchange receives additional information.
-    AdditionalInformationRequested = 14,
+    AdditionalInformationRequested = 70,
     /// Trading halted due to merger becoming effective.
-    MergerEffective = 15,
+    MergerEffective = 80,
     /// Trading is halted in an ETF due to conditions with the component securities.
-    Etf = 16,
+    Etf = 90,
     /// Trading is halted for a corporate action.
-    CorporateAction = 17,
+    CorporateAction = 100,
     /// Trading is halted because the instrument is a new offering.
-    NewSecurityOffering = 18,
+    NewSecurityOffering = 110,
     /// Halted due to the market-wide circuit breaker level 1.
-    MarketWideHaltLevel1 = 19,
+    MarketWideHaltLevel1 = 120,
     /// Halted due to the market-wide circuit breaker level 2.
-    MarketWideHaltLevel2 = 20,
+    MarketWideHaltLevel2 = 121,
     /// Halted due to the market-wide circuit breaker level 3.
-    MarketWideHaltLevel3 = 21,
+    MarketWideHaltLevel3 = 122,
     /// Halted due to the carryover of a market-wide circuit breaker from the previous
     /// trading day.
-    MarketWideHaltCarryover = 22,
+    MarketWideHaltCarryover = 123,
+    /// Resumption due to the end of the a market-wide circuit breaker halt.
+    MarketWideHaltResumption = 124,
     /// Halted because quotation is not available.
-    QuotationNotAvailable = 23,
+    QuotationNotAvailable = 130,
 }
 
 /// Further information about a status update.
