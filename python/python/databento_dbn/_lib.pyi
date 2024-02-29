@@ -697,7 +697,9 @@ class _MBOBase:
     @property
     def side(self) -> str:
         """
-        The order side. Can be `A`sk, `B`id or `N`one.
+        The side that initiates the event. Can be `A`sk for a sell order (or sell
+        aggressor in a trade), `B`id for a buy order (or buy aggressor in a trade), or
+        `N`one where no side is specified by the original source.
 
         Returns
         -------
@@ -914,7 +916,9 @@ class _MBPBase:
     @property
     def side(self) -> str:
         """
-        The order side. Can be `A`sk, `B`id or `N`one.
+        The side that initiates the event. Can be `A`sk for a sell order (or sell
+        aggressor in a trade), `B`id for a buy order (or buy aggressor in a trade), or
+        `N`one where no side is specified by the original source.
 
         Returns
         -------

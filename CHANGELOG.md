@@ -12,6 +12,7 @@
 - Added new publisher values for consolidated DBEQ.MAX
 - Added C FFI conversion functions from `ErrorMsgV1` to `ErrorMsg` and `SystemMsgV1`
   to `SystemMsg`
+- Improved documentation for `side` field and `Side` enum
 - Upgraded `async-compression` to 0.4.6
 - Upgraded `strum` to 0.26
 

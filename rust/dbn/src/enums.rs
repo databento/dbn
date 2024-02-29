@@ -17,11 +17,11 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive)]
 #[repr(u8)]
 pub enum Side {
-    /// A sell order.
+    /// A sell order or sell aggressor in a trade.
     Ask = b'A',
-    /// A buy order.
+    /// A buy order or a buy aggressor in a trade.
     Bid = b'B',
-    /// None or unknown.
+    /// No side specified by the original source.
     None = b'N',
 }
 

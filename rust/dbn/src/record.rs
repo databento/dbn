@@ -104,7 +104,9 @@ pub struct MboMsg {
     /// **T**rade, or **F**ill.
     #[dbn(c_char, encode_order(2))]
     pub action: c_char,
-    /// The order side. Can be **A**sk, **B**id or **N**one.
+    /// The side that initiates the event. Can be **A**sk for a sell order (or sell
+    /// aggressor in a trade), **B**id for a buy order (or buy aggressor in a trade), or
+    /// **N**one where no side is specified by the original source.
     #[dbn(c_char, encode_order(3))]
     pub side: c_char,
     /// The capture-server-received timestamp expressed as number of nanoseconds since
@@ -177,7 +179,9 @@ pub struct TradeMsg {
     /// The event action. Always **T**rade in the trades schema.
     #[dbn(c_char, encode_order(2))]
     pub action: c_char,
-    /// The aggressing order's side in the trade. Can be **A**sk, **B**id or **N**one.
+    /// The side that initiates the trade. Can be **A**sk for a sell aggressor in a
+    /// trade, **B**id for a buy aggressor in a trade, or **N**one where no side is
+    /// specified by the original source.
     #[dbn(c_char, encode_order(3))]
     pub side: c_char,
     /// A combination of packet end with matching engine status. See
@@ -232,7 +236,9 @@ pub struct Mbp1Msg {
     /// **T**rade.
     #[dbn(c_char, encode_order(2))]
     pub action: c_char,
-    /// The order side. Can be **A**sk, **B**id or **N**one.
+    /// The side that initiates the event. Can be **A**sk for a sell order (or sell
+    /// aggressor in a trade), **B**id for a buy order (or buy aggressor in a trade), or
+    /// **N**one where no side is specified by the original source.
     #[dbn(c_char, encode_order(3))]
     pub side: c_char,
     /// A combination of packet end with matching engine status. See
@@ -290,7 +296,9 @@ pub struct Mbp10Msg {
     /// **T**rade.
     #[dbn(c_char, encode_order(2))]
     pub action: c_char,
-    /// The order side. Can be **A**sk, **B**id or **N**one.
+    /// The side that initiates the event. Can be **A**sk for a sell order (or sell
+    /// aggressor in a trade), **B**id for a buy order (or buy aggressor in a trade), or
+    /// **N**one where no side is specified by the original source.
     #[dbn(c_char, encode_order(3))]
     pub side: c_char,
     /// A combination of packet end with matching engine status. See
