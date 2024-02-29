@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.16.0 - TBD
+## 0.16.0 - 2024-03-01
 ### Enhancements
 - Updated `StatusMsg` and made it public in preparation for releasing a status schema
 - Added `StatusAction`, `StatusReason`, `TradingEvent`, and `TriState` enums for use in
