@@ -57,8 +57,8 @@ pub mod symbol_map;
 pub use crate::{
     enums::{
         flags, rtype, Action, Compression, Encoding, InstrumentClass, MatchAlgorithm, RType, SType,
-        Schema, SecurityUpdateAction, Side, StatType, StatUpdateAction, UserDefinedInstrument,
-        VersionUpgradePolicy,
+        Schema, SecurityUpdateAction, Side, StatType, StatUpdateAction, StatusAction, StatusReason,
+        TradingEvent, TriState, UserDefinedInstrument, VersionUpgradePolicy,
     },
     error::{Error, Result},
     metadata::{MappingInterval, Metadata, MetadataBuilder, SymbolMapping},
@@ -98,7 +98,7 @@ pub const UNDEF_STAT_QUANTITY: i32 = i32::MAX;
 /// The sentinel value for an unset or null timestamp.
 pub const UNDEF_TIMESTAMP: u64 = u64::MAX;
 /// The length in bytes of the largest record type.
-pub const MAX_RECORD_LEN: usize = std::mem::size_of::<InstrumentDefMsg>();
+pub const MAX_RECORD_LEN: usize = std::mem::size_of::<WithTsOut<InstrumentDefMsg>>();
 
 /// Contains dataset code constants.
 pub mod datasets {

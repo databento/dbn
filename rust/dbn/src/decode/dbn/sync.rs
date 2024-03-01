@@ -42,6 +42,7 @@ where
                 reader,
                 metadata.version,
                 VersionUpgradePolicy::AsIs,
+                metadata.ts_out,
             )?,
             metadata,
         })
@@ -62,7 +63,7 @@ where
         let version = metadata.version;
         metadata.upgrade(upgrade_policy);
         Ok(Self {
-            decoder: RecordDecoder::with_version(reader, version, upgrade_policy)?,
+            decoder: RecordDecoder::with_version(reader, version, upgrade_policy, metadata.ts_out)?,
             metadata,
         })
     }
@@ -209,6 +210,7 @@ pub struct RecordDecoder<R> {
     /// For future use with reading different DBN versions.
     version: u8,
     upgrade_policy: VersionUpgradePolicy,
+    ts_out: bool,
     reader: R,
     read_buffer: Vec<u8>,
     compat_buffer: [u8; crate::MAX_RECORD_LEN],
@@ -224,7 +226,7 @@ where
     /// previous version, use [`RecordDecoder::with_version()`].
     pub fn new(reader: R) -> Self {
         // upgrade policy doesn't matter when decoding current DBN version
-        Self::with_version(reader, DBN_VERSION, VersionUpgradePolicy::AsIs).unwrap()
+        Self::with_version(reader, DBN_VERSION, VersionUpgradePolicy::AsIs, false).unwrap()
     }
 
     /// Creates a new `RecordDecoder` that will decode from `reader` with the specified
@@ -237,6 +239,7 @@ where
         reader: R,
         version: u8,
         upgrade_policy: VersionUpgradePolicy,
+        ts_out: bool,
     ) -> crate::Result<Self> {
         if version > DBN_VERSION {
             return Err(crate::Error::decode(format!("can't decode newer version of DBN. Decoder version is {DBN_VERSION}, input version is {version}")));
@@ -245,6 +248,7 @@ where
             version,
             upgrade_policy,
             reader,
+            ts_out,
             // `read_buffer` should have capacity for reading `length`
             read_buffer: vec![0],
             compat_buffer: [0; crate::MAX_RECORD_LEN],
@@ -268,6 +272,11 @@ where
     /// Sets the behavior for decoding DBN data of previous versions.
     pub fn set_upgrade_policy(&mut self, upgrade_policy: VersionUpgradePolicy) {
         self.upgrade_policy = upgrade_policy;
+    }
+
+    /// Sets whether to expect a send timestamp appended after every record.
+    pub fn set_ts_out(&mut self, ts_out: bool) {
+        self.ts_out = ts_out;
     }
 
     /// Returns a mutable reference to the inner reader.
@@ -340,6 +349,7 @@ where
             compat::decode_record_ref(
                 self.version,
                 self.upgrade_policy,
+                self.ts_out,
                 &mut self.compat_buffer,
                 &self.read_buffer,
             )
@@ -888,22 +898,28 @@ mod tests {
         #[case] compression: Compression,
         #[case] _rec: R,
     ) -> Result<()> {
-        let file_decoder = Decoder::new(DynReader::from_file(format!(
-            "{TEST_DATA_PATH}/test_data.{schema}{}.{}",
-            if version == 1 { ".v1" } else { "" },
-            if compression == Compression::ZStd {
-                "dbn.zst"
-            } else {
-                "dbn"
-            }
-        ))?)?;
+        let file_decoder = Decoder::with_upgrade_policy(
+            DynReader::from_file(format!(
+                "{TEST_DATA_PATH}/test_data.{schema}{}.{}",
+                if version == 1 { ".v1" } else { "" },
+                if compression == Compression::ZStd {
+                    "dbn.zst"
+                } else {
+                    "dbn"
+                }
+            ))?,
+            VersionUpgradePolicy::AsIs,
+        )?;
         let file_metadata = file_decoder.metadata().clone();
         let decoded_records = file_decoder.decode_records::<R>()?;
         let mut buffer = Vec::new();
 
         Encoder::new(DynWriter::new(&mut buffer, compression)?, &file_metadata)?
             .encode_records(decoded_records.as_slice())?;
-        let buf_decoder = Decoder::new(DynReader::inferred_with_buffer(buffer.as_slice())?)?;
+        let buf_decoder = Decoder::with_upgrade_policy(
+            DynReader::inferred_with_buffer(buffer.as_slice())?,
+            VersionUpgradePolicy::AsIs,
+        )?;
         assert_eq!(buf_decoder.metadata(), &file_metadata);
         assert_eq!(decoded_records, buf_decoder.decode_records()?);
         Ok(())
@@ -1026,6 +1042,7 @@ mod tests {
             .unwrap(),
             1,
             upgrade_policy,
+            false,
         )
         .unwrap();
         let mut count = 0;

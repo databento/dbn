@@ -1,15 +1,15 @@
 [package]
 name = "dbn-cli"
-authors = ["Databento <support@databento.com>"]
-version = "0.15.1"
-edition = "2021"
 description = "Command-line utility for converting Databento Binary Encoding (DBN) files to text-based formats"
 default-run = "dbn"
-license = "Apache-2.0"
-repository = "https://github.com/databento/dbn"
 keywords = ["market-data", "json", "csv", "conversion", "encoding"]
 # see https://crates.io/category_slugs
 categories = ["command-line-utilities", "encoding"]
+authors.workspace = true
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [[bin]]
 name = "dbn"
@@ -17,21 +17,22 @@ path = "src/main.rs"
 
 [dependencies]
 # Databento common DBN library
-dbn = { path = "../dbn", version = "=0.15.1", default-features = false }
+dbn = { path = "../dbn", version = "=0.16.0", default-features = false }
 
 # Error handling
 anyhow = "1.0"
 # CLI argument parsing
-clap = { version = "4.4", features = ["derive", "wrap_help"] }
+clap = { version = "4.5", features = ["derive", "wrap_help"] }
 # deserialization for CLI args
 serde = { version = "1.0", features = ["derive"] }
+# Compression
 zstd = "0.13"
 
 [dev-dependencies]
 # CLI integration tests
-assert_cmd = "2.0.13"
+assert_cmd = "2.0.14"
 # assert_cmd companion
-predicates = "3.0.4"
+predicates = "3.1.0"
 rstest = "0.18.2"
 # A library for managing temporary files and directories
-tempfile = "3.9.0"
+tempfile = "3.10.0"

@@ -1,7 +1,13 @@
 use dbn::{
-    compat::{InstrumentDefMsgV1, SymbolMappingMsgV1},
-    InstrumentDefMsg, SymbolMappingMsg,
+    compat::{ErrorMsgV1, InstrumentDefMsgV1, SymbolMappingMsgV1, SystemMsgV1},
+    ErrorMsg, InstrumentDefMsg, SymbolMappingMsg, SystemMsg,
 };
+
+/// Converts an V1 ErrorMsg to V2.
+#[no_mangle]
+pub extern "C" fn from_error_v1_to_v2(def_v1: &ErrorMsgV1) -> ErrorMsg {
+    ErrorMsg::from(def_v1)
+}
 
 /// Converts an V1 InstrumentDefMsg to V2.
 #[no_mangle]
@@ -13,4 +19,10 @@ pub extern "C" fn from_instrument_def_v1_to_v2(def_v1: &InstrumentDefMsgV1) -> I
 #[no_mangle]
 pub extern "C" fn from_symbol_mapping_v1_to_v2(def_v1: &SymbolMappingMsgV1) -> SymbolMappingMsg {
     SymbolMappingMsg::from(def_v1)
+}
+
+/// Converts an V1 SystemMsg to V2.
+#[no_mangle]
+pub extern "C" fn from_system_v1_to_v2(def_v1: &SystemMsgV1) -> SystemMsg {
+    SystemMsg::from(def_v1)
 }

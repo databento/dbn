@@ -68,9 +68,13 @@ impl DbnDecoder {
             }
         }
         let mut read_position = self.buffer.position() as usize;
-        let mut decoder =
-            RecordDecoder::with_version(&mut self.buffer, self.input_version, self.upgrade_policy)
-                .map_err(to_val_err)?;
+        let mut decoder = RecordDecoder::with_version(
+            &mut self.buffer,
+            self.input_version,
+            self.upgrade_policy,
+            self.ts_out,
+        )
+        .map_err(to_val_err)?;
         Python::with_gil(|py| -> PyResult<()> {
             while let Some(rec) = decoder.decode_ref().map_err(to_val_err)? {
                 // Bug in clippy generates an error here. trivial_copy feature isn't enabled,

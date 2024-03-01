@@ -17,11 +17,11 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive)]
 #[repr(u8)]
 pub enum Side {
-    /// A sell order.
+    /// A sell order or sell aggressor in a trade.
     Ask = b'A',
-    /// A buy order.
+    /// A buy order or a buy aggressor in a trade.
     Bid = b'B',
-    /// None or unknown.
+    /// No side specified by the original source.
     None = b'N',
 }
 
@@ -455,8 +455,7 @@ pub enum Schema {
     /// Additional data disseminated by publishers.
     #[pyo3(name = "STATISTICS")]
     Statistics = 10,
-    /// Exchange status.
-    #[doc(hidden)]
+    /// Trading status events.
     #[pyo3(name = "STATUS")]
     Status = 11,
     /// Auction imbalance events.
@@ -654,6 +653,7 @@ pub mod flags {
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::manual_non_exhaustive)] // false positive
 pub enum SecurityUpdateAction {
     /// A new instrument definition.
     Add = b'A',
@@ -669,6 +669,7 @@ pub enum SecurityUpdateAction {
 /// The type of statistic contained in a [`StatMsg`](crate::record::StatMsg).
 #[repr(u16)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive)]
+#[non_exhaustive]
 pub enum StatType {
     /// The price of the first trade of an instrument. `price` will be set.
     OpeningPrice = 1,
@@ -706,6 +707,10 @@ pub enum StatType {
     /// The change in price from the close price of the previous trading session to the
     /// most recent trading session. `price` will be set.
     NetChange = 12,
+    /// The volume-weighted average price (VWAP) during the trading session.
+    /// `price` will be set to the VWAP while `quantity` will be the traded
+    /// volume.
+    Vwap = 13,
 }
 
 /// The type of [`StatMsg`](crate::record::StatMsg) update.
@@ -718,6 +723,179 @@ pub enum StatUpdateAction {
     Delete = 2,
 }
 
+/// The primary enum for the type of [`StatusMsg`](crate::record::StatusMsg) update.
+#[repr(u16)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive, Default)]
+#[non_exhaustive]
+pub enum StatusAction {
+    /// No change.
+    #[default]
+    None = 0,
+    /// The instrument is in a pre-open period.
+    PreOpen = 1,
+    /// The instrument is in a pre-cross period.
+    PreCross = 2,
+    /// The instrument is quoting but not trading.
+    Quoting = 3,
+    /// The instrument is in a cross/auction.
+    Cross = 4,
+    /// The instrument is being opened through a trading rotation.
+    Rotation = 5,
+    /// A new price indication is available for the instrument.
+    NewPriceIndication = 6,
+    /// The instrument is trading.
+    Trading = 7,
+    /// Trading in the instrument has been halted.
+    Halt = 8,
+    /// Trading in the instrument has been paused.
+    Pause = 9,
+    /// Trading in the instrument has been suspended.
+    Suspend = 10,
+    /// The instrument is in a pre-close period.
+    PreClose = 11,
+    /// Trading in the instrument has closed.
+    Close = 12,
+    /// The instrument is in a post-close period.
+    PostClose = 13,
+    /// A change in short-selling restrictions.
+    SsrChange = 14,
+    /// The instrument is not available for trading, either trading has closed or been
+    /// halted.
+    NotAvailableForTrading = 15,
+}
+
+/// The secondary enum for a [`StatusMsg`](crate::record::StatusMsg) update, explains
+/// the cause of a halt or other change in `action`.
+#[repr(u16)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive, Default)]
+#[non_exhaustive]
+pub enum StatusReason {
+    /// No reason is given.
+    #[default]
+    None = 0,
+    /// The change in status occurred as scheduled.
+    Scheduled = 1,
+    /// The instrument stopped due to a market surveillance intervention.
+    SurveillanceIntervention = 2,
+    /// The status changed due to activity in the market.
+    MarketEvent = 3,
+    /// The derivative instrument began trading.
+    InstrumentActivation = 4,
+    /// The derivative instrument expired.
+    InstrumentExpiration = 5,
+    /// Recovery in progress.
+    RecoveryInProcess = 6,
+    /// The status change was caused by a regulatory action.
+    Regulatory = 10,
+    /// The status change was caused by an administrative action.
+    Administrative = 11,
+    /// The status change was caused by the issuer not being compliance with regulatory
+    /// requirements.
+    NonCompliance = 12,
+    /// Trading halted because the issuer's filings are not current.
+    FilingsNotCurrent = 13,
+    /// Trading halted due to an SEC trading suspension.
+    SecTradingSuspension = 14,
+    /// The status changed because a new issue is available.
+    NewIssue = 15,
+    /// The status changed because an issue is available.
+    IssueAvailable = 16,
+    /// The status changed because the issue was reviewed.
+    IssuesReviewed = 17,
+    /// The status changed because the filing requirements were satisfied.
+    FilingReqsSatisfied = 18,
+    /// Relevant news is pending.
+    NewsPending = 30,
+    /// Relevant news was released.
+    NewsReleased = 31,
+    /// The news has been fully disseminated and times are available for the resumption
+    /// in quoting and trading.
+    NewsAndResumptionTimes = 32,
+    /// The relevants news was not forthcoming.
+    NewsNotForthcoming = 33,
+    /// Halted for order imbalance.
+    OrderImbalance = 40,
+    /// The instrument hit limit up or limit down.
+    LuldPause = 50,
+    /// An operational issue occurred with the venue.
+    Operational = 60,
+    /// The status changed until the exchange receives additional information.
+    AdditionalInformationRequested = 70,
+    /// Trading halted due to merger becoming effective.
+    MergerEffective = 80,
+    /// Trading is halted in an ETF due to conditions with the component securities.
+    Etf = 90,
+    /// Trading is halted for a corporate action.
+    CorporateAction = 100,
+    /// Trading is halted because the instrument is a new offering.
+    NewSecurityOffering = 110,
+    /// Halted due to the market-wide circuit breaker level 1.
+    MarketWideHaltLevel1 = 120,
+    /// Halted due to the market-wide circuit breaker level 2.
+    MarketWideHaltLevel2 = 121,
+    /// Halted due to the market-wide circuit breaker level 3.
+    MarketWideHaltLevel3 = 122,
+    /// Halted due to the carryover of a market-wide circuit breaker from the previous
+    /// trading day.
+    MarketWideHaltCarryover = 123,
+    /// Resumption due to the end of the a market-wide circuit breaker halt.
+    MarketWideHaltResumption = 124,
+    /// Halted because quotation is not available.
+    QuotationNotAvailable = 130,
+}
+
+/// Further information about a status update.
+#[repr(u16)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive, Default)]
+#[non_exhaustive]
+pub enum TradingEvent {
+    /// No additional information given.
+    #[default]
+    None = 0,
+    /// Order entry and modification are not allowed.
+    NoCancel = 1,
+    /// A change of trading session occurred. Daily statistics are reset.
+    ChangeTradingSession = 2,
+    /// Implied matching is available.
+    ImpliedMatchingOn = 3,
+    /// Implied matching is not available.
+    ImpliedMatchingOff = 4,
+}
+
+/// An enum for representing unknown, true, or false values. Equivalent to
+/// `Option<bool>` but with a human-readable repr.
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive, Default)]
+pub enum TriState {
+    /// The value is not applicable or not known.
+    #[default]
+    NotAvailable = b'~',
+    /// False
+    No = b'N',
+    /// True
+    Yes = b'Y',
+}
+
+impl From<TriState> for Option<bool> {
+    fn from(value: TriState) -> Self {
+        match value {
+            TriState::NotAvailable => None,
+            TriState::No => Some(false),
+            TriState::Yes => Some(true),
+        }
+    }
+}
+
+impl From<Option<bool>> for TriState {
+    fn from(value: Option<bool>) -> Self {
+        match value {
+            Some(true) => Self::Yes,
+            Some(false) => Self::No,
+            None => Self::NotAvailable,
+        }
+    }
+}
+
 /// How to handle decoding DBN data from a prior version.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(
@@ -725,13 +903,14 @@ pub enum StatUpdateAction {
     pyo3::pyclass(module = "databento_dbn", rename_all = "SCREAMING_SNAKE_CASE")
 )]
 #[cfg_attr(feature = "python", derive(strum::EnumIter))]
+#[non_exhaustive]
 pub enum VersionUpgradePolicy {
-    /// Decode data from previous versions as-is. Currently the default.
-    #[default]
+    /// Decode data from previous versions as-is.
     AsIs,
     /// Decode data from previous versions converting it to the latest version. This
     /// breaks zero-copy decoding for structs that need updating, but makes usage
     /// simpler.
+    #[default]
     Upgrade,
 }
 

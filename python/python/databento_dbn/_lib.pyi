@@ -5,7 +5,9 @@ import datetime as dt
 from collections.abc import Iterable
 from collections.abc import Sequence
 from enum import Enum
-from typing import BinaryIO, ClassVar, Protocol, SupportsBytes, TextIO, TypedDict, Union
+from typing import BinaryIO, ClassVar, SupportsBytes, TextIO, TypedDict, Union
+
+from databento_dbn import SymbolMapping
 
 
 FIXED_PRICE_SCALE: int
@@ -32,33 +34,6 @@ _DBNRecord = Union[
     SystemMsgV1,
     StatMsg,
 ]
-
-class MappingInterval(Protocol):
-    """
-    Represents a symbol mapping over a start and end date range interval.
-
-    Parameters
-    ----------
-    start_date : dt.date
-        The start of the mapping period.
-    end_date : dt.date
-        The end of the mapping period.
-    symbol : str
-        The symbol value.
-
-    """
-
-    start_date: dt.date
-    end_date: dt.date
-    symbol: str
-
-class SymbolMapping(Protocol):
-    """
-    Represents the mappings for one native symbol.
-    """
-
-    raw_symbol: str
-    intervals: Sequence[MappingInterval]
 
 class Compression(Enum):
     """
@@ -722,7 +697,9 @@ class _MBOBase:
     @property
     def side(self) -> str:
         """
-        The order side. Can be `A`sk, `B`id or `N`one.
+        The side that initiates the event. Can be `A`sk for a sell order (or sell
+        aggressor in a trade), `B`id for a buy order (or buy aggressor in a trade), or
+        `N`one where no side is specified by the original source.
 
         Returns
         -------
@@ -939,7 +916,9 @@ class _MBPBase:
     @property
     def side(self) -> str:
         """
-        The order side. Can be `A`sk, `B`id or `N`one.
+        The side that initiates the event. Can be `A`sk for a sell order (or sell
+        aggressor in a trade), `B`id for a buy order (or buy aggressor in a trade), or
+        `N`one where no side is specified by the original source.
 
         Returns
         -------

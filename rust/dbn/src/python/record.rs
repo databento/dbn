@@ -12,8 +12,9 @@ use crate::{
     record::str_to_c_chars,
     rtype, BidAskPair, ErrorMsg, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg,
     Mbp1Msg, OhlcvMsg, Record, RecordHeader, SType, SecurityUpdateAction, StatMsg,
-    StatUpdateAction, StatusMsg, SymbolMappingMsg, SystemMsg, TradeMsg, UserDefinedInstrument,
-    WithTsOut, FIXED_PRICE_SCALE, UNDEF_ORDER_SIZE, UNDEF_PRICE, UNDEF_TIMESTAMP,
+    StatUpdateAction, StatusAction, StatusMsg, StatusReason, SymbolMappingMsg, SystemMsg, TradeMsg,
+    TradingEvent, TriState, UserDefinedInstrument, WithTsOut, FIXED_PRICE_SCALE, UNDEF_ORDER_SIZE,
+    UNDEF_PRICE, UNDEF_TIMESTAMP,
 };
 
 use super::{to_val_err, PyFieldDesc};
@@ -779,18 +780,23 @@ impl StatusMsg {
         instrument_id: u32,
         ts_event: u64,
         ts_recv: u64,
-        group: &str,
-        trading_status: u8,
-        halt_reason: u8,
-        trading_event: u8,
+        action: Option<u16>,
+        reason: Option<u16>,
+        trading_event: Option<u16>,
+        is_trading: Option<bool>,
+        is_quoting: Option<bool>,
+        is_short_sell_restricted: Option<bool>,
     ) -> PyResult<Self> {
         Ok(Self {
             hd: RecordHeader::new::<Self>(rtype::STATUS, publisher_id, instrument_id, ts_event),
             ts_recv,
-            group: str_to_c_chars(group).map_err(to_val_err)?,
-            trading_status,
-            halt_reason,
-            trading_event,
+            action: action.unwrap_or_else(|| StatusAction::default() as u16),
+            reason: reason.unwrap_or_else(|| StatusReason::default() as u16),
+            trading_event: trading_event.unwrap_or_else(|| TradingEvent::default() as u16),
+            is_trading: TriState::from(is_trading) as u8 as c_char,
+            is_quoting: TriState::from(is_quoting) as u8 as c_char,
+            is_short_sell_restricted: TriState::from(is_short_sell_restricted) as u8 as c_char,
+            _reserved: Default::default(),
         })
     }
 
@@ -850,12 +856,6 @@ impl StatusMsg {
     #[classattr]
     fn size_hint() -> PyResult<usize> {
         Ok(mem::size_of::<StatMsg>())
-    }
-
-    #[getter]
-    #[pyo3(name = "group")]
-    fn py_group(&self) -> PyResult<&str> {
-        self.group().map_err(to_val_err)
     }
 
     #[classattr]
@@ -1748,7 +1748,7 @@ impl ImbalanceMsg {
             num_extensions: 0,
             unpaired_side: 0,
             significant_imbalance,
-            _dummy: [0],
+            _reserved: [0],
         }
     }
 
@@ -1913,7 +1913,7 @@ impl StatMsg {
             channel_id,
             update_action: update_action.unwrap_or(StatUpdateAction::New as u8),
             stat_flags: stat_flags.unwrap_or_default(),
-            _dummy: Default::default(),
+            _reserved: Default::default(),
         }
     }
 

@@ -419,10 +419,13 @@ mod tests {
         let data = vec![StatusMsg {
             hd: RECORD_HEADER,
             ts_recv: 1658441891000000000,
-            group: str_to_c_chars("group").unwrap(),
-            trading_status: 3,
-            halt_reason: 4,
-            trading_event: 6,
+            action: 1,
+            reason: 2,
+            trading_event: 3,
+            is_trading: b'Y' as c_char,
+            is_quoting: b'Y' as c_char,
+            is_short_sell_restricted: b'~' as c_char,
+            _reserved: Default::default(),
         }];
         let slice_res = write_json_to_string(data.as_slice(), false, false, true);
         let stream_res = write_json_stream_to_string(data, false, false, true);
@@ -431,9 +434,10 @@ mod tests {
         assert_eq!(
             slice_res,
             format!(
-                "{{{},{}}}\n",
+                "{{{},{},{}}}\n",
+                r#""ts_recv":"2022-07-21T22:18:11.000000000Z""#,
                 r#""hd":{"ts_event":"2022-07-21T22:17:31.000000000Z","rtype":4,"publisher_id":1,"instrument_id":323}"#,
-                r#""ts_recv":"2022-07-21T22:18:11.000000000Z","group":"group","trading_status":3,"halt_reason":4,"trading_event":6"#,
+                r#""action":1,"reason":2,"trading_event":3,"is_trading":"Y","is_quoting":"Y","is_short_sell_restricted":"~""#,
             )
         );
     }
@@ -451,7 +455,7 @@ mod tests {
             low_limit_price: -1_000_000,
             max_price_variation: 0,
             trading_reference_price: 500_000,
-            unit_of_measure_qty: 5,
+            unit_of_measure_qty: 5_000_000_000,
             min_price_increment_amount: 5,
             price_ratio: 10,
             inst_attrib_value: 10,
@@ -516,7 +520,7 @@ mod tests {
                 r#""hd":{"ts_event":"2022-07-21T22:17:31.000000000Z","rtype":4,"publisher_id":1,"instrument_id":323}"#,
                 concat!(
                     r#""raw_symbol":"ESZ4 C4100","security_update_action":"A","instrument_class":"C","min_price_increment":"0.000000100","display_factor":"1000","expiration":"2023-10-27T23:40:00.000000000Z","activation":"2023-10-15T06:06:40.000000000Z","#,
-                    r#""high_limit_price":"0.001000000","low_limit_price":"-0.001000000","max_price_variation":"0.000000000","trading_reference_price":"0.000500000","unit_of_measure_qty":"5","#,
+                    r#""high_limit_price":"0.001000000","low_limit_price":"-0.001000000","max_price_variation":"0.000000000","trading_reference_price":"0.000500000","unit_of_measure_qty":"5.000000000","#,
                     r#""min_price_increment_amount":"0.000000005","price_ratio":"0.000000010","inst_attrib_value":10,"underlying_id":256785,"raw_instrument_id":323,"market_depth_implied":0,"#,
                     r#""market_depth":13,"market_segment_id":0,"max_trade_vol":10000,"min_lot_size":1,"min_lot_size_block":1000,"min_lot_size_round_lot":100,"min_trade_vol":1,"#,
                     r#""contract_multiplier":0,"decay_quantity":0,"original_contract_size":0,"trading_reference_date":0,"appl_id":0,"#,
@@ -553,7 +557,7 @@ mod tests {
             num_extensions: 16,
             unpaired_side: 'A' as c_char,
             significant_imbalance: 'N' as c_char,
-            _dummy: [0],
+            _reserved: [0],
         }];
         let slice_res = write_json_to_string(data.as_slice(), false, false, false);
         let stream_res = write_json_stream_to_string(data, false, false, false);
@@ -588,7 +592,7 @@ mod tests {
             channel_id: 7,
             update_action: StatUpdateAction::New as u8,
             stat_flags: 0,
-            _dummy: Default::default(),
+            _reserved: Default::default(),
         }];
         let slice_res = write_json_to_string(data.as_slice(), false, true, false);
         let stream_res = write_json_stream_to_string(data, false, true, false);

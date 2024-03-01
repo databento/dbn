@@ -7,6 +7,7 @@ use std::{
 use assert_cmd::Command;
 use dbn::Schema;
 use predicates::{
+    boolean::PredicateBooleanExt,
     ord::eq,
     str::{contains, ends_with, is_empty, is_match, starts_with},
 };
@@ -245,8 +246,7 @@ fn metadata() {
         ])
         .assert()
         .success()
-        .stdout(starts_with("{"))
-        .stdout(ends_with("}\n"))
+        .stdout(starts_with("{").and(ends_with("}\n")))
         .stderr(is_empty());
 }
 
@@ -274,12 +274,14 @@ fn pretty_print_json_data() {
         ])
         .assert()
         .success()
-        .stdout(contains("    "))
-        .stdout(contains(",\n"))
-        .stdout(contains(": "))
-        .stdout(is_match(format!(".*\\s\"{PRETTY_TS_REGEX}\".*")).unwrap())
-        // prices should also be quoted
-        .stdout(is_match(format!(".*\\s\"{PRETTY_PX_REGEX}\".*")).unwrap())
+        .stdout(
+            contains("    ")
+                .and(contains(",\n"))
+                .and(contains(": "))
+                .and(is_match(format!(".*\\s\"{PRETTY_TS_REGEX}\".*")).unwrap())
+                // prices should also be quoted
+                .and(is_match(format!(".*\\s\"{PRETTY_PX_REGEX}\".*")).unwrap()),
+        )
         .stderr(is_empty());
 }
 
@@ -293,8 +295,11 @@ fn pretty_print_csv_data() {
         ])
         .assert()
         .success()
-        .stdout(is_match(format!(".*{PRETTY_TS_REGEX},.*")).unwrap())
-        .stdout(is_match(format!(".*,{PRETTY_PX_REGEX},.*")).unwrap())
+        .stdout(
+            is_match(format!(".*{PRETTY_TS_REGEX},.*"))
+                .unwrap()
+                .and(is_match(format!(".*,{PRETTY_PX_REGEX},.*")).unwrap()),
+        )
         .stderr(is_empty());
 }
 
@@ -366,8 +371,7 @@ fn limit_and_schema_filter_update_metadata() {
         ])
         .assert()
         .success()
-        .stdout(contains(r#""limit":"1""#))
-        .stdout(contains(r#""schema":"ohlcv-1d""#));
+        .stdout(contains(r#""limit":"1""#).and(contains(r#""schema":"ohlcv-1d""#)));
 }
 
 #[rstest]
@@ -602,8 +606,7 @@ fn writes_csv_header_for_0_records() {
         ])
         .assert()
         .success()
-        .stdout(starts_with("ts_event,"))
-        .stdout(contains('\n').count(1))
+        .stdout(starts_with("ts_event,").and(contains('\n').count(1)))
         .stderr(is_empty());
 }
 
@@ -640,8 +643,7 @@ fn map_symbols_fails_for_invalid_output(#[case] output_flag: &str) {
         .assert()
         .failure()
         .stdout(is_empty())
-        .stderr(contains(format!("'{output_flag}'")))
-        .stderr(contains("'--map-symbols'"));
+        .stderr(contains(format!("'{output_flag}'")).and(contains("'--map-symbols'")));
 }
 
 #[test]
@@ -671,8 +673,7 @@ fn passing_next_dbn_version_is_rejected() {
         ])
         .assert()
         .failure()
-        .stderr(contains("invalid value"))
-        .stderr(contains("--input-dbn-version"));
+        .stderr(contains("invalid value").and(contains("--input-dbn-version")));
 }
 
 #[rstest]

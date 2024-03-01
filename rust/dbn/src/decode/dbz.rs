@@ -64,12 +64,13 @@ impl Decoder<BufReader<File>> {
 // `BufRead` instead of `Read` because the [zstd::Decoder] works with `BufRead` so accepting
 // a `Read` could result in redundant `BufReader`s being created.
 impl<R: io::BufRead> Decoder<R> {
-    /// Creates a new DBZ [`Decoder`] from `reader`.
+    /// Creates a new DBZ [`Decoder`] from `reader`. Will upgrade records from previous
+    /// versions to the current version.
     ///
     /// # Errors
     /// This function will return an error if it is unable to parse the metadata in `reader`.
     pub fn new(reader: R) -> crate::Result<Self> {
-        Self::with_upgrade_policy(reader, VersionUpgradePolicy::AsIs)
+        Self::with_upgrade_policy(reader, VersionUpgradePolicy::Upgrade)
     }
 
     /// Creates a new DBZ [`Decoder`] from `reader`. It will decode records from
@@ -120,6 +121,7 @@ impl<R: io::BufRead> DecodeRecordRef for Decoder<R> {
             compat::decode_record_ref(
                 1,
                 self.upgrade_policy,
+                self.metadata.ts_out,
                 &mut self.compat_buffer,
                 &self.read_buffer,
             )

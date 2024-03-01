@@ -92,10 +92,12 @@ pub enum Venue {
     Dbeq = 40,
     /// MIAX Sapphire
     Sphr = 41,
+    /// Long-Term Stock Exchange, Inc.
+    Ltse = 42,
 }
 
 /// The number of Venue variants.
-pub const VENUE_COUNT: usize = 41;
+pub const VENUE_COUNT: usize = 42;
 
 impl Venue {
     /// Convert a Venue to its `str` representation.
@@ -142,6 +144,7 @@ impl Venue {
             Self::Ndex => "NDEX",
             Self::Dbeq => "DBEQ",
             Self::Sphr => "SPHR",
+            Self::Ltse => "LTSE",
         }
     }
 }
@@ -204,6 +207,7 @@ impl std::str::FromStr for Venue {
             "NDEX" => Ok(Self::Ndex),
             "DBEQ" => Ok(Self::Dbeq),
             "SPHR" => Ok(Self::Sphr),
+            "LTSE" => Ok(Self::Ltse),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
@@ -271,10 +275,12 @@ pub enum Dataset {
     IfeuImpact = 28,
     /// ICE Endex iMpact
     NdexImpact = 29,
+    /// Databento Equities Max
+    DbeqMax = 30,
 }
 
 /// The number of Dataset variants.
-pub const DATASET_COUNT: usize = 29;
+pub const DATASET_COUNT: usize = 30;
 
 impl Dataset {
     /// Convert a Dataset to its `str` representation.
@@ -309,6 +315,7 @@ impl Dataset {
             Self::XnasNls => "XNAS.NLS",
             Self::IfeuImpact => "IFEU.IMPACT",
             Self::NdexImpact => "NDEX.IMPACT",
+            Self::DbeqMax => "DBEQ.MAX",
         }
     }
 }
@@ -359,6 +366,7 @@ impl std::str::FromStr for Dataset {
             "XNAS.NLS" => Ok(Self::XnasNls),
             "IFEU.IMPACT" => Ok(Self::IfeuImpact),
             "NDEX.IMPACT" => Ok(Self::NdexImpact),
+            "DBEQ.MAX" => Ok(Self::DbeqMax),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
@@ -490,10 +498,48 @@ pub enum Publisher {
     DbeqPlusDbeq = 60,
     /// OPRA - MIAX Sapphire
     OpraPillarSphr = 61,
+    /// DBEQ Max - NYSE Chicago
+    DbeqMaxXchi = 62,
+    /// DBEQ Max - NYSE National
+    DbeqMaxXcis = 63,
+    /// DBEQ Max - IEX
+    DbeqMaxIexg = 64,
+    /// DBEQ Max - MIAX Pearl
+    DbeqMaxEprl = 65,
+    /// DBEQ Max - Nasdaq
+    DbeqMaxXnas = 66,
+    /// DBEQ Max - NYSE
+    DbeqMaxXnys = 67,
+    /// DBEQ Max - FINRA/NYSE TRF
+    DbeqMaxFinn = 68,
+    /// DBEQ Max - FINRA/Nasdaq TRF Carteret
+    DbeqMaxFiny = 69,
+    /// DBEQ Max - FINRA/Nasdaq TRF Chicago
+    DbeqMaxFinc = 70,
+    /// DBEQ Max - CBOE BZX
+    DbeqMaxBats = 71,
+    /// DBEQ Max - CBOE BYX
+    DbeqMaxBaty = 72,
+    /// DBEQ Max - CBOE EDGA
+    DbeqMaxEdga = 73,
+    /// DBEQ Max - CBOE EDGX
+    DbeqMaxEdgx = 74,
+    /// DBEQ Max - Nasdaq BX
+    DbeqMaxXbos = 75,
+    /// DBEQ Max - Nasdaq PSX
+    DbeqMaxXpsx = 76,
+    /// DBEQ Max - MEMX
+    DbeqMaxMemx = 77,
+    /// DBEQ Max - NYSE American
+    DbeqMaxXase = 78,
+    /// DBEQ Max - NYSE Arca
+    DbeqMaxArcx = 79,
+    /// DBEQ Max - Long-Term Stock Exchange
+    DbeqMaxLtse = 80,
 }
 
 /// The number of Publisher variants.
-pub const PUBLISHER_COUNT: usize = 61;
+pub const PUBLISHER_COUNT: usize = 80;
 
 impl Publisher {
     /// Convert a Publisher to its `str` representation.
@@ -560,6 +606,25 @@ impl Publisher {
             Self::DbeqBasicDbeq => "DBEQ.BASIC.DBEQ",
             Self::DbeqPlusDbeq => "DBEQ.PLUS.DBEQ",
             Self::OpraPillarSphr => "OPRA.PILLAR.SPHR",
+            Self::DbeqMaxXchi => "DBEQ.MAX.XCHI",
+            Self::DbeqMaxXcis => "DBEQ.MAX.XCIS",
+            Self::DbeqMaxIexg => "DBEQ.MAX.IEXG",
+            Self::DbeqMaxEprl => "DBEQ.MAX.EPRL",
+            Self::DbeqMaxXnas => "DBEQ.MAX.XNAS",
+            Self::DbeqMaxXnys => "DBEQ.MAX.XNYS",
+            Self::DbeqMaxFinn => "DBEQ.MAX.FINN",
+            Self::DbeqMaxFiny => "DBEQ.MAX.FINY",
+            Self::DbeqMaxFinc => "DBEQ.MAX.FINC",
+            Self::DbeqMaxBats => "DBEQ.MAX.BATS",
+            Self::DbeqMaxBaty => "DBEQ.MAX.BATY",
+            Self::DbeqMaxEdga => "DBEQ.MAX.EDGA",
+            Self::DbeqMaxEdgx => "DBEQ.MAX.EDGX",
+            Self::DbeqMaxXbos => "DBEQ.MAX.XBOS",
+            Self::DbeqMaxXpsx => "DBEQ.MAX.XPSX",
+            Self::DbeqMaxMemx => "DBEQ.MAX.MEMX",
+            Self::DbeqMaxXase => "DBEQ.MAX.XASE",
+            Self::DbeqMaxArcx => "DBEQ.MAX.ARCX",
+            Self::DbeqMaxLtse => "DBEQ.MAX.LTSE",
         }
     }
 
@@ -627,6 +692,25 @@ impl Publisher {
             Self::DbeqBasicDbeq => Venue::Dbeq,
             Self::DbeqPlusDbeq => Venue::Dbeq,
             Self::OpraPillarSphr => Venue::Sphr,
+            Self::DbeqMaxXchi => Venue::Xchi,
+            Self::DbeqMaxXcis => Venue::Xcis,
+            Self::DbeqMaxIexg => Venue::Iexg,
+            Self::DbeqMaxEprl => Venue::Eprl,
+            Self::DbeqMaxXnas => Venue::Xnas,
+            Self::DbeqMaxXnys => Venue::Xnys,
+            Self::DbeqMaxFinn => Venue::Finn,
+            Self::DbeqMaxFiny => Venue::Finy,
+            Self::DbeqMaxFinc => Venue::Finc,
+            Self::DbeqMaxBats => Venue::Bats,
+            Self::DbeqMaxBaty => Venue::Baty,
+            Self::DbeqMaxEdga => Venue::Edga,
+            Self::DbeqMaxEdgx => Venue::Edgx,
+            Self::DbeqMaxXbos => Venue::Xbos,
+            Self::DbeqMaxXpsx => Venue::Xpsx,
+            Self::DbeqMaxMemx => Venue::Memx,
+            Self::DbeqMaxXase => Venue::Xase,
+            Self::DbeqMaxArcx => Venue::Arcx,
+            Self::DbeqMaxLtse => Venue::Ltse,
         }
     }
 
@@ -694,6 +778,25 @@ impl Publisher {
             Self::DbeqBasicDbeq => Dataset::DbeqBasic,
             Self::DbeqPlusDbeq => Dataset::DbeqPlus,
             Self::OpraPillarSphr => Dataset::OpraPillar,
+            Self::DbeqMaxXchi => Dataset::DbeqMax,
+            Self::DbeqMaxXcis => Dataset::DbeqMax,
+            Self::DbeqMaxIexg => Dataset::DbeqMax,
+            Self::DbeqMaxEprl => Dataset::DbeqMax,
+            Self::DbeqMaxXnas => Dataset::DbeqMax,
+            Self::DbeqMaxXnys => Dataset::DbeqMax,
+            Self::DbeqMaxFinn => Dataset::DbeqMax,
+            Self::DbeqMaxFiny => Dataset::DbeqMax,
+            Self::DbeqMaxFinc => Dataset::DbeqMax,
+            Self::DbeqMaxBats => Dataset::DbeqMax,
+            Self::DbeqMaxBaty => Dataset::DbeqMax,
+            Self::DbeqMaxEdga => Dataset::DbeqMax,
+            Self::DbeqMaxEdgx => Dataset::DbeqMax,
+            Self::DbeqMaxXbos => Dataset::DbeqMax,
+            Self::DbeqMaxXpsx => Dataset::DbeqMax,
+            Self::DbeqMaxMemx => Dataset::DbeqMax,
+            Self::DbeqMaxXase => Dataset::DbeqMax,
+            Self::DbeqMaxArcx => Dataset::DbeqMax,
+            Self::DbeqMaxLtse => Dataset::DbeqMax,
         }
     }
 
@@ -763,6 +866,25 @@ impl Publisher {
             (Dataset::DbeqBasic, Venue::Dbeq) => Ok(Self::DbeqBasicDbeq),
             (Dataset::DbeqPlus, Venue::Dbeq) => Ok(Self::DbeqPlusDbeq),
             (Dataset::OpraPillar, Venue::Sphr) => Ok(Self::OpraPillarSphr),
+            (Dataset::DbeqMax, Venue::Xchi) => Ok(Self::DbeqMaxXchi),
+            (Dataset::DbeqMax, Venue::Xcis) => Ok(Self::DbeqMaxXcis),
+            (Dataset::DbeqMax, Venue::Iexg) => Ok(Self::DbeqMaxIexg),
+            (Dataset::DbeqMax, Venue::Eprl) => Ok(Self::DbeqMaxEprl),
+            (Dataset::DbeqMax, Venue::Xnas) => Ok(Self::DbeqMaxXnas),
+            (Dataset::DbeqMax, Venue::Xnys) => Ok(Self::DbeqMaxXnys),
+            (Dataset::DbeqMax, Venue::Finn) => Ok(Self::DbeqMaxFinn),
+            (Dataset::DbeqMax, Venue::Finy) => Ok(Self::DbeqMaxFiny),
+            (Dataset::DbeqMax, Venue::Finc) => Ok(Self::DbeqMaxFinc),
+            (Dataset::DbeqMax, Venue::Bats) => Ok(Self::DbeqMaxBats),
+            (Dataset::DbeqMax, Venue::Baty) => Ok(Self::DbeqMaxBaty),
+            (Dataset::DbeqMax, Venue::Edga) => Ok(Self::DbeqMaxEdga),
+            (Dataset::DbeqMax, Venue::Edgx) => Ok(Self::DbeqMaxEdgx),
+            (Dataset::DbeqMax, Venue::Xbos) => Ok(Self::DbeqMaxXbos),
+            (Dataset::DbeqMax, Venue::Xpsx) => Ok(Self::DbeqMaxXpsx),
+            (Dataset::DbeqMax, Venue::Memx) => Ok(Self::DbeqMaxMemx),
+            (Dataset::DbeqMax, Venue::Xase) => Ok(Self::DbeqMaxXase),
+            (Dataset::DbeqMax, Venue::Arcx) => Ok(Self::DbeqMaxArcx),
+            (Dataset::DbeqMax, Venue::Ltse) => Ok(Self::DbeqMaxLtse),
             _ => Err(Error::conversion::<Self>(format!("({dataset}, {venue})"))),
         }
     }
@@ -846,6 +968,25 @@ impl std::str::FromStr for Publisher {
             "DBEQ.BASIC.DBEQ" => Ok(Self::DbeqBasicDbeq),
             "DBEQ.PLUS.DBEQ" => Ok(Self::DbeqPlusDbeq),
             "OPRA.PILLAR.SPHR" => Ok(Self::OpraPillarSphr),
+            "DBEQ.MAX.XCHI" => Ok(Self::DbeqMaxXchi),
+            "DBEQ.MAX.XCIS" => Ok(Self::DbeqMaxXcis),
+            "DBEQ.MAX.IEXG" => Ok(Self::DbeqMaxIexg),
+            "DBEQ.MAX.EPRL" => Ok(Self::DbeqMaxEprl),
+            "DBEQ.MAX.XNAS" => Ok(Self::DbeqMaxXnas),
+            "DBEQ.MAX.XNYS" => Ok(Self::DbeqMaxXnys),
+            "DBEQ.MAX.FINN" => Ok(Self::DbeqMaxFinn),
+            "DBEQ.MAX.FINY" => Ok(Self::DbeqMaxFiny),
+            "DBEQ.MAX.FINC" => Ok(Self::DbeqMaxFinc),
+            "DBEQ.MAX.BATS" => Ok(Self::DbeqMaxBats),
+            "DBEQ.MAX.BATY" => Ok(Self::DbeqMaxBaty),
+            "DBEQ.MAX.EDGA" => Ok(Self::DbeqMaxEdga),
+            "DBEQ.MAX.EDGX" => Ok(Self::DbeqMaxEdgx),
+            "DBEQ.MAX.XBOS" => Ok(Self::DbeqMaxXbos),
+            "DBEQ.MAX.XPSX" => Ok(Self::DbeqMaxXpsx),
+            "DBEQ.MAX.MEMX" => Ok(Self::DbeqMaxMemx),
+            "DBEQ.MAX.XASE" => Ok(Self::DbeqMaxXase),
+            "DBEQ.MAX.ARCX" => Ok(Self::DbeqMaxArcx),
+            "DBEQ.MAX.LTSE" => Ok(Self::DbeqMaxLtse),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }

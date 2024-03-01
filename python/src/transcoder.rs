@@ -214,6 +214,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
             &mut self.buffer,
             self.input_version,
             self.upgrade_policy,
+            self.ts_out,
         )
         .map_err(to_val_err)?;
         let mut encoder = DbnRecordEncoder::new(&mut self.output);
@@ -246,6 +247,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
             &mut self.buffer,
             self.input_version,
             self.upgrade_policy,
+            self.ts_out,
         )
         .map_err(to_val_err)?;
 
@@ -300,6 +302,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
             &mut self.buffer,
             self.input_version,
             self.upgrade_policy,
+            self.ts_out,
         )
         .map_err(to_val_err)?;
 

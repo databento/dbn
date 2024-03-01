@@ -104,7 +104,9 @@ pub struct MboMsg {
     /// **T**rade, or **F**ill.
     #[dbn(c_char, encode_order(2))]
     pub action: c_char,
-    /// The order side. Can be **A**sk, **B**id or **N**one.
+    /// The side that initiates the event. Can be **A**sk for a sell order (or sell
+    /// aggressor in a trade), **B**id for a buy order (or buy aggressor in a trade), or
+    /// **N**one where no side is specified by the original source.
     #[dbn(c_char, encode_order(3))]
     pub side: c_char,
     /// The capture-server-received timestamp expressed as number of nanoseconds since
@@ -177,7 +179,9 @@ pub struct TradeMsg {
     /// The event action. Always **T**rade in the trades schema.
     #[dbn(c_char, encode_order(2))]
     pub action: c_char,
-    /// The aggressing order's side in the trade. Can be **A**sk, **B**id or **N**one.
+    /// The side that initiates the trade. Can be **A**sk for a sell aggressor in a
+    /// trade, **B**id for a buy aggressor in a trade, or **N**one where no side is
+    /// specified by the original source.
     #[dbn(c_char, encode_order(3))]
     pub side: c_char,
     /// A combination of packet end with matching engine status. See
@@ -232,7 +236,9 @@ pub struct Mbp1Msg {
     /// **T**rade.
     #[dbn(c_char, encode_order(2))]
     pub action: c_char,
-    /// The order side. Can be **A**sk, **B**id or **N**one.
+    /// The side that initiates the event. Can be **A**sk for a sell order (or sell
+    /// aggressor in a trade), **B**id for a buy order (or buy aggressor in a trade), or
+    /// **N**one where no side is specified by the original source.
     #[dbn(c_char, encode_order(3))]
     pub side: c_char,
     /// A combination of packet end with matching engine status. See
@@ -290,7 +296,9 @@ pub struct Mbp10Msg {
     /// **T**rade.
     #[dbn(c_char, encode_order(2))]
     pub action: c_char,
-    /// The order side. Can be **A**sk, **B**id or **N**one.
+    /// The side that initiates the event. Can be **A**sk for a sell order (or sell
+    /// aggressor in a trade), **B**id for a buy order (or buy aggressor in a trade), or
+    /// **N**one where no side is specified by the original source.
     #[dbn(c_char, encode_order(3))]
     pub side: c_char,
     /// A combination of packet end with matching engine status. See
@@ -366,7 +374,6 @@ pub struct OhlcvMsg {
 
 /// A trrading status update message. The record of the
 /// [`Status`](crate::enums::Schema::Status) schema.
-#[doc(hidden)]
 #[repr(C)]
 #[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
@@ -385,18 +392,37 @@ pub struct StatusMsg {
     pub hd: RecordHeader,
     /// The capture-server-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
-    #[dbn(unix_nanos)]
+    #[dbn(encode_order(0), index_ts, unix_nanos)]
     #[pyo3(get, set)]
     pub ts_recv: u64,
+    /// The type of status change.
     #[dbn(fmt_method)]
-    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
-    pub group: [c_char; 21],
     #[pyo3(get, set)]
-    pub trading_status: u8,
+    pub action: u16,
+    /// Additional details about the cause of the status change.
+    #[dbn(fmt_method)]
     #[pyo3(get, set)]
-    pub halt_reason: u8,
+    pub reason: u16,
+    /// Further information about the status change and its effect on trading.
+    #[dbn(fmt_method)]
     #[pyo3(get, set)]
-    pub trading_event: u8,
+    pub trading_event: u16,
+    /// The state of trading in the instrument.
+    #[dbn(c_char)]
+    #[pyo3(get, set)]
+    pub is_trading: c_char,
+    /// The state of quoting in the instrument.
+    #[dbn(c_char)]
+    #[pyo3(get, set)]
+    pub is_quoting: c_char,
+    /// The state of short sell restrictions for the instrument.
+    #[dbn(c_char)]
+    #[pyo3(get, set)]
+    pub is_short_sell_restricted: c_char,
+    // Filler for alignment.
+    #[doc(hidden)]
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub _reserved: [u8; 7],
 }
 
 /// Definition of an instrument. The record of the
@@ -459,7 +485,9 @@ pub struct InstrumentDefMsg {
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub trading_reference_price: i64,
-    /// The contract size for each instrument, in combination with `unit_of_measure`.
+    /// The contract size for each instrument, in combination with `unit_of_measure`, in units
+    /// of 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub unit_of_measure_qty: i64,
     /// The value currently under development by the venue. Converted to units of 1e-9, i.e.
@@ -732,7 +760,7 @@ pub struct ImbalanceMsg {
     // Filler for alignment.
     #[doc(hidden)]
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub _dummy: [u8; 1],
+    pub _reserved: [u8; 1],
 }
 
 /// A statistics message. A catchall for various data disseminated by publishers.
@@ -789,7 +817,7 @@ pub struct StatMsg {
     // Filler for alignment
     #[doc(hidden)]
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub _dummy: [u8; 6],
+    pub _reserved: [u8; 6],
 }
 
 /// An error message from the Databento Live Subscription Gateway (LSG).
@@ -1051,7 +1079,7 @@ mod tests {
     #[case::mbp10(Mbp10Msg::default(), mem::size_of::<TradeMsg>() + mem::size_of::<BidAskPair>() * 10)]
     #[case::trade(TradeMsg::default(), 48)]
     #[case::definition(InstrumentDefMsg::default(), 400)]
-    #[case::status(StatusMsg::default(), 48)]
+    #[case::status(StatusMsg::default(), 40)]
     #[case::imbalance(ImbalanceMsg::default(), 112)]
     #[case::stat(StatMsg::default(), 64)]
     #[case::error(ErrorMsg::default(), 320)]

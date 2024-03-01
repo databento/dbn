@@ -36,15 +36,15 @@ impl<R> Decoder<R>
 where
     R: io::AsyncReadExt + Unpin,
 {
-    /// Creates a new async DBN [`Decoder`] from `reader`. Will decode records from
-    /// previous DBN versions as-is.
+    /// Creates a new async DBN [`Decoder`] from `reader`. Will upgrade records from
+    /// previous DBN version to the current version.
     ///
     /// # Errors
     /// This function will return an error if it is unable to parse the metadata in
     /// `reader` or the input is encoded in a newer version of DBN.
     ///
     /// # Cancel safety
-    /// This method is not cancellation safe. If the method is used in
+    /// This method is not cancellation safe. If this method is used in a
     /// `tokio::select!` statement and another branch completes first, the metadata
     /// may have been partially read, corrupting the stream.
     pub async fn new(mut reader: R) -> crate::Result<Self> {
@@ -53,7 +53,8 @@ where
             decoder: RecordDecoder::with_version(
                 reader,
                 metadata.version,
-                VersionUpgradePolicy::AsIs,
+                VersionUpgradePolicy::Upgrade,
+                metadata.ts_out,
             )?,
             metadata,
         })
@@ -67,7 +68,7 @@ where
     /// `reader` or the input is encoded in a newer version of DBN.
     ///
     /// # Cancel safety
-    /// This method is not cancellation safe. If the method is used in
+    /// This method is not cancellation safe. If this method is used in a
     /// `tokio::select!` statement and another branch completes first, the metadata
     /// may have been partially read, corrupting the stream.
     pub async fn with_upgrade_policy(
@@ -79,7 +80,7 @@ where
         let version = metadata.version;
         metadata.upgrade(upgrade_policy);
         Ok(Self {
-            decoder: RecordDecoder::with_version(reader, version, upgrade_policy)?,
+            decoder: RecordDecoder::with_version(reader, version, upgrade_policy, metadata.ts_out)?,
             metadata,
         })
     }
@@ -147,7 +148,7 @@ where
     /// This function will return an error if it is unable to parse the metadata in `reader`.
     ///
     /// # Cancel safety
-    /// This method is not cancellation safe. If the method is used in
+    /// This method is not cancellation safe. If this method is used in a
     /// `tokio::select!` statement and another branch completes first, the metadata
     /// may have been partially read, corrupting the stream.
     pub async fn with_zstd(reader: R) -> crate::Result<Self> {
@@ -165,7 +166,7 @@ where
     /// This function will return an error if it is unable to parse the metadata in `reader`.
     ///
     /// # Cancel safety
-    /// This method is not cancellation safe. If the method is used in
+    /// This method is not cancellation safe. If this method is used in a
     /// `tokio::select!` statement and another branch completes first, the metadata
     /// may have been partially read, corrupting the stream.
     pub async fn with_zstd_buffer(reader: R) -> crate::Result<Self> {
@@ -181,7 +182,7 @@ impl Decoder<BufReader<File>> {
     /// if it is unable to parse the metadata in the file.
     ///
     /// # Cancel safety
-    /// This method is not cancellation safe. If the method is used in
+    /// This method is not cancellation safe. If this method is used in a
     /// `tokio::select!` statement and another branch completes first, the metadata
     /// may have been partially read, corrupting the stream.
     pub async fn from_file(path: impl AsRef<Path>) -> crate::Result<Self> {
@@ -203,7 +204,7 @@ impl Decoder<ZstdDecoder<BufReader<File>>> {
     /// if it is unable to parse the metadata in the file.
     ///
     /// # Cancel safety
-    /// This method is not cancellation safe. If the method is used in
+    /// This method is not cancellation safe. If this method is used in a
     /// `tokio::select!` statement and another branch completes first, the metadata
     /// may have been partially read, corrupting the stream.
     pub async fn from_zstd_file(path: impl AsRef<Path>) -> crate::Result<Self> {
@@ -227,6 +228,7 @@ where
 {
     version: u8,
     upgrade_policy: VersionUpgradePolicy,
+    ts_out: bool,
     reader: R,
     state: DecoderState,
     framer: RecordFrameDecoder,
@@ -250,7 +252,7 @@ where
     /// Note: assumes the input is of the current DBN version. To decode records from a
     /// previous version, use [`RecordDecoder::with_version()`].
     pub fn new(reader: R) -> Self {
-        Self::with_version(reader, DBN_VERSION, VersionUpgradePolicy::AsIs).unwrap()
+        Self::with_version(reader, DBN_VERSION, VersionUpgradePolicy::AsIs, false).unwrap()
     }
 
     /// Creates a new `RecordDecoder` that will decode from `reader`
@@ -262,6 +264,7 @@ where
         reader: R,
         version: u8,
         upgrade_policy: VersionUpgradePolicy,
+        ts_out: bool,
     ) -> crate::Result<Self> {
         if version > DBN_VERSION {
             return Err(crate::Error::decode(format!("can't decode newer version of DBN. Decoder version is {DBN_VERSION}, input version is {version}")));
@@ -269,6 +272,7 @@ where
         Ok(Self {
             version,
             upgrade_policy,
+            ts_out,
             reader,
             state: DecoderState::Read,
             framer: RecordFrameDecoder::Head,
@@ -294,6 +298,11 @@ where
     /// Sets the behavior for decoding DBN data of previous versions.
     pub fn set_upgrade_policy(&mut self, upgrade_policy: VersionUpgradePolicy) {
         self.upgrade_policy = upgrade_policy;
+    }
+
+    /// Sets whether to expect a send timestamp appended after every record.
+    pub fn set_ts_out(&mut self, ts_out: bool) {
+        self.ts_out = ts_out;
     }
 
     /// Tries to decode a single record and returns a reference to the record that
@@ -333,6 +342,10 @@ where
     /// This function returns an error if the underlying reader returns an
     /// error of a kind other than `io::ErrorKind::UnexpectedEof` upon reading.
     /// It will also return an error if it encounters an invalid record.
+    ///
+    /// # Cancel safety
+    /// This method is cancel safe. It can be used within a `tokio::select!` statement
+    /// without the potential for corrupting the input stream.
     pub async fn decode_ref(&mut self) -> Result<Option<RecordRef>> {
         let io_err = |e| crate::Error::io(e, "decoding record reference");
         loop {
@@ -363,6 +376,7 @@ where
                         compat::decode_record_ref(
                             self.version,
                             self.upgrade_policy,
+                            self.ts_out,
                             &mut self.compat_buf,
                             // Recreate slice to get around borrow checker
                             std::slice::from_raw_parts(frame.as_ptr(), frame.len()),
@@ -450,7 +464,7 @@ where
     /// input is encoded in a newere version of DBN.
     ///
     /// # Cancel safety
-    /// This method is not cancellation safe. If the method is used in
+    /// This method is not cancellation safe. If this method is used in a
     /// `tokio::select!` statement and another branch completes first, the metadata
     /// may have been partially read, corrupting the stream.
     pub async fn decode(&mut self) -> Result<Metadata> {

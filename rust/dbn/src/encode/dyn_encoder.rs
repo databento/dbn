@@ -41,6 +41,7 @@ where
     use_pretty_px: bool,
     use_pretty_ts: bool,
     with_symbol: bool,
+    delimiter: u8,
 }
 
 impl<'m, W> DynEncoderBuilder<'m, W>
@@ -65,6 +66,7 @@ where
             use_pretty_px: false,
             use_pretty_ts: false,
             with_symbol: false,
+            delimiter: b',',
         }
     }
 
@@ -113,6 +115,12 @@ where
         self
     }
 
+    /// Sets the field delimiter. Defaults to `b','` for comma-separated values (CSV).
+    pub fn delimiter(mut self, delimiter: u8) -> Self {
+        self.delimiter = delimiter;
+        self
+    }
+
     /// Creates the new encoder with the previously specified settings and if
     /// `write_header` is `true`, encodes the header row.
     ///
@@ -127,6 +135,7 @@ where
                 let builder = CsvEncoder::builder(writer)
                     .use_pretty_px(self.use_pretty_px)
                     .use_pretty_ts(self.use_pretty_ts)
+                    .delimiter(self.delimiter)
                     .write_header(self.write_header)
                     .ts_out(self.metadata.ts_out)
                     .with_symbol(self.with_symbol);

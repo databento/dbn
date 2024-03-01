@@ -44,8 +44,20 @@ macro_rules! rtype_dispatch_base {
                         $handler!(SymbolMappingMsg)
                     }
                 }
-                RType::Error => $handler!(ErrorMsg),
-                RType::System => $handler!(SystemMsg),
+                RType::Error => {
+                    if $rec_ref.record_size() < std::mem::size_of::<ErrorMsg>() {
+                        $handler!($crate::compat::ErrorMsgV1)
+                    } else {
+                        $handler!(ErrorMsg)
+                    }
+                }
+                RType::System => {
+                    if $rec_ref.record_size() < std::mem::size_of::<SystemMsg>() {
+                        $handler!($crate::compat::SystemMsgV1)
+                    } else {
+                        $handler!(SystemMsg)
+                    }
+                }
                 RType::Statistics => $handler!(StatMsg),
                 RType::Mbo => $handler!(MboMsg),
             }),
