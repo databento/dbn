@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.16.1 - TBD
+
+### Bug fixes
+- Fixed an issue where the Python `MappingIntervalDict` was not exported
+
 ## 0.16.0 - 2024-03-01
 ### Enhancements
 - Updated `StatusMsg` and made it public in preparation for releasing a status schema
