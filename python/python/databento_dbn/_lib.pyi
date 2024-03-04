@@ -5,11 +5,14 @@ import datetime as dt
 from collections.abc import Iterable
 from collections.abc import Sequence
 from enum import Enum
-from typing import BinaryIO, ClassVar, SupportsBytes, TextIO, Union
+from typing import BinaryIO
+from typing import ClassVar
+from typing import SupportsBytes
+from typing import TextIO
+from typing import Union
 
 from databento_dbn import MappingIntervalDict
 from databento_dbn import SymbolMapping
-
 
 FIXED_PRICE_SCALE: int
 UNDEF_PRICE: int
@@ -267,6 +270,7 @@ class Metadata(SupportsBytes):
         int
 
         """
+
     @property
     def dataset(self) -> str:
         """
@@ -277,6 +281,7 @@ class Metadata(SupportsBytes):
         str
 
         """
+
     @property
     def schema(self) -> str | None:
         """
@@ -288,6 +293,7 @@ class Metadata(SupportsBytes):
         str | None
 
         """
+
     @property
     def start(self) -> int:
         """
@@ -299,6 +305,7 @@ class Metadata(SupportsBytes):
         int
 
         """
+
     @property
     def end(self) -> int:
         """
@@ -310,6 +317,7 @@ class Metadata(SupportsBytes):
         int
 
         """
+
     @property
     def limit(self) -> int:
         """
@@ -320,6 +328,7 @@ class Metadata(SupportsBytes):
         int
 
         """
+
     @property
     def stype_in(self) -> SType | None:
         """
@@ -330,6 +339,7 @@ class Metadata(SupportsBytes):
         SType | None
 
         """
+
     @property
     def stype_out(self) -> SType:
         """
@@ -340,6 +350,7 @@ class Metadata(SupportsBytes):
         SType
 
         """
+
     @property
     def ts_out(self) -> bool:
         """
@@ -351,6 +362,7 @@ class Metadata(SupportsBytes):
         bool
 
         """
+
     @property
     def symbols(self) -> list[str]:
         """
@@ -361,6 +373,7 @@ class Metadata(SupportsBytes):
         list[str]
 
         """
+
     @property
     def partial(self) -> list[str]:
         """
@@ -372,6 +385,7 @@ class Metadata(SupportsBytes):
         list[str]
 
         """
+
     @property
     def not_found(self) -> list[str]:
         """
@@ -382,6 +396,7 @@ class Metadata(SupportsBytes):
         list[str]
 
         """
+
     @property
     def mappings(self) -> dict[str, list[MappingIntervalDict]]:
         """
@@ -392,10 +407,9 @@ class Metadata(SupportsBytes):
         dict[str, list[dict[str, Any]]]:
 
         """
+
     @classmethod
-    def decode(
-        cls, data: bytes, upgrade_policy: VersionUpgradePolicy | None = None
-    ) -> Metadata:
+    def decode(cls, data: bytes, upgrade_policy: VersionUpgradePolicy | None = None) -> Metadata:
         """
         Decode the given Python `bytes` to `Metadata`. Returns a `Metadata`
         object with all the DBN metadata attributes.
@@ -417,6 +431,7 @@ class Metadata(SupportsBytes):
             When a Metadata instance cannot be parsed from `data`.
 
         """
+
     def encode(self) -> bytes:
         """
         Encode the Metadata to bytes.
@@ -447,6 +462,7 @@ class RecordHeader:
         int
 
         """
+
     @property
     def rtype(self) -> int:
         """
@@ -457,6 +473,7 @@ class RecordHeader:
         int
 
         """
+
     @property
     def publisher_id(self) -> int:
         """
@@ -467,6 +484,7 @@ class RecordHeader:
         int
 
         """
+
     @property
     def instrument_id(self) -> int:
         """
@@ -477,6 +495,7 @@ class RecordHeader:
         int
 
         """
+
     @property
     def ts_event(self) -> int:
         """
@@ -514,6 +533,7 @@ class Record(SupportsBytes):
         RecordHeader
 
         """
+
     @property
     def record_size(self) -> int:
         """
@@ -528,6 +548,7 @@ class Record(SupportsBytes):
         size_hint
 
         """
+
     @property
     def rtype(self) -> int:
         """
@@ -538,6 +559,7 @@ class Record(SupportsBytes):
         int
 
         """
+
     @property
     def publisher_id(self) -> int:
         """
@@ -548,6 +570,7 @@ class Record(SupportsBytes):
         int
 
         """
+
     @property
     def instrument_id(self) -> int:
         """
@@ -558,6 +581,7 @@ class Record(SupportsBytes):
         int
 
         """
+
     @property
     def pretty_ts_event(self) -> dt.datetime:
         """
@@ -569,6 +593,7 @@ class Record(SupportsBytes):
         datetime.datetime
 
         """
+
     @property
     def ts_event(self) -> int:
         """
@@ -580,6 +605,7 @@ class Record(SupportsBytes):
         int
 
         """
+
     @property
     def ts_out(self) -> int | None:
         """
@@ -607,6 +633,7 @@ class _MBOBase:
         int
 
         """
+
     @property
     def pretty_price(self) -> float:
         """
@@ -621,6 +648,7 @@ class _MBOBase:
         price
 
         """
+
     @property
     def price(self) -> int:
         """
@@ -636,6 +664,7 @@ class _MBOBase:
         pretty_price
 
         """
+
     @property
     def size(self) -> int:
         """
@@ -646,6 +675,7 @@ class _MBOBase:
         int
 
         """
+
     @property
     def flags(self) -> int:
         """
@@ -656,6 +686,7 @@ class _MBOBase:
         int
 
         """
+
     @property
     def channel_id(self) -> int:
         """
@@ -666,6 +697,7 @@ class _MBOBase:
         int
 
         """
+
     @property
     def action(self) -> str:
         """
@@ -677,6 +709,7 @@ class _MBOBase:
         str
 
         """
+
     @property
     def side(self) -> str:
         """
@@ -689,6 +722,7 @@ class _MBOBase:
         str
 
         """
+
     @property
     def pretty_ts_recv(self) -> dt.datetime:
         """
@@ -700,6 +734,7 @@ class _MBOBase:
         datetime.datetime
 
         """
+
     @property
     def ts_recv(self) -> int:
         """
@@ -711,6 +746,7 @@ class _MBOBase:
         int
 
         """
+
     @property
     def ts_in_delta(self) -> int:
         """
@@ -721,6 +757,7 @@ class _MBOBase:
         int
 
         """
+
     @property
     def sequence(self) -> int:
         """
@@ -756,6 +793,7 @@ class BidAskPair:
         bid_px
 
         """
+
     @property
     def bid_px(self) -> int:
         """
@@ -771,6 +809,7 @@ class BidAskPair:
         pretty_bid_px
 
         """
+
     @property
     def pretty_ask_px(self) -> float:
         """
@@ -785,6 +824,7 @@ class BidAskPair:
         ask_px
 
         """
+
     @property
     def ask_px(self) -> int:
         """
@@ -800,6 +840,7 @@ class BidAskPair:
         pretty_ask_px
 
         """
+
     @property
     def bid_sz(self) -> int:
         """
@@ -810,6 +851,7 @@ class BidAskPair:
         int
 
         """
+
     @property
     def ask_sz(self) -> int:
         """
@@ -820,6 +862,7 @@ class BidAskPair:
         int
 
         """
+
     @property
     def bid_ct(self) -> int:
         """
@@ -830,6 +873,7 @@ class BidAskPair:
         int
 
         """
+
     @property
     def ask_ct(self) -> int:
         """
@@ -860,6 +904,7 @@ class _MBPBase:
         price
 
         """
+
     @property
     def price(self) -> int:
         """
@@ -875,6 +920,7 @@ class _MBPBase:
         pretty_price
 
         """
+
     @property
     def size(self) -> int:
         """
@@ -885,6 +931,7 @@ class _MBPBase:
         int
 
         """
+
     @property
     def action(self) -> str:
         """
@@ -896,6 +943,7 @@ class _MBPBase:
         str
 
         """
+
     @property
     def side(self) -> str:
         """
@@ -908,6 +956,7 @@ class _MBPBase:
         str
 
         """
+
     @property
     def flags(self) -> int:
         """
@@ -918,6 +967,7 @@ class _MBPBase:
         int
 
         """
+
     @property
     def depth(self) -> int:
         """
@@ -928,6 +978,7 @@ class _MBPBase:
         int
 
         """
+
     @property
     def pretty_ts_recv(self) -> dt.datetime:
         """
@@ -939,6 +990,7 @@ class _MBPBase:
         datetime.datetime
 
         """
+
     @property
     def ts_recv(self) -> int:
         """
@@ -950,6 +1002,7 @@ class _MBPBase:
         int
 
         """
+
     @property
     def ts_in_delta(self) -> int:
         """
@@ -960,6 +1013,7 @@ class _MBPBase:
         int
 
         """
+
     @property
     def sequence(self) -> int:
         """
@@ -1038,6 +1092,7 @@ class OHLCVMsg(Record):
         open
 
         """
+
     @property
     def open(self) -> int:
         """
@@ -1053,6 +1108,7 @@ class OHLCVMsg(Record):
         pretty_open
 
         """
+
     @property
     def pretty_high(self) -> float:
         """
@@ -1067,6 +1123,7 @@ class OHLCVMsg(Record):
         high
 
         """
+
     @property
     def high(self) -> int:
         """
@@ -1082,6 +1139,7 @@ class OHLCVMsg(Record):
         pretty_high
 
         """
+
     @property
     def pretty_low(self) -> float:
         """
@@ -1096,6 +1154,7 @@ class OHLCVMsg(Record):
         low
 
         """
+
     @property
     def low(self) -> int:
         """
@@ -1111,6 +1170,7 @@ class OHLCVMsg(Record):
         pretty_low
 
         """
+
     @property
     def pretty_close(self) -> float:
         """
@@ -1125,6 +1185,7 @@ class OHLCVMsg(Record):
         close
 
         """
+
     @property
     def close(self) -> int:
         """
@@ -1140,6 +1201,7 @@ class OHLCVMsg(Record):
         pretty_close
 
         """
+
     @property
     def volume(self) -> int:
         """
@@ -1167,6 +1229,7 @@ class InstrumentDefMsg(Record):
         datetime.datetime
 
         """
+
     @property
     def ts_recv(self) -> int:
         """
@@ -1178,6 +1241,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def pretty_min_price_increment(self) -> float:
         """
@@ -1192,6 +1256,7 @@ class InstrumentDefMsg(Record):
         min_price_increment
 
         """
+
     @property
     def min_price_increment(self) -> int:
         """
@@ -1207,6 +1272,7 @@ class InstrumentDefMsg(Record):
         pretty_min_price_increment
 
         """
+
     @property
     def display_factor(self) -> int:
         """
@@ -1218,6 +1284,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def pretty_expiration(self) -> dt.datetime:
         """
@@ -1229,6 +1296,7 @@ class InstrumentDefMsg(Record):
         datetime.datetime
 
         """
+
     @property
     def expiration(self) -> int:
         """
@@ -1240,6 +1308,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def pretty_activation(self) -> dt.datetime:
         """
@@ -1251,6 +1320,7 @@ class InstrumentDefMsg(Record):
         datetime.datetime
 
         """
+
     @property
     def activation(self) -> int:
         """
@@ -1262,6 +1332,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def pretty_high_limit_price(self) -> float:
         """
@@ -1276,6 +1347,7 @@ class InstrumentDefMsg(Record):
         high_limit_price
 
         """
+
     @property
     def high_limit_price(self) -> int:
         """
@@ -1291,6 +1363,7 @@ class InstrumentDefMsg(Record):
         pretty_high_limit_price
 
         """
+
     @property
     def pretty_low_limit_price(self) -> float:
         """
@@ -1305,6 +1378,7 @@ class InstrumentDefMsg(Record):
         low_limit_price
 
         """
+
     @property
     def low_limit_price(self) -> int:
         """
@@ -1320,6 +1394,7 @@ class InstrumentDefMsg(Record):
         pretty_low_limit_price
 
         """
+
     @property
     def pretty_max_price_variation(self) -> float:
         """
@@ -1334,6 +1409,7 @@ class InstrumentDefMsg(Record):
         max_price_variation
 
         """
+
     @property
     def max_price_variation(self) -> int:
         """
@@ -1349,6 +1425,7 @@ class InstrumentDefMsg(Record):
         pretty_max_price_variation
 
         """
+
     @property
     def pretty_trading_reference_price(self) -> float:
         """
@@ -1363,6 +1440,7 @@ class InstrumentDefMsg(Record):
         trading_reference_price
 
         """
+
     @property
     def trading_reference_price(self) -> int:
         """
@@ -1378,6 +1456,7 @@ class InstrumentDefMsg(Record):
         pretty_trading_reference_price
 
         """
+
     @property
     def unit_of_measure_qty(self) -> int:
         """
@@ -1389,6 +1468,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def pretty_min_price_increment_amount(self) -> float:
         """
@@ -1403,6 +1483,7 @@ class InstrumentDefMsg(Record):
         min_price_increment_amount
 
         """
+
     @property
     def min_price_increment_amount(self) -> int:
         """
@@ -1418,6 +1499,7 @@ class InstrumentDefMsg(Record):
         pretty_min_price_increment_amount
 
         """
+
     @property
     def pretty_price_ratio(self) -> float:
         """
@@ -1433,6 +1515,7 @@ class InstrumentDefMsg(Record):
         price_ratio
 
         """
+
     @property
     def price_ratio(self) -> int:
         """
@@ -1448,6 +1531,7 @@ class InstrumentDefMsg(Record):
         pretty_price_ratio
 
         """
+
     @property
     def inst_attrib_value(self) -> int:
         """
@@ -1458,6 +1542,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def underlying_id(self) -> int:
         """
@@ -1468,6 +1553,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def raw_instrument_id(self) -> int:
         """
@@ -1478,6 +1564,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def market_depth_implied(self) -> int:
         """
@@ -1488,6 +1575,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def market_depth(self) -> int:
         """
@@ -1498,6 +1586,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def market_segment_id(self) -> int:
         """
@@ -1508,6 +1597,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def max_trade_vol(self) -> int:
         """
@@ -1518,6 +1608,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def min_lot_size(self) -> int:
         """
@@ -1528,6 +1619,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def min_lot_size_block(self) -> int:
         """
@@ -1538,6 +1630,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def min_lot_size_round_lot(self) -> int:
         """
@@ -1549,6 +1642,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def min_trade_vol(self) -> int:
         """
@@ -1559,6 +1653,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def contract_multiplier(self) -> int:
         """
@@ -1569,6 +1664,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def decay_quantity(self) -> int:
         """
@@ -1580,6 +1676,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def original_contract_size(self) -> int:
         """
@@ -1590,6 +1687,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def trading_reference_date(self) -> int:
         """
@@ -1601,6 +1699,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def appl_id(self) -> int:
         """
@@ -1611,6 +1710,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def maturity_year(self) -> int:
         """
@@ -1621,6 +1721,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def decay_start_date(self) -> int:
         """
@@ -1631,6 +1732,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def channel_id(self) -> int:
         """
@@ -1642,6 +1744,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def currency(self) -> str:
         """
@@ -1652,6 +1755,7 @@ class InstrumentDefMsg(Record):
         str
 
         """
+
     @property
     def settl_currency(self) -> str:
         """
@@ -1662,6 +1766,7 @@ class InstrumentDefMsg(Record):
         str
 
         """
+
     @property
     def secsubtype(self) -> str:
         """
@@ -1672,6 +1777,7 @@ class InstrumentDefMsg(Record):
         str
 
         """
+
     @property
     def raw_symbol(self) -> str:
         """
@@ -1682,6 +1788,7 @@ class InstrumentDefMsg(Record):
         str
 
         """
+
     @property
     def group(self) -> str:
         """
@@ -1692,6 +1799,7 @@ class InstrumentDefMsg(Record):
         str
 
         """
+
     @property
     def exchange(self) -> str:
         """
@@ -1702,6 +1810,7 @@ class InstrumentDefMsg(Record):
         str
 
         """
+
     @property
     def asset(self) -> str:
         """
@@ -1712,6 +1821,7 @@ class InstrumentDefMsg(Record):
         str
 
         """
+
     @property
     def cfi(self) -> str:
         """
@@ -1722,6 +1832,7 @@ class InstrumentDefMsg(Record):
         str
 
         """
+
     @property
     def security_type(self) -> str:
         """
@@ -1732,6 +1843,7 @@ class InstrumentDefMsg(Record):
         str
 
         """
+
     @property
     def unit_of_measure(self) -> str:
         """
@@ -1743,6 +1855,7 @@ class InstrumentDefMsg(Record):
         str
 
         """
+
     @property
     def underlying(self) -> str:
         """
@@ -1753,6 +1866,7 @@ class InstrumentDefMsg(Record):
         str
 
         """
+
     @property
     def strike_price_currency(self) -> str:
         """
@@ -1763,6 +1877,7 @@ class InstrumentDefMsg(Record):
         str
 
         """
+
     @property
     def instrument_class(self) -> str:
         """
@@ -1773,6 +1888,7 @@ class InstrumentDefMsg(Record):
         str
 
         """
+
     @property
     def pretty_strike_price(self) -> float:
         """
@@ -1787,6 +1903,7 @@ class InstrumentDefMsg(Record):
         strike_price
 
         """
+
     @property
     def strike_price(self) -> int:
         """
@@ -1802,6 +1919,7 @@ class InstrumentDefMsg(Record):
         pretty_strike_price
 
         """
+
     @property
     def match_algorithm(self) -> str:
         """
@@ -1812,6 +1930,7 @@ class InstrumentDefMsg(Record):
         str
 
         """
+
     @property
     def md_security_trading_status(self) -> int:
         """
@@ -1822,6 +1941,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def main_fraction(self) -> int:
         """
@@ -1832,6 +1952,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def price_display_format(self) -> int:
         """
@@ -1843,6 +1964,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def settl_price_type(self) -> int:
         """
@@ -1853,6 +1975,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def sub_fraction(self) -> int:
         """
@@ -1863,6 +1986,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def underlying_product(self) -> int:
         """
@@ -1873,6 +1997,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def security_update_action(self) -> str:
         """
@@ -1884,6 +2009,7 @@ class InstrumentDefMsg(Record):
         str
 
         """
+
     @property
     def maturity_month(self) -> int:
         """
@@ -1894,6 +2020,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def maturity_day(self) -> int:
         """
@@ -1904,6 +2031,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def maturity_week(self) -> int:
         """
@@ -1914,6 +2042,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def user_defined_instrument(self) -> str:
         """
@@ -1924,6 +2053,7 @@ class InstrumentDefMsg(Record):
         str
 
         """
+
     @property
     def contract_multiplier_unit(self) -> int:
         """
@@ -1935,6 +2065,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def flow_schedule_type(self) -> int:
         """
@@ -1945,6 +2076,7 @@ class InstrumentDefMsg(Record):
         int
 
         """
+
     @property
     def tick_rule(self) -> int:
         """
@@ -1972,6 +2104,7 @@ class InstrumentDefMsgV1(Record):
         datetime.datetime
 
         """
+
     @property
     def ts_recv(self) -> int:
         """
@@ -1983,6 +2116,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def pretty_min_price_increment(self) -> float:
         """
@@ -1997,6 +2131,7 @@ class InstrumentDefMsgV1(Record):
         min_price_increment
 
         """
+
     @property
     def min_price_increment(self) -> int:
         """
@@ -2012,6 +2147,7 @@ class InstrumentDefMsgV1(Record):
         pretty_min_price_increment
 
         """
+
     @property
     def display_factor(self) -> int:
         """
@@ -2023,6 +2159,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def pretty_expiration(self) -> dt.datetime:
         """
@@ -2034,6 +2171,7 @@ class InstrumentDefMsgV1(Record):
         datetime.datetime
 
         """
+
     @property
     def expiration(self) -> int:
         """
@@ -2045,6 +2183,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def pretty_activation(self) -> dt.datetime:
         """
@@ -2056,6 +2195,7 @@ class InstrumentDefMsgV1(Record):
         datetime.datetime
 
         """
+
     @property
     def activation(self) -> int:
         """
@@ -2067,6 +2207,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def pretty_high_limit_price(self) -> float:
         """
@@ -2081,6 +2222,7 @@ class InstrumentDefMsgV1(Record):
         high_limit_price
 
         """
+
     @property
     def high_limit_price(self) -> int:
         """
@@ -2096,6 +2238,7 @@ class InstrumentDefMsgV1(Record):
         pretty_high_limit_price
 
         """
+
     @property
     def pretty_low_limit_price(self) -> float:
         """
@@ -2110,6 +2253,7 @@ class InstrumentDefMsgV1(Record):
         low_limit_price
 
         """
+
     @property
     def low_limit_price(self) -> int:
         """
@@ -2125,6 +2269,7 @@ class InstrumentDefMsgV1(Record):
         pretty_low_limit_price
 
         """
+
     @property
     def pretty_max_price_variation(self) -> float:
         """
@@ -2139,6 +2284,7 @@ class InstrumentDefMsgV1(Record):
         max_price_variation
 
         """
+
     @property
     def max_price_variation(self) -> int:
         """
@@ -2154,6 +2300,7 @@ class InstrumentDefMsgV1(Record):
         pretty_max_price_variation
 
         """
+
     @property
     def pretty_trading_reference_price(self) -> float:
         """
@@ -2168,6 +2315,7 @@ class InstrumentDefMsgV1(Record):
         trading_reference_price
 
         """
+
     @property
     def trading_reference_price(self) -> int:
         """
@@ -2183,6 +2331,7 @@ class InstrumentDefMsgV1(Record):
         pretty_trading_reference_price
 
         """
+
     @property
     def unit_of_measure_qty(self) -> int:
         """
@@ -2194,6 +2343,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def pretty_min_price_increment_amount(self) -> float:
         """
@@ -2208,6 +2358,7 @@ class InstrumentDefMsgV1(Record):
         min_price_increment_amount
 
         """
+
     @property
     def min_price_increment_amount(self) -> int:
         """
@@ -2223,6 +2374,7 @@ class InstrumentDefMsgV1(Record):
         pretty_min_price_increment_amount
 
         """
+
     @property
     def pretty_price_ratio(self) -> float:
         """
@@ -2238,6 +2390,7 @@ class InstrumentDefMsgV1(Record):
         price_ratio
 
         """
+
     @property
     def price_ratio(self) -> int:
         """
@@ -2253,6 +2406,7 @@ class InstrumentDefMsgV1(Record):
         pretty_price_ratio
 
         """
+
     @property
     def inst_attrib_value(self) -> int:
         """
@@ -2263,6 +2417,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def underlying_id(self) -> int:
         """
@@ -2273,6 +2428,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def raw_instrument_id(self) -> int:
         """
@@ -2283,6 +2439,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def market_depth_implied(self) -> int:
         """
@@ -2293,6 +2450,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def market_depth(self) -> int:
         """
@@ -2303,6 +2461,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def market_segment_id(self) -> int:
         """
@@ -2313,6 +2472,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def max_trade_vol(self) -> int:
         """
@@ -2323,6 +2483,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def min_lot_size(self) -> int:
         """
@@ -2333,6 +2494,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def min_lot_size_block(self) -> int:
         """
@@ -2343,6 +2505,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def min_lot_size_round_lot(self) -> int:
         """
@@ -2354,6 +2517,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def min_trade_vol(self) -> int:
         """
@@ -2364,6 +2528,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def contract_multiplier(self) -> int:
         """
@@ -2374,6 +2539,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def decay_quantity(self) -> int:
         """
@@ -2385,6 +2551,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def original_contract_size(self) -> int:
         """
@@ -2395,6 +2562,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def trading_reference_date(self) -> int:
         """
@@ -2406,6 +2574,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def appl_id(self) -> int:
         """
@@ -2416,6 +2585,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def maturity_year(self) -> int:
         """
@@ -2426,6 +2596,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def decay_start_date(self) -> int:
         """
@@ -2436,6 +2607,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def channel_id(self) -> int:
         """
@@ -2447,6 +2619,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def currency(self) -> str:
         """
@@ -2457,6 +2630,7 @@ class InstrumentDefMsgV1(Record):
         str
 
         """
+
     @property
     def settl_currency(self) -> str:
         """
@@ -2467,6 +2641,7 @@ class InstrumentDefMsgV1(Record):
         str
 
         """
+
     @property
     def secsubtype(self) -> str:
         """
@@ -2477,6 +2652,7 @@ class InstrumentDefMsgV1(Record):
         str
 
         """
+
     @property
     def raw_symbol(self) -> str:
         """
@@ -2487,6 +2663,7 @@ class InstrumentDefMsgV1(Record):
         str
 
         """
+
     @property
     def group(self) -> str:
         """
@@ -2497,6 +2674,7 @@ class InstrumentDefMsgV1(Record):
         str
 
         """
+
     @property
     def exchange(self) -> str:
         """
@@ -2507,6 +2685,7 @@ class InstrumentDefMsgV1(Record):
         str
 
         """
+
     @property
     def asset(self) -> str:
         """
@@ -2517,6 +2696,7 @@ class InstrumentDefMsgV1(Record):
         str
 
         """
+
     @property
     def cfi(self) -> str:
         """
@@ -2527,6 +2707,7 @@ class InstrumentDefMsgV1(Record):
         str
 
         """
+
     @property
     def security_type(self) -> str:
         """
@@ -2537,6 +2718,7 @@ class InstrumentDefMsgV1(Record):
         str
 
         """
+
     @property
     def unit_of_measure(self) -> str:
         """
@@ -2548,6 +2730,7 @@ class InstrumentDefMsgV1(Record):
         str
 
         """
+
     @property
     def underlying(self) -> str:
         """
@@ -2558,6 +2741,7 @@ class InstrumentDefMsgV1(Record):
         str
 
         """
+
     @property
     def strike_price_currency(self) -> str:
         """
@@ -2568,6 +2752,7 @@ class InstrumentDefMsgV1(Record):
         str
 
         """
+
     @property
     def instrument_class(self) -> str:
         """
@@ -2578,6 +2763,7 @@ class InstrumentDefMsgV1(Record):
         str
 
         """
+
     @property
     def pretty_strike_price(self) -> float:
         """
@@ -2592,6 +2778,7 @@ class InstrumentDefMsgV1(Record):
         strike_price
 
         """
+
     @property
     def strike_price(self) -> int:
         """
@@ -2607,6 +2794,7 @@ class InstrumentDefMsgV1(Record):
         pretty_strike_price
 
         """
+
     @property
     def match_algorithm(self) -> str:
         """
@@ -2617,6 +2805,7 @@ class InstrumentDefMsgV1(Record):
         str
 
         """
+
     @property
     def md_security_trading_status(self) -> int:
         """
@@ -2627,6 +2816,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def main_fraction(self) -> int:
         """
@@ -2637,6 +2827,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def price_display_format(self) -> int:
         """
@@ -2648,6 +2839,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def settl_price_type(self) -> int:
         """
@@ -2658,6 +2850,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def sub_fraction(self) -> int:
         """
@@ -2668,6 +2861,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def underlying_product(self) -> int:
         """
@@ -2678,6 +2872,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def security_update_action(self) -> str:
         """
@@ -2689,6 +2884,7 @@ class InstrumentDefMsgV1(Record):
         str
 
         """
+
     @property
     def maturity_month(self) -> int:
         """
@@ -2699,6 +2895,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def maturity_day(self) -> int:
         """
@@ -2709,6 +2906,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def maturity_week(self) -> int:
         """
@@ -2719,6 +2917,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def user_defined_instrument(self) -> str:
         """
@@ -2729,6 +2928,7 @@ class InstrumentDefMsgV1(Record):
         str
 
         """
+
     @property
     def contract_multiplier_unit(self) -> int:
         """
@@ -2740,6 +2940,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def flow_schedule_type(self) -> int:
         """
@@ -2750,6 +2951,7 @@ class InstrumentDefMsgV1(Record):
         int
 
         """
+
     @property
     def tick_rule(self) -> int:
         """
@@ -2777,6 +2979,7 @@ class ImbalanceMsg(Record):
         datetime.datetime
 
         """
+
     @property
     def ts_recv(self) -> int:
         """
@@ -2788,6 +2991,7 @@ class ImbalanceMsg(Record):
         int
 
         """
+
     @property
     def pretty_ref_price(self) -> float:
         """
@@ -2802,6 +3006,7 @@ class ImbalanceMsg(Record):
         ref_price
 
         """
+
     @property
     def ref_price(self) -> int:
         """
@@ -2817,6 +3022,7 @@ class ImbalanceMsg(Record):
         pretty_ref_price
 
         """
+
     @property
     def auction_time(self) -> int:
         """
@@ -2827,6 +3033,7 @@ class ImbalanceMsg(Record):
         int
 
         """
+
     @property
     def pretty_cont_book_clr_price(self) -> float:
         """
@@ -2842,6 +3049,7 @@ class ImbalanceMsg(Record):
         cont_book_clr_price
 
         """
+
     @property
     def cont_book_clr_price(self) -> int:
         """
@@ -2858,6 +3066,7 @@ class ImbalanceMsg(Record):
         pretty_cont_book_clr_price
 
         """
+
     @property
     def pretty_auct_interest_clr_price(self) -> float:
         """
@@ -2873,6 +3082,7 @@ class ImbalanceMsg(Record):
         auct_interest_clr_price
 
         """
+
     @property
     def auct_interest_clr_price(self) -> int:
         """
@@ -2888,6 +3098,7 @@ class ImbalanceMsg(Record):
         pretty_auct_interest_clr_price
 
         """
+
     @property
     def ssr_filling_price(self) -> int:
         """
@@ -2898,6 +3109,7 @@ class ImbalanceMsg(Record):
         int
 
         """
+
     @property
     def ind_match_price(self) -> int:
         """
@@ -2908,6 +3120,7 @@ class ImbalanceMsg(Record):
         int
 
         """
+
     @property
     def upper_collar(self) -> int:
         """
@@ -2918,6 +3131,7 @@ class ImbalanceMsg(Record):
         int
 
         """
+
     @property
     def lower_collar(self) -> int:
         """
@@ -2928,6 +3142,7 @@ class ImbalanceMsg(Record):
         int
 
         """
+
     @property
     def paired_qty(self) -> int:
         """
@@ -2938,6 +3153,7 @@ class ImbalanceMsg(Record):
         int
 
         """
+
     @property
     def total_imbalance_qty(self) -> int:
         """
@@ -2948,6 +3164,7 @@ class ImbalanceMsg(Record):
         int
 
         """
+
     @property
     def market_imbalance_qty(self) -> int:
         """
@@ -2958,6 +3175,7 @@ class ImbalanceMsg(Record):
         int
 
         """
+
     @property
     def unpaired_qty(self) -> int:
         """
@@ -2968,6 +3186,7 @@ class ImbalanceMsg(Record):
         int
 
         """
+
     @property
     def auction_type(self) -> str:
         """
@@ -2978,6 +3197,7 @@ class ImbalanceMsg(Record):
         str
 
         """
+
     @property
     def side(self) -> str:
         """
@@ -2989,6 +3209,7 @@ class ImbalanceMsg(Record):
         str
 
         """
+
     @property
     def auction_status(self) -> int:
         """
@@ -2999,6 +3220,7 @@ class ImbalanceMsg(Record):
         int
 
         """
+
     @property
     def freeze_status(self) -> int:
         """
@@ -3009,6 +3231,7 @@ class ImbalanceMsg(Record):
         int
 
         """
+
     @property
     def num_extensions(self) -> int:
         """
@@ -3019,6 +3242,7 @@ class ImbalanceMsg(Record):
         int
 
         """
+
     @property
     def unpaired_side(self) -> str:
         """
@@ -3029,6 +3253,7 @@ class ImbalanceMsg(Record):
         str
 
         """
+
     @property
     def significant_imbalance(self) -> str:
         """
@@ -3061,6 +3286,7 @@ class StatMsg(Record):
         datetime.datetime
 
         """
+
     @property
     def ts_recv(self) -> int:
         """
@@ -3072,6 +3298,7 @@ class StatMsg(Record):
         int
 
         """
+
     @property
     def ts_ref(self) -> int:
         """
@@ -3083,6 +3310,7 @@ class StatMsg(Record):
         int
 
         """
+
     @property
     def pretty_price(self) -> float:
         """
@@ -3097,6 +3325,7 @@ class StatMsg(Record):
         price
 
         """
+
     @property
     def price(self) -> int:
         """
@@ -3113,6 +3342,7 @@ class StatMsg(Record):
         pretty_price
 
         """
+
     @property
     def quantity(self) -> int:
         """
@@ -3123,6 +3353,7 @@ class StatMsg(Record):
         int
 
         """
+
     @property
     def sequence(self) -> int:
         """
@@ -3133,6 +3364,7 @@ class StatMsg(Record):
         int
 
         """
+
     @property
     def ts_in_delta(self) -> int:
         """
@@ -3143,6 +3375,7 @@ class StatMsg(Record):
         int
 
         """
+
     @property
     def stat_type(self) -> int:
         """
@@ -3153,6 +3386,7 @@ class StatMsg(Record):
         int
 
         """
+
     @property
     def channel_id(self) -> int:
         """
@@ -3163,6 +3397,7 @@ class StatMsg(Record):
         int
 
         """
+
     @property
     def update_action(self) -> int:
         """
@@ -3174,6 +3409,7 @@ class StatMsg(Record):
         int
 
         """
+
     @property
     def stat_flags(self) -> int:
         """
@@ -3200,6 +3436,7 @@ class ErrorMsg(Record):
         str
 
         """
+
     @property
     def is_last(self) -> int:
         """
@@ -3241,6 +3478,7 @@ class SymbolMappingMsg(Record):
         SType
 
         """
+
     @property
     def stype_in_symbol(self) -> str:
         """
@@ -3251,6 +3489,7 @@ class SymbolMappingMsg(Record):
         str
 
         """
+
     @property
     def stype_out(self) -> SType:
         """
@@ -3261,6 +3500,7 @@ class SymbolMappingMsg(Record):
         SType
 
         """
+
     @property
     def stype_out_symbol(self) -> str:
         """
@@ -3271,6 +3511,7 @@ class SymbolMappingMsg(Record):
         str
 
         """
+
     @property
     def pretty_start_ts(self) -> dt.datetime:
         """
@@ -3282,6 +3523,7 @@ class SymbolMappingMsg(Record):
         datetime.datetime
 
         """
+
     @property
     def start_ts(self) -> int:
         """
@@ -3293,6 +3535,7 @@ class SymbolMappingMsg(Record):
         int
 
         """
+
     @property
     def pretty_end_ts(self) -> dt.datetime:
         """
@@ -3304,6 +3547,7 @@ class SymbolMappingMsg(Record):
         datetime.datetime
 
         """
+
     @property
     def end_ts(self) -> int:
         """
@@ -3331,6 +3575,7 @@ class SymbolMappingMsgV1(Record):
         str
 
         """
+
     @property
     def stype_out_symbol(self) -> str:
         """
@@ -3341,6 +3586,7 @@ class SymbolMappingMsgV1(Record):
         str
 
         """
+
     @property
     def pretty_start_ts(self) -> dt.datetime:
         """
@@ -3352,6 +3598,7 @@ class SymbolMappingMsgV1(Record):
         datetime.datetime
 
         """
+
     @property
     def start_ts(self) -> int:
         """
@@ -3363,6 +3610,7 @@ class SymbolMappingMsgV1(Record):
         int
 
         """
+
     @property
     def pretty_end_ts(self) -> dt.datetime:
         """
@@ -3374,6 +3622,7 @@ class SymbolMappingMsgV1(Record):
         datetime.datetime
 
         """
+
     @property
     def end_ts(self) -> int:
         """
@@ -3404,6 +3653,7 @@ class SystemMsg(Record):
         str
 
         """
+
     @property
     def is_heartbeat(self) -> bool:
         """
@@ -3435,6 +3685,7 @@ class SystemMsgV1(Record):
         str
 
         """
+
     @property
     def is_heartbeat(self) -> bool:
         """
@@ -3482,6 +3733,7 @@ class DBNDecoder:
         bytes
 
         """
+
     def decode(
         self,
     ) -> list[_DBNRecord]:
@@ -3502,6 +3754,7 @@ class DBNDecoder:
         write
 
         """
+
     def write(
         self,
         bytes: bytes,
@@ -3572,8 +3825,7 @@ class Transcoder:
         map_symbols: bool = True,
         has_metadata: bool = True,
         ts_out: bool = False,
-        symbol_interval_map: dict[int, list[tuple[dt.date, dt.date, str]]]
-        | None = None,
+        symbol_interval_map: dict[int, list[tuple[dt.date, dt.date, str]]] | None = None,
         schema: Schema | None = None,
         input_version: int = 2,
         upgrade_policy: VersionUpgradePolicy | None = None,
@@ -3586,6 +3838,7 @@ class Transcoder:
         -------
         bytes
         """
+
     def write(
         self,
         bytes: bytes,
@@ -3598,6 +3851,7 @@ class Transcoder:
         ValueError
             When the write to the internal buffer or the output fails.
         """
+
     def flush(
         self,
     ) -> None:

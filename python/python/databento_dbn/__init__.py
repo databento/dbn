@@ -1,5 +1,7 @@
 import datetime as dt
-from typing import Protocol, Sequence, TypedDict
+from typing import Protocol
+from typing import Sequence
+from typing import TypedDict
 
 # Import native module
 from ._lib import *  # noqa: F403
@@ -24,6 +26,7 @@ class MappingInterval(Protocol):
     end_date: dt.date
     symbol: str
 
+
 class MappingIntervalDict(TypedDict):
     """
     Represents a symbol mapping over a start and end date range interval.
@@ -42,6 +45,7 @@ class MappingIntervalDict(TypedDict):
     start_date: dt.date
     end_date: dt.date
     symbol: str
+
 
 class SymbolMapping(Protocol):
     """
