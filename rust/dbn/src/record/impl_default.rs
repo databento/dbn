@@ -47,6 +47,21 @@ impl Default for BidAskPair {
     }
 }
 
+impl Default for ConsolidatedBidAskPair {
+    fn default() -> Self {
+        Self {
+            bid_px: UNDEF_PRICE,
+            ask_px: UNDEF_PRICE,
+            bid_sz: 0,
+            ask_sz: 0,
+            bid_pb: 0,
+            ask_pb: 0,
+            _reserved1: [0; 2],
+            _reserved2: [0; 2],
+        }
+    }
+}
+
 impl Default for TradeMsg {
     fn default() -> Self {
         Self {
@@ -64,16 +79,36 @@ impl Default for TradeMsg {
     }
 }
 
-impl Default for Mbp1Msg {
-    fn default() -> Self {
+impl Mbp1Msg {
+    /// Creates a new default Mbp1Msg for the given `schema`.
+    pub fn default_for_schema(schema: Schema) -> Self {
         Self {
-            hd: RecordHeader::default::<Self>(rtype::MBP_1),
+            hd: RecordHeader::default::<Self>(RType::from(schema) as u8),
             price: UNDEF_PRICE,
             size: UNDEF_ORDER_SIZE,
             action: 0,
             side: 0,
             flags: 0,
             depth: 0,
+            ts_recv: UNDEF_TIMESTAMP,
+            ts_in_delta: 0,
+            sequence: 0,
+            levels: Default::default(),
+        }
+    }
+}
+
+impl CbboMsg {
+    /// Creates a new default CbboMsg for the given `schema`.
+    pub fn default_for_schema(schema: Schema) -> Self {
+        Self {
+            hd: RecordHeader::default::<Self>(RType::from(schema) as u8),
+            price: UNDEF_PRICE,
+            size: UNDEF_ORDER_SIZE,
+            action: 0,
+            side: 0,
+            flags: 0,
+            _reserved: [0; 1],
             ts_recv: UNDEF_TIMESTAMP,
             ts_in_delta: 0,
             sequence: 0,

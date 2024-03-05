@@ -145,7 +145,7 @@ impl<const N: usize> PyFieldDesc for [u8; N] {
 mod tests {
     use super::PyFieldDesc;
     use crate::{
-        record::{InstrumentDefMsg, MboMsg, Mbp10Msg},
+        record::{CbboMsg, InstrumentDefMsg, MboMsg, Mbp10Msg},
         SYMBOL_CSTR_LEN,
     };
 
@@ -278,6 +278,72 @@ mod tests {
             exp.push(format!("ask_ct_{i:02}"));
         }
         assert_eq!(Mbp10Msg::ordered_fields(""), exp)
+    }
+
+    #[test]
+    fn test_cbbo_dtypes() {
+        let dtypes = CbboMsg::field_dtypes("");
+        let exp = with_record_header_dtype(vec![
+            ("price".to_owned(), "i8".to_owned()),
+            ("size".to_owned(), "u4".to_owned()),
+            ("action".to_owned(), "S1".to_owned()),
+            ("side".to_owned(), "S1".to_owned()),
+            ("flags".to_owned(), "u1".to_owned()),
+            ("_reserved".to_owned(), "S1".to_owned()),
+            ("ts_recv".to_owned(), "u8".to_owned()),
+            ("ts_in_delta".to_owned(), "i4".to_owned()),
+            ("sequence".to_owned(), "u4".to_owned()),
+            ("bid_px_00".to_owned(), "i8".to_owned()),
+            ("ask_px_00".to_owned(), "i8".to_owned()),
+            ("bid_sz_00".to_owned(), "u4".to_owned()),
+            ("ask_sz_00".to_owned(), "u4".to_owned()),
+            ("bid_pb_00".to_owned(), "u2".to_owned()),
+            ("_reserved1_00".to_owned(), "S2".to_owned()),
+            ("ask_pb_00".to_owned(), "u2".to_owned()),
+            ("_reserved2_00".to_owned(), "S2".to_owned()),
+        ]);
+        assert_eq!(dtypes, exp);
+    }
+
+    #[test]
+    fn test_cbbo_fields() {
+        let mut exp_price = vec!["price".to_owned()];
+        exp_price.push(format!("bid_px_00"));
+        exp_price.push(format!("ask_px_00"));
+        assert_eq!(CbboMsg::price_fields(""), exp_price);
+        assert_eq!(
+            CbboMsg::hidden_fields(""),
+            vec!["length".to_owned(), "_reserved".to_owned()]
+        );
+        assert_eq!(
+            CbboMsg::timestamp_fields(""),
+            vec!["ts_event".to_owned(), "ts_recv".to_owned()]
+        );
+    }
+
+    #[test]
+    fn test_cbbo_ordered() {
+        let exp = vec![
+            "ts_recv".to_owned(),
+            "ts_event".to_owned(),
+            "rtype".to_owned(),
+            "publisher_id".to_owned(),
+            "instrument_id".to_owned(),
+            "action".to_owned(),
+            "side".to_owned(),
+            "price".to_owned(),
+            "size".to_owned(),
+            "flags".to_owned(),
+            "ts_in_delta".to_owned(),
+            "sequence".to_owned(),
+            "bid_px_00".to_owned(),
+            "ask_px_00".to_owned(),
+            "bid_sz_00".to_owned(),
+            "ask_sz_00".to_owned(),
+            "bid_pb_00".to_owned(),
+            "ask_pb_00".to_owned(),
+        ];
+        assert_eq!(CbboMsg::ordered_fields(""), exp)
     }
 
     #[test]

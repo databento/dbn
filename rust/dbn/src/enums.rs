@@ -271,6 +271,18 @@ pub mod rtype {
         Statistics = 0x18,
         /// Denotes a market by order record.
         Mbo = 0xA0,
+        /// Denotes a consolidated best bid and offer record.
+        Cbbo = 0xB1,
+        /// Denotes a consolidated best bid and offer record subsampled on a one-second interval.
+        Cbbo1S = 0xC0,
+        /// Denotes a consolidated best bid and offer record subsampled on a one-minute interval.
+        Cbbo1M = 0xC1,
+        /// Denotes a consolidated best bid and offer trade record containing the consolidated BBO before the trade.
+        Tcbbo = 0xC2,
+        /// Denotes a best bid and offer record subsampled on a one-second interval.
+        Bbo1S = 0xC3,
+        /// Denotes a best bid and offer record subsampled on a one-minute interval.
+        Bbo1M = 0xC4,
     }
 
     /// Denotes a market-by-price record with a book depth of 0 (used for the
@@ -315,6 +327,18 @@ pub mod rtype {
     pub const STATISTICS: u8 = RType::Statistics as u8;
     /// Denotes a market-by-order record.
     pub const MBO: u8 = RType::Mbo as u8;
+    /// Denotes a consolidated best bid and offer record.
+    pub const CBBO: u8 = RType::Cbbo as u8;
+    /// Denotes a consolidated best bid and offer record subsampled on a one-second interval.
+    pub const CBBO_1S: u8 = RType::Cbbo1S as u8;
+    /// Denotes a consolidated best bid and offer record subsampled on a one-minute interval.
+    pub const CBBO_1M: u8 = RType::Cbbo1M as u8;
+    /// Denotes a consolidated best bid and offer trade record containing the consolidated BBO before the trade.
+    pub const TCBBO: u8 = RType::Tcbbo as u8;
+    /// Denotes a best bid and offer record subsampled on a one-second interval.
+    pub const BBO_1S: u8 = RType::Bbo1S as u8;
+    /// Denotes a best bid and offer record subsampled on a one-minute interval.
+    pub const BBO_1M: u8 = RType::Bbo1M as u8;
 
     /// Get the corresponding `rtype` for the given `schema`.
     impl From<Schema> for RType {
@@ -333,6 +357,12 @@ pub mod rtype {
                 Schema::Statistics => RType::Statistics,
                 Schema::Status => RType::Status,
                 Schema::Imbalance => RType::Imbalance,
+                Schema::Cbbo => RType::Cbbo,
+                Schema::Cbbo1S => RType::Cbbo1S,
+                Schema::Cbbo1M => RType::Cbbo1M,
+                Schema::Tcbbo => RType::Tcbbo,
+                Schema::Bbo1S => RType::Bbo1S,
+                Schema::Bbo1M => RType::Bbo1M,
             }
         }
     }
@@ -356,6 +386,12 @@ pub mod rtype {
             IMBALANCE => Some(Schema::Imbalance),
             STATISTICS => Some(Schema::Statistics),
             MBO => Some(Schema::Mbo),
+            CBBO => Some(Schema::Cbbo),
+            CBBO_1S => Some(Schema::Cbbo1S),
+            CBBO_1M => Some(Schema::Cbbo1M),
+            TCBBO => Some(Schema::Tcbbo),
+            BBO_1S => Some(Schema::Bbo1S),
+            BBO_1M => Some(Schema::Bbo1M),
             _ => None,
         }
     }
@@ -382,6 +418,12 @@ pub mod rtype {
                 "system" => Ok(RType::System),
                 "statistics" => Ok(RType::Statistics),
                 "mbo" => Ok(RType::Mbo),
+                "cbbo" => Ok(RType::Cbbo),
+                "cbbo-1s" => Ok(RType::Cbbo1S),
+                "cbbo-1m" => Ok(RType::Cbbo1M),
+                "tcbbo" => Ok(RType::Tcbbo),
+                "bbo-1s" => Ok(RType::Bbo1S),
+                "bbo-1m" => Ok(RType::Bbo1M),
                 _ => Err(crate::Error::conversion::<Self>(s.to_owned())),
             }
         }
@@ -408,6 +450,12 @@ pub mod rtype {
                 RType::System => "system",
                 RType::Statistics => "statistics",
                 RType::Mbo => "mbo",
+                RType::Cbbo => "cbbo",
+                RType::Cbbo1S => "cbbo-1s",
+                RType::Cbbo1M => "cbbo-1m",
+                RType::Tcbbo => "tcbbo",
+                RType::Bbo1S => "bbo-1s",
+                RType::Bbo1M => "bbo-1m",
             }
         }
     }
@@ -465,10 +513,29 @@ pub enum Schema {
     /// trading session.
     #[pyo3(name = "OHLCV_EOD")]
     OhlcvEod = 13,
+    /// Consolidated best bid and offer.
+    #[pyo3(name = "CBBO")]
+    Cbbo = 14,
+    /// Consolidated best bid and offer subsampled at one-second intervals, in addition to trades.
+    #[pyo3(name = "CBBO_1S")]
+    Cbbo1S = 15,
+    /// Consolidated best bid and offer subsampled at one-minute intervals, in addition to trades.
+    #[pyo3(name = "CBBO_1M")]
+    Cbbo1M = 16,
+    /// All trade events with the consolidated best bid and offer (CBBO) immediately **before** the
+    /// effect of the trade.
+    #[pyo3(name = "TCBBO")]
+    Tcbbo = 17,
+    /// Best bid and offer subsampled at one-second intervals, in addition to trades.
+    #[pyo3(name = "BBO_1S")]
+    Bbo1S = 18,
+    /// Best bid and offer subsampled at one-minute intervals, in addition to trades.
+    #[pyo3(name = "BBO_1M")]
+    Bbo1M = 19,
 }
 
 /// The number of [`Schema`]s.
-pub const SCHEMA_COUNT: usize = 14;
+pub const SCHEMA_COUNT: usize = 20;
 
 impl std::str::FromStr for Schema {
     type Err = crate::Error;
@@ -489,6 +556,12 @@ impl std::str::FromStr for Schema {
             "statistics" => Ok(Schema::Statistics),
             "status" => Ok(Schema::Status),
             "imbalance" => Ok(Schema::Imbalance),
+            "cbbo" => Ok(Schema::Cbbo),
+            "cbbo-1s" => Ok(Schema::Cbbo1S),
+            "cbbo-1m" => Ok(Schema::Cbbo1M),
+            "tcbbo" => Ok(Schema::Tcbbo),
+            "bbo-1s" => Ok(Schema::Bbo1S),
+            "bbo-1m" => Ok(Schema::Bbo1M),
             _ => Err(crate::Error::conversion::<Self>(s.to_owned())),
         }
     }
@@ -518,6 +591,12 @@ impl Schema {
             Schema::Statistics => "statistics",
             Schema::Status => "status",
             Schema::Imbalance => "imbalance",
+            Schema::Cbbo => "cbbo",
+            Schema::Cbbo1S => "cbbo-1s",
+            Schema::Cbbo1M => "cbbo-1m",
+            Schema::Tcbbo => "tcbbo",
+            Schema::Bbo1S => "bbo-1s",
+            Schema::Bbo1M => "bbo-1m",
         }
     }
 }

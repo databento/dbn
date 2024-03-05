@@ -12,7 +12,7 @@ use crate::FIXED_PRICE_SCALE;
 #[repr(transparent)]
 pub struct Ts(pub u64);
 
-/// A new type for formatting nanosecond UNIX timestamps.
+/// A new type for formatting prices.
 #[derive(Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(transparent)]
 pub struct Px(pub i64);

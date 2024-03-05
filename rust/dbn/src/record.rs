@@ -150,6 +150,46 @@ pub struct BidAskPair {
     pub ask_ct: u32,
 }
 
+/// A price level consolidated from multiple venues.
+#[repr(C)]
+#[derive(Clone, JsonSerialize, RecordDebug, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn"),
+    derive(crate::macros::PyFieldDesc)
+)]
+#[cfg_attr(test, derive(type_layout::TypeLayout))]
+pub struct ConsolidatedBidAskPair {
+    /// The bid price.
+    #[dbn(fixed_price)]
+    pub bid_px: i64,
+    /// The ask price.
+    #[dbn(fixed_price)]
+    pub ask_px: i64,
+    /// The bid size.
+    pub bid_sz: u32,
+    /// The ask size.
+    pub ask_sz: u32,
+    /// The bid publisher ID assigned by Databento, which denotes the dataset and venue.
+    #[dbn(fmt_method)]
+    pub bid_pb: u16,
+    // Reserved for later usage
+    #[dbn(skip)]
+    #[doc(hidden)]
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub _reserved1: [c_char; 2],
+    /// The ask publisher ID assigned by Databento, which denotes the dataset and venue.
+    #[dbn(fmt_method)]
+    pub ask_pb: u16,
+    // Reserved for later usage
+    #[dbn(skip)]
+    #[doc(hidden)]
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub _reserved2: [c_char; 2],
+}
+
 /// Market by price implementation with a book depth of 0. Equivalent to
 /// MBP-0. The record of the [`Trades`](crate::enums::Schema::Trades) schema.
 #[repr(C)]
@@ -219,7 +259,7 @@ pub struct TradeMsg {
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[cfg_attr(test, derive(type_layout::TypeLayout))]
-#[dbn_record(rtype::MBP_1)]
+#[dbn_record(rtype::MBP_1, rtype::BBO_1S, rtype::BBO_1M)]
 pub struct Mbp1Msg {
     /// The common header.
     #[pyo3(get)]
@@ -326,8 +366,78 @@ pub struct Mbp10Msg {
     pub levels: [BidAskPair; 10],
 }
 
+/// Consolidated market by price implementation with a known book depth of 1. The record of the
+/// [`Cbbo`](crate::enums::Schema::Cbbo) schema.
+#[repr(C)]
+#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(set_all, dict, module = "databento_dbn", name = "CbboMsg"),
+    derive(crate::macros::PyFieldDesc)
+)]
+#[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
+#[cfg_attr(test, derive(type_layout::TypeLayout))]
+#[dbn_record(rtype::CBBO, rtype::CBBO_1S, rtype::CBBO_1M, rtype::TCBBO)]
+pub struct CbboMsg {
+    /// The common header.
+    #[pyo3(get)]
+    pub hd: RecordHeader,
+    /// The order price expressed as a signed integer where every 1 unit
+    /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    #[dbn(fixed_price)]
+    #[pyo3(get)]
+    pub price: i64,
+    /// The order quantity.
+    #[pyo3(get)]
+    pub size: u32,
+    /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or
+    /// **T**rade.
+    #[dbn(c_char, encode_order(2))]
+    pub action: c_char,
+    /// The side that initiates the event. Can be **A**sk for a sell order (or sell
+    /// aggressor in a trade), **B**id for a buy order (or buy aggressor in a trade), or
+    /// **N**one where no side is specified by the original source.
+    #[dbn(c_char, encode_order(3))]
+    pub side: c_char,
+    /// A combination of packet end with matching engine status. See
+    /// [`enums::flags`](crate::enums::flags) for possible values.
+    #[dbn(fmt_binary)]
+    #[pyo3(get)]
+    pub flags: u8,
+    // Reserved for future usage.
+    #[doc(hidden)]
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub _reserved: [c_char; 1],
+    /// The capture-server-received timestamp expressed as number of nanoseconds since
+    /// the UNIX epoch.
+    #[dbn(encode_order(0), index_ts, unix_nanos)]
+    #[pyo3(get)]
+    pub ts_recv: u64,
+    /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
+    #[pyo3(get)]
+    pub ts_in_delta: i32,
+    /// The message sequence number assigned at the venue.
+    #[pyo3(get)]
+    pub sequence: u32,
+    /// The top of the order book.
+    #[pyo3(get)]
+    pub levels: [ConsolidatedBidAskPair; 1],
+}
+
 /// The record of the [`Tbbo`](crate::enums::Schema::Tbbo) schema.
 pub type TbboMsg = Mbp1Msg;
+/// The record of the [`Bbo1S`](crate::enums::Schema::Bbo1S) schema.
+pub type Bbo1SMsg = Mbp1Msg;
+/// The record of the [`Bbo1M`](crate::enums::Schema::Bbo1M) schema.
+pub type Bbo1MMsg = Mbp1Msg;
+/// The record of the [`Cbbo1S`](crate::enums::Schema::Cbbo1S) schema.
+pub type Cbbo1SMsg = CbboMsg;
+/// The record of the [`Cbbo1M`](crate::enums::Schema::Cbbo1M) schema.
+pub type Cbbo1MMsg = CbboMsg;
+/// The record of the [`Tcbbo`](crate::enums::Schema::Tcbbo) schema.
+pub type TcbboMsg = CbboMsg;
 
 /// Open, high, low, close, and volume. The record of the following schemas:
 /// - [`Ohlcv1S`](crate::enums::Schema::Ohlcv1S)
@@ -1012,6 +1122,7 @@ mod tests {
     use rstest::rstest;
     use type_layout::{Field, TypeLayout};
 
+    use crate::Schema;
     use crate::UNDEF_TIMESTAMP;
 
     use super::*;
@@ -1075,8 +1186,9 @@ mod tests {
     #[case::header(RecordHeader::default::<MboMsg>(rtype::MBO), 16)]
     #[case::mbo(MboMsg::default(), 56)]
     #[case::ba_pair(BidAskPair::default(), 32)]
-    #[case::mbp1(Mbp1Msg::default(), mem::size_of::<TradeMsg>() + mem::size_of::<BidAskPair>())]
+    #[case::mbp1(Mbp1Msg::default_for_schema(Schema::Mbp1), mem::size_of::<TradeMsg>() + mem::size_of::<BidAskPair>())]
     #[case::mbp10(Mbp10Msg::default(), mem::size_of::<TradeMsg>() + mem::size_of::<BidAskPair>() * 10)]
+    #[case::cbbo(CbboMsg::default_for_schema(Schema::Cbbo), mem::size_of::<Mbp1Msg>())]
     #[case::trade(TradeMsg::default(), 48)]
     #[case::definition(InstrumentDefMsg::default(), 400)]
     #[case::status(StatusMsg::default(), 40)]
@@ -1095,7 +1207,8 @@ mod tests {
     #[case::header(RecordHeader::default::<MboMsg>(rtype::MBO))]
     #[case::mbo(MboMsg::default())]
     #[case::ba_pair(BidAskPair::default())]
-    #[case::mbp1(Mbp1Msg::default())]
+    #[case::mbp1(Mbp1Msg::default_for_schema(crate::Schema::Mbp1))]
+    #[case::cbbo(CbboMsg::default_for_schema(crate::Schema::Cbbo))]
     #[case::mbp10(Mbp10Msg::default())]
     #[case::trade(TradeMsg::default())]
     #[case::definition(InstrumentDefMsg::default())]

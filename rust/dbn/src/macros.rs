@@ -17,7 +17,7 @@ macro_rules! rtype_dispatch_base {
         match $rec_ref.rtype() {
             Ok(rtype) => Ok(match rtype {
                 RType::Mbp0 => $handler!(TradeMsg),
-                RType::Mbp1 => $handler!(Mbp1Msg),
+                RType::Mbp1 | RType::Bbo1S | RType::Bbo1M => $handler!(Mbp1Msg),
                 RType::Mbp10 => $handler!(Mbp10Msg),
                 #[allow(deprecated)]
                 RType::OhlcvDeprecated
@@ -60,6 +60,7 @@ macro_rules! rtype_dispatch_base {
                 }
                 RType::Statistics => $handler!(StatMsg),
                 RType::Mbo => $handler!(MboMsg),
+                RType::Cbbo | RType::Cbbo1S | RType::Cbbo1M | RType::Tcbbo => $handler!(CbboMsg),
             }),
             Err(e) => Err(e),
         }
@@ -74,7 +75,7 @@ macro_rules! schema_dispatch_base {
         use $crate::record::*;
         match $schema {
             Schema::Mbo => $handler!(MboMsg),
-            Schema::Mbp1 | Schema::Tbbo => $handler!(Mbp1Msg),
+            Schema::Mbp1 | Schema::Tbbo | Schema::Bbo1S | Schema::Bbo1M => $handler!(Mbp1Msg),
             Schema::Mbp10 => $handler!(Mbp10Msg),
             Schema::Trades => $handler!(TradeMsg),
             Schema::Ohlcv1D
@@ -88,6 +89,9 @@ macro_rules! schema_dispatch_base {
             Schema::Statistics => $handler!(StatMsg),
             Schema::Status => $handler!(StatusMsg),
             Schema::Imbalance => $handler!(ImbalanceMsg),
+            Schema::Cbbo | Schema::Cbbo1S | Schema::Cbbo1M | Schema::Tcbbo => {
+                $handler!(CbboMsg)
+            }
         }
     }};
 }

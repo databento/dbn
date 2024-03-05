@@ -1,6 +1,14 @@
 # Changelog
 
-## 0.16.1 - TBD
+## 0.17.0 - TBD
+
+### Enhancements
+- Added message type `CbboMsg`, new rtypes and schema types for `Cbbo`, `Cbbo-1s`, `Cbbo-1m`,
+  `Tcbbo`, `Bbo-1s` and `Bbo-1m`
+
+### Breaking changes
+- Removed `Default` trait implementation for `Mbp1Msg` due to it now having multiple
+  permissible `rtype` values. Users should migrate to call `default_for_schema` instead
 
 ### Bug fixes
 - Fixed an issue where the Python `MappingIntervalDict` was not exported

@@ -7,6 +7,7 @@ from collections.abc import Sequence
 from enum import Enum
 from typing import BinaryIO
 from typing import ClassVar
+from typing import Optional
 from typing import SupportsBytes
 from typing import TextIO
 from typing import Union
@@ -24,6 +25,7 @@ _DBNRecord = Union[
     Metadata,
     MBOMsg,
     MBP1Msg,
+    CbboMsg,
     MBP10Msg,
     OHLCVMsg,
     TradeMsg,
@@ -885,6 +887,139 @@ class BidAskPair:
 
         """
 
+class ConsolidatedBidAskPair:
+    """
+    A consolidated book level.
+    """
+
+    @property
+    def pretty_bid_px(self) -> float:
+        """
+        The bid price as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        bid_px
+
+        """
+
+    @property
+    def bid_px(self) -> int:
+        """
+        The bid price expressed as a signed integer where every 1 unit
+        corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        pretty_bid_px
+
+        """
+
+    @property
+    def pretty_ask_px(self) -> float:
+        """
+        The ask price as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        ask_px
+
+        """
+
+    @property
+    def ask_px(self) -> int:
+        """
+        The ask price as a signed integer where every 1 unit
+        corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        pretty_ask_px
+
+        """
+
+    @property
+    def bid_sz(self) -> int:
+        """
+        The bid size.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ask_sz(self) -> int:
+        """
+        The ask size.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def bid_pb(self) -> int:
+        """
+        The bid publisher.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_bid_pb(self) -> Optional[str]:
+        """
+        The human-readable bid publisher.
+
+        Returns
+        -------
+        Optional[str]
+
+        """
+
+    @property
+    def ask_pb(self) -> int:
+        """
+        The ask publisher.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_ask_pb(self) -> Optional[str]:
+        """
+        The human-readable ask publisher.
+
+        Returns
+        -------
+        Optional[str]
+
+        """
+
 class _MBPBase:
     """
     Base for market-by-price messages.
@@ -1050,6 +1185,159 @@ class MBP1Msg(Record, _MBPBase):
         Notes
         -----
         MBP1Msg contains 1 level of BidAskPair.
+
+        """
+
+class CbboMsg(Record):
+    """
+    Consolidated best bid and offer implementation.
+    """
+
+    @property
+    def pretty_price(self) -> float:
+        """
+        The order price as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        price
+
+        """
+
+    @property
+    def price(self) -> int:
+        """
+        The order price expressed as a signed integer where every 1 unit
+        corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        pretty_price
+
+        """
+
+    @property
+    def size(self) -> int:
+        """
+        The order quantity.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def action(self) -> str:
+        """
+        The event action. Can be `A`dd, `C`ancel, `M`odify, clea`R`, or
+        `T`rade.
+
+        Returns
+        -------
+        str
+
+        """
+
+    @property
+    def side(self) -> str:
+        """
+        The order side. Can be `A`sk, `B`id or `N`one.
+
+        Returns
+        -------
+        str
+
+        """
+
+    @property
+    def flags(self) -> int:
+        """
+        A combination of packet end with matching engine status.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def depth(self) -> int:
+        """
+        The depth of actual book change.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_ts_recv(self) -> dt.datetime:
+        """
+        The capture-server-received timestamp as a datetime or
+        `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def ts_recv(self) -> int:
+        """
+        The capture-server-received timestamp expressed as number of
+        nanoseconds since the UNIX epoch.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_in_delta(self) -> int:
+        """
+        The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def sequence(self) -> int:
+        """
+        The message sequence number assigned at the venue.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def levels(self) -> list[ConsolidatedBidAskPair]:
+        """
+        The top of the consolidated order book.
+
+        Returns
+        -------
+        list[ConsolidatedBidAskPair]
+
+        Notes
+        -----
+        CbboMsg contains 1 level of ConsolidatedBidAskPair.
 
         """
 

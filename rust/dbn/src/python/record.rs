@@ -9,9 +9,9 @@ use pyo3::{
 
 use crate::{
     compat::{ErrorMsgV1, InstrumentDefMsgV1, SymbolMappingMsgV1, SystemMsgV1},
-    record::str_to_c_chars,
+    record::{str_to_c_chars, CbboMsg, ConsolidatedBidAskPair},
     rtype, BidAskPair, ErrorMsg, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg,
-    Mbp1Msg, OhlcvMsg, Record, RecordHeader, SType, SecurityUpdateAction, StatMsg,
+    Mbp1Msg, OhlcvMsg, Publisher, Record, RecordHeader, SType, SecurityUpdateAction, StatMsg,
     StatUpdateAction, StatusAction, StatusMsg, StatusReason, SymbolMappingMsg, SystemMsg, TradeMsg,
     TradingEvent, TriState, UserDefinedInstrument, WithTsOut, FIXED_PRICE_SCALE, UNDEF_ORDER_SIZE,
     UNDEF_PRICE, UNDEF_TIMESTAMP,
@@ -196,6 +196,216 @@ impl BidAskPair {
             UNDEF_PRICE => f64::NAN,
             _ => self.bid_px as f64 / FIXED_PRICE_SCALE as f64,
         }
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
+}
+
+#[pymethods]
+impl CbboMsg {
+    #[new]
+    fn py_new(
+        rtype: u8,
+        publisher_id: u16,
+        instrument_id: u32,
+        ts_event: u64,
+        price: i64,
+        size: u32,
+        action: c_char,
+        side: c_char,
+        flags: u8,
+        ts_recv: u64,
+        ts_in_delta: i32,
+        sequence: u32,
+        levels: Option<ConsolidatedBidAskPair>,
+    ) -> Self {
+        Self {
+            hd: RecordHeader::new::<Self>(rtype, publisher_id, instrument_id, ts_event),
+            price,
+            size,
+            action,
+            side,
+            flags,
+            _reserved: [0; 1],
+            ts_recv,
+            ts_in_delta,
+            sequence,
+            levels: [levels.unwrap_or_default()],
+        }
+    }
+
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
+
+    #[getter]
+    fn rtype(&self) -> u8 {
+        self.hd.rtype
+    }
+
+    #[getter]
+    fn publisher_id(&self) -> u16 {
+        self.hd.publisher_id
+    }
+
+    #[getter]
+    fn instrument_id(&self) -> u32 {
+        self.hd.instrument_id
+    }
+
+    #[getter]
+    fn ts_event(&self) -> u64 {
+        self.hd.ts_event
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_price")]
+    fn py_pretty_price(&self) -> f64 {
+        self.price as f64 / FIXED_PRICE_SCALE as f64
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_event")]
+    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_event())
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_recv")]
+    fn py_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_recv)
+    }
+
+    #[pyo3(name = "record_size")]
+    fn py_record_size(&self) -> usize {
+        self.record_size()
+    }
+
+    #[classattr]
+    fn size_hint() -> PyResult<usize> {
+        Ok(mem::size_of::<CbboMsg>())
+    }
+
+    #[getter]
+    #[pyo3(name = "action")]
+    fn py_action(&self) -> char {
+        self.action as u8 as char
+    }
+
+    #[getter]
+    #[pyo3(name = "side")]
+    fn py_side(&self) -> char {
+        self.side as u8 as char
+    }
+
+    #[classattr]
+    #[pyo3(name = "_dtypes")]
+    fn py_dtypes() -> Vec<(String, String)> {
+        Self::field_dtypes("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_price_fields")]
+    fn py_price_fields() -> Vec<String> {
+        Self::price_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_timestamp_fields")]
+    fn py_timestamp_fields() -> Vec<String> {
+        Self::timestamp_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_hidden_fields")]
+    fn py_hidden_fields() -> Vec<String> {
+        Self::hidden_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_ordered_fields")]
+    fn py_ordered_fields() -> Vec<String> {
+        Self::ordered_fields("")
+    }
+}
+
+#[pymethods]
+impl ConsolidatedBidAskPair {
+    #[new]
+    fn py_new(
+        bid_px: Option<i64>,
+        ask_px: Option<i64>,
+        bid_sz: Option<u32>,
+        ask_sz: Option<u32>,
+        bid_pb: Option<u16>,
+        ask_pb: Option<u16>,
+    ) -> Self {
+        Self {
+            bid_px: bid_px.unwrap_or(UNDEF_PRICE),
+            ask_px: ask_px.unwrap_or(UNDEF_PRICE),
+            bid_sz: bid_sz.unwrap_or_default(),
+            ask_sz: ask_sz.unwrap_or_default(),
+            bid_pb: bid_pb.unwrap_or_default(),
+            ask_pb: ask_pb.unwrap_or_default(),
+            _reserved1: [0; 2],
+            _reserved2: [0; 2],
+        }
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ask_px")]
+    fn py_pretty_ask_px(&self) -> f64 {
+        match self.ask_px {
+            UNDEF_PRICE => f64::NAN,
+            _ => self.ask_px as f64 / FIXED_PRICE_SCALE as f64,
+        }
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_bid_px")]
+    fn py_pretty_bid_px(&self) -> f64 {
+        match self.bid_px {
+            UNDEF_PRICE => f64::NAN,
+            _ => self.bid_px as f64 / FIXED_PRICE_SCALE as f64,
+        }
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ask_pb")]
+    fn py_pretty_ask_pb(&self) -> Option<String> {
+        Publisher::try_from(self.ask_pb)
+            .map(|pb| pb.as_str().to_owned())
+            .ok()
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_bid_pb")]
+    fn py_pretty_bid_pb(&self) -> Option<String> {
+        Publisher::try_from(self.bid_pb)
+            .map(|pb| pb.as_str().to_owned())
+            .ok()
     }
 
     fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
@@ -2732,6 +2942,55 @@ impl<const N: usize> PyFieldDesc for [BidAskPair; N] {
             res.extend(fields);
         }
         res
+    }
+}
+
+impl<const N: usize> PyFieldDesc for [ConsolidatedBidAskPair; N] {
+    fn field_dtypes(_field_name: &str) -> Vec<(String, String)> {
+        let mut res = Vec::new();
+        let field_dtypes = ConsolidatedBidAskPair::field_dtypes("");
+        for level in 0..N {
+            let mut dtypes = field_dtypes.clone();
+            for dtype in dtypes.iter_mut() {
+                dtype.0.push_str(&format!("_{level:02}"));
+            }
+            res.extend(dtypes);
+        }
+        res
+    }
+
+    fn price_fields(_field_name: &str) -> Vec<String> {
+        let mut res = Vec::new();
+        let price_fields = ConsolidatedBidAskPair::price_fields("");
+        for level in 0..N {
+            let mut fields = price_fields.clone();
+            for field in fields.iter_mut() {
+                field.push_str(&format!("_{level:02}"));
+            }
+            res.extend(fields);
+        }
+        res
+    }
+
+    fn ordered_fields(_field_name: &str) -> Vec<String> {
+        let mut res = Vec::new();
+        let ordered_fields = ConsolidatedBidAskPair::ordered_fields("");
+        for level in 0..N {
+            let mut fields = ordered_fields.clone();
+            for field in fields.iter_mut() {
+                field.push_str(&format!("_{level:02}"));
+            }
+            res.extend(fields);
+        }
+        res
+    }
+
+    fn hidden_fields(_field_name: &str) -> Vec<String> {
+        Vec::new()
+    }
+
+    fn timestamp_fields(_field_name: &str) -> Vec<String> {
+        Vec::new()
     }
 }
 

@@ -8,8 +8,9 @@ use dbn::{
     flags,
     python::EnumIterator,
     record::{
-        BidAskPair, ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
-        RecordHeader, StatMsg, StatusMsg, SymbolMappingMsg, SystemMsg, TradeMsg,
+        BidAskPair, CbboMsg, ConsolidatedBidAskPair, ErrorMsg, ImbalanceMsg, InstrumentDefMsg,
+        MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader, StatMsg, StatusMsg, SymbolMappingMsg,
+        SystemMsg, TradeMsg,
     },
     Metadata, RType, VersionUpgradePolicy, FIXED_PRICE_SCALE, UNDEF_ORDER_SIZE, UNDEF_PRICE,
     UNDEF_STAT_QUANTITY, UNDEF_TIMESTAMP,
@@ -39,6 +40,7 @@ fn databento_dbn(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     checked_add_class::<RecordHeader>(m)?;
     checked_add_class::<MboMsg>(m)?;
     checked_add_class::<BidAskPair>(m)?;
+    checked_add_class::<ConsolidatedBidAskPair>(m)?;
     checked_add_class::<TradeMsg>(m)?;
     checked_add_class::<Mbp1Msg>(m)?;
     checked_add_class::<Mbp10Msg>(m)?;
@@ -54,6 +56,7 @@ fn databento_dbn(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     checked_add_class::<SystemMsg>(m)?;
     checked_add_class::<SystemMsgV1>(m)?;
     checked_add_class::<StatMsg>(m)?;
+    checked_add_class::<CbboMsg>(m)?;
     // PyClass enums
     checked_add_class::<Compression>(m)?;
     checked_add_class::<Encoding>(m)?;
