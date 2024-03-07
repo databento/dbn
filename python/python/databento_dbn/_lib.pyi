@@ -15,6 +15,7 @@ from typing import Union
 from databento_dbn import MappingIntervalDict
 from databento_dbn import SymbolMapping
 
+DBN_VERSION: int
 FIXED_PRICE_SCALE: int
 UNDEF_PRICE: int
 UNDEF_ORDER_SIZE: int
@@ -41,101 +42,156 @@ _DBNRecord = Union[
     StatMsg,
 ]
 
-class Compression(Enum):
+class Side(Enum):
     """
-    Data compression format.
+    A side of the market. The side of the market for resting orders, or the side
+    of the aggressor for trades.
 
+    ASK
+        A sell order or sell aggressor in a trade.
+    BID
+        A buy order or a buy aggressor in a trade.
     NONE
-        Uncompressed
-    ZSTD
-        Zstandard compressed.
+        No side specified by the original source.
 
     """
 
+    ASK: str
+    BID: str
     NONE: str
-    ZSTD: str
 
     @classmethod
-    def from_str(cls, value: str) -> Compression: ...
+    def from_str(cls, value: str) -> Side: ...
     @classmethod
-    def variants(cls) -> Iterable[Compression]: ...
+    def variants(cls) -> Iterable[Side]: ...
 
-class Encoding(Enum):
+class Action(Enum):
     """
-    Data output encoding.
+    A tick action.
 
-    DBN
-        Databento Binary Encoding.
-    CSV
-        Comma-separated values.
-    JSON
-        JavaScript object notation.
-
-    """
-
-    DBN: str
-    CSV: str
-    JSON: str
-
-    @classmethod
-    def from_str(cls, value: str) -> Encoding: ...
-    @classmethod
-    def variants(cls) -> Iterable[Encoding]: ...
-
-class Schema(Enum):
-    """
-    A DBN record schema.
-
-    MBO
-        Market by order.
-    MBP_1
-        Market by price with a book depth of 1.
-    MBP_10
-        Market by price with a book depth of 10.
-    TBBO
-        All trade events with the best bid and offer (BBO) immediately before the effect of the trade.
-    TRADES
-        All trade events.
-    OHLCV_1S
-        Open, high, low, close, and volume at a one-second interval.
-    OHLCV_1M
-        Open, high, low, close, and volume at a one-minute interval.
-    OHLCV_1H
-        Open, high, low, close, and volume at an hourly interval.
-    OHLCV_1D
-        Open, high, low, close, and volume at a daily interval.
-    OHLCV_EOD
-        Open, high, low, close, and volume at a daily cadence based on the end of the trading session.
-    DEFINITION
-        Instrument definitions.
-    STATISTICS
-        Additional data disseminated by publishers.
-    STATUS
-        Exchange status.
-    IMBALANCE
-        Auction imbalance events.
+    MODIFY
+        An existing order was modified.
+    TRADE
+        A trade executed.
+    FILL
+        An existing order was filled.
+    CANCEL
+        An order was cancelled.
+    ADD
+        A new order was added.
+    CLEAR
+        Reset the book; clear all orders for an instrument.
 
     """
 
-    MBO: str
-    MBP_1: str
-    MBP_10: str
-    TBBO: str
-    TRADES: str
-    OHLCV_1S: str
-    OHLCV_1M: str
-    OHLCV_1H: str
-    OHLCV_1D: str
-    OHLCV_EOD: str
-    DEFINITION: str
-    STATISTICS: str
-    STATUS: str
-    IMBALANCE: str
+    MODIFY: str
+    TRADE: str
+    FILL: str
+    CANCEL: str
+    ADD: str
+    CLEAR: str
 
     @classmethod
-    def from_str(cls, value: str) -> Schema: ...
+    def from_str(cls, value: str) -> Action: ...
     @classmethod
-    def variants(cls) -> Iterable[Schema]: ...
+    def variants(cls) -> Iterable[Action]: ...
+
+class InstrumentClass(Enum):
+    """
+    The class of instrument.
+
+    BOND
+        A bond.
+    CALL
+        A call option.
+    FUTURE
+        A future.
+    STOCK
+        A stock.
+    MIXED_SPREAD
+        A spread composed of multiple instrument classes.
+    PUT
+        A put option.
+    FUTURE_SPREAD
+        A spread composed of futures.
+    OPTION_SPREAD
+        A spread composed of options.
+    FX_SPOT
+        A foreign exchange spot.
+
+    """
+
+    BOND: str
+    CALL: str
+    FUTURE: str
+    STOCK: str
+    MIXED_SPREAD: str
+    PUT: str
+    FUTURE_SPREAD: str
+    OPTION_SPREAD: str
+    FX_SPOT: str
+
+    @classmethod
+    def from_str(cls, value: str) -> InstrumentClass: ...
+    @classmethod
+    def variants(cls) -> Iterable[InstrumentClass]: ...
+
+class MatchAlgorithm(Enum):
+    """
+    The type of matching algorithm used for the instrument at the exchange.
+
+
+    FIFO
+        First-in-first-out matching.
+    CONFIGURABLE
+        A configurable match algorithm.
+    PRO_RATA
+        Trade quantity is allocated to resting orders based on a pro-rata percentage: resting order quantity divided by total quantity.
+    FIFO_LMM
+        Like `FIFO` but with LMM allocations prior to FIFO allocations.
+    THRESHOLD_PRO_RATA
+        Like `PRO_RATA` but includes a configurable allocation to the first order that improves the market.
+    FIFO_TOP_LMM
+        Like `FIFO_LMM` but includes a configurable allocation to the first order that improves the market.
+    THRESHOLD_PRO_RATA_LMM
+        Like `THRESHOLD_PRO_RATA` but includes a special priority to LMMs.
+    EURODOLLAR_FUTURES
+        Special variant used only for Eurodollar futures on CME.
+
+    """
+
+    FIFO: str
+    CONFIGURABLE: str
+    PRO_RATA: str
+    FIFO_LMM: str
+    THRESHOLD_PRO_RATA: str
+    FIFO_TOP_LMM: str
+    THRESHOLD_PRO_RATA_LMM: str
+    EURODOLLAR_FUTURES: str
+
+    @classmethod
+    def from_str(cls, value: str) -> MatchAlgorithm: ...
+    @classmethod
+    def variants(cls) -> Iterable[MatchAlgorithm]: ...
+
+class UserDefinedInstrument(Enum):
+    """
+    Whether the instrument is user-defined.
+
+    NO
+        The instrument is not user-defined.
+    YES
+        The instrument is user-defined.
+
+    """
+
+    NO: str
+    YES: str
+
+    @classmethod
+    def from_str(cls, value: str) -> UserDefinedInstrument: ...
+    @classmethod
+    def variants(cls) -> Iterable[UserDefinedInstrument]: ...
 
 class SType(Enum):
     """
@@ -152,6 +208,10 @@ class SType(Enum):
     PARENT
         A Databento-specific symbology for referring to a group of symbols by one
         "parent" symbol, e.g. ES.FUT to refer to all ES futures.
+    NASDAQ
+        Symbology for US equities using NASDAQ Integrated suffix conventions.
+    CMS
+        Symbology for US equities using CMS suffix conventions.
 
     """
 
@@ -159,6 +219,8 @@ class SType(Enum):
     RAW_SYMBOL: str
     CONTINUOUS: str
     PARENT: str
+    NASDAQ: str
+    CMS: str
 
     @classmethod
     def from_str(cls, value: str) -> SType: ...
@@ -206,6 +268,20 @@ class RType(Enum):
         Denotes a statistics record from the publisher (not calculated by Databento).
     MBO
         Denotes a market by order record.
+    CBBO
+        Denotes a consolidated best bid and offer record.
+    CBBO_1S
+        Denotes a consolidated best bid and offer record.
+    CBBO_1M
+        Denotes a consolidated best bid and offer record subsampled on a one-minute
+        interval.
+    TCBBO
+        Denotes a consolidated best bid and offer trade record containing the
+        consolidated BBO before the trade.
+    BBO_1S
+        Denotes a best bid and offer record subsampled on a one-second interval.
+    BBO_1M
+        Denotes a best bid and offer record subsampled on a one-minute interval.
 
     """  # noqa: D405 D407 D411
 
@@ -218,6 +294,443 @@ class RType(Enum):
     @classmethod
     def variants(cls) -> Iterable[RType]: ...
 
+class Schema(Enum):
+    """
+    A DBN record schema.
+
+    MBO
+        Market by order.
+    MBP_1
+        Market by price with a book depth of 1.
+    MBP_10
+        Market by price with a book depth of 10.
+    TBBO
+        All trade events with the best bid and offer (BBO) immediately before the effect of the trade.
+    TRADES
+        All trade events.
+    OHLCV_1S
+        Open, high, low, close, and volume at a one-second interval.
+    OHLCV_1M
+        Open, high, low, close, and volume at a one-minute interval.
+    OHLCV_1H
+        Open, high, low, close, and volume at an hourly interval.
+    OHLCV_1D
+        Open, high, low, close, and volume at a daily interval.
+    OHLCV_EOD
+        Open, high, low, close, and volume at a daily cadence based on the end of the trading session.
+    DEFINITION
+        Instrument definitions.
+    STATISTICS
+        Additional data disseminated by publishers.
+    STATUS
+        Exchange status.
+    IMBALANCE
+        Auction imbalance events.
+    CBBO
+        Consolidated best bid and offer.
+    CBBO_1S
+        Consolidated best bid and offer record.
+    CBBO_1M
+        Consolidated best bid and offer record subsampled on a one-second interval.
+    TCBBO
+        Consolidated best bid and offer record subsampled on a one-minute interval.
+    BBO_1S
+        Consolidated best bid and offer trade record containing the consolidated BBO before the trade.
+    BBO_1M
+        Best bid and offer record subsampled on a one-second interval.
+
+    """
+
+    MBO: str
+    MBP_1: str
+    MBP_10: str
+    TBBO: str
+    TRADES: str
+    OHLCV_1S: str
+    OHLCV_1M: str
+    OHLCV_1H: str
+    OHLCV_1D: str
+    OHLCV_EOD: str
+    DEFINITION: str
+    STATISTICS: str
+    STATUS: str
+    IMBALANCE: str
+    CBBO: str
+    CBBO_1S: str
+    CBBO_1M: str
+    TCBBO: str
+    BBO_1S: str
+    BBO_1M: str
+
+    @classmethod
+    def from_str(cls, value: str) -> Schema: ...
+    @classmethod
+    def variants(cls) -> Iterable[Schema]: ...
+
+class Encoding(Enum):
+    """
+    Data output encoding.
+
+    DBN
+        Databento Binary Encoding.
+    CSV
+        Comma-separated values.
+    JSON
+        JavaScript object notation.
+
+    """
+
+    DBN: str
+    CSV: str
+    JSON: str
+
+    @classmethod
+    def from_str(cls, value: str) -> Encoding: ...
+    @classmethod
+    def variants(cls) -> Iterable[Encoding]: ...
+
+class Compression(Enum):
+    """
+    Data compression format.
+
+    NONE
+        Uncompressed.
+    ZSTD
+        Zstandard compressed.
+
+    """
+
+    NONE: str
+    ZSTD: str
+
+    @classmethod
+    def from_str(cls, value: str) -> Compression: ...
+    @classmethod
+    def variants(cls) -> Iterable[Compression]: ...
+
+class SecurityUpdateAction(Enum):
+    """
+    The type of definition update.
+
+    ADD
+        A new instrument definition.
+    MODIFY
+        A modified instrument definition of an existing one.
+    DELETE
+        Removal of an instrument definition.
+    INVALID
+        Deprecated
+
+    """
+
+    ADD: str
+    MODIFY: str
+    DELETE: str
+    INVALID: str
+
+    @classmethod
+    def from_str(cls, value: str) -> SecurityUpdateAction: ...
+    @classmethod
+    def variants(cls) -> Iterable[SecurityUpdateAction]: ...
+
+class StatType(Enum):
+    """
+    The type of statistic contained in a `StatMsg`.
+
+    OPENING_PRICE
+        The price of the first trade of an instrument. `price` will be set.
+    INDICATIVE_OPENING_PRICE
+        The probable price of the first trade of an instrument published during pre- open. Both
+        `price` and `quantity` will be set.
+    SETTLEMENT_PRICE
+        The settlement price of an instrument. `price` will be set and `flags` indicate whether the
+        price is final or preliminary and actual or theoretical. `ts_ref` will indicate the trading
+        date of the settlement price.
+    TRADING_SESSION_LOW_PRICE
+        The lowest trade price of an instrument during the trading session. `price` will be set.
+    TRADING_SESSION_HIGH_PRICE
+        The highest trade price of an instrument during the trading session. `price` will be set.
+    CLEARED_VOLUME
+        The number of contracts cleared for an instrument on the previous trading date. `quantity`
+        will be set. `ts_ref` will indicate the trading date of the volume.
+    LOWEST_OFFER
+        The lowest offer price for an instrument during the trading session. `price` will be set.
+    HIGHEST_BID
+        The highest bid price for an instrument during the trading session. `price` will be set.
+    OPEN_INTEREST
+        The current number of outstanding contracts of an instrument. `quantity` will be set.
+        `ts_ref` will indicate the trading date for which the open interest was calculated.
+    FIXING_PRICE
+        The volume-weighted average price (VWAP) for a fixing period. `price` will be set.
+    CLOSE_PRICE
+        The last trade price during a trading session. `price` will be set.
+    NET_CHANGE
+        The change in price from the close price of the previous trading session to the most recent
+        trading session. `price` will be set.
+    VWAP
+        The volume-weighted average price (VWAP) during the trading session. `price` will be set to
+        the VWAP while `quantity` will be the traded volume.
+
+    """
+
+    OPENING_PRICE: int
+    INDICATIVE_OPENING_PRICE: int
+    SETTLEMENT_PRICE: int
+    TRADING_SESSION_LOW_PRICE: int
+    TRADING_SESSION_HIGH_PRICE: int
+    CLEARED_VOLUME: int
+    LOWEST_OFFER: int
+    HIGHEST_BID: int
+    OPEN_INTEREST: int
+    FIXING_PRICE: int
+    CLOSE_PRICE: int
+    NET_CHANGE: int
+    VWAP: int
+
+    @classmethod
+    def variants(cls) -> Iterable[StatType]: ...
+
+class StatUpdateAction(Enum):
+    """
+    The type of `StatMsg` update.
+
+    NEW
+        A new statistic.
+    DELETE
+        A removal of a statistic.
+
+    """
+
+    NEW: str
+    DELETE: str
+
+    @classmethod
+    def from_str(cls, value: str) -> StatUpdateAction: ...
+    @classmethod
+    def variants(cls) -> Iterable[StatUpdateAction]: ...
+
+class StatusAction(Enum):
+    """
+    The primary enum for the type of `StatusMsg` update.
+
+    NONE
+        No change.
+    PRE_OPEN
+        The instrument is in a pre-open period.
+    PRE_CROSS
+        The instrument is in a pre-cross period.
+    QUOTING
+        The instrument is quoting but not trading.
+    CROSS
+        The instrument is in a cross/auction.
+    ROTATION
+        The instrument is being opened through a trading rotation.
+    NEW_PRICE_INDICATION
+        A new price indication is available for the instrument.
+    TRADING
+        The instrument is trading.
+    HALT
+        Trading in the instrument has been halted.
+    PAUSE
+        Trading in the instrument has been paused.
+    SUSPEND
+        Trading in the instrument has been suspended.
+    PRE_CLOSE
+        The instrument is in a pre-close period.
+    CLOSE
+        Trading in the instrument has closed.
+    POST_CLOSE
+        The instrument is in a post-close period.
+    SSR_CHANGE
+        A change in short-selling restrictions.
+    NOT_AVAILABLE_FOR_TRADING
+        The instrument is not available for trading, either trading has closed or been halted.
+
+    """
+
+    NONE: int
+    PRE_OPEN: int
+    PRE_CROSS: int
+    QUOTING: int
+    CROSS: int
+    ROTATION: int
+    NEW_PRICE_INDICATION: int
+    TRADING: int
+    HALT: int
+    PAUSE: int
+    SUSPEND: int
+    PRE_CLOSE: int
+    CLOSE: int
+    POST_CLOSE: int
+    SSR_CHANGE: int
+    NOT_AVAILABLE_FOR_TRADING: int
+
+    @classmethod
+    def variants(cls) -> Iterable[StatusAction]: ...
+
+class StatusReason(Enum):
+    """
+    The secondary enum for a `StatusMsg` update, explains the cause of a halt or other change in
+    `action`.
+
+    NONE
+        No reason is given.
+    SCHEDULED
+        The change in status occurred as scheduled.
+    SURVEILLANCE_INTERVENTION
+        The instrument stopped due to a market surveillance intervention.
+    MARKET_EVENT
+        The status changed due to activity in the market.
+    INSTRUMENT_ACTIVATION
+        The derivative instrument began trading.
+    INSTRUMENT_EXPIRATION
+        The derivative instrument expired.
+    RECOVERY_IN_PROCESS
+        Recovery in progress.
+    REGULATORY
+        The status change was caused by a regulatory action.
+    ADMINISTRATIVE
+        The status change was caused by an administrative action.
+    NON_COMPLIANCE
+        The status change was caused by the issuer not being compliance with regulatory
+        requirements.
+    FILINGS_NOT_CURRENT
+        Trading halted because the issuer's filings are not current.
+    SEC_TRADING_SUSPENSION
+        Trading halted due to an SEC trading suspension.
+    NEW_ISSUE
+        The status changed because a new issue is available.
+    ISSUE_AVAILABLE
+        The status changed because an issue is available.
+    ISSUES_REVIEWED
+        The status changed because the issue(s) were reviewed.
+    FILING_REQS_SATISFIED
+        The status changed because the filing requirements were satisfied.
+    NEWS_PENDING
+        Relevant news is pending.
+    NEWS_RELEASED
+        Relevant news was released.
+    NEWS_AND_RESUMPTION_TIMES
+        The news has been fully disseminated and times are available for the resumption in quoting
+        and trading.
+    NEWS_NOT_FORTHCOMING
+        The relevants news was not forthcoming.
+    ORDER_IMBALANCE
+        Halted for order imbalance.
+    LULD_PAUSE
+        The instrument hit limit up or limit down.
+    OPERATIONAL
+        An operational issue occurred with the venue.
+    ADDITIONAL_INFORMATION_REQUESTED
+        The status changed until the exchange receives additional information.
+    MERGER_EFFECTIVE
+        Trading halted due to merger becoming effective.
+    ETF
+        Trading is halted in an ETF due to conditions with the component securities.
+    CORPORATE_ACTION
+        Trading is halted for a corporate action.
+    NEW_SECURITY_OFFERING
+        Trading is halted because the instrument is a new offering.
+    MARKET_WIDE_HALT_LEVEL1
+        Halted due to the market-wide circuit breaker level 1.
+    MARKET_WIDE_HALT_LEVEL2
+        Halted due to the market-wide circuit breaker level 2.
+    MARKET_WIDE_HALT_LEVEL3
+        Halted due to the market-wide circuit breaker level 3.
+    MARKET_WIDE_HALT_CARRYOVER
+        Halted due to the carryover of a market-wide circuit breaker from the previous trading day.
+    MARKET_WIDE_HALT_RESUMPTION
+        Resumption due to the end of the a market-wide circuit breaker halt.
+    QUOTATION_NOT_AVAILABLE
+        Halted because quotation is not available.
+
+    """
+
+    NONE: int
+    SCHEDULED: int
+    SURVEILLANCE_INTERVENTION: int
+    MARKET_EVENT: int
+    INSTRUMENT_ACTIVATION: int
+    INSTRUMENT_EXPIRATION: int
+    RECOVERY_IN_PROCESS: int
+    REGULATORY: int
+    ADMINISTRATIVE: int
+    NON_COMPLIANCE: int
+    FILINGS_NOT_CURRENT: int
+    SEC_TRADING_SUSPENSION: int
+    NEW_ISSUE: int
+    ISSUE_AVAILABLE: int
+    ISSUES_REVIEWED: int
+    FILING_REQS_SATISFIED: int
+    NEWS_PENDING: int
+    NEWS_RELEASED: int
+    NEWS_AND_RESUMPTION_TIMES: int
+    NEWS_NOT_FORTHCOMING: int
+    ORDER_IMBALANCE: int
+    LULD_PAUSE: int
+    OPERATIONAL: int
+    ADDITIONAL_INFORMATION_REQUESTED: int
+    MERGER_EFFECTIVE: int
+    ETF: int
+    CORPORATE_ACTION: int
+    NEW_SECURITY_OFFERING: int
+    MARKET_WIDE_HALT_CARRYOVER: int
+    MARKET_WIDE_HALT_RESUMPTION: int
+    QUOTATION_NOT_AVAILABLE: int
+
+    @classmethod
+    def variants(cls) -> Iterable[StatusReason]: ...
+
+class TradingEvent(Enum):
+    """
+    Further information about a status update.
+
+
+    NONE
+        No additional information given.
+    NO_CANCEL
+        Order entry and modification are not allowed.
+    CHANGE_TRADING_SESSION
+        A change of trading session occurred. Daily statistics are reset.
+    IMPLIED_MATCHING_ON
+        Implied matching is available.
+    IMPLIED_MATCHING_OFF
+        Implied matching is not available.
+
+    """
+
+    NONE: int
+    NO_CANCEL: int
+    CHANGE_TRADING_SESSION: int
+    IMPLIED_MATCHING_ON: int
+    IMPLIED_MATCHING_OFF: int
+
+    @classmethod
+    def variants(cls) -> Iterable[TradingEvent]: ...
+
+class TriState(Enum):
+    """
+    An enum for representing unknown, true, or false values. Equivalent to `Optional[bool]`.
+
+    NOT_AVAILABLE
+        The value is not applicable or not known.
+    NO
+        False
+    YES
+        True
+
+    """
+
+    NOT_AVAILABLE: str
+    NO: str
+    YES: str
+
+    @classmethod
+    def from_str(cls, value: str) -> TriState: ...
+    @classmethod
+    def variants(cls) -> Iterable[TriState]: ...
+    def opt_bool(self) -> Optional[bool]: ...
+
 class VersionUpgradePolicy(Enum):
     """
     How to handle decoding a DBN data from a prior version.
@@ -229,13 +742,8 @@ class VersionUpgradePolicy(Enum):
 
     """
 
-    AS_IS: str
-    UPGRADE: str
-
-    @classmethod
-    def from_str(cls, value: str) -> SType: ...
-    @classmethod
-    def variants(cls) -> Iterable[SType]: ...
+    AS_IS: int
+    UPGRADE: int
 
 class Metadata(SupportsBytes):
     """
