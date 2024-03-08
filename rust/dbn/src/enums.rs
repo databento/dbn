@@ -696,13 +696,16 @@ impl Display for Encoding {
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
-    pyo3::pyclass(module = "databento_dbn", rename_all = "SCREAMING_SNAKE_CASE")
+    pyo3::pyclass(module = "databento_dbn")
 )]
+#[cfg_attr(not(feature = "python"), derive(MockPyo3))]
 #[repr(u8)]
 pub enum Compression {
     /// Uncompressed.
+    #[pyo3(name = "NONE")]
     None = 0,
     /// Zstandard compressed.
+    #[pyo3(name = "ZSTD")]
     ZStd = 1,
 }
 
