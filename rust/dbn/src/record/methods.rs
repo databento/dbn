@@ -188,28 +188,26 @@ impl CbboMsg {
 }
 
 impl ConsolidatedBidAskPair {
-    /// Tries to convert the raw `ask_pb` into an enum which is useful for
-    /// exhaustive pattern matching.
-    ///
-    /// # Errors
-    /// This function returns an error if the `ask_pb` does not correspond with
-    /// any known [`Publisher`].
-    pub fn ask_pb(&self) -> crate::Result<&str> {
-        Publisher::try_from(self.ask_pb)
-            .map(|pb| pb.as_str())
-            .map_err(|_| crate::error::Error::conversion::<Publisher>(self.ask_pb))
-    }
-
     /// Tries to convert the raw `bid_pb` into an enum which is useful for
     /// exhaustive pattern matching.
     ///
     /// # Errors
     /// This function returns an error if the `publisher_id` does not correspond with
     /// any known [`Publisher`].
-    pub fn bid_pb(&self) -> crate::Result<&str> {
+    pub fn bid_pb(&self) -> crate::Result<Publisher> {
         Publisher::try_from(self.bid_pb)
-            .map(|pb| pb.as_str())
             .map_err(|_| crate::error::Error::conversion::<Publisher>(self.bid_pb))
+    }
+
+    /// Tries to convert the raw `ask_pb` into an enum which is useful for
+    /// exhaustive pattern matching.
+    ///
+    /// # Errors
+    /// This function returns an error if the `ask_pb` does not correspond with
+    /// any known [`Publisher`].
+    pub fn ask_pb(&self) -> crate::Result<Publisher> {
+        Publisher::try_from(self.ask_pb)
+            .map_err(|_| crate::error::Error::conversion::<Publisher>(self.ask_pb))
     }
 }
 
