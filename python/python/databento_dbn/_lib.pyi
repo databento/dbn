@@ -141,6 +141,8 @@ class MatchAlgorithm(Enum):
     The type of matching algorithm used for the instrument at the exchange.
 
 
+    UNDEFINED
+        No matching algorithm was specified.
     FIFO
         First-in-first-out matching.
     CONFIGURABLE
@@ -157,9 +159,12 @@ class MatchAlgorithm(Enum):
         Like `THRESHOLD_PRO_RATA` but includes a special priority to LMMs.
     EURODOLLAR_FUTURES
         Special variant used only for Eurodollar futures on CME.
-
+    TIME_PRO_RATA
+        Trade quantity is shared between all orders at the best price. Orders with the
+        highest time priority receive a higher matched quantity.
     """
 
+    UNDEFINED: str
     FIFO: str
     CONFIGURABLE: str
     PRO_RATA: str
@@ -168,6 +173,7 @@ class MatchAlgorithm(Enum):
     FIFO_TOP_LMM: str
     THRESHOLD_PRO_RATA_LMM: str
     EURODOLLAR_FUTURES: str
+    TIME_PRO_RATA: str
 
     @classmethod
     def from_str(cls, value: str) -> MatchAlgorithm: ...
@@ -470,6 +476,10 @@ class StatType(Enum):
     VWAP
         The volume-weighted average price (VWAP) during the trading session. `price` will be set to
         the VWAP while `quantity` will be the traded volume.
+    VOLATILITY
+        The implied volatility associated with the settlement price.
+    DELTA
+        The option delta associated with the settlement price.
 
     """
 
@@ -486,6 +496,8 @@ class StatType(Enum):
     CLOSE_PRICE: int
     NET_CHANGE: int
     VWAP: int
+    VOLATILITY: int
+    DELTA: int
 
     @classmethod
     def variants(cls) -> Iterable[StatType]: ...

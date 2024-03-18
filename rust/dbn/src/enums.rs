@@ -101,7 +101,7 @@ impl From<InstrumentClass> for char {
 }
 
 /// The type of matching algorithm used for the instrument at the exchange.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive)]
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
@@ -110,6 +110,9 @@ impl From<InstrumentClass> for char {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(u8)]
 pub enum MatchAlgorithm {
+    /// No matching algorithm was specified.
+    #[default]
+    Undefined = b' ',
     /// First-in-first-out matching.
     Fifo = b'F',
     /// A configurable match algorithm.
@@ -130,6 +133,9 @@ pub enum MatchAlgorithm {
     /// Special variant used only for Eurodollar futures on CME. See
     /// [CME documentation](https://www.cmegroup.com/confluence/display/EPICSANDBOX/Supported+Matching+Algorithms#SupportedMatchingAlgorithms-Pro-RataAllocationforEurodollarFutures).
     EurodollarFutures = b'Y',
+    /// Trade quantity is shared between all orders at the best price. Orders with the
+    /// highest time priority receive a higher matched quantity.
+    TimeProRata = b'P',
 }
 
 impl From<MatchAlgorithm> for char {
@@ -833,6 +839,12 @@ pub enum StatType {
     /// `price` will be set to the VWAP while `quantity` will be the traded
     /// volume.
     Vwap = 13,
+    /// The implied volatility associated with the settlement price. `price` will be set
+    /// with the standard precision.
+    Volatility = 14,
+    /// The option delta associated with the settlement price. `price` will be set with
+    /// the standard precision.
+    Delta = 15,
 }
 
 /// The type of [`StatMsg`](crate::record::StatMsg) update.

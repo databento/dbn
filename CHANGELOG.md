@@ -5,6 +5,8 @@
 ### Enhancements
 - Added new record type `CbboMsg`, new rtypes and schema types for `Cbbo`, `Cbbo1s`,
   `Cbbo1m`, `Tcbbo`, `Bbo1s`, and `Bbo1m`
+- Added `Volatility` and `Delta` `StatType` variants
+- Added `Undefined` and `TimeProRata` `MatchAlgorithm` variants
 - Exported more enums to Python:
   - `Action`
   - `InstrumentClass`
@@ -22,6 +24,8 @@
 ### Breaking changes
 - Removed `Default` trait implementation for `Mbp1Msg` due to it now having multiple
   permissible `rtype` values. Users should use `default_for_schema` instead
+- Changed the default `match_algorithm` for `InstrumentDefMsg` and `InstrumentDefMsgV1`
+  from `Fifo` to `Undefined`
 
 ### Bug fixes
 - Fixed an issue where the Python `MappingIntervalDict` was not exported
