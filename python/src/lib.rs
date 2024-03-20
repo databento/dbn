@@ -92,19 +92,23 @@ fn databento_dbn(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Once;
+
     use dbn::enums::SType;
 
     use super::*;
 
     pub const TEST_DATA_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../tests/data");
 
+    pub static INIT: Once = Once::new();
+
     pub fn setup() {
-        if unsafe { pyo3::ffi::Py_IsInitialized() } == 0 {
+        INIT.call_once(|| {
             // add to available modules
             pyo3::append_to_inittab!(databento_dbn);
-        }
-        // initialize interpreter
-        pyo3::prepare_freethreaded_python();
+            // initialize interpreter
+            pyo3::prepare_freethreaded_python();
+        });
     }
 
     #[test]
