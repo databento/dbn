@@ -26,6 +26,8 @@
   permissible `rtype` values. Users should use `default_for_schema` instead
 - Changed the default `match_algorithm` for `InstrumentDefMsg` and `InstrumentDefMsgV1`
   from `Fifo` to `Undefined`
+- Made `Dataset`, `Venue`, and `Publisher` non-exhaustive to allow future additions
+  without breaking changes
 
 ### Bug fixes
 - Fixed an issue where the Python `MappingIntervalDict` was not exported
