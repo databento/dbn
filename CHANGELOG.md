@@ -28,6 +28,11 @@
   from `Fifo` to `Undefined`
 - Made `Dataset`, `Venue`, and `Publisher` non-exhaustive to allow future additions
   without breaking changes
+- Renamed publishers from deprecated datasets to their respective sources (`XNAS.NLS`
+and `XNYS.TRADES` respectively)
+
+### Deprecations
+- Deprecated dataset values `FINN.NLS` and `FINY.TRADES`
 
 ### Bug fixes
 - Fixed an issue where the Python `MappingIntervalDict` was not exported

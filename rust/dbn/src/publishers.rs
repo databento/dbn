@@ -251,9 +251,11 @@ pub enum Dataset {
     MemxMemoir = 15,
     /// MIAX Pearl Depth
     EprlDom = 16,
-    /// FINRA/Nasdaq TRF
+    /// FINRA/Nasdaq TRF (DEPRECATED)
+    #[deprecated(since = "0.17.0")]
     FinnNls = 17,
-    /// FINRA/NYSE TRF
+    /// FINRA/NYSE TRF (DEPRECATED)
+    #[deprecated(since = "0.17.0")]
     FinyTrades = 18,
     /// OPRA Binary
     OpraPillar = 19,
@@ -304,7 +306,9 @@ impl Dataset {
             Self::XcisTrades => "XCIS.TRADES",
             Self::MemxMemoir => "MEMX.MEMOIR",
             Self::EprlDom => "EPRL.DOM",
+            #[allow(deprecated)]
             Self::FinnNls => "FINN.NLS",
+            #[allow(deprecated)]
             Self::FinyTrades => "FINY.TRADES",
             Self::OpraPillar => "OPRA.PILLAR",
             Self::DbeqBasic => "DBEQ.BASIC",
@@ -355,7 +359,9 @@ impl std::str::FromStr for Dataset {
             "XCIS.TRADES" => Ok(Self::XcisTrades),
             "MEMX.MEMOIR" => Ok(Self::MemxMemoir),
             "EPRL.DOM" => Ok(Self::EprlDom),
+            #[allow(deprecated)]
             "FINN.NLS" => Ok(Self::FinnNls),
+            #[allow(deprecated)]
             "FINY.TRADES" => Ok(Self::FinyTrades),
             "OPRA.PILLAR" => Ok(Self::OpraPillar),
             "DBEQ.BASIC" => Ok(Self::DbeqBasic),
@@ -412,11 +418,11 @@ pub enum Publisher {
     /// MIAX Pearl Depth
     EprlDomEprl = 16,
     /// FINRA/Nasdaq TRF Carteret
-    FinnNlsFinn = 17,
+    XnasNlsFinn = 17,
     /// FINRA/Nasdaq TRF Chicago
-    FinnNlsFinc = 18,
+    XnasNlsFinc = 18,
     /// FINRA/NYSE TRF
-    FinyTradesFiny = 19,
+    XnysTradesFiny = 19,
     /// OPRA - NYSE American
     OpraPillarAmxo = 20,
     /// OPRA - Boston Options Exchange
@@ -564,9 +570,9 @@ impl Publisher {
             Self::XcisTradesXcis => "XCIS.TRADES.XCIS",
             Self::MemxMemoirMemx => "MEMX.MEMOIR.MEMX",
             Self::EprlDomEprl => "EPRL.DOM.EPRL",
-            Self::FinnNlsFinn => "FINN.NLS.FINN",
-            Self::FinnNlsFinc => "FINN.NLS.FINC",
-            Self::FinyTradesFiny => "FINY.TRADES.FINY",
+            Self::XnasNlsFinn => "XNAS.NLS.FINN",
+            Self::XnasNlsFinc => "XNAS.NLS.FINC",
+            Self::XnysTradesFiny => "XNYS.TRADES.FINY",
             Self::OpraPillarAmxo => "OPRA.PILLAR.AMXO",
             Self::OpraPillarXbox => "OPRA.PILLAR.XBOX",
             Self::OpraPillarXcbo => "OPRA.PILLAR.XCBO",
@@ -650,9 +656,9 @@ impl Publisher {
             Self::XcisTradesXcis => Venue::Xcis,
             Self::MemxMemoirMemx => Venue::Memx,
             Self::EprlDomEprl => Venue::Eprl,
-            Self::FinnNlsFinn => Venue::Finn,
-            Self::FinnNlsFinc => Venue::Finc,
-            Self::FinyTradesFiny => Venue::Finy,
+            Self::XnasNlsFinn => Venue::Finn,
+            Self::XnasNlsFinc => Venue::Finc,
+            Self::XnysTradesFiny => Venue::Finy,
             Self::OpraPillarAmxo => Venue::Amxo,
             Self::OpraPillarXbox => Venue::Xbox,
             Self::OpraPillarXcbo => Venue::Xcbo,
@@ -736,9 +742,9 @@ impl Publisher {
             Self::XcisTradesXcis => Dataset::XcisTrades,
             Self::MemxMemoirMemx => Dataset::MemxMemoir,
             Self::EprlDomEprl => Dataset::EprlDom,
-            Self::FinnNlsFinn => Dataset::FinnNls,
-            Self::FinnNlsFinc => Dataset::FinnNls,
-            Self::FinyTradesFiny => Dataset::FinyTrades,
+            Self::XnasNlsFinn => Dataset::XnasNls,
+            Self::XnasNlsFinc => Dataset::XnasNls,
+            Self::XnysTradesFiny => Dataset::XnysTrades,
             Self::OpraPillarAmxo => Dataset::OpraPillar,
             Self::OpraPillarXbox => Dataset::OpraPillar,
             Self::OpraPillarXcbo => Dataset::OpraPillar,
@@ -824,9 +830,9 @@ impl Publisher {
             (Dataset::XcisTrades, Venue::Xcis) => Ok(Self::XcisTradesXcis),
             (Dataset::MemxMemoir, Venue::Memx) => Ok(Self::MemxMemoirMemx),
             (Dataset::EprlDom, Venue::Eprl) => Ok(Self::EprlDomEprl),
-            (Dataset::FinnNls, Venue::Finn) => Ok(Self::FinnNlsFinn),
-            (Dataset::FinnNls, Venue::Finc) => Ok(Self::FinnNlsFinc),
-            (Dataset::FinyTrades, Venue::Finy) => Ok(Self::FinyTradesFiny),
+            (Dataset::XnasNls, Venue::Finn) => Ok(Self::XnasNlsFinn),
+            (Dataset::XnasNls, Venue::Finc) => Ok(Self::XnasNlsFinc),
+            (Dataset::XnysTrades, Venue::Finy) => Ok(Self::XnysTradesFiny),
             (Dataset::OpraPillar, Venue::Amxo) => Ok(Self::OpraPillarAmxo),
             (Dataset::OpraPillar, Venue::Xbox) => Ok(Self::OpraPillarXbox),
             (Dataset::OpraPillar, Venue::Xcbo) => Ok(Self::OpraPillarXcbo),
@@ -926,9 +932,9 @@ impl std::str::FromStr for Publisher {
             "XCIS.TRADES.XCIS" => Ok(Self::XcisTradesXcis),
             "MEMX.MEMOIR.MEMX" => Ok(Self::MemxMemoirMemx),
             "EPRL.DOM.EPRL" => Ok(Self::EprlDomEprl),
-            "FINN.NLS.FINN" => Ok(Self::FinnNlsFinn),
-            "FINN.NLS.FINC" => Ok(Self::FinnNlsFinc),
-            "FINY.TRADES.FINY" => Ok(Self::FinyTradesFiny),
+            "XNAS.NLS.FINN" => Ok(Self::XnasNlsFinn),
+            "XNAS.NLS.FINC" => Ok(Self::XnasNlsFinc),
+            "XNYS.TRADES.FINY" => Ok(Self::XnysTradesFiny),
             "OPRA.PILLAR.AMXO" => Ok(Self::OpraPillarAmxo),
             "OPRA.PILLAR.XBOX" => Ok(Self::OpraPillarXbox),
             "OPRA.PILLAR.XCBO" => Ok(Self::OpraPillarXcbo),
