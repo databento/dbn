@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.17.0 - TBD
+## 0.17.0 - 2024-04-01
 
 ### Enhancements
 - Added new record type `CbboMsg`, new rtypes and schema types for `Cbbo`, `Cbbo1s`,
@@ -29,7 +29,7 @@
 - Made `Dataset`, `Venue`, and `Publisher` non-exhaustive to allow future additions
   without breaking changes
 - Renamed publishers from deprecated datasets to their respective sources (`XNAS.NLS`
-and `XNYS.TRADES` respectively)
+  and `XNYS.TRADES` respectively)
 
 ### Deprecations
 - Deprecated dataset values `FINN.NLS` and `FINY.TRADES`
