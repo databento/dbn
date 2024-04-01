@@ -15,6 +15,11 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 /// A side of the market. The side of the market for resting orders, or the side
 /// of the aggressor for trades.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive)]
+#[cfg_attr(
+    feature = "python",
+    derive(strum::EnumIter, strum::AsRefStr),
+    pyo3::pyclass(module = "databento_dbn", rename_all = "SCREAMING_SNAKE_CASE")
+)]
 #[repr(u8)]
 pub enum Side {
     /// A sell order or sell aggressor in a trade.
@@ -33,6 +38,11 @@ impl From<Side> for char {
 
 /// A tick action.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive)]
+#[cfg_attr(
+    feature = "python",
+    derive(strum::EnumIter, strum::AsRefStr),
+    pyo3::pyclass(module = "databento_dbn", rename_all = "SCREAMING_SNAKE_CASE")
+)]
 #[repr(u8)]
 pub enum Action {
     /// An existing order was modified.
@@ -57,6 +67,11 @@ impl From<Action> for char {
 
 /// The class of instrument.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive)]
+#[cfg_attr(
+    feature = "python",
+    derive(strum::EnumIter),
+    pyo3::pyclass(module = "databento_dbn", rename_all = "SCREAMING_SNAKE_CASE")
+)]
 #[repr(u8)]
 pub enum InstrumentClass {
     /// A bond.
@@ -86,10 +101,18 @@ impl From<InstrumentClass> for char {
 }
 
 /// The type of matching algorithm used for the instrument at the exchange.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive)]
+#[cfg_attr(
+    feature = "python",
+    derive(strum::EnumIter),
+    pyo3::pyclass(module = "databento_dbn", rename_all = "SCREAMING_SNAKE_CASE")
+)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(u8)]
 pub enum MatchAlgorithm {
+    /// No matching algorithm was specified.
+    #[default]
+    Undefined = b' ',
     /// First-in-first-out matching.
     Fifo = b'F',
     /// A configurable match algorithm.
@@ -110,6 +133,9 @@ pub enum MatchAlgorithm {
     /// Special variant used only for Eurodollar futures on CME. See
     /// [CME documentation](https://www.cmegroup.com/confluence/display/EPICSANDBOX/Supported+Matching+Algorithms#SupportedMatchingAlgorithms-Pro-RataAllocationforEurodollarFutures).
     EurodollarFutures = b'Y',
+    /// Trade quantity is shared between all orders at the best price. Orders with the
+    /// highest time priority receive a higher matched quantity.
+    TimeProRata = b'P',
 }
 
 impl From<MatchAlgorithm> for char {
@@ -120,8 +146,13 @@ impl From<MatchAlgorithm> for char {
 
 /// Whether the instrument is user-defined.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive, Default)]
-#[repr(u8)]
+#[cfg_attr(
+    feature = "python",
+    derive(strum::EnumIter, strum::AsRefStr),
+    pyo3::pyclass(module = "databento_dbn", rename_all = "SCREAMING_SNAKE_CASE")
+)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[repr(u8)]
 pub enum UserDefinedInstrument {
     /// The instrument is not user-defined.
     #[default]
@@ -139,12 +170,12 @@ impl From<UserDefinedInstrument> for char {
 /// A symbology type. Refer to the [symbology documentation](https://docs.databento.com/api-reference-historical/basics/symbology)
 /// for more information.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
-#[repr(u8)]
 #[cfg_attr(
     feature = "python",
+    derive(strum::EnumIter),
     pyo3::pyclass(module = "databento_dbn", rename_all = "SCREAMING_SNAKE_CASE")
 )]
-#[cfg_attr(feature = "python", derive(strum::EnumIter))]
+#[repr(u8)]
 pub enum SType {
     /// Symbology using a unique numeric ID.
     InstrumentId = 0,
@@ -222,12 +253,12 @@ pub mod rtype {
 
     /// A type of record, i.e. a struct implementing [`HasRType`](crate::record::HasRType).
     #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
-    #[repr(u8)]
     #[cfg_attr(
         feature = "python",
+        derive(strum::EnumIter),
         pyo3::pyclass(module = "databento_dbn", rename_all = "SCREAMING_SNAKE_CASE")
     )]
-    #[cfg_attr(feature = "python", derive(strum::EnumIter))]
+    #[repr(u8)]
     pub enum RType {
         /// Denotes a market-by-price record with a book depth of 0 (used for the
         /// [`Trades`](super::Schema::Trades) schema).
@@ -271,6 +302,21 @@ pub mod rtype {
         Statistics = 0x18,
         /// Denotes a market by order record.
         Mbo = 0xA0,
+        /// Denotes a consolidated best bid and offer record.
+        Cbbo = 0xB1,
+        /// Denotes a consolidated best bid and offer record subsampled on a one-second
+        /// interval.
+        Cbbo1S = 0xC0,
+        /// Denotes a consolidated best bid and offer record subsampled on a one-minute
+        /// interval.
+        Cbbo1M = 0xC1,
+        /// Denotes a consolidated best bid and offer trade record containing the
+        /// consolidated BBO before the trade.
+        Tcbbo = 0xC2,
+        /// Denotes a best bid and offer record subsampled on a one-second interval.
+        Bbo1S = 0xC3,
+        /// Denotes a best bid and offer record subsampled on a one-minute interval.
+        Bbo1M = 0xC4,
     }
 
     /// Denotes a market-by-price record with a book depth of 0 (used for the
@@ -315,6 +361,18 @@ pub mod rtype {
     pub const STATISTICS: u8 = RType::Statistics as u8;
     /// Denotes a market-by-order record.
     pub const MBO: u8 = RType::Mbo as u8;
+    /// Denotes a consolidated best bid and offer record.
+    pub const CBBO: u8 = RType::Cbbo as u8;
+    /// Denotes a consolidated best bid and offer record subsampled on a one-second interval.
+    pub const CBBO_1S: u8 = RType::Cbbo1S as u8;
+    /// Denotes a consolidated best bid and offer record subsampled on a one-minute interval.
+    pub const CBBO_1M: u8 = RType::Cbbo1M as u8;
+    /// Denotes a consolidated best bid and offer trade record containing the consolidated BBO before the trade.
+    pub const TCBBO: u8 = RType::Tcbbo as u8;
+    /// Denotes a best bid and offer record subsampled on a one-second interval.
+    pub const BBO_1S: u8 = RType::Bbo1S as u8;
+    /// Denotes a best bid and offer record subsampled on a one-minute interval.
+    pub const BBO_1M: u8 = RType::Bbo1M as u8;
 
     /// Get the corresponding `rtype` for the given `schema`.
     impl From<Schema> for RType {
@@ -333,6 +391,12 @@ pub mod rtype {
                 Schema::Statistics => RType::Statistics,
                 Schema::Status => RType::Status,
                 Schema::Imbalance => RType::Imbalance,
+                Schema::Cbbo => RType::Cbbo,
+                Schema::Cbbo1S => RType::Cbbo1S,
+                Schema::Cbbo1M => RType::Cbbo1M,
+                Schema::Tcbbo => RType::Tcbbo,
+                Schema::Bbo1S => RType::Bbo1S,
+                Schema::Bbo1M => RType::Bbo1M,
             }
         }
     }
@@ -356,6 +420,12 @@ pub mod rtype {
             IMBALANCE => Some(Schema::Imbalance),
             STATISTICS => Some(Schema::Statistics),
             MBO => Some(Schema::Mbo),
+            CBBO => Some(Schema::Cbbo),
+            CBBO_1S => Some(Schema::Cbbo1S),
+            CBBO_1M => Some(Schema::Cbbo1M),
+            TCBBO => Some(Schema::Tcbbo),
+            BBO_1S => Some(Schema::Bbo1S),
+            BBO_1M => Some(Schema::Bbo1M),
             _ => None,
         }
     }
@@ -382,6 +452,12 @@ pub mod rtype {
                 "system" => Ok(RType::System),
                 "statistics" => Ok(RType::Statistics),
                 "mbo" => Ok(RType::Mbo),
+                "cbbo" => Ok(RType::Cbbo),
+                "cbbo-1s" => Ok(RType::Cbbo1S),
+                "cbbo-1m" => Ok(RType::Cbbo1M),
+                "tcbbo" => Ok(RType::Tcbbo),
+                "bbo-1s" => Ok(RType::Bbo1S),
+                "bbo-1m" => Ok(RType::Bbo1M),
                 _ => Err(crate::Error::conversion::<Self>(s.to_owned())),
             }
         }
@@ -408,6 +484,12 @@ pub mod rtype {
                 RType::System => "system",
                 RType::Statistics => "statistics",
                 RType::Mbo => "mbo",
+                RType::Cbbo => "cbbo",
+                RType::Cbbo1S => "cbbo-1s",
+                RType::Cbbo1M => "cbbo-1m",
+                RType::Tcbbo => "tcbbo",
+                RType::Bbo1S => "bbo-1s",
+                RType::Bbo1M => "bbo-1m",
             }
         }
     }
@@ -415,11 +497,14 @@ pub mod rtype {
 
 /// A data record schema.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
-#[repr(u16)]
-#[cfg_attr(feature = "python", pyo3::pyclass(module = "databento_dbn"))]
+#[cfg_attr(
+    feature = "python",
+    derive(strum::EnumIter),
+    pyo3::pyclass(module = "databento_dbn")
+)]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
-#[cfg_attr(feature = "python", derive(strum::EnumIter))]
 #[cfg_attr(test, derive(strum::EnumCount))]
+#[repr(u16)]
 pub enum Schema {
     /// Market by order.
     #[pyo3(name = "MBO")]
@@ -465,10 +550,29 @@ pub enum Schema {
     /// trading session.
     #[pyo3(name = "OHLCV_EOD")]
     OhlcvEod = 13,
+    /// Consolidated best bid and offer.
+    #[pyo3(name = "CBBO")]
+    Cbbo = 14,
+    /// Consolidated best bid and offer subsampled at one-second intervals, in addition to trades.
+    #[pyo3(name = "CBBO_1S")]
+    Cbbo1S = 15,
+    /// Consolidated best bid and offer subsampled at one-minute intervals, in addition to trades.
+    #[pyo3(name = "CBBO_1M")]
+    Cbbo1M = 16,
+    /// All trade events with the consolidated best bid and offer (CBBO) immediately **before** the
+    /// effect of the trade.
+    #[pyo3(name = "TCBBO")]
+    Tcbbo = 17,
+    /// Best bid and offer subsampled at one-second intervals, in addition to trades.
+    #[pyo3(name = "BBO_1S")]
+    Bbo1S = 18,
+    /// Best bid and offer subsampled at one-minute intervals, in addition to trades.
+    #[pyo3(name = "BBO_1M")]
+    Bbo1M = 19,
 }
 
 /// The number of [`Schema`]s.
-pub const SCHEMA_COUNT: usize = 14;
+pub const SCHEMA_COUNT: usize = 20;
 
 impl std::str::FromStr for Schema {
     type Err = crate::Error;
@@ -489,6 +593,12 @@ impl std::str::FromStr for Schema {
             "statistics" => Ok(Schema::Statistics),
             "status" => Ok(Schema::Status),
             "imbalance" => Ok(Schema::Imbalance),
+            "cbbo" => Ok(Schema::Cbbo),
+            "cbbo-1s" => Ok(Schema::Cbbo1S),
+            "cbbo-1m" => Ok(Schema::Cbbo1M),
+            "tcbbo" => Ok(Schema::Tcbbo),
+            "bbo-1s" => Ok(Schema::Bbo1S),
+            "bbo-1m" => Ok(Schema::Bbo1M),
             _ => Err(crate::Error::conversion::<Self>(s.to_owned())),
         }
     }
@@ -518,6 +628,12 @@ impl Schema {
             Schema::Statistics => "statistics",
             Schema::Status => "status",
             Schema::Imbalance => "imbalance",
+            Schema::Cbbo => "cbbo",
+            Schema::Cbbo1S => "cbbo-1s",
+            Schema::Cbbo1M => "cbbo-1m",
+            Schema::Tcbbo => "tcbbo",
+            Schema::Bbo1S => "bbo-1s",
+            Schema::Bbo1M => "bbo-1m",
         }
     }
 }
@@ -530,19 +646,18 @@ impl Display for Schema {
 
 /// A data encoding format.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
+#[cfg_attr(
+    feature = "python",
+    derive(strum::EnumIter),
+    pyo3::pyclass(module = "databento_dbn", rename_all = "SCREAMING_SNAKE_CASE")
+)]
 #[repr(u8)]
-#[cfg_attr(feature = "python", pyo3::pyclass(module = "databento_dbn"))]
-#[cfg_attr(not(feature = "python"), derive(MockPyo3))]
-#[cfg_attr(feature = "python", derive(strum::EnumIter))]
 pub enum Encoding {
     /// Databento Binary Encoding.
-    #[pyo3(name = "DBN")]
     Dbn = 0,
     /// Comma-separated values.
-    #[pyo3(name = "CSV")]
     Csv = 1,
     /// JavaScript object notation.
-    #[pyo3(name = "JSON")]
     Json = 2,
 }
 
@@ -584,10 +699,13 @@ impl Display for Encoding {
 
 /// A compression format or none if uncompressed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
-#[repr(u8)]
-#[cfg_attr(feature = "python", pyo3::pyclass(module = "databento_dbn"))]
+#[cfg_attr(
+    feature = "python",
+    derive(strum::EnumIter),
+    pyo3::pyclass(module = "databento_dbn")
+)]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
-#[cfg_attr(feature = "python", derive(strum::EnumIter))]
+#[repr(u8)]
 pub enum Compression {
     /// Uncompressed.
     #[pyo3(name = "NONE")]
@@ -650,10 +768,15 @@ pub mod flags {
 }
 
 /// The type of [`InstrumentDefMsg`](crate::record::InstrumentDefMsg) update.
-#[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::manual_non_exhaustive)] // false positive
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive)]
+#[cfg_attr(
+    feature = "python",
+    derive(strum::EnumIter, strum::AsRefStr),
+    pyo3::pyclass(module = "databento_dbn", rename_all = "SCREAMING_SNAKE_CASE")
+)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[repr(u8)]
 pub enum SecurityUpdateAction {
     /// A new instrument definition.
     Add = b'A',
@@ -667,9 +790,14 @@ pub enum SecurityUpdateAction {
 }
 
 /// The type of statistic contained in a [`StatMsg`](crate::record::StatMsg).
-#[repr(u16)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive)]
+#[cfg_attr(
+    feature = "python",
+    derive(strum::EnumIter),
+    pyo3::pyclass(module = "databento_dbn", rename_all = "SCREAMING_SNAKE_CASE")
+)]
 #[non_exhaustive]
+#[repr(u16)]
 pub enum StatType {
     /// The price of the first trade of an instrument. `price` will be set.
     OpeningPrice = 1,
@@ -711,11 +839,22 @@ pub enum StatType {
     /// `price` will be set to the VWAP while `quantity` will be the traded
     /// volume.
     Vwap = 13,
+    /// The implied volatility associated with the settlement price. `price` will be set
+    /// with the standard precision.
+    Volatility = 14,
+    /// The option delta associated with the settlement price. `price` will be set with
+    /// the standard precision.
+    Delta = 15,
 }
 
 /// The type of [`StatMsg`](crate::record::StatMsg) update.
-#[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive)]
+#[cfg_attr(
+    feature = "python",
+    derive(strum::EnumIter),
+    pyo3::pyclass(module = "databento_dbn", rename_all = "SCREAMING_SNAKE_CASE")
+)]
+#[repr(u8)]
 pub enum StatUpdateAction {
     /// A new statistic.
     New = 1,
@@ -724,9 +863,14 @@ pub enum StatUpdateAction {
 }
 
 /// The primary enum for the type of [`StatusMsg`](crate::record::StatusMsg) update.
-#[repr(u16)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive, Default)]
+#[cfg_attr(
+    feature = "python",
+    derive(strum::EnumIter),
+    pyo3::pyclass(module = "databento_dbn", rename_all = "SCREAMING_SNAKE_CASE")
+)]
 #[non_exhaustive]
+#[repr(u16)]
 pub enum StatusAction {
     /// No change.
     #[default]
@@ -766,9 +910,14 @@ pub enum StatusAction {
 
 /// The secondary enum for a [`StatusMsg`](crate::record::StatusMsg) update, explains
 /// the cause of a halt or other change in `action`.
-#[repr(u16)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive, Default)]
+#[cfg_attr(
+    feature = "python",
+    derive(strum::EnumIter),
+    pyo3::pyclass(module = "databento_dbn", rename_all = "SCREAMING_SNAKE_CASE")
+)]
 #[non_exhaustive]
+#[repr(u16)]
 pub enum StatusReason {
     /// No reason is given.
     #[default]
@@ -800,7 +949,7 @@ pub enum StatusReason {
     NewIssue = 15,
     /// The status changed because an issue is available.
     IssueAvailable = 16,
-    /// The status changed because the issue was reviewed.
+    /// The status changed because the issue(s) were reviewed.
     IssuesReviewed = 17,
     /// The status changed because the filing requirements were satisfied.
     FilingReqsSatisfied = 18,
@@ -845,9 +994,14 @@ pub enum StatusReason {
 }
 
 /// Further information about a status update.
-#[repr(u16)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive, Default)]
+#[cfg_attr(
+    feature = "python",
+    derive(strum::EnumIter),
+    pyo3::pyclass(module = "databento_dbn", rename_all = "SCREAMING_SNAKE_CASE")
+)]
 #[non_exhaustive]
+#[repr(u16)]
 pub enum TradingEvent {
     /// No additional information given.
     #[default]
@@ -864,8 +1018,13 @@ pub enum TradingEvent {
 
 /// An enum for representing unknown, true, or false values. Equivalent to
 /// `Option<bool>` but with a human-readable repr.
-#[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive, Default)]
+#[cfg_attr(
+    feature = "python",
+    derive(strum::EnumIter),
+    pyo3::pyclass(module = "databento_dbn", rename_all = "SCREAMING_SNAKE_CASE")
+)]
+#[repr(u8)]
 pub enum TriState {
     /// The value is not applicable or not known.
     #[default]
@@ -900,9 +1059,9 @@ impl From<Option<bool>> for TriState {
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(
     feature = "python",
+    derive(strum::EnumIter),
     pyo3::pyclass(module = "databento_dbn", rename_all = "SCREAMING_SNAKE_CASE")
 )]
-#[cfg_attr(feature = "python", derive(strum::EnumIter))]
 #[non_exhaustive]
 pub enum VersionUpgradePolicy {
     /// Decode data from previous versions as-is.

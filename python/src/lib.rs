@@ -4,15 +4,14 @@ use pyo3::{prelude::*, wrap_pyfunction, PyClass};
 
 use dbn::{
     compat::{ErrorMsgV1, InstrumentDefMsgV1, SymbolMappingMsgV1, SystemMsgV1},
-    enums::{Compression, Encoding, SType, Schema},
     flags,
     python::EnumIterator,
-    record::{
-        BidAskPair, ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
-        RecordHeader, StatMsg, StatusMsg, SymbolMappingMsg, SystemMsg, TradeMsg,
-    },
-    Metadata, RType, VersionUpgradePolicy, FIXED_PRICE_SCALE, UNDEF_ORDER_SIZE, UNDEF_PRICE,
-    UNDEF_STAT_QUANTITY, UNDEF_TIMESTAMP,
+    Action, BidAskPair, CbboMsg, Compression, ConsolidatedBidAskPair, Encoding, ErrorMsg,
+    ImbalanceMsg, InstrumentClass, InstrumentDefMsg, MatchAlgorithm, MboMsg, Mbp10Msg, Mbp1Msg,
+    Metadata, OhlcvMsg, RType, RecordHeader, SType, Schema, SecurityUpdateAction, Side, StatMsg,
+    StatType, StatUpdateAction, StatusAction, StatusMsg, StatusReason, SymbolMappingMsg, SystemMsg,
+    TradeMsg, TradingEvent, TriState, UserDefinedInstrument, VersionUpgradePolicy, DBN_VERSION,
+    FIXED_PRICE_SCALE, UNDEF_ORDER_SIZE, UNDEF_PRICE, UNDEF_STAT_QUANTITY, UNDEF_TIMESTAMP,
 };
 
 mod dbn_decoder;
@@ -39,6 +38,7 @@ fn databento_dbn(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     checked_add_class::<RecordHeader>(m)?;
     checked_add_class::<MboMsg>(m)?;
     checked_add_class::<BidAskPair>(m)?;
+    checked_add_class::<ConsolidatedBidAskPair>(m)?;
     checked_add_class::<TradeMsg>(m)?;
     checked_add_class::<Mbp1Msg>(m)?;
     checked_add_class::<Mbp10Msg>(m)?;
@@ -54,14 +54,28 @@ fn databento_dbn(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     checked_add_class::<SystemMsg>(m)?;
     checked_add_class::<SystemMsgV1>(m)?;
     checked_add_class::<StatMsg>(m)?;
+    checked_add_class::<CbboMsg>(m)?;
     // PyClass enums
+    checked_add_class::<Action>(m)?;
     checked_add_class::<Compression>(m)?;
     checked_add_class::<Encoding>(m)?;
+    checked_add_class::<InstrumentClass>(m)?;
+    checked_add_class::<MatchAlgorithm>(m)?;
     checked_add_class::<RType>(m)?;
     checked_add_class::<SType>(m)?;
     checked_add_class::<Schema>(m)?;
+    checked_add_class::<SecurityUpdateAction>(m)?;
+    checked_add_class::<Side>(m)?;
+    checked_add_class::<StatType>(m)?;
+    checked_add_class::<StatUpdateAction>(m)?;
+    checked_add_class::<StatusAction>(m)?;
+    checked_add_class::<StatusReason>(m)?;
+    checked_add_class::<TradingEvent>(m)?;
+    checked_add_class::<TriState>(m)?;
+    checked_add_class::<UserDefinedInstrument>(m)?;
     checked_add_class::<VersionUpgradePolicy>(m)?;
     // constants
+    m.add("DBN_VERSION", DBN_VERSION)?;
     m.add("FIXED_PRICE_SCALE", FIXED_PRICE_SCALE)?;
     m.add("UNDEF_PRICE", UNDEF_PRICE)?;
     m.add("UNDEF_ORDER_SIZE", UNDEF_ORDER_SIZE)?;
@@ -78,19 +92,23 @@ fn databento_dbn(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Once;
+
     use dbn::enums::SType;
 
     use super::*;
 
     pub const TEST_DATA_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../tests/data");
 
+    pub static INIT: Once = Once::new();
+
     pub fn setup() {
-        if unsafe { pyo3::ffi::Py_IsInitialized() } == 0 {
+        INIT.call_once(|| {
             // add to available modules
             pyo3::append_to_inittab!(databento_dbn);
-        }
-        // initialize interpreter
-        pyo3::prepare_freethreaded_python();
+            // initialize interpreter
+            pyo3::prepare_freethreaded_python();
+        });
     }
 
     #[test]

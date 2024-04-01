@@ -3,7 +3,7 @@ use std::ffi::c_char;
 use crate::{
     json_writer::{JsonObjectWriter, NULL},
     pretty::{fmt_px, fmt_ts},
-    record::c_chars_to_str,
+    record::{c_chars_to_str, ConsolidatedBidAskPair},
     BidAskPair, HasRType, Metadata, RecordHeader, SecurityUpdateAction, UserDefinedInstrument,
     WithTsOut, UNDEF_PRICE, UNDEF_TIMESTAMP,
 };
@@ -189,6 +189,29 @@ impl<const N: usize> WriteField for [BidAskPair; N] {
             item_writer.value("ask_sz", level.ask_sz);
             item_writer.value("bid_ct", level.bid_ct);
             item_writer.value("ask_ct", level.ask_ct);
+        }
+    }
+}
+
+impl<const N: usize> WriteField for [ConsolidatedBidAskPair; N] {
+    fn write_field<
+        J: crate::json_writer::JsonWriter,
+        const PRETTY_PX: bool,
+        const PRETTY_TS: bool,
+    >(
+        &self,
+        writer: &mut JsonObjectWriter<J>,
+        name: &str,
+    ) {
+        let mut arr_writer = writer.array(name);
+        for level in self.iter() {
+            let mut item_writer = arr_writer.object();
+            write_px_field::<J, PRETTY_PX>(&mut item_writer, "bid_px", level.bid_px);
+            write_px_field::<J, PRETTY_PX>(&mut item_writer, "ask_px", level.ask_px);
+            item_writer.value("bid_sz", level.bid_sz);
+            item_writer.value("ask_sz", level.ask_sz);
+            item_writer.value("bid_pb", level.bid_pb);
+            item_writer.value("ask_pb", level.ask_pb);
         }
     }
 }

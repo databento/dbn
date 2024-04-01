@@ -47,6 +47,21 @@ impl Default for BidAskPair {
     }
 }
 
+impl Default for ConsolidatedBidAskPair {
+    fn default() -> Self {
+        Self {
+            bid_px: UNDEF_PRICE,
+            ask_px: UNDEF_PRICE,
+            bid_sz: 0,
+            ask_sz: 0,
+            bid_pb: 0,
+            ask_pb: 0,
+            _reserved1: [0; 2],
+            _reserved2: [0; 2],
+        }
+    }
+}
+
 impl Default for TradeMsg {
     fn default() -> Self {
         Self {
@@ -64,16 +79,36 @@ impl Default for TradeMsg {
     }
 }
 
-impl Default for Mbp1Msg {
-    fn default() -> Self {
+impl Mbp1Msg {
+    /// Creates a new default Mbp1Msg for the given `schema`.
+    pub fn default_for_schema(schema: Schema) -> Self {
         Self {
-            hd: RecordHeader::default::<Self>(rtype::MBP_1),
+            hd: RecordHeader::default::<Self>(RType::from(schema) as u8),
             price: UNDEF_PRICE,
             size: UNDEF_ORDER_SIZE,
             action: 0,
             side: 0,
             flags: 0,
             depth: 0,
+            ts_recv: UNDEF_TIMESTAMP,
+            ts_in_delta: 0,
+            sequence: 0,
+            levels: Default::default(),
+        }
+    }
+}
+
+impl CbboMsg {
+    /// Creates a new default CbboMsg for the given `schema`.
+    pub fn default_for_schema(schema: Schema) -> Self {
+        Self {
+            hd: RecordHeader::default::<Self>(RType::from(schema) as u8),
+            price: UNDEF_PRICE,
+            size: UNDEF_ORDER_SIZE,
+            action: 0,
+            side: 0,
+            flags: 0,
+            _reserved: [0; 1],
             ts_recv: UNDEF_TIMESTAMP,
             ts_in_delta: 0,
             sequence: 0,
@@ -179,7 +214,7 @@ impl Default for InstrumentDefMsg {
             strike_price_currency: Default::default(),
             instrument_class: 0,
             strike_price: UNDEF_PRICE,
-            match_algorithm: MatchAlgorithm::Fifo as c_char,
+            match_algorithm: MatchAlgorithm::Undefined as c_char,
             md_security_trading_status: u8::MAX,
             main_fraction: u8::MAX,
             price_display_format: u8::MAX,
@@ -248,7 +283,7 @@ impl Default for InstrumentDefMsgV1 {
             strike_price_currency: Default::default(),
             instrument_class: 0,
             strike_price: UNDEF_PRICE,
-            match_algorithm: MatchAlgorithm::Fifo as c_char,
+            match_algorithm: MatchAlgorithm::Undefined as c_char,
             md_security_trading_status: u8::MAX,
             main_fraction: u8::MAX,
             price_display_format: u8::MAX,

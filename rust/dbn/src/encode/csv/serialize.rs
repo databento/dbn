@@ -5,7 +5,9 @@ use csv::Writer;
 use crate::{
     enums::{SecurityUpdateAction, UserDefinedInstrument},
     pretty::{fmt_px, fmt_ts},
-    record::{c_chars_to_str, BidAskPair, HasRType, RecordHeader, WithTsOut},
+    record::{
+        c_chars_to_str, BidAskPair, ConsolidatedBidAskPair, HasRType, RecordHeader, WithTsOut,
+    },
     UNDEF_PRICE, UNDEF_TIMESTAMP,
 };
 
@@ -84,6 +86,32 @@ impl<const N: usize> WriteField for [BidAskPair; N] {
             level.ask_sz.write_field::<W, false, false>(writer)?;
             level.bid_ct.write_field::<W, false, false>(writer)?;
             level.ask_ct.write_field::<W, false, false>(writer)?;
+        }
+        Ok(())
+    }
+}
+
+impl<const N: usize> WriteField for [ConsolidatedBidAskPair; N] {
+    fn write_header<W: io::Write>(csv_writer: &mut Writer<W>, _name: &str) -> csv::Result<()> {
+        for i in 0..N {
+            for f in ["bid_px", "ask_px", "bid_sz", "ask_sz", "bid_pb", "ask_pb"] {
+                csv_writer.write_field(&format!("{f}_{i:02}"))?;
+            }
+        }
+        Ok(())
+    }
+
+    fn write_field<W: io::Write, const PRETTY_PX: bool, const PRETTY_TS: bool>(
+        &self,
+        writer: &mut csv::Writer<W>,
+    ) -> csv::Result<()> {
+        for level in self.iter() {
+            write_px_field::<W, PRETTY_PX>(writer, level.bid_px)?;
+            write_px_field::<W, PRETTY_PX>(writer, level.ask_px)?;
+            level.bid_sz.write_field::<W, false, false>(writer)?;
+            level.ask_sz.write_field::<W, false, false>(writer)?;
+            level.bid_pb.write_field::<W, false, false>(writer)?;
+            level.ask_pb.write_field::<W, false, false>(writer)?;
         }
         Ok(())
     }

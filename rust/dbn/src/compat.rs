@@ -642,7 +642,7 @@ mod tests {
     use time::OffsetDateTime;
     use type_layout::{Field, TypeLayout};
 
-    use crate::{Mbp1Msg, Record, MAX_RECORD_LEN};
+    use crate::{Mbp1Msg, Record, Schema, MAX_RECORD_LEN};
 
     use super::*;
 
@@ -725,7 +725,7 @@ mod tests {
         let rec = Mbp1Msg {
             price: 1_250_000_000,
             side: b'A' as c_char,
-            ..Default::default()
+            ..Mbp1Msg::default_for_schema(Schema::Mbp1)
         };
         let orig = WithTsOut::new(rec, OffsetDateTime::now_utc().unix_timestamp_nanos() as u64);
         let mut compat_buffer = [0; MAX_RECORD_LEN];

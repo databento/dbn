@@ -166,6 +166,7 @@ impl<'a> From<&'a RecordEnum> for RecordRef<'a> {
             RecordEnum::Error(rec) => Self::from(rec),
             RecordEnum::SymbolMapping(rec) => Self::from(rec),
             RecordEnum::System(rec) => Self::from(rec),
+            RecordEnum::Cbbo(rec) => Self::from(rec),
         }
     }
 }
@@ -185,6 +186,7 @@ impl<'a> From<RecordRefEnum<'a>> for RecordRef<'a> {
             RecordRefEnum::Error(rec) => Self::from(rec),
             RecordRefEnum::SymbolMapping(rec) => Self::from(rec),
             RecordRefEnum::System(rec) => Self::from(rec),
+            RecordRefEnum::Cbbo(rec) => Self::from(rec),
         }
     }
 }

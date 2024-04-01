@@ -2,7 +2,9 @@ name: build
 
 # Build and test dbn
 
-on: push
+on:
+  pull_request:
+  push:
 
 jobs:
   x86_64-build:

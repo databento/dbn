@@ -11,8 +11,8 @@ use dbn::{
     enums::{Compression, Schema},
     python::to_val_err,
     record::{
-        ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatMsg, TbboMsg,
-        TradeMsg,
+        Bbo1MMsg, Bbo1SMsg, Cbbo1MMsg, Cbbo1SMsg, CbboMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg,
+        Mbp10Msg, Mbp1Msg, OhlcvMsg, StatMsg, TbboMsg, TcbboMsg, TradeMsg,
     },
     Metadata,
 };
@@ -88,6 +88,12 @@ pub fn write_dbn_file(
         Some(Schema::Status) | None => Err(PyValueError::new_err(
             "Unsupported schema type for writing DBN files",
         )),
+        Some(Schema::Cbbo) => encode_pyrecs::<CbboMsg>(encoder, &records),
+        Some(Schema::Cbbo1S) => encode_pyrecs::<Cbbo1SMsg>(encoder, &records),
+        Some(Schema::Cbbo1M) => encode_pyrecs::<Cbbo1MMsg>(encoder, &records),
+        Some(Schema::Tcbbo) => encode_pyrecs::<TcbboMsg>(encoder, &records),
+        Some(Schema::Bbo1S) => encode_pyrecs::<Bbo1SMsg>(encoder, &records),
+        Some(Schema::Bbo1M) => encode_pyrecs::<Bbo1MMsg>(encoder, &records),
     }
 }
 

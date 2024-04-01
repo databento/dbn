@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.17.0 - 2024-04-01
+
+### Enhancements
+- Added new record type `CbboMsg`, new rtypes and schema types for `Cbbo`, `Cbbo1s`,
+  `Cbbo1m`, `Tcbbo`, `Bbo1s`, and `Bbo1m`
+- Added `Volatility` and `Delta` `StatType` variants
+- Added `Undefined` and `TimeProRata` `MatchAlgorithm` variants
+- Exported more enums to Python:
+  - `Action`
+  - `InstrumentClass`
+  - `MatchAlgorithm`
+  - `SecurityUpdateAction`
+  - `Side`
+  - `StatType`
+  - `StatUpdateAction`
+  - `StatusAction`
+  - `StatusReason`
+  - `TradingEvent`
+  - `TriState`
+  - `UserDefinedInstrument`
+
+### Breaking changes
+- Removed `Default` trait implementation for `Mbp1Msg` due to it now having multiple
+  permissible `rtype` values. Users should use `default_for_schema` instead
+- Changed the default `match_algorithm` for `InstrumentDefMsg` and `InstrumentDefMsgV1`
+  from `Fifo` to `Undefined`
+- Made `Dataset`, `Venue`, and `Publisher` non-exhaustive to allow future additions
+  without breaking changes
+- Renamed publishers from deprecated datasets to their respective sources (`XNAS.NLS`
+  and `XNYS.TRADES` respectively)
+
+### Deprecations
+- Deprecated dataset values `FINN.NLS` and `FINY.TRADES`
+
+### Bug fixes
+- Fixed an issue where the Python `MappingIntervalDict` was not exported
+- Fixed Python type stubs for `VersionUpgradePolicy` and `SType`
+
 ## 0.16.0 - 2024-03-01
 ### Enhancements
 - Updated `StatusMsg` and made it public in preparation for releasing a status schema
@@ -8,7 +46,7 @@
 - Added `-t` and `--tsv` flags to DBN CLI to encode tab-separated values (TSV)
 - Added `delimiter` method to builders for `DynEncoder` and `CsvEncoder` to customize the
   field delimiter character, allowing DBN to be encoded as tab-separated values (TSV)
-- Document cancellation safety for `AsyncRecordDecoder::decode_ref` (credit: @yongqli)
+- Documented cancellation safety for `AsyncRecordDecoder::decode_ref` (credit: @yongqli)
 - Added new publisher values for consolidated DBEQ.MAX
 - Added C FFI conversion functions from `ErrorMsgV1` to `ErrorMsg` and `SystemMsgV1`
   to `SystemMsg`
