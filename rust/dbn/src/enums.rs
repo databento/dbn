@@ -32,6 +32,11 @@ impl From<Side> for char {
 }
 
 /// A tick action.
+/// 
+/// This is used to indicate order life cycle, such as order cancelation and addition.  
+/// You can find examples here.  
+/// - https://databento.com/docs/examples/order-book/order-tracking  
+/// - https://databento.com/docs/examples/order-book/order-actions  
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive)]
 #[repr(u8)]
 pub enum Action {
