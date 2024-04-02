@@ -1063,6 +1063,24 @@ impl StatusMsg {
         self.record_size()
     }
 
+    #[getter]
+    #[pyo3(name = "is_trading")]
+    fn py_is_trading(&self) -> Option<bool> {
+        self.is_trading()
+    }
+
+    #[getter]
+    #[pyo3(name = "is_quoting")]
+    fn py_is_quoting(&self) -> Option<bool> {
+        self.is_quoting()
+    }
+
+    #[getter]
+    #[pyo3(name = "is_short_sell_restricted")]
+    fn py_is_short_sell_restricted(&self) -> Option<bool> {
+        self.is_short_sell_restricted()
+    }
+
     #[classattr]
     fn size_hint() -> PyResult<usize> {
         Ok(mem::size_of::<StatMsg>())
