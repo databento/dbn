@@ -40,6 +40,7 @@ _DBNRecord = Union[
     SystemMsg,
     SystemMsgV1,
     StatMsg,
+    StatusMsg,
 ]
 
 class Side(Enum):
@@ -4229,6 +4230,101 @@ class StatMsg(Record):
 
         """
 
+class StatusMsg(Record):
+    """
+    A trading status update message.
+    """
+
+    @property
+    def pretty_ts_recv(self) -> dt.datetime:
+        """
+        The capture-server-received timestamp as a datetime or
+        `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def ts_recv(self) -> int:
+        """
+        The capture-server-received timestamp expressed as the number of
+        nanoseconds since the UNIX epoch.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def action(self) -> int:
+        """
+        The type of status change.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def reason(self) -> int:
+        """
+        Additional details about the cause of the status change.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def trading_event(self) -> int:
+        """
+        Further information about the status change and its effect on trading.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def is_trading(self) -> bool | None:
+        """
+        The state of trading in the instrument.
+
+        Returns
+        -------
+        bool | None
+
+        """
+
+    @property
+    def is_quoting(self) -> bool | None:
+        """
+        The state of quoting in the instrument.
+
+        Returns
+        -------
+        bool | None
+
+        """
+
+    @property
+    def is_short_sell_restricted(self) -> bool | None:
+        """
+        The state of short sell restrictions for the instrument.
+
+        Returns
+        -------
+        bool | None
+
+        """
+
 class ErrorMsg(Record):
     """
     An error message from the Databento Live Subscription Gateway (LSG).
@@ -4253,6 +4349,7 @@ class ErrorMsg(Record):
         Returns
         -------
         int
+
         """
 
 class ErrorMsgV1(Record):

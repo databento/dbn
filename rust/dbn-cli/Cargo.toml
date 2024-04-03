@@ -17,7 +17,7 @@ path = "src/main.rs"
 
 [dependencies]
 # Databento common DBN library
-dbn = { path = "../dbn", version = "=0.17.0", default-features = false }
+dbn = { path = "../dbn", version = "=0.17.1", default-features = false }
 
 # Error handling
 anyhow = "1.0"

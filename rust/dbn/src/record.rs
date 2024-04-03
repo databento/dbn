@@ -482,7 +482,7 @@ pub struct OhlcvMsg {
     pub volume: u64,
 }
 
-/// A trrading status update message. The record of the
+/// A trading status update message. The record of the
 /// [`Status`](crate::enums::Schema::Status) schema.
 #[repr(C)]
 #[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
