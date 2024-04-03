@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.18.0 - TBD
+### Enhancements
+- Added links to example usage in documentation
+
 ## 0.17.1 - 2024-04-04
 
 ### Bug fixes

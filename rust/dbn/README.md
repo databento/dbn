@@ -6,7 +6,7 @@
 [![Current Crates.io Version](https://img.shields.io/crates/v/dbn.svg)](https://crates.io/crates/dbn)
 
 The official crate for working with Databento Binary Encoding (DBN).
-For more information about DBN, read our [introduction to DBN](https://docs.databento.com/knowledge-base/new-users/dbn-encoding/getting-started-with-dbn).
+For more information about DBN, read our [introduction to DBN](https://databento.com/docs/knowledge-base/new-users/dbn-encoding/getting-started-with-dbn).
 
 Check out the [databento crate](https://crates.io/crates/databento) for the official Databento Rust client.
 

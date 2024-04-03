@@ -1,6 +1,7 @@
 #![allow(deprecated)] // TODO: remove with SType::Smart
 
 //! Enums used in Databento APIs.
+
 use std::{
     fmt::{self, Display, Formatter},
     str::FromStr,
@@ -12,8 +13,11 @@ use std::{
 use dbn_macros::MockPyo3;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
-/// A side of the market. The side of the market for resting orders, or the side
-/// of the aggressor for trades.
+/// A [side](https://databento.com/docs/knowledge-base/new-users/standards-conventions/side)
+/// of the market. The side of the market for resting orders, or the side of the
+/// aggressor for trades.
+///
+///
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive)]
 #[cfg_attr(
     feature = "python",
@@ -36,7 +40,12 @@ impl From<Side> for char {
     }
 }
 
-/// A tick action.
+/// A [tick action](https://databento.com/docs/knowledge-base/new-users/standards-conventions/action)
+/// used to indicate order life cycle.
+///
+/// For example usage see:
+/// - [Order actions](https://databento.com/docs/examples/order-book/order-actions)
+/// - [Order tracking](https://databento.com/docs/examples/order-book/order-tracking)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive)]
 #[cfg_attr(
     feature = "python",
@@ -45,15 +54,15 @@ impl From<Side> for char {
 )]
 #[repr(u8)]
 pub enum Action {
-    /// An existing order was modified.
+    /// An existing order was modified: price and/or size.
     Modify = b'M',
-    /// A trade executed.
+    /// An aggressing order traded. Does not affect the book.
     Trade = b'T',
-    /// An existing order was filled.
+    /// An existing order was filled. Does not affect the book.
     Fill = b'F',
-    /// An order was cancelled.
+    /// An order was fully or partially cancelled.
     Cancel = b'C',
-    /// A new order was added.
+    /// A new order was added to the book.
     Add = b'A',
     /// Reset the book; clear all orders for an instrument.
     Clear = b'R',
@@ -66,6 +75,9 @@ impl From<Action> for char {
 }
 
 /// The class of instrument.
+///
+/// For example usage see
+/// [Getting options with their underlying](https://databento.com/docs/examples/options/options-and-futures).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive)]
 #[cfg_attr(
     feature = "python",
@@ -145,6 +157,9 @@ impl From<MatchAlgorithm> for char {
 }
 
 /// Whether the instrument is user-defined.
+///
+/// For example usage see
+/// [Getting options with their underlying](https://databento.com/docs/examples/options/options-and-futures).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive, Default)]
 #[cfg_attr(
     feature = "python",
@@ -167,7 +182,8 @@ impl From<UserDefinedInstrument> for char {
     }
 }
 
-/// A symbology type. Refer to the [symbology documentation](https://docs.databento.com/api-reference-historical/basics/symbology)
+/// A symbology type. Refer to the
+/// [symbology documentation](https://databento.com/docs/api-reference-historical/basics/symbology)
 /// for more information.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
 #[cfg_attr(
@@ -244,14 +260,19 @@ impl Display for SType {
 
 pub use rtype::RType;
 
-/// Record types, possible values for [`RecordHeader::rtype`][crate::record::RecordHeader::rtype]
+/// Record types, possible values for [`RecordHeader::rtype`][crate::RecordHeader::rtype]
 #[allow(deprecated)]
 pub mod rtype {
     use num_enum::TryFromPrimitive;
 
     use super::Schema;
 
-    /// A type of record, i.e. a struct implementing [`HasRType`](crate::record::HasRType).
+    /// A [record type](https://databento.com/docs/knowledge-base/new-users/standards-conventions/rtype),
+    /// i.e. a sentinel for different types implementing [`HasRType`](crate::record::HasRType).
+    ///
+    /// Use in [`RecordHeader`](crate::RecordHeader) to indicate the type of record,
+    /// which is useful when working with DBN streams containing multiple record types
+    /// or an unknown record type.
     #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
     #[cfg_attr(
         feature = "python",
@@ -496,6 +517,11 @@ pub mod rtype {
 }
 
 /// A data record schema.
+///
+/// Each schema has a particular [record](crate::record) type associated with it.
+///
+/// See [List of supported market data schemas](https://databento.com/docs/knowledge-base/new-users/market-data-schemas)
+/// for an overview of the differences and use cases of each schema.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
 #[cfg_attr(
     feature = "python",
@@ -553,14 +579,16 @@ pub enum Schema {
     /// Consolidated best bid and offer.
     #[pyo3(name = "CBBO")]
     Cbbo = 14,
-    /// Consolidated best bid and offer subsampled at one-second intervals, in addition to trades.
+    /// Consolidated best bid and offer subsampled at one-second intervals, in addition
+    /// to trades.
     #[pyo3(name = "CBBO_1S")]
     Cbbo1S = 15,
-    /// Consolidated best bid and offer subsampled at one-minute intervals, in addition to trades.
+    /// Consolidated best bid and offer subsampled at one-minute intervals, in addition
+    /// to trades.
     #[pyo3(name = "CBBO_1M")]
     Cbbo1M = 16,
-    /// All trade events with the consolidated best bid and offer (CBBO) immediately **before** the
-    /// effect of the trade.
+    /// All trade events with the consolidated best bid and offer (CBBO) immediately
+    /// **before** the effect of the trade.
     #[pyo3(name = "TCBBO")]
     Tcbbo = 17,
     /// Best bid and offer subsampled at one-second intervals, in addition to trades.
