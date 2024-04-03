@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.17.1 - TBD
+## 0.17.1 - 2024-04-04
 
 ### Bug fixes
 - Added missing Python type stub for `StatusMsg`
