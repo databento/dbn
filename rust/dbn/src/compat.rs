@@ -126,6 +126,7 @@ pub struct InstrumentDefMsgV1 {
     #[pyo3(get, set)]
     pub min_price_increment: i64,
     /// The multiplier to convert the venue’s display price to the conventional price.
+    #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub display_factor: i64,
     /// The last eligible trade time expressed as a number of nanoseconds since the
@@ -158,6 +159,7 @@ pub struct InstrumentDefMsgV1 {
     #[pyo3(get, set)]
     pub trading_reference_price: i64,
     /// The contract size for each instrument, in combination with `unit_of_measure`.
+    #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub unit_of_measure_qty: i64,
     /// The value currently under development by the venue. Converted to units of 1e-9, i.e.

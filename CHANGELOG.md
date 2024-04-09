@@ -32,8 +32,13 @@
   `u8::MAX` to match C++ client and to reflect an unknown value. This also changes the
   value of these fields when upgrading a `SymbolMappingMsgV1` to DBNv2
 
-## 0.17.1 - 2024-04-04
+### Breaking changes
+- Changed text serialization of `display_factor` to be affected by `pretty_px`.
+  While it's not a price, it uses the same fixed-price decimal format as other prices
+- Changed text serialization  of `unit_of_measure_qty` in `InstrumentDefMsgV1` to be
+  affected by `pretty_px` to match behavior of `InstrumentDefMsgV2`
 
+## 0.17.1 - 2024-04-04
 ### Bug fixes
 - Added missing Python type stub for `StatusMsg`
 
@@ -97,8 +102,8 @@
   `DBNDecoder` to `Upgrade` so by default the primary record types can always be used
 - Changed fields of previously-hidden `StatusMsg` record type
 - Updated text serialization order of status schema to match other schemas
-- Changed text serialization `unit_of_measure_qty` to be affected by `pretty_px`. While
-  it's not a price, it uses the same fixed-price decimal format as other prices
+- Changed text serialization of `unit_of_measure_qty` to be affected by `pretty_px`.
+  While it's not a price, it uses the same fixed-price decimal format as other prices
 - Made `StatType` and  `VersionUpgradePolicy` non-exhaustive to allow future additions
   without breaking changes
 - Renamed `_dummy` field in `ImbalanceMsg` and `StatMsg` to `_reserved`

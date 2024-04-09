@@ -448,7 +448,7 @@ mod tests {
             hd: RECORD_HEADER,
             ts_recv: 1658441891000000000,
             min_price_increment: 100,
-            display_factor: 1000,
+            display_factor: 1_000_000_000,
             expiration: 1698450000000000000,
             activation: 1697350000000000000,
             high_limit_price: 1_000_000,
@@ -519,7 +519,7 @@ mod tests {
                 r#""ts_recv":"2022-07-21T22:18:11.000000000Z""#,
                 r#""hd":{"ts_event":"2022-07-21T22:17:31.000000000Z","rtype":4,"publisher_id":1,"instrument_id":323}"#,
                 concat!(
-                    r#""raw_symbol":"ESZ4 C4100","security_update_action":"A","instrument_class":"C","min_price_increment":"0.000000100","display_factor":"1000","expiration":"2023-10-27T23:40:00.000000000Z","activation":"2023-10-15T06:06:40.000000000Z","#,
+                    r#""raw_symbol":"ESZ4 C4100","security_update_action":"A","instrument_class":"C","min_price_increment":"0.000000100","display_factor":"1.000000000","expiration":"2023-10-27T23:40:00.000000000Z","activation":"2023-10-15T06:06:40.000000000Z","#,
                     r#""high_limit_price":"0.001000000","low_limit_price":"-0.001000000","max_price_variation":"0.000000000","trading_reference_price":"0.000500000","unit_of_measure_qty":"5.000000000","#,
                     r#""min_price_increment_amount":"0.000000005","price_ratio":"0.000000010","inst_attrib_value":10,"underlying_id":256785,"raw_instrument_id":323,"market_depth_implied":0,"#,
                     r#""market_depth":13,"market_segment_id":0,"max_trade_vol":10000,"min_lot_size":1,"min_lot_size_block":1000,"min_lot_size_round_lot":100,"min_trade_vol":1,"#,

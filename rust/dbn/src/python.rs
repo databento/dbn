@@ -335,8 +335,8 @@ mod tests {
     #[test]
     fn test_cbbo_fields() {
         let mut exp_price = vec!["price".to_owned()];
-        exp_price.push(format!("bid_px_00"));
-        exp_price.push(format!("ask_px_00"));
+        exp_price.push("bid_px_00".to_owned());
+        exp_price.push("ask_px_00".to_owned());
         assert_eq!(CbboMsg::price_fields(""), exp_price);
         assert_eq!(
             CbboMsg::hidden_fields(""),
@@ -448,6 +448,7 @@ mod tests {
             InstrumentDefMsg::price_fields(""),
             vec![
                 "min_price_increment".to_owned(),
+                "display_factor".to_owned(),
                 "high_limit_price".to_owned(),
                 "low_limit_price".to_owned(),
                 "max_price_variation".to_owned(),

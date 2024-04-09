@@ -556,6 +556,7 @@ pub struct InstrumentDefMsg {
     pub min_price_increment: i64,
     /// The multiplier to convert the venue’s display price to the conventional price,
     /// in units of 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub display_factor: i64,
     /// The last eligible trade time expressed as a number of nanoseconds since the
