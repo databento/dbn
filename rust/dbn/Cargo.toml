@@ -48,7 +48,7 @@ strum = { version = "0.26", features = ["derive"], optional = true }
 # Custom error helper
 thiserror = "1.0"
 # date and datetime support
-time = { version = "0.3", features = ["formatting", "macros"] }
+time = { version = ">=0.3.35", features = ["formatting", "macros"] }
 # async traits
 tokio = { version = "1", features = ["fs", "io-util"], optional = true }
 # (de)compression
