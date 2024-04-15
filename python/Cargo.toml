@@ -13,16 +13,12 @@ repository.workspace = true
 name = "databento_dbn" # Python modules can't contain dashes
 
 [dependencies]
-# DBN library
 dbn = { path = "../rust/dbn", features = ["python"] }
-# Python bindings for Rust
-pyo3 = "0.20"
-# Dates and datetimes
-time = "0.3.34"
+pyo3 = { workspace = true }
+time = { workspace = true }
 
 [build-dependencies]
-pyo3-build-config = { version = "0.20" }
+pyo3-build-config = { workspace = true }
 
 [dev-dependencies]
-# parameterized testing
-rstest = "0.18.2"
+rstest = { workspace = true }
