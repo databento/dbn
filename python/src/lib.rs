@@ -21,15 +21,14 @@ mod transcoder;
 /// A Python module wrapping dbn functions
 #[pymodule] // The name of the function must match `lib.name` in `Cargo.toml`
 #[pyo3(name = "_lib")]
-fn databento_dbn(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
-    fn checked_add_class<T: PyClass>(m: &PyModule) -> PyResult<()> {
+fn databento_dbn(_py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
+    fn checked_add_class<T: PyClass>(m: &Bound<PyModule>) -> PyResult<()> {
         // ensure a module was specified, otherwise it defaults to builtins
         assert_eq!(T::MODULE.unwrap(), "databento_dbn");
         m.add_class::<T>()
     }
     // all functions exposed to Python need to be added here
     m.add_wrapped(wrap_pyfunction!(encode::update_encoded_metadata))?;
-    m.add_wrapped(wrap_pyfunction!(encode::write_dbn_file))?;
     checked_add_class::<dbn_decoder::DbnDecoder>(m)?;
     checked_add_class::<transcoder::Transcoder>(m)?;
     checked_add_class::<Metadata>(m)?;
@@ -153,7 +152,7 @@ assert metadata.ts_out is False"#
     fn test_dbn_decoder_metadata_error() {
         setup();
         Python::with_gil(|py| {
-            py.run(
+            py.run_bound(
                 r#"from _lib import DBNDecoder
 
 decoder = DBNDecoder()

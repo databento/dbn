@@ -235,7 +235,7 @@ mod tests {
     fn test_dbn_decoder() {
         setup();
         Python::with_gil(|py| {
-            let path = PyString::new(
+            let path = PyString::new_bound(
                 py,
                 concat!(
                     env!("CARGO_MANIFEST_DIR"),
@@ -263,7 +263,7 @@ for record in records[1:]:
     fn test_dbn_decoder_decoding_error() {
         setup();
         Python::with_gil(|py| {
-            py.run(
+            py.run_bound(
                 r#"from _lib import DBNDecoder, Metadata, Schema, SType
 
 metadata = Metadata(
@@ -299,7 +299,7 @@ except Exception as ex:
     fn test_dbn_decoder_no_metadata() {
         setup();
         Python::with_gil(|py| {
-            py.run(
+            py.run_bound(
                 r#"from _lib import DBNDecoder, OHLCVMsg
 
 decoder = DBNDecoder(has_metadata=False)

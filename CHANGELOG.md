@@ -6,6 +6,10 @@
 - Added new predicate methods `InstrumentClass::is_option`, `is_future`, and `is_spread`
   to make it easier to work with multiple instrument class variants
 
+### Breaking changes
+- Removed `write_dbn_file` function deprecated in version 0.14.0 from Python interface.
+  Please use `Transcoder` instead
+
 ## 0.17.1 - 2024-04-04
 
 ### Bug fixes

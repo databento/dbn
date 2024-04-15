@@ -4,7 +4,7 @@ use pyo3::{
     intern,
     prelude::*,
     pyclass::CompareOp,
-    types::{timezone_utc, PyDateTime, PyDict},
+    types::{timezone_utc_bound, PyDateTime, PyDict},
 };
 
 use crate::{
@@ -3022,8 +3022,8 @@ impl<R: HasRType + IntoPy<Py<PyAny>>> IntoPy<PyObject> for WithTsOut<R> {
 }
 
 fn get_utc_nanosecond_timestamp(py: Python<'_>, timestamp: u64) -> PyResult<PyObject> {
-    if let Ok(pandas) = PyModule::import(py, intern!(py, "pandas")) {
-        let kwargs = PyDict::new(py);
+    if let Ok(pandas) = PyModule::import_bound(py, intern!(py, "pandas")) {
+        let kwargs = PyDict::new_bound(py);
         if kwargs.set_item(intern!(py, "utc"), true).is_ok()
             && kwargs
                 .set_item(intern!(py, "errors"), intern!(py, "coerce"))
@@ -3033,11 +3033,11 @@ fn get_utc_nanosecond_timestamp(py: Python<'_>, timestamp: u64) -> PyResult<PyOb
                 .is_ok()
         {
             return pandas
-                .call_method(intern!(py, "to_datetime"), (timestamp,), Some(kwargs))
+                .call_method(intern!(py, "to_datetime"), (timestamp,), Some(&kwargs))
                 .map(|o| o.into_py(py));
         }
     }
-    let utc_tz = timezone_utc(py);
+    let utc_tz = timezone_utc_bound(py);
     let timestamp_ms = timestamp as f64 / 1_000_000.0;
-    PyDateTime::from_timestamp(py, timestamp_ms, Some(utc_tz)).map(|o| o.into_py(py))
+    PyDateTime::from_timestamp_bound(py, timestamp_ms, Some(&utc_tz)).map(|o| o.into_py(py))
 }
