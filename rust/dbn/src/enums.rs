@@ -112,6 +112,31 @@ impl From<InstrumentClass> for char {
     }
 }
 
+impl InstrumentClass {
+    /// Returns `true` if the instrument class is a type of option.
+    ///
+    /// NOTE: excludes [`Self::MixedSpread`], which *may* include options.
+    pub fn is_option(&self) -> bool {
+        matches!(self, Self::Call | Self::Put | Self::OptionSpread)
+    }
+
+    /// Returns `true` if the instrument class is a type of future.
+    ///
+    /// NOTE: excludes [`Self::MixedSpread`], which *may* include futures.
+    pub fn is_future(&self) -> bool {
+        matches!(self, Self::Future | Self::FutureSpread)
+    }
+
+    /// Returns `true` if the instrument class is a type of spread, i.e. composed of two
+    /// or more instrument legs.
+    pub fn is_spread(&self) -> bool {
+        matches!(
+            self,
+            Self::FutureSpread | Self::OptionSpread | Self::MixedSpread
+        )
+    }
+}
+
 /// The type of matching algorithm used for the instrument at the exchange.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive)]
 #[cfg_attr(

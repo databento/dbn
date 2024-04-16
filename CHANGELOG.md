@@ -3,6 +3,8 @@
 ## 0.18.0 - TBD
 ### Enhancements
 - Added links to example usage in documentation
+- Added new predicate methods `InstrumentClass::is_option`, `is_future`, and `is_spread`
+  to make it easier to work with multiple instrument class variants
 
 ## 0.17.1 - 2024-04-04
 
