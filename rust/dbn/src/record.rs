@@ -91,7 +91,7 @@ pub struct MboMsg {
     #[dbn(encode_order(5))]
     #[pyo3(get)]
     pub size: u32,
-    /// A combination of packet end with matching engine status. See
+    /// A bit field indicating event end, message characteristics, and data quality. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
     #[dbn(fmt_binary)]
     #[pyo3(get)]
@@ -224,7 +224,7 @@ pub struct TradeMsg {
     /// specified by the original source.
     #[dbn(c_char, encode_order(3))]
     pub side: c_char,
-    /// A combination of packet end with matching engine status. See
+    /// A bit field indicating event end, message characteristics, and data quality. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
     #[dbn(fmt_binary)]
     #[pyo3(get)]
@@ -281,7 +281,7 @@ pub struct Mbp1Msg {
     /// **N**one where no side is specified by the original source.
     #[dbn(c_char, encode_order(3))]
     pub side: c_char,
-    /// A combination of packet end with matching engine status. See
+    /// A bit field indicating event end, message characteristics, and data quality. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
     #[dbn(fmt_binary)]
     #[pyo3(get)]
@@ -341,7 +341,7 @@ pub struct Mbp10Msg {
     /// **N**one where no side is specified by the original source.
     #[dbn(c_char, encode_order(3))]
     pub side: c_char,
-    /// A combination of packet end with matching engine status. See
+    /// A bit field indicating event end, message characteristics, and data quality. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
     #[dbn(fmt_binary)]
     #[pyo3(get)]
@@ -401,7 +401,7 @@ pub struct CbboMsg {
     /// **N**one where no side is specified by the original source.
     #[dbn(c_char, encode_order(3))]
     pub side: c_char,
-    /// A combination of packet end with matching engine status. See
+    /// A bit field indicating event end, message characteristics, and data quality. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
     #[dbn(fmt_binary)]
     #[pyo3(get)]

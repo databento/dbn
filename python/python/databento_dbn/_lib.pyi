@@ -1202,7 +1202,7 @@ class _MBOBase:
     @property
     def flags(self) -> int:
         """
-        A combination of packet end with matching engine status.
+        A bit field indicating event end, message characteristics, and data quality.
 
         Returns
         -------
@@ -1616,7 +1616,7 @@ class _MBPBase:
     @property
     def flags(self) -> int:
         """
-        A combination of packet end with matching engine status.
+        A bit field indicating event end, message characteristics, and data quality.
 
         Returns
         -------
@@ -1782,7 +1782,7 @@ class CbboMsg(Record):
     @property
     def flags(self) -> int:
         """
-        A combination of packet end with matching engine status.
+        A bit field indicating event end, message characteristics, and data quality.
 
         Returns
         -------
