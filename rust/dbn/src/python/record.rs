@@ -10,11 +10,11 @@ use pyo3::{
 use crate::{
     compat::{ErrorMsgV1, InstrumentDefMsgV1, SymbolMappingMsgV1, SystemMsgV1},
     record::{str_to_c_chars, CbboMsg, ConsolidatedBidAskPair},
-    rtype, BidAskPair, ErrorMsg, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg,
-    Mbp1Msg, OhlcvMsg, Publisher, Record, RecordHeader, SType, SecurityUpdateAction, StatMsg,
-    StatUpdateAction, StatusAction, StatusMsg, StatusReason, SymbolMappingMsg, SystemMsg, TradeMsg,
-    TradingEvent, TriState, UserDefinedInstrument, WithTsOut, FIXED_PRICE_SCALE, UNDEF_ORDER_SIZE,
-    UNDEF_PRICE, UNDEF_TIMESTAMP,
+    rtype, BidAskPair, ErrorMsg, FlagSet, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg,
+    Mbp10Msg, Mbp1Msg, OhlcvMsg, Publisher, Record, RecordHeader, SType, SecurityUpdateAction,
+    StatMsg, StatUpdateAction, StatusAction, StatusMsg, StatusReason, SymbolMappingMsg, SystemMsg,
+    TradeMsg, TradingEvent, TriState, UserDefinedInstrument, WithTsOut, FIXED_PRICE_SCALE,
+    UNDEF_ORDER_SIZE, UNDEF_PRICE, UNDEF_TIMESTAMP,
 };
 
 use super::{to_val_err, PyFieldDesc};
@@ -35,7 +35,7 @@ impl MboMsg {
         ts_recv: u64,
         ts_in_delta: i32,
         sequence: u32,
-        flags: Option<u8>,
+        flags: Option<FlagSet>,
     ) -> Self {
         Self {
             hd: RecordHeader::new::<Self>(rtype::MBO, publisher_id, instrument_id, ts_event),
@@ -223,10 +223,10 @@ impl CbboMsg {
         size: u32,
         action: c_char,
         side: c_char,
-        flags: u8,
         ts_recv: u64,
         ts_in_delta: i32,
         sequence: u32,
+        flags: Option<FlagSet>,
         levels: Option<ConsolidatedBidAskPair>,
     ) -> Self {
         Self {
@@ -235,12 +235,12 @@ impl CbboMsg {
             size,
             action,
             side,
-            flags,
-            _reserved: [0; 1],
+            flags: flags.unwrap_or_default(),
             ts_recv,
             ts_in_delta,
             sequence,
             levels: [levels.unwrap_or_default()],
+            _reserved: Default::default(),
         }
     }
 
@@ -436,7 +436,7 @@ impl TradeMsg {
         ts_recv: u64,
         ts_in_delta: i32,
         sequence: u32,
-        flags: Option<u8>,
+        flags: Option<FlagSet>,
     ) -> Self {
         Self {
             hd: RecordHeader::new::<Self>(rtype::MBP_0, publisher_id, instrument_id, ts_event),
@@ -570,11 +570,11 @@ impl Mbp1Msg {
         size: u32,
         action: c_char,
         side: c_char,
-        flags: u8,
         depth: u8,
         ts_recv: u64,
         ts_in_delta: i32,
         sequence: u32,
+        flags: Option<FlagSet>,
         levels: Option<BidAskPair>,
     ) -> Self {
         Self {
@@ -583,7 +583,7 @@ impl Mbp1Msg {
             size,
             action,
             side,
-            flags,
+            flags: flags.unwrap_or_default(),
             depth,
             ts_recv,
             ts_in_delta,
@@ -710,11 +710,11 @@ impl Mbp10Msg {
         size: u32,
         action: c_char,
         side: c_char,
-        flags: u8,
         depth: u8,
         ts_recv: u64,
         ts_in_delta: i32,
         sequence: u32,
+        flags: Option<FlagSet>,
         levels: Option<Vec<BidAskPair>>,
     ) -> PyResult<Self> {
         let levels = if let Some(level) = levels {
@@ -735,7 +735,7 @@ impl Mbp10Msg {
             size,
             action,
             side,
-            flags,
+            flags: flags.unwrap_or_default(),
             depth,
             ts_recv,
             ts_in_delta,

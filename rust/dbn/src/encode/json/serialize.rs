@@ -4,8 +4,8 @@ use crate::{
     json_writer::{JsonObjectWriter, NULL},
     pretty::{fmt_px, fmt_ts},
     record::{c_chars_to_str, ConsolidatedBidAskPair},
-    BidAskPair, HasRType, Metadata, RecordHeader, SecurityUpdateAction, UserDefinedInstrument,
-    WithTsOut, UNDEF_PRICE, UNDEF_TIMESTAMP,
+    BidAskPair, FlagSet, HasRType, Metadata, RecordHeader, SecurityUpdateAction,
+    UserDefinedInstrument, WithTsOut, UNDEF_PRICE, UNDEF_TIMESTAMP,
 };
 
 /// Serializes `obj` to a JSON string.
@@ -213,6 +213,20 @@ impl<const N: usize> WriteField for [ConsolidatedBidAskPair; N] {
             item_writer.value("bid_pb", level.bid_pb);
             item_writer.value("ask_pb", level.ask_pb);
         }
+    }
+}
+
+impl WriteField for FlagSet {
+    fn write_field<
+        J: crate::json_writer::JsonWriter,
+        const PRETTY_PX: bool,
+        const PRETTY_TS: bool,
+    >(
+        &self,
+        writer: &mut JsonObjectWriter<J>,
+        name: &str,
+    ) {
+        writer.value(name, self.raw())
     }
 }
 

@@ -11,6 +11,10 @@
 - Improved documentation enumerating errors returned by functions
 
 ### Breaking changes
+- Changed type of `flags` in `MboMsg`, `TradeMsg`, `Mbp1Msg`, `Mbp10Msg`, and `CbboMsg`
+  from `u8` to a new `FlagSet` type with predicate methods   for the various bit flags
+  as well as setters. The `u8` value can still be obtained by calling the `raw()` method.
+  Python and encodings are unaffected.
 - Removed `write_dbn_file` function deprecated in version 0.14.0 from Python interface.
   Please use `Transcoder` instead
 

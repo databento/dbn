@@ -11,6 +11,8 @@ use pyo3::{
 };
 use strum::IntoEnumIterator;
 
+use crate::FlagSet;
+
 mod enums;
 mod metadata;
 mod record;
@@ -54,6 +56,12 @@ impl EnumIterator {
                     .into_iter(),
             ),
         }
+    }
+}
+
+impl IntoPy<PyObject> for FlagSet {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        self.raw().into_py(py)
     }
 }
 
@@ -138,6 +146,11 @@ impl<const N: usize> PyFieldDesc for [i8; N] {
 impl<const N: usize> PyFieldDesc for [u8; N] {
     fn field_dtypes(field_name: &str) -> Vec<(String, String)> {
         vec![(field_name.to_owned(), format!("S{N}"))]
+    }
+}
+impl PyFieldDesc for FlagSet {
+    fn field_dtypes(field_name: &str) -> Vec<(String, String)> {
+        u8::field_dtypes(field_name)
     }
 }
 

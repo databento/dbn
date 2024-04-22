@@ -979,8 +979,6 @@ impl<T: HasRType> WithTsOut<T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::flags;
-
     use super::*;
 
     #[test]
@@ -1001,7 +999,7 @@ mod tests {
                 678,
                 1704468548242628731,
             ),
-            flags: flags::LAST | flags::BAD_TS_RECV,
+            flags: FlagSet::empty().set_last().set_bad_ts_recv(),
             price: 4_500_500_000_000,
             side: b'B' as c_char,
             action: b'A' as c_char,
@@ -1011,7 +1009,7 @@ mod tests {
             format!("{rec:?}"),
             "MboMsg { hd: RecordHeader { length: 14, rtype: Mbo, publisher_id: OpraPillarXcbo, \
             instrument_id: 678, ts_event: 1704468548242628731 }, order_id: 0, \
-            price: 4500.500000000, size: 4294967295, flags: 0b10001000, channel_id: 0, \
+            price: 4500.500000000, size: 4294967295, flags: LAST | BAD_TS_RECV (136), channel_id: 0, \
             action: 'A', side: 'B', ts_recv: 18446744073709551615, ts_in_delta: 0, sequence: 0 }"
         );
     }

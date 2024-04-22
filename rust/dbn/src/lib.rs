@@ -42,6 +42,7 @@ pub mod decode;
 pub mod encode;
 pub mod enums;
 pub mod error;
+pub mod flags;
 mod json_writer;
 pub mod macros;
 pub mod metadata;
@@ -56,11 +57,12 @@ pub mod symbol_map;
 
 pub use crate::{
     enums::{
-        flags, rtype, Action, Compression, Encoding, InstrumentClass, MatchAlgorithm, RType, SType,
+        rtype, Action, Compression, Encoding, InstrumentClass, MatchAlgorithm, RType, SType,
         Schema, SecurityUpdateAction, Side, StatType, StatUpdateAction, StatusAction, StatusReason,
         TradingEvent, TriState, UserDefinedInstrument, VersionUpgradePolicy,
     },
     error::{Error, Result},
+    flags::FlagSet,
     metadata::{MappingInterval, Metadata, MetadataBuilder, SymbolMapping},
     publishers::{Dataset, Publisher, Venue},
     record::{

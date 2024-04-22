@@ -8,7 +8,7 @@ use crate::{
     record::{
         c_chars_to_str, BidAskPair, ConsolidatedBidAskPair, HasRType, RecordHeader, WithTsOut,
     },
-    UNDEF_PRICE, UNDEF_TIMESTAMP,
+    FlagSet, UNDEF_PRICE, UNDEF_TIMESTAMP,
 };
 
 /// Because of the flat nature of CSVs, there are several limitations in the
@@ -116,6 +116,16 @@ impl<const N: usize> WriteField for [ConsolidatedBidAskPair; N] {
         Ok(())
     }
 }
+
+impl WriteField for FlagSet {
+    fn write_field<W: io::Write, const PRETTY_PX: bool, const PRETTY_TS: bool>(
+        &self,
+        writer: &mut Writer<W>,
+    ) -> csv::Result<()> {
+        self.raw().write_field::<W, false, false>(writer)
+    }
+}
+
 macro_rules! impl_write_field_for {
         ($($ty:ident),+) => {
             $(

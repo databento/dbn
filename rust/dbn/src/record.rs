@@ -13,14 +13,10 @@ use std::{ffi::CStr, mem, os::raw::c_char, ptr::NonNull, slice};
 use dbn_macros::MockPyo3;
 
 use crate::{
-    enums::{
-        rtype::{self, RType},
-        Action, InstrumentClass, MatchAlgorithm, SecurityUpdateAction, Side, StatType,
-        StatUpdateAction, UserDefinedInstrument,
-    },
+    enums::rtype,
     macros::{dbn_record, CsvSerialize, JsonSerialize, RecordDebug},
-    publishers::Publisher,
-    Error, Result, SYMBOL_CSTR_LEN,
+    Action, Error, FlagSet, InstrumentClass, MatchAlgorithm, Publisher, RType, Result,
+    SecurityUpdateAction, Side, StatType, StatUpdateAction, UserDefinedInstrument, SYMBOL_CSTR_LEN,
 };
 pub(crate) use conv::as_u8_slice;
 #[cfg(feature = "serde")]
@@ -93,9 +89,8 @@ pub struct MboMsg {
     pub size: u32,
     /// A bit field indicating event end, message characteristics, and data quality. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
-    #[dbn(fmt_binary)]
     #[pyo3(get)]
-    pub flags: u8,
+    pub flags: FlagSet,
     /// A channel ID within the venue.
     #[dbn(encode_order(6))]
     #[pyo3(get)]
@@ -226,9 +221,8 @@ pub struct TradeMsg {
     pub side: c_char,
     /// A bit field indicating event end, message characteristics, and data quality. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
-    #[dbn(fmt_binary)]
     #[pyo3(get)]
-    pub flags: u8,
+    pub flags: FlagSet,
     /// The depth of actual book change.
     #[dbn(encode_order(4))]
     #[pyo3(get)]
@@ -283,9 +277,8 @@ pub struct Mbp1Msg {
     pub side: c_char,
     /// A bit field indicating event end, message characteristics, and data quality. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
-    #[dbn(fmt_binary)]
     #[pyo3(get)]
-    pub flags: u8,
+    pub flags: FlagSet,
     /// The depth of actual book change.
     #[dbn(encode_order(4))]
     #[pyo3(get)]
@@ -343,9 +336,8 @@ pub struct Mbp10Msg {
     pub side: c_char,
     /// A bit field indicating event end, message characteristics, and data quality. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
-    #[dbn(fmt_binary)]
     #[pyo3(get)]
-    pub flags: u8,
+    pub flags: FlagSet,
     /// The depth of actual book change.
     #[dbn(encode_order(4))]
     #[pyo3(get)]
@@ -403,9 +395,8 @@ pub struct CbboMsg {
     pub side: c_char,
     /// A bit field indicating event end, message characteristics, and data quality. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
-    #[dbn(fmt_binary)]
     #[pyo3(get)]
-    pub flags: u8,
+    pub flags: FlagSet,
     // Reserved for future usage.
     #[doc(hidden)]
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -616,6 +607,7 @@ pub struct InstrumentDefMsg {
     #[pyo3(get, set)]
     pub strike_price: i64,
     /// A bitmap of instrument eligibility attributes.
+    #[dbn(fmt_binary)]
     #[pyo3(get, set)]
     pub inst_attrib_value: i32,
     /// The `instrument_id` of the first underlying instrument.
