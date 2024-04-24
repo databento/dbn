@@ -30,7 +30,8 @@ where
     D: DecodeRecord,
     T: HasRType,
 {
-    pub(crate) fn new(decoder: D) -> Self {
+    /// Creates a new streaming decoder using the given `decoder`.
+    pub fn new(decoder: D) -> Self {
         Self {
             decoder,
             i: Some(0),

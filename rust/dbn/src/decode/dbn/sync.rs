@@ -357,6 +357,15 @@ where
     }
 }
 
+impl<R> DecodeRecord for RecordDecoder<R>
+where
+    R: io::Read,
+{
+    fn decode_record<T: HasRType>(&mut self) -> crate::Result<Option<&T>> {
+        self.decode()
+    }
+}
+
 impl<R> DecodeRecordRef for RecordDecoder<R>
 where
     R: io::Read,

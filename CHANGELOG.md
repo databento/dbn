@@ -5,6 +5,10 @@
 - Added links to example usage in documentation
 - Added new predicate methods `InstrumentClass::is_option`, `is_future`, and `is_spread`
   to make it easier to work with multiple instrument class variants
+- Implemented `DecodeRecord` for `DbnRecordDecoder`
+- Added `new_inferred`, `with_buffer`, `inferred_with_buffer`, `from_file`, `get_mut`,
+  and `get_ref` methods to `AsyncDynReader` for parity with the sync `DynReader`
+- Improved documentation enumerating errors returned by functions
 
 ### Breaking changes
 - Removed `write_dbn_file` function deprecated in version 0.14.0 from Python interface.
