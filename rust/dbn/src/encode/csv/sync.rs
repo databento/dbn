@@ -1,6 +1,6 @@
 use std::{io, num::NonZeroU64};
 
-use streaming_iterator::StreamingIterator;
+use fallible_streaming_iterator::FallibleStreamingIterator;
 
 use crate::{
     decode::{DbnMetadata, DecodeRecordRef},
@@ -290,12 +290,12 @@ where
     /// or there's a serialization error.
     fn encode_stream<R: DbnEncodable>(
         &mut self,
-        mut stream: impl StreamingIterator<Item = R>,
+        mut stream: impl FallibleStreamingIterator<Item = R, Error = Error>,
     ) -> Result<()> {
         if !self.has_written_header {
             self.encode_header::<R>(false)?;
         }
-        while let Some(record) = stream.next() {
+        while let Some(record) = stream.next()? {
             self.encode_record(record)?;
         }
         self.flush()?;

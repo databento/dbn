@@ -1,14 +1,14 @@
 use std::marker::PhantomData;
 
-use streaming_iterator::StreamingIterator;
+use fallible_streaming_iterator::FallibleStreamingIterator;
 
 use super::{DecodeRecord, DecodeStream};
-use crate::record::{transmute_record_bytes, HasRType};
+use crate::{record::transmute_record_bytes, Error, HasRType, Result};
 
 /// A consuming iterator wrapping a [`DecodeRecord`]. Lazily decodes the contents of the
 /// file or other input stream.
 ///
-/// Implements [`streaming_iterator::StreamingIterator`].
+/// Implements [`FallibleStreamingIterator`].
 pub struct StreamIterDecoder<D, T>
 where
     D: DecodeRecord,
@@ -19,8 +19,6 @@ where
     /// Number of element sthat have been decoded. Used for [`Iterator::size_hint()`].
     /// `None` indicates the end of the stream has been reached.
     i: Option<usize>,
-    /// Last error encountering when decoding.
-    last_err: Option<crate::Error>,
     /// Required to associate this type with a specific record type `T`.
     _marker: PhantomData<T>,
 }
@@ -35,40 +33,39 @@ where
         Self {
             decoder,
             i: Some(0),
-            last_err: None,
             _marker: PhantomData,
         }
     }
-
-    /// Last error encountering when decoding.
-    pub fn last_err(&self) -> Option<&crate::Error> {
-        self.last_err.as_ref()
-    }
 }
 
-impl<D, T> StreamingIterator for StreamIterDecoder<D, T>
+impl<D, T> FallibleStreamingIterator for StreamIterDecoder<D, T>
 where
     D: DecodeStream,
     T: HasRType,
 {
+    type Error = Error;
     type Item = T;
 
-    fn advance(&mut self) {
+    fn advance(&mut self) -> Result<()> {
         if let Some(i) = self.i.as_mut() {
             match self.decoder.decode_record::<T>() {
-                Err(err) => {
-                    self.last_err = Some(err);
-                    // set error state sentinel
-                    self.i = None;
+                Ok(Some(_)) => {
+                    *i += 1;
+                    Ok(())
                 }
                 Ok(None) => {
                     // set error state sentinel
                     self.i = None;
+                    Ok(())
                 }
-                Ok(Some(_)) => {
-                    *i += 1;
+                Err(err) => {
+                    // set error state sentinel
+                    self.i = None;
+                    Err(err)
                 }
             }
+        } else {
+            Ok(())
         }
     }
 

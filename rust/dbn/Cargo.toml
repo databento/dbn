@@ -29,13 +29,13 @@ dbn-macros = { version = "=0.17.1", path = "../dbn-macros" }
 
 async-compression = { version = "0.4.6", features = ["tokio", "zstd"], optional = true }
 csv = "1.3"
+fallible-streaming-iterator = { version = "0.1.9", features = ["std"] }
 # Fast integer to string conversion
 itoa = "1.0"
 num_enum = "0.7"
 pyo3 = { workspace = true, optional = true }
 json-writer = "0.3"
 serde = { workspace = true, features = ["derive"], optional = true }
-streaming-iterator = "0.1.9"
 # extra enum traits for Python
 strum = { version = "0.26", features = ["derive"], optional = true }
 thiserror = "1.0"

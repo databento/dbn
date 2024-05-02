@@ -1,6 +1,6 @@
 use std::io;
 
-use streaming_iterator::StreamingIterator;
+use fallible_streaming_iterator::FallibleStreamingIterator;
 
 use super::{
     CsvEncoder, DbnEncodable, DbnEncoder, DynWriter, EncodeDbn, EncodeRecord, EncodeRecordRef,
@@ -8,7 +8,7 @@ use super::{
 };
 use crate::{
     decode::{DbnMetadata, DecodeRecordRef},
-    Compression, Encoding, Metadata, RecordRef, Result, Schema,
+    Compression, Encoding, Error, Metadata, RecordRef, Result, Schema,
 };
 
 /// An encoder whose [`Encoding`] and [`Compression`] can be set at runtime.
@@ -267,7 +267,7 @@ where
 
     fn encode_stream<R: DbnEncodable>(
         &mut self,
-        stream: impl StreamingIterator<Item = R>,
+        stream: impl FallibleStreamingIterator<Item = R, Error = Error>,
     ) -> Result<()> {
         self.0.encode_stream(stream)
     }
@@ -346,7 +346,7 @@ where
 
     fn encode_stream<R: DbnEncodable>(
         &mut self,
-        stream: impl StreamingIterator<Item = R>,
+        stream: impl FallibleStreamingIterator<Item = R, Error = Error>,
     ) -> Result<()> {
         match self {
             DynEncoderImpl::Dbn(encoder) => encoder.encode_stream(stream),

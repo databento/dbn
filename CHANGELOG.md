@@ -18,6 +18,10 @@
   - Python and encodings are unaffected
 - Removed `write_dbn_file` function deprecated in version 0.14.0 from Python interface.
   Please use `Transcoder` instead
+- Switched `DecodeStream` from `streaming_iterator` crate to `fallible_streaming_iterator`
+  to allow better notification of errors
+- Switched `EncodeDbn::encode_stream` from accepting an `impl StreamingIterator` to
+  accepting an `FallibleStreamingIterator` to allow bubbling up of decoding errors
 
 ## 0.17.1 - 2024-04-04
 

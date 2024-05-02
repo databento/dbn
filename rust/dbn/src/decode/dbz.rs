@@ -408,47 +408,35 @@ impl MetadataDecoder {
 
 #[cfg(test)]
 mod tests {
-    use streaming_iterator::StreamingIterator;
+    use fallible_streaming_iterator::FallibleStreamingIterator;
+    use rstest::*;
 
     use super::*;
     use crate::compat::InstrumentDefMsgV1;
     use crate::decode::tests::TEST_DATA_PATH;
     use crate::record::{MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, TbboMsg, TradeMsg};
 
-    /// there are crates like rstest that provide pytest-like parameterized tests, however
-    /// they don't support passing types
-    macro_rules! test_reading_dbz {
-        // Rust doesn't allow concatenating identifiers in stable rust, so each test case needs
-        // to be named explicitly
-        ($test_name:ident, $record_type:ident, $schema:expr) => {
-            #[test]
-            fn $test_name() {
-                let target = Decoder::from_file(format!(
-                    "{TEST_DATA_PATH}/test_data.{}.dbz",
-                    $schema.as_str()
-                ))
-                .unwrap();
-                let exp_rec_count = if $schema == Schema::Ohlcv1D { 0 } else { 2 };
-                let actual_rec_count = target.decode_stream::<$record_type>().count();
-                assert_eq!(exp_rec_count, actual_rec_count);
-            }
-        };
+    #[rstest]
+    #[case::mbo(MboMsg::default(), Schema::Mbo, 2)]
+    #[case::mbp1(Mbp1Msg::default_for_schema(Schema::Mbp1), Schema::Mbp1, 2)]
+    #[case::mbp10(Mbp10Msg::default(), Schema::Mbp10, 2)]
+    #[case::ohlcv_1d(OhlcvMsg::default_for_schema(Schema::Ohlcv1D), Schema::Ohlcv1D, 0)]
+    #[case::ohlcv_1h(OhlcvMsg::default_for_schema(Schema::Ohlcv1H), Schema::Ohlcv1H, 2)]
+    #[case::ohlcv_1m(OhlcvMsg::default_for_schema(Schema::Ohlcv1M), Schema::Ohlcv1M, 2)]
+    #[case::ohlcv_1s(OhlcvMsg::default_for_schema(Schema::Ohlcv1S), Schema::Ohlcv1S, 2)]
+    #[case::tbbo(TbboMsg::default_for_schema(Schema::Tbbo), Schema::Tbbo, 2)]
+    #[case::trades(TradeMsg::default(), Schema::Trades, 2)]
+    #[case::definition(InstrumentDefMsgV1::default(), Schema::Definition, 2)]
+    fn test_decode_stream<R: HasRType>(
+        #[case] _rec: R,
+        #[case] schema: Schema,
+        #[case] exp_rec_count: usize,
+    ) {
+        let target =
+            Decoder::from_file(format!("{TEST_DATA_PATH}/test_data.{schema}.dbz")).unwrap();
+        let actual_rec_count = target.decode_stream::<R>().count().unwrap();
+        assert_eq!(exp_rec_count, actual_rec_count);
     }
-
-    test_reading_dbz!(test_reading_mbo, MboMsg, Schema::Mbo);
-    test_reading_dbz!(test_reading_mbp1, Mbp1Msg, Schema::Mbp1);
-    test_reading_dbz!(test_reading_mbp10, Mbp10Msg, Schema::Mbp10);
-    test_reading_dbz!(test_reading_ohlcv1d, OhlcvMsg, Schema::Ohlcv1D);
-    test_reading_dbz!(test_reading_ohlcv1h, OhlcvMsg, Schema::Ohlcv1H);
-    test_reading_dbz!(test_reading_ohlcv1m, OhlcvMsg, Schema::Ohlcv1M);
-    test_reading_dbz!(test_reading_ohlcv1s, OhlcvMsg, Schema::Ohlcv1S);
-    test_reading_dbz!(test_reading_tbbo, TbboMsg, Schema::Tbbo);
-    test_reading_dbz!(test_reading_trades, TradeMsg, Schema::Trades);
-    test_reading_dbz!(
-        test_reading_definition,
-        InstrumentDefMsgV1,
-        Schema::Definition
-    );
 
     #[test]
     fn test_decode_symbol() {
