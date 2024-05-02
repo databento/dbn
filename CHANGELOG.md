@@ -22,6 +22,9 @@
   to allow better notification of errors
 - Switched `EncodeDbn::encode_stream` from accepting an `impl StreamingIterator` to
   accepting an `FallibleStreamingIterator` to allow bubbling up of decoding errors
+- Changed default value for `stype_in` and `stype_out` in `SymbolMappingMsg` to
+  `u8::MAX` to match C++ client and to reflect an unknown value. This also changes the
+  value of these fields when upgrading a `SymbolMappingMsgV1` to DBNv2
 
 ## 0.17.1 - 2024-04-04
 

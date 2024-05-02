@@ -2,8 +2,8 @@ use std::ffi::c_char;
 
 use crate::{
     compat::{ErrorMsgV1, InstrumentDefMsgV1, SymbolMappingMsgV1, SystemMsgV1, SYMBOL_CSTR_LEN_V1},
-    enums::{StatusAction, StatusReason, TradingEvent, TriState},
-    SType, Schema, UNDEF_ORDER_SIZE, UNDEF_PRICE, UNDEF_STAT_QUANTITY, UNDEF_TIMESTAMP,
+    Schema, StatusAction, StatusReason, TradingEvent, TriState, UNDEF_ORDER_SIZE, UNDEF_PRICE,
+    UNDEF_STAT_QUANTITY, UNDEF_TIMESTAMP,
 };
 
 use super::*;
@@ -379,9 +379,9 @@ impl Default for SymbolMappingMsg {
     fn default() -> Self {
         Self {
             hd: RecordHeader::default::<Self>(rtype::SYMBOL_MAPPING),
-            stype_in: SType::RawSymbol as u8,
+            stype_in: u8::MAX,
             stype_in_symbol: [0; SYMBOL_CSTR_LEN],
-            stype_out: SType::InstrumentId as u8,
+            stype_out: u8::MAX,
             stype_out_symbol: [0; SYMBOL_CSTR_LEN],
             start_ts: UNDEF_TIMESTAMP,
             end_ts: UNDEF_TIMESTAMP,
