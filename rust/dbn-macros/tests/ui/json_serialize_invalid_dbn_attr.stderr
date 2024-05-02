@@ -8,10 +8,7 @@ error[E0433]: failed to resolve: unresolved import
  --> tests/ui/json_serialize_invalid_dbn_attr.rs:3:10
   |
 3 | #[derive(JsonSerialize)]
-  |          ^^^^^^^^^^^^^
-  |          |
-  |          unresolved import
-  |          help: a similar path exists: `dbn::encode`
+  |          ^^^^^^^^^^^^^ unresolved import
   |
   = note: this error originates in the derive macro `JsonSerialize` (in Nightly builds, run with -Z macro-backtrace for more info)
 
