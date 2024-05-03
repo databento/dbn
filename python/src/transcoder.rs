@@ -12,7 +12,7 @@ use dbn::{
         CsvEncoder, DbnMetadataEncoder, DbnRecordEncoder, DynWriter, EncodeRecordRef,
         EncodeRecordTextExt, JsonEncoder,
     },
-    python::{py_to_time_date, to_val_err},
+    python::{py_to_time_date, to_py_err},
     Compression, Encoding, PitSymbolMap, RType, Record, RecordRef, Schema, SymbolIndex,
     TsSymbolMap, VersionUpgradePolicy,
 };
@@ -51,9 +51,7 @@ impl Transcoder {
                     }
                     let start_date = py_to_time_date(start_date)?;
                     let end_date = py_to_time_date(end_date)?;
-                    symbol_map
-                        .insert(iid, start_date, end_date, Arc::new(symbol))
-                        .map_err(to_val_err)?;
+                    symbol_map.insert(iid, start_date, end_date, Arc::new(symbol))?;
                 }
             }
             Some(symbol_map)
@@ -141,7 +139,7 @@ struct Inner<const E: u8> {
 
 impl<const E: u8> Transcode for Inner<E> {
     fn write(&mut self, bytes: &[u8]) -> PyResult<()> {
-        self.buffer.write_all(bytes).map_err(to_val_err)?;
+        self.buffer.write_all(bytes).map_err(to_py_err)?;
         self.encode()
     }
 
@@ -177,7 +175,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
         }
         Ok(Self {
             buffer: io::Cursor::default(),
-            output: DynWriter::new(BufWriter::new(file), compression).map_err(to_val_err)?,
+            output: DynWriter::new(BufWriter::new(file), compression)?,
             use_pretty_px: pretty_px.unwrap_or(true),
             use_pretty_ts: pretty_ts.unwrap_or(true),
             map_symbols: map_symbols.unwrap_or(true),
@@ -215,14 +213,12 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
             self.input_version,
             self.upgrade_policy,
             self.ts_out,
-        )
-        .map_err(to_val_err)?;
+        )?;
         let mut encoder = DbnRecordEncoder::new(&mut self.output);
         loop {
             match decoder.decode_record_ref() {
                 Ok(Some(rec)) => {
-                    unsafe { encoder.encode_record_ref_ts_out(rec, self.ts_out) }
-                        .map_err(to_val_err)?;
+                    unsafe { encoder.encode_record_ref_ts_out(rec, self.ts_out) }?;
                     // keep track of position after last _successful_ decoding to
                     // ensure buffer is left in correct state in the case where one
                     // or more successful decodings is followed by a partial one, i.e.
@@ -234,7 +230,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
                 }
                 Err(err) => {
                     self.buffer.set_position(orig_position);
-                    return Err(to_val_err(err));
+                    return Err(PyErr::from(err));
                 }
             }
         }
@@ -248,15 +244,13 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
             self.input_version,
             self.upgrade_policy,
             self.ts_out,
-        )
-        .map_err(to_val_err)?;
+        )?;
 
         let mut encoder = CsvEncoder::builder(&mut self.output)
             .use_pretty_px(self.use_pretty_px)
             .use_pretty_ts(self.use_pretty_ts)
             .write_header(false)
-            .build()
-            .map_err(to_val_err)?;
+            .build()?;
         loop {
             match decoder.decode_record_ref() {
                 Ok(Some(rec)) => {
@@ -275,8 +269,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
                             unsafe { encoder.encode_ref_ts_out_with_sym(rec, self.ts_out, symbol) }
                         } else {
                             unsafe { encoder.encode_record_ref_ts_out(rec, self.ts_out) }
-                        }
-                        .map_err(to_val_err)?;
+                        }?;
                     }
                     // keep track of position after last _successful_ decoding to
                     // ensure buffer is left in correct state in the case where one
@@ -289,7 +282,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
                 }
                 Err(err) => {
                     self.buffer.set_position(orig_position);
-                    return Err(to_val_err(err));
+                    return Err(PyErr::from(err));
                 }
             }
         }
@@ -303,8 +296,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
             self.input_version,
             self.upgrade_policy,
             self.ts_out,
-        )
-        .map_err(to_val_err)?;
+        )?;
 
         let mut encoder = JsonEncoder::builder(&mut self.output)
             .use_pretty_px(self.use_pretty_px)
@@ -319,8 +311,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
                         unsafe { encoder.encode_ref_ts_out_with_sym(rec, self.ts_out, symbol) }
                     } else {
                         unsafe { encoder.encode_record_ref_ts_out(rec, self.ts_out) }
-                    }
-                    .map_err(to_val_err)?;
+                    }?;
                     // keep track of position after last _successful_ decoding to
                     // ensure buffer is left in correct state in the case where one
                     // or more successful decodings is followed by a partial one, i.e.
@@ -332,7 +323,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
                 }
                 Err(err) => {
                     self.buffer.set_position(orig_position);
-                    return Err(to_val_err(err));
+                    return Err(PyErr::from(err));
                 }
             }
         }
@@ -353,9 +344,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
                     metadata.upgrade(self.upgrade_policy);
                     // Setup live symbol mapping
                     if OUTPUT_ENC == Encoding::Dbn as u8 {
-                        DbnMetadataEncoder::new(&mut self.output)
-                            .encode(&metadata)
-                            .map_err(to_val_err)?;
+                        DbnMetadataEncoder::new(&mut self.output).encode(&metadata)?;
                     // CSV or JSON
                     } else if self.map_symbols {
                         if metadata.schema.is_some() {
@@ -363,10 +352,8 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
                             // only read from metadata mappings if symbol_map is unpopulated,
                             // i.e. no `symbol_map` was passed in
                             if self.symbol_map.is_empty() {
-                                self.symbol_map = metadata
-                                    .symbol_map()
-                                    .map(SymbolMap::Historical)
-                                    .map_err(to_val_err)?;
+                                self.symbol_map =
+                                    metadata.symbol_map().map(SymbolMap::Historical)?;
                             }
                         } else {
                             // live
@@ -381,7 +368,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
                     {
                         return Ok(false);
                     }
-                    return Err(to_val_err(err));
+                    return Err(PyErr::from(err));
                 }
             }
             // decoding metadata and the header are both done once at the beginning
@@ -393,9 +380,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
                 };
                 let mut encoder =
                     CsvEncoder::new(&mut self.output, self.use_pretty_px, self.use_pretty_ts);
-                encoder
-                    .encode_header_for_schema(schema, self.ts_out, self.map_symbols)
-                    .map_err(to_val_err)?;
+                encoder.encode_header_for_schema(schema, self.ts_out, self.map_symbols)?;
             }
         }
         Ok(true)

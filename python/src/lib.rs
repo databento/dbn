@@ -5,7 +5,7 @@ use pyo3::{prelude::*, wrap_pyfunction, PyClass};
 use dbn::{
     compat::{ErrorMsgV1, InstrumentDefMsgV1, SymbolMappingMsgV1, SystemMsgV1},
     flags,
-    python::EnumIterator,
+    python::{DBNError, EnumIterator},
     Action, BidAskPair, CbboMsg, Compression, ConsolidatedBidAskPair, Encoding, ErrorMsg,
     ImbalanceMsg, InstrumentClass, InstrumentDefMsg, MatchAlgorithm, MboMsg, Mbp10Msg, Mbp1Msg,
     Metadata, OhlcvMsg, RType, RecordHeader, SType, Schema, SecurityUpdateAction, Side, StatMsg,
@@ -29,10 +29,11 @@ fn databento_dbn(_py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     }
     // all functions exposed to Python need to be added here
     m.add_wrapped(wrap_pyfunction!(encode::update_encoded_metadata))?;
+    m.add("DBNError", m.py().get_type_bound::<DBNError>())?;
+    checked_add_class::<EnumIterator>(m)?;
+    checked_add_class::<Metadata>(m)?;
     checked_add_class::<dbn_decoder::DbnDecoder>(m)?;
     checked_add_class::<transcoder::Transcoder>(m)?;
-    checked_add_class::<Metadata>(m)?;
-    checked_add_class::<EnumIterator>(m)?;
     // Records
     checked_add_class::<RecordHeader>(m)?;
     checked_add_class::<MboMsg>(m)?;

@@ -3,7 +3,7 @@ use std::{
     num::NonZeroU64,
 };
 
-use dbn::{encode::dbn::MetadataEncoder, python::to_val_err};
+use dbn::encode::dbn::MetadataEncoder;
 use pyo3::{exceptions::PyTypeError, intern, prelude::*, types::PyBytes};
 
 /// Updates existing fields that have already been written to the given file.
@@ -19,14 +19,12 @@ pub fn update_encoded_metadata(
     let mut buf = [0; 4];
     file.read_exact(&mut buf)?;
     let version = buf[3];
-    MetadataEncoder::new(file)
-        .update_encoded(
-            version,
-            start,
-            end.and_then(NonZeroU64::new),
-            limit.and_then(NonZeroU64::new),
-        )
-        .map_err(to_val_err)
+    Ok(MetadataEncoder::new(file).update_encoded(
+        version,
+        start,
+        end.and_then(NonZeroU64::new),
+        limit.and_then(NonZeroU64::new),
+    )?)
 }
 
 /// A Python object that implements the Python file interface.

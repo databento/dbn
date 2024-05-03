@@ -15,7 +15,7 @@ use crate::{
     MappingInterval, Metadata, SymbolMapping, VersionUpgradePolicy,
 };
 
-use super::{py_to_time_date, to_val_err};
+use super::{py_to_time_date, to_py_err};
 
 #[pymethods]
 impl Metadata {
@@ -87,8 +87,7 @@ impl Metadata {
     ) -> PyResult<Metadata> {
         let upgrade_policy = upgrade_policy.unwrap_or_default();
         let reader = io::BufReader::new(data.as_bytes());
-        let mut metadata = DynDecoder::inferred_with_buffer(reader, upgrade_policy)
-            .map_err(to_val_err)?
+        let mut metadata = DynDecoder::inferred_with_buffer(reader, upgrade_policy)?
             .metadata()
             .clone();
         metadata.upgrade(upgrade_policy);
@@ -99,7 +98,7 @@ impl Metadata {
     fn py_encode(&self, py: Python<'_>) -> PyResult<Py<PyBytes>> {
         let mut buffer = Vec::new();
         let mut encoder = MetadataEncoder::new(&mut buffer);
-        encoder.encode(self).map_err(to_val_err)?;
+        encoder.encode(self)?;
         Ok(PyBytes::new_bound(py, buffer.as_slice()).into())
     }
 }
@@ -126,15 +125,15 @@ impl<'source> FromPyObject<'source> for MappingInterval {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
         let start_date = ob
             .getattr(intern!(ob.py(), "start_date"))
-            .map_err(|_| to_val_err("Missing start_date".to_owned()))
+            .map_err(|_| to_py_err("Missing start_date".to_owned()))
             .and_then(extract_date)?;
         let end_date = ob
             .getattr(intern!(ob.py(), "end_date"))
-            .map_err(|_| to_val_err("Missing end_date".to_owned()))
+            .map_err(|_| to_py_err("Missing end_date".to_owned()))
             .and_then(extract_date)?;
         let symbol = ob
             .getattr(intern!(ob.py(), "symbol"))
-            .map_err(|_| to_val_err("Missing symbol".to_owned()))
+            .map_err(|_| to_py_err("Missing symbol".to_owned()))
             .and_then(|d| d.extract::<String>())?;
         Ok(Self {
             start_date,

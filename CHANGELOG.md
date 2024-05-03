@@ -9,6 +9,8 @@
 - Added `new_inferred`, `with_buffer`, `inferred_with_buffer`, `from_file`, `get_mut`,
   and `get_ref` methods to `AsyncDynReader` for parity with the sync `DynReader`
 - Improved documentation enumerating errors returned by functions
+- Added new `DBNError` Python exception that's now the primary exception raised by
+  `databento_dbn`
 
 ### Breaking changes
 - Changed type of `flags` in `MboMsg`, `TradeMsg`, `Mbp1Msg`, `Mbp10Msg`, and `CbboMsg`

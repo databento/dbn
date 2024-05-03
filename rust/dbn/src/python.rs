@@ -5,22 +5,36 @@
 use std::fmt;
 
 use pyo3::{
-    exceptions::PyValueError,
+    create_exception,
+    exceptions::PyException,
     prelude::*,
     types::{PyDate, PyDateAccess},
 };
 use strum::IntoEnumIterator;
 
-use crate::FlagSet;
+use crate::{Error, FlagSet};
 
 mod enums;
 mod metadata;
 mod record;
 
+create_exception!(
+    databento_dbn,
+    DBNError,
+    PyException,
+    "An exception from databento_dbn Rust code."
+);
+
 /// A helper function for converting any type that implements `Debug` to a Python
 /// `ValueError`.
-pub fn to_val_err(e: impl fmt::Debug) -> PyErr {
-    PyValueError::new_err(format!("{e:?}"))
+pub fn to_py_err(e: impl fmt::Display) -> PyErr {
+    DBNError::new_err(format!("{e}"))
+}
+
+impl From<Error> for PyErr {
+    fn from(err: Error) -> Self {
+        DBNError::new_err(format!("{err}"))
+    }
 }
 
 /// Python iterator over the variants of an enum.
@@ -71,9 +85,9 @@ impl IntoPy<PyObject> for FlagSet {
 /// This function returns an error if input has an invalid month.
 pub fn py_to_time_date(py_date: &PyDate) -> PyResult<time::Date> {
     let month =
-        time::Month::try_from(py_date.get_month()).map_err(|e| to_val_err(e.to_string()))?;
+        time::Month::try_from(py_date.get_month()).map_err(|e| DBNError::new_err(e.to_string()))?;
     time::Date::from_calendar_date(py_date.get_year(), month, py_date.get_day())
-        .map_err(|e| to_val_err(e.to_string()))
+        .map_err(|e| DBNError::new_err(e.to_string()))
 }
 
 /// A trait for records that provide descriptions of their fields.

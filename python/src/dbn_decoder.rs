@@ -4,8 +4,8 @@ use pyo3::prelude::*;
 
 use dbn::{
     decode::dbn::{MetadataDecoder, RecordDecoder},
-    python::to_val_err,
-    rtype_ts_out_dispatch, HasRType, Record, VersionUpgradePolicy,
+    python::to_py_err,
+    rtype_ts_out_dispatch, HasRType, VersionUpgradePolicy,
 };
 
 #[pyclass(module = "databento_dbn", name = "DBNDecoder")]
@@ -36,7 +36,7 @@ impl DbnDecoder {
     }
 
     fn write(&mut self, bytes: &[u8]) -> PyResult<()> {
-        self.buffer.write_all(bytes).map_err(to_val_err)
+        self.buffer.write_all(bytes).map_err(to_py_err)
     }
 
     fn buffer(&self) -> &[u8] {
@@ -63,7 +63,7 @@ impl DbnDecoder {
                     {
                         return Ok(Vec::new());
                     }
-                    return Err(to_val_err(err));
+                    return Err(PyErr::from(err));
                 }
             }
         }
@@ -73,10 +73,9 @@ impl DbnDecoder {
             self.input_version,
             self.upgrade_policy,
             self.ts_out,
-        )
-        .map_err(to_val_err)?;
+        )?;
         Python::with_gil(|py| -> PyResult<()> {
-            while let Some(rec) = decoder.decode_ref().map_err(to_val_err)? {
+            while let Some(rec) = decoder.decode_ref()? {
                 // Bug in clippy generates an error here. trivial_copy feature isn't enabled,
                 // but clippy thinks these records are `Copy`
                 fn push_rec<R: Clone + HasRType + IntoPy<Py<PyAny>>>(
@@ -89,14 +88,7 @@ impl DbnDecoder {
 
                 // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
                 // from the metadata header.
-                if unsafe { rtype_ts_out_dispatch!(rec, self.ts_out, push_rec, py, &mut recs) }
-                    .is_err()
-                {
-                    return Err(to_val_err(format!(
-                        "Invalid rtype {} found in record",
-                        rec.header().rtype,
-                    )));
-                }
+                unsafe { rtype_ts_out_dispatch!(rec, self.ts_out, push_rec, py, &mut recs) }?;
                 // keep track of position after last _successful_ decoding to
                 // ensure buffer is left in correct state in the case where one
                 // or more successful decodings is followed by a partial one, i.e.
@@ -264,7 +256,7 @@ for record in records[1:]:
         setup();
         Python::with_gil(|py| {
             py.run_bound(
-                r#"from _lib import DBNDecoder, Metadata, Schema, SType
+                r#"from _lib import DBNDecoder, DBNError, Metadata, Schema, SType
 
 metadata = Metadata(
     dataset="GLBX.MDP3",
@@ -286,8 +278,11 @@ try:
     records = decoder.decode()
     # If this code is called, the test will fail
     assert False
-except Exception as ex:
-    assert "Invalid rtype" in str(ex)
+except DBNError as ex:
+    assert "couldn't convert" in str(ex)
+    assert "RType" in str(ex)
+except Exception:
+    assert False
 "#,
                 None,
                 None,

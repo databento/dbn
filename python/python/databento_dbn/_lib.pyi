@@ -43,6 +43,11 @@ _DBNRecord = Union[
     StatusMsg,
 ]
 
+class DBNError(Exception):
+    """
+    An exception from databento_dbn Rust code.
+    """
+
 class Side(Enum):
     """
     A side of the market. The side of the market for resting orders, or the side
@@ -950,7 +955,7 @@ class Metadata(SupportsBytes):
 
         Raises
         ------
-        ValueError
+        DBNError
             When a Metadata instance cannot be parsed from `data`.
 
         """
@@ -965,7 +970,7 @@ class Metadata(SupportsBytes):
 
         Raises
         ------
-        ValueError
+        DBNError
             When the Metadata object cannot be encoded.
 
         """
@@ -4651,7 +4656,7 @@ class DBNDecoder:
 
         Raises
         ------
-        ValueError
+        DBNError
             When the decoding fails.
 
         See Also
@@ -4669,7 +4674,7 @@ class DBNDecoder:
 
         Raises
         ------
-        ValueError
+        DBNError
             When the write to the internal buffer fails.
 
         See Also
@@ -4753,7 +4758,7 @@ class Transcoder:
 
         Raises
         ------
-        ValueError
+        DBNError
             When the write to the internal buffer or the output fails.
         """
 
@@ -4765,7 +4770,7 @@ class Transcoder:
 
         Raises
         ------
-        ValueError
+        DBNError
             When the write to the output fails.
         """
 
@@ -4793,7 +4798,7 @@ def update_encoded_metadata(
 
     Raises
     ------
-    ValueError
+    DBNError
         When the file update fails.
 
     """

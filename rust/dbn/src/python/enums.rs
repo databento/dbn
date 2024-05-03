@@ -8,7 +8,7 @@ use crate::{
     TradingEvent, TriState, VersionUpgradePolicy,
 };
 
-use super::{to_val_err, EnumIterator, PyFieldDesc};
+use super::{to_py_err, EnumIterator, PyFieldDesc};
 
 #[pymethods]
 impl Side {
@@ -16,10 +16,10 @@ impl Side {
     fn py_new(py: Python<'_>, value: &Bound<PyAny>) -> PyResult<Self> {
         let Ok(i) = value.extract::<u8>() else {
             let t = Self::type_object_bound(py);
-            let c = value.extract::<char>().map_err(to_val_err)?;
+            let c = value.extract::<char>().map_err(to_py_err)?;
             return Self::py_from_str(&t, c);
         };
-        Self::try_from(i).map_err(to_val_err)
+        Self::try_from(i).map_err(to_py_err)
     }
 
     fn __hash__(&self) -> isize {
@@ -63,7 +63,7 @@ impl Side {
     #[classmethod]
     #[pyo3(name = "from_str")]
     fn py_from_str(_: &Bound<PyType>, value: char) -> PyResult<Self> {
-        Self::try_from(value as u8).map_err(to_val_err)
+        Self::try_from(value as u8).map_err(to_py_err)
     }
 }
 
@@ -73,10 +73,10 @@ impl Action {
     fn py_new(py: Python<'_>, value: &Bound<PyAny>) -> PyResult<Self> {
         let Ok(i) = value.extract::<u8>() else {
             let t = Self::type_object_bound(py);
-            let c = value.extract::<char>().map_err(to_val_err)?;
+            let c = value.extract::<char>().map_err(to_py_err)?;
             return Self::py_from_str(&t, c);
         };
-        Self::try_from(i).map_err(to_val_err)
+        Self::try_from(i).map_err(to_py_err)
     }
 
     fn __hash__(&self) -> isize {
@@ -120,7 +120,7 @@ impl Action {
     #[classmethod]
     #[pyo3(name = "from_str")]
     fn py_from_str(_: &Bound<PyType>, value: char) -> PyResult<Self> {
-        Self::try_from(value as u8).map_err(to_val_err)
+        Self::try_from(value as u8).map_err(to_py_err)
     }
 }
 
@@ -130,10 +130,10 @@ impl InstrumentClass {
     fn py_new(py: Python<'_>, value: &Bound<PyAny>) -> PyResult<Self> {
         let Ok(i) = value.extract::<u8>() else {
             let t = Self::type_object_bound(py);
-            let c = value.extract::<char>().map_err(to_val_err)?;
+            let c = value.extract::<char>().map_err(to_py_err)?;
             return Self::py_from_str(&t, c);
         };
-        Self::try_from(i).map_err(to_val_err)
+        Self::try_from(i).map_err(to_py_err)
     }
 
     fn __hash__(&self) -> isize {
@@ -168,7 +168,7 @@ impl InstrumentClass {
     #[classmethod]
     #[pyo3(name = "from_str")]
     fn py_from_str(_: &Bound<PyType>, value: char) -> PyResult<Self> {
-        Self::try_from(value as u8).map_err(to_val_err)
+        Self::try_from(value as u8).map_err(to_py_err)
     }
 }
 
@@ -178,10 +178,10 @@ impl MatchAlgorithm {
     fn py_new(py: Python<'_>, value: &Bound<PyAny>) -> PyResult<Self> {
         let Ok(i) = value.extract::<u8>() else {
             let t = Self::type_object_bound(py);
-            let c = value.extract::<char>().map_err(to_val_err)?;
+            let c = value.extract::<char>().map_err(to_py_err)?;
             return Self::py_from_str(&t, c);
         };
-        Self::try_from(i).map_err(to_val_err)
+        Self::try_from(i).map_err(to_py_err)
     }
 
     fn __hash__(&self) -> isize {
@@ -216,7 +216,7 @@ impl MatchAlgorithm {
     #[classmethod]
     #[pyo3(name = "from_str")]
     fn py_from_str(_: &Bound<PyType>, value: char) -> PyResult<Self> {
-        Self::try_from(value as u8).map_err(to_val_err)
+        Self::try_from(value as u8).map_err(to_py_err)
     }
 }
 
@@ -226,10 +226,10 @@ impl UserDefinedInstrument {
     fn py_new(py: Python<'_>, value: &Bound<PyAny>) -> PyResult<Self> {
         let Ok(i) = value.extract::<u8>() else {
             let t = Self::type_object_bound(py);
-            let c = value.extract::<char>().map_err(to_val_err)?;
+            let c = value.extract::<char>().map_err(to_py_err)?;
             return Self::py_from_str(&t, c);
         };
-        Self::try_from(i).map_err(to_val_err)
+        Self::try_from(i).map_err(to_py_err)
     }
 
     fn __hash__(&self) -> isize {
@@ -277,7 +277,7 @@ impl UserDefinedInstrument {
     #[classmethod]
     #[pyo3(name = "from_str")]
     fn py_from_str(_: &Bound<PyType>, value: char) -> PyResult<Self> {
-        Self::try_from(value as u8).map_err(to_val_err)
+        Self::try_from(value as u8).map_err(to_py_err)
     }
 }
 
@@ -332,7 +332,7 @@ impl SType {
     fn py_from_str(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
         let value_str: String = value.str().and_then(|s| s.extract())?;
         let tokenized = value_str.replace('-', "_").to_lowercase();
-        Self::from_str(&tokenized).map_err(to_val_err)
+        Ok(Self::from_str(&tokenized)?)
     }
 }
 
@@ -390,14 +390,14 @@ impl RType {
     fn py_from_str(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
         let value_str: String = value.str().and_then(|s| s.extract())?;
         let tokenized = value_str.replace('-', "_").to_lowercase();
-        Self::from_str(&tokenized).map_err(to_val_err)
+        Ok(Self::from_str(&tokenized)?)
     }
 
     #[classmethod]
     #[pyo3(name = "from_int")]
     fn py_from_int(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
         let value: u8 = value.extract()?;
-        Self::try_from(value).map_err(to_val_err)
+        Self::try_from(value).map_err(to_py_err)
     }
 
     #[classmethod]
@@ -406,7 +406,7 @@ impl RType {
         let schema: Schema = value
             .extract()
             .or_else(|_| Schema::py_from_str(&Schema::type_object_bound(pytype.py()), value))
-            .map_err(to_val_err)?;
+            .map_err(to_py_err)?;
         Ok(Self::from(schema))
     }
 }
@@ -462,7 +462,7 @@ impl Schema {
     fn py_from_str(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
         let value_str: String = value.str().and_then(|s| s.extract())?;
         let tokenized = value_str.replace('_', "-").to_lowercase();
-        Self::from_str(&tokenized).map_err(to_val_err)
+        Ok(Self::from_str(&tokenized)?)
     }
 }
 
@@ -517,7 +517,7 @@ impl Encoding {
     fn py_from_str(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
         let value_str: String = value.str().and_then(|s| s.extract())?;
         let tokenized = value_str.to_lowercase();
-        Self::from_str(&tokenized).map_err(to_val_err)
+        Ok(Self::from_str(&tokenized)?)
     }
 }
 
@@ -573,7 +573,7 @@ impl Compression {
     fn py_from_str(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
         let value_str: String = value.str().and_then(|s| s.extract())?;
         let tokenized = value_str.to_lowercase();
-        Self::from_str(&tokenized).map_err(to_val_err)
+        Ok(Self::from_str(&tokenized)?)
     }
 }
 
@@ -583,10 +583,10 @@ impl SecurityUpdateAction {
     fn py_new(py: Python<'_>, value: &Bound<PyAny>) -> PyResult<Self> {
         let Ok(i) = value.extract::<u8>() else {
             let t = Self::type_object_bound(py);
-            let c = value.extract::<char>().map_err(to_val_err)?;
+            let c = value.extract::<char>().map_err(to_py_err)?;
             return Self::py_from_str(&t, c);
         };
-        Self::try_from(i).map_err(to_val_err)
+        Self::try_from(i).map_err(to_py_err)
     }
 
     fn __hash__(&self) -> isize {
@@ -626,7 +626,7 @@ impl SecurityUpdateAction {
     #[classmethod]
     #[pyo3(name = "from_str")]
     fn py_from_str(_: &Bound<PyType>, value: char) -> PyResult<Self> {
-        Self::try_from(value as u8).map_err(to_val_err)
+        Self::try_from(value as u8).map_err(to_py_err)
     }
 }
 
@@ -634,8 +634,8 @@ impl SecurityUpdateAction {
 impl StatType {
     #[new]
     fn py_new(value: &Bound<PyAny>) -> PyResult<Self> {
-        let i = value.extract::<u16>().map_err(to_val_err)?;
-        Self::try_from(i).map_err(to_val_err)
+        let i = value.extract::<u16>().map_err(to_py_err)?;
+        Self::try_from(i).map_err(to_py_err)
     }
 
     fn __hash__(&self) -> isize {
@@ -668,8 +668,8 @@ impl StatType {
 impl StatusAction {
     #[new]
     fn py_new(value: &Bound<PyAny>) -> PyResult<Self> {
-        let i = value.extract::<u16>().map_err(to_val_err)?;
-        Self::try_from(i).map_err(to_val_err)
+        let i = value.extract::<u16>().map_err(to_py_err)?;
+        Self::try_from(i).map_err(to_py_err)
     }
 
     fn __hash__(&self) -> isize {
@@ -702,8 +702,8 @@ impl StatusAction {
 impl StatusReason {
     #[new]
     fn py_new(value: &Bound<PyAny>) -> PyResult<Self> {
-        let i = value.extract::<u16>().map_err(to_val_err)?;
-        Self::try_from(i).map_err(to_val_err)
+        let i = value.extract::<u16>().map_err(to_py_err)?;
+        Self::try_from(i).map_err(to_py_err)
     }
 
     fn __hash__(&self) -> isize {
@@ -736,8 +736,8 @@ impl StatusReason {
 impl TradingEvent {
     #[new]
     fn py_new(value: &Bound<PyAny>) -> PyResult<Self> {
-        let i = value.extract::<u16>().map_err(to_val_err)?;
-        Self::try_from(i).map_err(to_val_err)
+        let i = value.extract::<u16>().map_err(to_py_err)?;
+        Self::try_from(i).map_err(to_py_err)
     }
 
     fn __hash__(&self) -> isize {
@@ -772,10 +772,10 @@ impl TriState {
     fn py_new(py: Python<'_>, value: &Bound<PyAny>) -> PyResult<Self> {
         let Ok(i) = value.extract::<u8>() else {
             let t = Self::type_object_bound(py);
-            let c = value.extract::<char>().map_err(to_val_err)?;
+            let c = value.extract::<char>().map_err(to_py_err)?;
             return Self::py_from_str(&t, c);
         };
-        Self::try_from(i).map_err(to_val_err)
+        Self::try_from(i).map_err(to_py_err)
     }
 
     fn __hash__(&self) -> isize {
@@ -814,7 +814,7 @@ impl TriState {
     #[classmethod]
     #[pyo3(name = "from_str")]
     fn py_from_str(_: &Bound<PyType>, value: char) -> PyResult<Self> {
-        Self::try_from(value as u8).map_err(to_val_err)
+        Self::try_from(value as u8).map_err(to_py_err)
     }
 }
 
