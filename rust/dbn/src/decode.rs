@@ -566,6 +566,8 @@ mod r#async {
         io::{self, BufReader},
     };
 
+    pub(crate) const ZSTD_FILE_BUFFER_CAPACITY: usize = 1 << 20;
+
     use crate::enums::Compression;
 
     /// A type for runtime polymorphism on compressed and uncompressed input.
@@ -666,7 +668,11 @@ mod r#async {
                     ),
                 )
             })?;
-            DynReader::new_inferred(file).await
+            DynReader::inferred_with_buffer(BufReader::with_capacity(
+                ZSTD_FILE_BUFFER_CAPACITY,
+                file,
+            ))
+            .await
         }
     }
 

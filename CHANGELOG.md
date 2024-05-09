@@ -12,6 +12,7 @@
 - Improved documentation enumerating errors returned by functions
 - Added new `DBNError` Python exception that's now the primary exception raised by
   `databento_dbn`
+- Improved async performance of decoding DBN files
 
 ### Breaking changes
 - Changed type of `flags` in `MboMsg`, `TradeMsg`, `Mbp1Msg`, `Mbp10Msg`, and `CbboMsg`
