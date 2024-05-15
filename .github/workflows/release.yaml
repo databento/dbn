@@ -22,28 +22,6 @@ jobs:
         with:
           fetch-depth: 2
 
-      # Cargo setup
-      - name: Set up Cargo cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-x86_64-cargo-${{ hashFiles('Cargo.lock') }}
-
-      # Python setup
-      - name: Set up Python environment
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      # Tag the commit with the library version
-      - name: Create git tag
-        uses: salsify/action-detect-and-tag-new-version@v2
-        with:
-          version-command: scripts/get_version.sh
-
       # Set release output variables
       - name: Set output
         id: vars
@@ -74,6 +52,13 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          components: rustfmt, clippy
 
       # Cargo setup
       - name: Set up Cargo cache
@@ -120,6 +105,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          components: rustfmt, clippy
+
       # Cargo setup
       - name: Set up Cargo cache
         uses: actions/cache@v4
@@ -161,6 +153,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          components: rustfmt, clippy
+
       # Cargo setup
       - name: Set up Cargo cache
         uses: actions/cache@v4
@@ -201,6 +200,13 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          components: rustfmt, clippy
 
       # Cargo setup
       - name: Set up Cargo cache
@@ -278,6 +284,13 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          components: rustfmt, clippy
 
       # Cargo setup
       - name: Set up Cargo cache
