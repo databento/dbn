@@ -13,6 +13,8 @@
 - Added new `DBNError` Python exception that's now the primary exception raised by
   `databento_dbn`
 - Improved async performance of decoding DBN files
+- Added `StatMsg::ts_in_delta()` method that returns a `time::Duration` for consistency
+  with other records with a `ts_in_delta` field
 
 ### Breaking changes
 - Changed type of `flags` in `MboMsg`, `TradeMsg`, `Mbp1Msg`, `Mbp10Msg`, and `CbboMsg`

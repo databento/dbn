@@ -669,6 +669,11 @@ impl StatMsg {
             Error::conversion::<StatUpdateAction>(format!("{:04X}", self.update_action))
         })
     }
+
+    /// Parses the raw `ts_in_delta`—the delta of `ts_recv - ts_exchange_send`—into a duration.
+    pub fn ts_in_delta(&self) -> time::Duration {
+        time::Duration::new(0, self.ts_in_delta)
+    }
 }
 
 impl ErrorMsgV1 {
