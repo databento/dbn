@@ -31,6 +31,7 @@
 - Changed default value for `stype_in` and `stype_out` in `SymbolMappingMsg` to
   `u8::MAX` to match C++ client and to reflect an unknown value. This also changes the
   value of these fields when upgrading a `SymbolMappingMsgV1` to DBNv2
+- Renamed `CbboMsg` to `CBBOMsg` in Python for consistency with other schemas
 
 ### Breaking changes
 - Changed text serialization of `display_factor` to be affected by `pretty_px`.

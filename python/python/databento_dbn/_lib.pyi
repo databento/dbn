@@ -26,7 +26,7 @@ _DBNRecord = Union[
     Metadata,
     MBOMsg,
     MBP1Msg,
-    CbboMsg,
+    CBBOMsg,
     MBP10Msg,
     OHLCVMsg,
     TradeMsg,
@@ -1714,7 +1714,7 @@ class MBP1Msg(Record, _MBPBase):
 
         """
 
-class CbboMsg(Record):
+class CBBOMsg(Record):
     """
     Consolidated best bid and offer implementation.
     """
@@ -1863,7 +1863,7 @@ class CbboMsg(Record):
 
         Notes
         -----
-        CbboMsg contains 1 level of ConsolidatedBidAskPair.
+        CBBOMsg contains 1 level of ConsolidatedBidAskPair.
 
         """
 

@@ -366,7 +366,7 @@ pub struct Mbp10Msg {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(set_all, dict, module = "databento_dbn", name = "CbboMsg"),
+    pyo3::pyclass(set_all, dict, module = "databento_dbn", name = "CBBOMsg"),
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
