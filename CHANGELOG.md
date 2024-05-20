@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.18.0 - 2024-05-14
+## 0.18.0 - 2024-05-21
 
 ### Enhancements
 - Added links to example usage in documentation
