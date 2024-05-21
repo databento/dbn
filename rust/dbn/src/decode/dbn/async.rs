@@ -8,7 +8,7 @@ use tokio::{
 
 use crate::{
     compat,
-    decode::{FromLittleEndianSlice, VersionUpgradePolicy},
+    decode::{r#async::ZSTD_FILE_BUFFER_CAPACITY, FromLittleEndianSlice, VersionUpgradePolicy},
     HasRType, Metadata, Record, RecordHeader, RecordRef, Result, DBN_VERSION, METADATA_FIXED_LEN,
 };
 
@@ -192,7 +192,7 @@ impl Decoder<BufReader<File>> {
                 format!("opening DBN file at path '{}'", path.as_ref().display()),
             )
         })?;
-        Self::new(BufReader::new(file)).await
+        Self::new(BufReader::with_capacity(ZSTD_FILE_BUFFER_CAPACITY, file)).await
     }
 }
 
@@ -217,7 +217,7 @@ impl Decoder<ZstdDecoder<BufReader<File>>> {
                 ),
             )
         })?;
-        Self::with_zstd(file).await
+        Self::with_zstd_buffer(BufReader::with_capacity(ZSTD_FILE_BUFFER_CAPACITY, file)).await
     }
 }
 

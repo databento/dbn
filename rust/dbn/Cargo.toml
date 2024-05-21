@@ -25,41 +25,27 @@ serde = ["dep:serde", "time/parsing", "time/serde"]
 trivial_copy = []
 
 [dependencies]
-dbn-macros = { version = "=0.17.1", path = "../dbn-macros" }
+dbn-macros = { version = "=0.18.0", path = "../dbn-macros" }
 
-# async (de)compression
-async-compression = { version = "0.4.6", features = ["tokio", "zstd"], optional = true }
-# CSV serialization
+async-compression = { version = "0.4.10", features = ["tokio", "zstd"], optional = true }
 csv = "1.3"
+fallible-streaming-iterator = { version = "0.1.9", features = ["std"] }
 # Fast integer to string conversion
 itoa = "1.0"
-# Deriving translation between integers and enums
 num_enum = "0.7"
-# Python bindings for Rust
-pyo3 = { version = "0.20", optional = true }
-# JSON serialization
+pyo3 = { workspace = true, optional = true }
 json-writer = "0.3"
-# deserialization
-serde = { version = "1.0", features = ["derive"], optional = true }
-# zero-copy DBN decoding
-streaming-iterator = "0.1.9"
+serde = { workspace = true, features = ["derive"], optional = true }
 # extra enum traits for Python
 strum = { version = "0.26", features = ["derive"], optional = true }
-# Custom error helper
 thiserror = "1.0"
-# date and datetime support
-time = { version = "0.3", features = ["formatting", "macros"] }
-# async traits
+time = { workspace = true, features = ["formatting", "macros"] }
 tokio = { version = "1", features = ["fs", "io-util"], optional = true }
-# (de)compression
-zstd = "0.13"
+zstd = { workspace = true }
 
 [dev-dependencies]
-# Parameterized testing
-rstest = "0.18.2"
-# Enum helpers
+rstest = { workspace = true }
 strum = { version = "0.26", features = ["derive"] }
-# Async runtime
 tokio = { version = "1", features = ["fs", "io-util", "macros", "rt-multi-thread"] }
 # Checking alignment and padding
 type-layout = "0.2.0"

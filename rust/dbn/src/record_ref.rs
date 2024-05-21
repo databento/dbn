@@ -207,8 +207,8 @@ mod tests {
     use std::ffi::c_char;
 
     use crate::{
-        enums::rtype,
-        record::{ErrorMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, TradeMsg},
+        enums::rtype, ErrorMsg, FlagSet, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
+        TradeMsg,
     };
 
     use super::*;
@@ -218,7 +218,7 @@ mod tests {
         order_id: 17,
         price: 0,
         size: 32,
-        flags: 0,
+        flags: FlagSet::empty(),
         channel_id: 1,
         action: 'A' as c_char,
         side: 'B' as c_char,

@@ -5,6 +5,7 @@ use pyo3::{
     prelude::*,
     pyclass::CompareOp,
     types::{PyBytes, PyDate, PyDict, PyType},
+    Bound,
 };
 
 use crate::{
@@ -14,7 +15,7 @@ use crate::{
     MappingInterval, Metadata, SymbolMapping, VersionUpgradePolicy,
 };
 
-use super::{py_to_time_date, to_val_err};
+use super::{py_to_time_date, to_py_err};
 
 #[pymethods]
 impl Metadata {
@@ -80,14 +81,13 @@ impl Metadata {
     #[pyo3(name = "decode")]
     #[classmethod]
     fn py_decode(
-        _cls: &PyType,
-        data: &PyBytes,
+        _cls: &Bound<PyType>,
+        data: &Bound<PyBytes>,
         upgrade_policy: Option<VersionUpgradePolicy>,
     ) -> PyResult<Metadata> {
         let upgrade_policy = upgrade_policy.unwrap_or_default();
         let reader = io::BufReader::new(data.as_bytes());
-        let mut metadata = DynDecoder::inferred_with_buffer(reader, upgrade_policy)
-            .map_err(to_val_err)?
+        let mut metadata = DynDecoder::inferred_with_buffer(reader, upgrade_policy)?
             .metadata()
             .clone();
         metadata.upgrade(upgrade_policy);
@@ -98,8 +98,8 @@ impl Metadata {
     fn py_encode(&self, py: Python<'_>) -> PyResult<Py<PyBytes>> {
         let mut buffer = Vec::new();
         let mut encoder = MetadataEncoder::new(&mut buffer);
-        encoder.encode(self).map_err(to_val_err)?;
-        Ok(PyBytes::new(py, buffer.as_slice()).into())
+        encoder.encode(self)?;
+        Ok(PyBytes::new_bound(py, buffer.as_slice()).into())
     }
 }
 
@@ -112,7 +112,7 @@ impl IntoPy<PyObject> for SymbolMapping {
 // `ToPyObject` is about copying and is required for `PyDict::set_item`
 impl ToPyObject for SymbolMapping {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        let dict = PyDict::new(py);
+        let dict = PyDict::new_bound(py);
         dict.set_item(intern!(py, "raw_symbol"), &self.raw_symbol)
             .unwrap();
         dict.set_item(intern!(py, "intervals"), &self.intervals)
@@ -125,15 +125,15 @@ impl<'source> FromPyObject<'source> for MappingInterval {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
         let start_date = ob
             .getattr(intern!(ob.py(), "start_date"))
-            .map_err(|_| to_val_err("Missing start_date".to_owned()))
+            .map_err(|_| to_py_err("Missing start_date".to_owned()))
             .and_then(extract_date)?;
         let end_date = ob
             .getattr(intern!(ob.py(), "end_date"))
-            .map_err(|_| to_val_err("Missing end_date".to_owned()))
+            .map_err(|_| to_py_err("Missing end_date".to_owned()))
             .and_then(extract_date)?;
         let symbol = ob
             .getattr(intern!(ob.py(), "symbol"))
-            .map_err(|_| to_val_err("Missing symbol".to_owned()))
+            .map_err(|_| to_py_err("Missing symbol".to_owned()))
             .and_then(|d| d.extract::<String>())?;
         Ok(Self {
             start_date,
@@ -145,10 +145,10 @@ impl<'source> FromPyObject<'source> for MappingInterval {
 
 impl ToPyObject for MappingInterval {
     fn to_object(&self, py: Python<'_>) -> PyObject {
-        let dict = PyDict::new(py);
+        let dict = PyDict::new_bound(py);
         dict.set_item(
             intern!(py, "start_date"),
-            PyDate::new(
+            PyDate::new_bound(
                 py,
                 self.start_date.year(),
                 self.start_date.month() as u8,
@@ -159,7 +159,7 @@ impl ToPyObject for MappingInterval {
         .unwrap();
         dict.set_item(
             intern!(py, "end_date"),
-            PyDate::new(
+            PyDate::new_bound(
                 py,
                 self.end_date.year(),
                 self.end_date.month() as u8,

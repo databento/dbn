@@ -5,20 +5,36 @@
 use std::fmt;
 
 use pyo3::{
-    exceptions::PyValueError,
+    create_exception,
+    exceptions::PyException,
     prelude::*,
     types::{PyDate, PyDateAccess},
 };
 use strum::IntoEnumIterator;
 
+use crate::{Error, FlagSet};
+
 mod enums;
 mod metadata;
 mod record;
 
+create_exception!(
+    databento_dbn,
+    DBNError,
+    PyException,
+    "An exception from databento_dbn Rust code."
+);
+
 /// A helper function for converting any type that implements `Debug` to a Python
 /// `ValueError`.
-pub fn to_val_err(e: impl fmt::Debug) -> PyErr {
-    PyValueError::new_err(format!("{e:?}"))
+pub fn to_py_err(e: impl fmt::Display) -> PyErr {
+    DBNError::new_err(format!("{e}"))
+}
+
+impl From<Error> for PyErr {
+    fn from(err: Error) -> Self {
+        DBNError::new_err(format!("{err}"))
+    }
 }
 
 /// Python iterator over the variants of an enum.
@@ -57,15 +73,21 @@ impl EnumIterator {
     }
 }
 
+impl IntoPy<PyObject> for FlagSet {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        self.raw().into_py(py)
+    }
+}
+
 /// Tries to convert `py_date` to a [`time::Date`].
 ///
 /// # Errors
 /// This function returns an error if input has an invalid month.
 pub fn py_to_time_date(py_date: &PyDate) -> PyResult<time::Date> {
     let month =
-        time::Month::try_from(py_date.get_month()).map_err(|e| to_val_err(e.to_string()))?;
+        time::Month::try_from(py_date.get_month()).map_err(|e| DBNError::new_err(e.to_string()))?;
     time::Date::from_calendar_date(py_date.get_year(), month, py_date.get_day())
-        .map_err(|e| to_val_err(e.to_string()))
+        .map_err(|e| DBNError::new_err(e.to_string()))
 }
 
 /// A trait for records that provide descriptions of their fields.
@@ -138,6 +160,11 @@ impl<const N: usize> PyFieldDesc for [i8; N] {
 impl<const N: usize> PyFieldDesc for [u8; N] {
     fn field_dtypes(field_name: &str) -> Vec<(String, String)> {
         vec![(field_name.to_owned(), format!("S{N}"))]
+    }
+}
+impl PyFieldDesc for FlagSet {
+    fn field_dtypes(field_name: &str) -> Vec<(String, String)> {
+        u8::field_dtypes(field_name)
     }
 }
 
@@ -308,8 +335,8 @@ mod tests {
     #[test]
     fn test_cbbo_fields() {
         let mut exp_price = vec!["price".to_owned()];
-        exp_price.push(format!("bid_px_00"));
-        exp_price.push(format!("ask_px_00"));
+        exp_price.push("bid_px_00".to_owned());
+        exp_price.push("ask_px_00".to_owned());
         assert_eq!(CbboMsg::price_fields(""), exp_price);
         assert_eq!(
             CbboMsg::hidden_fields(""),
@@ -421,6 +448,7 @@ mod tests {
             InstrumentDefMsg::price_fields(""),
             vec![
                 "min_price_increment".to_owned(),
+                "display_factor".to_owned(),
                 "high_limit_price".to_owned(),
                 "low_limit_price".to_owned(),
                 "max_price_variation".to_owned(),

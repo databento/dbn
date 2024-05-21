@@ -4,20 +4,20 @@ use pyo3::{
     intern,
     prelude::*,
     pyclass::CompareOp,
-    types::{timezone_utc, PyDateTime, PyDict},
+    types::{timezone_utc_bound, PyDateTime, PyDict},
 };
 
 use crate::{
     compat::{ErrorMsgV1, InstrumentDefMsgV1, SymbolMappingMsgV1, SystemMsgV1},
     record::{str_to_c_chars, CbboMsg, ConsolidatedBidAskPair},
-    rtype, BidAskPair, ErrorMsg, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg,
-    Mbp1Msg, OhlcvMsg, Publisher, Record, RecordHeader, SType, SecurityUpdateAction, StatMsg,
-    StatUpdateAction, StatusAction, StatusMsg, StatusReason, SymbolMappingMsg, SystemMsg, TradeMsg,
-    TradingEvent, TriState, UserDefinedInstrument, WithTsOut, FIXED_PRICE_SCALE, UNDEF_ORDER_SIZE,
-    UNDEF_PRICE, UNDEF_TIMESTAMP,
+    rtype, BidAskPair, ErrorMsg, FlagSet, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg,
+    Mbp10Msg, Mbp1Msg, OhlcvMsg, Publisher, Record, RecordHeader, SType, SecurityUpdateAction,
+    StatMsg, StatUpdateAction, StatusAction, StatusMsg, StatusReason, SymbolMappingMsg, SystemMsg,
+    TradeMsg, TradingEvent, TriState, UserDefinedInstrument, WithTsOut, FIXED_PRICE_SCALE,
+    UNDEF_ORDER_SIZE, UNDEF_PRICE, UNDEF_TIMESTAMP,
 };
 
-use super::{to_val_err, PyFieldDesc};
+use super::{to_py_err, PyFieldDesc};
 
 #[pymethods]
 impl MboMsg {
@@ -35,7 +35,7 @@ impl MboMsg {
         ts_recv: u64,
         ts_in_delta: i32,
         sequence: u32,
-        flags: Option<u8>,
+        flags: Option<FlagSet>,
     ) -> Self {
         Self {
             hd: RecordHeader::new::<Self>(rtype::MBO, publisher_id, instrument_id, ts_event),
@@ -223,10 +223,10 @@ impl CbboMsg {
         size: u32,
         action: c_char,
         side: c_char,
-        flags: u8,
         ts_recv: u64,
         ts_in_delta: i32,
         sequence: u32,
+        flags: Option<FlagSet>,
         levels: Option<ConsolidatedBidAskPair>,
     ) -> Self {
         Self {
@@ -235,12 +235,12 @@ impl CbboMsg {
             size,
             action,
             side,
-            flags,
-            _reserved: [0; 1],
+            flags: flags.unwrap_or_default(),
             ts_recv,
             ts_in_delta,
             sequence,
             levels: [levels.unwrap_or_default()],
+            _reserved: Default::default(),
         }
     }
 
@@ -436,7 +436,7 @@ impl TradeMsg {
         ts_recv: u64,
         ts_in_delta: i32,
         sequence: u32,
-        flags: Option<u8>,
+        flags: Option<FlagSet>,
     ) -> Self {
         Self {
             hd: RecordHeader::new::<Self>(rtype::MBP_0, publisher_id, instrument_id, ts_event),
@@ -570,11 +570,11 @@ impl Mbp1Msg {
         size: u32,
         action: c_char,
         side: c_char,
-        flags: u8,
         depth: u8,
         ts_recv: u64,
         ts_in_delta: i32,
         sequence: u32,
+        flags: Option<FlagSet>,
         levels: Option<BidAskPair>,
     ) -> Self {
         Self {
@@ -583,7 +583,7 @@ impl Mbp1Msg {
             size,
             action,
             side,
-            flags,
+            flags: flags.unwrap_or_default(),
             depth,
             ts_recv,
             ts_in_delta,
@@ -710,17 +710,17 @@ impl Mbp10Msg {
         size: u32,
         action: c_char,
         side: c_char,
-        flags: u8,
         depth: u8,
         ts_recv: u64,
         ts_in_delta: i32,
         sequence: u32,
+        flags: Option<FlagSet>,
         levels: Option<Vec<BidAskPair>>,
     ) -> PyResult<Self> {
         let levels = if let Some(level) = levels {
             let mut arr: [BidAskPair; 10] = Default::default();
             if level.len() > 10 {
-                return Err(to_val_err("Only 10 levels are allowed"));
+                return Err(to_py_err("Only 10 levels are allowed"));
             }
             for (i, level) in level.into_iter().enumerate() {
                 arr[i] = level;
@@ -735,7 +735,7 @@ impl Mbp10Msg {
             size,
             action,
             side,
-            flags,
+            flags: flags.unwrap_or_default(),
             depth,
             ts_recv,
             ts_in_delta,
@@ -1223,21 +1223,18 @@ impl InstrumentDefMsg {
             maturity_year: maturity_year.unwrap_or(u16::MAX),
             decay_start_date: decay_start_date.unwrap_or(u16::MAX),
             channel_id: channel_id.unwrap_or(u16::MAX),
-            currency: str_to_c_chars(currency.unwrap_or_default()).map_err(to_val_err)?,
-            settl_currency: str_to_c_chars(settl_currency.unwrap_or_default())
-                .map_err(to_val_err)?,
-            secsubtype: str_to_c_chars(secsubtype.unwrap_or_default()).map_err(to_val_err)?,
-            raw_symbol: str_to_c_chars(raw_symbol).map_err(to_val_err)?,
-            group: str_to_c_chars(group).map_err(to_val_err)?,
-            exchange: str_to_c_chars(exchange).map_err(to_val_err)?,
-            asset: str_to_c_chars(asset.unwrap_or_default()).map_err(to_val_err)?,
-            cfi: str_to_c_chars(cfi.unwrap_or_default()).map_err(to_val_err)?,
-            security_type: str_to_c_chars(security_type.unwrap_or_default()).map_err(to_val_err)?,
-            unit_of_measure: str_to_c_chars(unit_of_measure.unwrap_or_default())
-                .map_err(to_val_err)?,
-            underlying: str_to_c_chars(underlying.unwrap_or_default()).map_err(to_val_err)?,
-            strike_price_currency: str_to_c_chars(strike_price_currency.unwrap_or_default())
-                .map_err(to_val_err)?,
+            currency: str_to_c_chars(currency.unwrap_or_default())?,
+            settl_currency: str_to_c_chars(settl_currency.unwrap_or_default())?,
+            secsubtype: str_to_c_chars(secsubtype.unwrap_or_default())?,
+            raw_symbol: str_to_c_chars(raw_symbol)?,
+            group: str_to_c_chars(group)?,
+            exchange: str_to_c_chars(exchange)?,
+            asset: str_to_c_chars(asset.unwrap_or_default())?,
+            cfi: str_to_c_chars(cfi.unwrap_or_default())?,
+            security_type: str_to_c_chars(security_type.unwrap_or_default())?,
+            unit_of_measure: str_to_c_chars(unit_of_measure.unwrap_or_default())?,
+            underlying: str_to_c_chars(underlying.unwrap_or_default())?,
+            strike_price_currency: str_to_c_chars(strike_price_currency.unwrap_or_default())?,
             instrument_class,
             strike_price: strike_price.unwrap_or(UNDEF_PRICE),
             match_algorithm,
@@ -1401,73 +1398,73 @@ impl InstrumentDefMsg {
     #[getter]
     #[pyo3(name = "currency")]
     fn py_currency(&self) -> PyResult<&str> {
-        self.currency().map_err(to_val_err)
+        Ok(self.currency()?)
     }
 
     #[getter]
     #[pyo3(name = "settl_currency")]
     fn py_settl_currency(&self) -> PyResult<&str> {
-        self.settl_currency().map_err(to_val_err)
+        Ok(self.settl_currency()?)
     }
 
     #[getter]
     #[pyo3(name = "secsubtype")]
     fn py_secsubtype(&self) -> PyResult<&str> {
-        self.secsubtype().map_err(to_val_err)
+        Ok(self.secsubtype()?)
     }
 
     #[getter]
     #[pyo3(name = "raw_symbol")]
     fn py_raw_symbol(&self) -> PyResult<&str> {
-        self.raw_symbol().map_err(to_val_err)
+        Ok(self.raw_symbol()?)
     }
 
     #[getter]
     #[pyo3(name = "group")]
     fn py_group(&self) -> PyResult<&str> {
-        self.group().map_err(to_val_err)
+        Ok(self.group()?)
     }
 
     #[getter]
     #[pyo3(name = "exchange")]
     fn py_exchange(&self) -> PyResult<&str> {
-        self.exchange().map_err(to_val_err)
+        Ok(self.exchange()?)
     }
 
     #[getter]
     #[pyo3(name = "asset")]
     fn py_asset(&self) -> PyResult<&str> {
-        self.asset().map_err(to_val_err)
+        Ok(self.asset()?)
     }
 
     #[getter]
     #[pyo3(name = "cfi")]
     fn py_cfi(&self) -> PyResult<&str> {
-        self.cfi().map_err(to_val_err)
+        Ok(self.cfi()?)
     }
 
     #[getter]
     #[pyo3(name = "security_type")]
     fn py_security_type(&self) -> PyResult<&str> {
-        self.security_type().map_err(to_val_err)
+        Ok(self.security_type()?)
     }
 
     #[getter]
     #[pyo3(name = "unit_of_measure")]
     fn py_unit_of_measure(&self) -> PyResult<&str> {
-        self.unit_of_measure().map_err(to_val_err)
+        Ok(self.unit_of_measure()?)
     }
 
     #[getter]
     #[pyo3(name = "underlying")]
     fn py_underlying(&self) -> PyResult<&str> {
-        self.underlying().map_err(to_val_err)
+        Ok(self.underlying()?)
     }
 
     #[getter]
     #[pyo3(name = "strike_price_currency")]
     fn py_strike_price_currency(&self) -> PyResult<&str> {
-        self.strike_price_currency().map_err(to_val_err)
+        Ok(self.strike_price_currency()?)
     }
 
     #[getter]
@@ -1631,21 +1628,18 @@ impl InstrumentDefMsgV1 {
             maturity_year: maturity_year.unwrap_or(u16::MAX),
             decay_start_date: decay_start_date.unwrap_or(u16::MAX),
             channel_id: channel_id.unwrap_or(u16::MAX),
-            currency: str_to_c_chars(currency.unwrap_or_default()).map_err(to_val_err)?,
-            settl_currency: str_to_c_chars(settl_currency.unwrap_or_default())
-                .map_err(to_val_err)?,
-            secsubtype: str_to_c_chars(secsubtype.unwrap_or_default()).map_err(to_val_err)?,
-            raw_symbol: str_to_c_chars(raw_symbol).map_err(to_val_err)?,
-            group: str_to_c_chars(group).map_err(to_val_err)?,
-            exchange: str_to_c_chars(exchange).map_err(to_val_err)?,
-            asset: str_to_c_chars(asset.unwrap_or_default()).map_err(to_val_err)?,
-            cfi: str_to_c_chars(cfi.unwrap_or_default()).map_err(to_val_err)?,
-            security_type: str_to_c_chars(security_type.unwrap_or_default()).map_err(to_val_err)?,
-            unit_of_measure: str_to_c_chars(unit_of_measure.unwrap_or_default())
-                .map_err(to_val_err)?,
-            underlying: str_to_c_chars(underlying.unwrap_or_default()).map_err(to_val_err)?,
-            strike_price_currency: str_to_c_chars(strike_price_currency.unwrap_or_default())
-                .map_err(to_val_err)?,
+            currency: str_to_c_chars(currency.unwrap_or_default())?,
+            settl_currency: str_to_c_chars(settl_currency.unwrap_or_default())?,
+            secsubtype: str_to_c_chars(secsubtype.unwrap_or_default())?,
+            raw_symbol: str_to_c_chars(raw_symbol)?,
+            group: str_to_c_chars(group)?,
+            exchange: str_to_c_chars(exchange)?,
+            asset: str_to_c_chars(asset.unwrap_or_default())?,
+            cfi: str_to_c_chars(cfi.unwrap_or_default())?,
+            security_type: str_to_c_chars(security_type.unwrap_or_default())?,
+            unit_of_measure: str_to_c_chars(unit_of_measure.unwrap_or_default())?,
+            underlying: str_to_c_chars(underlying.unwrap_or_default())?,
+            strike_price_currency: str_to_c_chars(strike_price_currency.unwrap_or_default())?,
             instrument_class,
             strike_price: strike_price.unwrap_or(UNDEF_PRICE),
             match_algorithm,
@@ -1813,73 +1807,73 @@ impl InstrumentDefMsgV1 {
     #[getter]
     #[pyo3(name = "currency")]
     fn py_currency(&self) -> PyResult<&str> {
-        self.currency().map_err(to_val_err)
+        Ok(self.currency()?)
     }
 
     #[getter]
     #[pyo3(name = "settl_currency")]
     fn py_settl_currency(&self) -> PyResult<&str> {
-        self.settl_currency().map_err(to_val_err)
+        Ok(self.settl_currency()?)
     }
 
     #[getter]
     #[pyo3(name = "secsubtype")]
     fn py_secsubtype(&self) -> PyResult<&str> {
-        self.secsubtype().map_err(to_val_err)
+        Ok(self.secsubtype()?)
     }
 
     #[getter]
     #[pyo3(name = "raw_symbol")]
     fn py_raw_symbol(&self) -> PyResult<&str> {
-        self.raw_symbol().map_err(to_val_err)
+        Ok(self.raw_symbol()?)
     }
 
     #[getter]
     #[pyo3(name = "group")]
     fn py_group(&self) -> PyResult<&str> {
-        self.group().map_err(to_val_err)
+        Ok(self.group()?)
     }
 
     #[getter]
     #[pyo3(name = "exchange")]
     fn py_exchange(&self) -> PyResult<&str> {
-        self.exchange().map_err(to_val_err)
+        Ok(self.exchange()?)
     }
 
     #[getter]
     #[pyo3(name = "asset")]
     fn py_asset(&self) -> PyResult<&str> {
-        self.asset().map_err(to_val_err)
+        Ok(self.asset()?)
     }
 
     #[getter]
     #[pyo3(name = "cfi")]
     fn py_cfi(&self) -> PyResult<&str> {
-        self.cfi().map_err(to_val_err)
+        Ok(self.cfi()?)
     }
 
     #[getter]
     #[pyo3(name = "security_type")]
     fn py_security_type(&self) -> PyResult<&str> {
-        self.security_type().map_err(to_val_err)
+        Ok(self.security_type()?)
     }
 
     #[getter]
     #[pyo3(name = "unit_of_measure")]
     fn py_unit_of_measure(&self) -> PyResult<&str> {
-        self.unit_of_measure().map_err(to_val_err)
+        Ok(self.unit_of_measure()?)
     }
 
     #[getter]
     #[pyo3(name = "underlying")]
     fn py_underlying(&self) -> PyResult<&str> {
-        self.underlying().map_err(to_val_err)
+        Ok(self.underlying()?)
     }
 
     #[getter]
     #[pyo3(name = "strike_price_currency")]
     fn py_strike_price_currency(&self) -> PyResult<&str> {
-        self.strike_price_currency().map_err(to_val_err)
+        Ok(self.strike_price_currency()?)
     }
 
     #[getter]
@@ -2307,7 +2301,7 @@ impl ErrorMsg {
     #[getter]
     #[pyo3(name = "err")]
     fn py_err(&self) -> PyResult<&str> {
-        self.err().map_err(to_val_err)
+        Ok(self.err()?)
     }
 
     #[classattr]
@@ -2403,7 +2397,7 @@ impl ErrorMsgV1 {
     #[getter]
     #[pyo3(name = "err")]
     fn py_err(&self) -> PyResult<&str> {
-        self.err().map_err(to_val_err)
+        Ok(self.err()?)
     }
 
     #[classattr]
@@ -2459,9 +2453,9 @@ impl SymbolMappingMsg {
                 ts_event,
             ),
             stype_in: stype_in as u8,
-            stype_in_symbol: str_to_c_chars(stype_in_symbol).map_err(to_val_err)?,
+            stype_in_symbol: str_to_c_chars(stype_in_symbol)?,
             stype_out: stype_out as u8,
-            stype_out_symbol: str_to_c_chars(stype_out_symbol).map_err(to_val_err)?,
+            stype_out_symbol: str_to_c_chars(stype_out_symbol)?,
             start_ts,
             end_ts,
         })
@@ -2534,25 +2528,25 @@ impl SymbolMappingMsg {
     #[getter]
     #[pyo3(name = "stype_in")]
     fn py_stype_in(&self) -> PyResult<SType> {
-        self.stype_in().map_err(to_val_err)
+        Ok(self.stype_in()?)
     }
 
     #[getter]
     #[pyo3(name = "stype_in_symbol")]
     fn py_stype_in_symbol(&self) -> PyResult<&str> {
-        self.stype_in_symbol().map_err(to_val_err)
+        Ok(self.stype_in_symbol()?)
     }
 
     #[getter]
     #[pyo3(name = "stype_out")]
     fn py_stype_out(&self) -> PyResult<SType> {
-        self.stype_out().map_err(to_val_err)
+        Ok(self.stype_out()?)
     }
 
     #[getter]
     #[pyo3(name = "stype_out_symbol")]
     fn py_stype_out_symbol(&self) -> PyResult<&str> {
-        self.stype_out_symbol().map_err(to_val_err)
+        Ok(self.stype_out_symbol()?)
     }
 
     #[classattr]
@@ -2605,8 +2599,8 @@ impl SymbolMappingMsgV1 {
                 instrument_id,
                 ts_event,
             ),
-            stype_in_symbol: str_to_c_chars(stype_in_symbol).map_err(to_val_err)?,
-            stype_out_symbol: str_to_c_chars(stype_out_symbol).map_err(to_val_err)?,
+            stype_in_symbol: str_to_c_chars(stype_in_symbol)?,
+            stype_out_symbol: str_to_c_chars(stype_out_symbol)?,
             start_ts,
             end_ts,
             _dummy: Default::default(),
@@ -2680,13 +2674,13 @@ impl SymbolMappingMsgV1 {
     #[getter]
     #[pyo3(name = "stype_in_symbol")]
     fn py_stype_in_symbol(&self) -> PyResult<&str> {
-        self.stype_in_symbol().map_err(to_val_err)
+        Ok(self.stype_in_symbol()?)
     }
 
     #[getter]
     #[pyo3(name = "stype_out_symbol")]
     fn py_stype_out_symbol(&self) -> PyResult<&str> {
-        self.stype_out_symbol().map_err(to_val_err)
+        Ok(self.stype_out_symbol()?)
     }
 
     #[classattr]
@@ -2724,7 +2718,7 @@ impl SymbolMappingMsgV1 {
 impl SystemMsg {
     #[new]
     fn py_new(ts_event: u64, msg: &str) -> PyResult<Self> {
-        SystemMsg::new(ts_event, msg).map_err(to_val_err)
+        Ok(SystemMsg::new(ts_event, msg)?)
     }
 
     fn __bytes__(&self) -> &[u8] {
@@ -2782,7 +2776,7 @@ impl SystemMsg {
     #[getter]
     #[pyo3(name = "msg")]
     fn py_msg(&self) -> PyResult<&str> {
-        self.msg().map_err(to_val_err)
+        Ok(self.msg()?)
     }
 
     #[pyo3(name = "is_heartbeat")]
@@ -2825,7 +2819,7 @@ impl SystemMsg {
 impl SystemMsgV1 {
     #[new]
     fn py_new(ts_event: u64, msg: &str) -> PyResult<Self> {
-        Self::new(ts_event, msg).map_err(to_val_err)
+        Ok(Self::new(ts_event, msg)?)
     }
 
     fn __bytes__(&self) -> &[u8] {
@@ -2883,7 +2877,7 @@ impl SystemMsgV1 {
     #[getter]
     #[pyo3(name = "msg")]
     fn py_msg(&self) -> PyResult<&str> {
-        self.msg().map_err(to_val_err)
+        Ok(self.msg()?)
     }
 
     #[pyo3(name = "is_heartbeat")]
@@ -3022,8 +3016,8 @@ impl<R: HasRType + IntoPy<Py<PyAny>>> IntoPy<PyObject> for WithTsOut<R> {
 }
 
 fn get_utc_nanosecond_timestamp(py: Python<'_>, timestamp: u64) -> PyResult<PyObject> {
-    if let Ok(pandas) = PyModule::import(py, intern!(py, "pandas")) {
-        let kwargs = PyDict::new(py);
+    if let Ok(pandas) = PyModule::import_bound(py, intern!(py, "pandas")) {
+        let kwargs = PyDict::new_bound(py);
         if kwargs.set_item(intern!(py, "utc"), true).is_ok()
             && kwargs
                 .set_item(intern!(py, "errors"), intern!(py, "coerce"))
@@ -3033,11 +3027,11 @@ fn get_utc_nanosecond_timestamp(py: Python<'_>, timestamp: u64) -> PyResult<PyOb
                 .is_ok()
         {
             return pandas
-                .call_method(intern!(py, "to_datetime"), (timestamp,), Some(kwargs))
+                .call_method(intern!(py, "to_datetime"), (timestamp,), Some(&kwargs))
                 .map(|o| o.into_py(py));
         }
     }
-    let utc_tz = timezone_utc(py);
+    let utc_tz = timezone_utc_bound(py);
     let timestamp_ms = timestamp as f64 / 1_000_000.0;
-    PyDateTime::from_timestamp(py, timestamp_ms, Some(utc_tz)).map(|o| o.into_py(py))
+    PyDateTime::from_timestamp_bound(py, timestamp_ms, Some(&utc_tz)).map(|o| o.into_py(py))
 }

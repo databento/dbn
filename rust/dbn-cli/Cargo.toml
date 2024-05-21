@@ -16,23 +16,18 @@ name = "dbn"
 path = "src/main.rs"
 
 [dependencies]
-# Databento common DBN library
-dbn = { path = "../dbn", version = "=0.17.1", default-features = false }
+dbn = { path = "../dbn", version = "=0.18.0", default-features = false }
 
-# Error handling
-anyhow = "1.0"
-# CLI argument parsing
+anyhow = { workspace = true }
 clap = { version = "4.5", features = ["derive", "wrap_help"] }
-# deserialization for CLI args
-serde = { version = "1.0", features = ["derive"] }
-# Compression
-zstd = "0.13"
+serde = { workspace = true, features = ["derive"] }
+zstd = { workspace = true }
 
 [dev-dependencies]
 # CLI integration tests
 assert_cmd = "2.0.14"
 # assert_cmd companion
 predicates = "3.1.0"
-rstest = "0.18.2"
+rstest = { workspace = true }
 # A library for managing temporary files and directories
 tempfile = "3.10.0"

@@ -8,7 +8,7 @@ pub mod json;
 
 use std::{fmt, io, num::NonZeroU64};
 
-use streaming_iterator::StreamingIterator;
+use fallible_streaming_iterator::FallibleStreamingIterator;
 
 // Re-exports
 pub use self::{
@@ -105,9 +105,9 @@ pub trait EncodeDbn: EncodeRecord + EncodeRecordRef {
     /// or there's a serialization error.
     fn encode_stream<R: DbnEncodable>(
         &mut self,
-        mut stream: impl StreamingIterator<Item = R>,
+        mut stream: impl FallibleStreamingIterator<Item = R, Error = Error>,
     ) -> Result<()> {
-        while let Some(record) = stream.next() {
+        while let Some(record) = stream.next()? {
             self.encode_record(record)?;
         }
         self.flush()?;
@@ -213,9 +213,12 @@ fn zstd_encoder<'a, W: io::Write>(writer: W) -> Result<zstd::stream::AutoFinishE
 
 #[cfg(test)]
 mod test_data {
-    use streaming_iterator::StreamingIterator;
+    use fallible_streaming_iterator::FallibleStreamingIterator;
 
-    use crate::record::{BidAskPair, RecordHeader};
+    use crate::{
+        record::{BidAskPair, RecordHeader},
+        Error,
+    };
 
     // Common data used in multiple tests
     pub const RECORD_HEADER: RecordHeader = RecordHeader {
@@ -249,11 +252,13 @@ mod test_data {
         }
     }
 
-    impl<T> StreamingIterator for VecStream<T> {
+    impl<T> FallibleStreamingIterator for VecStream<T> {
         type Item = T;
+        type Error = Error;
 
-        fn advance(&mut self) {
+        fn advance(&mut self) -> Result<(), Error> {
             self.idx += 1;
+            Ok(())
         }
 
         fn get(&self) -> Option<&Self::Item> {

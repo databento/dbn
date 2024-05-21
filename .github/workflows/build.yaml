@@ -20,6 +20,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          components: rustfmt, clippy
+
       # Cargo setup
       - name: Set up Cargo cache
         uses: actions/cache@v4
@@ -43,9 +50,6 @@ jobs:
           target: x86_64
           args: --release --out dist --manifest-path python/Cargo.toml --interpreter python${{ matrix.python-version }}
 
-      - name: Install clippy and rustfmt
-        run: rustup component add clippy rustfmt
-        shell: bash
       - name: Format
         run: scripts/format.sh
         shell: bash
@@ -71,6 +75,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          components: rustfmt, clippy
+
       # Cargo setup
       - name: Set up Cargo cache
         uses: actions/cache@v4
@@ -94,9 +105,6 @@ jobs:
           manylinux: auto
           args: --release --out dist --manifest-path python/Cargo.toml --interpreter python${{ matrix.python-version }}
 
-      - name: Install clippy and rustfmt
-        run: rustup component add clippy rustfmt
-        shell: bash
       - name: Format
         run: scripts/format.sh
       - name: Build
@@ -118,6 +126,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          components: rustfmt, clippy
+
       # Cargo setup
       - name: Set up Cargo cache
         uses: actions/cache@v4
@@ -133,7 +148,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          architecture: x64
 
       - name: Build wheels - x86_64
         uses: messense/maturin-action@v1
@@ -146,9 +160,6 @@ jobs:
         with:
           args: --release --target universal2-apple-darwin --out dist --manifest-path python/Cargo.toml --interpreter python${{ matrix.python-version }}
 
-      - name: Install clippy and rustfmt
-        run: rustup component add clippy rustfmt
-        shell: bash
       - name: Format
         run: scripts/format.sh
       - name: Build

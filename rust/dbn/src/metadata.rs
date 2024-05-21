@@ -398,7 +398,7 @@ pub struct MappingInterval {
 }
 
 /// The date format used for date strings when serializing [`Metadata`].
-pub const DATE_FORMAT: &[time::format_description::FormatItem<'static>] =
+pub const DATE_FORMAT: &[time::format_description::BorrowedFormatItem<'static>] =
     time::macros::format_description!("[year]-[month]-[day]");
 
 #[cfg(feature = "serde")]

@@ -14,8 +14,7 @@ name = "dbn_c"
 crate-type = ["staticlib"]
 
 [dependencies]
-anyhow = "1.0.80"
-# DBN library
+anyhow = { workspace = true }
 dbn = { path = "../rust/dbn", features = [] }
 libc = "0.2.153"
 

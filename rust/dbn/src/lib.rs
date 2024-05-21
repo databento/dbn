@@ -8,7 +8,7 @@
 //! interchange format and for in-memory representation of data. DBN is also the default
 //! encoding for all Databento APIs, including live data streaming, historical data
 //! streaming, and batch flat files. For more information about the encoding, read our
-//! [introduction to DBN](https://docs.databento.com/knowledge-base/new-users/dbn-encoding/getting-started-with-dbn).
+//! [introduction to DBN](https://databento.com/docs/knowledge-base/new-users/dbn-encoding/getting-started-with-dbn).
 //!
 //! The crate supports reading and writing DBN files and streams, as well as converting
 //! them to other [`Encoding`]s. It can also be used to update legacy
@@ -42,6 +42,7 @@ pub mod decode;
 pub mod encode;
 pub mod enums;
 pub mod error;
+pub mod flags;
 mod json_writer;
 pub mod macros;
 pub mod metadata;
@@ -56,11 +57,12 @@ pub mod symbol_map;
 
 pub use crate::{
     enums::{
-        flags, rtype, Action, Compression, Encoding, InstrumentClass, MatchAlgorithm, RType, SType,
+        rtype, Action, Compression, Encoding, InstrumentClass, MatchAlgorithm, RType, SType,
         Schema, SecurityUpdateAction, Side, StatType, StatUpdateAction, StatusAction, StatusReason,
         TradingEvent, TriState, UserDefinedInstrument, VersionUpgradePolicy,
     },
     error::{Error, Result},
+    flags::FlagSet,
     metadata::{MappingInterval, Metadata, MetadataBuilder, SymbolMapping},
     publishers::{Dataset, Publisher, Venue},
     record::{

@@ -26,7 +26,7 @@ _DBNRecord = Union[
     Metadata,
     MBOMsg,
     MBP1Msg,
-    CbboMsg,
+    CBBOMsg,
     MBP10Msg,
     OHLCVMsg,
     TradeMsg,
@@ -42,6 +42,11 @@ _DBNRecord = Union[
     StatMsg,
     StatusMsg,
 ]
+
+class DBNError(Exception):
+    """
+    An exception from databento_dbn Rust code.
+    """
 
 class Side(Enum):
     """
@@ -950,7 +955,7 @@ class Metadata(SupportsBytes):
 
         Raises
         ------
-        ValueError
+        DBNError
             When a Metadata instance cannot be parsed from `data`.
 
         """
@@ -965,7 +970,7 @@ class Metadata(SupportsBytes):
 
         Raises
         ------
-        ValueError
+        DBNError
             When the Metadata object cannot be encoded.
 
         """
@@ -1202,7 +1207,7 @@ class _MBOBase:
     @property
     def flags(self) -> int:
         """
-        A combination of packet end with matching engine status.
+        A bit field indicating event end, message characteristics, and data quality.
 
         Returns
         -------
@@ -1616,7 +1621,7 @@ class _MBPBase:
     @property
     def flags(self) -> int:
         """
-        A combination of packet end with matching engine status.
+        A bit field indicating event end, message characteristics, and data quality.
 
         Returns
         -------
@@ -1709,7 +1714,7 @@ class MBP1Msg(Record, _MBPBase):
 
         """
 
-class CbboMsg(Record):
+class CBBOMsg(Record):
     """
     Consolidated best bid and offer implementation.
     """
@@ -1782,7 +1787,7 @@ class CbboMsg(Record):
     @property
     def flags(self) -> int:
         """
-        A combination of packet end with matching engine status.
+        A bit field indicating event end, message characteristics, and data quality.
 
         Returns
         -------
@@ -1858,7 +1863,7 @@ class CbboMsg(Record):
 
         Notes
         -----
-        CbboMsg contains 1 level of ConsolidatedBidAskPair.
+        CBBOMsg contains 1 level of ConsolidatedBidAskPair.
 
         """
 
@@ -4651,7 +4656,7 @@ class DBNDecoder:
 
         Raises
         ------
-        ValueError
+        DBNError
             When the decoding fails.
 
         See Also
@@ -4669,7 +4674,7 @@ class DBNDecoder:
 
         Raises
         ------
-        ValueError
+        DBNError
             When the write to the internal buffer fails.
 
         See Also
@@ -4753,7 +4758,7 @@ class Transcoder:
 
         Raises
         ------
-        ValueError
+        DBNError
             When the write to the internal buffer or the output fails.
         """
 
@@ -4765,7 +4770,7 @@ class Transcoder:
 
         Raises
         ------
-        ValueError
+        DBNError
             When the write to the output fails.
         """
 
@@ -4793,53 +4798,7 @@ def update_encoded_metadata(
 
     Raises
     ------
-    ValueError
+    DBNError
         When the file update fails.
-
-    """
-
-def write_dbn_file(
-    file: BinaryIO,
-    compression: str,
-    dataset: str,
-    schema: str,
-    start: int,
-    stype_in: str,
-    stype_out: str,
-    records: Sequence[Record],
-    end: int | None = None,
-) -> None:
-    """
-    Encode the given data in the DBN encoding and writes it to `file`.
-
-    Parameters
-    ----------
-    file : BinaryIO
-        The file handle to update.
-    compression : str
-        The DBN compression format.
-    dataset : str
-       The dataset code.
-    schema : str
-        The data record schema.
-    start : int
-        The UNIX nanosecond timestamp of the query start, or the
-        first record if the file was split.
-    stype_in : str
-        The input symbology type to map from.
-    stype_out : str
-        The output symbology type to map to.
-    records : Sequence[object]
-        A sequence of DBN record objects.
-    end : int | None
-        The UNIX nanosecond timestamp of the query end, or the
-        last record if the file was split.
-
-    Raises
-    ------
-    ValueError
-        When any of the enum arguments cannot be converted to their Rust equivalents.
-        When there's an issue writing the encoded to bytes.
-        When an expected field is missing from one of the dicts.
 
     """

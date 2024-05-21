@@ -13,14 +13,10 @@ use std::{ffi::CStr, mem, os::raw::c_char, ptr::NonNull, slice};
 use dbn_macros::MockPyo3;
 
 use crate::{
-    enums::{
-        rtype::{self, RType},
-        Action, InstrumentClass, MatchAlgorithm, SecurityUpdateAction, Side, StatType,
-        StatUpdateAction, UserDefinedInstrument,
-    },
+    enums::rtype,
     macros::{dbn_record, CsvSerialize, JsonSerialize, RecordDebug},
-    publishers::Publisher,
-    Error, Result, SYMBOL_CSTR_LEN,
+    Action, Error, FlagSet, InstrumentClass, MatchAlgorithm, Publisher, RType, Result,
+    SecurityUpdateAction, Side, StatType, StatUpdateAction, UserDefinedInstrument, SYMBOL_CSTR_LEN,
 };
 pub(crate) use conv::as_u8_slice;
 #[cfg(feature = "serde")]
@@ -91,11 +87,10 @@ pub struct MboMsg {
     #[dbn(encode_order(5))]
     #[pyo3(get)]
     pub size: u32,
-    /// A combination of packet end with matching engine status. See
+    /// A bit field indicating event end, message characteristics, and data quality. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
-    #[dbn(fmt_binary)]
     #[pyo3(get)]
-    pub flags: u8,
+    pub flags: FlagSet,
     /// A channel ID within the venue.
     #[dbn(encode_order(6))]
     #[pyo3(get)]
@@ -224,11 +219,10 @@ pub struct TradeMsg {
     /// specified by the original source.
     #[dbn(c_char, encode_order(3))]
     pub side: c_char,
-    /// A combination of packet end with matching engine status. See
+    /// A bit field indicating event end, message characteristics, and data quality. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
-    #[dbn(fmt_binary)]
     #[pyo3(get)]
-    pub flags: u8,
+    pub flags: FlagSet,
     /// The depth of actual book change.
     #[dbn(encode_order(4))]
     #[pyo3(get)]
@@ -281,11 +275,10 @@ pub struct Mbp1Msg {
     /// **N**one where no side is specified by the original source.
     #[dbn(c_char, encode_order(3))]
     pub side: c_char,
-    /// A combination of packet end with matching engine status. See
+    /// A bit field indicating event end, message characteristics, and data quality. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
-    #[dbn(fmt_binary)]
     #[pyo3(get)]
-    pub flags: u8,
+    pub flags: FlagSet,
     /// The depth of actual book change.
     #[dbn(encode_order(4))]
     #[pyo3(get)]
@@ -341,11 +334,10 @@ pub struct Mbp10Msg {
     /// **N**one where no side is specified by the original source.
     #[dbn(c_char, encode_order(3))]
     pub side: c_char,
-    /// A combination of packet end with matching engine status. See
+    /// A bit field indicating event end, message characteristics, and data quality. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
-    #[dbn(fmt_binary)]
     #[pyo3(get)]
-    pub flags: u8,
+    pub flags: FlagSet,
     /// The depth of actual book change.
     #[dbn(encode_order(4))]
     #[pyo3(get)]
@@ -374,7 +366,7 @@ pub struct Mbp10Msg {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(set_all, dict, module = "databento_dbn", name = "CbboMsg"),
+    pyo3::pyclass(set_all, dict, module = "databento_dbn", name = "CBBOMsg"),
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -401,11 +393,10 @@ pub struct CbboMsg {
     /// **N**one where no side is specified by the original source.
     #[dbn(c_char, encode_order(3))]
     pub side: c_char,
-    /// A combination of packet end with matching engine status. See
+    /// A bit field indicating event end, message characteristics, and data quality. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
-    #[dbn(fmt_binary)]
     #[pyo3(get)]
-    pub flags: u8,
+    pub flags: FlagSet,
     // Reserved for future usage.
     #[doc(hidden)]
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -563,7 +554,9 @@ pub struct InstrumentDefMsg {
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub min_price_increment: i64,
-    /// The multiplier to convert the venue’s display price to the conventional price.
+    /// The multiplier to convert the venue’s display price to the conventional price,
+    /// in units of 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub display_factor: i64,
     /// The last eligible trade time expressed as a number of nanoseconds since the
@@ -616,6 +609,7 @@ pub struct InstrumentDefMsg {
     #[pyo3(get, set)]
     pub strike_price: i64,
     /// A bitmap of instrument eligibility attributes.
+    #[dbn(fmt_binary)]
     #[pyo3(get, set)]
     pub inst_attrib_value: i32,
     /// The `instrument_id` of the first underlying instrument.

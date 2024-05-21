@@ -195,7 +195,7 @@ mod tests {
             order_id: 16,
             price: 5500,
             size: 3,
-            flags: 128,
+            flags: 128.into(),
             channel_id: 14,
             action: 'R' as c_char,
             side: 'N' as c_char,

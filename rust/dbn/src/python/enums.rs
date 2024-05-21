@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use pyo3::{prelude::*, pyclass::CompareOp, type_object::PyTypeInfo, types::PyType};
+use pyo3::{prelude::*, pyclass::CompareOp, type_object::PyTypeInfo, types::PyType, Bound};
 
 use crate::{
     enums::{Compression, Encoding, SType, Schema, SecurityUpdateAction, UserDefinedInstrument},
@@ -8,18 +8,18 @@ use crate::{
     TradingEvent, TriState, VersionUpgradePolicy,
 };
 
-use super::{to_val_err, EnumIterator, PyFieldDesc};
+use super::{to_py_err, EnumIterator, PyFieldDesc};
 
 #[pymethods]
 impl Side {
     #[new]
-    fn py_new(py: Python<'_>, value: &PyAny) -> PyResult<Self> {
+    fn py_new(py: Python<'_>, value: &Bound<PyAny>) -> PyResult<Self> {
         let Ok(i) = value.extract::<u8>() else {
-            let t = Self::type_object(py);
-            let c = value.extract::<char>().map_err(to_val_err)?;
-            return Self::py_from_str(t, c);
+            let t = Self::type_object_bound(py);
+            let c = value.extract::<char>().map_err(to_py_err)?;
+            return Self::py_from_str(&t, c);
         };
-        Self::try_from(i).map_err(to_val_err)
+        Self::try_from(i).map_err(to_py_err)
     }
 
     fn __hash__(&self) -> isize {
@@ -34,7 +34,7 @@ impl Side {
         format!("<Side.{}: '{}'>", self.name(), self.value())
     }
 
-    fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+    fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
         let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(py, other)) else {
             return py.NotImplemented();
         };
@@ -56,27 +56,27 @@ impl Side {
     }
 
     #[classmethod]
-    fn variants(_: &PyType, py: Python<'_>) -> EnumIterator {
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> EnumIterator {
         EnumIterator::new::<Self>(py)
     }
 
     #[classmethod]
     #[pyo3(name = "from_str")]
-    fn py_from_str(_: &PyType, value: char) -> PyResult<Self> {
-        Self::try_from(value as u8).map_err(to_val_err)
+    fn py_from_str(_: &Bound<PyType>, value: char) -> PyResult<Self> {
+        Self::try_from(value as u8).map_err(to_py_err)
     }
 }
 
 #[pymethods]
 impl Action {
     #[new]
-    fn py_new(py: Python<'_>, value: &PyAny) -> PyResult<Self> {
+    fn py_new(py: Python<'_>, value: &Bound<PyAny>) -> PyResult<Self> {
         let Ok(i) = value.extract::<u8>() else {
-            let t = Self::type_object(py);
-            let c = value.extract::<char>().map_err(to_val_err)?;
-            return Self::py_from_str(t, c);
+            let t = Self::type_object_bound(py);
+            let c = value.extract::<char>().map_err(to_py_err)?;
+            return Self::py_from_str(&t, c);
         };
-        Self::try_from(i).map_err(to_val_err)
+        Self::try_from(i).map_err(to_py_err)
     }
 
     fn __hash__(&self) -> isize {
@@ -91,7 +91,7 @@ impl Action {
         format!("<Action.{}: '{}'>", self.name(), self.value())
     }
 
-    fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+    fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
         let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(py, other)) else {
             return py.NotImplemented();
         };
@@ -113,27 +113,27 @@ impl Action {
     }
 
     #[classmethod]
-    fn variants(_: &PyType, py: Python<'_>) -> EnumIterator {
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> EnumIterator {
         EnumIterator::new::<Self>(py)
     }
 
     #[classmethod]
     #[pyo3(name = "from_str")]
-    fn py_from_str(_: &PyType, value: char) -> PyResult<Self> {
-        Self::try_from(value as u8).map_err(to_val_err)
+    fn py_from_str(_: &Bound<PyType>, value: char) -> PyResult<Self> {
+        Self::try_from(value as u8).map_err(to_py_err)
     }
 }
 
 #[pymethods]
 impl InstrumentClass {
     #[new]
-    fn py_new(py: Python<'_>, value: &PyAny) -> PyResult<Self> {
+    fn py_new(py: Python<'_>, value: &Bound<PyAny>) -> PyResult<Self> {
         let Ok(i) = value.extract::<u8>() else {
-            let t = Self::type_object(py);
-            let c = value.extract::<char>().map_err(to_val_err)?;
-            return Self::py_from_str(t, c);
+            let t = Self::type_object_bound(py);
+            let c = value.extract::<char>().map_err(to_py_err)?;
+            return Self::py_from_str(&t, c);
         };
-        Self::try_from(i).map_err(to_val_err)
+        Self::try_from(i).map_err(to_py_err)
     }
 
     fn __hash__(&self) -> isize {
@@ -144,7 +144,7 @@ impl InstrumentClass {
         format!("{}", *self as u8 as char)
     }
 
-    fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+    fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
         let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(py, other)) else {
             return py.NotImplemented();
         };
@@ -161,27 +161,27 @@ impl InstrumentClass {
     }
 
     #[classmethod]
-    fn variants(_: &PyType, py: Python<'_>) -> EnumIterator {
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> EnumIterator {
         EnumIterator::new::<Self>(py)
     }
 
     #[classmethod]
     #[pyo3(name = "from_str")]
-    fn py_from_str(_: &PyType, value: char) -> PyResult<Self> {
-        Self::try_from(value as u8).map_err(to_val_err)
+    fn py_from_str(_: &Bound<PyType>, value: char) -> PyResult<Self> {
+        Self::try_from(value as u8).map_err(to_py_err)
     }
 }
 
 #[pymethods]
 impl MatchAlgorithm {
     #[new]
-    fn py_new(py: Python<'_>, value: &PyAny) -> PyResult<Self> {
+    fn py_new(py: Python<'_>, value: &Bound<PyAny>) -> PyResult<Self> {
         let Ok(i) = value.extract::<u8>() else {
-            let t = Self::type_object(py);
-            let c = value.extract::<char>().map_err(to_val_err)?;
-            return Self::py_from_str(t, c);
+            let t = Self::type_object_bound(py);
+            let c = value.extract::<char>().map_err(to_py_err)?;
+            return Self::py_from_str(&t, c);
         };
-        Self::try_from(i).map_err(to_val_err)
+        Self::try_from(i).map_err(to_py_err)
     }
 
     fn __hash__(&self) -> isize {
@@ -192,7 +192,7 @@ impl MatchAlgorithm {
         format!("{}", *self as u8 as char)
     }
 
-    fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+    fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
         let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(py, other)) else {
             return py.NotImplemented();
         };
@@ -209,27 +209,27 @@ impl MatchAlgorithm {
     }
 
     #[classmethod]
-    fn variants(_: &PyType, py: Python<'_>) -> EnumIterator {
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> EnumIterator {
         EnumIterator::new::<Self>(py)
     }
 
     #[classmethod]
     #[pyo3(name = "from_str")]
-    fn py_from_str(_: &PyType, value: char) -> PyResult<Self> {
-        Self::try_from(value as u8).map_err(to_val_err)
+    fn py_from_str(_: &Bound<PyType>, value: char) -> PyResult<Self> {
+        Self::try_from(value as u8).map_err(to_py_err)
     }
 }
 
 #[pymethods]
 impl UserDefinedInstrument {
     #[new]
-    fn py_new(py: Python<'_>, value: &PyAny) -> PyResult<Self> {
+    fn py_new(py: Python<'_>, value: &Bound<PyAny>) -> PyResult<Self> {
         let Ok(i) = value.extract::<u8>() else {
-            let t = Self::type_object(py);
-            let c = value.extract::<char>().map_err(to_val_err)?;
-            return Self::py_from_str(t, c);
+            let t = Self::type_object_bound(py);
+            let c = value.extract::<char>().map_err(to_py_err)?;
+            return Self::py_from_str(&t, c);
         };
-        Self::try_from(i).map_err(to_val_err)
+        Self::try_from(i).map_err(to_py_err)
     }
 
     fn __hash__(&self) -> isize {
@@ -248,7 +248,7 @@ impl UserDefinedInstrument {
         )
     }
 
-    fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+    fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
         let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(py, other)) else {
             return py.NotImplemented();
         };
@@ -270,23 +270,23 @@ impl UserDefinedInstrument {
     }
 
     #[classmethod]
-    fn variants(_: &PyType, py: Python<'_>) -> EnumIterator {
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> EnumIterator {
         EnumIterator::new::<Self>(py)
     }
 
     #[classmethod]
     #[pyo3(name = "from_str")]
-    fn py_from_str(_: &PyType, value: char) -> PyResult<Self> {
-        Self::try_from(value as u8).map_err(to_val_err)
+    fn py_from_str(_: &Bound<PyType>, value: char) -> PyResult<Self> {
+        Self::try_from(value as u8).map_err(to_py_err)
     }
 }
 
 #[pymethods]
 impl SType {
     #[new]
-    fn py_new(py: Python<'_>, value: &PyAny) -> PyResult<Self> {
-        let t = Self::type_object(py);
-        Self::py_from_str(t, value)
+    fn py_new(py: Python<'_>, value: &Bound<PyAny>) -> PyResult<Self> {
+        let t = Self::type_object_bound(py);
+        Self::py_from_str(&t, value)
     }
 
     fn __hash__(&self) -> isize {
@@ -301,8 +301,8 @@ impl SType {
         format!("<SType.{}: '{}'>", self.name(), self.value(),)
     }
 
-    fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        let Ok(other_enum) = Self::py_from_str(Self::type_object(py), other) else {
+    fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        let Ok(other_enum) = Self::py_from_str(&Self::type_object_bound(py), other) else {
             return py.NotImplemented();
         };
         match op {
@@ -323,25 +323,25 @@ impl SType {
     }
 
     #[classmethod]
-    fn variants(_: &PyType, py: Python<'_>) -> EnumIterator {
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> EnumIterator {
         EnumIterator::new::<Self>(py)
     }
 
     #[classmethod]
     #[pyo3(name = "from_str")]
-    fn py_from_str(_: &PyType, value: &PyAny) -> PyResult<Self> {
-        let value_str: &str = value.str().and_then(|s| s.extract())?;
+    fn py_from_str(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
+        let value_str: String = value.str().and_then(|s| s.extract())?;
         let tokenized = value_str.replace('-', "_").to_lowercase();
-        Self::from_str(&tokenized).map_err(to_val_err)
+        Ok(Self::from_str(&tokenized)?)
     }
 }
 
 #[pymethods]
 impl RType {
     #[new]
-    fn py_new(py: Python<'_>, value: &PyAny) -> PyResult<Self> {
-        let t = Self::type_object(py);
-        Self::py_from_str(t, value).or_else(|_| Self::py_from_int(t, value))
+    fn py_new(py: Python<'_>, value: &Bound<PyAny>) -> PyResult<Self> {
+        let t = Self::type_object_bound(py);
+        Self::py_from_str(&t, value).or_else(|_| Self::py_from_int(&t, value))
     }
 
     fn __hash__(&self) -> isize {
@@ -356,9 +356,9 @@ impl RType {
         format!("<RType.{}: '{}'>", self.name(), self.value(),)
     }
 
-    fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        if let Ok(other_enum) = Self::py_from_str(Self::type_object(py), other)
-            .or_else(|_| Self::py_from_int(Self::type_object(py), other))
+    fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        if let Ok(other_enum) = Self::py_from_str(&Self::type_object_bound(py), other)
+            .or_else(|_| Self::py_from_int(&Self::type_object_bound(py), other))
         {
             match op {
                 CompareOp::Eq => self.eq(&other_enum).into_py(py),
@@ -381,32 +381,32 @@ impl RType {
     }
 
     #[classmethod]
-    fn variants(_: &PyType, py: Python<'_>) -> EnumIterator {
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> EnumIterator {
         EnumIterator::new::<Self>(py)
     }
 
     #[classmethod]
     #[pyo3(name = "from_str")]
-    fn py_from_str(_: &PyType, value: &PyAny) -> PyResult<Self> {
-        let value_str: &str = value.str().and_then(|s| s.extract())?;
+    fn py_from_str(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
+        let value_str: String = value.str().and_then(|s| s.extract())?;
         let tokenized = value_str.replace('-', "_").to_lowercase();
-        Self::from_str(&tokenized).map_err(to_val_err)
+        Ok(Self::from_str(&tokenized)?)
     }
 
     #[classmethod]
     #[pyo3(name = "from_int")]
-    fn py_from_int(_: &PyType, value: &PyAny) -> PyResult<Self> {
+    fn py_from_int(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
         let value: u8 = value.extract()?;
-        Self::try_from(value).map_err(to_val_err)
+        Self::try_from(value).map_err(to_py_err)
     }
 
     #[classmethod]
     #[pyo3(name = "from_schema")]
-    fn py_from_schema(pytype: &PyType, value: &PyAny) -> PyResult<Self> {
+    fn py_from_schema(pytype: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
         let schema: Schema = value
             .extract()
-            .or_else(|_| Schema::py_from_str(Schema::type_object(pytype.py()), value))
-            .map_err(to_val_err)?;
+            .or_else(|_| Schema::py_from_str(&Schema::type_object_bound(pytype.py()), value))
+            .map_err(to_py_err)?;
         Ok(Self::from(schema))
     }
 }
@@ -414,9 +414,9 @@ impl RType {
 #[pymethods]
 impl Schema {
     #[new]
-    fn py_new(py: Python<'_>, value: &PyAny) -> PyResult<Self> {
-        let t = Self::type_object(py);
-        Self::py_from_str(t, value)
+    fn py_new(py: Python<'_>, value: &Bound<PyAny>) -> PyResult<Self> {
+        let t = Self::type_object_bound(py);
+        Self::py_from_str(&t, value)
     }
 
     fn __hash__(&self) -> isize {
@@ -431,8 +431,8 @@ impl Schema {
         format!("<Schema.{}: '{}'>", self.name(), self.value(),)
     }
 
-    fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        let Ok(other_enum) = Self::py_from_str(Self::type_object(py), other) else {
+    fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        let Ok(other_enum) = Self::py_from_str(&Self::type_object_bound(py), other) else {
             return py.NotImplemented();
         };
         match op {
@@ -453,25 +453,25 @@ impl Schema {
     }
 
     #[classmethod]
-    fn variants(_: &PyType, py: Python<'_>) -> EnumIterator {
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> EnumIterator {
         EnumIterator::new::<Self>(py)
     }
 
     #[classmethod]
     #[pyo3(name = "from_str")]
-    fn py_from_str(_: &PyType, value: &PyAny) -> PyResult<Self> {
-        let value_str: &str = value.str().and_then(|s| s.extract())?;
+    fn py_from_str(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
+        let value_str: String = value.str().and_then(|s| s.extract())?;
         let tokenized = value_str.replace('_', "-").to_lowercase();
-        Self::from_str(&tokenized).map_err(to_val_err)
+        Ok(Self::from_str(&tokenized)?)
     }
 }
 
 #[pymethods]
 impl Encoding {
     #[new]
-    fn py_new(py: Python<'_>, value: &PyAny) -> PyResult<Self> {
-        let t = Self::type_object(py);
-        Self::py_from_str(t, value)
+    fn py_new(py: Python<'_>, value: &Bound<PyAny>) -> PyResult<Self> {
+        let t = Self::type_object_bound(py);
+        Self::py_from_str(&t, value)
     }
 
     fn __hash__(&self) -> isize {
@@ -486,8 +486,8 @@ impl Encoding {
         format!("<Encoding.{}: '{}'>", self.name(), self.value(),)
     }
 
-    fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        let Ok(other_enum) = Self::py_from_str(Self::type_object(py), other) else {
+    fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        let Ok(other_enum) = Self::py_from_str(&Self::type_object_bound(py), other) else {
             return py.NotImplemented();
         };
         match op {
@@ -508,25 +508,25 @@ impl Encoding {
     }
 
     #[classmethod]
-    fn variants(_: &PyType, py: Python<'_>) -> EnumIterator {
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> EnumIterator {
         EnumIterator::new::<Self>(py)
     }
 
     #[classmethod]
     #[pyo3(name = "from_str")]
-    fn py_from_str(_: &PyType, value: &PyAny) -> PyResult<Self> {
-        let value_str: &str = value.str().and_then(|s| s.extract())?;
+    fn py_from_str(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
+        let value_str: String = value.str().and_then(|s| s.extract())?;
         let tokenized = value_str.to_lowercase();
-        Self::from_str(&tokenized).map_err(to_val_err)
+        Ok(Self::from_str(&tokenized)?)
     }
 }
 
 #[pymethods]
 impl Compression {
     #[new]
-    fn py_new(py: Python<'_>, value: &PyAny) -> PyResult<Self> {
-        let t = Self::type_object(py);
-        Self::py_from_str(t, value)
+    fn py_new(py: Python<'_>, value: &Bound<PyAny>) -> PyResult<Self> {
+        let t = Self::type_object_bound(py);
+        Self::py_from_str(&t, value)
     }
 
     fn __hash__(&self) -> isize {
@@ -541,8 +541,8 @@ impl Compression {
         format!("<Compression.{}: '{}'>", self.name(), self.value(),)
     }
 
-    fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        let Ok(other_enum) = Self::py_from_str(Self::type_object(py), other) else {
+    fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        let Ok(other_enum) = Self::py_from_str(&Self::type_object_bound(py), other) else {
             return py.NotImplemented();
         };
         match op {
@@ -564,29 +564,29 @@ impl Compression {
 
     // No metaclass support with pyo3, so `for c in Compression: ...` isn't possible
     #[classmethod]
-    fn variants(_: &PyType, py: Python<'_>) -> EnumIterator {
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> EnumIterator {
         EnumIterator::new::<Self>(py)
     }
 
     #[classmethod]
     #[pyo3(name = "from_str")]
-    fn py_from_str(_: &PyType, value: &PyAny) -> PyResult<Self> {
-        let value_str: &str = value.str().and_then(|s| s.extract())?;
+    fn py_from_str(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
+        let value_str: String = value.str().and_then(|s| s.extract())?;
         let tokenized = value_str.to_lowercase();
-        Self::from_str(&tokenized).map_err(to_val_err)
+        Ok(Self::from_str(&tokenized)?)
     }
 }
 
 #[pymethods]
 impl SecurityUpdateAction {
     #[new]
-    fn py_new(py: Python<'_>, value: &PyAny) -> PyResult<Self> {
+    fn py_new(py: Python<'_>, value: &Bound<PyAny>) -> PyResult<Self> {
         let Ok(i) = value.extract::<u8>() else {
-            let t = Self::type_object(py);
-            let c = value.extract::<char>().map_err(to_val_err)?;
-            return Self::py_from_str(t, c);
+            let t = Self::type_object_bound(py);
+            let c = value.extract::<char>().map_err(to_py_err)?;
+            return Self::py_from_str(&t, c);
         };
-        Self::try_from(i).map_err(to_val_err)
+        Self::try_from(i).map_err(to_py_err)
     }
 
     fn __hash__(&self) -> isize {
@@ -597,7 +597,7 @@ impl SecurityUpdateAction {
         format!("<SecurityUpdateAction.{}: '{}'>", self.name(), self.value())
     }
 
-    fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+    fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
         let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(py, other)) else {
             return py.NotImplemented();
         };
@@ -619,30 +619,30 @@ impl SecurityUpdateAction {
     }
 
     #[classmethod]
-    fn variants(_: &PyType, py: Python<'_>) -> EnumIterator {
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> EnumIterator {
         EnumIterator::new::<Self>(py)
     }
 
     #[classmethod]
     #[pyo3(name = "from_str")]
-    fn py_from_str(_: &PyType, value: char) -> PyResult<Self> {
-        Self::try_from(value as u8).map_err(to_val_err)
+    fn py_from_str(_: &Bound<PyType>, value: char) -> PyResult<Self> {
+        Self::try_from(value as u8).map_err(to_py_err)
     }
 }
 
 #[pymethods]
 impl StatType {
     #[new]
-    fn py_new(value: &PyAny) -> PyResult<Self> {
-        let i = value.extract::<u16>().map_err(to_val_err)?;
-        Self::try_from(i).map_err(to_val_err)
+    fn py_new(value: &Bound<PyAny>) -> PyResult<Self> {
+        let i = value.extract::<u16>().map_err(to_py_err)?;
+        Self::try_from(i).map_err(to_py_err)
     }
 
     fn __hash__(&self) -> isize {
         *self as isize
     }
 
-    fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+    fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
         let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(other)) else {
             return py.NotImplemented();
         };
@@ -659,7 +659,7 @@ impl StatType {
     }
 
     #[classmethod]
-    fn variants(_: &PyType, py: Python<'_>) -> EnumIterator {
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> EnumIterator {
         EnumIterator::new::<Self>(py)
     }
 }
@@ -667,16 +667,16 @@ impl StatType {
 #[pymethods]
 impl StatusAction {
     #[new]
-    fn py_new(value: &PyAny) -> PyResult<Self> {
-        let i = value.extract::<u16>().map_err(to_val_err)?;
-        Self::try_from(i).map_err(to_val_err)
+    fn py_new(value: &Bound<PyAny>) -> PyResult<Self> {
+        let i = value.extract::<u16>().map_err(to_py_err)?;
+        Self::try_from(i).map_err(to_py_err)
     }
 
     fn __hash__(&self) -> isize {
         *self as isize
     }
 
-    fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+    fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
         let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(other)) else {
             return py.NotImplemented();
         };
@@ -693,7 +693,7 @@ impl StatusAction {
     }
 
     #[classmethod]
-    fn variants(_: &PyType, py: Python<'_>) -> EnumIterator {
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> EnumIterator {
         EnumIterator::new::<Self>(py)
     }
 }
@@ -701,16 +701,16 @@ impl StatusAction {
 #[pymethods]
 impl StatusReason {
     #[new]
-    fn py_new(value: &PyAny) -> PyResult<Self> {
-        let i = value.extract::<u16>().map_err(to_val_err)?;
-        Self::try_from(i).map_err(to_val_err)
+    fn py_new(value: &Bound<PyAny>) -> PyResult<Self> {
+        let i = value.extract::<u16>().map_err(to_py_err)?;
+        Self::try_from(i).map_err(to_py_err)
     }
 
     fn __hash__(&self) -> isize {
         *self as isize
     }
 
-    fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+    fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
         let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(other)) else {
             return py.NotImplemented();
         };
@@ -727,7 +727,7 @@ impl StatusReason {
     }
 
     #[classmethod]
-    fn variants(_: &PyType, py: Python<'_>) -> EnumIterator {
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> EnumIterator {
         EnumIterator::new::<Self>(py)
     }
 }
@@ -735,16 +735,16 @@ impl StatusReason {
 #[pymethods]
 impl TradingEvent {
     #[new]
-    fn py_new(value: &PyAny) -> PyResult<Self> {
-        let i = value.extract::<u16>().map_err(to_val_err)?;
-        Self::try_from(i).map_err(to_val_err)
+    fn py_new(value: &Bound<PyAny>) -> PyResult<Self> {
+        let i = value.extract::<u16>().map_err(to_py_err)?;
+        Self::try_from(i).map_err(to_py_err)
     }
 
     fn __hash__(&self) -> isize {
         *self as isize
     }
 
-    fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+    fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
         let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(other)) else {
             return py.NotImplemented();
         };
@@ -761,7 +761,7 @@ impl TradingEvent {
     }
 
     #[classmethod]
-    fn variants(_: &PyType, py: Python<'_>) -> EnumIterator {
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> EnumIterator {
         EnumIterator::new::<Self>(py)
     }
 }
@@ -769,13 +769,13 @@ impl TradingEvent {
 #[pymethods]
 impl TriState {
     #[new]
-    fn py_new(py: Python<'_>, value: &PyAny) -> PyResult<Self> {
+    fn py_new(py: Python<'_>, value: &Bound<PyAny>) -> PyResult<Self> {
         let Ok(i) = value.extract::<u8>() else {
-            let t = Self::type_object(py);
-            let c = value.extract::<char>().map_err(to_val_err)?;
-            return Self::py_from_str(t, c);
+            let t = Self::type_object_bound(py);
+            let c = value.extract::<char>().map_err(to_py_err)?;
+            return Self::py_from_str(&t, c);
         };
-        Self::try_from(i).map_err(to_val_err)
+        Self::try_from(i).map_err(to_py_err)
     }
 
     fn __hash__(&self) -> isize {
@@ -786,7 +786,7 @@ impl TriState {
         format!("{}", *self as u8 as char)
     }
 
-    fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+    fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
         let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(py, other)) else {
             return py.NotImplemented();
         };
@@ -807,14 +807,14 @@ impl TriState {
     }
 
     #[classmethod]
-    fn variants(_: &PyType, py: Python<'_>) -> EnumIterator {
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> EnumIterator {
         EnumIterator::new::<Self>(py)
     }
 
     #[classmethod]
     #[pyo3(name = "from_str")]
-    fn py_from_str(_: &PyType, value: char) -> PyResult<Self> {
-        Self::try_from(value as u8).map_err(to_val_err)
+    fn py_from_str(_: &Bound<PyType>, value: char) -> PyResult<Self> {
+        Self::try_from(value as u8).map_err(to_py_err)
     }
 }
 
@@ -824,7 +824,7 @@ impl VersionUpgradePolicy {
         *self as isize
     }
 
-    fn __richcmp__(&self, other: &PyAny, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+    fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
         let Ok(other_enum) = other.extract::<Self>() else {
             return py.NotImplemented();
         };
@@ -836,7 +836,7 @@ impl VersionUpgradePolicy {
     }
 
     #[classmethod]
-    fn variants(_: &PyType, py: Python<'_>) -> EnumIterator {
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> EnumIterator {
         EnumIterator::new::<Self>(py)
     }
 }

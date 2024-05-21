@@ -1,7 +1,45 @@
 # Changelog
 
-## 0.17.1 - 2024-04-04
+## 0.18.0 - 2024-05-21
 
+### Enhancements
+- Added links to example usage in documentation
+- Added new predicate methods `InstrumentClass::is_option`, `is_future`, and `is_spread`
+  to make it easier to work with multiple instrument class variants
+- Implemented `DecodeRecord` for `DbnRecordDecoder`
+- Added `new_inferred`, `with_buffer`, `inferred_with_buffer`, `from_file`, `get_mut`,
+  and `get_ref` methods to `AsyncDynReader` for parity with the sync `DynReader`
+- Improved documentation enumerating errors returned by functions
+- Added new `DBNError` Python exception that's now the primary exception raised by
+  `databento_dbn`
+- Improved async performance of decoding DBN files
+- Added `StatMsg::ts_in_delta()` method that returns a `time::Duration` for consistency
+  with other records with a `ts_in_delta` field
+
+### Breaking changes
+- Changed type of `flags` in `MboMsg`, `TradeMsg`, `Mbp1Msg`, `Mbp10Msg`, and `CbboMsg`
+  from `u8` to a new `FlagSet` type with predicate methods   for the various bit flags
+  as well as setters. The `u8` value can still be obtained by calling the `raw()` method.
+  - Improved `Debug` formatting
+  - Python and encodings are unaffected
+- Removed `write_dbn_file` function deprecated in version 0.14.0 from Python interface.
+  Please use `Transcoder` instead
+- Switched `DecodeStream` from `streaming_iterator` crate to `fallible_streaming_iterator`
+  to allow better notification of errors
+- Switched `EncodeDbn::encode_stream` from accepting an `impl StreamingIterator` to
+  accepting an `FallibleStreamingIterator` to allow bubbling up of decoding errors
+- Changed default value for `stype_in` and `stype_out` in `SymbolMappingMsg` to
+  `u8::MAX` to match C++ client and to reflect an unknown value. This also changes the
+  value of these fields when upgrading a `SymbolMappingMsgV1` to DBNv2
+- Renamed `CbboMsg` to `CBBOMsg` in Python for consistency with other schemas
+
+### Breaking changes
+- Changed text serialization of `display_factor` to be affected by `pretty_px`.
+  While it's not a price, it uses the same fixed-price decimal format as other prices
+- Changed text serialization  of `unit_of_measure_qty` in `InstrumentDefMsgV1` to be
+  affected by `pretty_px` to match behavior of `InstrumentDefMsgV2`
+
+## 0.17.1 - 2024-04-04
 ### Bug fixes
 - Added missing Python type stub for `StatusMsg`
 
@@ -65,8 +103,8 @@
   `DBNDecoder` to `Upgrade` so by default the primary record types can always be used
 - Changed fields of previously-hidden `StatusMsg` record type
 - Updated text serialization order of status schema to match other schemas
-- Changed text serialization `unit_of_measure_qty` to be affected by `pretty_px`. While
-  it's not a price, it uses the same fixed-price decimal format as other prices
+- Changed text serialization of `unit_of_measure_qty` to be affected by `pretty_px`.
+  While it's not a price, it uses the same fixed-price decimal format as other prices
 - Made `StatType` and  `VersionUpgradePolicy` non-exhaustive to allow future additions
   without breaking changes
 - Renamed `_dummy` field in `ImbalanceMsg` and `StatMsg` to `_reserved`

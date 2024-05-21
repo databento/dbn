@@ -3,7 +3,7 @@
 
 use std::fmt;
 
-use time::format_description::FormatItem;
+use time::format_description::BorrowedFormatItem;
 
 use crate::FIXED_PRICE_SCALE;
 
@@ -68,7 +68,7 @@ pub fn fmt_px(px: i64) -> String {
 /// Converts a nanosecond UNIX timestamp to a human-readable string in the format
 /// `[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:9]Z`.
 pub fn fmt_ts(ts: u64) -> String {
-    const TS_FORMAT: &[FormatItem<'static>] = time::macros::format_description!(
+    const TS_FORMAT: &[BorrowedFormatItem<'static>] = time::macros::format_description!(
         "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:9]Z"
     );
     if ts == 0 {

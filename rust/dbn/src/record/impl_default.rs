@@ -2,8 +2,8 @@ use std::ffi::c_char;
 
 use crate::{
     compat::{ErrorMsgV1, InstrumentDefMsgV1, SymbolMappingMsgV1, SystemMsgV1, SYMBOL_CSTR_LEN_V1},
-    enums::{StatusAction, StatusReason, TradingEvent, TriState},
-    SType, Schema, UNDEF_ORDER_SIZE, UNDEF_PRICE, UNDEF_STAT_QUANTITY, UNDEF_TIMESTAMP,
+    Schema, StatusAction, StatusReason, TradingEvent, TriState, UNDEF_ORDER_SIZE, UNDEF_PRICE,
+    UNDEF_STAT_QUANTITY, UNDEF_TIMESTAMP,
 };
 
 use super::*;
@@ -23,7 +23,7 @@ impl Default for MboMsg {
             order_id: 0,
             price: UNDEF_PRICE,
             size: UNDEF_ORDER_SIZE,
-            flags: 0,
+            flags: FlagSet::default(),
             channel_id: 0,
             action: 0,
             side: 0,
@@ -70,7 +70,7 @@ impl Default for TradeMsg {
             size: UNDEF_ORDER_SIZE,
             action: 0,
             side: 0,
-            flags: 0,
+            flags: FlagSet::default(),
             depth: 0,
             ts_recv: UNDEF_TIMESTAMP,
             ts_in_delta: 0,
@@ -88,7 +88,7 @@ impl Mbp1Msg {
             size: UNDEF_ORDER_SIZE,
             action: 0,
             side: 0,
-            flags: 0,
+            flags: FlagSet::default(),
             depth: 0,
             ts_recv: UNDEF_TIMESTAMP,
             ts_in_delta: 0,
@@ -107,7 +107,7 @@ impl CbboMsg {
             size: UNDEF_ORDER_SIZE,
             action: 0,
             side: 0,
-            flags: 0,
+            flags: FlagSet::default(),
             _reserved: [0; 1],
             ts_recv: UNDEF_TIMESTAMP,
             ts_in_delta: 0,
@@ -125,7 +125,7 @@ impl Default for Mbp10Msg {
             size: UNDEF_ORDER_SIZE,
             action: 0,
             side: 0,
-            flags: 0,
+            flags: FlagSet::default(),
             depth: 0,
             ts_recv: UNDEF_TIMESTAMP,
             ts_in_delta: 0,
@@ -379,9 +379,9 @@ impl Default for SymbolMappingMsg {
     fn default() -> Self {
         Self {
             hd: RecordHeader::default::<Self>(rtype::SYMBOL_MAPPING),
-            stype_in: SType::RawSymbol as u8,
+            stype_in: u8::MAX,
             stype_in_symbol: [0; SYMBOL_CSTR_LEN],
-            stype_out: SType::InstrumentId as u8,
+            stype_out: u8::MAX,
             stype_out_symbol: [0; SYMBOL_CSTR_LEN],
             start_ts: UNDEF_TIMESTAMP,
             end_ts: UNDEF_TIMESTAMP,

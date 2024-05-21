@@ -1,6 +1,6 @@
 use std::{io, num::NonZeroU64};
 
-use streaming_iterator::StreamingIterator;
+use fallible_streaming_iterator::FallibleStreamingIterator;
 
 use crate::{
     decode::{DbnMetadata, DecodeRecordRef},
@@ -290,12 +290,12 @@ where
     /// or there's a serialization error.
     fn encode_stream<R: DbnEncodable>(
         &mut self,
-        mut stream: impl StreamingIterator<Item = R>,
+        mut stream: impl FallibleStreamingIterator<Item = R, Error = Error>,
     ) -> Result<()> {
         if !self.has_written_header {
             self.encode_header::<R>(false)?;
         }
-        while let Some(record) = stream.next() {
+        while let Some(record) = stream.next()? {
             self.encode_record(record)?;
         }
         self.flush()?;
@@ -431,7 +431,7 @@ mod tests {
             order_id: 16,
             price: 5500,
             size: 3,
-            flags: 128,
+            flags: 128.into(),
             channel_id: 14,
             action: 'B' as c_char,
             side: 'B' as c_char,
@@ -469,7 +469,7 @@ mod tests {
             size: 3,
             action: 'M' as c_char,
             side: 'A' as c_char,
-            flags: 128,
+            flags: 128.into(),
             depth: 9,
             ts_recv: 1658441891000000000,
             ts_in_delta: 22_000,
@@ -507,7 +507,7 @@ mod tests {
             size: 3,
             action: 'B' as c_char,
             side: 'A' as c_char,
-            flags: 128,
+            flags: 128.into(),
             depth: 9,
             ts_recv: 1658441891000000000,
             ts_in_delta: 22_000,
@@ -543,7 +543,7 @@ mod tests {
             size: 3,
             action: 'B' as c_char,
             side: 'B' as c_char,
-            flags: 128,
+            flags: 128.into(),
             depth: 9,
             ts_recv: 1658441891000000000,
             ts_in_delta: 22_000,
@@ -740,7 +740,7 @@ mod tests {
                 size: 3,
                 action: 'T' as c_char,
                 side: 'A' as c_char,
-                flags: 128,
+                flags: 128.into(),
                 depth: 9,
                 ts_recv: 1658441891000000000,
                 ts_in_delta: 22_000,

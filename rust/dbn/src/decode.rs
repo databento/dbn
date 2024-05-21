@@ -1,5 +1,5 @@
-//! Decoding DBN and Zstd-compressed DBN files and streams. Decoders implement the
-//! [`DecodeDbn`] trait.
+//! Decoding DBN and Zstd-compressed DBN files and streams. Sync decoders implement
+//the ! [`DecodeDbn`] trait.
 pub mod dbn;
 // Having any tests in a deprecated module emits many warnings that can't be silenced, see
 // https://github.com/rust-lang/rust/issues/47238
@@ -33,7 +33,6 @@ use crate::{
     enums::{Compression, VersionUpgradePolicy},
     record::HasRType,
     record_ref::RecordRef,
-    // record_ref::RecordRef,
     Metadata,
 };
 
@@ -328,6 +327,8 @@ where
     R: io::Read,
 {
     /// Creates a new [`DynReader`] from a reader, with the specified `compression`.
+    /// If `reader` also implements [`BufRead`](io::BufRead), it's better to use
+    /// [`with_buffer()`](Self::with_buffer).
     ///
     /// # Errors
     /// This function will return an error if it fails to create the zstd decoder.
@@ -407,7 +408,7 @@ impl<'a> DynReader<'a, BufReader<File>> {
     ///
     /// # Errors
     /// This function will return an error if the file doesn't exist, it is unable to
-    /// determine the encoding of the file or it fails to parse the metadata.
+    /// determine the encoding of the file, or it fails to create the zstd decoder.
     pub fn from_file(path: impl AsRef<Path>) -> crate::Result<Self> {
         let file = File::open(path.as_ref()).map_err(|e| {
             crate::Error::io(
@@ -447,11 +448,13 @@ where
     }
 }
 
-mod private {
+#[doc(hidden)]
+pub mod private {
     /// An implementation detail for the interaction between [`StreamingIterator`] and
-    /// implementors of [`DecodeDbn`].
+    /// implementors of [`DecodeRecord`].
     #[doc(hidden)]
     pub trait BufferSlice {
+        /// Returns an immutable slice of the decoder's buffer.
         fn buffer_slice(&self) -> &[u8];
     }
 }
@@ -461,7 +464,8 @@ pub(crate) trait FromLittleEndianSlice {
 }
 
 impl FromLittleEndianSlice for u64 {
-    /// NOTE: assumes the length of `slice` is at least 8 bytes
+    /// # Panics
+    /// Panics if the length of `slice` is less than 8 bytes.
     fn from_le_slice(slice: &[u8]) -> Self {
         let (bytes, _) = slice.split_at(mem::size_of::<Self>());
         Self::from_le_bytes(bytes.try_into().unwrap())
@@ -469,7 +473,8 @@ impl FromLittleEndianSlice for u64 {
 }
 
 impl FromLittleEndianSlice for i32 {
-    /// NOTE: assumes the length of `slice` is at least 4 bytes
+    /// # Panics
+    /// Panics if the length of `slice` is less than 4 bytes.
     fn from_le_slice(slice: &[u8]) -> Self {
         let (bytes, _) = slice.split_at(mem::size_of::<Self>());
         Self::from_le_bytes(bytes.try_into().unwrap())
@@ -477,7 +482,8 @@ impl FromLittleEndianSlice for i32 {
 }
 
 impl FromLittleEndianSlice for u32 {
-    /// NOTE: assumes the length of `slice` is at least 4 bytes
+    /// # Panics
+    /// Panics if the length of `slice` is less than 4 bytes.
     fn from_le_slice(slice: &[u8]) -> Self {
         let (bytes, _) = slice.split_at(mem::size_of::<Self>());
         Self::from_le_bytes(bytes.try_into().unwrap())
@@ -485,7 +491,8 @@ impl FromLittleEndianSlice for u32 {
 }
 
 impl FromLittleEndianSlice for u16 {
-    /// NOTE: assumes the length of `slice` is at least 2 bytes
+    /// # Panics
+    /// Panics if the length of `slice` is less than 2 bytes.
     fn from_le_slice(slice: &[u8]) -> Self {
         let (bytes, _) = slice.split_at(mem::size_of::<Self>());
         Self::from_le_bytes(bytes.try_into().unwrap())
@@ -551,42 +558,127 @@ pub use self::{
 
 #[cfg(feature = "async")]
 mod r#async {
-    use std::pin::Pin;
+    use std::{path::Path, pin::Pin};
 
     use async_compression::tokio::bufread::ZstdDecoder;
-    use tokio::io::{self, BufReader};
+    use tokio::{
+        fs::File,
+        io::{self, BufReader},
+    };
+
+    pub(crate) const ZSTD_FILE_BUFFER_CAPACITY: usize = 1 << 20;
 
     use crate::enums::Compression;
 
     /// A type for runtime polymorphism on compressed and uncompressed input.
+    /// The async version of [`DynReader`](super::DynReader).
     pub struct DynReader<R>(DynReaderImpl<R>)
     where
-        R: io::AsyncReadExt + Unpin;
+        R: io::AsyncBufReadExt + Unpin;
 
     enum DynReaderImpl<R>
     where
-        R: io::AsyncReadExt + Unpin,
+        R: io::AsyncBufReadExt + Unpin,
     {
         Uncompressed(R),
-        ZStd(ZstdDecoder<BufReader<R>>),
+        ZStd(ZstdDecoder<R>),
+    }
+
+    impl<R> DynReader<BufReader<R>>
+    where
+        R: io::AsyncReadExt + Unpin,
+    {
+        /// Creates a new instance of [`DynReader`] with the specified `compression`. If
+        /// `reader` also implements [`AsyncBufRead`](tokio::io::AsyncBufRead), it's
+        /// better to use [`with_buffer()`](Self::with_buffer).
+        pub fn new(reader: R, compression: Compression) -> Self {
+            Self::with_buffer(BufReader::new(reader), compression)
+        }
+
+        /// Creates a new [`DynReader`] from a reader, inferring the compression.
+        /// If `reader` also implements [`AsyncBufRead`](tokio::io::AsyncBufRead), it is
+        /// better to use [`inferred_with_buffer()`](Self::inferred_with_buffer).
+        ///
+        /// # Errors
+        /// This function will return an error if it is unable to read from `reader`.
+        pub async fn new_inferred(reader: R) -> crate::Result<Self> {
+            Self::inferred_with_buffer(BufReader::new(reader)).await
+        }
     }
 
     impl<R> DynReader<R>
     where
-        R: io::AsyncReadExt + Unpin,
+        R: io::AsyncBufReadExt + Unpin,
     {
-        /// Creates a new instance of [`DynReader`] with the specified `compression`.
-        pub fn new(reader: R, compression: Compression) -> Self {
-            Self(match compression {
-                Compression::None => DynReaderImpl::Uncompressed(reader),
-                Compression::ZStd => DynReaderImpl::ZStd(ZstdDecoder::new(BufReader::new(reader))),
+        /// Creates a new [`DynReader`] from a buffered reader with the specified
+        /// `compression`.
+        pub fn with_buffer(reader: R, compression: Compression) -> Self {
+            match compression {
+                Compression::None => Self(DynReaderImpl::Uncompressed(reader)),
+                Compression::ZStd => Self(DynReaderImpl::ZStd(ZstdDecoder::new(reader))),
+            }
+        }
+
+        /// Creates a new [`DynReader`] from a buffered reader, inferring the compression.
+        ///
+        /// # Errors
+        /// This function will return an error if it fails to read from `reader`.
+        pub async fn inferred_with_buffer(mut reader: R) -> crate::Result<Self> {
+            let first_bytes = reader
+                .fill_buf()
+                .await
+                .map_err(|e| crate::Error::io(e, "creating buffer to infer encoding"))?;
+            Ok(if super::zstd::starts_with_prefix(first_bytes) {
+                Self(DynReaderImpl::ZStd(ZstdDecoder::new(reader)))
+            } else {
+                Self(DynReaderImpl::Uncompressed(reader))
             })
+        }
+
+        /// Returns a mutable reference to the inner reader.
+        pub fn get_mut(&mut self) -> &mut R {
+            match &mut self.0 {
+                DynReaderImpl::Uncompressed(reader) => reader,
+                DynReaderImpl::ZStd(reader) => reader.get_mut(),
+            }
+        }
+
+        /// Returns a reference to the inner reader.
+        pub fn get_ref(&self) -> &R {
+            match &self.0 {
+                DynReaderImpl::Uncompressed(reader) => reader,
+                DynReaderImpl::ZStd(reader) => reader.get_ref(),
+            }
+        }
+    }
+
+    impl DynReader<BufReader<File>> {
+        /// Creates a new [`DynReader`] from the file at `path`.
+        ///
+        /// # Errors
+        /// This function will return an error if the file doesn't exist, it is unable
+        /// to read from it.
+        pub async fn from_file(path: impl AsRef<Path>) -> crate::Result<Self> {
+            let file = File::open(path.as_ref()).await.map_err(|e| {
+                crate::Error::io(
+                    e,
+                    format!(
+                        "opening file to decode at path '{}'",
+                        path.as_ref().display()
+                    ),
+                )
+            })?;
+            DynReader::inferred_with_buffer(BufReader::with_capacity(
+                ZSTD_FILE_BUFFER_CAPACITY,
+                file,
+            ))
+            .await
         }
     }
 
     impl<R> io::AsyncRead for DynReader<R>
     where
-        R: io::AsyncRead + io::AsyncReadExt + Unpin,
+        R: io::AsyncRead + io::AsyncReadExt + io::AsyncBufReadExt + Unpin,
     {
         fn poll_read(
             mut self: std::pin::Pin<&mut Self>,
