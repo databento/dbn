@@ -281,10 +281,12 @@ pub enum Dataset {
     NdexImpact = 29,
     /// Databento Equities Max
     DbeqMax = 30,
+    /// Nasdaq Basic (NLS+QBBO)
+    XnasBasic = 31,
 }
 
 /// The number of Dataset variants.
-pub const DATASET_COUNT: usize = 30;
+pub const DATASET_COUNT: usize = 31;
 
 impl Dataset {
     /// Convert a Dataset to its `str` representation.
@@ -322,6 +324,7 @@ impl Dataset {
             Self::IfeuImpact => "IFEU.IMPACT",
             Self::NdexImpact => "NDEX.IMPACT",
             Self::DbeqMax => "DBEQ.MAX",
+            Self::XnasBasic => "XNAS.BASIC",
         }
     }
 }
@@ -375,6 +378,7 @@ impl std::str::FromStr for Dataset {
             "IFEU.IMPACT" => Ok(Self::IfeuImpact),
             "NDEX.IMPACT" => Ok(Self::NdexImpact),
             "DBEQ.MAX" => Ok(Self::DbeqMax),
+            "XNAS.BASIC" => Ok(Self::XnasBasic),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
@@ -491,9 +495,9 @@ pub enum Publisher {
     DbeqPlusXnas = 52,
     /// DBEQ Plus - NYSE
     DbeqPlusXnys = 53,
-    /// DBEQ Plus - FINRA/NYSE TRF
-    DbeqPlusFinn = 54,
     /// DBEQ Plus - FINRA/Nasdaq TRF Carteret
+    DbeqPlusFinn = 54,
+    /// DBEQ Plus - FINRA/NYSE TRF
     DbeqPlusFiny = 55,
     /// DBEQ Plus - FINRA/Nasdaq TRF Chicago
     DbeqPlusFinc = 56,
@@ -519,9 +523,9 @@ pub enum Publisher {
     DbeqMaxXnas = 66,
     /// DBEQ Max - NYSE
     DbeqMaxXnys = 67,
-    /// DBEQ Max - FINRA/NYSE TRF
-    DbeqMaxFinn = 68,
     /// DBEQ Max - FINRA/Nasdaq TRF Carteret
+    DbeqMaxFinn = 68,
+    /// DBEQ Max - FINRA/NYSE TRF
     DbeqMaxFiny = 69,
     /// DBEQ Max - FINRA/Nasdaq TRF Chicago
     DbeqMaxFinc = 70,
@@ -545,10 +549,16 @@ pub enum Publisher {
     DbeqMaxArcx = 79,
     /// DBEQ Max - Long-Term Stock Exchange
     DbeqMaxLtse = 80,
+    /// Nasdaq Basic - Nasdaq
+    XnasBasicXnas = 81,
+    /// Nasdaq Basic - FINRA/Nasdaq TRF Carteret
+    XnasBasicFinn = 82,
+    /// Nasdaq Basic - FINRA/Nasdaq TRF Chicago
+    XnasBasicFinc = 83,
 }
 
 /// The number of Publisher variants.
-pub const PUBLISHER_COUNT: usize = 80;
+pub const PUBLISHER_COUNT: usize = 83;
 
 impl Publisher {
     /// Convert a Publisher to its `str` representation.
@@ -634,6 +644,9 @@ impl Publisher {
             Self::DbeqMaxXase => "DBEQ.MAX.XASE",
             Self::DbeqMaxArcx => "DBEQ.MAX.ARCX",
             Self::DbeqMaxLtse => "DBEQ.MAX.LTSE",
+            Self::XnasBasicXnas => "XNAS.BASIC.XNAS",
+            Self::XnasBasicFinn => "XNAS.BASIC.FINN",
+            Self::XnasBasicFinc => "XNAS.BASIC.FINC",
         }
     }
 
@@ -720,6 +733,9 @@ impl Publisher {
             Self::DbeqMaxXase => Venue::Xase,
             Self::DbeqMaxArcx => Venue::Arcx,
             Self::DbeqMaxLtse => Venue::Ltse,
+            Self::XnasBasicXnas => Venue::Xnas,
+            Self::XnasBasicFinn => Venue::Finn,
+            Self::XnasBasicFinc => Venue::Finc,
         }
     }
 
@@ -806,6 +822,9 @@ impl Publisher {
             Self::DbeqMaxXase => Dataset::DbeqMax,
             Self::DbeqMaxArcx => Dataset::DbeqMax,
             Self::DbeqMaxLtse => Dataset::DbeqMax,
+            Self::XnasBasicXnas => Dataset::XnasBasic,
+            Self::XnasBasicFinn => Dataset::XnasBasic,
+            Self::XnasBasicFinc => Dataset::XnasBasic,
         }
     }
 
@@ -894,6 +913,9 @@ impl Publisher {
             (Dataset::DbeqMax, Venue::Xase) => Ok(Self::DbeqMaxXase),
             (Dataset::DbeqMax, Venue::Arcx) => Ok(Self::DbeqMaxArcx),
             (Dataset::DbeqMax, Venue::Ltse) => Ok(Self::DbeqMaxLtse),
+            (Dataset::XnasBasic, Venue::Xnas) => Ok(Self::XnasBasicXnas),
+            (Dataset::XnasBasic, Venue::Finn) => Ok(Self::XnasBasicFinn),
+            (Dataset::XnasBasic, Venue::Finc) => Ok(Self::XnasBasicFinc),
             _ => Err(Error::conversion::<Self>(format!("({dataset}, {venue})"))),
         }
     }
@@ -996,6 +1018,9 @@ impl std::str::FromStr for Publisher {
             "DBEQ.MAX.XASE" => Ok(Self::DbeqMaxXase),
             "DBEQ.MAX.ARCX" => Ok(Self::DbeqMaxArcx),
             "DBEQ.MAX.LTSE" => Ok(Self::DbeqMaxLtse),
+            "XNAS.BASIC.XNAS" => Ok(Self::XnasBasicXnas),
+            "XNAS.BASIC.FINN" => Ok(Self::XnasBasicFinn),
+            "XNAS.BASIC.FINC" => Ok(Self::XnasBasicFinc),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
