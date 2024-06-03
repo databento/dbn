@@ -451,6 +451,7 @@ class StatType(Enum):
 
     OPENING_PRICE
         The price of the first trade of an instrument. `price` will be set.
+        `quantity` will be set when provided by the venue.
     INDICATIVE_OPENING_PRICE
         The probable price of the first trade of an instrument published during pre- open. Both
         `price` and `quantity` will be set.
@@ -476,6 +477,7 @@ class StatType(Enum):
         The volume-weighted average price (VWAP) for a fixing period. `price` will be set.
     CLOSE_PRICE
         The last trade price during a trading session. `price` will be set.
+        `quantity` will be set when provided by the venue.
     NET_CHANGE
         The change in price from the close price of the previous trading session to the most recent
         trading session. `price` will be set.
@@ -486,6 +488,10 @@ class StatType(Enum):
         The implied volatility associated with the settlement price.
     DELTA
         The option delta associated with the settlement price.
+    UNCROSSING_PRICE
+        The auction uncrossing price. This is used for auctions that are neither the
+        official opening auction nor the official closing auction. `price` will be set.
+        `quantity` will be set when provided by the venue.
 
     """
 
@@ -504,6 +510,7 @@ class StatType(Enum):
     VWAP: int
     VOLATILITY: int
     DELTA: int
+    UNCROSSING_PRICE: int
 
     @classmethod
     def variants(cls) -> Iterable[StatType]: ...

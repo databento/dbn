@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.18.1 - 2024-06-04
+
+### Enhancements
+- Added new `stat_type` for UncrossingPrice
+- Added new publisher values for `XNAS.BASIC`
+- Added new off-market publisher values for `IFEU.IMPACT` and `NDEX.IMPACT`
+
+### Bug fixes
+- Fix descriptions for `FINN` and `FINY` publishers.
+
 ## 0.18.0 - 2024-05-21
 
 ### Enhancements

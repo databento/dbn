@@ -95,10 +95,12 @@ pub enum Venue {
     Sphr = 41,
     /// Long-Term Stock Exchange, Inc.
     Ltse = 42,
+    /// Off-Exchange Transactions - Listed Instruments
+    Xoff = 43,
 }
 
 /// The number of Venue variants.
-pub const VENUE_COUNT: usize = 42;
+pub const VENUE_COUNT: usize = 43;
 
 impl Venue {
     /// Convert a Venue to its `str` representation.
@@ -146,6 +148,7 @@ impl Venue {
             Self::Dbeq => "DBEQ",
             Self::Sphr => "SPHR",
             Self::Ltse => "LTSE",
+            Self::Xoff => "XOFF",
         }
     }
 }
@@ -209,6 +212,7 @@ impl std::str::FromStr for Venue {
             "DBEQ" => Ok(Self::Dbeq),
             "SPHR" => Ok(Self::Sphr),
             "LTSE" => Ok(Self::Ltse),
+            "XOFF" => Ok(Self::Xoff),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
@@ -281,10 +285,12 @@ pub enum Dataset {
     NdexImpact = 29,
     /// Databento Equities Max
     DbeqMax = 30,
+    /// Nasdaq Basic (NLS+QBBO)
+    XnasBasic = 31,
 }
 
 /// The number of Dataset variants.
-pub const DATASET_COUNT: usize = 30;
+pub const DATASET_COUNT: usize = 31;
 
 impl Dataset {
     /// Convert a Dataset to its `str` representation.
@@ -322,6 +328,7 @@ impl Dataset {
             Self::IfeuImpact => "IFEU.IMPACT",
             Self::NdexImpact => "NDEX.IMPACT",
             Self::DbeqMax => "DBEQ.MAX",
+            Self::XnasBasic => "XNAS.BASIC",
         }
     }
 }
@@ -375,6 +382,7 @@ impl std::str::FromStr for Dataset {
             "IFEU.IMPACT" => Ok(Self::IfeuImpact),
             "NDEX.IMPACT" => Ok(Self::NdexImpact),
             "DBEQ.MAX" => Ok(Self::DbeqMax),
+            "XNAS.BASIC" => Ok(Self::XnasBasic),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
@@ -491,9 +499,9 @@ pub enum Publisher {
     DbeqPlusXnas = 52,
     /// DBEQ Plus - NYSE
     DbeqPlusXnys = 53,
-    /// DBEQ Plus - FINRA/NYSE TRF
-    DbeqPlusFinn = 54,
     /// DBEQ Plus - FINRA/Nasdaq TRF Carteret
+    DbeqPlusFinn = 54,
+    /// DBEQ Plus - FINRA/NYSE TRF
     DbeqPlusFiny = 55,
     /// DBEQ Plus - FINRA/Nasdaq TRF Chicago
     DbeqPlusFinc = 56,
@@ -519,9 +527,9 @@ pub enum Publisher {
     DbeqMaxXnas = 66,
     /// DBEQ Max - NYSE
     DbeqMaxXnys = 67,
-    /// DBEQ Max - FINRA/NYSE TRF
-    DbeqMaxFinn = 68,
     /// DBEQ Max - FINRA/Nasdaq TRF Carteret
+    DbeqMaxFinn = 68,
+    /// DBEQ Max - FINRA/NYSE TRF
     DbeqMaxFiny = 69,
     /// DBEQ Max - FINRA/Nasdaq TRF Chicago
     DbeqMaxFinc = 70,
@@ -545,10 +553,20 @@ pub enum Publisher {
     DbeqMaxArcx = 79,
     /// DBEQ Max - Long-Term Stock Exchange
     DbeqMaxLtse = 80,
+    /// Nasdaq Basic - Nasdaq
+    XnasBasicXnas = 81,
+    /// Nasdaq Basic - FINRA/Nasdaq TRF Carteret
+    XnasBasicFinn = 82,
+    /// Nasdaq Basic - FINRA/Nasdaq TRF Chicago
+    XnasBasicFinc = 83,
+    /// ICE Futures Europe - Off-Market Trades
+    IfeuImpactXoff = 84,
+    /// ICE Endex - Off-Market Trades
+    NdexImpactXoff = 85,
 }
 
 /// The number of Publisher variants.
-pub const PUBLISHER_COUNT: usize = 80;
+pub const PUBLISHER_COUNT: usize = 85;
 
 impl Publisher {
     /// Convert a Publisher to its `str` representation.
@@ -634,6 +652,11 @@ impl Publisher {
             Self::DbeqMaxXase => "DBEQ.MAX.XASE",
             Self::DbeqMaxArcx => "DBEQ.MAX.ARCX",
             Self::DbeqMaxLtse => "DBEQ.MAX.LTSE",
+            Self::XnasBasicXnas => "XNAS.BASIC.XNAS",
+            Self::XnasBasicFinn => "XNAS.BASIC.FINN",
+            Self::XnasBasicFinc => "XNAS.BASIC.FINC",
+            Self::IfeuImpactXoff => "IFEU.IMPACT.XOFF",
+            Self::NdexImpactXoff => "NDEX.IMPACT.XOFF",
         }
     }
 
@@ -720,6 +743,11 @@ impl Publisher {
             Self::DbeqMaxXase => Venue::Xase,
             Self::DbeqMaxArcx => Venue::Arcx,
             Self::DbeqMaxLtse => Venue::Ltse,
+            Self::XnasBasicXnas => Venue::Xnas,
+            Self::XnasBasicFinn => Venue::Finn,
+            Self::XnasBasicFinc => Venue::Finc,
+            Self::IfeuImpactXoff => Venue::Xoff,
+            Self::NdexImpactXoff => Venue::Xoff,
         }
     }
 
@@ -806,6 +834,11 @@ impl Publisher {
             Self::DbeqMaxXase => Dataset::DbeqMax,
             Self::DbeqMaxArcx => Dataset::DbeqMax,
             Self::DbeqMaxLtse => Dataset::DbeqMax,
+            Self::XnasBasicXnas => Dataset::XnasBasic,
+            Self::XnasBasicFinn => Dataset::XnasBasic,
+            Self::XnasBasicFinc => Dataset::XnasBasic,
+            Self::IfeuImpactXoff => Dataset::IfeuImpact,
+            Self::NdexImpactXoff => Dataset::NdexImpact,
         }
     }
 
@@ -894,6 +927,11 @@ impl Publisher {
             (Dataset::DbeqMax, Venue::Xase) => Ok(Self::DbeqMaxXase),
             (Dataset::DbeqMax, Venue::Arcx) => Ok(Self::DbeqMaxArcx),
             (Dataset::DbeqMax, Venue::Ltse) => Ok(Self::DbeqMaxLtse),
+            (Dataset::XnasBasic, Venue::Xnas) => Ok(Self::XnasBasicXnas),
+            (Dataset::XnasBasic, Venue::Finn) => Ok(Self::XnasBasicFinn),
+            (Dataset::XnasBasic, Venue::Finc) => Ok(Self::XnasBasicFinc),
+            (Dataset::IfeuImpact, Venue::Xoff) => Ok(Self::IfeuImpactXoff),
+            (Dataset::NdexImpact, Venue::Xoff) => Ok(Self::NdexImpactXoff),
             _ => Err(Error::conversion::<Self>(format!("({dataset}, {venue})"))),
         }
     }
@@ -996,6 +1034,11 @@ impl std::str::FromStr for Publisher {
             "DBEQ.MAX.XASE" => Ok(Self::DbeqMaxXase),
             "DBEQ.MAX.ARCX" => Ok(Self::DbeqMaxArcx),
             "DBEQ.MAX.LTSE" => Ok(Self::DbeqMaxLtse),
+            "XNAS.BASIC.XNAS" => Ok(Self::XnasBasicXnas),
+            "XNAS.BASIC.FINN" => Ok(Self::XnasBasicFinn),
+            "XNAS.BASIC.FINC" => Ok(Self::XnasBasicFinc),
+            "IFEU.IMPACT.XOFF" => Ok(Self::IfeuImpactXoff),
+            "NDEX.IMPACT.XOFF" => Ok(Self::NdexImpactXoff),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
