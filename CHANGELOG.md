@@ -3,8 +3,9 @@
 ## 0.19.0 - TBD
 
 ### Enhancements
-- Added new `stat_type` for UncrossingPrice.
+- Added new `stat_type` for UncrossingPrice
 - Added new publisher values for `XNAS.BASIC`
+- Added new off-market publisher values for `IFEU.IMPACT` and `NDEX.IMPACT`
 
 ### Bug fixes
 - Fix descriptions for `FINN` and `FINY` publishers.
