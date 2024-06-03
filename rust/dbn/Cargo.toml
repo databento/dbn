@@ -25,10 +25,10 @@ serde = ["dep:serde", "time/parsing", "time/serde"]
 trivial_copy = []
 
 [dependencies]
-dbn-macros = { version = "=0.18.0", path = "../dbn-macros" }
+dbn-macros = { version = "=0.18.1", path = "../dbn-macros" }
 
-async-compression = { version = "0.4.10", features = ["tokio", "zstd"], optional = true }
-csv = "1.3"
+async-compression = { version = "0.4.11", features = ["tokio", "zstd"], optional = true }
+csv = { workspace = true }
 fallible-streaming-iterator = { version = "0.1.9", features = ["std"] }
 # Fast integer to string conversion
 itoa = "1.0"
@@ -40,7 +40,7 @@ serde = { workspace = true, features = ["derive"], optional = true }
 strum = { version = "0.26", features = ["derive"], optional = true }
 thiserror = "1.0"
 time = { workspace = true, features = ["formatting", "macros"] }
-tokio = { version = "1", features = ["fs", "io-util"], optional = true }
+tokio = { version = ">=1.28", features = ["fs", "io-util"], optional = true }
 zstd = { workspace = true }
 
 [dev-dependencies]

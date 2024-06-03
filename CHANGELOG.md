@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.19.0 - TBD
+## 0.18.1 - 2024-06-04
 
 ### Enhancements
 - Added new `stat_type` for UncrossingPrice
