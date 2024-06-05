@@ -115,14 +115,14 @@ impl From<InstrumentClass> for char {
 impl InstrumentClass {
     /// Returns `true` if the instrument class is a type of option.
     ///
-    /// NOTE: excludes [`Self::MixedSpread`], which *may* include options.
+    /// Note: excludes [`Self::MixedSpread`], which *may* include options.
     pub fn is_option(&self) -> bool {
         matches!(self, Self::Call | Self::Put | Self::OptionSpread)
     }
 
     /// Returns `true` if the instrument class is a type of future.
     ///
-    /// NOTE: excludes [`Self::MixedSpread`], which *may* include futures.
+    /// Note: excludes [`Self::MixedSpread`], which *may* include futures.
     pub fn is_future(&self) -> bool {
         matches!(self, Self::Future | Self::FutureSpread)
     }

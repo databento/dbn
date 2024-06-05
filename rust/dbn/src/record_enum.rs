@@ -4,7 +4,10 @@ use crate::{
     TradeMsg,
 };
 
-/// An owned DBN record type of flexible type.
+/// An owned DBN record type of flexible type. Unlike [`RecordRef`], this type allows
+/// `match`ing.
+///
+/// Note: this type does not support `ts_out`.
 #[derive(Debug, Clone)]
 pub enum RecordEnum {
     /// An market-by-order message.
@@ -37,6 +40,8 @@ pub enum RecordEnum {
 
 /// An immutable reference to a DBN record of flexible type. Unlike [`RecordRef`], this
 /// type allows `match`ing.
+///
+/// Note: this type does not support `ts_out`.
 #[derive(Debug, Copy, Clone)]
 pub enum RecordRefEnum<'a> {
     /// A reference to a market-by-order message.
