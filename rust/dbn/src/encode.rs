@@ -211,6 +211,17 @@ fn zstd_encoder<'a, W: io::Write>(writer: W) -> Result<zstd::stream::AutoFinishE
     Ok(zstd_encoder.auto_finish())
 }
 
+#[cfg(feature = "async")]
+fn async_zstd_encoder<W: tokio::io::AsyncWriteExt + Unpin>(
+    writer: W,
+) -> async_compression::tokio::write::ZstdEncoder<W> {
+    async_compression::tokio::write::ZstdEncoder::with_quality_and_params(
+        writer,
+        async_compression::Level::Precise(ZSTD_COMPRESSION_LEVEL),
+        &[async_compression::zstd::CParameter::checksum_flag(true)],
+    )
+}
+
 #[cfg(test)]
 mod test_data {
     use fallible_streaming_iterator::FallibleStreamingIterator;

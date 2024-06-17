@@ -124,6 +124,17 @@ where
             .await
             .map_err(|e| Error::io(e, "flushing output"))
     }
+
+    /// Initiates or attempts to shut down the inner writer.
+    ///
+    /// # Errors
+    /// This function returns an error if the shut down did not complete successfully.
+    pub async fn shutdown(mut self) -> Result<()> {
+        self.writer
+            .shutdown()
+            .await
+            .map_err(|e| Error::io(e, "shutting down".to_owned()))
+    }
 }
 
 #[cfg(test)]

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.18.2 - TBD
+
+### Enhancements
+- Added new `shutdown` method to async encoders to more easily ensure the end
+  of output is written and I/O cleaned up. Previously this required a call to
+  `.get_mut().shutdown().await`
+- Changed `AsyncDynWriter` and `AsyncDbnEncoder::with_zstd` to use a zstd checksum like
+  the sync equivalents
+
 ## 0.18.1 - 2024-06-04
 
 ### Enhancements
