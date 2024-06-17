@@ -9,6 +9,10 @@
 - Changed `AsyncDynWriter` and `AsyncDbnEncoder::with_zstd` to use a zstd checksum like
   the sync equivalents
 
+### Bug fixes
+- Fixed bug where DBN metadata would still be upgraded after passing `AsIs` to
+  `DbnDecoder::set_upgrade_policy` and `AsyncDbnDecoder::set_upgrade_policy`
+
 ## 0.18.1 - 2024-06-04
 
 ### Enhancements
@@ -17,7 +21,7 @@
 - Added new off-market publisher values for `IFEU.IMPACT` and `NDEX.IMPACT`
 
 ### Bug fixes
-- Fix descriptions for `FINN` and `FINY` publishers
+- Fixed descriptions for `FINN` and `FINY` publishers
 
 ## 0.18.0 - 2024-05-21
 
