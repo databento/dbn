@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.18.2 - TBD
+## 0.18.2 - 2024-06-18
 
 ### Enhancements
 - Added new `shutdown` method to async encoders to more easily ensure the end
