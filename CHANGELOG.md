@@ -8,6 +8,7 @@
   `.get_mut().shutdown().await`
 - Changed `AsyncDynWriter` and `AsyncDbnEncoder::with_zstd` to use a zstd checksum like
   the sync equivalents
+- Added new publisher values for `XNAS.BASIC` and `XNAS.NLS`
 
 ### Bug fixes
 - Fixed bug where DBN metadata would still be upgraded after passing `AsIs` to
