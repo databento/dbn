@@ -94,7 +94,7 @@ mod r#async {
     use async_compression::tokio::write::ZstdEncoder;
     use tokio::io;
 
-    use crate::enums::Compression;
+    use crate::{encode::async_zstd_encoder, enums::Compression};
 
     /// An object that allows for abstracting over compressed and uncompressed output.
     pub struct DynWriter<W>(DynWriterImpl<W>)
@@ -118,7 +118,7 @@ mod r#async {
         pub fn new(writer: W, compression: Compression) -> Self {
             Self(match compression {
                 Compression::None => DynWriterImpl::Uncompressed(writer),
-                Compression::ZStd => DynWriterImpl::ZStd(ZstdEncoder::new(writer)),
+                Compression::ZStd => DynWriterImpl::ZStd(async_zstd_encoder(writer)),
             })
         }
 

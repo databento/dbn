@@ -563,10 +563,18 @@ pub enum Publisher {
     IfeuImpactXoff = 84,
     /// ICE Endex - Off-Market Trades
     NdexImpactXoff = 85,
+    /// Nasdaq NLS - Nasdaq BX
+    XnasNlsXbos = 86,
+    /// Nasdaq NLS - Nasdaq PSX
+    XnasNlsXpsx = 87,
+    /// Nasdaq Basic - Nasdaq BX
+    XnasBasicXbos = 88,
+    /// Nasdaq Basic - Nasdaq PSX
+    XnasBasicXpsx = 89,
 }
 
 /// The number of Publisher variants.
-pub const PUBLISHER_COUNT: usize = 85;
+pub const PUBLISHER_COUNT: usize = 89;
 
 impl Publisher {
     /// Convert a Publisher to its `str` representation.
@@ -657,6 +665,10 @@ impl Publisher {
             Self::XnasBasicFinc => "XNAS.BASIC.FINC",
             Self::IfeuImpactXoff => "IFEU.IMPACT.XOFF",
             Self::NdexImpactXoff => "NDEX.IMPACT.XOFF",
+            Self::XnasNlsXbos => "XNAS.NLS.XBOS",
+            Self::XnasNlsXpsx => "XNAS.NLS.XPSX",
+            Self::XnasBasicXbos => "XNAS.BASIC.XBOS",
+            Self::XnasBasicXpsx => "XNAS.BASIC.XPSX",
         }
     }
 
@@ -748,6 +760,10 @@ impl Publisher {
             Self::XnasBasicFinc => Venue::Finc,
             Self::IfeuImpactXoff => Venue::Xoff,
             Self::NdexImpactXoff => Venue::Xoff,
+            Self::XnasNlsXbos => Venue::Xbos,
+            Self::XnasNlsXpsx => Venue::Xpsx,
+            Self::XnasBasicXbos => Venue::Xbos,
+            Self::XnasBasicXpsx => Venue::Xpsx,
         }
     }
 
@@ -839,6 +855,10 @@ impl Publisher {
             Self::XnasBasicFinc => Dataset::XnasBasic,
             Self::IfeuImpactXoff => Dataset::IfeuImpact,
             Self::NdexImpactXoff => Dataset::NdexImpact,
+            Self::XnasNlsXbos => Dataset::XnasNls,
+            Self::XnasNlsXpsx => Dataset::XnasNls,
+            Self::XnasBasicXbos => Dataset::XnasBasic,
+            Self::XnasBasicXpsx => Dataset::XnasBasic,
         }
     }
 
@@ -932,6 +952,10 @@ impl Publisher {
             (Dataset::XnasBasic, Venue::Finc) => Ok(Self::XnasBasicFinc),
             (Dataset::IfeuImpact, Venue::Xoff) => Ok(Self::IfeuImpactXoff),
             (Dataset::NdexImpact, Venue::Xoff) => Ok(Self::NdexImpactXoff),
+            (Dataset::XnasNls, Venue::Xbos) => Ok(Self::XnasNlsXbos),
+            (Dataset::XnasNls, Venue::Xpsx) => Ok(Self::XnasNlsXpsx),
+            (Dataset::XnasBasic, Venue::Xbos) => Ok(Self::XnasBasicXbos),
+            (Dataset::XnasBasic, Venue::Xpsx) => Ok(Self::XnasBasicXpsx),
             _ => Err(Error::conversion::<Self>(format!("({dataset}, {venue})"))),
         }
     }
@@ -1039,6 +1063,10 @@ impl std::str::FromStr for Publisher {
             "XNAS.BASIC.FINC" => Ok(Self::XnasBasicFinc),
             "IFEU.IMPACT.XOFF" => Ok(Self::IfeuImpactXoff),
             "NDEX.IMPACT.XOFF" => Ok(Self::NdexImpactXoff),
+            "XNAS.NLS.XBOS" => Ok(Self::XnasNlsXbos),
+            "XNAS.NLS.XPSX" => Ok(Self::XnasNlsXpsx),
+            "XNAS.BASIC.XBOS" => Ok(Self::XnasBasicXbos),
+            "XNAS.BASIC.XPSX" => Ok(Self::XnasBasicXpsx),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }

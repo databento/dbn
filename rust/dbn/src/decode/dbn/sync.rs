@@ -85,7 +85,8 @@ where
 
     /// Sets the behavior for decoding DBN data of previous versions.
     pub fn set_upgrade_policy(&mut self, upgrade_policy: VersionUpgradePolicy) {
-        self.metadata.upgrade(upgrade_policy);
+        self.metadata
+            .set_version(self.decoder.version, upgrade_policy);
         self.decoder.set_upgrade_policy(upgrade_policy);
     }
 }

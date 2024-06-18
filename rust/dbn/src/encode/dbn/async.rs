@@ -4,8 +4,10 @@ use async_compression::tokio::write::ZstdEncoder;
 use tokio::io;
 
 use crate::{
-    encode::DbnEncodable, record_ref::RecordRef, Error, Metadata, Result, SymbolMapping,
-    DBN_VERSION, NULL_LIMIT, NULL_RECORD_COUNT, NULL_SCHEMA, NULL_STYPE, UNDEF_TIMESTAMP,
+    encode::{async_zstd_encoder, DbnEncodable},
+    record_ref::RecordRef,
+    Error, Metadata, Result, SymbolMapping, DBN_VERSION, NULL_LIMIT, NULL_RECORD_COUNT,
+    NULL_SCHEMA, NULL_STYPE, UNDEF_TIMESTAMP,
 };
 
 /// An async encoder for DBN streams.
@@ -84,6 +86,14 @@ where
     pub async fn flush(&mut self) -> Result<()> {
         self.record_encoder.flush().await
     }
+
+    /// Initiates or attempts to shut down the inner writer.
+    ///
+    /// # Errors
+    /// This function returns an error if the shut down did not complete successfully.
+    pub async fn shutdown(self) -> Result<()> {
+        self.record_encoder.shutdown().await
+    }
 }
 
 impl<W> Encoder<ZstdEncoder<W>>
@@ -103,7 +113,7 @@ where
     /// metadata may have been partially written, but future calls will begin writing
     /// the encoded metadata from the beginning.
     pub async fn with_zstd(writer: W, metadata: &Metadata) -> Result<Self> {
-        Self::new(ZstdEncoder::new(writer), metadata).await
+        Self::new(async_zstd_encoder(writer), metadata).await
     }
 }
 
@@ -169,6 +179,17 @@ where
             .flush()
             .await
             .map_err(|e| Error::io(e, "flushing output".to_owned()))
+    }
+
+    /// Initiates or attempts to shut down the inner writer.
+    ///
+    /// # Errors
+    /// This function returns an error if the shut down did not complete successfully.
+    pub async fn shutdown(mut self) -> Result<()> {
+        self.writer
+            .shutdown()
+            .await
+            .map_err(|e| Error::io(e, "shutting down".to_owned()))
     }
 
     /// Returns a reference to the underlying writer.
@@ -291,9 +312,36 @@ where
         Ok(())
     }
 
+    /// Returns a reference to the underlying writer.
+    pub fn get_ref(&self) -> &W {
+        &self.writer
+    }
+
     /// Returns a mutable reference to the underlying writer.
     pub fn get_mut(&mut self) -> &mut W {
         &mut self.writer
+    }
+
+    /// Flushes any buffered content to the true output.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to flush the underlying writer.
+    pub async fn flush(&mut self) -> Result<()> {
+        self.writer
+            .flush()
+            .await
+            .map_err(|e| Error::io(e, "flushing output".to_owned()))
+    }
+
+    /// Initiates or attempts to shut down the inner writer.
+    ///
+    /// # Errors
+    /// This function returns an error if the shut down did not complete successfully.
+    pub async fn shutdown(mut self) -> Result<()> {
+        self.writer
+            .shutdown()
+            .await
+            .map_err(|e| Error::io(e, "shutting down".to_owned()))
     }
 
     /// Consumes the encoder returning the original writer.
@@ -430,7 +478,7 @@ where
     /// Creates a new [`MetadataEncoder`] that will Zstandard compress the DBN data
     /// written to `writer`.
     pub fn with_zstd(writer: W) -> Self {
-        Self::new(ZstdEncoder::new(writer))
+        Self::new(async_zstd_encoder(writer))
     }
 }
 

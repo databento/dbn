@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.18.2 - 2024-06-18
+
+### Enhancements
+- Added new `shutdown` method to async encoders to more easily ensure the end
+  of output is written and I/O cleaned up. Previously this required a call to
+  `.get_mut().shutdown().await`
+- Changed `AsyncDynWriter` and `AsyncDbnEncoder::with_zstd` to use a zstd checksum like
+  the sync equivalents
+- Added new publisher values for `XNAS.BASIC` and `XNAS.NLS`
+
+### Bug fixes
+- Fixed bug where DBN metadata would still be upgraded after passing `AsIs` to
+  `DbnDecoder::set_upgrade_policy` and `AsyncDbnDecoder::set_upgrade_policy`
+
 ## 0.18.1 - 2024-06-04
 
 ### Enhancements
@@ -8,7 +22,7 @@
 - Added new off-market publisher values for `IFEU.IMPACT` and `NDEX.IMPACT`
 
 ### Bug fixes
-- Fix descriptions for `FINN` and `FINY` publishers.
+- Fixed descriptions for `FINN` and `FINY` publishers
 
 ## 0.18.0 - 2024-05-21
 
@@ -451,7 +465,7 @@
 - Added new `OHLCV_EOD` rtype for future daily OHLCV schema based on the trading
   session
 - Added new `SType::Nasdaq` and `SType::Cms` to support querying US equities datasets
-  using either convention, regardless of the original convention of the dataset.
+  using either convention, regardless of the original convention of the dataset
 - Relaxed `pyo3`, `tokio`, and `zstd` dependency version requirements
 - Added `FIXED_PRICE_SCALE` constant to `databento_dbn` Python package
 - Added generated field metadata for each record type to aid in pandas DataFrame
@@ -466,7 +480,7 @@
 ## 0.8.0 - 2023-07-19
 ### Enhancements
 - Switched from `anyhow::Error` to custom `dbn::Error` for all public fallible functions
-  and methods. This should make it easier to disambiguate between error types.
+  and methods. This should make it easier to disambiguate between error types
 - `EncodeDbn::encode_record` and `EncodeDbn::record_record_ref` no longer treat a
   `BrokenPipe` error differently
 - Added `AsyncDbnDecoder`
@@ -474,7 +488,7 @@
   logic outside of CSV and JSON encoding
 - Added interning for Python strings
 - Added `rtype` to encoded JSON and CSV to aid differeniating between different record types.
-  This is particularly important when working with live data.
+  This is particularly important when working with live data
 - Added `pretty_` Python attributes for DBN price fields
 - Added `pretty_` Python attributes for DBN UTC timestamp fields
 
@@ -491,7 +505,7 @@
 - Updated `InstrumentDefMsg` serialization order to serialize `raw_symbol`,
   `security_update_action`, and `instrument_class` earlier given their importance
 - Removed `bool` return value from `EncodeDbn::encode_record` and
-  `EncodeDbn::record_record_ref`. These now return `dbn::Result<()>`.
+  `EncodeDbn::record_record_ref`. These now return `dbn::Result<()>`
 
 ### Bug fixes
 - Fixed handling of NUL byte when encoding DBN to CSV and JSON
