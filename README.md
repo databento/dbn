@@ -16,7 +16,7 @@ DBN is also the default encoding for all Databento APIs, including live data str
 This repository contains both  libraries and a CLI tool for working with DBN files and streams.
 Python bindings for `dbn` are provided in the `databento_dbn` package.
 
-For more details, read our [introduction to DBN](https://databento.com/docs/knowledge-base/new-users/dbn-encoding/getting-started-with-dbn).
+For more details, read our [introduction to DBN](https://databento.com/docs/standards-and-conventions/databento-binary-encoding).
 
 ## Features
 

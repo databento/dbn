@@ -6,7 +6,7 @@
 [![pypi-version](https://img.shields.io/pypi/v/databento_dbn)](https://pypi.org/project/databento-dbn)
 
 Python bindings for the `dbn` Rust library, used by the [Databento Python client library](https://github.com/databento/databento-python).
-For more information about the encoding, read our [introduction to DBN](https://databento.com/docs/knowledge-base/new-users/dbn-encoding/getting-started-with-dbn).
+For more information about the encoding, read our [introduction to DBN](https://databento.com/docs/standards-and-conventions/databento-binary-encoding).
 
 Using this library is for advanced users and is not fully documented or supported.
 
