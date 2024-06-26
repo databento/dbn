@@ -19,7 +19,7 @@ pip install -U databento-dbn
 
 ## Usage and documentation
 
-See the [documentation](https://databento.com/docs/getting-started?historical=python&live=python) for the Python client library.
+See the [documentation](https://databento.com/docs/quickstart?historical=python&live=python) for the Python client library.
 
 ## Building
 
