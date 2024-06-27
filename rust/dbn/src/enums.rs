@@ -44,8 +44,8 @@ impl From<Side> for char {
 /// used to indicate order life cycle.
 ///
 /// For example usage see:
-/// - [Order actions](https://databento.com/docs/examples-and-tutorials/order-book/order-actions)
-/// - [Order tracking](https://databento.com/docs/examples-and-tutorials/order-book/order-tracking)
+/// - [Order actions](https://databento.com/docs/examples/order-book/order-actions)
+/// - [Order tracking](https://databento.com/docs/examples/order-book/order-tracking)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive)]
 #[cfg_attr(
     feature = "python",
@@ -77,7 +77,7 @@ impl From<Action> for char {
 /// The class of instrument.
 ///
 /// For example usage see
-/// [Getting options with their underlying](https://databento.com/docs/examples-and-tutorials/options/options-and-futures).
+/// [Getting options with their underlying](https://databento.com/docs/examples/options/options-and-futures).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive)]
 #[cfg_attr(
     feature = "python",
@@ -184,7 +184,7 @@ impl From<MatchAlgorithm> for char {
 /// Whether the instrument is user-defined.
 ///
 /// For example usage see
-/// [Getting options with their underlying](https://databento.com/docs/examples-and-tutorials/options/options-and-futures).
+/// [Getting options with their underlying](https://databento.com/docs/examples/options/options-and-futures).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive, Default)]
 #[cfg_attr(
     feature = "python",
