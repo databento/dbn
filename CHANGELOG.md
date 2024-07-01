@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.18.3 - TBD
+
+### Bug fixes
+- Fixed issue where DBN encoders would permit symbols in the metadata that left no space
+  for a null terminator
+- Updated metadata length calculation to respect `symbol_cstr_len` field rather than
+  inferring the length from `version`
+
 ## 0.18.2 - 2024-06-18
 
 ### Enhancements
