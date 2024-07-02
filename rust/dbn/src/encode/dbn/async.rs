@@ -444,11 +444,11 @@ where
                 desired_type: "ASCII",
             });
         }
-        if string.len() > symbol_cstr_len {
-            return Err(Error::encode(
-                    format!(
-                    "'{string}' is too long to be encoded in DBN; it cannot be longer than {symbol_cstr_len} characters"
-                )));
+        if string.len() >= symbol_cstr_len {
+            return Err(Error::encode(format!(
+                                "'{string}' is too long to be encoded in DBN; it cannot be longer than {} characters",
+            symbol_cstr_len - 1
+                            )));
         }
         let cstr_err = |e| Error::io(e, "writing cstr");
         self.writer

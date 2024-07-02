@@ -8,7 +8,7 @@
 //! interchange format and for in-memory representation of data. DBN is also the default
 //! encoding for all Databento APIs, including live data streaming, historical data
 //! streaming, and batch flat files. For more information about the encoding, read our
-//! [introduction to DBN](https://databento.com/docs/knowledge-base/new-users/dbn-encoding/getting-started-with-dbn).
+//! [introduction to DBN](https://databento.com/docs/standards-and-conventions/databento-binary-encoding).
 //!
 //! The crate supports reading and writing DBN files and streams, as well as converting
 //! them to other [`Encoding`]s. It can also be used to update legacy

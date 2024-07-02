@@ -16,7 +16,7 @@ name = "dbn"
 path = "src/main.rs"
 
 [dependencies]
-dbn = { path = "../dbn", version = "=0.18.2", default-features = false }
+dbn = { path = "../dbn", version = "=0.18.3", default-features = false }
 
 anyhow = { workspace = true }
 clap = { version = "4.5", features = ["derive", "wrap_help"] }

@@ -13,7 +13,7 @@ use std::{
 use dbn_macros::MockPyo3;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
-/// A [side](https://databento.com/docs/knowledge-base/new-users/standards-conventions/side)
+/// A [side](https://databento.com/docs/standards-and-conventions/common-fields-enums-types)
 /// of the market. The side of the market for resting orders, or the side of the
 /// aggressor for trades.
 ///
@@ -40,7 +40,7 @@ impl From<Side> for char {
     }
 }
 
-/// A [tick action](https://databento.com/docs/knowledge-base/new-users/standards-conventions/action)
+/// A [tick action](https://databento.com/docs/standards-and-conventions/common-fields-enums-types)
 /// used to indicate order life cycle.
 ///
 /// For example usage see:
@@ -292,7 +292,7 @@ pub mod rtype {
 
     use super::Schema;
 
-    /// A [record type](https://databento.com/docs/knowledge-base/new-users/standards-conventions/rtype),
+    /// A [record type](https://databento.com/docs/standards-and-conventions/common-fields-enums-types),
     /// i.e. a sentinel for different types implementing [`HasRType`](crate::record::HasRType).
     ///
     /// Use in [`RecordHeader`](crate::RecordHeader) to indicate the type of record,
@@ -545,7 +545,7 @@ pub mod rtype {
 ///
 /// Each schema has a particular [record](crate::record) type associated with it.
 ///
-/// See [List of supported market data schemas](https://databento.com/docs/knowledge-base/new-users/market-data-schemas)
+/// See [List of supported market data schemas](https://databento.com/docs/schemas-and-data-formats/whats-a-schema)
 /// for an overview of the differences and use cases of each schema.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
 #[cfg_attr(

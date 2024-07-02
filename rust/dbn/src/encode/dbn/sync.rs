@@ -5,7 +5,6 @@ use std::{
 };
 
 use crate::{
-    compat::version_symbol_cstr_len,
     encode::{zstd_encoder, DbnEncodable, EncodeDbn, EncodeRecord, EncodeRecordRef},
     enums::Schema,
     record_ref::RecordRef,
@@ -186,8 +185,7 @@ where
     }
 
     pub(super) fn calc_length(metadata: &Metadata) -> u32 {
-        let symbol_cstr_len = version_symbol_cstr_len(metadata.version);
-        let mapping_interval_len = mem::size_of::<u32>() * 2 + symbol_cstr_len;
+        let mapping_interval_len = mem::size_of::<u32>() * 2 + metadata.symbol_cstr_len;
         // schema_definition_length, symbols_count, partial_count, not_found_count, mappings_count
         let var_len_counts_size = mem::size_of::<u32>() * 5;
 
@@ -195,12 +193,12 @@ where
             metadata.symbols.len() + metadata.partial.len() + metadata.not_found.len();
         (crate::METADATA_FIXED_LEN
             + var_len_counts_size
-            + c_str_count * symbol_cstr_len
+            + c_str_count * metadata.symbol_cstr_len
             + metadata
                 .mappings
                 .iter()
                 .map(|m| {
-                    symbol_cstr_len
+                    metadata.symbol_cstr_len
                         + mem::size_of::<u32>()
                         + m.intervals.len() * mapping_interval_len
                 })
@@ -305,10 +303,10 @@ where
                 desired_type: "ASCII",
             });
         }
-        if string.len() > symbol_cstr_len {
+        if string.len() >= symbol_cstr_len {
             return Err(Error::encode(
             format!(
-                "'{string}' is too long to be encoded in DBN; it cannot be longer than {symbol_cstr_len} characters"
+                "'{string}' is too long to be encoded in DBN; it cannot be longer than {} characters", symbol_cstr_len - 1
             )));
         }
         let cstr_err = |e| Error::io(e, "writing cstr");
@@ -438,6 +436,7 @@ mod tests {
 
     use super::*;
     use crate::{
+        compat::version_symbol_cstr_len,
         datasets::{GLBX_MDP3, XNAS_ITCH},
         decode::{dbn::MetadataDecoder, FromLittleEndianSlice},
         enums::{SType, Schema},
@@ -650,5 +649,28 @@ mod tests {
         // plus 8 for prefix
         assert_eq!(calc_length as usize + 8, buffer.len());
         assert_eq!(MetadataEncoder::<Vec<u8>>::MIN_ENCODED_SIZE, buffer.len());
+    }
+
+    #[rstest]
+    fn test_metadata_calc_size_unconventional_length() {
+        let mut metadata = MetadataBuilder::new()
+            .dataset(XNAS_ITCH.to_owned())
+            .schema(Some(Schema::Mbo))
+            .start(1697240529000000000)
+            .stype_in(Some(SType::RawSymbol))
+            .stype_out(SType::InstrumentId)
+            .symbols(vec![
+                "META".to_owned(),
+                "NVDA".to_owned(),
+                "NFLX".to_owned(),
+            ])
+            .build();
+        metadata.symbol_cstr_len = 50;
+        let calc_length = MetadataEncoder::<Vec<u8>>::calc_length(&metadata);
+        let mut buffer = Vec::new();
+        let mut encoder = MetadataEncoder::new(&mut buffer);
+        encoder.encode(&metadata).unwrap();
+        // plus 8 for prefix
+        assert_eq!(calc_length as usize + 8, buffer.len());
     }
 }
