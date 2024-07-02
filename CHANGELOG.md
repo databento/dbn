@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.18.3 - TBD
+## 0.18.3 - 2024-07-02
 
 ### Bug fixes
 - Fixed issue where DBN encoders would permit symbols in the metadata that left no space
