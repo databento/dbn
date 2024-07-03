@@ -665,7 +665,7 @@ mod tests {
             DbnEncodable,
         },
         rtype, CbboMsg, Error, ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg,
-        OhlcvMsg, RecordHeader, Result, Schema, StatMsg, TbboMsg, TradeMsg, WithTsOut,
+        OhlcvMsg, RecordHeader, Result, Schema, StatMsg, StatusMsg, TbboMsg, TradeMsg, WithTsOut,
     };
 
     #[rstest]
@@ -682,6 +682,7 @@ mod tests {
     #[case::definitions(Schema::Definition, InstrumentDefMsg::default())]
     #[case::imbalance(Schema::Imbalance, ImbalanceMsg::default())]
     #[case::statistics(Schema::Statistics, StatMsg::default())]
+    #[case::status(Schema::Status, StatusMsg::default())]
     #[tokio::test]
     async fn test_dbn_identity<R: DbnEncodable + HasRType + PartialEq + Clone>(
         #[case] schema: Schema,
@@ -726,6 +727,7 @@ mod tests {
     #[case::definitions(Schema::Definition, InstrumentDefMsg::default())]
     #[case::imbalance(Schema::Imbalance, ImbalanceMsg::default())]
     #[case::statistics(Schema::Statistics, StatMsg::default())]
+    #[case::status(Schema::Status, StatusMsg::default())]
     #[tokio::test]
     async fn test_dbn_zstd_identity<R: DbnEncodable + HasRType + PartialEq + Clone>(
         #[case] schema: Schema,

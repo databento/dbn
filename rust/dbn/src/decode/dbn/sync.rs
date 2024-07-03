@@ -685,8 +685,8 @@ mod tests {
             dbn::Encoder, DbnEncodable, DbnRecordEncoder, DynWriter, EncodeDbn, EncodeRecord,
         },
         rtype, CbboMsg, Compression, Error, ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg,
-        Mbp10Msg, Mbp1Msg, MetadataBuilder, OhlcvMsg, RecordHeader, Result, StatMsg, TbboMsg,
-        TradeMsg, WithTsOut, SYMBOL_CSTR_LEN,
+        Mbp10Msg, Mbp1Msg, MetadataBuilder, OhlcvMsg, RecordHeader, Result, StatMsg, StatusMsg,
+        TbboMsg, TradeMsg, WithTsOut, SYMBOL_CSTR_LEN,
     };
 
     #[test]
@@ -865,6 +865,7 @@ mod tests {
         Compression::None,
         StatMsg::default()
     )]
+    #[case::uncompressed_status_v2(2, Schema::Status, Compression::None, StatusMsg::default())]
     #[case::zstd_mbo_v2(2, Schema::Mbo, Compression::ZStd, MboMsg::default())]
     #[case::zstd_trades_v2(2, Schema::Trades, Compression::ZStd, TradeMsg::default())]
     #[case::zstd_tbbo_v2(2, Schema::Tbbo, Compression::ZStd, TbboMsg::default())]
@@ -908,6 +909,7 @@ mod tests {
     )]
     #[case::zstd_imbalance_v2(2, Schema::Imbalance, Compression::ZStd, ImbalanceMsg::default())]
     #[case::zstd_statistics_v2(2, Schema::Statistics, Compression::ZStd, StatMsg::default())]
+    #[case::zstd_status_v2(2, Schema::Status, Compression::ZStd, StatusMsg::default())]
     fn test_dbn_identity<R: DbnEncodable + HasRType + PartialEq + Clone>(
         #[case] version: u8,
         #[case] schema: Schema,
