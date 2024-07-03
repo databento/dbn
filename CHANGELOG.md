@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.19.0 - TBD
+
+### Enhancements
+- Added `BboMsg` record struct for future `bbo-1m` and `bbo-1s` schemas
+
+### Breaking changes
+- Added `Default` trait implementation for `Mbp1Msg` due to it no longer needing
+  to support multiple `rtype` values. The `default_for_schema` function has been removed
+- Changed `Bbo1sMsg` and `Bbo1mMsg` to be aliases for `BboMsg`
+- Changed the default value of the `side` fields to `Side::None`
+
 ## 0.18.3 - 2024-07-02
 
 ### Bug fixes
@@ -78,8 +89,8 @@
 ## 0.17.0 - 2024-04-01
 
 ### Enhancements
-- Added new record type `CbboMsg`, new rtypes and schema types for `Cbbo`, `Cbbo1s`,
-  `Cbbo1m`, `Tcbbo`, `Bbo1s`, and `Bbo1m`
+- Added new record type `CbboMsg`, new rtypes and schema types for `Cbbo`, `Cbbo1S`,
+  `Cbbo1M`, `Tcbbo`, `Bbo1S`, and `Bbo1M`
 - Added `Volatility` and `Delta` `StatType` variants
 - Added `Undefined` and `TimeProRata` `MatchAlgorithm` variants
 - Exported more enums to Python:

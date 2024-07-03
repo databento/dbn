@@ -10,7 +10,7 @@ use pyo3::{
 use crate::{
     compat::{ErrorMsgV1, InstrumentDefMsgV1, SymbolMappingMsgV1, SystemMsgV1},
     record::{str_to_c_chars, CbboMsg, ConsolidatedBidAskPair},
-    rtype, BidAskPair, ErrorMsg, FlagSet, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg,
+    rtype, BboMsg, BidAskPair, ErrorMsg, FlagSet, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg,
     Mbp10Msg, Mbp1Msg, OhlcvMsg, Publisher, Record, RecordHeader, SType, SecurityUpdateAction,
     StatMsg, StatUpdateAction, StatusAction, StatusMsg, StatusReason, SymbolMappingMsg, SystemMsg,
     TradeMsg, TradingEvent, TriState, UserDefinedInstrument, WithTsOut, FIXED_PRICE_SCALE,
@@ -113,7 +113,7 @@ impl MboMsg {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<MboMsg>())
+        Ok(mem::size_of::<Self>())
     }
 
     #[getter]
@@ -212,6 +212,138 @@ impl BidAskPair {
 }
 
 #[pymethods]
+impl BboMsg {
+    #[new]
+    fn py_new(
+        rtype: u8,
+        publisher_id: u16,
+        instrument_id: u32,
+        ts_event: u64,
+        price: i64,
+        size: u32,
+        side: c_char,
+        ts_recv: u64,
+        sequence: u32,
+        flags: Option<FlagSet>,
+        levels: Option<BidAskPair>,
+    ) -> Self {
+        Self {
+            hd: RecordHeader::new::<Self>(rtype, publisher_id, instrument_id, ts_event),
+            price,
+            size,
+            side,
+            flags: flags.unwrap_or_default(),
+            ts_recv,
+            sequence,
+            levels: [levels.unwrap_or_default()],
+            _reserved1: Default::default(),
+            _reserved2: Default::default(),
+            _reserved3: Default::default(),
+        }
+    }
+
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
+
+    #[getter]
+    fn rtype(&self) -> u8 {
+        self.hd.rtype
+    }
+
+    #[getter]
+    fn publisher_id(&self) -> u16 {
+        self.hd.publisher_id
+    }
+
+    #[getter]
+    fn instrument_id(&self) -> u32 {
+        self.hd.instrument_id
+    }
+
+    #[getter]
+    fn ts_event(&self) -> u64 {
+        self.hd.ts_event
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_price")]
+    fn py_pretty_price(&self) -> f64 {
+        self.price as f64 / FIXED_PRICE_SCALE as f64
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_event")]
+    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_event())
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_recv")]
+    fn py_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_recv)
+    }
+
+    #[pyo3(name = "record_size")]
+    fn py_record_size(&self) -> usize {
+        self.record_size()
+    }
+
+    #[classattr]
+    fn size_hint() -> PyResult<usize> {
+        Ok(mem::size_of::<Self>())
+    }
+
+    #[getter]
+    #[pyo3(name = "side")]
+    fn py_side(&self) -> char {
+        self.side as u8 as char
+    }
+
+    #[classattr]
+    #[pyo3(name = "_dtypes")]
+    fn py_dtypes() -> Vec<(String, String)> {
+        Self::field_dtypes("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_price_fields")]
+    fn py_price_fields() -> Vec<String> {
+        Self::price_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_timestamp_fields")]
+    fn py_timestamp_fields() -> Vec<String> {
+        Self::timestamp_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_hidden_fields")]
+    fn py_hidden_fields() -> Vec<String> {
+        Self::hidden_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_ordered_fields")]
+    fn py_ordered_fields() -> Vec<String> {
+        Self::ordered_fields("")
+    }
+}
+
+#[pymethods]
 impl CbboMsg {
     #[new]
     fn py_new(
@@ -305,7 +437,7 @@ impl CbboMsg {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<CbboMsg>())
+        Ok(mem::size_of::<Self>())
     }
 
     #[getter]
@@ -513,7 +645,7 @@ impl TradeMsg {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<TradeMsg>())
+        Ok(mem::size_of::<Self>())
     }
 
     #[getter]
@@ -653,7 +785,7 @@ impl Mbp1Msg {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<Mbp1Msg>())
+        Ok(mem::size_of::<Self>())
     }
 
     #[getter]
@@ -805,7 +937,7 @@ impl Mbp10Msg {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<Mbp10Msg>())
+        Ok(mem::size_of::<Self>())
     }
 
     #[getter]
@@ -948,7 +1080,7 @@ impl OhlcvMsg {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<OhlcvMsg>())
+        Ok(mem::size_of::<Self>())
     }
 
     #[classattr]
@@ -1083,7 +1215,7 @@ impl StatusMsg {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<StatMsg>())
+        Ok(mem::size_of::<Self>())
     }
 
     #[classattr]
@@ -1392,7 +1524,7 @@ impl InstrumentDefMsg {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<InstrumentDefMsg>())
+        Ok(mem::size_of::<Self>())
     }
 
     #[getter]
@@ -1801,7 +1933,7 @@ impl InstrumentDefMsgV1 {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<InstrumentDefMsgV1>())
+        Ok(mem::size_of::<Self>())
     }
 
     #[getter]
@@ -2047,7 +2179,7 @@ impl ImbalanceMsg {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<ImbalanceMsg>())
+        Ok(mem::size_of::<Self>())
     }
 
     #[getter]
@@ -2205,7 +2337,7 @@ impl StatMsg {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<StatMsg>())
+        Ok(mem::size_of::<Self>())
     }
 
     #[classattr]
@@ -2295,7 +2427,7 @@ impl ErrorMsg {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<ErrorMsg>())
+        Ok(mem::size_of::<Self>())
     }
 
     #[getter]
@@ -2391,7 +2523,7 @@ impl ErrorMsgV1 {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<ErrorMsg>())
+        Ok(mem::size_of::<Self>())
     }
 
     #[getter]
@@ -2522,7 +2654,7 @@ impl SymbolMappingMsg {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<SymbolMappingMsg>())
+        Ok(mem::size_of::<Self>())
     }
 
     #[getter]
@@ -2668,7 +2800,7 @@ impl SymbolMappingMsgV1 {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<SymbolMappingMsgV1>())
+        Ok(mem::size_of::<Self>())
     }
 
     #[getter]
@@ -2770,7 +2902,7 @@ impl SystemMsg {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<SystemMsg>())
+        Ok(mem::size_of::<Self>())
     }
 
     #[getter]
@@ -2871,7 +3003,7 @@ impl SystemMsgV1 {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<SystemMsg>())
+        Ok(mem::size_of::<Self>())
     }
 
     #[getter]

@@ -26,6 +26,7 @@ _DBNRecord = Union[
     Metadata,
     MBOMsg,
     MBP1Msg,
+    BBOMsg,
     CBBOMsg,
     MBP10Msg,
     OHLCVMsg,
@@ -1721,6 +1722,127 @@ class MBP1Msg(Record, _MBPBase):
 
         """
 
+class BBOMsg(Record):
+    """
+    Subsampled market by price with a known book depth of 1.
+    """
+
+    @property
+    def pretty_price(self) -> float:
+        """
+        The price of the last trade as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        price
+
+        """
+
+    @property
+    def price(self) -> int:
+        """
+        The price of the last trade expressed as a signed integer where every 1 unit
+        corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        pretty_price
+
+        """
+
+    @property
+    def size(self) -> int:
+        """
+        The quantity of the last trade.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def side(self) -> str:
+        """
+        The side that initiated the last trade. Can be `A`sk for a sell order (or sell
+        aggressor in a trade), `B`id for a buy order (or buy aggressor in a trade), or
+        `N`one where no side is specified by the original source.
+
+        Returns
+        -------
+        str
+
+        """
+
+    @property
+    def flags(self) -> int:
+        """
+        A bit field indicating event end, message characteristics, and data quality.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_ts_recv(self) -> dt.datetime:
+        """
+        The capture-server-received timestamp as a datetime or
+        `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def ts_recv(self) -> int:
+        """
+        The capture-server-received timestamp expressed as number of
+        nanoseconds since the UNIX epoch.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def sequence(self) -> int:
+        """
+        The message sequence number assigned at the venue of the last update.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def levels(self) -> list[BidAskPair]:
+        """
+        The top of the order book.
+
+        Returns
+        -------
+        list[BidAskPair]
+
+        Notes
+        -----
+        BBOMsg contains 1 level of BidAskPair.
+
+        """
+
 class CBBOMsg(Record):
     """
     Consolidated best bid and offer implementation.
@@ -1816,8 +1938,7 @@ class CBBOMsg(Record):
     @property
     def pretty_ts_recv(self) -> dt.datetime:
         """
-        The capture-server-received timestamp as a datetime or
-        `pandas.Timestamp`, if available.
+        The interval timestamp as a datetime or `pandas.Timestamp` if available.
 
         Returns
         -------
@@ -1828,8 +1949,7 @@ class CBBOMsg(Record):
     @property
     def ts_recv(self) -> int:
         """
-        The capture-server-received timestamp expressed as number of
-        nanoseconds since the UNIX epoch.
+        The interval timestamp expressed as number of nanoseconds since the UNIX epoch.
 
         Returns
         -------

@@ -109,8 +109,8 @@ impl MboMsg {
             .map_err(|_| Error::conversion::<Action>(format!("{:#04X}", self.action as u8)))
     }
 
-    /// Parses the raw capture-server-received timestamp into a datetime. Returns `None`
-    /// if `ts_recv` contains the sentinel for a null timestamp.
+    /// Parses the raw interval timestamp into a datetime. Returns `None` if `ts_recv`
+    /// contains the sentinel for a null timestamp.
     pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
         ts_to_dt(self.ts_recv)
     }
@@ -151,6 +151,24 @@ impl TradeMsg {
     /// Parses the raw `ts_in_delta`—the delta of `ts_recv - ts_exchange_send`—into a duration.
     pub fn ts_in_delta(&self) -> time::Duration {
         time::Duration::new(0, self.ts_in_delta)
+    }
+}
+
+impl BboMsg {
+    /// Tries to convert the raw `side` to an enum.
+    ///
+    /// # Errors
+    /// This function returns an error if the `side` field does not
+    /// contain a valid [`Side`].
+    pub fn side(&self) -> crate::Result<Side> {
+        Side::try_from(self.side as u8)
+            .map_err(|_| Error::conversion::<Side>(format!("{:#04X}", self.side as u8)))
+    }
+
+    /// Parses the raw capture-server-received timestamp into a datetime. Returns `None`
+    /// if `ts_recv` contains the sentinel for a null timestamp.
+    pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
+        ts_to_dt(self.ts_recv)
     }
 }
 

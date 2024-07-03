@@ -26,7 +26,7 @@ impl Default for MboMsg {
             flags: FlagSet::default(),
             channel_id: 0,
             action: 0,
-            side: 0,
+            side: Side::None as c_char,
             ts_recv: UNDEF_TIMESTAMP,
             ts_in_delta: 0,
             sequence: 0,
@@ -69,7 +69,7 @@ impl Default for TradeMsg {
             price: UNDEF_PRICE,
             size: UNDEF_ORDER_SIZE,
             action: 0,
-            side: 0,
+            side: Side::None as c_char,
             flags: FlagSet::default(),
             depth: 0,
             ts_recv: UNDEF_TIMESTAMP,
@@ -79,15 +79,14 @@ impl Default for TradeMsg {
     }
 }
 
-impl Mbp1Msg {
-    /// Creates a new default Mbp1Msg for the given `schema`.
-    pub fn default_for_schema(schema: Schema) -> Self {
+impl Default for Mbp1Msg {
+    fn default() -> Self {
         Self {
-            hd: RecordHeader::default::<Self>(RType::from(schema) as u8),
+            hd: RecordHeader::default::<Self>(rtype::MBP_1),
             price: UNDEF_PRICE,
             size: UNDEF_ORDER_SIZE,
             action: 0,
-            side: 0,
+            side: Side::None as c_char,
             flags: FlagSet::default(),
             depth: 0,
             ts_recv: UNDEF_TIMESTAMP,
@@ -98,15 +97,34 @@ impl Mbp1Msg {
     }
 }
 
+impl BboMsg {
+    /// Creates a new default `BboMsg` for the given `schema`.
+    pub fn default_for_schema(schema: Schema) -> Self {
+        Self {
+            hd: RecordHeader::default::<Self>(RType::from(schema) as u8),
+            price: UNDEF_PRICE,
+            size: UNDEF_ORDER_SIZE,
+            side: Side::None as c_char,
+            flags: FlagSet::default(),
+            ts_recv: UNDEF_TIMESTAMP,
+            sequence: 0,
+            levels: Default::default(),
+            _reserved1: Default::default(),
+            _reserved2: Default::default(),
+            _reserved3: Default::default(),
+        }
+    }
+}
+
 impl CbboMsg {
-    /// Creates a new default CbboMsg for the given `schema`.
+    /// Creates a new default `CbboMsg` for the given `schema`.
     pub fn default_for_schema(schema: Schema) -> Self {
         Self {
             hd: RecordHeader::default::<Self>(RType::from(schema) as u8),
             price: UNDEF_PRICE,
             size: UNDEF_ORDER_SIZE,
             action: 0,
-            side: 0,
+            side: Side::None as c_char,
             flags: FlagSet::default(),
             _reserved: [0; 1],
             ts_recv: UNDEF_TIMESTAMP,
@@ -124,7 +142,7 @@ impl Default for Mbp10Msg {
             price: UNDEF_PRICE,
             size: UNDEF_ORDER_SIZE,
             action: 0,
-            side: 0,
+            side: Side::None as c_char,
             flags: FlagSet::default(),
             depth: 0,
             ts_recv: UNDEF_TIMESTAMP,

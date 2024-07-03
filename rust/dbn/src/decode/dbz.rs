@@ -418,13 +418,13 @@ mod tests {
 
     #[rstest]
     #[case::mbo(MboMsg::default(), Schema::Mbo, 2)]
-    #[case::mbp1(Mbp1Msg::default_for_schema(Schema::Mbp1), Schema::Mbp1, 2)]
+    #[case::mbp1(Mbp1Msg::default(), Schema::Mbp1, 2)]
     #[case::mbp10(Mbp10Msg::default(), Schema::Mbp10, 2)]
     #[case::ohlcv_1d(OhlcvMsg::default_for_schema(Schema::Ohlcv1D), Schema::Ohlcv1D, 0)]
     #[case::ohlcv_1h(OhlcvMsg::default_for_schema(Schema::Ohlcv1H), Schema::Ohlcv1H, 2)]
     #[case::ohlcv_1m(OhlcvMsg::default_for_schema(Schema::Ohlcv1M), Schema::Ohlcv1M, 2)]
     #[case::ohlcv_1s(OhlcvMsg::default_for_schema(Schema::Ohlcv1S), Schema::Ohlcv1S, 2)]
-    #[case::tbbo(TbboMsg::default_for_schema(Schema::Tbbo), Schema::Tbbo, 2)]
+    #[case::tbbo(TbboMsg::default(), Schema::Tbbo, 2)]
     #[case::trades(TradeMsg::default(), Schema::Trades, 2)]
     #[case::definition(InstrumentDefMsgV1::default(), Schema::Definition, 2)]
     fn test_decode_stream<R: HasRType>(
