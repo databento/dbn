@@ -20,35 +20,50 @@ use super::{py_to_time_date, to_py_err};
 #[pymethods]
 impl Metadata {
     #[new]
+    #[pyo3(signature = (
+        dataset,
+        start,
+        stype_in,
+        stype_out,
+        schema,
+        symbols=None,
+        partial=None,
+        not_found=None,
+        mappings=None,
+        end=None,
+        limit=None,
+        ts_out=None,
+        version=crate::DBN_VERSION,
+    ))]
     fn py_new(
         dataset: String,
         start: u64,
-        stype_out: SType,
-        symbols: Vec<String>,
-        partial: Vec<String>,
-        not_found: Vec<String>,
-        mappings: Vec<SymbolMapping>,
-        schema: Option<Schema>,
         stype_in: Option<SType>,
+        stype_out: SType,
+        schema: Option<Schema>,
+        symbols: Option<Vec<String>>,
+        partial: Option<Vec<String>>,
+        not_found: Option<Vec<String>>,
+        mappings: Option<Vec<SymbolMapping>>,
         end: Option<u64>,
         limit: Option<u64>,
         ts_out: Option<bool>,
-        version: Option<u8>,
+        version: u8,
     ) -> Metadata {
         Metadata::builder()
             .dataset(dataset)
             .start(start)
             .stype_out(stype_out)
-            .symbols(symbols)
-            .partial(partial)
-            .not_found(not_found)
-            .mappings(mappings)
+            .symbols(symbols.unwrap_or_default())
+            .partial(partial.unwrap_or_default())
+            .not_found(not_found.unwrap_or_default())
+            .mappings(mappings.unwrap_or_default())
             .schema(schema)
             .stype_in(stype_in)
             .end(NonZeroU64::new(end.unwrap_or_default()))
             .limit(NonZeroU64::new(limit.unwrap_or_default()))
             .ts_out(ts_out.unwrap_or_default())
-            .version(version.unwrap_or(crate::DBN_VERSION))
+            .version(version)
             .build()
     }
 
@@ -78,14 +93,13 @@ impl Metadata {
         res
     }
 
-    #[pyo3(name = "decode")]
+    #[pyo3(name = "decode", signature = (data, upgrade_policy = VersionUpgradePolicy::default()))]
     #[classmethod]
     fn py_decode(
         _cls: &Bound<PyType>,
         data: &Bound<PyBytes>,
-        upgrade_policy: Option<VersionUpgradePolicy>,
+        upgrade_policy: VersionUpgradePolicy,
     ) -> PyResult<Metadata> {
-        let upgrade_policy = upgrade_policy.unwrap_or_default();
         let reader = io::BufReader::new(data.as_bytes());
         let mut metadata = DynDecoder::inferred_with_buffer(reader, upgrade_policy)?
             .metadata()
@@ -121,8 +135,8 @@ impl ToPyObject for SymbolMapping {
     }
 }
 
-impl<'source> FromPyObject<'source> for MappingInterval {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+impl<'py> FromPyObject<'py> for MappingInterval {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         let start_date = ob
             .getattr(intern!(ob.py(), "start_date"))
             .map_err(|_| to_py_err("Missing start_date".to_owned()))
@@ -179,7 +193,7 @@ impl IntoPy<PyObject> for MappingInterval {
     }
 }
 
-fn extract_date(any: &PyAny) -> PyResult<time::Date> {
+fn extract_date(any: Bound<'_, PyAny>) -> PyResult<time::Date> {
     let py_date = any.downcast::<PyDate>().map_err(PyErr::from)?;
     py_to_time_date(py_date)
 }

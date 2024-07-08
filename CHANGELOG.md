@@ -4,12 +4,16 @@
 
 ### Enhancements
 - Added `BboMsg` record struct for future `bbo-1m` and `bbo-1s` schemas
+- Upgraded `pyo3` version to 0.22.1
+- Upgraded `json-writer` to 0.4
 
 ### Breaking changes
 - Added `Default` trait implementation for `Mbp1Msg` due to it no longer needing
   to support multiple `rtype` values. The `default_for_schema` function has been removed
 - Changed `Bbo1sMsg` and `Bbo1mMsg` to be aliases for `BboMsg`
 - Changed the default value of the `side` fields to `Side::None`
+- Reordered parameters and added defaults to Python `Metadata` initializer to match
+  required arguments in Rust
 
 ## 0.18.3 - 2024-07-02
 

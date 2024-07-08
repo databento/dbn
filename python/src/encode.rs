@@ -8,6 +8,7 @@ use pyo3::{exceptions::PyTypeError, intern, prelude::*, types::PyBytes};
 
 /// Updates existing fields that have already been written to the given file.
 #[pyfunction]
+#[pyo3(signature = (file, start, end = None, limit = None))]
 pub fn update_encoded_metadata(
     _py: Python<'_>,
     mut file: PyFileLike,
@@ -32,8 +33,8 @@ pub struct PyFileLike {
     inner: PyObject,
 }
 
-impl<'source> FromPyObject<'source> for PyFileLike {
-    fn extract(any: &'source PyAny) -> PyResult<Self> {
+impl<'py> FromPyObject<'py> for PyFileLike {
+    fn extract_bound(any: &Bound<'py, pyo3::PyAny>) -> PyResult<Self> {
         Python::with_gil(|py| {
             let obj: PyObject = any.extract()?;
             if obj.getattr(py, intern!(py, "read")).is_err() {

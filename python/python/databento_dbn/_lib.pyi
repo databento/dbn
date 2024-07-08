@@ -781,13 +781,13 @@ class Metadata(SupportsBytes):
         self,
         dataset: str,
         start: int,
+        stype_in: SType | None,
         stype_out: SType,
-        symbols: list[str],
-        partial: list[str],
-        not_found: list[str],
-        mappings: Sequence[SymbolMapping],
-        schema: Schema | None = None,
-        stype_in: SType | None = None,
+        schema: Schema | None,
+        symbols: list[str] | None = None,
+        partial: list[str] | None = None,
+        not_found: list[str] | None = None,
+        mappings: Sequence[SymbolMapping] | None = None,
         end: int | None = None,
         limit: int | None = None,
         ts_out: bool | None = None,
@@ -954,8 +954,8 @@ class Metadata(SupportsBytes):
         ----------
         data : bytes
             The bytes to decode from.
-        upgrade_policy : VersionUpgradePolicy
-            How to decode data from prior DBN versions. Defaults to decoding as-is.
+        upgrade_policy : VersionUpgradePolicy, default UPGRADE
+            How to decode data from prior DBN versions. Defaults to upgrade decoding.
 
         Returns
         -------
@@ -4750,8 +4750,8 @@ class DBNDecoder:
     input_version : int, default current DBN version
         Specify the DBN version of the input. Only used when transcoding data without
         metadata.
-    upgrade_policy : VersionUpgradePolicy
-        How to decode data from prior DBN versions. Defaults to decoding as-is.
+    upgrade_policy : VersionUpgradePolicy, default UPGRADE
+        How to decode data from prior DBN versions. Defaults to upgrade decoding.
     """
 
     def __init__(
@@ -4829,10 +4829,10 @@ class Transcoder:
     pretty_ts : bool, default True
         Whether to serialize nanosecond UNIX timestamps as ISO8601 datetime strings.
         Only applicable to CSV and JSON.
-    map_symbols : bool, default True
+    map_symbols : bool, default None
         If symbology mappings from the metadata should be used to create
         a 'symbol' field, mapping the instrument ID to its requested symbol for
-        every record.
+        every record. Defaults to True for text encodings and False for DBN.
     has_metadata : bool, default True
         Whether the input bytes begin with DBN metadata. Pass False to transcode
         individual records or a fragment of a DBN stream.
@@ -4848,8 +4848,8 @@ class Transcoder:
     input_version : int, default current DBN version
         Specify the DBN version of the input. Only used when transcoding data without
         metadata.
-    upgrade_policy : VersionUpgradePolicy
-        How to decode data from prior DBN versions. Defaults to decoding as-is.
+    upgrade_policy : VersionUpgradePolicy, default UPGRADE
+        How to decode data from prior DBN versions. Defaults to upgrade decoding.
     """
 
     def __init__(
@@ -4859,7 +4859,7 @@ class Transcoder:
         compression: Compression,
         pretty_px: bool = True,
         pretty_ts: bool = True,
-        map_symbols: bool = True,
+        map_symbols: bool | None = None,
         has_metadata: bool = True,
         ts_out: bool = False,
         symbol_interval_map: dict[int, list[tuple[dt.date, dt.date, str]]] | None = None,

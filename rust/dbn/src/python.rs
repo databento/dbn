@@ -83,7 +83,7 @@ impl IntoPy<PyObject> for FlagSet {
 ///
 /// # Errors
 /// This function returns an error if input has an invalid month.
-pub fn py_to_time_date(py_date: &PyDate) -> PyResult<time::Date> {
+pub fn py_to_time_date(py_date: &Bound<'_, PyDate>) -> PyResult<time::Date> {
     let month =
         time::Month::try_from(py_date.get_month()).map_err(|e| DBNError::new_err(e.to_string()))?;
     time::Date::from_calendar_date(py_date.get_year(), month, py_date.get_day())
