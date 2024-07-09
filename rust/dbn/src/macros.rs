@@ -17,7 +17,7 @@ macro_rules! rtype_dispatch_base {
         match $rec_ref.rtype() {
             Ok(rtype) => Ok(match rtype {
                 RType::Mbp0 => $handler!(TradeMsg),
-                RType::Mbp1 | RType::Bbo1S | RType::Bbo1M => $handler!(Mbp1Msg),
+                RType::Mbp1 => $handler!(Mbp1Msg),
                 RType::Mbp10 => $handler!(Mbp10Msg),
                 #[allow(deprecated)]
                 RType::OhlcvDeprecated
@@ -61,6 +61,7 @@ macro_rules! rtype_dispatch_base {
                 RType::Statistics => $handler!(StatMsg),
                 RType::Mbo => $handler!(MboMsg),
                 RType::Cbbo | RType::Cbbo1S | RType::Cbbo1M | RType::Tcbbo => $handler!(CbboMsg),
+                RType::Bbo1S | RType::Bbo1M => $handler!(BboMsg),
             }),
             Err(e) => Err(e),
         }
