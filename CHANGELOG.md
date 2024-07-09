@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.19.0 - TBD
+## 0.19.0 - 2024-07-09
 
 ### Enhancements
 - Added `BboMsg` record struct for future `bbo-1m` and `bbo-1s` schemas
