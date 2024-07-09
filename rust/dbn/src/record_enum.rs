@@ -1,7 +1,7 @@
 use crate::{
-    record::CbboMsg, Error, ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg,
-    OhlcvMsg, RType, Record, RecordMut, RecordRef, StatMsg, StatusMsg, SymbolMappingMsg, SystemMsg,
-    TradeMsg,
+    record::CbboMsg, BboMsg, Error, ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg,
+    Mbp1Msg, OhlcvMsg, RType, Record, RecordMut, RecordRef, StatMsg, StatusMsg, SymbolMappingMsg,
+    SystemMsg, TradeMsg,
 };
 
 /// An owned DBN record type of flexible type. Unlike [`RecordRef`], this type allows
@@ -36,6 +36,8 @@ pub enum RecordEnum {
     System(SystemMsg),
     /// A consolidated best bid and offer message.
     Cbbo(CbboMsg),
+    /// A subsampled market-by-price message with a book depth of 1.
+    Bbo(BboMsg),
 }
 
 /// An immutable reference to a DBN record of flexible type. Unlike [`RecordRef`], this
@@ -72,6 +74,8 @@ pub enum RecordRefEnum<'a> {
     System(&'a SystemMsg),
     /// A reference to a consolidated best bid and offer message.
     Cbbo(&'a CbboMsg),
+    /// A subsampled market-by-price message with a book depth of 1.
+    Bbo(&'a BboMsg),
 }
 
 impl<'a> From<&'a RecordEnum> for RecordRefEnum<'a> {
@@ -90,6 +94,7 @@ impl<'a> From<&'a RecordEnum> for RecordRefEnum<'a> {
             RecordEnum::SymbolMapping(rec) => Self::SymbolMapping(rec),
             RecordEnum::System(rec) => Self::System(rec),
             RecordEnum::Cbbo(rec) => Self::Cbbo(rec),
+            RecordEnum::Bbo(rec) => Self::Bbo(rec),
         }
     }
 }
@@ -112,6 +117,7 @@ impl<'a> RecordRefEnum<'a> {
             Self::SymbolMapping(rec) => RecordEnum::from((*rec).clone()),
             Self::System(rec) => RecordEnum::from((*rec).clone()),
             Self::Cbbo(rec) => RecordEnum::from((*rec).clone()),
+            Self::Bbo(rec) => RecordEnum::Bbo((*rec).clone()),
         }
     }
 }
@@ -313,6 +319,7 @@ impl Record for RecordEnum {
             RecordEnum::SymbolMapping(rec) => rec.header(),
             RecordEnum::System(rec) => rec.header(),
             RecordEnum::Cbbo(rec) => rec.header(),
+            RecordEnum::Bbo(rec) => rec.header(),
         }
     }
 
@@ -331,6 +338,7 @@ impl Record for RecordEnum {
             RecordEnum::SymbolMapping(rec) => rec.raw_index_ts(),
             RecordEnum::System(rec) => rec.raw_index_ts(),
             RecordEnum::Cbbo(rec) => rec.raw_index_ts(),
+            RecordEnum::Bbo(rec) => rec.raw_index_ts(),
         }
     }
 }
@@ -351,6 +359,7 @@ impl RecordMut for RecordEnum {
             RecordEnum::SymbolMapping(rec) => rec.header_mut(),
             RecordEnum::System(rec) => rec.header_mut(),
             RecordEnum::Cbbo(rec) => rec.header_mut(),
+            RecordEnum::Bbo(rec) => rec.header_mut(),
         }
     }
 }
@@ -371,6 +380,7 @@ impl<'a> Record for RecordRefEnum<'a> {
             RecordRefEnum::SymbolMapping(rec) => rec.header(),
             RecordRefEnum::System(rec) => rec.header(),
             RecordRefEnum::Cbbo(rec) => rec.header(),
+            RecordRefEnum::Bbo(rec) => rec.header(),
         }
     }
 
@@ -389,6 +399,7 @@ impl<'a> Record for RecordRefEnum<'a> {
             RecordRefEnum::SymbolMapping(rec) => rec.raw_index_ts(),
             RecordRefEnum::System(rec) => rec.raw_index_ts(),
             RecordRefEnum::Cbbo(rec) => rec.raw_index_ts(),
+            RecordRefEnum::Bbo(rec) => rec.raw_index_ts(),
         }
     }
 }

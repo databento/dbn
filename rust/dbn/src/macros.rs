@@ -76,7 +76,8 @@ macro_rules! schema_dispatch_base {
         use $crate::record::*;
         match $schema {
             Schema::Mbo => $handler!(MboMsg),
-            Schema::Mbp1 | Schema::Tbbo | Schema::Bbo1S | Schema::Bbo1M => $handler!(Mbp1Msg),
+            Schema::Mbp1 | Schema::Tbbo => $handler!(Mbp1Msg),
+            Schema::Bbo1S | Schema::Bbo1M => $handler!(BboMsg),
             Schema::Mbp10 => $handler!(Mbp10Msg),
             Schema::Trades => $handler!(TradeMsg),
             Schema::Ohlcv1D
