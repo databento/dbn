@@ -13,13 +13,13 @@ proc-macro = true
 [dependencies]
 # Get name of current crate in macros, like $crate in macro_rules macros
 proc-macro-crate = "3.1.0"
-proc-macro2 = "1.0.85"
+proc-macro2 = "1.0.86"
 # Convert code to token streams
 quote = "1.0.36"
 # Token parsing
-syn = { version = "2.0.66", features = ["full"] }
+syn = { version = "2.0.69", features = ["full"] }
 
 [dev-dependencies]
 csv = { workspace = true }
 dbn = { path = "../dbn" }
-trybuild = "1.0.96"
+trybuild = "1.0.97"

@@ -40,8 +40,7 @@ impl From<Side> for char {
     }
 }
 
-/// A [tick action](https://databento.com/docs/standards-and-conventions/common-fields-enums-types)
-/// used to indicate order life cycle.
+/// An [order event or order book operation](https://app0.databento.com/docs/api-reference-historical/basics/schemas-and-conventions).
 ///
 /// For example usage see:
 /// - [Order actions](https://databento.com/docs/examples/order-book/order-actions)

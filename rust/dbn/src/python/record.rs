@@ -10,7 +10,7 @@ use pyo3::{
 use crate::{
     compat::{ErrorMsgV1, InstrumentDefMsgV1, SymbolMappingMsgV1, SystemMsgV1},
     record::{str_to_c_chars, CbboMsg, ConsolidatedBidAskPair},
-    rtype, BidAskPair, ErrorMsg, FlagSet, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg,
+    rtype, BboMsg, BidAskPair, ErrorMsg, FlagSet, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg,
     Mbp10Msg, Mbp1Msg, OhlcvMsg, Publisher, Record, RecordHeader, SType, SecurityUpdateAction,
     StatMsg, StatUpdateAction, StatusAction, StatusMsg, StatusReason, SymbolMappingMsg, SystemMsg,
     TradeMsg, TradingEvent, TriState, UserDefinedInstrument, WithTsOut, FIXED_PRICE_SCALE,
@@ -22,6 +22,21 @@ use super::{to_py_err, PyFieldDesc};
 #[pymethods]
 impl MboMsg {
     #[new]
+    #[pyo3(signature = (
+        publisher_id,
+        instrument_id,
+        ts_event,
+        order_id,
+        price,
+        size,
+        channel_id,
+        action,
+        side,
+        ts_recv,
+        ts_in_delta,
+        sequence,
+        flags = None,
+    ))]
     fn py_new(
         publisher_id: u16,
         instrument_id: u32,
@@ -113,7 +128,7 @@ impl MboMsg {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<MboMsg>())
+        Ok(mem::size_of::<Self>())
     }
 
     #[getter]
@@ -162,21 +177,29 @@ impl MboMsg {
 #[pymethods]
 impl BidAskPair {
     #[new]
+    #[pyo3(signature = (
+        bid_px = UNDEF_PRICE,
+        ask_px = UNDEF_PRICE,
+        bid_sz = 0,
+        ask_sz = 0,
+        bid_ct = 0,
+        ask_ct = 0,
+    ))]
     fn py_new(
-        bid_px: Option<i64>,
-        ask_px: Option<i64>,
-        bid_sz: Option<u32>,
-        ask_sz: Option<u32>,
-        bid_ct: Option<u32>,
-        ask_ct: Option<u32>,
+        bid_px: i64,
+        ask_px: i64,
+        bid_sz: u32,
+        ask_sz: u32,
+        bid_ct: u32,
+        ask_ct: u32,
     ) -> Self {
         Self {
-            bid_px: bid_px.unwrap_or(UNDEF_PRICE),
-            ask_px: ask_px.unwrap_or(UNDEF_PRICE),
-            bid_sz: bid_sz.unwrap_or_default(),
-            ask_sz: ask_sz.unwrap_or_default(),
-            bid_ct: bid_ct.unwrap_or_default(),
-            ask_ct: ask_ct.unwrap_or_default(),
+            bid_px,
+            ask_px,
+            bid_sz,
+            ask_sz,
+            bid_ct,
+            ask_ct,
         }
     }
 
@@ -212,8 +235,168 @@ impl BidAskPair {
 }
 
 #[pymethods]
+impl BboMsg {
+    #[new]
+    #[pyo3(signature = (
+        rtype,
+        publisher_id,
+        instrument_id,
+        ts_event,
+        price,
+        size,
+        side,
+        ts_recv,
+        sequence,
+        flags = None,
+        levels = None,
+    ))]
+    fn py_new(
+        rtype: u8,
+        publisher_id: u16,
+        instrument_id: u32,
+        ts_event: u64,
+        price: i64,
+        size: u32,
+        side: c_char,
+        ts_recv: u64,
+        sequence: u32,
+        flags: Option<FlagSet>,
+        levels: Option<BidAskPair>,
+    ) -> Self {
+        Self {
+            hd: RecordHeader::new::<Self>(rtype, publisher_id, instrument_id, ts_event),
+            price,
+            size,
+            side,
+            flags: flags.unwrap_or_default(),
+            ts_recv,
+            sequence,
+            levels: [levels.unwrap_or_default()],
+            _reserved1: Default::default(),
+            _reserved2: Default::default(),
+            _reserved3: Default::default(),
+        }
+    }
+
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
+
+    #[getter]
+    fn rtype(&self) -> u8 {
+        self.hd.rtype
+    }
+
+    #[getter]
+    fn publisher_id(&self) -> u16 {
+        self.hd.publisher_id
+    }
+
+    #[getter]
+    fn instrument_id(&self) -> u32 {
+        self.hd.instrument_id
+    }
+
+    #[getter]
+    fn ts_event(&self) -> u64 {
+        self.hd.ts_event
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_price")]
+    fn py_pretty_price(&self) -> f64 {
+        self.price as f64 / FIXED_PRICE_SCALE as f64
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_event")]
+    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_event())
+    }
+
+    #[getter]
+    #[pyo3(name = "pretty_ts_recv")]
+    fn py_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_recv)
+    }
+
+    #[pyo3(name = "record_size")]
+    fn py_record_size(&self) -> usize {
+        self.record_size()
+    }
+
+    #[classattr]
+    fn size_hint() -> PyResult<usize> {
+        Ok(mem::size_of::<Self>())
+    }
+
+    #[getter]
+    #[pyo3(name = "side")]
+    fn py_side(&self) -> char {
+        self.side as u8 as char
+    }
+
+    #[classattr]
+    #[pyo3(name = "_dtypes")]
+    fn py_dtypes() -> Vec<(String, String)> {
+        Self::field_dtypes("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_price_fields")]
+    fn py_price_fields() -> Vec<String> {
+        Self::price_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_timestamp_fields")]
+    fn py_timestamp_fields() -> Vec<String> {
+        Self::timestamp_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_hidden_fields")]
+    fn py_hidden_fields() -> Vec<String> {
+        Self::hidden_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_ordered_fields")]
+    fn py_ordered_fields() -> Vec<String> {
+        Self::ordered_fields("")
+    }
+}
+
+#[pymethods]
 impl CbboMsg {
     #[new]
+    #[pyo3(signature= (
+        rtype,
+        publisher_id,
+        instrument_id,
+        ts_event,
+        price,
+        size,
+        action,
+        side,
+        ts_recv,
+        ts_in_delta,
+        sequence,
+        flags = None,
+        levels = None,
+    ))]
     fn py_new(
         rtype: u8,
         publisher_id: u16,
@@ -305,7 +488,7 @@ impl CbboMsg {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<CbboMsg>())
+        Ok(mem::size_of::<Self>())
     }
 
     #[getter]
@@ -354,23 +537,31 @@ impl CbboMsg {
 #[pymethods]
 impl ConsolidatedBidAskPair {
     #[new]
+    #[pyo3(signature = (
+        bid_px = UNDEF_PRICE,
+        ask_px = UNDEF_PRICE,
+        bid_sz = 0,
+        ask_sz = 0,
+        bid_pb = 0,
+        ask_pb = 0,
+    ))]
     fn py_new(
-        bid_px: Option<i64>,
-        ask_px: Option<i64>,
-        bid_sz: Option<u32>,
-        ask_sz: Option<u32>,
-        bid_pb: Option<u16>,
-        ask_pb: Option<u16>,
+        bid_px: i64,
+        ask_px: i64,
+        bid_sz: u32,
+        ask_sz: u32,
+        bid_pb: u16,
+        ask_pb: u16,
     ) -> Self {
         Self {
-            bid_px: bid_px.unwrap_or(UNDEF_PRICE),
-            ask_px: ask_px.unwrap_or(UNDEF_PRICE),
-            bid_sz: bid_sz.unwrap_or_default(),
-            ask_sz: ask_sz.unwrap_or_default(),
-            bid_pb: bid_pb.unwrap_or_default(),
-            ask_pb: ask_pb.unwrap_or_default(),
-            _reserved1: [0; 2],
-            _reserved2: [0; 2],
+            bid_px,
+            ask_px,
+            bid_sz,
+            ask_sz,
+            bid_pb,
+            ask_pb,
+            _reserved1: Default::default(),
+            _reserved2: Default::default(),
         }
     }
 
@@ -424,6 +615,20 @@ impl ConsolidatedBidAskPair {
 #[pymethods]
 impl TradeMsg {
     #[new]
+    #[pyo3(signature= (
+        publisher_id,
+        instrument_id,
+        ts_event,
+        price,
+        size,
+        action,
+        side,
+        depth,
+        ts_recv,
+        ts_in_delta,
+        sequence,
+        flags = None,
+    ))]
     fn py_new(
         publisher_id: u16,
         instrument_id: u32,
@@ -513,7 +718,7 @@ impl TradeMsg {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<TradeMsg>())
+        Ok(mem::size_of::<Self>())
     }
 
     #[getter]
@@ -562,6 +767,21 @@ impl TradeMsg {
 #[pymethods]
 impl Mbp1Msg {
     #[new]
+    #[pyo3(signature = (
+        publisher_id,
+        instrument_id,
+        ts_event,
+        price,
+        size,
+        action,
+        side,
+        depth,
+        ts_recv,
+        ts_in_delta,
+        sequence,
+        flags = None,
+        levels = None,
+    ))]
     fn py_new(
         publisher_id: u16,
         instrument_id: u32,
@@ -653,7 +873,7 @@ impl Mbp1Msg {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<Mbp1Msg>())
+        Ok(mem::size_of::<Self>())
     }
 
     #[getter]
@@ -702,6 +922,21 @@ impl Mbp1Msg {
 #[pymethods]
 impl Mbp10Msg {
     #[new]
+    #[pyo3(signature = (
+        publisher_id,
+        instrument_id,
+        ts_event,
+        price,
+        size,
+        action,
+        side,
+        depth,
+        ts_recv,
+        ts_in_delta,
+        sequence,
+        flags = None,
+        levels = None,
+    ))]
     fn py_new(
         publisher_id: u16,
         instrument_id: u32,
@@ -805,7 +1040,7 @@ impl Mbp10Msg {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<Mbp10Msg>())
+        Ok(mem::size_of::<Self>())
     }
 
     #[getter]
@@ -948,7 +1183,7 @@ impl OhlcvMsg {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<OhlcvMsg>())
+        Ok(mem::size_of::<Self>())
     }
 
     #[classattr]
@@ -985,6 +1220,18 @@ impl OhlcvMsg {
 #[pymethods]
 impl StatusMsg {
     #[new]
+    #[pyo3(signature = (
+        publisher_id,
+        instrument_id,
+        ts_event,
+        ts_recv,
+        action = None,
+        reason = None,
+        trading_event = None,
+        is_trading = None,
+        is_quoting = None,
+        is_short_sell_restricted = None,
+    ))]
     fn py_new(
         publisher_id: u16,
         instrument_id: u32,
@@ -1083,7 +1330,7 @@ impl StatusMsg {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<StatMsg>())
+        Ok(mem::size_of::<Self>())
     }
 
     #[classattr]
@@ -1120,6 +1367,71 @@ impl StatusMsg {
 #[pymethods]
 impl InstrumentDefMsg {
     #[new]
+    #[pyo3(signature = (
+        publisher_id,
+        instrument_id,
+        ts_event,
+        ts_recv,
+        min_price_increment,
+        display_factor,
+        min_lot_size_round_lot,
+        raw_symbol,
+        group,
+        exchange,
+        instrument_class,
+        match_algorithm,
+        md_security_trading_status,
+        security_update_action,
+        expiration = UNDEF_TIMESTAMP,
+        activation = UNDEF_TIMESTAMP,
+        high_limit_price = UNDEF_PRICE,
+        low_limit_price = UNDEF_PRICE,
+        max_price_variation = UNDEF_PRICE,
+        trading_reference_price = UNDEF_PRICE,
+        unit_of_measure_qty = UNDEF_PRICE,
+        min_price_increment_amount = UNDEF_PRICE,
+        price_ratio = UNDEF_PRICE,
+        inst_attrib_value = None,
+        underlying_id = None,
+        raw_instrument_id = None,
+        market_depth_implied = None,
+        market_depth = None,
+        market_segment_id = None,
+        max_trade_vol = None,
+        min_lot_size = None,
+        min_lot_size_block = None,
+        min_trade_vol = None,
+        contract_multiplier = None,
+        decay_quantity = None,
+        original_contract_size = None,
+        trading_reference_date = None,
+        appl_id = None,
+        maturity_year = None,
+        decay_start_date = None,
+        channel_id = None,
+        currency = "",
+        settl_currency = "",
+        secsubtype = "",
+        asset = "",
+        cfi = "",
+        security_type = "",
+        unit_of_measure = "",
+        underlying = "",
+        strike_price_currency = "",
+        strike_price = UNDEF_PRICE,
+        main_fraction = None,
+        price_display_format = None,
+        settl_price_type = None,
+        sub_fraction = None,
+        underlying_product = None,
+        maturity_month = None,
+        maturity_day = None,
+        maturity_week = None,
+        user_defined_instrument = None,
+        contract_multiplier_unit = None,
+        flow_schedule_type = None,
+        tick_rule = None,
+    ))]
     fn py_new(
         publisher_id: u16,
         instrument_id: u32,
@@ -1135,15 +1447,15 @@ impl InstrumentDefMsg {
         match_algorithm: c_char,
         md_security_trading_status: u8,
         security_update_action: SecurityUpdateAction,
-        expiration: Option<u64>,
-        activation: Option<u64>,
-        high_limit_price: Option<i64>,
-        low_limit_price: Option<i64>,
-        max_price_variation: Option<i64>,
-        trading_reference_price: Option<i64>,
-        unit_of_measure_qty: Option<i64>,
-        min_price_increment_amount: Option<i64>,
-        price_ratio: Option<i64>,
+        expiration: u64,
+        activation: u64,
+        high_limit_price: i64,
+        low_limit_price: i64,
+        max_price_variation: i64,
+        trading_reference_price: i64,
+        unit_of_measure_qty: i64,
+        min_price_increment_amount: i64,
+        price_ratio: i64,
         inst_attrib_value: Option<i32>,
         underlying_id: Option<u32>,
         raw_instrument_id: Option<u32>,
@@ -1162,16 +1474,16 @@ impl InstrumentDefMsg {
         maturity_year: Option<u16>,
         decay_start_date: Option<u16>,
         channel_id: Option<u16>,
-        currency: Option<&str>,
-        settl_currency: Option<&str>,
-        secsubtype: Option<&str>,
-        asset: Option<&str>,
-        cfi: Option<&str>,
-        security_type: Option<&str>,
-        unit_of_measure: Option<&str>,
-        underlying: Option<&str>,
-        strike_price_currency: Option<&str>,
-        strike_price: Option<i64>,
+        currency: &str,
+        settl_currency: &str,
+        secsubtype: &str,
+        asset: &str,
+        cfi: &str,
+        security_type: &str,
+        unit_of_measure: &str,
+        underlying: &str,
+        strike_price_currency: &str,
+        strike_price: i64,
         main_fraction: Option<u8>,
         price_display_format: Option<u8>,
         settl_price_type: Option<u8>,
@@ -1195,15 +1507,15 @@ impl InstrumentDefMsg {
             ts_recv,
             min_price_increment,
             display_factor,
-            expiration: expiration.unwrap_or(UNDEF_TIMESTAMP),
-            activation: activation.unwrap_or(UNDEF_TIMESTAMP),
-            high_limit_price: high_limit_price.unwrap_or(UNDEF_PRICE),
-            low_limit_price: low_limit_price.unwrap_or(UNDEF_PRICE),
-            max_price_variation: max_price_variation.unwrap_or(UNDEF_PRICE),
-            trading_reference_price: trading_reference_price.unwrap_or(UNDEF_PRICE),
-            unit_of_measure_qty: unit_of_measure_qty.unwrap_or(i64::MAX),
-            min_price_increment_amount: min_price_increment_amount.unwrap_or(UNDEF_PRICE),
-            price_ratio: price_ratio.unwrap_or(UNDEF_PRICE),
+            expiration,
+            activation,
+            high_limit_price,
+            low_limit_price,
+            max_price_variation,
+            trading_reference_price,
+            unit_of_measure_qty,
+            min_price_increment_amount,
+            price_ratio,
             inst_attrib_value: inst_attrib_value.unwrap_or(i32::MAX),
             underlying_id: underlying_id.unwrap_or_default(),
             raw_instrument_id: raw_instrument_id.unwrap_or(instrument_id),
@@ -1223,20 +1535,20 @@ impl InstrumentDefMsg {
             maturity_year: maturity_year.unwrap_or(u16::MAX),
             decay_start_date: decay_start_date.unwrap_or(u16::MAX),
             channel_id: channel_id.unwrap_or(u16::MAX),
-            currency: str_to_c_chars(currency.unwrap_or_default())?,
-            settl_currency: str_to_c_chars(settl_currency.unwrap_or_default())?,
-            secsubtype: str_to_c_chars(secsubtype.unwrap_or_default())?,
+            currency: str_to_c_chars(currency)?,
+            settl_currency: str_to_c_chars(settl_currency)?,
+            secsubtype: str_to_c_chars(secsubtype)?,
             raw_symbol: str_to_c_chars(raw_symbol)?,
             group: str_to_c_chars(group)?,
             exchange: str_to_c_chars(exchange)?,
-            asset: str_to_c_chars(asset.unwrap_or_default())?,
-            cfi: str_to_c_chars(cfi.unwrap_or_default())?,
-            security_type: str_to_c_chars(security_type.unwrap_or_default())?,
-            unit_of_measure: str_to_c_chars(unit_of_measure.unwrap_or_default())?,
-            underlying: str_to_c_chars(underlying.unwrap_or_default())?,
-            strike_price_currency: str_to_c_chars(strike_price_currency.unwrap_or_default())?,
+            asset: str_to_c_chars(asset)?,
+            cfi: str_to_c_chars(cfi)?,
+            security_type: str_to_c_chars(security_type)?,
+            unit_of_measure: str_to_c_chars(unit_of_measure)?,
+            underlying: str_to_c_chars(underlying)?,
+            strike_price_currency: str_to_c_chars(strike_price_currency)?,
             instrument_class,
-            strike_price: strike_price.unwrap_or(UNDEF_PRICE),
+            strike_price,
             match_algorithm,
             md_security_trading_status,
             main_fraction: main_fraction.unwrap_or(u8::MAX),
@@ -1392,7 +1704,7 @@ impl InstrumentDefMsg {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<InstrumentDefMsg>())
+        Ok(mem::size_of::<Self>())
     }
 
     #[getter]
@@ -1524,6 +1836,71 @@ impl InstrumentDefMsg {
 
 #[pymethods]
 impl InstrumentDefMsgV1 {
+    #[pyo3(signature = (
+        publisher_id,
+        instrument_id,
+        ts_event,
+        ts_recv,
+        min_price_increment,
+        display_factor,
+        min_lot_size_round_lot,
+        raw_symbol,
+        group,
+        exchange,
+        instrument_class,
+        match_algorithm,
+        md_security_trading_status,
+        security_update_action,
+        expiration = UNDEF_TIMESTAMP,
+        activation = UNDEF_TIMESTAMP,
+        high_limit_price = UNDEF_PRICE,
+        low_limit_price = UNDEF_PRICE,
+        max_price_variation = UNDEF_PRICE,
+        trading_reference_price = UNDEF_PRICE,
+        unit_of_measure_qty = UNDEF_PRICE,
+        min_price_increment_amount = UNDEF_PRICE,
+        price_ratio = UNDEF_PRICE,
+        inst_attrib_value = None,
+        underlying_id = None,
+        raw_instrument_id = None,
+        market_depth_implied = None,
+        market_depth = None,
+        market_segment_id = None,
+        max_trade_vol = None,
+        min_lot_size = None,
+        min_lot_size_block = None,
+        min_trade_vol = None,
+        contract_multiplier = None,
+        decay_quantity = None,
+        original_contract_size = None,
+        trading_reference_date = None,
+        appl_id = None,
+        maturity_year = None,
+        decay_start_date = None,
+        channel_id = None,
+        currency = "",
+        settl_currency = "",
+        secsubtype = "",
+        asset = "",
+        cfi = "",
+        security_type = "",
+        unit_of_measure = "",
+        underlying = "",
+        strike_price_currency = "",
+        strike_price = UNDEF_PRICE,
+        main_fraction = None,
+        price_display_format = None,
+        settl_price_type = None,
+        sub_fraction = None,
+        underlying_product = None,
+        maturity_month = None,
+        maturity_day = None,
+        maturity_week = None,
+        user_defined_instrument = None,
+        contract_multiplier_unit = None,
+        flow_schedule_type = None,
+        tick_rule = None,
+   ))]
     #[new]
     fn py_new(
         publisher_id: u16,
@@ -1540,15 +1917,15 @@ impl InstrumentDefMsgV1 {
         match_algorithm: c_char,
         md_security_trading_status: u8,
         security_update_action: SecurityUpdateAction,
-        expiration: Option<u64>,
-        activation: Option<u64>,
-        high_limit_price: Option<i64>,
-        low_limit_price: Option<i64>,
-        max_price_variation: Option<i64>,
-        trading_reference_price: Option<i64>,
-        unit_of_measure_qty: Option<i64>,
-        min_price_increment_amount: Option<i64>,
-        price_ratio: Option<i64>,
+        expiration: u64,
+        activation: u64,
+        high_limit_price: i64,
+        low_limit_price: i64,
+        max_price_variation: i64,
+        trading_reference_price: i64,
+        unit_of_measure_qty: i64,
+        min_price_increment_amount: i64,
+        price_ratio: i64,
         inst_attrib_value: Option<i32>,
         underlying_id: Option<u32>,
         raw_instrument_id: Option<u32>,
@@ -1567,16 +1944,16 @@ impl InstrumentDefMsgV1 {
         maturity_year: Option<u16>,
         decay_start_date: Option<u16>,
         channel_id: Option<u16>,
-        currency: Option<&str>,
-        settl_currency: Option<&str>,
-        secsubtype: Option<&str>,
-        asset: Option<&str>,
-        cfi: Option<&str>,
-        security_type: Option<&str>,
-        unit_of_measure: Option<&str>,
-        underlying: Option<&str>,
-        strike_price_currency: Option<&str>,
-        strike_price: Option<i64>,
+        currency: &str,
+        settl_currency: &str,
+        secsubtype: &str,
+        asset: &str,
+        cfi: &str,
+        security_type: &str,
+        unit_of_measure: &str,
+        underlying: &str,
+        strike_price_currency: &str,
+        strike_price: i64,
         main_fraction: Option<u8>,
         price_display_format: Option<u8>,
         settl_price_type: Option<u8>,
@@ -1600,15 +1977,15 @@ impl InstrumentDefMsgV1 {
             ts_recv,
             min_price_increment,
             display_factor,
-            expiration: expiration.unwrap_or(UNDEF_TIMESTAMP),
-            activation: activation.unwrap_or(UNDEF_TIMESTAMP),
-            high_limit_price: high_limit_price.unwrap_or(UNDEF_PRICE),
-            low_limit_price: low_limit_price.unwrap_or(UNDEF_PRICE),
-            max_price_variation: max_price_variation.unwrap_or(UNDEF_PRICE),
-            trading_reference_price: trading_reference_price.unwrap_or(UNDEF_PRICE),
-            unit_of_measure_qty: unit_of_measure_qty.unwrap_or(i64::MAX),
-            min_price_increment_amount: min_price_increment_amount.unwrap_or(UNDEF_PRICE),
-            price_ratio: price_ratio.unwrap_or(UNDEF_PRICE),
+            expiration,
+            activation,
+            high_limit_price,
+            low_limit_price,
+            max_price_variation,
+            trading_reference_price,
+            unit_of_measure_qty,
+            min_price_increment_amount,
+            price_ratio,
             inst_attrib_value: inst_attrib_value.unwrap_or(i32::MAX),
             underlying_id: underlying_id.unwrap_or_default(),
             raw_instrument_id: raw_instrument_id.unwrap_or(instrument_id),
@@ -1628,20 +2005,20 @@ impl InstrumentDefMsgV1 {
             maturity_year: maturity_year.unwrap_or(u16::MAX),
             decay_start_date: decay_start_date.unwrap_or(u16::MAX),
             channel_id: channel_id.unwrap_or(u16::MAX),
-            currency: str_to_c_chars(currency.unwrap_or_default())?,
-            settl_currency: str_to_c_chars(settl_currency.unwrap_or_default())?,
-            secsubtype: str_to_c_chars(secsubtype.unwrap_or_default())?,
+            currency: str_to_c_chars(currency)?,
+            settl_currency: str_to_c_chars(settl_currency)?,
+            secsubtype: str_to_c_chars(secsubtype)?,
             raw_symbol: str_to_c_chars(raw_symbol)?,
             group: str_to_c_chars(group)?,
             exchange: str_to_c_chars(exchange)?,
-            asset: str_to_c_chars(asset.unwrap_or_default())?,
-            cfi: str_to_c_chars(cfi.unwrap_or_default())?,
-            security_type: str_to_c_chars(security_type.unwrap_or_default())?,
-            unit_of_measure: str_to_c_chars(unit_of_measure.unwrap_or_default())?,
-            underlying: str_to_c_chars(underlying.unwrap_or_default())?,
-            strike_price_currency: str_to_c_chars(strike_price_currency.unwrap_or_default())?,
+            asset: str_to_c_chars(asset)?,
+            cfi: str_to_c_chars(cfi)?,
+            security_type: str_to_c_chars(security_type)?,
+            unit_of_measure: str_to_c_chars(unit_of_measure)?,
+            underlying: str_to_c_chars(underlying)?,
+            strike_price_currency: str_to_c_chars(strike_price_currency)?,
             instrument_class,
-            strike_price: strike_price.unwrap_or(UNDEF_PRICE),
+            strike_price,
             match_algorithm,
             md_security_trading_status,
             main_fraction: main_fraction.unwrap_or(u8::MAX),
@@ -1801,7 +2178,7 @@ impl InstrumentDefMsgV1 {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<InstrumentDefMsgV1>())
+        Ok(mem::size_of::<Self>())
     }
 
     #[getter]
@@ -2047,7 +2424,7 @@ impl ImbalanceMsg {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<ImbalanceMsg>())
+        Ok(mem::size_of::<Self>())
     }
 
     #[getter]
@@ -2108,6 +2485,21 @@ impl ImbalanceMsg {
 #[pymethods]
 impl StatMsg {
     #[new]
+    #[pyo3(signature= (
+        publisher_id,
+        instrument_id,
+        ts_event,
+        ts_recv,
+        ts_ref,
+        price,
+        quantity,
+        sequence,
+        ts_in_delta,
+        stat_type,
+        channel_id,
+        update_action = None,
+        stat_flags = 0,
+    ))]
     fn py_new(
         publisher_id: u16,
         instrument_id: u32,
@@ -2121,7 +2513,7 @@ impl StatMsg {
         stat_type: u16,
         channel_id: u16,
         update_action: Option<u8>,
-        stat_flags: Option<u8>,
+        stat_flags: u8,
     ) -> Self {
         Self {
             hd: RecordHeader::new::<Self>(rtype::STATISTICS, publisher_id, instrument_id, ts_event),
@@ -2134,7 +2526,7 @@ impl StatMsg {
             stat_type,
             channel_id,
             update_action: update_action.unwrap_or(StatUpdateAction::New as u8),
-            stat_flags: stat_flags.unwrap_or_default(),
+            stat_flags,
             _reserved: Default::default(),
         }
     }
@@ -2205,7 +2597,7 @@ impl StatMsg {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<StatMsg>())
+        Ok(mem::size_of::<Self>())
     }
 
     #[classattr]
@@ -2242,8 +2634,9 @@ impl StatMsg {
 #[pymethods]
 impl ErrorMsg {
     #[new]
-    fn py_new(ts_event: u64, err: &str, is_last: Option<bool>) -> PyResult<Self> {
-        Ok(ErrorMsg::new(ts_event, err, is_last.unwrap_or(true)))
+    #[pyo3(signature = (ts_event, err, is_last = true))]
+    fn py_new(ts_event: u64, err: &str, is_last: bool) -> PyResult<Self> {
+        Ok(ErrorMsg::new(ts_event, err, is_last))
     }
 
     fn __bytes__(&self) -> &[u8] {
@@ -2295,7 +2688,7 @@ impl ErrorMsg {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<ErrorMsg>())
+        Ok(mem::size_of::<Self>())
     }
 
     #[getter]
@@ -2391,7 +2784,7 @@ impl ErrorMsgV1 {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<ErrorMsg>())
+        Ok(mem::size_of::<Self>())
     }
 
     #[getter]
@@ -2522,7 +2915,7 @@ impl SymbolMappingMsg {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<SymbolMappingMsg>())
+        Ok(mem::size_of::<Self>())
     }
 
     #[getter]
@@ -2668,7 +3061,7 @@ impl SymbolMappingMsgV1 {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<SymbolMappingMsgV1>())
+        Ok(mem::size_of::<Self>())
     }
 
     #[getter]
@@ -2770,7 +3163,7 @@ impl SystemMsg {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<SystemMsg>())
+        Ok(mem::size_of::<Self>())
     }
 
     #[getter]
@@ -2871,7 +3264,7 @@ impl SystemMsgV1 {
 
     #[classattr]
     fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<SystemMsg>())
+        Ok(mem::size_of::<Self>())
     }
 
     #[getter]

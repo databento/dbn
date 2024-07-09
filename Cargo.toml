@@ -11,7 +11,7 @@ resolver = "2"
 [workspace.package]
 authors = ["Databento <support@databento.com>"]
 edition = "2021"
-version = "0.18.3"
+version = "0.19.0"
 documentation = "https://docs.databento.com"
 repository = "https://github.com/databento/dbn"
 license = "Apache-2.0"
@@ -19,8 +19,8 @@ license = "Apache-2.0"
 [workspace.dependencies]
 anyhow = "1.0.86"
 csv = "1.3"
-pyo3 = "0.21.2"
-pyo3-build-config = "0.21.2"
+pyo3 = "0.22.1"
+pyo3-build-config = "0.22.1"
 rstest = "0.21.0"
 serde = { version = "1.0", features = ["derive"] }
 time = ">=0.3.35"

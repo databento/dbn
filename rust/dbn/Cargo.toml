@@ -25,7 +25,7 @@ serde = ["dep:serde", "time/parsing", "time/serde"]
 trivial_copy = []
 
 [dependencies]
-dbn-macros = { version = "=0.18.3", path = "../dbn-macros" }
+dbn-macros = { version = "=0.19.0", path = "../dbn-macros" }
 
 async-compression = { version = "0.4.11", features = ["tokio", "zstd"], optional = true }
 csv = { workspace = true }
@@ -34,7 +34,7 @@ fallible-streaming-iterator = { version = "0.1.9", features = ["std"] }
 itoa = "1.0"
 num_enum = "0.7"
 pyo3 = { workspace = true, optional = true }
-json-writer = "0.3"
+json-writer = "0.4"
 serde = { workspace = true, features = ["derive"], optional = true }
 # extra enum traits for Python
 strum = { version = "0.26", features = ["derive"], optional = true }

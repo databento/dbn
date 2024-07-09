@@ -26,6 +26,7 @@ _DBNRecord = Union[
     Metadata,
     MBOMsg,
     MBP1Msg,
+    BBOMsg,
     CBBOMsg,
     MBP10Msg,
     OHLCVMsg,
@@ -780,13 +781,13 @@ class Metadata(SupportsBytes):
         self,
         dataset: str,
         start: int,
+        stype_in: SType | None,
         stype_out: SType,
-        symbols: list[str],
-        partial: list[str],
-        not_found: list[str],
-        mappings: Sequence[SymbolMapping],
-        schema: Schema | None = None,
-        stype_in: SType | None = None,
+        schema: Schema | None,
+        symbols: list[str] | None = None,
+        partial: list[str] | None = None,
+        not_found: list[str] | None = None,
+        mappings: Sequence[SymbolMapping] | None = None,
         end: int | None = None,
         limit: int | None = None,
         ts_out: bool | None = None,
@@ -953,8 +954,8 @@ class Metadata(SupportsBytes):
         ----------
         data : bytes
             The bytes to decode from.
-        upgrade_policy : VersionUpgradePolicy
-            How to decode data from prior DBN versions. Defaults to decoding as-is.
+        upgrade_policy : VersionUpgradePolicy, default UPGRADE
+            How to decode data from prior DBN versions. Defaults to upgrade decoding.
 
         Returns
         -------
@@ -1721,6 +1722,127 @@ class MBP1Msg(Record, _MBPBase):
 
         """
 
+class BBOMsg(Record):
+    """
+    Subsampled market by price with a known book depth of 1.
+    """
+
+    @property
+    def pretty_price(self) -> float:
+        """
+        The price of the last trade as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        price
+
+        """
+
+    @property
+    def price(self) -> int:
+        """
+        The price of the last trade expressed as a signed integer where every 1 unit
+        corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        pretty_price
+
+        """
+
+    @property
+    def size(self) -> int:
+        """
+        The quantity of the last trade.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def side(self) -> str:
+        """
+        The side that initiated the last trade. Can be `A`sk for a sell order (or sell
+        aggressor in a trade), `B`id for a buy order (or buy aggressor in a trade), or
+        `N`one where no side is specified by the original source.
+
+        Returns
+        -------
+        str
+
+        """
+
+    @property
+    def flags(self) -> int:
+        """
+        A bit field indicating event end, message characteristics, and data quality.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_ts_recv(self) -> dt.datetime:
+        """
+        The capture-server-received timestamp as a datetime or
+        `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def ts_recv(self) -> int:
+        """
+        The capture-server-received timestamp expressed as number of
+        nanoseconds since the UNIX epoch.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def sequence(self) -> int:
+        """
+        The message sequence number assigned at the venue of the last update.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def levels(self) -> list[BidAskPair]:
+        """
+        The top of the order book.
+
+        Returns
+        -------
+        list[BidAskPair]
+
+        Notes
+        -----
+        BBOMsg contains 1 level of BidAskPair.
+
+        """
+
 class CBBOMsg(Record):
     """
     Consolidated best bid and offer implementation.
@@ -1816,8 +1938,7 @@ class CBBOMsg(Record):
     @property
     def pretty_ts_recv(self) -> dt.datetime:
         """
-        The capture-server-received timestamp as a datetime or
-        `pandas.Timestamp`, if available.
+        The interval timestamp as a datetime or `pandas.Timestamp` if available.
 
         Returns
         -------
@@ -1828,8 +1949,7 @@ class CBBOMsg(Record):
     @property
     def ts_recv(self) -> int:
         """
-        The capture-server-received timestamp expressed as number of
-        nanoseconds since the UNIX epoch.
+        The interval timestamp expressed as number of nanoseconds since the UNIX epoch.
 
         Returns
         -------
@@ -4630,8 +4750,8 @@ class DBNDecoder:
     input_version : int, default current DBN version
         Specify the DBN version of the input. Only used when transcoding data without
         metadata.
-    upgrade_policy : VersionUpgradePolicy
-        How to decode data from prior DBN versions. Defaults to decoding as-is.
+    upgrade_policy : VersionUpgradePolicy, default UPGRADE
+        How to decode data from prior DBN versions. Defaults to upgrade decoding.
     """
 
     def __init__(
@@ -4709,10 +4829,10 @@ class Transcoder:
     pretty_ts : bool, default True
         Whether to serialize nanosecond UNIX timestamps as ISO8601 datetime strings.
         Only applicable to CSV and JSON.
-    map_symbols : bool, default True
+    map_symbols : bool, default None
         If symbology mappings from the metadata should be used to create
         a 'symbol' field, mapping the instrument ID to its requested symbol for
-        every record.
+        every record. Defaults to True for text encodings and False for DBN.
     has_metadata : bool, default True
         Whether the input bytes begin with DBN metadata. Pass False to transcode
         individual records or a fragment of a DBN stream.
@@ -4728,8 +4848,8 @@ class Transcoder:
     input_version : int, default current DBN version
         Specify the DBN version of the input. Only used when transcoding data without
         metadata.
-    upgrade_policy : VersionUpgradePolicy
-        How to decode data from prior DBN versions. Defaults to decoding as-is.
+    upgrade_policy : VersionUpgradePolicy, default UPGRADE
+        How to decode data from prior DBN versions. Defaults to upgrade decoding.
     """
 
     def __init__(
@@ -4739,7 +4859,7 @@ class Transcoder:
         compression: Compression,
         pretty_px: bool = True,
         pretty_ts: bool = True,
-        map_symbols: bool = True,
+        map_symbols: bool | None = None,
         has_metadata: bool = True,
         ts_out: bool = False,
         symbol_interval_map: dict[int, list[tuple[dt.date, dt.date, str]]] | None = None,

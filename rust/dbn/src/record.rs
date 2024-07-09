@@ -170,16 +170,14 @@ pub struct ConsolidatedBidAskPair {
     /// The bid publisher ID assigned by Databento, which denotes the dataset and venue.
     #[dbn(fmt_method)]
     pub bid_pb: u16,
-    // Reserved for later usage
-    #[dbn(skip)]
+    // Reserved for later usage.
     #[doc(hidden)]
     #[cfg_attr(feature = "serde", serde(skip))]
     pub _reserved1: [c_char; 2],
     /// The ask publisher ID assigned by Databento, which denotes the dataset and venue.
     #[dbn(fmt_method)]
     pub ask_pb: u16,
-    // Reserved for later usage
-    #[dbn(skip)]
+    // Reserved for later usage.
     #[doc(hidden)]
     #[cfg_attr(feature = "serde", serde(skip))]
     pub _reserved2: [c_char; 2],
@@ -253,7 +251,7 @@ pub struct TradeMsg {
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[cfg_attr(test, derive(type_layout::TypeLayout))]
-#[dbn_record(rtype::MBP_1, rtype::BBO_1S, rtype::BBO_1M)]
+#[dbn_record(rtype::MBP_1)]
 pub struct Mbp1Msg {
     /// The common header.
     #[pyo3(get)]
@@ -358,8 +356,67 @@ pub struct Mbp10Msg {
     pub levels: [BidAskPair; 10],
 }
 
+/// Subsampled market by price with a known book depth of 1. The record of the
+/// [`Bbo1S`](crate::Schema::Bbo1S) and [`Bbo1M`](crate::Schema::Bbo1M) schemas.
+#[repr(C)]
+#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(set_all, dict, module = "databento_dbn", name = "BBOMsg"),
+    derive(crate::macros::PyFieldDesc)
+)]
+#[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
+#[cfg_attr(test, derive(type_layout::TypeLayout))]
+#[dbn_record(rtype::BBO_1S, rtype::BBO_1M)]
+pub struct BboMsg {
+    /// The common header.
+    #[pyo3(get)]
+    pub hd: RecordHeader,
+    /// The price of the last trade expressed as a signed integer where every 1 unit
+    /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    #[dbn(fixed_price)]
+    #[pyo3(get)]
+    pub price: i64,
+    /// The quantity of the last trade.
+    #[pyo3(get)]
+    pub size: u32,
+    // Reserved for later usage.
+    #[doc(hidden)]
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub _reserved1: u8,
+    /// The side that initiated the last trade. Can be **A**sk for a sell order (or sell
+    /// aggressor in a trade), **B**id for a buy order (or buy aggressor in a trade), or
+    /// **N**one where no side is specified by the original source.
+    #[dbn(c_char, encode_order(2))]
+    pub side: c_char,
+    /// A bit field indicating event end, message characteristics, and data quality. See
+    /// [`enums::flags`](crate::enums::flags) for possible values.
+    #[pyo3(get)]
+    pub flags: FlagSet,
+    // Reserved for later usage.
+    #[doc(hidden)]
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub _reserved2: u8,
+    /// The interval timestamp expressed as number of nanoseconds since the UNIX epoch.
+    #[dbn(encode_order(0), index_ts, unix_nanos)]
+    #[pyo3(get)]
+    pub ts_recv: u64,
+    // Reserved for later usage.
+    #[doc(hidden)]
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub _reserved3: [u8; 4],
+    /// The sequence number assigned at the venue of the last update.
+    #[pyo3(get)]
+    pub sequence: u32,
+    /// The top of the order book.
+    #[pyo3(get)]
+    pub levels: [BidAskPair; 1],
+}
+
 /// Consolidated market by price implementation with a known book depth of 1. The record of the
-/// [`Cbbo`](crate::enums::Schema::Cbbo) schema.
+/// [`Cbbo`](crate::Schema::Cbbo) schema.
 #[repr(C)]
 #[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
@@ -420,9 +477,9 @@ pub struct CbboMsg {
 /// The record of the [`Tbbo`](crate::enums::Schema::Tbbo) schema.
 pub type TbboMsg = Mbp1Msg;
 /// The record of the [`Bbo1S`](crate::enums::Schema::Bbo1S) schema.
-pub type Bbo1SMsg = Mbp1Msg;
+pub type Bbo1SMsg = BboMsg;
 /// The record of the [`Bbo1M`](crate::enums::Schema::Bbo1M) schema.
-pub type Bbo1MMsg = Mbp1Msg;
+pub type Bbo1MMsg = BboMsg;
 /// The record of the [`Cbbo1S`](crate::enums::Schema::Cbbo1S) schema.
 pub type Cbbo1SMsg = CbboMsg;
 /// The record of the [`Cbbo1M`](crate::enums::Schema::Cbbo1M) schema.
@@ -1113,6 +1170,7 @@ pub struct WithTsOut<T: HasRType> {
 
 #[cfg(test)]
 mod tests {
+    use mem::offset_of;
     use rstest::rstest;
     use type_layout::{Field, TypeLayout};
 
@@ -1180,8 +1238,9 @@ mod tests {
     #[case::header(RecordHeader::default::<MboMsg>(rtype::MBO), 16)]
     #[case::mbo(MboMsg::default(), 56)]
     #[case::ba_pair(BidAskPair::default(), 32)]
-    #[case::mbp1(Mbp1Msg::default_for_schema(Schema::Mbp1), mem::size_of::<TradeMsg>() + mem::size_of::<BidAskPair>())]
+    #[case::mbp1(Mbp1Msg::default(), mem::size_of::<TradeMsg>() + mem::size_of::<BidAskPair>())]
     #[case::mbp10(Mbp10Msg::default(), mem::size_of::<TradeMsg>() + mem::size_of::<BidAskPair>() * 10)]
+    #[case::bbo(BboMsg::default_for_schema(Schema::Bbo1S), mem::size_of::<Mbp1Msg>())]
     #[case::cbbo(CbboMsg::default_for_schema(Schema::Cbbo), mem::size_of::<Mbp1Msg>())]
     #[case::trade(TradeMsg::default(), 48)]
     #[case::definition(InstrumentDefMsg::default(), 400)]
@@ -1201,7 +1260,8 @@ mod tests {
     #[case::header(RecordHeader::default::<MboMsg>(rtype::MBO))]
     #[case::mbo(MboMsg::default())]
     #[case::ba_pair(BidAskPair::default())]
-    #[case::mbp1(Mbp1Msg::default_for_schema(crate::Schema::Mbp1))]
+    #[case::mbp1(Mbp1Msg::default())]
+    #[case::bbo(BboMsg::default_for_schema(crate::Schema::Bbo1S))]
     #[case::cbbo(CbboMsg::default_for_schema(crate::Schema::Cbbo))]
     #[case::mbp10(Mbp10Msg::default())]
     #[case::trade(TradeMsg::default())]
@@ -1221,6 +1281,18 @@ mod tests {
                 "Detected padding: {layout}"
             );
         }
+    }
+
+    #[test]
+    fn test_bbo_alignment_matches_mbp1() {
+        assert_eq!(offset_of!(BboMsg, hd), offset_of!(Mbp1Msg, hd));
+        assert_eq!(offset_of!(BboMsg, price), offset_of!(Mbp1Msg, price));
+        assert_eq!(offset_of!(BboMsg, size), offset_of!(Mbp1Msg, size));
+        assert_eq!(offset_of!(BboMsg, side), offset_of!(Mbp1Msg, side));
+        assert_eq!(offset_of!(BboMsg, flags), offset_of!(Mbp1Msg, flags));
+        assert_eq!(offset_of!(BboMsg, ts_recv), offset_of!(Mbp1Msg, ts_recv));
+        assert_eq!(offset_of!(BboMsg, sequence), offset_of!(Mbp1Msg, sequence));
+        assert_eq!(offset_of!(BboMsg, levels), offset_of!(Mbp1Msg, levels));
     }
 
     #[test]

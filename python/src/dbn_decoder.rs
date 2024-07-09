@@ -20,18 +20,24 @@ pub struct DbnDecoder {
 #[pymethods]
 impl DbnDecoder {
     #[new]
+    #[pyo3(signature = (
+        has_metadata = true,
+        ts_out = false,
+        input_version = dbn::DBN_VERSION,
+        upgrade_policy = VersionUpgradePolicy::default()
+    ))]
     fn new(
-        has_metadata: Option<bool>,
-        ts_out: Option<bool>,
-        input_version: Option<u8>,
-        upgrade_policy: Option<VersionUpgradePolicy>,
+        has_metadata: bool,
+        ts_out: bool,
+        input_version: u8,
+        upgrade_policy: VersionUpgradePolicy,
     ) -> Self {
         Self {
             buffer: io::Cursor::default(),
-            has_decoded_metadata: !has_metadata.unwrap_or(true),
-            ts_out: ts_out.unwrap_or_default(),
-            input_version: input_version.unwrap_or(dbn::DBN_VERSION),
-            upgrade_policy: upgrade_policy.unwrap_or_default(),
+            has_decoded_metadata: !has_metadata,
+            ts_out,
+            input_version,
+            upgrade_policy,
         }
     }
 
@@ -128,7 +134,7 @@ mod tests {
         encode::{dbn::Encoder, EncodeRecord},
         enums::{rtype, SType, Schema},
         record::{ErrorMsg, OhlcvMsg, RecordHeader},
-        MetadataBuilder,
+        MetadataBuilder, DBN_VERSION,
     };
     use pyo3::{py_run, types::PyString};
 
@@ -138,7 +144,7 @@ mod tests {
     #[test]
     fn test_partial_metadata_and_records() {
         setup();
-        let mut target = DbnDecoder::new(None, None, None, None);
+        let mut target = DbnDecoder::new(true, false, DBN_VERSION, VersionUpgradePolicy::default());
         let buffer = Vec::new();
         let mut encoder = Encoder::new(
             buffer,
@@ -180,7 +186,8 @@ mod tests {
     #[test]
     fn test_full_with_partial_record() {
         setup();
-        let mut decoder = DbnDecoder::new(None, None, None, None);
+        let mut decoder =
+            DbnDecoder::new(true, false, DBN_VERSION, VersionUpgradePolicy::default());
         let buffer = Vec::new();
         let mut encoder = Encoder::new(
             buffer,

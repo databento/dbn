@@ -23,24 +23,39 @@ use crate::encode::PyFileLike;
 #[pyclass(module = "databento_dbn")]
 pub struct Transcoder(Box<dyn Transcode + Send>);
 
-pub type PySymbolIntervalMap<'py> = HashMap<u32, Vec<(&'py PyDate, &'py PyDate, String)>>;
+pub type PySymbolIntervalMap<'py> =
+    HashMap<u32, Vec<(Bound<'py, PyDate>, Bound<'py, PyDate>, String)>>;
 
 #[pymethods]
 impl Transcoder {
     #[new]
+    #[pyo3(signature  = (
+        file,
+        encoding,
+        compression,
+        pretty_px = true,
+        pretty_ts = true,
+        map_symbols = None,
+        has_metadata = true,
+        ts_out = false,
+        symbol_interval_map = None,
+        schema = None,
+        input_version = dbn::DBN_VERSION,
+        upgrade_policy = VersionUpgradePolicy::default(),
+    ))]
     fn new(
         file: PyFileLike,
         encoding: Encoding,
         compression: Compression,
-        pretty_px: Option<bool>,
-        pretty_ts: Option<bool>,
+        pretty_px: bool,
+        pretty_ts: bool,
         map_symbols: Option<bool>,
-        has_metadata: Option<bool>,
-        ts_out: Option<bool>,
+        has_metadata: bool,
+        ts_out: bool,
         symbol_interval_map: Option<PySymbolIntervalMap>,
         schema: Option<Schema>,
-        input_version: Option<u8>,
-        upgrade_policy: Option<VersionUpgradePolicy>,
+        input_version: u8,
+        upgrade_policy: VersionUpgradePolicy,
     ) -> PyResult<Self> {
         let symbol_map = if let Some(symbol_interval_map) = symbol_interval_map {
             let mut symbol_map = TsSymbolMap::new();
@@ -49,8 +64,8 @@ impl Transcoder {
                     if symbol.is_empty() {
                         continue;
                     }
-                    let start_date = py_to_time_date(start_date)?;
-                    let end_date = py_to_time_date(end_date)?;
+                    let start_date = py_to_time_date(&start_date)?;
+                    let end_date = py_to_time_date(&end_date)?;
                     symbol_map.insert(iid, start_date, end_date, Arc::new(symbol))?;
                 }
             }
@@ -158,15 +173,15 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
     fn new(
         file: PyFileLike,
         compression: Compression,
-        pretty_px: Option<bool>,
-        pretty_ts: Option<bool>,
+        pretty_px: bool,
+        pretty_ts: bool,
         map_symbols: Option<bool>,
-        has_metadata: Option<bool>,
-        ts_out: Option<bool>,
+        has_metadata: bool,
+        ts_out: bool,
         symbol_map: Option<TsSymbolMap>,
         schema: Option<Schema>,
-        input_version: Option<u8>,
-        upgrade_policy: Option<VersionUpgradePolicy>,
+        input_version: u8,
+        upgrade_policy: VersionUpgradePolicy,
     ) -> PyResult<Self> {
         if OUTPUT_ENC == Encoding::Dbn as u8 && map_symbols.unwrap_or(false) {
             return Err(PyValueError::new_err(
@@ -176,15 +191,15 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
         Ok(Self {
             buffer: io::Cursor::default(),
             output: DynWriter::new(BufWriter::new(file), compression)?,
-            use_pretty_px: pretty_px.unwrap_or(true),
-            use_pretty_ts: pretty_ts.unwrap_or(true),
+            use_pretty_px: pretty_px,
+            use_pretty_ts: pretty_ts,
             map_symbols: map_symbols.unwrap_or(true),
-            has_decoded_metadata: !has_metadata.unwrap_or(true),
-            ts_out: ts_out.unwrap_or(false),
+            has_decoded_metadata: !has_metadata,
+            ts_out,
             symbol_map: symbol_map.map(SymbolMap::Historical).unwrap_or_default(),
             schema,
-            input_version: input_version.unwrap_or(dbn::DBN_VERSION),
-            upgrade_policy: upgrade_policy.unwrap_or_default(),
+            input_version,
+            upgrade_policy,
         })
     }
 
@@ -442,7 +457,7 @@ mod tests {
         datasets::XNAS_ITCH,
         encode::{DbnEncoder, EncodeRecord},
         rtype, ErrorMsg, MappingInterval, MetadataBuilder, OhlcvMsg, RecordHeader, SType, Schema,
-        SymbolMapping, SymbolMappingMsg, WithTsOut, UNDEF_TIMESTAMP,
+        SymbolMapping, SymbolMappingMsg, WithTsOut, DBN_VERSION, UNDEF_TIMESTAMP,
     };
     use rstest::rstest;
     use time::macros::{date, datetime};
@@ -473,15 +488,15 @@ mod tests {
                 Py::new(py, file).unwrap().extract(py).unwrap(),
                 Encoding::Json,
                 Compression::None,
+                true,
+                true,
+                None,
+                true,
+                false,
                 None,
                 None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
+                DBN_VERSION,
+                VersionUpgradePolicy::default(),
             )
             .unwrap()
         });
@@ -548,15 +563,15 @@ mod tests {
                 Py::new(py, file).unwrap().extract(py).unwrap(),
                 Encoding::Csv,
                 Compression::None,
+                true,
+                true,
+                None,
+                true,
+                false,
                 None,
                 None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
+                DBN_VERSION,
+                VersionUpgradePolicy::default(),
             )
             .unwrap()
         });
@@ -622,15 +637,15 @@ mod tests {
                 Py::new(py, file).unwrap().extract(py).unwrap(),
                 encoding,
                 Compression::None,
-                None,
-                Some(false),
+                true,
+                false,
                 Some(map_symbols),
-                None,
-                Some(true),
-                None,
-                None,
+                true,
+                true,
                 None,
                 None,
+                DBN_VERSION,
+                VersionUpgradePolicy::default(),
             )
             .unwrap()
         });
@@ -748,15 +763,15 @@ mod tests {
                 Py::new(py, file).unwrap().extract(py).unwrap(),
                 encoding,
                 Compression::None,
-                None,
-                None,
+                true,
+                true,
                 Some(map_symbols),
-                None,
-                None,
+                true,
+                false,
                 None,
                 Some(Schema::Ohlcv1S),
-                None,
-                None,
+                DBN_VERSION,
+                VersionUpgradePolicy::default(),
             )
             .unwrap()
         });
@@ -881,15 +896,15 @@ mod tests {
                 Py::new(py, file).unwrap().extract(py).unwrap(),
                 encoding,
                 Compression::None,
+                true,
+                true,
                 None,
-                None,
-                None,
-                None,
-                None,
+                true,
+                false,
                 None,
                 Some(schema),
-                None,
-                None,
+                DBN_VERSION,
+                VersionUpgradePolicy::default(),
             )
             .unwrap()
         });
