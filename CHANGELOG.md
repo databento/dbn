@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.19.1 - 2024-07-16
+
+### Bug fixes
+- Update `rtype_dispatch` and `schema_dispatch` macros for `BboMsg`
+- Update `RecordEnum` and `RecordRefEnum` for `BboMsg`
+
 ## 0.19.0 - 2024-07-09
 
 ### Enhancements
