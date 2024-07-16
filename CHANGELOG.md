@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.19.1 - TBD
+## 0.19.1 - 2024-07-16
 
 ### Bug fixes
 - Update `rtype_dispatch` and `schema_dispatch` macros for `BboMsg`
