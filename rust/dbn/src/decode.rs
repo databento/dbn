@@ -570,6 +570,8 @@ mod r#async {
 
     use crate::enums::Compression;
 
+    use super::zstd::zstd_decoder;
+
     /// A type for runtime polymorphism on compressed and uncompressed input.
     /// The async version of [`DynReader`](super::DynReader).
     pub struct DynReader<R>(DynReaderImpl<R>)
@@ -629,7 +631,7 @@ mod r#async {
                 .await
                 .map_err(|e| crate::Error::io(e, "creating buffer to infer encoding"))?;
             Ok(if super::zstd::starts_with_prefix(first_bytes) {
-                Self(DynReaderImpl::ZStd(ZstdDecoder::new(reader)))
+                Self(DynReaderImpl::ZStd(zstd_decoder(reader)))
             } else {
                 Self(DynReaderImpl::Uncompressed(reader))
             })
@@ -691,6 +693,37 @@ mod r#async {
                 }
                 DynReaderImpl::ZStd(dec) => io::AsyncRead::poll_read(Pin::new(dec), cx, buf),
             }
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use crate::{
+            compat::InstrumentDefMsgV1,
+            decode::{tests::TEST_DATA_PATH, AsyncDbnRecordDecoder},
+            VersionUpgradePolicy,
+        };
+
+        use super::*;
+
+        #[tokio::test]
+        async fn test_decode_multiframe_zst() {
+            let mut decoder = AsyncDbnRecordDecoder::with_version(
+                DynReader::from_file(&format!(
+                    "{TEST_DATA_PATH}/multi-frame.definition.v1.dbn.frag.zst"
+                ))
+                .await
+                .unwrap(),
+                1,
+                VersionUpgradePolicy::AsIs,
+                false,
+            )
+            .unwrap();
+            let mut count = 0;
+            while let Some(_rec) = decoder.decode::<InstrumentDefMsgV1>().await.unwrap() {
+                count += 1;
+            }
+            assert_eq!(count, 8);
         }
     }
 }

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.19.2 - TBD
+
+### Bug fixes
+- Fixed issue where `AsyncDynReader` would only decode the first frame of multi-frame
+  Zstandard files
+
 ## 0.19.1 - 2024-07-16
 
 ### Bug fixes
