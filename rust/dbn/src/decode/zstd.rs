@@ -15,6 +15,18 @@ pub fn starts_with_prefix(bytes: &[u8]) -> bool {
     ZSTD_MAGIC_NUMBER == magic
 }
 
+/// Helper to always set multiple members.
+#[cfg(feature = "async")]
+pub(crate) fn zstd_decoder<R>(reader: R) -> async_compression::tokio::bufread::ZstdDecoder<R>
+where
+    R: tokio::io::AsyncBufReadExt + Unpin,
+{
+    let mut zstd_decoder = async_compression::tokio::bufread::ZstdDecoder::new(reader);
+    // explicitly enable decoding multiple frames
+    zstd_decoder.multiple_members(true);
+    zstd_decoder
+}
+
 #[cfg(test)]
 mod tests {
     use std::{fs::File, io::Read};

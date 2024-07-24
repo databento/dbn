@@ -8,20 +8,12 @@ use tokio::{
 
 use crate::{
     compat,
-    decode::{r#async::ZSTD_FILE_BUFFER_CAPACITY, FromLittleEndianSlice, VersionUpgradePolicy},
+    decode::{
+        r#async::ZSTD_FILE_BUFFER_CAPACITY, zstd::zstd_decoder, FromLittleEndianSlice,
+        VersionUpgradePolicy,
+    },
     HasRType, Metadata, Record, RecordHeader, RecordRef, Result, DBN_VERSION, METADATA_FIXED_LEN,
 };
-
-/// Helper to always set multiple members.
-fn zstd_decoder<R>(reader: R) -> ZstdDecoder<R>
-where
-    R: io::AsyncBufReadExt + Unpin,
-{
-    let mut zstd_decoder = ZstdDecoder::new(reader);
-    // explicitly enable decoding multiple frames
-    zstd_decoder.multiple_members(true);
-    zstd_decoder
-}
 
 /// An async decoder for Databento Binary Encoding (DBN), both metadata and records.
 pub struct Decoder<R>
