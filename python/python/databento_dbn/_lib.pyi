@@ -221,10 +221,22 @@ class SType(Enum):
     PARENT
         A Databento-specific symbology for referring to a group of symbols by one
         "parent" symbol, e.g. ES.FUT to refer to all ES futures.
-    NASDAQ
+    NASDAQ_SYMBOL
         Symbology for US equities using NASDAQ Integrated suffix conventions.
-    CMS
+    CMS_SYMBOL
         Symbology for US equities using CMS suffix conventions.
+    ISIN
+        Symbology using International Security Identification Numbers (ISIN) - ISO 6166.
+    US_CODE
+        Symbology using US domestic Committee on Uniform Securities Identification Procedure (CUSIP) codes.
+    BBG_COMP_ID
+        Symbology using Bloomberg composite global IDs.
+    BBG_COMP_TICKER
+        Symbology using Bloomberg composite tickers.
+    FIGI
+        Symbology using Bloomberg FIGI exchange level IDs.
+    FIGI_TICKER
+        Symbology using Bloomberg exchange level tickers.
 
     """
 
@@ -232,8 +244,14 @@ class SType(Enum):
     RAW_SYMBOL: str
     CONTINUOUS: str
     PARENT: str
-    NASDAQ: str
-    CMS: str
+    NASDAQ_SYMBOL: str
+    CMS_SYMBOL: str
+    ISIN: str
+    US_CODE: str
+    BBG_COMP_ID: str
+    BBG_COMP_TICKER: str
+    FIGI: str
+    FIGI_TICKER: str
 
     @classmethod
     def from_str(cls, value: str) -> SType: ...

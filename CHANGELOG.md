@@ -1,6 +1,16 @@
 # Changelog
 
-## 0.19.2 - TBD
+## 0.20.0 - 2024-07-30
+
+### Enhancements
+- Added new `SType` variants for reference data: `Isin`, `UsCode`, `BbgCompId`, `BbgCompTicker`, `Figi`, `FigiTicker`
+- Added new publisher value for `DBEQ.SUMMARY`
+
+### Breaking changes
+- Renamed `SType::Nasdaq` variant to `SType::NasdaqSymbol`
+- Renamed `SType::Cms` variant to `SType::CmsSymbol`
+
+## 0.19.2 - 2024-07-23
 
 ### Bug fixes
 - Fixed issue where `AsyncDynReader` would only decode the first frame of multi-frame

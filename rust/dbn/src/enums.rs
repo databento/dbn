@@ -232,9 +232,21 @@ pub enum SType {
     /// "parent" symbol, e.g. ES.FUT to refer to all ES futures.
     Parent = 4,
     /// Symbology for US equities using NASDAQ Integrated suffix conventions.
-    Nasdaq = 5,
+    NasdaqSymbol = 5,
     /// Symbology for US equities using CMS suffix conventions.
-    Cms = 6,
+    CmsSymbol = 6,
+    /// Symbology using International Security Identification Numbers (ISIN) - ISO 6166.
+    Isin = 7,
+    /// Symbology using US domestic Committee on Uniform Securities Identification Procedure (CUSIP) codes.
+    UsCode = 8,
+    /// Symbology using Bloomberg composite global IDs.
+    BbgCompId = 9,
+    /// Symbology using Bloomberg composite tickers.
+    BbgCompTicker = 10,
+    /// Symbology using Bloomberg FIGI exchange level IDs.
+    Figi = 11,
+    /// Symbology using Bloomberg exchange level tickers.
+    FigiTicker = 12,
 }
 
 impl std::str::FromStr for SType {
@@ -247,8 +259,14 @@ impl std::str::FromStr for SType {
             "smart" => Ok(SType::Smart),
             "continuous" => Ok(SType::Continuous),
             "parent" => Ok(SType::Parent),
-            "nasdaq" => Ok(SType::Nasdaq),
-            "cms" => Ok(SType::Cms),
+            "nasdaq_symbol" | "nasdaq" => Ok(SType::NasdaqSymbol),
+            "cms_symbol" | "cms" => Ok(SType::CmsSymbol),
+            "isin" => Ok(SType::Isin),
+            "us_code" => Ok(SType::UsCode),
+            "bbg_comp_id" => Ok(SType::BbgCompId),
+            "bbg_comp_ticker" => Ok(SType::BbgCompTicker),
+            "figi" => Ok(SType::Figi),
+            "figi_ticker" => Ok(SType::FigiTicker),
             _ => Err(crate::Error::conversion::<Self>(s.to_owned())),
         }
     }
@@ -270,8 +288,14 @@ impl SType {
             SType::Smart => "smart",
             SType::Continuous => "continuous",
             SType::Parent => "parent",
-            SType::Nasdaq => "nasdaq",
-            SType::Cms => "cms",
+            SType::NasdaqSymbol => "nasdaq_symbol",
+            SType::CmsSymbol => "cms_symbol",
+            SType::Isin => "isin",
+            SType::UsCode => "us_code",
+            SType::BbgCompId => "bbg_comp_id",
+            SType::BbgCompTicker => "bbg_comp_ticker",
+            SType::Figi => "figi",
+            SType::FigiTicker => "figi_ticker",
         }
     }
 }

@@ -287,10 +287,12 @@ pub enum Dataset {
     DbeqMax = 30,
     /// Nasdaq Basic (NLS+QBBO)
     XnasBasic = 31,
+    /// Databento Equities Summary
+    DbeqSummary = 32,
 }
 
 /// The number of Dataset variants.
-pub const DATASET_COUNT: usize = 31;
+pub const DATASET_COUNT: usize = 32;
 
 impl Dataset {
     /// Convert a Dataset to its `str` representation.
@@ -329,6 +331,7 @@ impl Dataset {
             Self::NdexImpact => "NDEX.IMPACT",
             Self::DbeqMax => "DBEQ.MAX",
             Self::XnasBasic => "XNAS.BASIC",
+            Self::DbeqSummary => "DBEQ.SUMMARY",
         }
     }
 }
@@ -383,6 +386,7 @@ impl std::str::FromStr for Dataset {
             "NDEX.IMPACT" => Ok(Self::NdexImpact),
             "DBEQ.MAX" => Ok(Self::DbeqMax),
             "XNAS.BASIC" => Ok(Self::XnasBasic),
+            "DBEQ.SUMMARY" => Ok(Self::DbeqSummary),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
@@ -571,10 +575,12 @@ pub enum Publisher {
     XnasBasicXbos = 88,
     /// Nasdaq Basic - Nasdaq PSX
     XnasBasicXpsx = 89,
+    /// Databento Equities Summary
+    DbeqSummaryDbeq = 90,
 }
 
 /// The number of Publisher variants.
-pub const PUBLISHER_COUNT: usize = 89;
+pub const PUBLISHER_COUNT: usize = 90;
 
 impl Publisher {
     /// Convert a Publisher to its `str` representation.
@@ -669,6 +675,7 @@ impl Publisher {
             Self::XnasNlsXpsx => "XNAS.NLS.XPSX",
             Self::XnasBasicXbos => "XNAS.BASIC.XBOS",
             Self::XnasBasicXpsx => "XNAS.BASIC.XPSX",
+            Self::DbeqSummaryDbeq => "DBEQ.SUMMARY.DBEQ",
         }
     }
 
@@ -764,6 +771,7 @@ impl Publisher {
             Self::XnasNlsXpsx => Venue::Xpsx,
             Self::XnasBasicXbos => Venue::Xbos,
             Self::XnasBasicXpsx => Venue::Xpsx,
+            Self::DbeqSummaryDbeq => Venue::Dbeq,
         }
     }
 
@@ -859,6 +867,7 @@ impl Publisher {
             Self::XnasNlsXpsx => Dataset::XnasNls,
             Self::XnasBasicXbos => Dataset::XnasBasic,
             Self::XnasBasicXpsx => Dataset::XnasBasic,
+            Self::DbeqSummaryDbeq => Dataset::DbeqSummary,
         }
     }
 
@@ -956,6 +965,7 @@ impl Publisher {
             (Dataset::XnasNls, Venue::Xpsx) => Ok(Self::XnasNlsXpsx),
             (Dataset::XnasBasic, Venue::Xbos) => Ok(Self::XnasBasicXbos),
             (Dataset::XnasBasic, Venue::Xpsx) => Ok(Self::XnasBasicXpsx),
+            (Dataset::DbeqSummary, Venue::Dbeq) => Ok(Self::DbeqSummaryDbeq),
             _ => Err(Error::conversion::<Self>(format!("({dataset}, {venue})"))),
         }
     }
@@ -1067,6 +1077,7 @@ impl std::str::FromStr for Publisher {
             "XNAS.NLS.XPSX" => Ok(Self::XnasNlsXpsx),
             "XNAS.BASIC.XBOS" => Ok(Self::XnasBasicXbos),
             "XNAS.BASIC.XPSX" => Ok(Self::XnasBasicXpsx),
+            "DBEQ.SUMMARY.DBEQ" => Ok(Self::DbeqSummaryDbeq),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
