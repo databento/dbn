@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.20.0 - TBD
+## 0.20.0 - 2024-07-30
 
 ### Enhancements
 - Added new `SType` variants for reference data: `Isin`, `UsCode`, `BbgCompId`, `BbgCompTicker`, `Figi`, `FigiTicker`
