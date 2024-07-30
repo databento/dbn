@@ -4,6 +4,7 @@
 
 ### Enhancements
 - Added new `SType` variants for reference data: `Isin`, `UsCode`, `BbgCompId`, `BbgCompTicker`, `Figi`, `FigiTicker`
+- Added new publisher value for `DBEQ.SUMMARY`
 
 ### Breaking changes
 - Renamed `SType::Nasdaq` variant to `SType::NasdaqSymbol`
