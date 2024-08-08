@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.20.1 - TBD
+
+### Bug fixes
+- Added missing Python type stub for `pretty_ts_ref` in `StatMsg`
+
 ## 0.20.0 - 2024-07-30
 
 ### Enhancements
