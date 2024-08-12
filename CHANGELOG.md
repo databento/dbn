@@ -4,6 +4,7 @@
 
 ### Enhancements
 - Added `DynAsyncBufWriter` for buffering compressed or uncompressed async output
+- Added new publisher values for `XCIS.BBOTRADES` and `XNYS.BBOTRADES`
 
 ### Bug fixes
 - Added missing Python type stub for `pretty_ts_ref` in `StatMsg`
