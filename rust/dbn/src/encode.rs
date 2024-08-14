@@ -27,7 +27,7 @@ pub use self::{
         AsyncEncoder as AsyncDbnEncoder, AsyncMetadataEncoder as AsyncDbnMetadataEncoder,
         AsyncRecordEncoder as AsyncDbnRecordEncoder,
     },
-    dyn_writer::DynAsyncWriter,
+    dyn_writer::{DynAsyncBufWriter, DynAsyncWriter},
     json::AsyncEncoder as AsyncJsonEncoder,
 };
 

@@ -82,6 +82,8 @@ where
 }
 
 #[cfg(feature = "async")]
+pub use r#async::DynBufWriter as DynAsyncBufWriter;
+#[cfg(feature = "async")]
 pub use r#async::DynWriter as DynAsyncWriter;
 
 #[cfg(feature = "async")]
@@ -92,11 +94,91 @@ mod r#async {
     };
 
     use async_compression::tokio::write::ZstdEncoder;
-    use tokio::io;
+    use tokio::io::{self, BufWriter};
 
     use crate::{encode::async_zstd_encoder, enums::Compression};
 
+    /// An object that allows for abstracting over compressed and uncompressed output
+    /// with buffering.
+    pub struct DynBufWriter<W, B = W>(DynBufWriterImpl<W, B>)
+    where
+        W: io::AsyncWriteExt + Unpin,
+        B: io::AsyncWriteExt + Unpin;
+
+    enum DynBufWriterImpl<W, B>
+    where
+        W: io::AsyncWriteExt + Unpin,
+        B: io::AsyncWriteExt + Unpin,
+    {
+        Uncompressed(B),
+        ZStd(ZstdEncoder<W>),
+    }
+
+    impl<W> DynBufWriter<W>
+    where
+        W: io::AsyncWriteExt + Unpin,
+    {
+        /// Creates a new instance of [`DynWriter`] which will wrap `writer` with
+        /// `compression`.
+        pub fn new(writer: W, compression: Compression) -> Self {
+            Self(match compression {
+                Compression::None => DynBufWriterImpl::Uncompressed(writer),
+                Compression::ZStd => DynBufWriterImpl::ZStd(async_zstd_encoder(writer)),
+            })
+        }
+    }
+
+    impl<W> DynBufWriter<W, BufWriter<W>>
+    where
+        W: io::AsyncWriteExt + Unpin,
+    {
+        /// Creates a new instance of [`DynWriter`], wrapping `writer` in a `BufWriter`.
+        pub fn new_buffered(writer: W, compression: Compression) -> Self {
+            Self(match compression {
+                Compression::None => DynBufWriterImpl::Uncompressed(BufWriter::new(writer)),
+                // `ZstdEncoder` already wraps `W` in a `BufWriter`, cf.
+                // https://github.com/Nullus157/async-compression/blob/main/src/tokio/write/generic/encoder.rs
+                Compression::ZStd => DynBufWriterImpl::ZStd(async_zstd_encoder(writer)),
+            })
+        }
+    }
+
+    impl<W> io::AsyncWrite for DynBufWriter<W>
+    where
+        W: io::AsyncWrite + io::AsyncWriteExt + Unpin,
+    {
+        fn poll_write(
+            mut self: Pin<&mut Self>,
+            cx: &mut Context<'_>,
+            buf: &[u8],
+        ) -> Poll<io::Result<usize>> {
+            match &mut self.0 {
+                DynBufWriterImpl::Uncompressed(w) => {
+                    io::AsyncWrite::poll_write(Pin::new(w), cx, buf)
+                }
+                DynBufWriterImpl::ZStd(enc) => io::AsyncWrite::poll_write(Pin::new(enc), cx, buf),
+            }
+        }
+
+        fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+            match &mut self.0 {
+                DynBufWriterImpl::Uncompressed(w) => io::AsyncWrite::poll_flush(Pin::new(w), cx),
+                DynBufWriterImpl::ZStd(enc) => io::AsyncWrite::poll_flush(Pin::new(enc), cx),
+            }
+        }
+
+        fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+            match &mut self.0 {
+                DynBufWriterImpl::Uncompressed(w) => io::AsyncWrite::poll_shutdown(Pin::new(w), cx),
+                DynBufWriterImpl::ZStd(enc) => io::AsyncWrite::poll_shutdown(Pin::new(enc), cx),
+            }
+        }
+    }
+
     /// An object that allows for abstracting over compressed and uncompressed output.
+    ///
+    /// Compared with [`DynBufWriter`], only the compressed output is buffered, as it is
+    /// required by the async Zstd implementation.
     pub struct DynWriter<W>(DynWriterImpl<W>)
     where
         W: io::AsyncWriteExt + Unpin;

@@ -2,6 +2,9 @@
 
 ## 0.20.1 - TBD
 
+### Enhancements
+- Added `DynAsyncBufWriter` for buffering compressed or uncompressed async output
+
 ### Bug fixes
 - Added missing Python type stub for `pretty_ts_ref` in `StatMsg`
 
