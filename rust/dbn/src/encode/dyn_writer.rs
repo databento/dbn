@@ -14,7 +14,7 @@ where
     W: io::Write,
 {
     Uncompressed(W),
-    ZStd(zstd::stream::AutoFinishEncoder<'a, W>),
+    Zstd(zstd::stream::AutoFinishEncoder<'a, W>),
 }
 
 impl<'a, W> DynWriter<'a, W>
@@ -28,7 +28,7 @@ where
     pub fn new(writer: W, compression: Compression) -> Result<Self> {
         match compression {
             Compression::None => Ok(Self(DynWriterImpl::Uncompressed(writer))),
-            Compression::ZStd => zstd_encoder(writer).map(|enc| Self(DynWriterImpl::ZStd(enc))),
+            Compression::ZStd => zstd_encoder(writer).map(|enc| Self(DynWriterImpl::Zstd(enc))),
         }
     }
 
@@ -36,7 +36,7 @@ where
     pub fn get_mut(&mut self) -> &mut W {
         match &mut self.0 {
             DynWriterImpl::Uncompressed(w) => w,
-            DynWriterImpl::ZStd(enc) => enc.get_mut(),
+            DynWriterImpl::Zstd(enc) => enc.get_mut(),
         }
     }
 }
@@ -48,35 +48,35 @@ where
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         match &mut self.0 {
             DynWriterImpl::Uncompressed(writer) => writer.write(buf),
-            DynWriterImpl::ZStd(writer) => writer.write(buf),
+            DynWriterImpl::Zstd(writer) => writer.write(buf),
         }
     }
 
     fn flush(&mut self) -> io::Result<()> {
         match &mut self.0 {
             DynWriterImpl::Uncompressed(writer) => writer.flush(),
-            DynWriterImpl::ZStd(writer) => writer.flush(),
+            DynWriterImpl::Zstd(writer) => writer.flush(),
         }
     }
 
     fn write_vectored(&mut self, bufs: &[io::IoSlice<'_>]) -> io::Result<usize> {
         match &mut self.0 {
             DynWriterImpl::Uncompressed(writer) => writer.write_vectored(bufs),
-            DynWriterImpl::ZStd(writer) => writer.write_vectored(bufs),
+            DynWriterImpl::Zstd(writer) => writer.write_vectored(bufs),
         }
     }
 
     fn write_all(&mut self, buf: &[u8]) -> io::Result<()> {
         match &mut self.0 {
             DynWriterImpl::Uncompressed(writer) => writer.write_all(buf),
-            DynWriterImpl::ZStd(writer) => writer.write_all(buf),
+            DynWriterImpl::Zstd(writer) => writer.write_all(buf),
         }
     }
 
     fn write_fmt(&mut self, fmt: std::fmt::Arguments<'_>) -> io::Result<()> {
         match &mut self.0 {
             DynWriterImpl::Uncompressed(writer) => writer.write_fmt(fmt),
-            DynWriterImpl::ZStd(writer) => writer.write_fmt(fmt),
+            DynWriterImpl::Zstd(writer) => writer.write_fmt(fmt),
         }
     }
 }
@@ -111,7 +111,7 @@ mod r#async {
         B: io::AsyncWriteExt + Unpin,
     {
         Uncompressed(B),
-        ZStd(ZstdEncoder<W>),
+        Zstd(ZstdEncoder<W>),
     }
 
     impl<W> DynBufWriter<W>
@@ -123,7 +123,7 @@ mod r#async {
         pub fn new(writer: W, compression: Compression) -> Self {
             Self(match compression {
                 Compression::None => DynBufWriterImpl::Uncompressed(writer),
-                Compression::ZStd => DynBufWriterImpl::ZStd(async_zstd_encoder(writer)),
+                Compression::ZStd => DynBufWriterImpl::Zstd(async_zstd_encoder(writer)),
             })
         }
     }
@@ -138,7 +138,7 @@ mod r#async {
                 Compression::None => DynBufWriterImpl::Uncompressed(BufWriter::new(writer)),
                 // `ZstdEncoder` already wraps `W` in a `BufWriter`, cf.
                 // https://github.com/Nullus157/async-compression/blob/main/src/tokio/write/generic/encoder.rs
-                Compression::ZStd => DynBufWriterImpl::ZStd(async_zstd_encoder(writer)),
+                Compression::ZStd => DynBufWriterImpl::Zstd(async_zstd_encoder(writer)),
             })
         }
     }
@@ -156,21 +156,21 @@ mod r#async {
                 DynBufWriterImpl::Uncompressed(w) => {
                     io::AsyncWrite::poll_write(Pin::new(w), cx, buf)
                 }
-                DynBufWriterImpl::ZStd(enc) => io::AsyncWrite::poll_write(Pin::new(enc), cx, buf),
+                DynBufWriterImpl::Zstd(enc) => io::AsyncWrite::poll_write(Pin::new(enc), cx, buf),
             }
         }
 
         fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
             match &mut self.0 {
                 DynBufWriterImpl::Uncompressed(w) => io::AsyncWrite::poll_flush(Pin::new(w), cx),
-                DynBufWriterImpl::ZStd(enc) => io::AsyncWrite::poll_flush(Pin::new(enc), cx),
+                DynBufWriterImpl::Zstd(enc) => io::AsyncWrite::poll_flush(Pin::new(enc), cx),
             }
         }
 
         fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
             match &mut self.0 {
                 DynBufWriterImpl::Uncompressed(w) => io::AsyncWrite::poll_shutdown(Pin::new(w), cx),
-                DynBufWriterImpl::ZStd(enc) => io::AsyncWrite::poll_shutdown(Pin::new(enc), cx),
+                DynBufWriterImpl::Zstd(enc) => io::AsyncWrite::poll_shutdown(Pin::new(enc), cx),
             }
         }
     }
@@ -188,7 +188,7 @@ mod r#async {
         W: io::AsyncWriteExt + Unpin,
     {
         Uncompressed(W),
-        ZStd(ZstdEncoder<W>),
+        Zstd(ZstdEncoder<W>),
     }
 
     impl<W> DynWriter<W>
@@ -200,7 +200,7 @@ mod r#async {
         pub fn new(writer: W, compression: Compression) -> Self {
             Self(match compression {
                 Compression::None => DynWriterImpl::Uncompressed(writer),
-                Compression::ZStd => DynWriterImpl::ZStd(async_zstd_encoder(writer)),
+                Compression::ZStd => DynWriterImpl::Zstd(async_zstd_encoder(writer)),
             })
         }
 
@@ -208,7 +208,7 @@ mod r#async {
         pub fn get_mut(&mut self) -> &mut W {
             match &mut self.0 {
                 DynWriterImpl::Uncompressed(w) => w,
-                DynWriterImpl::ZStd(enc) => enc.get_mut(),
+                DynWriterImpl::Zstd(enc) => enc.get_mut(),
             }
         }
     }
@@ -224,21 +224,21 @@ mod r#async {
         ) -> Poll<io::Result<usize>> {
             match &mut self.0 {
                 DynWriterImpl::Uncompressed(w) => io::AsyncWrite::poll_write(Pin::new(w), cx, buf),
-                DynWriterImpl::ZStd(enc) => io::AsyncWrite::poll_write(Pin::new(enc), cx, buf),
+                DynWriterImpl::Zstd(enc) => io::AsyncWrite::poll_write(Pin::new(enc), cx, buf),
             }
         }
 
         fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
             match &mut self.0 {
                 DynWriterImpl::Uncompressed(w) => io::AsyncWrite::poll_flush(Pin::new(w), cx),
-                DynWriterImpl::ZStd(enc) => io::AsyncWrite::poll_flush(Pin::new(enc), cx),
+                DynWriterImpl::Zstd(enc) => io::AsyncWrite::poll_flush(Pin::new(enc), cx),
             }
         }
 
         fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
             match &mut self.0 {
                 DynWriterImpl::Uncompressed(w) => io::AsyncWrite::poll_shutdown(Pin::new(w), cx),
-                DynWriterImpl::ZStd(enc) => io::AsyncWrite::poll_shutdown(Pin::new(enc), cx),
+                DynWriterImpl::Zstd(enc) => io::AsyncWrite::poll_shutdown(Pin::new(enc), cx),
             }
         }
     }
