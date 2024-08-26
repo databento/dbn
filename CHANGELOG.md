@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.20.1 - TBD
+## 0.20.1 - 2024-08-26
 
 ### Enhancements
 - Added `DynAsyncBufWriter` for buffering compressed or uncompressed async output
