@@ -4259,6 +4259,18 @@ class StatMsg(Record):
         """
 
     @property
+    def pretty_ts_ref(self) -> dt.datetime:
+        """
+        Reference timestamp expressed as the number of nanoseconds since the
+        UNIX epoch as a datetime or `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
     def ts_ref(self) -> int:
         """
         Reference timestamp expressed as the number of nanoseconds since the

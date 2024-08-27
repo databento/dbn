@@ -285,14 +285,18 @@ pub enum Dataset {
     NdexImpact = 29,
     /// Databento Equities Max
     DbeqMax = 30,
-    /// Nasdaq Basic (NLS+QBBO)
+    /// Nasdaq Basic (NLS and QBBO)
     XnasBasic = 31,
     /// Databento Equities Summary
     DbeqSummary = 32,
+    /// NYSE National BBO and Trades
+    XcisBbotrades = 33,
+    /// NYSE BBO and Trades
+    XnysBbotrades = 34,
 }
 
 /// The number of Dataset variants.
-pub const DATASET_COUNT: usize = 32;
+pub const DATASET_COUNT: usize = 34;
 
 impl Dataset {
     /// Convert a Dataset to its `str` representation.
@@ -332,6 +336,8 @@ impl Dataset {
             Self::DbeqMax => "DBEQ.MAX",
             Self::XnasBasic => "XNAS.BASIC",
             Self::DbeqSummary => "DBEQ.SUMMARY",
+            Self::XcisBbotrades => "XCIS.BBOTRADES",
+            Self::XnysBbotrades => "XNYS.BBOTRADES",
         }
     }
 }
@@ -387,6 +393,8 @@ impl std::str::FromStr for Dataset {
             "DBEQ.MAX" => Ok(Self::DbeqMax),
             "XNAS.BASIC" => Ok(Self::XnasBasic),
             "DBEQ.SUMMARY" => Ok(Self::DbeqSummary),
+            "XCIS.BBOTRADES" => Ok(Self::XcisBbotrades),
+            "XNYS.BBOTRADES" => Ok(Self::XnysBbotrades),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
@@ -577,10 +585,14 @@ pub enum Publisher {
     XnasBasicXpsx = 89,
     /// Databento Equities Summary
     DbeqSummaryDbeq = 90,
+    /// NYSE National BBO and Trades
+    XcisBbotradesXcis = 91,
+    /// NYSE BBO and Trades
+    XnysBbotradesXnys = 92,
 }
 
 /// The number of Publisher variants.
-pub const PUBLISHER_COUNT: usize = 90;
+pub const PUBLISHER_COUNT: usize = 92;
 
 impl Publisher {
     /// Convert a Publisher to its `str` representation.
@@ -676,6 +688,8 @@ impl Publisher {
             Self::XnasBasicXbos => "XNAS.BASIC.XBOS",
             Self::XnasBasicXpsx => "XNAS.BASIC.XPSX",
             Self::DbeqSummaryDbeq => "DBEQ.SUMMARY.DBEQ",
+            Self::XcisBbotradesXcis => "XCIS.BBOTRADES.XCIS",
+            Self::XnysBbotradesXnys => "XNYS.BBOTRADES.XNYS",
         }
     }
 
@@ -772,6 +786,8 @@ impl Publisher {
             Self::XnasBasicXbos => Venue::Xbos,
             Self::XnasBasicXpsx => Venue::Xpsx,
             Self::DbeqSummaryDbeq => Venue::Dbeq,
+            Self::XcisBbotradesXcis => Venue::Xcis,
+            Self::XnysBbotradesXnys => Venue::Xnys,
         }
     }
 
@@ -868,6 +884,8 @@ impl Publisher {
             Self::XnasBasicXbos => Dataset::XnasBasic,
             Self::XnasBasicXpsx => Dataset::XnasBasic,
             Self::DbeqSummaryDbeq => Dataset::DbeqSummary,
+            Self::XcisBbotradesXcis => Dataset::XcisBbotrades,
+            Self::XnysBbotradesXnys => Dataset::XnysBbotrades,
         }
     }
 
@@ -966,6 +984,8 @@ impl Publisher {
             (Dataset::XnasBasic, Venue::Xbos) => Ok(Self::XnasBasicXbos),
             (Dataset::XnasBasic, Venue::Xpsx) => Ok(Self::XnasBasicXpsx),
             (Dataset::DbeqSummary, Venue::Dbeq) => Ok(Self::DbeqSummaryDbeq),
+            (Dataset::XcisBbotrades, Venue::Xcis) => Ok(Self::XcisBbotradesXcis),
+            (Dataset::XnysBbotrades, Venue::Xnys) => Ok(Self::XnysBbotradesXnys),
             _ => Err(Error::conversion::<Self>(format!("({dataset}, {venue})"))),
         }
     }
@@ -1078,6 +1098,8 @@ impl std::str::FromStr for Publisher {
             "XNAS.BASIC.XBOS" => Ok(Self::XnasBasicXbos),
             "XNAS.BASIC.XPSX" => Ok(Self::XnasBasicXpsx),
             "DBEQ.SUMMARY.DBEQ" => Ok(Self::DbeqSummaryDbeq),
+            "XCIS.BBOTRADES.XCIS" => Ok(Self::XcisBbotradesXcis),
+            "XNYS.BBOTRADES.XNYS" => Ok(Self::XnysBbotradesXnys),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
