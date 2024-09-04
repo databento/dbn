@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.21.0 - TBD
+
+### Breaking changes
+- Changed the layout of `CbboMsg` to match `BboMsg`
+- Replaced `Schema::Cbbo` with `Schema::Cmbp1`
+
 ## 0.20.1 - 2024-08-26
 
 ### Enhancements

@@ -416,20 +416,20 @@ pub struct BboMsg {
 }
 
 /// Consolidated market by price implementation with a known book depth of 1. The record of the
-/// [`Cbbo`](crate::Schema::Cbbo) schema.
+/// [`Cmbp1`](crate::Schema::Cmbp1) schema.
 #[repr(C)]
 #[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(set_all, dict, module = "databento_dbn", name = "CBBOMsg"),
+    pyo3::pyclass(set_all, dict, module = "databento_dbn", name = "CMBP1Msg"),
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[cfg_attr(test, derive(type_layout::TypeLayout))]
-#[dbn_record(rtype::CBBO, rtype::CBBO_1S, rtype::CBBO_1M, rtype::TCBBO)]
-pub struct CbboMsg {
+#[dbn_record(rtype::CMBP1, rtype::TCBBO)]
+pub struct Cmbp1Msg {
     /// The common header.
     #[pyo3(get)]
     pub hd: RecordHeader,
@@ -474,18 +474,78 @@ pub struct CbboMsg {
     pub levels: [ConsolidatedBidAskPair; 1],
 }
 
+/// Subsampled market by price with a known book depth of 1. The record of the
+/// [`Bbo1S`](crate::Schema::Bbo1S) and [`Bbo1M`](crate::Schema::Bbo1M) schemas.
+#[repr(C)]
+#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(set_all, dict, module = "databento_dbn", name = "CBBOMsg"),
+    derive(crate::macros::PyFieldDesc)
+)]
+#[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
+#[cfg_attr(test, derive(type_layout::TypeLayout))]
+#[dbn_record(rtype::CBBO_1S, rtype::CBBO_1M)]
+pub struct CbboMsg {
+    /// The common header.
+    #[pyo3(get)]
+    pub hd: RecordHeader,
+    /// The price of the last trade expressed as a signed integer where every 1 unit
+    /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    #[dbn(fixed_price)]
+    #[pyo3(get)]
+    pub price: i64,
+    /// The quantity of the last trade.
+    #[pyo3(get)]
+    pub size: u32,
+    // Reserved for later usage.
+    #[doc(hidden)]
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub _reserved1: u8,
+    /// The side that initiated the last trade. Can be **A**sk for a sell order (or sell
+    /// aggressor in a trade), **B**id for a buy order (or buy aggressor in a trade), or
+    /// **N**one where no side is specified by the original source.
+    #[dbn(c_char, encode_order(2))]
+    pub side: c_char,
+    /// A bit field indicating event end, message characteristics, and data quality. See
+    /// [`enums::flags`](crate::enums::flags) for possible values.
+    #[pyo3(get)]
+    pub flags: FlagSet,
+    // Reserved for later usage.
+    #[doc(hidden)]
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub _reserved2: u8,
+    /// The interval timestamp expressed as number of nanoseconds since the UNIX epoch.
+    #[dbn(encode_order(0), index_ts, unix_nanos)]
+    #[pyo3(get)]
+    pub ts_recv: u64,
+    // Reserved for later usage.
+    #[doc(hidden)]
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub _reserved3: [u8; 4],
+    /// The sequence number assigned at the venue of the last update.
+    #[pyo3(get)]
+    pub sequence: u32,
+    /// The top of the order book.
+    #[pyo3(get)]
+    pub levels: [ConsolidatedBidAskPair; 1],
+}
+
 /// The record of the [`Tbbo`](crate::enums::Schema::Tbbo) schema.
 pub type TbboMsg = Mbp1Msg;
 /// The record of the [`Bbo1S`](crate::enums::Schema::Bbo1S) schema.
 pub type Bbo1SMsg = BboMsg;
 /// The record of the [`Bbo1M`](crate::enums::Schema::Bbo1M) schema.
 pub type Bbo1MMsg = BboMsg;
+
+/// The record of the [`Tcbbo`](crate::enums::Schema::Tcbbo) schema.
+pub type TcbboMsg = Cmbp1Msg;
 /// The record of the [`Cbbo1S`](crate::enums::Schema::Cbbo1S) schema.
 pub type Cbbo1SMsg = CbboMsg;
 /// The record of the [`Cbbo1M`](crate::enums::Schema::Cbbo1M) schema.
 pub type Cbbo1MMsg = CbboMsg;
-/// The record of the [`Tcbbo`](crate::enums::Schema::Tcbbo) schema.
-pub type TcbboMsg = CbboMsg;
 
 /// Open, high, low, close, and volume. The record of the following schemas:
 /// - [`Ohlcv1S`](crate::enums::Schema::Ohlcv1S)
@@ -1241,7 +1301,8 @@ mod tests {
     #[case::mbp1(Mbp1Msg::default(), mem::size_of::<TradeMsg>() + mem::size_of::<BidAskPair>())]
     #[case::mbp10(Mbp10Msg::default(), mem::size_of::<TradeMsg>() + mem::size_of::<BidAskPair>() * 10)]
     #[case::bbo(BboMsg::default_for_schema(Schema::Bbo1S), mem::size_of::<Mbp1Msg>())]
-    #[case::cbbo(CbboMsg::default_for_schema(Schema::Cbbo), mem::size_of::<Mbp1Msg>())]
+    #[case::cmbp1(Cmbp1Msg::default_for_schema(Schema::Cmbp1), mem::size_of::<Mbp1Msg>())]
+    #[case::cbbo(CbboMsg::default_for_schema(Schema::Cbbo1S), mem::size_of::<Mbp1Msg>())]
     #[case::trade(TradeMsg::default(), 48)]
     #[case::definition(InstrumentDefMsg::default(), 400)]
     #[case::status(StatusMsg::default(), 40)]
@@ -1262,7 +1323,8 @@ mod tests {
     #[case::ba_pair(BidAskPair::default())]
     #[case::mbp1(Mbp1Msg::default())]
     #[case::bbo(BboMsg::default_for_schema(crate::Schema::Bbo1S))]
-    #[case::cbbo(CbboMsg::default_for_schema(crate::Schema::Cbbo))]
+    #[case::cmbp1(Cmbp1Msg::default_for_schema(crate::Schema::Cmbp1))]
+    #[case::cbbo(CbboMsg::default_for_schema(crate::Schema::Cbbo1S))]
     #[case::mbp10(Mbp10Msg::default())]
     #[case::trade(TradeMsg::default())]
     #[case::definition(InstrumentDefMsg::default())]

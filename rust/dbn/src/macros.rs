@@ -60,8 +60,9 @@ macro_rules! rtype_dispatch_base {
                 }
                 RType::Statistics => $handler!(StatMsg),
                 RType::Mbo => $handler!(MboMsg),
-                RType::Cbbo | RType::Cbbo1S | RType::Cbbo1M | RType::Tcbbo => $handler!(CbboMsg),
+                RType::Cmbp1 | RType::Tcbbo => $handler!(Cmbp1Msg),
                 RType::Bbo1S | RType::Bbo1M => $handler!(BboMsg),
+                RType::Cbbo1S | RType::Cbbo1M => $handler!(CbboMsg),
             }),
             Err(e) => Err(e),
         }
@@ -91,7 +92,10 @@ macro_rules! schema_dispatch_base {
             Schema::Statistics => $handler!(StatMsg),
             Schema::Status => $handler!(StatusMsg),
             Schema::Imbalance => $handler!(ImbalanceMsg),
-            Schema::Cbbo | Schema::Cbbo1S | Schema::Cbbo1M | Schema::Tcbbo => {
+            Schema::Cmbp1 | Schema::Tcbbo => {
+                $handler!(Cmbp1Msg)
+            }
+            Schema::Cbbo1S | Schema::Cbbo1M => {
                 $handler!(CbboMsg)
             }
         }

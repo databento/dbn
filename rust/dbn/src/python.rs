@@ -172,7 +172,7 @@ impl PyFieldDesc for FlagSet {
 mod tests {
     use super::PyFieldDesc;
     use crate::{
-        record::{CbboMsg, InstrumentDefMsg, MboMsg, Mbp10Msg},
+        record::{Cmbp1Msg, InstrumentDefMsg, MboMsg, Mbp10Msg},
         SYMBOL_CSTR_LEN,
     };
 
@@ -308,8 +308,8 @@ mod tests {
     }
 
     #[test]
-    fn test_cbbo_dtypes() {
-        let dtypes = CbboMsg::field_dtypes("");
+    fn test_cmbp1_dtypes() {
+        let dtypes = Cmbp1Msg::field_dtypes("");
         let exp = with_record_header_dtype(vec![
             ("price".to_owned(), "i8".to_owned()),
             ("size".to_owned(), "u4".to_owned()),
@@ -337,13 +337,13 @@ mod tests {
         let mut exp_price = vec!["price".to_owned()];
         exp_price.push("bid_px_00".to_owned());
         exp_price.push("ask_px_00".to_owned());
-        assert_eq!(CbboMsg::price_fields(""), exp_price);
+        assert_eq!(Cmbp1Msg::price_fields(""), exp_price);
         assert_eq!(
-            CbboMsg::hidden_fields(""),
+            Cmbp1Msg::hidden_fields(""),
             vec!["length".to_owned(), "_reserved".to_owned()]
         );
         assert_eq!(
-            CbboMsg::timestamp_fields(""),
+            Cmbp1Msg::timestamp_fields(""),
             vec!["ts_event".to_owned(), "ts_recv".to_owned()]
         );
     }
@@ -370,7 +370,7 @@ mod tests {
             "bid_pb_00".to_owned(),
             "ask_pb_00".to_owned(),
         ];
-        assert_eq!(CbboMsg::ordered_fields(""), exp)
+        assert_eq!(Cmbp1Msg::ordered_fields(""), exp)
     }
 
     #[test]

@@ -684,7 +684,7 @@ mod tests {
         encode::{
             dbn::Encoder, DbnEncodable, DbnRecordEncoder, DynWriter, EncodeDbn, EncodeRecord,
         },
-        rtype, CbboMsg, Compression, Error, ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg,
+        rtype, Cmbp1Msg, Compression, Error, ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg,
         Mbp10Msg, Mbp1Msg, MetadataBuilder, OhlcvMsg, RecordHeader, Result, StatMsg, StatusMsg,
         TbboMsg, TradeMsg, WithTsOut, SYMBOL_CSTR_LEN,
     };
@@ -870,11 +870,11 @@ mod tests {
     #[case::zstd_trades_v2(2, Schema::Trades, Compression::ZStd, TradeMsg::default())]
     #[case::zstd_tbbo_v2(2, Schema::Tbbo, Compression::ZStd, TbboMsg::default())]
     #[case::zstd_mbp1_v2(2, Schema::Mbp1, Compression::ZStd, Mbp1Msg::default())]
-    #[case::zstd_cbbo_v2(
+    #[case::zstd_cmbp1_v2(
         2,
-        Schema::Cbbo,
+        Schema::Cmbp1,
         Compression::ZStd,
-        CbboMsg::default_for_schema(Schema::Cbbo)
+        Cmbp1Msg::default_for_schema(Schema::Cmbp1)
     )]
     #[case::zstd_mbp10_v2(2, Schema::Mbp10, Compression::ZStd, Mbp10Msg::default())]
     #[case::zstd_ohlcv1d_v2(
