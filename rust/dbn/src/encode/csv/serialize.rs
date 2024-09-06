@@ -69,7 +69,7 @@ impl<const N: usize> WriteField for [BidAskPair; N] {
     fn write_header<W: io::Write>(csv_writer: &mut Writer<W>, _name: &str) -> csv::Result<()> {
         for i in 0..N {
             for f in ["bid_px", "ask_px", "bid_sz", "ask_sz", "bid_ct", "ask_ct"] {
-                csv_writer.write_field(&format!("{f}_{i:02}"))?;
+                csv_writer.write_field(format!("{f}_{i:02}"))?;
             }
         }
         Ok(())
@@ -95,7 +95,7 @@ impl<const N: usize> WriteField for [ConsolidatedBidAskPair; N] {
     fn write_header<W: io::Write>(csv_writer: &mut Writer<W>, _name: &str) -> csv::Result<()> {
         for i in 0..N {
             for f in ["bid_px", "ask_px", "bid_sz", "ask_sz", "bid_pb", "ask_pb"] {
-                csv_writer.write_field(&format!("{f}_{i:02}"))?;
+                csv_writer.write_field(format!("{f}_{i:02}"))?;
             }
         }
         Ok(())

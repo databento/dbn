@@ -103,9 +103,8 @@ impl DbnDecoder {
             }
             Ok(())
         })
-        .map_err(|e| {
+        .inspect_err(|_| {
             self.buffer.set_position(orig_position);
-            e
         })?;
         if recs.is_empty() {
             self.buffer.set_position(orig_position);
