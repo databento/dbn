@@ -18,7 +18,7 @@ where
     W: io::Write,
 {
     writer: csv::Writer<W>,
-    // Prevent writing header twice
+    /// Prevent writing header twice.
     has_written_header: bool,
     use_pretty_px: bool,
     use_pretty_ts: bool,
@@ -26,8 +26,7 @@ where
 
 /// Helper for constructing a CSV [`Encoder`].
 ///
-/// If writing a CSV header (`write_header`), which is enabled by default,
-/// `schema` is required, otherwise no fields are required.
+/// No fields are required.
 pub struct EncoderBuilder<W>
 where
     W: io::Write,
@@ -74,25 +73,23 @@ where
         self
     }
 
-    /// Sets whether the CSV encoder will write a header row when it's created.
-    /// Defaults to `true`. If `false`, a header row can still be written with
+    /// Sets whether the CSV encoder will write a header row automatically.
+    /// Defaults to `true`.
+    ///
+    /// If `false`, a header row can still be written with
     /// [`Encoder::encode_header()`] or [`Encoder::encode_header_for_schema()`].
     pub fn write_header(mut self, write_header: bool) -> Self {
         self.write_header = write_header;
         self
     }
 
-    /// Sets the schema that will be encoded. This is required if writing a header row.
+    /// Sets the schema that will be encoded, used for determining the header row to write.
     ///
-    /// # Errors
-    /// This function returns an error if `schema` is `None`. It accepts to an `Option` to
-    /// more easily work with [`Metadata::schema`](crate::Metadata::schema).
-    pub fn schema(mut self, schema: Option<Schema>) -> crate::Result<Self> {
-        if schema.is_none() {
-            return Err(Error::encode("can't encode a CSV with mixed schemas"));
-        };
+    /// If schema isn't set and `write_header` is left enabled, the header will be written
+    /// based on the type of the first record.
+    pub fn schema(mut self, schema: Option<Schema>) -> Self {
         self.schema = schema;
-        Ok(self)
+        self
     }
 
     /// Sets whether to add a header field "ts_out". Defaults to `false`.
@@ -124,18 +121,16 @@ where
                 .has_headers(false)
                 .delimiter(self.delimiter)
                 .from_writer(self.writer),
-            has_written_header: false,
+            has_written_header: true,
             use_pretty_px: self.use_pretty_px,
             use_pretty_ts: self.use_pretty_ts,
         };
         if self.write_header {
-            let Some(schema) = self.schema else {
-                return Err(Error::BadArgument {
-                    param_name: "schema".to_owned(),
-                    desc: "need to specify schema in order to write header".to_owned(),
-                });
-            };
-            encoder.encode_header_for_schema(schema, self.ts_out, self.with_symbol)?;
+            if let Some(schema) = self.schema {
+                encoder.encode_header_for_schema(schema, self.ts_out, self.with_symbol)?;
+            } else {
+                encoder.has_written_header = false;
+            }
         }
         Ok(encoder)
     }
@@ -150,12 +145,14 @@ where
         EncoderBuilder::new(writer)
     }
 
-    /// Creates a new [`Encoder`] that will write to `writer`. If `use_pretty_px`
+    /// Creates a new [`Encoder`] that will write to `writer`.
+    ///
+    /// If `use_pretty_px`
     /// is `true`, price fields will be serialized as a decimal. If `pretty_ts` is
     /// `true`, timestamp fields will be serialized in a ISO8601 datetime string.
+    /// By default, a header will be written once a schema can be inferred.
     pub fn new(writer: W, use_pretty_px: bool, use_pretty_ts: bool) -> Self {
         Self::builder(writer)
-            .write_header(false)
             .use_pretty_px(use_pretty_px)
             .use_pretty_ts(use_pretty_ts)
             .build()
@@ -231,6 +228,9 @@ where
     W: io::Write,
 {
     fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<()> {
+        if !self.has_written_header {
+            self.encode_header::<R>(false)?;
+        }
         match self
             .encode_record_impl(record)
             // write new line
@@ -273,9 +273,6 @@ where
     W: io::Write,
 {
     fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> Result<()> {
-        if !self.has_written_header {
-            self.encode_header::<R>(false)?;
-        }
         for record in records {
             self.encode_record(record)?;
         }
@@ -292,9 +289,6 @@ where
         &mut self,
         mut stream: impl FallibleStreamingIterator<Item = R, Error = Error>,
     ) -> Result<()> {
-        if !self.has_written_header {
-            self.encode_header::<R>(false)?;
-        }
         while let Some(record) = stream.next()? {
             self.encode_record(record)?;
         }
@@ -312,9 +306,6 @@ where
     fn encode_decoded<D: DecodeRecordRef + DbnMetadata>(&mut self, mut decoder: D) -> Result<()> {
         let ts_out = decoder.metadata().ts_out;
         if let Some(schema) = decoder.metadata().schema {
-            if !self.has_written_header {
-                self.encode_header_for_schema(schema, ts_out, false)?;
-            }
             let rtype = RType::from(schema);
             while let Some(record) = decoder.decode_record_ref()? {
                 if record.rtype().map_or(true, |r| r != rtype) {
@@ -370,6 +361,9 @@ where
         record: &R,
         symbol: Option<&str>,
     ) -> Result<()> {
+        if !self.has_written_header {
+            self.encode_header::<R>(true)?;
+        }
         match self
             .encode_record_impl(record)
             .and_then(|_| self.encode_symbol(symbol))
@@ -443,7 +437,6 @@ mod tests {
         let writer = BufWriter::new(&mut buffer);
         Encoder::builder(writer)
             .delimiter(sep)
-            .write_header(false)
             .build()
             .unwrap()
             .encode_stream(VecStream::new(data))
@@ -480,7 +473,6 @@ mod tests {
         let writer = BufWriter::new(&mut buffer);
         Encoder::builder(writer)
             .delimiter(sep)
-            .write_header(false)
             .build()
             .unwrap()
             .encode_records(data.as_slice())
@@ -518,7 +510,6 @@ mod tests {
         let writer = BufWriter::new(&mut buffer);
         Encoder::builder(writer)
             .delimiter(sep)
-            .write_header(false)
             .build()
             .unwrap()
             .encode_stream(VecStream::new(data))
@@ -553,7 +544,6 @@ mod tests {
         let writer = BufWriter::new(&mut buffer);
         Encoder::builder(writer)
             .delimiter(sep)
-            .write_header(false)
             .build()
             .unwrap()
             .encode_records(data.as_slice())
@@ -585,7 +575,6 @@ mod tests {
         let writer = BufWriter::new(&mut buffer);
         Encoder::builder(writer)
             .delimiter(sep)
-            .write_header(false)
             .build()
             .unwrap()
             .encode_stream(VecStream::new(data))
@@ -624,7 +613,6 @@ mod tests {
         let writer = BufWriter::new(&mut buffer);
         Encoder::builder(writer)
             .delimiter(sep)
-            .write_header(false)
             .build()
             .unwrap()
             .encode_records(data.as_slice())
@@ -712,7 +700,6 @@ mod tests {
         let writer = BufWriter::new(&mut buffer);
         Encoder::builder(writer)
             .delimiter(sep)
-            .write_header(false)
             .build()
             .unwrap()
             .encode_stream(VecStream::new(data))
@@ -752,7 +739,6 @@ mod tests {
         let writer = BufWriter::new(&mut buffer);
         Encoder::builder(writer)
             .delimiter(sep)
-            .write_header(false)
             .build()
             .unwrap()
             .encode_records(data.as_slice())
@@ -800,7 +786,6 @@ mod tests {
         let writer = BufWriter::new(&mut buffer);
         Encoder::builder(writer)
             .delimiter(sep)
-            .write_header(false)
             .build()
             .unwrap()
             .encode_records(data.as_slice())
@@ -839,7 +824,6 @@ mod tests {
         let writer = BufWriter::new(&mut buffer);
         Encoder::builder(writer)
             .delimiter(sep)
-            .write_header(false)
             .build()
             .unwrap()
             .encode_stream(VecStream::new(data))
@@ -867,7 +851,12 @@ mod tests {
             volume: 4033445,
         };
         let rec_ref = RecordRef::from(&BAR);
-        let mut encoder = Encoder::new(&mut buffer, false, false);
+        let mut encoder = Encoder::builder(&mut buffer)
+            .use_pretty_px(false)
+            .use_pretty_ts(false)
+            .write_header(false)
+            .build()
+            .unwrap();
         encoder.encode_ref_with_sym(rec_ref, None).unwrap();
         encoder.encode_ref_with_sym(rec_ref, Some("AAPL")).unwrap();
         drop(encoder);

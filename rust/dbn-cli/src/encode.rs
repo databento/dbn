@@ -28,7 +28,7 @@ where
 {
     let writer = output_from_args(args)?;
     let (encoding, compression, delimiter) = infer_encoding(args)?;
-    Ok(if args.should_output_metadata {
+    if args.should_output_metadata {
         if encoding != Encoding::Json {
             return Err(anyhow::format_err!(
                 "Metadata flag is only valid with JSON encoding"
@@ -40,12 +40,13 @@ where
             args.should_pretty_print,
             args.should_pretty_print,
         )
-        .encode_metadata(decoder.metadata())
+        .encode_metadata(decoder.metadata())?;
     } else if args.fragment {
-        encode_fragment(decoder, writer, compression)
+        encode_fragment(decoder, writer, compression)?;
     } else {
         let mut encoder = DynEncoder::builder(writer, encoding, compression, decoder.metadata())
             .delimiter(delimiter)
+            .write_header(args.write_header)
             .all_pretty(args.should_pretty_print)
             .with_symbol(args.map_symbols)
             .build()?;
@@ -54,16 +55,16 @@ where
             let ts_out = decoder.metadata().ts_out;
             while let Some(rec) = decoder.decode_record_ref()? {
                 let sym = symbol_map.get_for_rec(&rec).map(String::as_str);
-                // Safety: ts_out is accurate because we get it from the metadata
+                // SAFETY: `ts_out` is accurate because it's sourced from the metadata
                 unsafe {
                     encoder.encode_ref_ts_out_with_sym(rec, ts_out, sym)?;
                 }
             }
-            Ok(())
         } else {
-            encoder.encode_decoded(decoder)
+            encoder.encode_decoded(decoder)?;
         }
-    }?)
+    }
+    Ok(())
 }
 
 pub fn encode_from_frag<D>(mut decoder: D, args: &Args) -> anyhow::Result<()>
@@ -96,7 +97,7 @@ where
     .write_header(false)
     .all_pretty(args.should_pretty_print)
     .build()?;
-    let mut has_written_header = encoding != Encoding::Csv;
+    let mut has_written_header = (encoding != Encoding::Csv) || !args.write_header;
     fn write_header<T: DbnEncodable>(
         _record: &T,
         encoder: &mut DynEncoder<Box<dyn io::Write>>,

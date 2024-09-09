@@ -109,7 +109,6 @@ impl<'a> RecordRef<'a> {
     /// # Safety
     /// The caller needs to validate this object points to a `T`.
     pub unsafe fn get_unchecked<T: HasRType>(&self) -> &'a T {
-        debug_assert!(self.has::<T>());
         debug_assert!(self.record_size() >= mem::size_of::<T>());
         self.ptr.cast::<T>().as_ref()
     }

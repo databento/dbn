@@ -2,9 +2,25 @@
 
 ## 0.21.0 - TBD
 
+### Enhancements
+- Added `--omit-header` option to `dbn` CLI to skip encoding the header row when
+  encoding CSVs
+
 ### Breaking changes
 - Changed the layout of `CbboMsg` to match `BboMsg`
 - Replaced `Schema::Cbbo` with `Schema::Cmbp1`
+- Changed handling of `write_header` parameter for `CsvEncoder` and `DynEncoder`. It
+  now determines whether a header is written automatically in general, not only during
+  instantiation of the encoder. This makes it possible to use `encode_records` and
+  `encode_decoded` without writing a header
+- `CsvEncoder::new` creates an encoder that will always try to write a header. Use the builder with
+  `write_header(false)` to create an encoder that won't write a header row
+- `schema` is now always optional for the `CsvEncoder` builder and no longer returns a `Result`
+
+### Bug fixes
+- Removed `debug_assert!` on `rtype` in `RecordRef::get_unchecked` that was too strict.
+  The method is already marked unsafe and it's okay to interpret one record type as another type
+  as long as latter type's size is not greater than the former's
 
 ## 0.20.1 - 2024-08-26
 
@@ -116,8 +132,6 @@
   `u8::MAX` to match C++ client and to reflect an unknown value. This also changes the
   value of these fields when upgrading a `SymbolMappingMsgV1` to DBNv2
 - Renamed `CbboMsg` to `CBBOMsg` in Python for consistency with other schemas
-
-### Breaking changes
 - Changed text serialization of `display_factor` to be affected by `pretty_px`.
   While it's not a price, it uses the same fixed-price decimal format as other prices
 - Changed text serialization  of `unit_of_measure_qty` in `InstrumentDefMsgV1` to be
