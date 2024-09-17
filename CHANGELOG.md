@@ -5,6 +5,8 @@
 ### Enhancements
 - Added `--omit-header` option to `dbn` CLI to skip encoding the header row when
   encoding CSVs
+- Added Python setter for `ts_event` on all records
+- Upgraded `pyo3` version to 0.22.3
 
 ### Breaking changes
 - Changed the layout of `CbboMsg` to match `BboMsg`
