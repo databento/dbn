@@ -388,9 +388,9 @@ impl Default for MetadataBuilder<Unset, Unset, Unset, Unset, Unset> {
 #[cfg_attr(feature = "serde", derive(Deserialize))]
 #[cfg_attr(feature = "python", derive(pyo3::FromPyObject))]
 pub struct SymbolMapping {
-    /// The symbol assigned by publisher.
+    /// The `stype_in` symbol.
     pub raw_symbol: String,
-    /// The mappings of `native` for different date ranges.
+    /// The mappings of `raw_symbol` to `stype_out` for different date ranges.
     pub intervals: Vec<MappingInterval>,
 }
 
@@ -410,7 +410,7 @@ pub struct MappingInterval {
         serde(rename = "d1", deserialize_with = "deserialize_date")
     )]
     pub end_date: time::Date,
-    /// The resolved symbol for this interval.
+    /// The resolved symbol for this interval (in `stype_out`).
     #[cfg_attr(feature = "serde", serde(rename = "s"))]
     pub symbol: String,
 }
