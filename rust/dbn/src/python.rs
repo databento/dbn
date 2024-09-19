@@ -316,10 +316,10 @@ mod tests {
             ("action".to_owned(), "S1".to_owned()),
             ("side".to_owned(), "S1".to_owned()),
             ("flags".to_owned(), "u1".to_owned()),
-            ("_reserved".to_owned(), "S1".to_owned()),
+            ("_reserved1".to_owned(), "S1".to_owned()),
             ("ts_recv".to_owned(), "u8".to_owned()),
             ("ts_in_delta".to_owned(), "i4".to_owned()),
-            ("sequence".to_owned(), "u4".to_owned()),
+            ("_reserved2".to_owned(), "S4".to_owned()),
             ("bid_px_00".to_owned(), "i8".to_owned()),
             ("ask_px_00".to_owned(), "i8".to_owned()),
             ("bid_sz_00".to_owned(), "u4".to_owned()),
@@ -340,7 +340,11 @@ mod tests {
         assert_eq!(Cmbp1Msg::price_fields(""), exp_price);
         assert_eq!(
             Cmbp1Msg::hidden_fields(""),
-            vec!["length".to_owned(), "_reserved".to_owned()]
+            vec![
+                "length".to_owned(),
+                "_reserved1".to_owned(),
+                "_reserved2".to_owned()
+            ]
         );
         assert_eq!(
             Cmbp1Msg::timestamp_fields(""),
@@ -362,7 +366,6 @@ mod tests {
             "size".to_owned(),
             "flags".to_owned(),
             "ts_in_delta".to_owned(),
-            "sequence".to_owned(),
             "bid_px_00".to_owned(),
             "ask_px_00".to_owned(),
             "bid_sz_00".to_owned(),

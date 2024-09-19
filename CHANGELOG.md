@@ -7,9 +7,10 @@
   encoding CSVs
 - Added Python setter for `ts_event` on all records
 - Upgraded `pyo3` version to 0.22.3
+- Added new consolidated publishers for `XNAS.BASIC` and `DBEQ.MAX`
 
 ### Breaking changes
-- Changed the layout of `CbboMsg` to match `BboMsg`
+- Changed the layout of `CbboMsg` to better match `BboMsg`
 - Replaced `Schema::Cbbo` with `Schema::Cmbp1`
 - Changed handling of `write_header` parameter for `CsvEncoder` and `DynEncoder`. It
   now determines whether a header is written automatically in general, not only during

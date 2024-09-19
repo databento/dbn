@@ -405,7 +405,6 @@ impl Cmbp1Msg {
         ts_recv,
         flags = None,
         ts_in_delta = None,
-        sequence = None,
         levels = None,
     ))]
     fn py_new(
@@ -420,7 +419,6 @@ impl Cmbp1Msg {
         ts_recv: u64,
         flags: Option<FlagSet>,
         ts_in_delta: Option<i32>,
-        sequence: Option<u32>,
         levels: Option<ConsolidatedBidAskPair>,
     ) -> PyResult<Self> {
         Ok(Self {
@@ -432,9 +430,9 @@ impl Cmbp1Msg {
             flags: flags.unwrap_or_default(),
             ts_recv,
             ts_in_delta: ts_in_delta.unwrap_or_default(),
-            sequence: sequence.unwrap_or_default(),
             levels: [levels.unwrap_or_default()],
-            _reserved: Default::default(),
+            _reserved1: Default::default(),
+            _reserved2: Default::default(),
         })
     }
 
@@ -558,7 +556,6 @@ impl CbboMsg {
         side,
         ts_recv,
         flags = None,
-        sequence = None,
         levels = None,
     ))]
     fn py_new(
@@ -571,7 +568,6 @@ impl CbboMsg {
         side: char,
         ts_recv: u64,
         flags: Option<FlagSet>,
-        sequence: Option<u32>,
         levels: Option<ConsolidatedBidAskPair>,
     ) -> PyResult<Self> {
         Ok(Self {
@@ -581,11 +577,11 @@ impl CbboMsg {
             side: char_to_c_char(side)?,
             flags: flags.unwrap_or_default(),
             ts_recv,
-            sequence: sequence.unwrap_or_default(),
             levels: [levels.unwrap_or_default()],
             _reserved1: Default::default(),
             _reserved2: Default::default(),
             _reserved3: Default::default(),
+            _reserved4: Default::default(),
         })
     }
 

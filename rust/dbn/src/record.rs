@@ -457,7 +457,7 @@ pub struct Cmbp1Msg {
     // Reserved for future usage.
     #[doc(hidden)]
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub _reserved: [c_char; 1],
+    pub _reserved1: [c_char; 1],
     /// The capture-server-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
     #[dbn(encode_order(0), index_ts, unix_nanos)]
@@ -466,9 +466,9 @@ pub struct Cmbp1Msg {
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
     #[pyo3(get)]
     pub ts_in_delta: i32,
-    /// The message sequence number assigned at the venue.
-    #[pyo3(get)]
-    pub sequence: u32,
+    #[doc(hidden)]
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub _reserved2: [c_char; 4],
     /// The top of the order book.
     #[pyo3(get)]
     pub levels: [ConsolidatedBidAskPair; 1],
@@ -525,9 +525,10 @@ pub struct CbboMsg {
     #[doc(hidden)]
     #[cfg_attr(feature = "serde", serde(skip))]
     pub _reserved3: [u8; 4],
-    /// The sequence number assigned at the venue of the last update.
-    #[pyo3(get)]
-    pub sequence: u32,
+    /// Reserved for later usage.
+    #[doc(hidden)]
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub _reserved4: [u8; 4],
     /// The top of the order book.
     #[pyo3(get)]
     pub levels: [ConsolidatedBidAskPair; 1],

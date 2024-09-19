@@ -126,10 +126,10 @@ impl CbboMsg {
             side: Side::None as c_char,
             flags: FlagSet::default(),
             ts_recv: UNDEF_TIMESTAMP,
-            sequence: 0,
             _reserved1: 0,
             _reserved2: 0,
             _reserved3: [0; 4],
+            _reserved4: [0; 4],
             levels: Default::default(),
         }
     }
@@ -145,10 +145,10 @@ impl Cmbp1Msg {
             action: 0,
             side: Side::None as c_char,
             flags: FlagSet::default(),
-            _reserved: [0; 1],
+            _reserved1: [0; 1],
             ts_recv: UNDEF_TIMESTAMP,
             ts_in_delta: 0,
-            sequence: 0,
+            _reserved2: [0; 4],
             levels: Default::default(),
         }
     }
