@@ -40,7 +40,7 @@ impl From<Side> for char {
     }
 }
 
-/// An [order event or order book operation](https://app0.databento.com/docs/api-reference-historical/basics/schemas-and-conventions).
+/// An [order event or order book operation](https://databento.com/docs/api-reference-historical/basics/schemas-and-conventions).
 ///
 /// For example usage see:
 /// - [Order actions](https://databento.com/docs/examples/order-book/order-actions)
