@@ -315,7 +315,7 @@ class RType(Enum):
     BBO_1M
         Denotes a best bid and offer record subsampled on a one-minute interval.
 
-    """  # noqa: D405 D407 D411
+    """  # noqa: D405, D411
 
     @classmethod
     def from_int(cls, value: int) -> RType: ...
