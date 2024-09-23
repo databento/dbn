@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.21.0 - TBD
+## 0.21.0 - 2024-09-24
 
 ### Enhancements
 - Added `--omit-header` option to `dbn` CLI to skip encoding the header row when
@@ -10,8 +10,6 @@
 - Added new consolidated publishers for `XNAS.BASIC` and `DBEQ.MAX`
 
 ### Breaking changes
-- Changed the layout of `CbboMsg` to better match `BboMsg`
-- Replaced `Schema::Cbbo` with `Schema::Cmbp1`
 - Changed handling of `write_header` parameter for `CsvEncoder` and `DynEncoder`. It
   now determines whether a header is written automatically in general, not only during
   instantiation of the encoder. This makes it possible to use `encode_records` and
@@ -19,6 +17,8 @@
 - `CsvEncoder::new` creates an encoder that will always try to write a header. Use the builder with
   `write_header(false)` to create an encoder that won't write a header row
 - `schema` is now always optional for the `CsvEncoder` builder and no longer returns a `Result`
+- Changed the layout of `CbboMsg` to better match `BboMsg`
+- Renamed `Schema::Cbbo` to `Schema::Cmbp1`
 
 ### Bug fixes
 - Removed `debug_assert!` on `rtype` in `RecordRef::get_unchecked` that was too strict.
