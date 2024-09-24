@@ -40,7 +40,7 @@ impl From<Side> for char {
     }
 }
 
-/// An [order event or order book operation](https://app0.databento.com/docs/api-reference-historical/basics/schemas-and-conventions).
+/// An [order event or order book operation](https://databento.com/docs/api-reference-historical/basics/schemas-and-conventions).
 ///
 /// For example usage see:
 /// - [Order actions](https://databento.com/docs/examples/order-book/order-actions)
@@ -372,7 +372,7 @@ pub mod rtype {
         /// Denotes a market by order record.
         Mbo = 0xA0,
         /// Denotes a consolidated best bid and offer record.
-        Cbbo = 0xB1,
+        Cmbp1 = 0xB1,
         /// Denotes a consolidated best bid and offer record subsampled on a one-second
         /// interval.
         Cbbo1S = 0xC0,
@@ -431,7 +431,7 @@ pub mod rtype {
     /// Denotes a market-by-order record.
     pub const MBO: u8 = RType::Mbo as u8;
     /// Denotes a consolidated best bid and offer record.
-    pub const CBBO: u8 = RType::Cbbo as u8;
+    pub const CMBP1: u8 = RType::Cmbp1 as u8;
     /// Denotes a consolidated best bid and offer record subsampled on a one-second interval.
     pub const CBBO_1S: u8 = RType::Cbbo1S as u8;
     /// Denotes a consolidated best bid and offer record subsampled on a one-minute interval.
@@ -460,7 +460,7 @@ pub mod rtype {
                 Schema::Statistics => RType::Statistics,
                 Schema::Status => RType::Status,
                 Schema::Imbalance => RType::Imbalance,
-                Schema::Cbbo => RType::Cbbo,
+                Schema::Cmbp1 => RType::Cmbp1,
                 Schema::Cbbo1S => RType::Cbbo1S,
                 Schema::Cbbo1M => RType::Cbbo1M,
                 Schema::Tcbbo => RType::Tcbbo,
@@ -489,7 +489,7 @@ pub mod rtype {
             IMBALANCE => Some(Schema::Imbalance),
             STATISTICS => Some(Schema::Statistics),
             MBO => Some(Schema::Mbo),
-            CBBO => Some(Schema::Cbbo),
+            CMBP1 => Some(Schema::Cmbp1),
             CBBO_1S => Some(Schema::Cbbo1S),
             CBBO_1M => Some(Schema::Cbbo1M),
             TCBBO => Some(Schema::Tcbbo),
@@ -521,7 +521,7 @@ pub mod rtype {
                 "system" => Ok(RType::System),
                 "statistics" => Ok(RType::Statistics),
                 "mbo" => Ok(RType::Mbo),
-                "cbbo" => Ok(RType::Cbbo),
+                "cmbp-1" => Ok(RType::Cmbp1),
                 "cbbo-1s" => Ok(RType::Cbbo1S),
                 "cbbo-1m" => Ok(RType::Cbbo1M),
                 "tcbbo" => Ok(RType::Tcbbo),
@@ -553,7 +553,7 @@ pub mod rtype {
                 RType::System => "system",
                 RType::Statistics => "statistics",
                 RType::Mbo => "mbo",
-                RType::Cbbo => "cbbo",
+                RType::Cmbp1 => "cmbp-1",
                 RType::Cbbo1S => "cbbo-1s",
                 RType::Cbbo1M => "cbbo-1m",
                 RType::Tcbbo => "tcbbo",
@@ -625,8 +625,8 @@ pub enum Schema {
     #[pyo3(name = "OHLCV_EOD")]
     OhlcvEod = 13,
     /// Consolidated best bid and offer.
-    #[pyo3(name = "CBBO")]
-    Cbbo = 14,
+    #[pyo3(name = "CMBP_1")]
+    Cmbp1 = 14,
     /// Consolidated best bid and offer subsampled at one-second intervals, in addition
     /// to trades.
     #[pyo3(name = "CBBO_1S")]
@@ -669,7 +669,7 @@ impl std::str::FromStr for Schema {
             "statistics" => Ok(Schema::Statistics),
             "status" => Ok(Schema::Status),
             "imbalance" => Ok(Schema::Imbalance),
-            "cbbo" => Ok(Schema::Cbbo),
+            "cmbp-1" => Ok(Schema::Cmbp1),
             "cbbo-1s" => Ok(Schema::Cbbo1S),
             "cbbo-1m" => Ok(Schema::Cbbo1M),
             "tcbbo" => Ok(Schema::Tcbbo),
@@ -704,7 +704,7 @@ impl Schema {
             Schema::Statistics => "statistics",
             Schema::Status => "status",
             Schema::Imbalance => "imbalance",
-            Schema::Cbbo => "cbbo",
+            Schema::Cmbp1 => "cmbp-1",
             Schema::Cbbo1S => "cbbo-1s",
             Schema::Cbbo1M => "cbbo-1m",
             Schema::Tcbbo => "tcbbo",

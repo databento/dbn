@@ -70,8 +70,10 @@ where
         }
     }
 
-    /// Sets whether the encoder will write a header row when it's created if encoding
-    /// CSV. Defaults to `true`. If `false`, a header row can still be written with
+    /// Sets whether the CSV encoder will write a header row automatically.
+    /// Defaults to `true`.
+    ///
+    /// If `false`, a header row can still be written with
     /// [`DynEncoder::encode_header()`] or [`DynEncoder::encode_header_for_schema()`].
     pub fn write_header(mut self, write_header: bool) -> Self {
         self.write_header = write_header;
@@ -131,20 +133,17 @@ where
         let writer = DynWriter::new(self.writer, self.compression)?;
         Ok(DynEncoder(match self.encoding {
             Encoding::Dbn => DynEncoderImpl::Dbn(DbnEncoder::new(writer, self.metadata)?),
-            Encoding::Csv => {
-                let builder = CsvEncoder::builder(writer)
+            Encoding::Csv => DynEncoderImpl::Csv(
+                CsvEncoder::builder(writer)
                     .use_pretty_px(self.use_pretty_px)
                     .use_pretty_ts(self.use_pretty_ts)
                     .delimiter(self.delimiter)
                     .write_header(self.write_header)
                     .ts_out(self.metadata.ts_out)
-                    .with_symbol(self.with_symbol);
-                DynEncoderImpl::Csv(if self.write_header {
-                    builder.schema(self.metadata.schema)?.build()?
-                } else {
-                    builder.build()?
-                })
-            }
+                    .schema(self.metadata.schema)
+                    .with_symbol(self.with_symbol)
+                    .build()?,
+            ),
             Encoding::Json => DynEncoderImpl::Json(
                 JsonEncoder::builder(writer)
                     .should_pretty_print(self.should_pretty_print)

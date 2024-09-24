@@ -114,9 +114,8 @@ impl<D: DecodeRecordRef> DecodeRecordRef for LimitFilter<D> {
         {
             return Ok(None);
         }
-        Ok(self.decoder.decode_record_ref()?.map(|rec| {
+        Ok(self.decoder.decode_record_ref()?.inspect(|_| {
             self.record_count += 1;
-            rec
         }))
     }
 }

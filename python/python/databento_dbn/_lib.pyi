@@ -27,6 +27,7 @@ _DBNRecord = Union[
     MBOMsg,
     MBP1Msg,
     BBOMsg,
+    CMBP1Msg,
     CBBOMsg,
     MBP10Msg,
     OHLCVMsg,
@@ -314,7 +315,7 @@ class RType(Enum):
     BBO_1M
         Denotes a best bid and offer record subsampled on a one-minute interval.
 
-    """  # noqa: D405 D407 D411
+    """  # noqa: D405, D411
 
     @classmethod
     def from_int(cls, value: int) -> RType: ...
@@ -1861,7 +1862,7 @@ class BBOMsg(Record):
 
         """
 
-class CBBOMsg(Record):
+class CMBP1Msg(Record):
     """
     Consolidated best bid and offer implementation.
     """
@@ -2008,7 +2009,128 @@ class CBBOMsg(Record):
 
         Notes
         -----
-        CBBOMsg contains 1 level of ConsolidatedBidAskPair.
+        CMBP1Msg contains 1 level of ConsolidatedBidAskPair.
+
+        """
+
+class CBBOMsg(Record):
+    """
+    Subsampled consolidated best bid and offer.
+    """
+
+    @property
+    def pretty_price(self) -> float:
+        """
+        The price of the last trade as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        price
+
+        """
+
+    @property
+    def price(self) -> int:
+        """
+        The price of the last trade expressed as a signed integer where every 1 unit
+        corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        pretty_price
+
+        """
+
+    @property
+    def size(self) -> int:
+        """
+        The quantity of the last trade.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def side(self) -> str:
+        """
+        The side that initiated the last trade. Can be `A`sk for a sell order (or sell
+        aggressor in a trade), `B`id for a buy order (or buy aggressor in a trade), or
+        `N`one where no side is specified by the original source.
+
+        Returns
+        -------
+        str
+
+        """
+
+    @property
+    def flags(self) -> int:
+        """
+        A bit field indicating event end, message characteristics, and data quality.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_ts_recv(self) -> dt.datetime:
+        """
+        The capture-server-received timestamp as a datetime or
+        `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def ts_recv(self) -> int:
+        """
+        The capture-server-received timestamp expressed as number of
+        nanoseconds since the UNIX epoch.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def sequence(self) -> int:
+        """
+        The message sequence number assigned at the venue of the last update.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def levels(self) -> list[ConsolidatedBidAskPair]:
+        """
+        The top of the order book.
+
+        Returns
+        -------
+        list[BidAskPair]
+
+        Notes
+        -----
+        BBOMsg contains 1 level of ConsolidatedBidAskPair.
 
         """
 

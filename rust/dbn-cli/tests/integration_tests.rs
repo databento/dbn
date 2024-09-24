@@ -697,6 +697,65 @@ fn passing_dbn_version_conflicts_with_non_fragment_input(#[case] output_flag: &s
         ));
 }
 
+#[rstest]
+#[case::csv("csv", ',')]
+#[case::csv("tsv", '\t')]
+fn omit_csv_header(#[case] output_enc: &str, #[case] sep: char) {
+    cmd()
+        .args([
+            &format!("{TEST_DATA_PATH}/test_data.mbo.dbn.zst"),
+            &format!("--{output_enc}"),
+            "--omit-header",
+        ])
+        .assert()
+        .success()
+        .stdout(
+            contains('\n')
+                .count(2)
+                .and(contains(&format!("ts_event{sep}")).not()),
+        )
+        .stderr(is_empty());
+}
+
+#[rstest]
+#[case::csv("csv", ',')]
+#[case::csv("tsv", '\t')]
+fn omit_csv_header_fragment(#[case] output_enc: &str, #[case] sep: char) {
+    cmd()
+        .args([
+            "--input-zstd-fragment",
+            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.frag.zst"),
+            &format!("--{output_enc}"),
+            "--omit-header",
+        ])
+        .assert()
+        .success()
+        .stdout(
+            contains('\n')
+                .count(2)
+                .and(contains(&format!("ts_event{sep}")).not()),
+        )
+        .stderr(is_empty());
+}
+
+#[rstest]
+#[case::dbn("dbn")]
+#[case::json("json")]
+#[case::fragment("fragment")]
+fn omit_header_conflicts(#[case] output_enc: &str) {
+    cmd()
+        .args([
+            "--input-zstd-fragment",
+            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.frag.zst"),
+            &format!("--{output_enc}"),
+            "--omit-header",
+        ])
+        .assert()
+        .failure()
+        .stdout(is_empty())
+        .stderr(contains("--omit-header"));
+}
+
 #[test]
 fn help() {
     cmd()

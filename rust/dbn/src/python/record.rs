@@ -9,15 +9,27 @@ use pyo3::{
 
 use crate::{
     compat::{ErrorMsgV1, InstrumentDefMsgV1, SymbolMappingMsgV1, SystemMsgV1},
-    record::{str_to_c_chars, CbboMsg, ConsolidatedBidAskPair},
-    rtype, BboMsg, BidAskPair, ErrorMsg, FlagSet, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg,
-    Mbp10Msg, Mbp1Msg, OhlcvMsg, Publisher, Record, RecordHeader, SType, SecurityUpdateAction,
-    StatMsg, StatUpdateAction, StatusAction, StatusMsg, StatusReason, SymbolMappingMsg, SystemMsg,
-    TradeMsg, TradingEvent, TriState, UserDefinedInstrument, WithTsOut, FIXED_PRICE_SCALE,
-    UNDEF_ORDER_SIZE, UNDEF_PRICE, UNDEF_TIMESTAMP,
+    record::str_to_c_chars,
+    rtype, BboMsg, BidAskPair, CbboMsg, Cmbp1Msg, ConsolidatedBidAskPair, ErrorMsg, FlagSet,
+    HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, Publisher,
+    Record, RecordHeader, SType, SecurityUpdateAction, StatMsg, StatUpdateAction, StatusAction,
+    StatusMsg, StatusReason, SymbolMappingMsg, SystemMsg, TradeMsg, TradingEvent, TriState,
+    UserDefinedInstrument, WithTsOut, FIXED_PRICE_SCALE, UNDEF_ORDER_SIZE, UNDEF_PRICE,
+    UNDEF_TIMESTAMP,
 };
 
 use super::{to_py_err, PyFieldDesc};
+
+fn char_to_c_char(c: char) -> crate::Result<c_char> {
+    if c.is_ascii() {
+        Ok(c as c_char)
+    } else {
+        Err(crate::Error::Conversion {
+            input: c.to_string(),
+            desired_type: "c_char",
+        })
+    }
+}
 
 #[pymethods]
 impl MboMsg {
@@ -29,13 +41,13 @@ impl MboMsg {
         order_id,
         price,
         size,
-        channel_id,
         action,
         side,
         ts_recv,
-        ts_in_delta,
-        sequence,
         flags = None,
+        channel_id = None,
+        ts_in_delta = None,
+        sequence = None,
     ))]
     fn py_new(
         publisher_id: u16,
@@ -44,27 +56,27 @@ impl MboMsg {
         order_id: u64,
         price: i64,
         size: u32,
-        channel_id: u8,
-        action: c_char,
-        side: c_char,
+        action: char,
+        side: char,
         ts_recv: u64,
-        ts_in_delta: i32,
-        sequence: u32,
         flags: Option<FlagSet>,
-    ) -> Self {
-        Self {
+        channel_id: Option<u8>,
+        ts_in_delta: Option<i32>,
+        sequence: Option<u32>,
+    ) -> PyResult<Self> {
+        Ok(Self {
             hd: RecordHeader::new::<Self>(rtype::MBO, publisher_id, instrument_id, ts_event),
             order_id,
             price,
             size,
             flags: flags.unwrap_or_default(),
-            channel_id,
-            action,
-            side,
+            channel_id: channel_id.unwrap_or_default(),
+            action: char_to_c_char(action)?,
+            side: char_to_c_char(side)?,
             ts_recv,
-            ts_in_delta,
-            sequence,
-        }
+            ts_in_delta: ts_in_delta.unwrap_or_default(),
+            sequence: sequence.unwrap_or_default(),
+        })
     }
 
     fn __bytes__(&self) -> &[u8] {
@@ -103,21 +115,23 @@ impl MboMsg {
         self.hd.ts_event
     }
 
+    #[setter]
+    fn set_ts_event(&mut self, ts_event: u64) {
+        self.hd.ts_event = ts_event;
+    }
+
     #[getter]
-    #[pyo3(name = "pretty_price")]
-    fn py_pretty_price(&self) -> f64 {
+    fn get_pretty_price(&self) -> f64 {
         self.price as f64 / FIXED_PRICE_SCALE as f64
     }
 
     #[getter]
-    #[pyo3(name = "pretty_ts_event")]
-    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.ts_event())
     }
 
     #[getter]
-    #[pyo3(name = "pretty_ts_recv")]
-    fn py_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.ts_recv)
     }
 
@@ -132,14 +146,12 @@ impl MboMsg {
     }
 
     #[getter]
-    #[pyo3(name = "action")]
-    fn py_action(&self) -> char {
+    fn get_action(&self) -> char {
         self.action as u8 as char
     }
 
     #[getter]
-    #[pyo3(name = "side")]
-    fn py_side(&self) -> char {
+    fn get_side(&self) -> char {
         self.side as u8 as char
     }
 
@@ -204,8 +216,7 @@ impl BidAskPair {
     }
 
     #[getter]
-    #[pyo3(name = "pretty_ask_px")]
-    fn py_pretty_ask_px(&self) -> f64 {
+    fn get_pretty_ask_px(&self) -> f64 {
         match self.ask_px {
             UNDEF_PRICE => f64::NAN,
             _ => self.ask_px as f64 / FIXED_PRICE_SCALE as f64,
@@ -213,8 +224,7 @@ impl BidAskPair {
     }
 
     #[getter]
-    #[pyo3(name = "pretty_bid_px")]
-    fn py_pretty_bid_px(&self) -> f64 {
+    fn get_pretty_bid_px(&self) -> f64 {
         match self.bid_px {
             UNDEF_PRICE => f64::NAN,
             _ => self.bid_px as f64 / FIXED_PRICE_SCALE as f64,
@@ -246,8 +256,8 @@ impl BboMsg {
         size,
         side,
         ts_recv,
-        sequence,
         flags = None,
+        sequence = None,
         levels = None,
     ))]
     fn py_new(
@@ -257,25 +267,25 @@ impl BboMsg {
         ts_event: u64,
         price: i64,
         size: u32,
-        side: c_char,
+        side: char,
         ts_recv: u64,
-        sequence: u32,
         flags: Option<FlagSet>,
+        sequence: Option<u32>,
         levels: Option<BidAskPair>,
-    ) -> Self {
-        Self {
+    ) -> PyResult<Self> {
+        Ok(Self {
             hd: RecordHeader::new::<Self>(rtype, publisher_id, instrument_id, ts_event),
             price,
             size,
-            side,
+            side: char_to_c_char(side)?,
             flags: flags.unwrap_or_default(),
             ts_recv,
-            sequence,
+            sequence: sequence.unwrap_or_default(),
             levels: [levels.unwrap_or_default()],
             _reserved1: Default::default(),
             _reserved2: Default::default(),
             _reserved3: Default::default(),
-        }
+        })
     }
 
     fn __bytes__(&self) -> &[u8] {
@@ -314,21 +324,23 @@ impl BboMsg {
         self.hd.ts_event
     }
 
+    #[setter]
+    fn set_ts_event(&mut self, ts_event: u64) {
+        self.hd.ts_event = ts_event;
+    }
+
     #[getter]
-    #[pyo3(name = "pretty_price")]
-    fn py_pretty_price(&self) -> f64 {
+    fn get_pretty_price(&self) -> f64 {
         self.price as f64 / FIXED_PRICE_SCALE as f64
     }
 
     #[getter]
-    #[pyo3(name = "pretty_ts_event")]
-    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.ts_event())
     }
 
     #[getter]
-    #[pyo3(name = "pretty_ts_recv")]
-    fn py_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.ts_recv)
     }
 
@@ -343,8 +355,160 @@ impl BboMsg {
     }
 
     #[getter]
-    #[pyo3(name = "side")]
-    fn py_side(&self) -> char {
+    fn get_side(&self) -> char {
+        self.side as u8 as char
+    }
+
+    #[classattr]
+    #[pyo3(name = "_dtypes")]
+    fn py_dtypes() -> Vec<(String, String)> {
+        Self::field_dtypes("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_price_fields")]
+    fn py_price_fields() -> Vec<String> {
+        Self::price_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_timestamp_fields")]
+    fn py_timestamp_fields() -> Vec<String> {
+        Self::timestamp_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_hidden_fields")]
+    fn py_hidden_fields() -> Vec<String> {
+        Self::hidden_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_ordered_fields")]
+    fn py_ordered_fields() -> Vec<String> {
+        Self::ordered_fields("")
+    }
+}
+
+#[pymethods]
+impl Cmbp1Msg {
+    #[new]
+    #[pyo3(signature= (
+        rtype,
+        publisher_id,
+        instrument_id,
+        ts_event,
+        price,
+        size,
+        action,
+        side,
+        ts_recv,
+        flags = None,
+        ts_in_delta = None,
+        levels = None,
+    ))]
+    fn py_new(
+        rtype: u8,
+        publisher_id: u16,
+        instrument_id: u32,
+        ts_event: u64,
+        price: i64,
+        size: u32,
+        action: char,
+        side: char,
+        ts_recv: u64,
+        flags: Option<FlagSet>,
+        ts_in_delta: Option<i32>,
+        levels: Option<ConsolidatedBidAskPair>,
+    ) -> PyResult<Self> {
+        Ok(Self {
+            hd: RecordHeader::new::<Self>(rtype, publisher_id, instrument_id, ts_event),
+            price,
+            size,
+            action: char_to_c_char(action)?,
+            side: char_to_c_char(side)?,
+            flags: flags.unwrap_or_default(),
+            ts_recv,
+            ts_in_delta: ts_in_delta.unwrap_or_default(),
+            levels: [levels.unwrap_or_default()],
+            _reserved1: Default::default(),
+            _reserved2: Default::default(),
+        })
+    }
+
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
+
+    #[getter]
+    fn rtype(&self) -> u8 {
+        self.hd.rtype
+    }
+
+    #[getter]
+    fn publisher_id(&self) -> u16 {
+        self.hd.publisher_id
+    }
+
+    #[getter]
+    fn instrument_id(&self) -> u32 {
+        self.hd.instrument_id
+    }
+
+    #[getter]
+    fn ts_event(&self) -> u64 {
+        self.hd.ts_event
+    }
+
+    #[setter]
+    fn set_ts_event(&mut self, ts_event: u64) {
+        self.hd.ts_event = ts_event;
+    }
+
+    #[getter]
+    fn get_pretty_price(&self) -> f64 {
+        self.price as f64 / FIXED_PRICE_SCALE as f64
+    }
+
+    #[getter]
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_event())
+    }
+
+    #[getter]
+    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+        get_utc_nanosecond_timestamp(py, self.ts_recv)
+    }
+
+    #[pyo3(name = "record_size")]
+    fn py_record_size(&self) -> usize {
+        self.record_size()
+    }
+
+    #[classattr]
+    fn size_hint() -> PyResult<usize> {
+        Ok(mem::size_of::<Self>())
+    }
+
+    #[getter]
+    fn get_action(&self) -> char {
+        self.action as u8 as char
+    }
+
+    #[getter]
+    fn get_side(&self) -> char {
         self.side as u8 as char
     }
 
@@ -382,18 +546,15 @@ impl BboMsg {
 #[pymethods]
 impl CbboMsg {
     #[new]
-    #[pyo3(signature= (
+    #[pyo3(signature = (
         rtype,
         publisher_id,
         instrument_id,
         ts_event,
         price,
         size,
-        action,
         side,
         ts_recv,
-        ts_in_delta,
-        sequence,
         flags = None,
         levels = None,
     ))]
@@ -404,27 +565,24 @@ impl CbboMsg {
         ts_event: u64,
         price: i64,
         size: u32,
-        action: c_char,
-        side: c_char,
+        side: char,
         ts_recv: u64,
-        ts_in_delta: i32,
-        sequence: u32,
         flags: Option<FlagSet>,
         levels: Option<ConsolidatedBidAskPair>,
-    ) -> Self {
-        Self {
+    ) -> PyResult<Self> {
+        Ok(Self {
             hd: RecordHeader::new::<Self>(rtype, publisher_id, instrument_id, ts_event),
             price,
             size,
-            action,
-            side,
+            side: char_to_c_char(side)?,
             flags: flags.unwrap_or_default(),
             ts_recv,
-            ts_in_delta,
-            sequence,
             levels: [levels.unwrap_or_default()],
-            _reserved: Default::default(),
-        }
+            _reserved1: Default::default(),
+            _reserved2: Default::default(),
+            _reserved3: Default::default(),
+            _reserved4: Default::default(),
+        })
     }
 
     fn __bytes__(&self) -> &[u8] {
@@ -463,21 +621,23 @@ impl CbboMsg {
         self.hd.ts_event
     }
 
+    #[setter]
+    fn set_ts_event(&mut self, ts_event: u64) {
+        self.hd.ts_event = ts_event;
+    }
+
     #[getter]
-    #[pyo3(name = "pretty_price")]
-    fn py_pretty_price(&self) -> f64 {
+    fn get_pretty_price(&self) -> f64 {
         self.price as f64 / FIXED_PRICE_SCALE as f64
     }
 
     #[getter]
-    #[pyo3(name = "pretty_ts_event")]
-    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.ts_event())
     }
 
     #[getter]
-    #[pyo3(name = "pretty_ts_recv")]
-    fn py_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.ts_recv)
     }
 
@@ -492,14 +652,7 @@ impl CbboMsg {
     }
 
     #[getter]
-    #[pyo3(name = "action")]
-    fn py_action(&self) -> char {
-        self.action as u8 as char
-    }
-
-    #[getter]
-    #[pyo3(name = "side")]
-    fn py_side(&self) -> char {
+    fn get_side(&self) -> char {
         self.side as u8 as char
     }
 
@@ -566,8 +719,7 @@ impl ConsolidatedBidAskPair {
     }
 
     #[getter]
-    #[pyo3(name = "pretty_ask_px")]
-    fn py_pretty_ask_px(&self) -> f64 {
+    fn get_pretty_ask_px(&self) -> f64 {
         match self.ask_px {
             UNDEF_PRICE => f64::NAN,
             _ => self.ask_px as f64 / FIXED_PRICE_SCALE as f64,
@@ -575,8 +727,7 @@ impl ConsolidatedBidAskPair {
     }
 
     #[getter]
-    #[pyo3(name = "pretty_bid_px")]
-    fn py_pretty_bid_px(&self) -> f64 {
+    fn get_pretty_bid_px(&self) -> f64 {
         match self.bid_px {
             UNDEF_PRICE => f64::NAN,
             _ => self.bid_px as f64 / FIXED_PRICE_SCALE as f64,
@@ -584,16 +735,14 @@ impl ConsolidatedBidAskPair {
     }
 
     #[getter]
-    #[pyo3(name = "pretty_ask_pb")]
-    fn py_pretty_ask_pb(&self) -> Option<String> {
+    fn get_pretty_ask_pb(&self) -> Option<String> {
         Publisher::try_from(self.ask_pb)
             .map(|pb| pb.as_str().to_owned())
             .ok()
     }
 
     #[getter]
-    #[pyo3(name = "pretty_bid_pb")]
-    fn py_pretty_bid_pb(&self) -> Option<String> {
+    fn get_pretty_bid_pb(&self) -> Option<String> {
         Publisher::try_from(self.bid_pb)
             .map(|pb| pb.as_str().to_owned())
             .ok()
@@ -625,9 +774,9 @@ impl TradeMsg {
         side,
         depth,
         ts_recv,
-        ts_in_delta,
-        sequence,
         flags = None,
+        ts_in_delta = None,
+        sequence = None,
     ))]
     fn py_new(
         publisher_id: u16,
@@ -635,26 +784,26 @@ impl TradeMsg {
         ts_event: u64,
         price: i64,
         size: u32,
-        action: c_char,
-        side: c_char,
+        action: char,
+        side: char,
         depth: u8,
         ts_recv: u64,
-        ts_in_delta: i32,
-        sequence: u32,
         flags: Option<FlagSet>,
-    ) -> Self {
-        Self {
+        ts_in_delta: Option<i32>,
+        sequence: Option<u32>,
+    ) -> PyResult<Self> {
+        Ok(Self {
             hd: RecordHeader::new::<Self>(rtype::MBP_0, publisher_id, instrument_id, ts_event),
             price,
             size,
-            action,
-            side,
+            action: char_to_c_char(action)?,
+            side: char_to_c_char(side)?,
             flags: flags.unwrap_or_default(),
             depth,
             ts_recv,
-            ts_in_delta,
-            sequence,
-        }
+            ts_in_delta: ts_in_delta.unwrap_or_default(),
+            sequence: sequence.unwrap_or_default(),
+        })
     }
 
     fn __bytes__(&self) -> &[u8] {
@@ -693,21 +842,23 @@ impl TradeMsg {
         self.hd.ts_event
     }
 
+    #[setter]
+    fn set_ts_event(&mut self, ts_event: u64) {
+        self.hd.ts_event = ts_event;
+    }
+
     #[getter]
-    #[pyo3(name = "pretty_price")]
-    fn py_pretty_price(&self) -> f64 {
+    fn get_pretty_price(&self) -> f64 {
         self.price as f64 / FIXED_PRICE_SCALE as f64
     }
 
     #[getter]
-    #[pyo3(name = "pretty_ts_event")]
-    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.ts_event())
     }
 
     #[getter]
-    #[pyo3(name = "pretty_ts_recv")]
-    fn py_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.ts_recv)
     }
 
@@ -722,14 +873,12 @@ impl TradeMsg {
     }
 
     #[getter]
-    #[pyo3(name = "action")]
-    fn py_action(&self) -> char {
+    fn get_action(&self) -> char {
         self.action as u8 as char
     }
 
     #[getter]
-    #[pyo3(name = "side")]
-    fn py_side(&self) -> char {
+    fn get_side(&self) -> char {
         self.side as u8 as char
     }
 
@@ -777,9 +926,9 @@ impl Mbp1Msg {
         side,
         depth,
         ts_recv,
-        ts_in_delta,
-        sequence,
         flags = None,
+        ts_in_delta = None,
+        sequence = None,
         levels = None,
     ))]
     fn py_new(
@@ -788,28 +937,28 @@ impl Mbp1Msg {
         ts_event: u64,
         price: i64,
         size: u32,
-        action: c_char,
-        side: c_char,
+        action: char,
+        side: char,
         depth: u8,
         ts_recv: u64,
-        ts_in_delta: i32,
-        sequence: u32,
         flags: Option<FlagSet>,
+        ts_in_delta: Option<i32>,
+        sequence: Option<u32>,
         levels: Option<BidAskPair>,
-    ) -> Self {
-        Self {
+    ) -> PyResult<Self> {
+        Ok(Self {
             hd: RecordHeader::new::<Self>(rtype::MBP_1, publisher_id, instrument_id, ts_event),
             price,
             size,
-            action,
-            side,
+            action: char_to_c_char(action)?,
+            side: char_to_c_char(side)?,
             flags: flags.unwrap_or_default(),
             depth,
             ts_recv,
-            ts_in_delta,
-            sequence,
+            ts_in_delta: ts_in_delta.unwrap_or_default(),
+            sequence: sequence.unwrap_or_default(),
             levels: [levels.unwrap_or_default()],
-        }
+        })
     }
 
     fn __bytes__(&self) -> &[u8] {
@@ -848,21 +997,23 @@ impl Mbp1Msg {
         self.hd.ts_event
     }
 
+    #[setter]
+    fn set_ts_event(&mut self, ts_event: u64) {
+        self.hd.ts_event = ts_event;
+    }
+
     #[getter]
-    #[pyo3(name = "pretty_price")]
-    fn py_pretty_price(&self) -> f64 {
+    fn get_pretty_price(&self) -> f64 {
         self.price as f64 / FIXED_PRICE_SCALE as f64
     }
 
     #[getter]
-    #[pyo3(name = "pretty_ts_event")]
-    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.ts_event())
     }
 
     #[getter]
-    #[pyo3(name = "pretty_ts_recv")]
-    fn py_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.ts_recv)
     }
 
@@ -877,14 +1028,12 @@ impl Mbp1Msg {
     }
 
     #[getter]
-    #[pyo3(name = "action")]
-    fn py_action(&self) -> char {
+    fn get_action(&self) -> char {
         self.action as u8 as char
     }
 
     #[getter]
-    #[pyo3(name = "side")]
-    fn py_side(&self) -> char {
+    fn get_side(&self) -> char {
         self.side as u8 as char
     }
 
@@ -932,9 +1081,9 @@ impl Mbp10Msg {
         side,
         depth,
         ts_recv,
-        ts_in_delta,
-        sequence,
         flags = None,
+        ts_in_delta = None,
+        sequence = None,
         levels = None,
     ))]
     fn py_new(
@@ -943,13 +1092,13 @@ impl Mbp10Msg {
         ts_event: u64,
         price: i64,
         size: u32,
-        action: c_char,
-        side: c_char,
+        action: char,
+        side: char,
         depth: u8,
         ts_recv: u64,
-        ts_in_delta: i32,
-        sequence: u32,
         flags: Option<FlagSet>,
+        ts_in_delta: Option<i32>,
+        sequence: Option<u32>,
         levels: Option<Vec<BidAskPair>>,
     ) -> PyResult<Self> {
         let levels = if let Some(level) = levels {
@@ -968,13 +1117,13 @@ impl Mbp10Msg {
             hd: RecordHeader::new::<Self>(rtype::MBP_10, publisher_id, instrument_id, ts_event),
             price,
             size,
-            action,
-            side,
+            action: char_to_c_char(action)?,
+            side: char_to_c_char(side)?,
             flags: flags.unwrap_or_default(),
             depth,
             ts_recv,
-            ts_in_delta,
-            sequence,
+            ts_in_delta: ts_in_delta.unwrap_or_default(),
+            sequence: sequence.unwrap_or_default(),
             levels,
         })
     }
@@ -1015,21 +1164,23 @@ impl Mbp10Msg {
         self.hd.ts_event
     }
 
+    #[setter]
+    fn set_ts_event(&mut self, ts_event: u64) {
+        self.hd.ts_event = ts_event;
+    }
+
     #[getter]
-    #[pyo3(name = "pretty_price")]
-    fn py_pretty_price(&self) -> f64 {
+    fn get_pretty_price(&self) -> f64 {
         self.price as f64 / FIXED_PRICE_SCALE as f64
     }
 
     #[getter]
-    #[pyo3(name = "pretty_ts_event")]
-    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.ts_event())
     }
 
     #[getter]
-    #[pyo3(name = "pretty_ts_recv")]
-    fn py_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.ts_recv)
     }
 
@@ -1044,14 +1195,12 @@ impl Mbp10Msg {
     }
 
     #[getter]
-    #[pyo3(name = "action")]
-    fn py_action(&self) -> char {
+    fn get_action(&self) -> char {
         self.action as u8 as char
     }
 
     #[getter]
-    #[pyo3(name = "side")]
-    fn py_side(&self) -> char {
+    fn get_side(&self) -> char {
         self.side as u8 as char
     }
 
@@ -1146,33 +1295,33 @@ impl OhlcvMsg {
         self.hd.ts_event
     }
 
+    #[setter]
+    fn set_ts_event(&mut self, ts_event: u64) {
+        self.hd.ts_event = ts_event;
+    }
+
     #[getter]
-    #[pyo3(name = "pretty_open")]
-    fn py_pretty_open(&self) -> f64 {
+    fn get_pretty_open(&self) -> f64 {
         self.open as f64 / FIXED_PRICE_SCALE as f64
     }
 
     #[getter]
-    #[pyo3(name = "pretty_high")]
-    fn py_pretty_high(&self) -> f64 {
+    fn get_pretty_high(&self) -> f64 {
         self.high as f64 / FIXED_PRICE_SCALE as f64
     }
 
     #[getter]
-    #[pyo3(name = "pretty_low")]
-    fn py_pretty_low(&self) -> f64 {
+    fn get_pretty_low(&self) -> f64 {
         self.low as f64 / FIXED_PRICE_SCALE as f64
     }
 
     #[getter]
-    #[pyo3(name = "pretty_close")]
-    fn py_pretty_close(&self) -> f64 {
+    fn get_pretty_close(&self) -> f64 {
         self.close as f64 / FIXED_PRICE_SCALE as f64
     }
 
     #[getter]
-    #[pyo3(name = "pretty_ts_event")]
-    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.ts_event())
     }
 
@@ -1293,15 +1442,18 @@ impl StatusMsg {
         self.hd.ts_event
     }
 
+    #[setter]
+    fn set_ts_event(&mut self, ts_event: u64) {
+        self.hd.ts_event = ts_event;
+    }
+
     #[getter]
-    #[pyo3(name = "pretty_ts_event")]
-    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.ts_event())
     }
 
     #[getter]
-    #[pyo3(name = "pretty_ts_recv")]
-    fn py_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.ts_recv)
     }
 
@@ -1311,20 +1463,17 @@ impl StatusMsg {
     }
 
     #[getter]
-    #[pyo3(name = "is_trading")]
-    fn py_is_trading(&self) -> Option<bool> {
+    fn get_is_trading(&self) -> Option<bool> {
         self.is_trading()
     }
 
     #[getter]
-    #[pyo3(name = "is_quoting")]
-    fn py_is_quoting(&self) -> Option<bool> {
+    fn get_is_quoting(&self) -> Option<bool> {
         self.is_quoting()
     }
 
     #[getter]
-    #[pyo3(name = "is_short_sell_restricted")]
-    fn py_is_short_sell_restricted(&self) -> Option<bool> {
+    fn get_is_short_sell_restricted(&self) -> Option<bool> {
         self.is_short_sell_restricted()
     }
 
@@ -1443,8 +1592,8 @@ impl InstrumentDefMsg {
         raw_symbol: &str,
         group: &str,
         exchange: &str,
-        instrument_class: c_char,
-        match_algorithm: c_char,
+        instrument_class: char,
+        match_algorithm: char,
         md_security_trading_status: u8,
         security_update_action: SecurityUpdateAction,
         expiration: u64,
@@ -1547,9 +1696,9 @@ impl InstrumentDefMsg {
             unit_of_measure: str_to_c_chars(unit_of_measure)?,
             underlying: str_to_c_chars(underlying)?,
             strike_price_currency: str_to_c_chars(strike_price_currency)?,
-            instrument_class,
+            instrument_class: char_to_c_char(instrument_class)?,
             strike_price,
-            match_algorithm,
+            match_algorithm: char_to_c_char(match_algorithm)?,
             md_security_trading_status,
             main_fraction: main_fraction.unwrap_or(u8::MAX),
             price_display_format: price_display_format.unwrap_or(u8::MAX),
@@ -1604,15 +1753,18 @@ impl InstrumentDefMsg {
         self.hd.ts_event
     }
 
+    #[setter]
+    fn set_ts_event(&mut self, ts_event: u64) {
+        self.hd.ts_event = ts_event;
+    }
+
     #[getter]
-    #[pyo3(name = "pretty_min_price_increment")]
-    fn py_pretty_min_price_increment(&self) -> f64 {
+    fn get_pretty_min_price_increment(&self) -> f64 {
         self.min_price_increment as f64 / FIXED_PRICE_SCALE as f64
     }
 
     #[getter]
-    #[pyo3(name = "pretty_high_limit_price")]
-    fn py_pretty_high_limit_price(&self) -> f64 {
+    fn get_pretty_high_limit_price(&self) -> f64 {
         match self.high_limit_price {
             UNDEF_PRICE => f64::NAN,
             _ => self.high_limit_price as f64 / FIXED_PRICE_SCALE as f64,
@@ -1620,8 +1772,7 @@ impl InstrumentDefMsg {
     }
 
     #[getter]
-    #[pyo3(name = "pretty_low_limit_price")]
-    fn py_pretty_low_limit_price(&self) -> f64 {
+    fn get_pretty_low_limit_price(&self) -> f64 {
         match self.low_limit_price {
             UNDEF_PRICE => f64::NAN,
             _ => self.low_limit_price as f64 / FIXED_PRICE_SCALE as f64,
@@ -1629,8 +1780,7 @@ impl InstrumentDefMsg {
     }
 
     #[getter]
-    #[pyo3(name = "pretty_max_price_variation")]
-    fn py_pretty_max_price_variation(&self) -> f64 {
+    fn get_pretty_max_price_variation(&self) -> f64 {
         match self.max_price_variation {
             UNDEF_PRICE => f64::NAN,
             _ => self.max_price_variation as f64 / FIXED_PRICE_SCALE as f64,
@@ -1638,8 +1788,7 @@ impl InstrumentDefMsg {
     }
 
     #[getter]
-    #[pyo3(name = "pretty_trading_reference_price")]
-    fn py_pretty_trading_reference_price(&self) -> f64 {
+    fn get_pretty_trading_reference_price(&self) -> f64 {
         match self.trading_reference_price {
             UNDEF_PRICE => f64::NAN,
             _ => self.trading_reference_price as f64 / FIXED_PRICE_SCALE as f64,
@@ -1647,8 +1796,7 @@ impl InstrumentDefMsg {
     }
 
     #[getter]
-    #[pyo3(name = "pretty_min_price_increment_amount")]
-    fn py_pretty_min_price_increment_amount(&self) -> f64 {
+    fn get_pretty_min_price_increment_amount(&self) -> f64 {
         match self.min_price_increment_amount {
             UNDEF_PRICE => f64::NAN,
             _ => self.min_price_increment_amount as f64 / FIXED_PRICE_SCALE as f64,
@@ -1656,8 +1804,7 @@ impl InstrumentDefMsg {
     }
 
     #[getter]
-    #[pyo3(name = "pretty_price_ratio")]
-    fn py_pretty_price_ratio(&self) -> f64 {
+    fn get_pretty_price_ratio(&self) -> f64 {
         match self.price_ratio {
             UNDEF_PRICE => f64::NAN,
             _ => self.price_ratio as f64 / FIXED_PRICE_SCALE as f64,
@@ -1665,8 +1812,7 @@ impl InstrumentDefMsg {
     }
 
     #[getter]
-    #[pyo3(name = "pretty_strike_price")]
-    fn py_pretty_strike_price(&self) -> f64 {
+    fn get_pretty_strike_price(&self) -> f64 {
         match self.strike_price {
             UNDEF_PRICE => f64::NAN,
             _ => self.strike_price as f64 / FIXED_PRICE_SCALE as f64,
@@ -1674,26 +1820,22 @@ impl InstrumentDefMsg {
     }
 
     #[getter]
-    #[pyo3(name = "pretty_ts_event")]
-    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.ts_event())
     }
 
     #[getter]
-    #[pyo3(name = "pretty_ts_recv")]
-    fn py_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.ts_recv)
     }
 
     #[getter]
-    #[pyo3(name = "pretty_activation")]
-    fn py_pretty_activation(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_activation(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.expiration)
     }
 
     #[getter]
-    #[pyo3(name = "pretty_expiration")]
-    fn py_pretty_expiration(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_expiration(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.expiration)
     }
 
@@ -1708,98 +1850,82 @@ impl InstrumentDefMsg {
     }
 
     #[getter]
-    #[pyo3(name = "currency")]
-    fn py_currency(&self) -> PyResult<&str> {
+    fn get_currency(&self) -> PyResult<&str> {
         Ok(self.currency()?)
     }
 
     #[getter]
-    #[pyo3(name = "settl_currency")]
-    fn py_settl_currency(&self) -> PyResult<&str> {
+    fn get_settl_currency(&self) -> PyResult<&str> {
         Ok(self.settl_currency()?)
     }
 
     #[getter]
-    #[pyo3(name = "secsubtype")]
-    fn py_secsubtype(&self) -> PyResult<&str> {
+    fn get_secsubtype(&self) -> PyResult<&str> {
         Ok(self.secsubtype()?)
     }
 
     #[getter]
-    #[pyo3(name = "raw_symbol")]
-    fn py_raw_symbol(&self) -> PyResult<&str> {
+    fn get_raw_symbol(&self) -> PyResult<&str> {
         Ok(self.raw_symbol()?)
     }
 
     #[getter]
-    #[pyo3(name = "group")]
-    fn py_group(&self) -> PyResult<&str> {
+    fn get_group(&self) -> PyResult<&str> {
         Ok(self.group()?)
     }
 
     #[getter]
-    #[pyo3(name = "exchange")]
-    fn py_exchange(&self) -> PyResult<&str> {
+    fn get_exchange(&self) -> PyResult<&str> {
         Ok(self.exchange()?)
     }
 
     #[getter]
-    #[pyo3(name = "asset")]
-    fn py_asset(&self) -> PyResult<&str> {
+    fn get_asset(&self) -> PyResult<&str> {
         Ok(self.asset()?)
     }
 
     #[getter]
-    #[pyo3(name = "cfi")]
-    fn py_cfi(&self) -> PyResult<&str> {
+    fn get_cfi(&self) -> PyResult<&str> {
         Ok(self.cfi()?)
     }
 
     #[getter]
-    #[pyo3(name = "security_type")]
-    fn py_security_type(&self) -> PyResult<&str> {
+    fn get_security_type(&self) -> PyResult<&str> {
         Ok(self.security_type()?)
     }
 
     #[getter]
-    #[pyo3(name = "unit_of_measure")]
-    fn py_unit_of_measure(&self) -> PyResult<&str> {
+    fn get_unit_of_measure(&self) -> PyResult<&str> {
         Ok(self.unit_of_measure()?)
     }
 
     #[getter]
-    #[pyo3(name = "underlying")]
-    fn py_underlying(&self) -> PyResult<&str> {
+    fn get_underlying(&self) -> PyResult<&str> {
         Ok(self.underlying()?)
     }
 
     #[getter]
-    #[pyo3(name = "strike_price_currency")]
-    fn py_strike_price_currency(&self) -> PyResult<&str> {
+    fn get_strike_price_currency(&self) -> PyResult<&str> {
         Ok(self.strike_price_currency()?)
     }
 
     #[getter]
-    #[pyo3(name = "instrument_class")]
-    fn py_instrument_class(&self) -> char {
+    fn get_instrument_class(&self) -> char {
         self.instrument_class as u8 as char
     }
 
     #[getter]
-    #[pyo3(name = "match_algorithm")]
-    fn py_match_algorithm(&self) -> char {
+    fn get_match_algorithm(&self) -> char {
         self.match_algorithm as u8 as char
     }
 
     #[getter]
-    #[pyo3(name = "security_update_action")]
-    fn py_security_update_action(&self) -> char {
+    fn get_security_update_action(&self) -> char {
         self.security_update_action as u8 as char
     }
 
     #[getter]
-    #[pyo3(name = "user_defined_instrument")]
-    fn py_user_defined_instrument(&self) -> char {
+    fn get_user_defined_instrument(&self) -> char {
         self.user_defined_instrument as u8 as char
     }
 
@@ -1913,8 +2039,8 @@ impl InstrumentDefMsgV1 {
         raw_symbol: &str,
         group: &str,
         exchange: &str,
-        instrument_class: c_char,
-        match_algorithm: c_char,
+        instrument_class: char,
+        match_algorithm: char,
         md_security_trading_status: u8,
         security_update_action: SecurityUpdateAction,
         expiration: u64,
@@ -2017,9 +2143,9 @@ impl InstrumentDefMsgV1 {
             unit_of_measure: str_to_c_chars(unit_of_measure)?,
             underlying: str_to_c_chars(underlying)?,
             strike_price_currency: str_to_c_chars(strike_price_currency)?,
-            instrument_class,
+            instrument_class: char_to_c_char(instrument_class)?,
             strike_price,
-            match_algorithm,
+            match_algorithm: char_to_c_char(match_algorithm)?,
             md_security_trading_status,
             main_fraction: main_fraction.unwrap_or(u8::MAX),
             price_display_format: price_display_format.unwrap_or(u8::MAX),
@@ -2078,15 +2204,18 @@ impl InstrumentDefMsgV1 {
         self.hd.ts_event
     }
 
+    #[setter]
+    fn set_ts_event(&mut self, ts_event: u64) {
+        self.hd.ts_event = ts_event;
+    }
+
     #[getter]
-    #[pyo3(name = "pretty_min_price_increment")]
-    fn py_pretty_min_price_increment(&self) -> f64 {
+    fn get_pretty_min_price_increment(&self) -> f64 {
         self.min_price_increment as f64 / FIXED_PRICE_SCALE as f64
     }
 
     #[getter]
-    #[pyo3(name = "pretty_high_limit_price")]
-    fn py_pretty_high_limit_price(&self) -> f64 {
+    fn get_pretty_high_limit_price(&self) -> f64 {
         match self.high_limit_price {
             UNDEF_PRICE => f64::NAN,
             _ => self.high_limit_price as f64 / FIXED_PRICE_SCALE as f64,
@@ -2094,8 +2223,7 @@ impl InstrumentDefMsgV1 {
     }
 
     #[getter]
-    #[pyo3(name = "pretty_low_limit_price")]
-    fn py_pretty_low_limit_price(&self) -> f64 {
+    fn get_pretty_low_limit_price(&self) -> f64 {
         match self.low_limit_price {
             UNDEF_PRICE => f64::NAN,
             _ => self.low_limit_price as f64 / FIXED_PRICE_SCALE as f64,
@@ -2103,8 +2231,7 @@ impl InstrumentDefMsgV1 {
     }
 
     #[getter]
-    #[pyo3(name = "pretty_max_price_variation")]
-    fn py_pretty_max_price_variation(&self) -> f64 {
+    fn get_pretty_max_price_variation(&self) -> f64 {
         match self.max_price_variation {
             UNDEF_PRICE => f64::NAN,
             _ => self.max_price_variation as f64 / FIXED_PRICE_SCALE as f64,
@@ -2112,8 +2239,7 @@ impl InstrumentDefMsgV1 {
     }
 
     #[getter]
-    #[pyo3(name = "pretty_trading_reference_price")]
-    fn py_pretty_trading_reference_price(&self) -> f64 {
+    fn get_pretty_trading_reference_price(&self) -> f64 {
         match self.trading_reference_price {
             UNDEF_PRICE => f64::NAN,
             _ => self.trading_reference_price as f64 / FIXED_PRICE_SCALE as f64,
@@ -2121,8 +2247,7 @@ impl InstrumentDefMsgV1 {
     }
 
     #[getter]
-    #[pyo3(name = "pretty_min_price_increment_amount")]
-    fn py_pretty_min_price_increment_amount(&self) -> f64 {
+    fn get_pretty_min_price_increment_amount(&self) -> f64 {
         match self.min_price_increment_amount {
             UNDEF_PRICE => f64::NAN,
             _ => self.min_price_increment_amount as f64 / FIXED_PRICE_SCALE as f64,
@@ -2130,8 +2255,7 @@ impl InstrumentDefMsgV1 {
     }
 
     #[getter]
-    #[pyo3(name = "pretty_price_ratio")]
-    fn py_pretty_price_ratio(&self) -> f64 {
+    fn get_pretty_price_ratio(&self) -> f64 {
         match self.price_ratio {
             UNDEF_PRICE => f64::NAN,
             _ => self.price_ratio as f64 / FIXED_PRICE_SCALE as f64,
@@ -2139,8 +2263,7 @@ impl InstrumentDefMsgV1 {
     }
 
     #[getter]
-    #[pyo3(name = "pretty_strike_price")]
-    fn py_pretty_strike_price(&self) -> f64 {
+    fn get_pretty_strike_price(&self) -> f64 {
         match self.strike_price {
             UNDEF_PRICE => f64::NAN,
             _ => self.strike_price as f64 / FIXED_PRICE_SCALE as f64,
@@ -2148,26 +2271,22 @@ impl InstrumentDefMsgV1 {
     }
 
     #[getter]
-    #[pyo3(name = "pretty_ts_event")]
-    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.ts_event())
     }
 
     #[getter]
-    #[pyo3(name = "pretty_ts_recv")]
-    fn py_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.ts_recv)
     }
 
     #[getter]
-    #[pyo3(name = "pretty_activation")]
-    fn py_pretty_activation(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_activation(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.expiration)
     }
 
     #[getter]
-    #[pyo3(name = "pretty_expiration")]
-    fn py_pretty_expiration(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_expiration(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.expiration)
     }
 
@@ -2182,98 +2301,82 @@ impl InstrumentDefMsgV1 {
     }
 
     #[getter]
-    #[pyo3(name = "currency")]
-    fn py_currency(&self) -> PyResult<&str> {
+    fn get_currency(&self) -> PyResult<&str> {
         Ok(self.currency()?)
     }
 
     #[getter]
-    #[pyo3(name = "settl_currency")]
-    fn py_settl_currency(&self) -> PyResult<&str> {
+    fn get_settl_currency(&self) -> PyResult<&str> {
         Ok(self.settl_currency()?)
     }
 
     #[getter]
-    #[pyo3(name = "secsubtype")]
-    fn py_secsubtype(&self) -> PyResult<&str> {
+    fn get_secsubtype(&self) -> PyResult<&str> {
         Ok(self.secsubtype()?)
     }
 
     #[getter]
-    #[pyo3(name = "raw_symbol")]
-    fn py_raw_symbol(&self) -> PyResult<&str> {
+    fn get_raw_symbol(&self) -> PyResult<&str> {
         Ok(self.raw_symbol()?)
     }
 
     #[getter]
-    #[pyo3(name = "group")]
-    fn py_group(&self) -> PyResult<&str> {
+    fn get_group(&self) -> PyResult<&str> {
         Ok(self.group()?)
     }
 
     #[getter]
-    #[pyo3(name = "exchange")]
-    fn py_exchange(&self) -> PyResult<&str> {
+    fn get_exchange(&self) -> PyResult<&str> {
         Ok(self.exchange()?)
     }
 
     #[getter]
-    #[pyo3(name = "asset")]
-    fn py_asset(&self) -> PyResult<&str> {
+    fn get_asset(&self) -> PyResult<&str> {
         Ok(self.asset()?)
     }
 
     #[getter]
-    #[pyo3(name = "cfi")]
-    fn py_cfi(&self) -> PyResult<&str> {
+    fn get_cfi(&self) -> PyResult<&str> {
         Ok(self.cfi()?)
     }
 
     #[getter]
-    #[pyo3(name = "security_type")]
-    fn py_security_type(&self) -> PyResult<&str> {
+    fn get_security_type(&self) -> PyResult<&str> {
         Ok(self.security_type()?)
     }
 
     #[getter]
-    #[pyo3(name = "unit_of_measure")]
-    fn py_unit_of_measure(&self) -> PyResult<&str> {
+    fn get_unit_of_measure(&self) -> PyResult<&str> {
         Ok(self.unit_of_measure()?)
     }
 
     #[getter]
-    #[pyo3(name = "underlying")]
-    fn py_underlying(&self) -> PyResult<&str> {
+    fn get_underlying(&self) -> PyResult<&str> {
         Ok(self.underlying()?)
     }
 
     #[getter]
-    #[pyo3(name = "strike_price_currency")]
-    fn py_strike_price_currency(&self) -> PyResult<&str> {
+    fn get_strike_price_currency(&self) -> PyResult<&str> {
         Ok(self.strike_price_currency()?)
     }
 
     #[getter]
-    #[pyo3(name = "instrument_class")]
-    fn py_instrument_class(&self) -> char {
+    fn get_instrument_class(&self) -> char {
         self.instrument_class as u8 as char
     }
 
     #[getter]
-    #[pyo3(name = "match_algorithm")]
-    fn py_match_algorithm(&self) -> char {
+    fn get_match_algorithm(&self) -> char {
         self.match_algorithm as u8 as char
     }
 
     #[getter]
-    #[pyo3(name = "security_update_action")]
-    fn py_security_update_action(&self) -> char {
+    fn get_security_update_action(&self) -> char {
         self.security_update_action as u8 as char
     }
 
     #[getter]
-    #[pyo3(name = "user_defined_instrument")]
-    fn py_user_defined_instrument(&self) -> char {
+    fn get_user_defined_instrument(&self) -> char {
         self.user_defined_instrument as u8 as char
     }
 
@@ -2321,11 +2424,11 @@ impl ImbalanceMsg {
         auct_interest_clr_price: i64,
         paired_qty: u32,
         total_imbalance_qty: u32,
-        auction_type: c_char,
-        side: c_char,
-        significant_imbalance: c_char,
-    ) -> Self {
-        Self {
+        auction_type: char,
+        side: char,
+        significant_imbalance: char,
+    ) -> PyResult<Self> {
+        Ok(Self {
             hd: RecordHeader::new::<Self>(rtype::IMBALANCE, publisher_id, instrument_id, ts_event),
             ts_recv,
             ref_price,
@@ -2340,15 +2443,15 @@ impl ImbalanceMsg {
             total_imbalance_qty,
             market_imbalance_qty: UNDEF_ORDER_SIZE,
             unpaired_qty: UNDEF_ORDER_SIZE,
-            auction_type,
-            side,
+            auction_type: char_to_c_char(auction_type)?,
+            side: char_to_c_char(side)?,
             auction_status: 0,
             freeze_status: 0,
             num_extensions: 0,
             unpaired_side: 0,
-            significant_imbalance,
+            significant_imbalance: char_to_c_char(significant_imbalance)?,
             _reserved: [0],
-        }
+        })
     }
 
     fn __bytes__(&self) -> &[u8] {
@@ -2387,21 +2490,23 @@ impl ImbalanceMsg {
         self.hd.ts_event
     }
 
+    #[setter]
+    fn set_ts_event(&mut self, ts_event: u64) {
+        self.hd.ts_event = ts_event;
+    }
+
     #[getter]
-    #[pyo3(name = "pretty_auct_interest_clr_price")]
-    fn py_pretty_auct_interest_clr_price(&self) -> f64 {
+    fn get_pretty_auct_interest_clr_price(&self) -> f64 {
         self.auct_interest_clr_price as f64 / FIXED_PRICE_SCALE as f64
     }
 
     #[getter]
-    #[pyo3(name = "pretty_cont_book_clear_price")]
-    fn py_pretty_cont_book_clear_price(&self) -> f64 {
+    fn get_pretty_cont_book_clear_price(&self) -> f64 {
         self.cont_book_clr_price as f64 / FIXED_PRICE_SCALE as f64
     }
 
     #[getter]
-    #[pyo3(name = "pretty_ref_price")]
-    fn py_pretty_ref_price(&self) -> f64 {
+    fn get_pretty_ref_price(&self) -> f64 {
         self.ref_price as f64 / FIXED_PRICE_SCALE as f64
     }
 
@@ -2411,14 +2516,12 @@ impl ImbalanceMsg {
     }
 
     #[getter]
-    #[pyo3(name = "pretty_ts_event")]
-    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.ts_event())
     }
 
     #[getter]
-    #[pyo3(name = "pretty_ts_recv")]
-    fn py_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.ts_recv)
     }
 
@@ -2428,26 +2531,22 @@ impl ImbalanceMsg {
     }
 
     #[getter]
-    #[pyo3(name = "auction_type")]
-    fn py_auction_type(&self) -> char {
+    fn get_auction_type(&self) -> char {
         self.auction_type as u8 as char
     }
 
     #[getter]
-    #[pyo3(name = "side")]
-    fn py_side(&self) -> char {
+    fn get_side(&self) -> char {
         self.side as u8 as char
     }
 
     #[getter]
-    #[pyo3(name = "unpaired_side")]
-    fn py_unpaired_side(&self) -> char {
+    fn get_unpaired_side(&self) -> char {
         self.unpaired_side as u8 as char
     }
 
     #[getter]
-    #[pyo3(name = "significant_imbalance")]
-    fn py_significant_imbalance(&self) -> char {
+    fn get_significant_imbalance(&self) -> char {
         self.significant_imbalance as u8 as char
     }
 
@@ -2493,10 +2592,10 @@ impl StatMsg {
         ts_ref,
         price,
         quantity,
-        sequence,
-        ts_in_delta,
         stat_type,
-        channel_id,
+        sequence = None,
+        ts_in_delta = None,
+        channel_id = None,
         update_action = None,
         stat_flags = 0,
     ))]
@@ -2508,10 +2607,10 @@ impl StatMsg {
         ts_ref: u64,
         price: i64,
         quantity: i32,
-        sequence: u32,
-        ts_in_delta: i32,
         stat_type: u16,
-        channel_id: u16,
+        sequence: Option<u32>,
+        ts_in_delta: Option<i32>,
+        channel_id: Option<u16>,
         update_action: Option<u8>,
         stat_flags: u8,
     ) -> Self {
@@ -2521,10 +2620,10 @@ impl StatMsg {
             ts_ref,
             price,
             quantity,
-            sequence,
-            ts_in_delta,
+            sequence: sequence.unwrap_or_default(),
+            ts_in_delta: ts_in_delta.unwrap_or_default(),
             stat_type,
-            channel_id,
+            channel_id: channel_id.unwrap_or_default(),
             update_action: update_action.unwrap_or(StatUpdateAction::New as u8),
             stat_flags,
             _reserved: Default::default(),
@@ -2566,27 +2665,28 @@ impl StatMsg {
         self.hd.ts_event
     }
 
+    #[setter]
+    fn set_ts_event(&mut self, ts_event: u64) {
+        self.hd.ts_event = ts_event;
+    }
+
     #[getter]
-    #[pyo3(name = "pretty_price")]
-    fn py_pretty_price(&self) -> f64 {
+    fn get_pretty_price(&self) -> f64 {
         self.price as f64 / FIXED_PRICE_SCALE as f64
     }
 
     #[getter]
-    #[pyo3(name = "pretty_ts_event")]
-    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.ts_event())
     }
 
     #[getter]
-    #[pyo3(name = "pretty_ts_recv")]
-    fn py_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.ts_recv)
     }
 
     #[getter]
-    #[pyo3(name = "pretty_ts_ref")]
-    fn py_pretty_ts_ref(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_ref(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.ts_ref)
     }
 
@@ -2675,9 +2775,13 @@ impl ErrorMsg {
         self.hd.ts_event
     }
 
+    #[setter]
+    fn set_ts_event(&mut self, ts_event: u64) {
+        self.hd.ts_event = ts_event;
+    }
+
     #[getter]
-    #[pyo3(name = "pretty_ts_event")]
-    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.ts_event())
     }
 
@@ -2692,8 +2796,7 @@ impl ErrorMsg {
     }
 
     #[getter]
-    #[pyo3(name = "err")]
-    fn py_err(&self) -> PyResult<&str> {
+    fn get_err(&self) -> PyResult<&str> {
         Ok(self.err()?)
     }
 
@@ -2771,9 +2874,13 @@ impl ErrorMsgV1 {
         self.hd.ts_event
     }
 
+    #[setter]
+    fn set_ts_event(&mut self, ts_event: u64) {
+        self.hd.ts_event = ts_event;
+    }
+
     #[getter]
-    #[pyo3(name = "pretty_ts_event")]
-    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.ts_event())
     }
 
@@ -2788,8 +2895,7 @@ impl ErrorMsgV1 {
     }
 
     #[getter]
-    #[pyo3(name = "err")]
-    fn py_err(&self) -> PyResult<&str> {
+    fn get_err(&self) -> PyResult<&str> {
         Ok(self.err()?)
     }
 
@@ -2890,21 +2996,23 @@ impl SymbolMappingMsg {
         self.hd.ts_event
     }
 
+    #[setter]
+    fn set_ts_event(&mut self, ts_event: u64) {
+        self.hd.ts_event = ts_event;
+    }
+
     #[getter]
-    #[pyo3(name = "pretty_ts_event")]
-    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.ts_event())
     }
 
     #[getter]
-    #[pyo3(name = "pretty_end_ts")]
-    fn py_pretty_end_ts(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_end_ts(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.end_ts)
     }
 
     #[getter]
-    #[pyo3(name = "pretty_start_ts")]
-    fn py_pretty_start_ts(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_start_ts(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.start_ts)
     }
 
@@ -2919,26 +3027,22 @@ impl SymbolMappingMsg {
     }
 
     #[getter]
-    #[pyo3(name = "stype_in")]
-    fn py_stype_in(&self) -> PyResult<SType> {
+    fn get_stype_in(&self) -> PyResult<SType> {
         Ok(self.stype_in()?)
     }
 
     #[getter]
-    #[pyo3(name = "stype_in_symbol")]
-    fn py_stype_in_symbol(&self) -> PyResult<&str> {
+    fn get_stype_in_symbol(&self) -> PyResult<&str> {
         Ok(self.stype_in_symbol()?)
     }
 
     #[getter]
-    #[pyo3(name = "stype_out")]
-    fn py_stype_out(&self) -> PyResult<SType> {
+    fn get_stype_out(&self) -> PyResult<SType> {
         Ok(self.stype_out()?)
     }
 
     #[getter]
-    #[pyo3(name = "stype_out_symbol")]
-    fn py_stype_out_symbol(&self) -> PyResult<&str> {
+    fn get_stype_out_symbol(&self) -> PyResult<&str> {
         Ok(self.stype_out_symbol()?)
     }
 
@@ -3036,21 +3140,23 @@ impl SymbolMappingMsgV1 {
         self.hd.ts_event
     }
 
+    #[setter]
+    fn set_ts_event(&mut self, ts_event: u64) {
+        self.hd.ts_event = ts_event;
+    }
+
     #[getter]
-    #[pyo3(name = "pretty_ts_event")]
-    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.ts_event())
     }
 
     #[getter]
-    #[pyo3(name = "pretty_end_ts")]
-    fn py_pretty_end_ts(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_end_ts(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.end_ts)
     }
 
     #[getter]
-    #[pyo3(name = "pretty_start_ts")]
-    fn py_pretty_start_ts(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_start_ts(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.start_ts)
     }
 
@@ -3065,14 +3171,12 @@ impl SymbolMappingMsgV1 {
     }
 
     #[getter]
-    #[pyo3(name = "stype_in_symbol")]
-    fn py_stype_in_symbol(&self) -> PyResult<&str> {
+    fn get_stype_in_symbol(&self) -> PyResult<&str> {
         Ok(self.stype_in_symbol()?)
     }
 
     #[getter]
-    #[pyo3(name = "stype_out_symbol")]
-    fn py_stype_out_symbol(&self) -> PyResult<&str> {
+    fn get_stype_out_symbol(&self) -> PyResult<&str> {
         Ok(self.stype_out_symbol()?)
     }
 
@@ -3150,9 +3254,13 @@ impl SystemMsg {
         self.hd.ts_event
     }
 
+    #[setter]
+    fn set_ts_event(&mut self, ts_event: u64) {
+        self.hd.ts_event = ts_event;
+    }
+
     #[getter]
-    #[pyo3(name = "pretty_ts_event")]
-    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.ts_event())
     }
 
@@ -3167,8 +3275,7 @@ impl SystemMsg {
     }
 
     #[getter]
-    #[pyo3(name = "msg")]
-    fn py_msg(&self) -> PyResult<&str> {
+    fn get_msg(&self) -> PyResult<&str> {
         Ok(self.msg()?)
     }
 
@@ -3251,9 +3358,13 @@ impl SystemMsgV1 {
         self.hd.ts_event
     }
 
+    #[setter]
+    fn set_ts_event(&mut self, ts_event: u64) {
+        self.hd.ts_event = ts_event;
+    }
+
     #[getter]
-    #[pyo3(name = "pretty_ts_event")]
-    fn py_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
         get_utc_nanosecond_timestamp(py, self.ts_event())
     }
 
@@ -3268,8 +3379,7 @@ impl SystemMsgV1 {
     }
 
     #[getter]
-    #[pyo3(name = "msg")]
-    fn py_msg(&self) -> PyResult<&str> {
+    fn get_msg(&self) -> PyResult<&str> {
         Ok(self.msg()?)
     }
 

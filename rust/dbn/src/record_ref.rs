@@ -109,7 +109,6 @@ impl<'a> RecordRef<'a> {
     /// # Safety
     /// The caller needs to validate this object points to a `T`.
     pub unsafe fn get_unchecked<T: HasRType>(&self) -> &'a T {
-        debug_assert!(self.has::<T>());
         debug_assert!(self.record_size() >= mem::size_of::<T>());
         self.ptr.cast::<T>().as_ref()
     }
@@ -166,8 +165,9 @@ impl<'a> From<&'a RecordEnum> for RecordRef<'a> {
             RecordEnum::Error(rec) => Self::from(rec),
             RecordEnum::SymbolMapping(rec) => Self::from(rec),
             RecordEnum::System(rec) => Self::from(rec),
-            RecordEnum::Cbbo(rec) => Self::from(rec),
+            RecordEnum::Cmbp1(rec) => Self::from(rec),
             RecordEnum::Bbo(rec) => Self::from(rec),
+            RecordEnum::Cbbo(rec) => Self::from(rec),
         }
     }
 }
@@ -187,8 +187,9 @@ impl<'a> From<RecordRefEnum<'a>> for RecordRef<'a> {
             RecordRefEnum::Error(rec) => Self::from(rec),
             RecordRefEnum::SymbolMapping(rec) => Self::from(rec),
             RecordRefEnum::System(rec) => Self::from(rec),
-            RecordRefEnum::Cbbo(rec) => Self::from(rec),
+            RecordRefEnum::Cmbp1(rec) => Self::from(rec),
             RecordRefEnum::Bbo(rec) => Self::from(rec),
+            RecordRefEnum::Cbbo(rec) => Self::from(rec),
         }
     }
 }

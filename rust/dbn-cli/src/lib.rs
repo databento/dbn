@@ -174,6 +174,14 @@ pub struct Args {
         value_name = "SCHEMA"
     )]
     pub schema_filter: Option<Schema>,
+    #[clap(
+        long = "omit-header",
+        action = ArgAction::SetFalse,
+        default_value = "true",
+        conflicts_with_all = ["json", "dbn", "fragment"],
+        help = "Skip encoding the header. Only valid when encoding CSV or TSV."
+    )]
+    pub write_header: bool,
 }
 
 impl Args {

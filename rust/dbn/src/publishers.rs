@@ -589,10 +589,14 @@ pub enum Publisher {
     XcisBbotradesXcis = 91,
     /// NYSE BBO and Trades
     XnysBbotradesXnys = 92,
+    /// Nasdaq Basic - Consolidated
+    XnasBasicDbeq = 93,
+    /// DBEQ Max - Consolidated
+    DbeqMaxDbeq = 94,
 }
 
 /// The number of Publisher variants.
-pub const PUBLISHER_COUNT: usize = 92;
+pub const PUBLISHER_COUNT: usize = 94;
 
 impl Publisher {
     /// Convert a Publisher to its `str` representation.
@@ -690,6 +694,8 @@ impl Publisher {
             Self::DbeqSummaryDbeq => "DBEQ.SUMMARY.DBEQ",
             Self::XcisBbotradesXcis => "XCIS.BBOTRADES.XCIS",
             Self::XnysBbotradesXnys => "XNYS.BBOTRADES.XNYS",
+            Self::XnasBasicDbeq => "XNAS.BASIC.DBEQ",
+            Self::DbeqMaxDbeq => "DBEQ.MAX.DBEQ",
         }
     }
 
@@ -788,6 +794,8 @@ impl Publisher {
             Self::DbeqSummaryDbeq => Venue::Dbeq,
             Self::XcisBbotradesXcis => Venue::Xcis,
             Self::XnysBbotradesXnys => Venue::Xnys,
+            Self::XnasBasicDbeq => Venue::Dbeq,
+            Self::DbeqMaxDbeq => Venue::Dbeq,
         }
     }
 
@@ -886,6 +894,8 @@ impl Publisher {
             Self::DbeqSummaryDbeq => Dataset::DbeqSummary,
             Self::XcisBbotradesXcis => Dataset::XcisBbotrades,
             Self::XnysBbotradesXnys => Dataset::XnysBbotrades,
+            Self::XnasBasicDbeq => Dataset::XnasBasic,
+            Self::DbeqMaxDbeq => Dataset::DbeqMax,
         }
     }
 
@@ -986,6 +996,8 @@ impl Publisher {
             (Dataset::DbeqSummary, Venue::Dbeq) => Ok(Self::DbeqSummaryDbeq),
             (Dataset::XcisBbotrades, Venue::Xcis) => Ok(Self::XcisBbotradesXcis),
             (Dataset::XnysBbotrades, Venue::Xnys) => Ok(Self::XnysBbotradesXnys),
+            (Dataset::XnasBasic, Venue::Dbeq) => Ok(Self::XnasBasicDbeq),
+            (Dataset::DbeqMax, Venue::Dbeq) => Ok(Self::DbeqMaxDbeq),
             _ => Err(Error::conversion::<Self>(format!("({dataset}, {venue})"))),
         }
     }
@@ -1100,6 +1112,8 @@ impl std::str::FromStr for Publisher {
             "DBEQ.SUMMARY.DBEQ" => Ok(Self::DbeqSummaryDbeq),
             "XCIS.BBOTRADES.XCIS" => Ok(Self::XcisBbotradesXcis),
             "XNYS.BBOTRADES.XNYS" => Ok(Self::XnysBbotradesXnys),
+            "XNAS.BASIC.DBEQ" => Ok(Self::XnasBasicDbeq),
+            "DBEQ.MAX.DBEQ" => Ok(Self::DbeqMaxDbeq),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }

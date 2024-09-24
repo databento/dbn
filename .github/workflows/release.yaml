@@ -54,11 +54,6 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          components: rustfmt, clippy
 
       # Cargo setup
       - name: Set up Cargo cache
@@ -105,11 +100,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          components: rustfmt, clippy
+        run: rustup toolchain add --profile minimal stable --component clippy,rustfmt
 
       # Cargo setup
       - name: Set up Cargo cache
@@ -153,11 +144,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          components: rustfmt, clippy
+        run: rustup toolchain add --profile minimal stable --component clippy,rustfmt
 
       # Cargo setup
       - name: Set up Cargo cache
@@ -201,11 +188,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          components: rustfmt, clippy
+        run: rustup toolchain add --profile minimal stable --component clippy,rustfmt
 
       # Cargo setup
       - name: Set up Cargo cache
@@ -285,11 +268,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          components: rustfmt, clippy
+        run: rustup toolchain add --profile minimal stable --component clippy,rustfmt
 
       # Cargo setup
       - name: Set up Cargo cache

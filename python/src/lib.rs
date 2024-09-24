@@ -6,12 +6,13 @@ use dbn::{
     compat::{ErrorMsgV1, InstrumentDefMsgV1, SymbolMappingMsgV1, SystemMsgV1},
     flags,
     python::{DBNError, EnumIterator},
-    Action, BboMsg, BidAskPair, CbboMsg, Compression, ConsolidatedBidAskPair, Encoding, ErrorMsg,
-    ImbalanceMsg, InstrumentClass, InstrumentDefMsg, MatchAlgorithm, MboMsg, Mbp10Msg, Mbp1Msg,
-    Metadata, OhlcvMsg, RType, RecordHeader, SType, Schema, SecurityUpdateAction, Side, StatMsg,
-    StatType, StatUpdateAction, StatusAction, StatusMsg, StatusReason, SymbolMappingMsg, SystemMsg,
-    TradeMsg, TradingEvent, TriState, UserDefinedInstrument, VersionUpgradePolicy, DBN_VERSION,
-    FIXED_PRICE_SCALE, UNDEF_ORDER_SIZE, UNDEF_PRICE, UNDEF_STAT_QUANTITY, UNDEF_TIMESTAMP,
+    Action, BboMsg, BidAskPair, CbboMsg, Cmbp1Msg, Compression, ConsolidatedBidAskPair, Encoding,
+    ErrorMsg, ImbalanceMsg, InstrumentClass, InstrumentDefMsg, MatchAlgorithm, MboMsg, Mbp10Msg,
+    Mbp1Msg, Metadata, OhlcvMsg, RType, RecordHeader, SType, Schema, SecurityUpdateAction, Side,
+    StatMsg, StatType, StatUpdateAction, StatusAction, StatusMsg, StatusReason, SymbolMappingMsg,
+    SystemMsg, TradeMsg, TradingEvent, TriState, UserDefinedInstrument, VersionUpgradePolicy,
+    DBN_VERSION, FIXED_PRICE_SCALE, UNDEF_ORDER_SIZE, UNDEF_PRICE, UNDEF_STAT_QUANTITY,
+    UNDEF_TIMESTAMP,
 };
 
 mod dbn_decoder;
@@ -56,6 +57,7 @@ fn databento_dbn(_py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     checked_add_class::<StatMsg>(m)?;
     checked_add_class::<BboMsg>(m)?;
     checked_add_class::<CbboMsg>(m)?;
+    checked_add_class::<Cmbp1Msg>(m)?;
     // PyClass enums
     checked_add_class::<Action>(m)?;
     checked_add_class::<Compression>(m)?;

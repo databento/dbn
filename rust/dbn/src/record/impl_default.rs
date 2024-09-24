@@ -117,7 +117,26 @@ impl BboMsg {
 }
 
 impl CbboMsg {
-    /// Creates a new default `CbboMsg` for the given `schema`.
+    /// Creates a new default `Cmbp1Msg` for the given `schema`.
+    pub fn default_for_schema(schema: Schema) -> Self {
+        Self {
+            hd: RecordHeader::default::<Self>(RType::from(schema) as u8),
+            price: UNDEF_PRICE,
+            size: UNDEF_ORDER_SIZE,
+            side: Side::None as c_char,
+            flags: FlagSet::default(),
+            ts_recv: UNDEF_TIMESTAMP,
+            _reserved1: 0,
+            _reserved2: 0,
+            _reserved3: [0; 4],
+            _reserved4: [0; 4],
+            levels: Default::default(),
+        }
+    }
+}
+
+impl Cmbp1Msg {
+    /// Creates a new default `Cmbp1Msg` for the given `schema`.
     pub fn default_for_schema(schema: Schema) -> Self {
         Self {
             hd: RecordHeader::default::<Self>(RType::from(schema) as u8),
@@ -126,10 +145,10 @@ impl CbboMsg {
             action: 0,
             side: Side::None as c_char,
             flags: FlagSet::default(),
-            _reserved: [0; 1],
+            _reserved1: [0; 1],
             ts_recv: UNDEF_TIMESTAMP,
             ts_in_delta: 0,
-            sequence: 0,
+            _reserved2: [0; 4],
             levels: Default::default(),
         }
     }
