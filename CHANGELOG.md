@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.21.1 - TBD
+
+### Bug fixes
+- Added missing Python type stub for `CMBP_1` variant in `Schema`
+
 ## 0.21.0 - 2024-09-24
 
 ### Enhancements

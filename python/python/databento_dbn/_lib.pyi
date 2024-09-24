@@ -358,7 +358,7 @@ class Schema(Enum):
         Exchange status.
     IMBALANCE
         Auction imbalance events.
-    CBBO
+    CMBP_1
         Consolidated best bid and offer.
     CBBO_1S
         Consolidated best bid and offer record.
@@ -387,7 +387,7 @@ class Schema(Enum):
     STATISTICS: str
     STATUS: str
     IMBALANCE: str
-    CBBO: str
+    CMBP_1: str
     CBBO_1S: str
     CBBO_1M: str
     TCBBO: str
