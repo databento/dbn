@@ -1,4 +1,4 @@
-# ruff: noqa: UP007 PYI021 PYI053
+# ruff: noqa: UP007 PYI021 PYI053 PYI011
 from __future__ import annotations
 
 import datetime as dt
@@ -1329,11 +1329,37 @@ class MBOMsg(Record, _MBOBase):
     A market-by-order (MBO) tick message.
     """
 
+    def __init__(
+        self,
+        publisher_id: int,
+        instrument_id: int,
+        ts_event: int,
+        order_id: int,
+        price: int,
+        size: int,
+        action: str,
+        side: str,
+        ts_recv: int,
+        flags: int | None = None,
+        channel_id: int | None = None,
+        ts_in_delta: int | None = None,
+        sequence: int | None = None,
+    ) -> None: ...
+
 class BidAskPair:
     """
     A book level.
     """
 
+    def __init__(
+        self,
+        bid_px: int = UNDEF_PRICE,
+        ask_px: int = UNDEF_PRICE,
+        bid_sz: int = 0,
+        ask_sz: int = 0,
+        bid_ct: int = 0,
+        ask_ct: int = 0,
+    ) -> None: ...
     @property
     def pretty_bid_px(self) -> float:
         """
@@ -1445,6 +1471,15 @@ class ConsolidatedBidAskPair:
     A consolidated book level.
     """
 
+    def __init__(
+        self,
+        bid_px: int = UNDEF_PRICE,
+        ask_px: int = UNDEF_PRICE,
+        bid_sz: int = 0,
+        ask_sz: int = 0,
+        bid_pb: int = 0,
+        ask_pb: int = 0,
+    ) -> None: ...
     @property
     def pretty_bid_px(self) -> float:
         """
@@ -1721,11 +1756,43 @@ class TradeMsg(Record, _MBPBase):
 
     """
 
+    def __init__(
+        self,
+        publisher_id: int,
+        instrument_id: int,
+        ts_event: int,
+        price: int,
+        size: int,
+        action: str,
+        side: str,
+        depth: int,
+        ts_recv: int,
+        flags: int | None = None,
+        ts_in_delta: int | None = None,
+        sequence: int | None = None,
+    ) -> None: ...
+
 class MBP1Msg(Record, _MBPBase):
     """
     Market by price implementation with a known book depth of 1.
     """
 
+    def __init__(
+        self,
+        publisher_id: int,
+        instrument_id: int,
+        ts_event: int,
+        price: int,
+        size: int,
+        action: str,
+        side: str,
+        depth: int,
+        ts_recv: int,
+        flags: int | None = None,
+        ts_in_delta: int | None = None,
+        sequence: int | None = None,
+        levels: BidAskPair | None = None,
+    ) -> None: ...
     @property
     def levels(self) -> list[BidAskPair]:
         """
@@ -1746,6 +1813,21 @@ class BBOMsg(Record):
     Subsampled market by price with a known book depth of 1.
     """
 
+    def __init__(
+        self,
+        rtype: int,
+        publisher_id: int,
+        instrument_id: int,
+        ts_event: int,
+        price: int,
+        size: int,
+        action: str,
+        side: str,
+        ts_recv: int,
+        flags: int | None = None,
+        sequence: int | None = None,
+        levels: BidAskPair | None = None,
+    ) -> None: ...
     @property
     def pretty_price(self) -> float:
         """
@@ -1867,6 +1949,21 @@ class CMBP1Msg(Record):
     Consolidated best bid and offer implementation.
     """
 
+    def __init__(
+        self,
+        rtype: int,
+        publisher_id: int,
+        instrument_id: int,
+        ts_event: int,
+        price: int,
+        size: int,
+        action: str,
+        side: str,
+        ts_recv: int,
+        flags: int | None = None,
+        ts_in_delta: int | None = None,
+        levels: ConsolidatedBidAskPair | None = None,
+    ) -> None: ...
     @property
     def pretty_price(self) -> float:
         """
@@ -2018,6 +2115,19 @@ class CBBOMsg(Record):
     Subsampled consolidated best bid and offer.
     """
 
+    def __init__(
+        self,
+        rtype: int,
+        publisher_id: int,
+        instrument_id: int,
+        ts_event: int,
+        price: int,
+        size: int,
+        side: str,
+        ts_recv: int,
+        flags: int | None = None,
+        levels: ConsolidatedBidAskPair | None = None,
+    ) -> None: ...
     @property
     def pretty_price(self) -> float:
         """
@@ -2139,6 +2249,22 @@ class MBP10Msg(Record, _MBPBase):
     Market by price implementation with a known book depth of 10.
     """
 
+    def __init__(
+        self,
+        publisher_id: int,
+        instrument_id: int,
+        ts_event: int,
+        price: int,
+        size: int,
+        action: str,
+        side: str,
+        depth: int,
+        ts_recv: int,
+        flags: int | None = None,
+        ts_in_delta: int | None = None,
+        sequence: int | None = None,
+        levels: list[BidAskPair] | None = None,
+    ) -> None: ...
     @property
     def levels(self) -> list[BidAskPair]:
         """
@@ -2159,6 +2285,18 @@ class OHLCVMsg(Record):
     Open, high, low, close, and volume message.
     """
 
+    def __init__(
+        self,
+        rtype: int,
+        publisher_id: int,
+        instrument_id: int,
+        ts_event: int,
+        open: int,
+        high: int,
+        low: int,
+        close: int,
+        volume: int,
+    ) -> None: ...
     @property
     def pretty_open(self) -> float:
         """
@@ -2299,6 +2437,72 @@ class InstrumentDefMsg(Record):
     Definition of an instrument.
     """
 
+    def __init__(
+        self,
+        publisher_id: int,
+        instrument_id: int,
+        ts_event: int,
+        ts_recv: int,
+        min_price_increment: int,
+        display_factor: int,
+        min_lot_size_round_lot: int,
+        raw_symbol: str,
+        group: str,
+        exchange: str,
+        instrument_class: str,
+        match_algorithm: str,
+        md_security_trading_status: str,
+        security_update_action: str,
+        expiration: int = UNDEF_TIMESTAMP,
+        activation: int = UNDEF_TIMESTAMP,
+        high_limit_price: int = UNDEF_PRICE,
+        low_limit_price: int = UNDEF_PRICE,
+        max_price_variation: int = UNDEF_PRICE,
+        trading_reference_price: int = UNDEF_PRICE,
+        unit_of_measure_qty: int = UNDEF_PRICE,
+        min_price_increment_amount: int = UNDEF_PRICE,
+        price_ratio: int = UNDEF_PRICE,
+        inst_attrib_value: int | None = None,
+        underlying_id: int | None = None,
+        raw_instrument_id: int | None = None,
+        market_depth_implied: int | None = None,
+        market_depth: int | None = None,
+        market_segment_id: int | None = None,
+        max_trade_vol: int | None = None,
+        min_lot_size: int | None = None,
+        min_lot_size_block: int | None = None,
+        min_trade_vol: int | None = None,
+        contract_multiplier: int | None = None,
+        decay_quantity: int | None = None,
+        original_contract_size: int | None = None,
+        trading_reference_date: int | None = None,
+        appl_id: int | None = None,
+        maturity_year: int | None = None,
+        decay_start_date: int | None = None,
+        channel_id: int | None = None,
+        currency: str = "",
+        settl_currency: str = "",
+        secsubtype: str = "",
+        asset: str = "",
+        cfi: str = "",
+        security_type: str = "",
+        unit_of_measure: str = "",
+        underlying: str = "",
+        strike_price_currency: str = "",
+        strike_price: int = UNDEF_PRICE,
+        main_fraction: int | None = None,
+        price_display_format: int | None = None,
+        settl_price_type: int | None = None,
+        sub_fraction: int | None = None,
+        underlying_product: int | None = None,
+        maturity_month: int | None = None,
+        maturity_day: int | None = None,
+        maturity_week: int | None = None,
+        user_defined_instrument: str | None = None,
+        contract_multiplier_unit: int | None = None,
+        flow_schedule_type: int | None = None,
+        tick_rule: int | None = None,
+    ) -> None: ...
     @property
     def pretty_ts_recv(self) -> dt.datetime:
         """
@@ -3174,6 +3378,72 @@ class InstrumentDefMsgV1(Record):
     A DBN version 1 definition of an instrument.
     """
 
+    def __init__(
+        self,
+        publisher_id: int,
+        instrument_id: int,
+        ts_event: int,
+        ts_recv: int,
+        min_price_increment: int,
+        display_factor: int,
+        min_lot_size_round_lot: int,
+        raw_symbol: str,
+        group: str,
+        exchange: str,
+        instrument_class: str,
+        match_algorithm: str,
+        md_security_trading_status: str,
+        security_update_action: str,
+        expiration: int = UNDEF_TIMESTAMP,
+        activation: int = UNDEF_TIMESTAMP,
+        high_limit_price: int = UNDEF_PRICE,
+        low_limit_price: int = UNDEF_PRICE,
+        max_price_variation: int = UNDEF_PRICE,
+        trading_reference_price: int = UNDEF_PRICE,
+        unit_of_measure_qty: int = UNDEF_PRICE,
+        min_price_increment_amount: int = UNDEF_PRICE,
+        price_ratio: int = UNDEF_PRICE,
+        inst_attrib_value: int | None = None,
+        underlying_id: int | None = None,
+        raw_instrument_id: int | None = None,
+        market_depth_implied: int | None = None,
+        market_depth: int | None = None,
+        market_segment_id: int | None = None,
+        max_trade_vol: int | None = None,
+        min_lot_size: int | None = None,
+        min_lot_size_block: int | None = None,
+        min_trade_vol: int | None = None,
+        contract_multiplier: int | None = None,
+        decay_quantity: int | None = None,
+        original_contract_size: int | None = None,
+        trading_reference_date: int | None = None,
+        appl_id: int | None = None,
+        maturity_year: int | None = None,
+        decay_start_date: int | None = None,
+        channel_id: int | None = None,
+        currency: str = "",
+        settl_currency: str = "",
+        secsubtype: str = "",
+        asset: str = "",
+        cfi: str = "",
+        security_type: str = "",
+        unit_of_measure: str = "",
+        underlying: str = "",
+        strike_price_currency: str = "",
+        strike_price: int = UNDEF_PRICE,
+        main_fraction: int | None = None,
+        price_display_format: int | None = None,
+        settl_price_type: int | None = None,
+        sub_fraction: int | None = None,
+        underlying_product: int | None = None,
+        maturity_month: int | None = None,
+        maturity_day: int | None = None,
+        maturity_week: int | None = None,
+        user_defined_instrument: str | None = None,
+        contract_multiplier_unit: int | None = None,
+        flow_schedule_type: int | None = None,
+        tick_rule: int | None = None,
+    ) -> None: ...
     @property
     def pretty_ts_recv(self) -> dt.datetime:
         """
@@ -4049,6 +4319,21 @@ class ImbalanceMsg(Record):
     An auction imbalance message.
     """
 
+    def __init__(
+        self,
+        publisher_id: int,
+        instrument_id: int,
+        ts_event: int,
+        ts_recv: int,
+        ref_price: int,
+        cont_book_clr_price: int,
+        auct_interest_clr_price: int,
+        paired_qty: int,
+        total_imbalance_qty: int,
+        auction_type: str,
+        side: str,
+        significant_imbalance: str,
+    ) -> None: ...
     @property
     def pretty_ts_recv(self) -> dt.datetime:
         """
@@ -4356,6 +4641,22 @@ class StatMsg(Record):
 
     """
 
+    def __init__(
+        self,
+        publisher_id: int,
+        instrument_id: int,
+        ts_event: int,
+        ts_recv: int,
+        ts_ref: int,
+        price: int,
+        quantity: int,
+        stat_type: int,
+        sequence: int | None = None,
+        ts_in_delta: int | None = None,
+        channel_id: int | None = None,
+        update_action: int | None = None,
+        stat_flags: int = 0,
+    ) -> None: ...
     @property
     def pretty_ts_recv(self) -> dt.datetime:
         """
@@ -4609,21 +4910,10 @@ class StatusMsg(Record):
 
         """
 
-class ErrorMsg(Record):
+class ErrorMsg(ErrorMsgV1):
     """
     An error message from the Databento Live Subscription Gateway (LSG).
     """
-
-    @property
-    def err(self) -> str:
-        """
-        The error message.
-
-        Returns
-        -------
-        str
-
-        """
 
     @property
     def is_last(self) -> int:
@@ -4641,6 +4931,7 @@ class ErrorMsgV1(Record):
     A DBN version 1 error message from the Databento Live Subscription Gateway (LSG).
     """
 
+    def __init__(self, ts_event: int, err: str, is_last: bool = True) -> None: ...
     @property
     def err(self) -> str:
         """
@@ -4657,6 +4948,18 @@ class SymbolMappingMsg(Record):
     another.
     """
 
+    def __init__(
+        self,
+        publisher_id: int,
+        instrument_id: int,
+        ts_event: int,
+        stype_in: SType,
+        stype_in_symbol: str,
+        stype_out: SType,
+        stype_out_symbol: str,
+        start_ts: int,
+        end_ts: int,
+    ) -> None: ...
     @property
     def stype_in(self) -> SType:
         """
@@ -4749,82 +5052,12 @@ class SymbolMappingMsg(Record):
 
         """
 
-class SymbolMappingMsgV1(Record):
+class SymbolMappingMsgV1(SymbolMappingMsg):
     """A DBN version 1 symbol mapping message which maps a symbol of one `SType`
     to another.
     """
 
-    @property
-    def stype_in_symbol(self) -> str:
-        """
-        The input symbol.
-
-        Returns
-        -------
-        str
-
-        """
-
-    @property
-    def stype_out_symbol(self) -> str:
-        """
-        The output symbol.
-
-        Returns
-        -------
-        str
-
-        """
-
-    @property
-    def pretty_start_ts(self) -> dt.datetime:
-        """
-        The start of the mapping interval expressed as a datetime
-        or `pandas.Timestamp`, if available.
-
-        Returns
-        -------
-        datetime.datetime
-
-        """
-
-    @property
-    def start_ts(self) -> int:
-        """
-        The start of the mapping interval expressed as the number of
-        nanoseconds since the UNIX epoch.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def pretty_end_ts(self) -> dt.datetime:
-        """
-        The end of the mapping interval expressed as a datetime
-        or `pandas.Timestamp`, if available.
-
-        Returns
-        -------
-        datetime.datetime
-
-        """
-
-    @property
-    def end_ts(self) -> int:
-        """
-        The end of the mapping interval expressed as the number of nanoseconds
-        since the UNIX epoch.
-
-        Returns
-        -------
-        int
-
-        """
-
-class SystemMsg(Record):
+class SystemMsg(SystemMsgV1):
     """
     A non-error message from the Databento Live Subscription Gateway (LSG).
 
@@ -4833,26 +5066,13 @@ class SystemMsg(Record):
     """
 
     @property
-    def msg(self) -> str:
+    def code(self) -> int:
         """
-        The message from the Databento Live Subscription Gateway (LSG).
+        Type of system message, currently unused.
 
         Returns
         -------
-        str
-
-        """
-
-    @property
-    def is_heartbeat(self) -> bool:
-        """
-        `true` if this message is a heartbeat, used to indicate the connection
-        with the gateway is still open.
-
-        Returns
-        -------
-        bool
-
+        int
         """
 
 class SystemMsgV1(Record):
@@ -4864,6 +5084,7 @@ class SystemMsgV1(Record):
 
     """
 
+    def __init__(self, ts_event: int, msg: str) -> None: ...
     @property
     def msg(self) -> str:
         """
