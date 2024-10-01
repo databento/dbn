@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.22.0 - TBD
+## 0.22.0 - 2024-10-01
 
 ### Enhancements
 - Added Python type stubs for Record `__init__` methods
