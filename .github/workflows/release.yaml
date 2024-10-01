@@ -84,9 +84,9 @@ jobs:
           args: --release --target universal2-apple-darwin --out dist --manifest-path python/Cargo.toml --interpreter python${{ matrix.python-version }}
 
       - name: Upload wheels
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: wheel-macos-${{ matrix.python-version }}
           path: dist
 
   windows-release:
@@ -127,9 +127,9 @@ jobs:
           args: --release --out dist --manifest-path python/Cargo.toml --interpreter python${{ matrix.python-version }}
 
       - name: Upload wheels
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: wheel-windows-${{ matrix.python-version }}
           path: dist
 
   linux-release:
@@ -171,9 +171,9 @@ jobs:
           args: --release --out dist --manifest-path python/Cargo.toml --interpreter python${{ matrix.python-version }}
 
       - name: Upload wheels
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: wheel-linux-${{ matrix.python-version }}
           path: dist
 
   linux-musl-release:
@@ -215,9 +215,9 @@ jobs:
           args: --release --out dist --manifest-path python/Cargo.toml --interpreter python${{ matrix.python-version }}
 
       - name: Upload wheels
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: wheel-linux-musl-${{ matrix.python-version }}
           path: dist
 
   publish-py:
@@ -231,9 +231,9 @@ jobs:
         linux-musl-release,
       ]
     steps:
-      - uses: actions/download-artifact@v3
-        with:
-          name: wheels
+      - uses: actions/download-artifact@v4
+        pattern: wheel-*
+        merge-multiple: true
       # Install publish dependencies
       - name: Install publish dependencies
         run: python -m pip install --upgrade twine
@@ -244,15 +244,6 @@ jobs:
           TWINE_USERNAME: ${{ secrets.TWINE_USERNAME }}
           TWINE_PASSWORD: ${{ secrets.TWINE_PASSWORD }}
         run: twine upload *
-
-      - name: Upload to release
-        uses: actions/upload-artifact@v3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          name: wheels
-          path: "*"
-          upload_url: ${{ needs.tag-release.outputs.upload_url }}
 
   publish-rs:
     runs-on: ubuntu-latest

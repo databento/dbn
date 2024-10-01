@@ -128,8 +128,7 @@ impl CbboMsg {
             ts_recv: UNDEF_TIMESTAMP,
             _reserved1: 0,
             _reserved2: 0,
-            _reserved3: [0; 4],
-            _reserved4: [0; 4],
+            _reserved3: Default::default(),
             levels: Default::default(),
         }
     }

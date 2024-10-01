@@ -34,9 +34,10 @@ pub use conv::{
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn"),
+    pyo3::pyclass(get_all, dict, module = "databento_dbn"),
     derive(crate::macros::PyFieldDesc)
 )]
+#[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[cfg_attr(test, derive(type_layout::TypeLayout))]
 pub struct RecordHeader {
     /// The length of the record in 32-bit words.
@@ -48,12 +49,15 @@ pub struct RecordHeader {
     /// a given rtype. The set of possible values is defined in [`rtype`].
     pub rtype: u8,
     /// The publisher ID assigned by Databento, which denotes the dataset and venue.
+    #[pyo3(set)]
     pub publisher_id: u16,
     /// The numeric ID assigned to the instrument.
+    #[pyo3(set)]
     pub instrument_id: u32,
     /// The matching-engine-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
     #[dbn(encode_order(0), unix_nanos)]
+    #[pyo3(set)]
     pub ts_event: u64,
 }
 
@@ -65,7 +69,7 @@ pub struct RecordHeader {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(set_all, dict, module = "databento_dbn", name = "MBOMsg"),
+    pyo3::pyclass(dict, module = "databento_dbn", name = "MBOMsg"),
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -76,24 +80,24 @@ pub struct MboMsg {
     #[pyo3(get)]
     pub hd: RecordHeader,
     /// The order ID assigned at the venue.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub order_id: u64,
     /// The order price expressed as a signed integer where every 1 unit
     /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
     #[dbn(encode_order(4), fixed_price)]
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub price: i64,
     /// The order quantity.
     #[dbn(encode_order(5))]
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub size: u32,
     /// A bit field indicating event end, message characteristics, and data quality. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub flags: FlagSet,
     /// A channel ID within the venue.
     #[dbn(encode_order(6))]
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub channel_id: u8,
     /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**,
     /// **T**rade, or **F**ill.
@@ -107,13 +111,13 @@ pub struct MboMsg {
     /// The capture-server-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
     #[dbn(encode_order(0), index_ts, unix_nanos)]
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub ts_in_delta: i32,
     /// The message sequence number assigned at the venue.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub sequence: u32,
 }
 
@@ -191,7 +195,7 @@ pub struct ConsolidatedBidAskPair {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(set_all, dict, module = "databento_dbn"),
+    pyo3::pyclass(dict, module = "databento_dbn"),
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -204,10 +208,10 @@ pub struct TradeMsg {
     /// The order price expressed as a signed integer where every 1 unit
     /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
     #[dbn(fixed_price)]
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub price: i64,
     /// The order quantity.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub size: u32,
     /// The event action. Always **T**rade in the trades schema.
     #[dbn(c_char, encode_order(2))]
@@ -219,22 +223,22 @@ pub struct TradeMsg {
     pub side: c_char,
     /// A bit field indicating event end, message characteristics, and data quality. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub flags: FlagSet,
     /// The depth of actual book change.
     #[dbn(encode_order(4))]
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub depth: u8,
     /// The capture-server-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
     #[dbn(encode_order(0), index_ts, unix_nanos)]
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub ts_in_delta: i32,
     /// The message sequence number assigned at the venue.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub sequence: u32,
 }
 
@@ -246,7 +250,7 @@ pub struct TradeMsg {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(set_all, dict, module = "databento_dbn", name = "MBP1Msg"),
+    pyo3::pyclass(dict, module = "databento_dbn", name = "MBP1Msg"),
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -259,10 +263,10 @@ pub struct Mbp1Msg {
     /// The order price expressed as a signed integer where every 1 unit
     /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
     #[dbn(fixed_price)]
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub price: i64,
     /// The order quantity.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub size: u32,
     /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or
     /// **T**rade.
@@ -275,25 +279,25 @@ pub struct Mbp1Msg {
     pub side: c_char,
     /// A bit field indicating event end, message characteristics, and data quality. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub flags: FlagSet,
     /// The depth of actual book change.
     #[dbn(encode_order(4))]
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub depth: u8,
     /// The capture-server-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
     #[dbn(encode_order(0), index_ts, unix_nanos)]
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub ts_in_delta: i32,
     /// The message sequence number assigned at the venue.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub sequence: u32,
     /// The top of the order book.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub levels: [BidAskPair; 1],
 }
 
@@ -305,7 +309,7 @@ pub struct Mbp1Msg {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(set_all, dict, module = "databento_dbn", name = "MBP10Msg"),
+    pyo3::pyclass(dict, module = "databento_dbn", name = "MBP10Msg"),
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -318,10 +322,10 @@ pub struct Mbp10Msg {
     /// The order price expressed as a signed integer where every 1 unit
     /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
     #[dbn(fixed_price)]
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub price: i64,
     /// The order quantity.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub size: u32,
     /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or
     /// **T**rade.
@@ -334,25 +338,25 @@ pub struct Mbp10Msg {
     pub side: c_char,
     /// A bit field indicating event end, message characteristics, and data quality. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub flags: FlagSet,
     /// The depth of actual book change.
     #[dbn(encode_order(4))]
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub depth: u8,
     /// The capture-server-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
     #[dbn(encode_order(0), index_ts, unix_nanos)]
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub ts_in_delta: i32,
     /// The message sequence number assigned at the venue.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub sequence: u32,
     /// The top 10 levels of the order book.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub levels: [BidAskPair; 10],
 }
 
@@ -364,7 +368,7 @@ pub struct Mbp10Msg {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(set_all, dict, module = "databento_dbn", name = "BBOMsg"),
+    pyo3::pyclass(dict, module = "databento_dbn", name = "BBOMsg"),
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -377,10 +381,10 @@ pub struct BboMsg {
     /// The price of the last trade expressed as a signed integer where every 1 unit
     /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
     #[dbn(fixed_price)]
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub price: i64,
     /// The quantity of the last trade.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub size: u32,
     // Reserved for later usage.
     #[doc(hidden)]
@@ -393,7 +397,7 @@ pub struct BboMsg {
     pub side: c_char,
     /// A bit field indicating event end, message characteristics, and data quality. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub flags: FlagSet,
     // Reserved for later usage.
     #[doc(hidden)]
@@ -401,17 +405,17 @@ pub struct BboMsg {
     pub _reserved2: u8,
     /// The interval timestamp expressed as number of nanoseconds since the UNIX epoch.
     #[dbn(encode_order(0), index_ts, unix_nanos)]
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub ts_recv: u64,
     // Reserved for later usage.
     #[doc(hidden)]
     #[cfg_attr(feature = "serde", serde(skip))]
     pub _reserved3: [u8; 4],
     /// The sequence number assigned at the venue of the last update.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub sequence: u32,
     /// The top of the order book.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub levels: [BidAskPair; 1],
 }
 
@@ -423,7 +427,7 @@ pub struct BboMsg {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(set_all, dict, module = "databento_dbn", name = "CMBP1Msg"),
+    pyo3::pyclass(dict, module = "databento_dbn", name = "CMBP1Msg"),
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -436,10 +440,10 @@ pub struct Cmbp1Msg {
     /// The order price expressed as a signed integer where every 1 unit
     /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
     #[dbn(fixed_price)]
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub price: i64,
     /// The order quantity.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub size: u32,
     /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or
     /// **T**rade.
@@ -452,7 +456,7 @@ pub struct Cmbp1Msg {
     pub side: c_char,
     /// A bit field indicating event end, message characteristics, and data quality. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub flags: FlagSet,
     // Reserved for future usage.
     #[doc(hidden)]
@@ -461,16 +465,16 @@ pub struct Cmbp1Msg {
     /// The capture-server-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
     #[dbn(encode_order(0), index_ts, unix_nanos)]
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub ts_recv: u64,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub ts_in_delta: i32,
     #[doc(hidden)]
     #[cfg_attr(feature = "serde", serde(skip))]
     pub _reserved2: [c_char; 4],
     /// The top of the order book.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub levels: [ConsolidatedBidAskPair; 1],
 }
 
@@ -482,7 +486,7 @@ pub struct Cmbp1Msg {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(set_all, dict, module = "databento_dbn", name = "CBBOMsg"),
+    pyo3::pyclass(dict, module = "databento_dbn", name = "CBBOMsg"),
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -495,10 +499,10 @@ pub struct CbboMsg {
     /// The price of the last trade expressed as a signed integer where every 1 unit
     /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
     #[dbn(fixed_price)]
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub price: i64,
     /// The quantity of the last trade.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub size: u32,
     // Reserved for later usage.
     #[doc(hidden)]
@@ -511,7 +515,7 @@ pub struct CbboMsg {
     pub side: c_char,
     /// A bit field indicating event end, message characteristics, and data quality. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub flags: FlagSet,
     // Reserved for later usage.
     #[doc(hidden)]
@@ -519,18 +523,14 @@ pub struct CbboMsg {
     pub _reserved2: u8,
     /// The interval timestamp expressed as number of nanoseconds since the UNIX epoch.
     #[dbn(encode_order(0), index_ts, unix_nanos)]
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub ts_recv: u64,
     // Reserved for later usage.
     #[doc(hidden)]
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub _reserved3: [u8; 4],
-    /// Reserved for later usage.
-    #[doc(hidden)]
-    #[cfg_attr(feature = "serde", serde(skip))]
-    pub _reserved4: [u8; 4],
+    pub _reserved3: [u8; 8],
     /// The top of the order book.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub levels: [ConsolidatedBidAskPair; 1],
 }
 
@@ -560,9 +560,10 @@ pub type Cbbo1MMsg = CbboMsg;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn", name = "OHLCVMsg"),
+    pyo3::pyclass(get_all, dict, module = "databento_dbn", name = "OHLCVMsg"),
     derive(crate::macros::PyFieldDesc)
 )]
+#[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[cfg_attr(test, derive(type_layout::TypeLayout))]
 #[dbn_record(
     rtype::OHLCV_1S,
@@ -577,17 +578,22 @@ pub struct OhlcvMsg {
     pub hd: RecordHeader,
     /// The open price for the bar.
     #[dbn(fixed_price)]
+    #[pyo3(set)]
     pub open: i64,
     /// The high price for the bar.
     #[dbn(fixed_price)]
+    #[pyo3(set)]
     pub high: i64,
     /// The low price for the bar.
     #[dbn(fixed_price)]
+    #[pyo3(set)]
     pub low: i64,
     /// The close price for the bar.
     #[dbn(fixed_price)]
+    #[pyo3(set)]
     pub close: i64,
     /// The total volume traded during the aggregation period.
+    #[pyo3(set)]
     pub volume: u64,
 }
 
@@ -607,7 +613,7 @@ pub struct OhlcvMsg {
 #[dbn_record(rtype::STATUS)]
 pub struct StatusMsg {
     /// The common header.
-    #[pyo3(get, set)]
+    #[pyo3(get)]
     pub hd: RecordHeader,
     /// The capture-server-received timestamp expressed as number of nanoseconds since
     /// the UNIX epoch.
@@ -899,7 +905,7 @@ pub struct InstrumentDefMsg {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(set_all, dict, module = "databento_dbn"),
+    pyo3::pyclass(dict, module = "databento_dbn"),
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -912,51 +918,51 @@ pub struct ImbalanceMsg {
     /// The capture-server-received timestamp expressed as the number of nanoseconds
     /// since the UNIX epoch.
     #[dbn(encode_order(0), index_ts, unix_nanos)]
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub ts_recv: u64,
     /// The price at which the imbalance shares are calculated, where every 1 unit corresponds to
     /// 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
     #[dbn(fixed_price)]
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub ref_price: i64,
     /// Reserved for future use.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub auction_time: u64,
     /// The hypothetical auction-clearing price for both cross and continuous orders.
     #[dbn(fixed_price)]
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub cont_book_clr_price: i64,
     /// The hypothetical auction-clearing price for cross orders only.
     #[dbn(fixed_price)]
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub auct_interest_clr_price: i64,
     /// Reserved for future use.
     #[dbn(fixed_price)]
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub ssr_filling_price: i64,
     /// Reserved for future use.
     #[dbn(fixed_price)]
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub ind_match_price: i64,
     /// Reserved for future use.
     #[dbn(fixed_price)]
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub upper_collar: i64,
     /// Reserved for future use.
     #[dbn(fixed_price)]
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub lower_collar: i64,
     /// The quantity of shares that are eligible to be matched at `ref_price`.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub paired_qty: u32,
     /// The quantity of shares that are not paired at `ref_price`.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub total_imbalance_qty: u32,
     /// Reserved for future use.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub market_imbalance_qty: u32,
     /// Reserved for future use.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub unpaired_qty: u32,
     /// Venue-specific character code indicating the auction type.
     #[dbn(c_char)]
@@ -965,13 +971,13 @@ pub struct ImbalanceMsg {
     #[dbn(c_char)]
     pub side: c_char,
     /// Reserved for future use.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub auction_status: u8,
     /// Reserved for future use.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub freeze_status: u8,
     /// Reserved for future use.
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub num_extensions: u8,
     /// Reserved for future use.
     #[dbn(c_char)]
@@ -993,7 +999,7 @@ pub struct ImbalanceMsg {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn"),
+    pyo3::pyclass(get_all, dict, module = "databento_dbn"),
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -1005,36 +1011,46 @@ pub struct StatMsg {
     /// The capture-server-received timestamp expressed as the number of nanoseconds
     /// since the UNIX epoch.
     #[dbn(encode_order(0), index_ts, unix_nanos)]
+    #[pyo3(set)]
     pub ts_recv: u64,
     /// The reference timestamp of the statistic value expressed as the number of
     /// nanoseconds since the UNIX epoch. Will be [`crate::UNDEF_TIMESTAMP`] when
     /// unused.
     #[dbn(unix_nanos)]
+    #[pyo3(set)]
     pub ts_ref: u64,
     /// The value for price statistics expressed as a signed integer where every 1 unit
     /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be
     /// [`crate::UNDEF_PRICE`] when unused.
     #[dbn(fixed_price)]
+    #[pyo3(set)]
     pub price: i64,
     /// The value for non-price statistics. Will be [`crate::UNDEF_STAT_QUANTITY`] when
     /// unused.
+    #[pyo3(set)]
     pub quantity: i32,
     /// The message sequence number assigned at the venue.
+    #[pyo3(set)]
     pub sequence: u32,
     /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
+    #[pyo3(set)]
     pub ts_in_delta: i32,
     /// The type of statistic value contained in the message. Refer to the
     /// [`StatType`](crate::enums::StatType) for variants.
     #[dbn(fmt_method)]
+    #[pyo3(set)]
     pub stat_type: u16,
     /// A channel ID within the venue.
+    #[pyo3(set)]
     pub channel_id: u16,
     /// Indicates if the statistic is newly added (1) or deleted (2). (Deleted is only used with
     /// some stat types)
     #[dbn(fmt_method)]
+    #[pyo3(set)]
     pub update_action: u8,
     /// Additional flags associate with certain stat types.
     #[dbn(fmt_binary)]
+    #[pyo3(set)]
     pub stat_flags: u8,
     // Filler for alignment
     #[doc(hidden)]
@@ -1057,7 +1073,7 @@ pub struct StatMsg {
 #[dbn_record(rtype::ERROR)]
 pub struct ErrorMsg {
     /// The common header.
-    #[pyo3(get, set)]
+    #[pyo3(get)]
     pub hd: RecordHeader,
     /// The error message.
     #[dbn(fmt_method)]

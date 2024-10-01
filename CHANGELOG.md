@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.22.0 - 2024-10-01
+
+### Enhancements
+- Added Python type stubs for Record `__init__` methods
+
+### Breaking changes
+- Combine `_reserved3` and `_reserved4` fields in `CbboMsg`
+- Changed setters for `char` Record fields to accept a single-character strings
+- Changed `rtype` and `length` to no longer be settable from Python. Users should
+  use the Record type `__init__` methods to initialize records
+
+### Bug fixes
+- Added missing Python type stub for `CMBP_1` variant in `Schema`
+
 ## 0.21.0 - 2024-09-24
 
 ### Enhancements

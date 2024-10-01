@@ -11,7 +11,7 @@ resolver = "2"
 [workspace.package]
 authors = ["Databento <support@databento.com>"]
 edition = "2021"
-version = "0.21.0"
+version = "0.22.0"
 documentation = "https://docs.databento.com"
 repository = "https://github.com/databento/dbn"
 license = "Apache-2.0"

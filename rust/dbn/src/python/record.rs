@@ -149,10 +149,20 @@ impl MboMsg {
     fn get_action(&self) -> char {
         self.action as u8 as char
     }
+    #[setter]
+    fn set_action(&mut self, action: char) -> PyResult<()> {
+        self.action = char_to_c_char(action)?;
+        Ok(())
+    }
 
     #[getter]
     fn get_side(&self) -> char {
         self.side as u8 as char
+    }
+    #[setter]
+    fn set_side(&mut self, side: char) -> PyResult<()> {
+        self.side = char_to_c_char(side)?;
+        Ok(())
     }
 
     #[classattr]
@@ -471,7 +481,6 @@ impl Cmbp1Msg {
     fn ts_event(&self) -> u64 {
         self.hd.ts_event
     }
-
     #[setter]
     fn set_ts_event(&mut self, ts_event: u64) {
         self.hd.ts_event = ts_event;
@@ -506,10 +515,20 @@ impl Cmbp1Msg {
     fn get_action(&self) -> char {
         self.action as u8 as char
     }
+    #[setter]
+    fn set_action(&mut self, action: char) -> PyResult<()> {
+        self.action = char_to_c_char(action)?;
+        Ok(())
+    }
 
     #[getter]
     fn get_side(&self) -> char {
         self.side as u8 as char
+    }
+    #[setter]
+    fn set_side(&mut self, side: char) -> PyResult<()> {
+        self.side = char_to_c_char(side)?;
+        Ok(())
     }
 
     #[classattr]
@@ -581,7 +600,6 @@ impl CbboMsg {
             _reserved1: Default::default(),
             _reserved2: Default::default(),
             _reserved3: Default::default(),
-            _reserved4: Default::default(),
         })
     }
 
@@ -620,7 +638,6 @@ impl CbboMsg {
     fn ts_event(&self) -> u64 {
         self.hd.ts_event
     }
-
     #[setter]
     fn set_ts_event(&mut self, ts_event: u64) {
         self.hd.ts_event = ts_event;
@@ -876,10 +893,20 @@ impl TradeMsg {
     fn get_action(&self) -> char {
         self.action as u8 as char
     }
+    #[setter]
+    fn set_action(&mut self, action: char) -> PyResult<()> {
+        self.action = char_to_c_char(action)?;
+        Ok(())
+    }
 
     #[getter]
     fn get_side(&self) -> char {
         self.side as u8 as char
+    }
+    #[setter]
+    fn set_side(&mut self, side: char) -> PyResult<()> {
+        self.side = char_to_c_char(side)?;
+        Ok(())
     }
 
     #[classattr]
@@ -1031,10 +1058,20 @@ impl Mbp1Msg {
     fn get_action(&self) -> char {
         self.action as u8 as char
     }
+    #[setter]
+    fn set_action(&mut self, action: char) -> PyResult<()> {
+        self.action = char_to_c_char(action)?;
+        Ok(())
+    }
 
     #[getter]
     fn get_side(&self) -> char {
         self.side as u8 as char
+    }
+    #[setter]
+    fn set_side(&mut self, side: char) -> PyResult<()> {
+        self.side = char_to_c_char(side)?;
+        Ok(())
     }
 
     #[classattr]
@@ -1198,10 +1235,20 @@ impl Mbp10Msg {
     fn get_action(&self) -> char {
         self.action as u8 as char
     }
+    #[setter]
+    fn set_action(&mut self, action: char) -> PyResult<()> {
+        self.action = char_to_c_char(action)?;
+        Ok(())
+    }
 
     #[getter]
     fn get_side(&self) -> char {
         self.side as u8 as char
+    }
+    #[setter]
+    fn set_side(&mut self, side: char) -> PyResult<()> {
+        self.side = char_to_c_char(side)?;
+        Ok(())
     }
 
     #[classattr]
@@ -1580,7 +1627,7 @@ impl InstrumentDefMsg {
         contract_multiplier_unit = None,
         flow_schedule_type = None,
         tick_rule = None,
-    ))]
+  ))]
     fn py_new(
         publisher_id: u16,
         instrument_id: u32,
@@ -1913,15 +1960,30 @@ impl InstrumentDefMsg {
     fn get_instrument_class(&self) -> char {
         self.instrument_class as u8 as char
     }
+    #[setter]
+    fn set_instrument_class(&mut self, instrument_class: char) -> PyResult<()> {
+        self.instrument_class = char_to_c_char(instrument_class)?;
+        Ok(())
+    }
 
     #[getter]
     fn get_match_algorithm(&self) -> char {
         self.match_algorithm as u8 as char
     }
+    #[setter]
+    fn set_match_algorithm(&mut self, match_algorithm: char) -> PyResult<()> {
+        self.match_algorithm = char_to_c_char(match_algorithm)?;
+        Ok(())
+    }
 
     #[getter]
     fn get_security_update_action(&self) -> char {
         self.security_update_action as u8 as char
+    }
+    #[setter]
+    fn set_security_update_action(&mut self, security_update_action: char) -> PyResult<()> {
+        self.security_update_action = char_to_c_char(security_update_action)?;
+        Ok(())
     }
 
     #[getter]
@@ -2364,10 +2426,20 @@ impl InstrumentDefMsgV1 {
     fn get_instrument_class(&self) -> char {
         self.instrument_class as u8 as char
     }
+    #[setter]
+    fn set_instrument_class(&mut self, instrument_class: char) -> PyResult<()> {
+        self.instrument_class = char_to_c_char(instrument_class)?;
+        Ok(())
+    }
 
     #[getter]
     fn get_match_algorithm(&self) -> char {
         self.match_algorithm as u8 as char
+    }
+    #[setter]
+    fn set_match_algorithm(&mut self, match_algorithm: char) -> PyResult<()> {
+        self.match_algorithm = char_to_c_char(match_algorithm)?;
+        Ok(())
     }
 
     #[getter]
@@ -2534,20 +2606,40 @@ impl ImbalanceMsg {
     fn get_auction_type(&self) -> char {
         self.auction_type as u8 as char
     }
+    #[setter]
+    fn set_auction_type(&mut self, auction_type: char) -> PyResult<()> {
+        self.auction_type = char_to_c_char(auction_type)?;
+        Ok(())
+    }
 
     #[getter]
     fn get_side(&self) -> char {
         self.side as u8 as char
+    }
+    #[setter]
+    fn set_side(&mut self, side: char) -> PyResult<()> {
+        self.side = char_to_c_char(side)?;
+        Ok(())
     }
 
     #[getter]
     fn get_unpaired_side(&self) -> char {
         self.unpaired_side as u8 as char
     }
+    #[setter]
+    fn set_unpaired_side(&mut self, unpaired_side: char) -> PyResult<()> {
+        self.unpaired_side = char_to_c_char(unpaired_side)?;
+        Ok(())
+    }
 
     #[getter]
     fn get_significant_imbalance(&self) -> char {
         self.significant_imbalance as u8 as char
+    }
+    #[setter]
+    fn set_significant_imbalance(&mut self, significant_imbalance: char) -> PyResult<()> {
+        self.significant_imbalance = char_to_c_char(significant_imbalance)?;
+        Ok(())
     }
 
     #[classattr]
