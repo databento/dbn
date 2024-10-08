@@ -1,6 +1,6 @@
 import datetime as dt
+from collections.abc import Sequence
 from typing import Protocol
-from typing import Sequence
 from typing import TypedDict
 
 # Import native module

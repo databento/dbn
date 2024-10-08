@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.22.1 - 2024-10-08
+
+### Enhancements
+- Removed support for Python 3.8 in `databento-dbn` due to end of life
+
+### Bug fixes
+- Fixed buffer overrun in `c_chars_to_str` on non-null terminated input
+
 ## 0.22.0 - 2024-10-01
 
 ### Enhancements
