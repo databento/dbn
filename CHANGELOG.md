@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.22.1 - TBD
+## 0.22.1 - 2024-10-08
 
 ### Bug fixes
 - Fixed buffer overrun in `c_chars_to_str` on non-null terminated input
