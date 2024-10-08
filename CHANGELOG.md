@@ -2,6 +2,9 @@
 
 ## 0.22.1 - 2024-10-08
 
+### Enhancements
+- Removed support for Python 3.8 in `databento-dbn` due to end of life
+
 ### Bug fixes
 - Fixed buffer overrun in `c_chars_to_str` on non-null terminated input
 
@@ -15,7 +18,6 @@
 - Changed setters for `char` Record fields to accept a single-character strings
 - Changed `rtype` and `length` to no longer be settable from Python. Users should
   use the Record type `__init__` methods to initialize records
-- Removed support for Python 3.8 in `databento-dbn` due to end of life
 
 ### Bug fixes
 - Added missing Python type stub for `CMBP_1` variant in `Schema`
