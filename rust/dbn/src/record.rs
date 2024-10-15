@@ -100,7 +100,7 @@ pub struct MboMsg {
     #[pyo3(get, set)]
     pub channel_id: u8,
     /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**,
-    /// **T**rade, or **F**ill.
+    /// **T**rade, **F**ill, or **N**one.
     #[dbn(c_char, encode_order(2))]
     pub action: c_char,
     /// The side that initiates the event. Can be **A**sk for a sell order (or sell

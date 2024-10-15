@@ -16,9 +16,7 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 /// A [side](https://databento.com/docs/standards-and-conventions/common-fields-enums-types)
 /// of the market. The side of the market for resting orders, or the side of the
 /// aggressor for trades.
-///
-///
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, TryFromPrimitive, IntoPrimitive)]
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter, strum::AsRefStr),
@@ -31,6 +29,7 @@ pub enum Side {
     /// A buy order or a buy aggressor in a trade.
     Bid = b'B',
     /// No side specified by the original source.
+    #[default]
     None = b'N',
 }
 
@@ -45,7 +44,7 @@ impl From<Side> for char {
 /// For example usage see:
 /// - [Order actions](https://databento.com/docs/examples/order-book/order-actions)
 /// - [Order tracking](https://databento.com/docs/examples/order-book/order-tracking)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, TryFromPrimitive, IntoPrimitive)]
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter, strum::AsRefStr),
@@ -65,6 +64,9 @@ pub enum Action {
     Add = b'A',
     /// Reset the book; clear all orders for an instrument.
     Clear = b'R',
+    /// Has no effect on the book, but may carry `flags` or other information.
+    #[default]
+    None = b'N',
 }
 
 impl From<Action> for char {

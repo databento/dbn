@@ -12,7 +12,7 @@ resolver = "2"
 authors = ["Databento <support@databento.com>"]
 edition = "2021"
 version = "0.22.1"
-documentation = "https://docs.databento.com"
+documentation = "https://databento.com/docs"
 repository = "https://github.com/databento/dbn"
 license = "Apache-2.0"
 

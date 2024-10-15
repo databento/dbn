@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.23.0 - TBD
+
+### Enhancements
+- Added new `None` `Action` variant that will be gradually rolled out
+  to historical and live `GLBX.MDP3` data
+- Implemented `Default` for `Action` and `Side`
+
 ## 0.22.1 - 2024-10-08
 
 ### Enhancements
