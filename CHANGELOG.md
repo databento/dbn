@@ -6,6 +6,7 @@
 - Added new `None` `Action` variant that will be gradually rolled out
   to historical and live `GLBX.MDP3` data
 - Implemented `Default` for `Action` and `Side`
+- Added support for Python 3.13 to `databento_dbn`
 
 ## 0.22.1 - 2024-10-08
 
