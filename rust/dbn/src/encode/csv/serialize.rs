@@ -239,11 +239,11 @@ mod tests {
     fn test_write_c_char_field(#[case] c: u8, #[case] exp: &str) {
         let mut buffer = Vec::new();
         let mut writer = csv::WriterBuilder::new().from_writer(&mut buffer);
-        write_c_char_field(&mut writer, 0).unwrap();
+        write_c_char_field(&mut writer, c as c_char).unwrap();
         writer.write_field("a").unwrap();
         writer.flush().unwrap();
         drop(writer);
         let s = std::str::from_utf8(buffer.as_slice()).unwrap();
-        assert_eq!(s, ",a");
+        assert_eq!(s, format!("{exp},a"));
     }
 }
