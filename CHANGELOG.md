@@ -5,6 +5,8 @@
 ### Enhancements
 - Added new `None` `Action` variant that will be gradually rolled out
   to historical and live `GLBX.MDP3` data
+- Added consistent escaping of non-printable and non-ASCII values when text encoding
+  `c_char` fields
 - Implemented `Default` for `Action` and `Side`
 - Added support for Python 3.13 to `databento_dbn`
 
