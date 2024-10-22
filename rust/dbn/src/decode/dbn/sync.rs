@@ -684,9 +684,9 @@ mod tests {
         encode::{
             dbn::Encoder, DbnEncodable, DbnRecordEncoder, DynWriter, EncodeDbn, EncodeRecord,
         },
-        rtype, Cmbp1Msg, Compression, Error, ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg,
-        Mbp10Msg, Mbp1Msg, MetadataBuilder, OhlcvMsg, RecordHeader, Result, StatMsg, StatusMsg,
-        TbboMsg, TradeMsg, WithTsOut, SYMBOL_CSTR_LEN,
+        rtype, Bbo1MMsg, Bbo1SMsg, Cbbo1SMsg, Cmbp1Msg, Compression, Error, ErrorMsg, ImbalanceMsg,
+        InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, MetadataBuilder, OhlcvMsg, RecordHeader,
+        Result, StatMsg, StatusMsg, TbboMsg, TradeMsg, WithTsOut, SYMBOL_CSTR_LEN,
     };
 
     #[test]
@@ -820,6 +820,30 @@ mod tests {
     #[case::zstd_statistics_v1(1, Schema::Statistics, Compression::ZStd, StatMsg::default())]
     #[case::uncompressed_mbo_v2(2, Schema::Mbo, Compression::None, MboMsg::default())]
     #[case::uncompressed_trades_v2(2, Schema::Trades, Compression::None, TradeMsg::default())]
+    #[case::uncompressed_cmbp1_v2(
+        2,
+        Schema::Cmbp1,
+        Compression::None,
+        Cmbp1Msg::default_for_schema(Schema::Cmbp1)
+    )]
+    #[case::uncompressed_cbbo1s_v2(
+        2,
+        Schema::Cbbo1S,
+        Compression::None,
+        Cbbo1SMsg::default_for_schema(Schema::Cbbo1S)
+    )]
+    #[case::uncompressed_bbo1s_v2(
+        2,
+        Schema::Bbo1S,
+        Compression::None,
+        Bbo1SMsg::default_for_schema(Schema::Bbo1S)
+    )]
+    #[case::uncompressed_bbo1m_v2(
+        2,
+        Schema::Bbo1M,
+        Compression::None,
+        Bbo1MMsg::default_for_schema(Schema::Bbo1M)
+    )]
     #[case::uncompressed_tbbo_v2(2, Schema::Tbbo, Compression::None, TbboMsg::default())]
     #[case::uncompressed_mbp1_v2(2, Schema::Mbp1, Compression::None, Mbp1Msg::default())]
     #[case::uncompressed_mbp10_v2(2, Schema::Mbp10, Compression::None, Mbp10Msg::default())]
@@ -875,6 +899,24 @@ mod tests {
         Schema::Cmbp1,
         Compression::ZStd,
         Cmbp1Msg::default_for_schema(Schema::Cmbp1)
+    )]
+    #[case::zstd_cbbo1s_v2(
+        2,
+        Schema::Cbbo1S,
+        Compression::ZStd,
+        Cbbo1SMsg::default_for_schema(Schema::Cbbo1S)
+    )]
+    #[case::zstd_bbo1s_v2(
+        2,
+        Schema::Bbo1S,
+        Compression::ZStd,
+        Bbo1SMsg::default_for_schema(Schema::Bbo1S)
+    )]
+    #[case::zstd_bbo1m_v2(
+        2,
+        Schema::Bbo1M,
+        Compression::ZStd,
+        Bbo1MMsg::default_for_schema(Schema::Bbo1M)
     )]
     #[case::zstd_mbp10_v2(2, Schema::Mbp10, Compression::ZStd, Mbp10Msg::default())]
     #[case::zstd_ohlcv1d_v2(

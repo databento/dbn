@@ -323,13 +323,27 @@ impl<const N: usize> WriteField for [c_char; N] {
 pub fn write_c_char_field<J: crate::json_writer::JsonWriter>(
     writer: &mut JsonObjectWriter<J>,
     name: &str,
-    c_char: c_char,
+    c: c_char,
 ) {
-    if c_char == 0 {
+    // Handle NUL byte as null
+    if c == 0 {
         writer.value(name, NULL);
     } else {
         let mut buf = [0; 4];
-        writer.value(name, &*(c_char as u8 as char).encode_utf8(&mut buf));
+        let mut size = 0;
+        for byte in std::ascii::escape_default(c as u8) {
+            buf[size] = byte;
+            size += 1;
+        }
+        writer.write_key(name);
+        // Writing fragment to get around escaping logic since we've already escaped the string.
+        // Using `std::ascii::escape_default` to be consistent between CSV and JSON.
+        writer.writer.json_fragment("\"");
+        writer
+            .writer
+            // SAFETY: [`std::ascii:escape_default`] always returns valid UTF-8
+            .json_fragment(unsafe { std::str::from_utf8_unchecked(&buf[..size]) });
+        writer.writer.json_fragment("\"");
     }
 }
 
@@ -383,5 +397,28 @@ fn write_date_field<J: crate::json_writer::JsonWriter, const PRETTY_TS: bool>(
         date_int += date.month() as u32 * 100;
         date_int += date.day() as u32;
         writer.value(key, date_int);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use rstest::*;
+
+    #[rstest]
+    #[case::nul(0, "null")]
+    #[case::max(0xFF, r#""\xff""#)]
+    #[case::reg(b'C', r#""C""#)]
+    #[case::tab(b'\t', r#""\t""#)]
+    #[case::newline(b'\n', r#""\n""#)]
+    fn test_write_c_char_field(#[case] c: u8, #[case] exp: &str) {
+        let mut buf = String::new();
+        {
+            let mut writer = json_writer::JSONObjectWriter::new(&mut buf);
+            write_c_char_field(&mut writer, "test", c as c_char);
+        }
+        dbg!(&buf);
+        assert_eq!(buf, format!("{{\"test\":{exp}}}"));
     }
 }

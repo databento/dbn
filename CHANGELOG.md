@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.23.0 - 2024-10-22
+
+### Enhancements
+- Added new `None` `Action` variant that will be gradually rolled out
+  to historical and live `GLBX.MDP3` data
+- Added consistent escaping of non-printable and non-ASCII values when text encoding
+  `c_char` fields
+- Implemented `Default` for `Action` and `Side`
+- Added support for Python 3.13 to `databento_dbn`
+- Implemented missing `Serialize` for (with `serde` feature enabled) for `Venue`,
+  `Dataset`, `Publisher`, `Compression`, `SType`, `Schema`, and `Encoding`
+
 ## 0.22.1 - 2024-10-08
 
 ### Enhancements
@@ -14,7 +26,7 @@
 - Added Python type stubs for Record `__init__` methods
 
 ### Breaking changes
-- Combine `_reserved3` and `_reserved4` fields in `CbboMsg`
+- Combined `_reserved3` and `_reserved4` fields in `CbboMsg`
 - Changed setters for `char` Record fields to accept a single-character strings
 - Changed `rtype` and `length` to no longer be settable from Python. Users should
   use the Record type `__init__` methods to initialize records

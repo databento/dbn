@@ -1123,7 +1123,7 @@ impl std::str::FromStr for Publisher {
 mod deserialize {
     use std::str::FromStr;
 
-    use serde::{de, Deserialize, Deserializer};
+    use serde::{de, Deserialize, Deserializer, Serialize};
 
     use super::*;
 
@@ -1136,6 +1136,15 @@ mod deserialize {
         }
     }
 
+    impl Serialize for Venue {
+        fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer,
+        {
+            self.as_str().serialize(serializer)
+        }
+    }
+
     impl<'de> Deserialize<'de> for Dataset {
         fn deserialize<D: Deserializer<'de>>(
             deserializer: D,
@@ -1145,12 +1154,30 @@ mod deserialize {
         }
     }
 
+    impl Serialize for Dataset {
+        fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer,
+        {
+            self.as_str().serialize(serializer)
+        }
+    }
+
     impl<'de> Deserialize<'de> for Publisher {
         fn deserialize<D: Deserializer<'de>>(
             deserializer: D,
         ) -> std::result::Result<Self, D::Error> {
             let str = String::deserialize(deserializer)?;
             FromStr::from_str(&str).map_err(de::Error::custom)
+        }
+    }
+
+    impl Serialize for Publisher {
+        fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer,
+        {
+            self.as_str().serialize(serializer)
         }
     }
 }

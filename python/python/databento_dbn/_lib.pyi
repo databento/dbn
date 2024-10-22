@@ -89,7 +89,8 @@ class Action(Enum):
         A new order was added.
     CLEAR
         Reset the book; clear all orders for an instrument.
-
+    NONE
+        Has no effect on the book, but may carry `flags` or other information.
     """
 
     MODIFY: str
@@ -98,6 +99,7 @@ class Action(Enum):
     CANCEL: str
     ADD: str
     CLEAR: str
+    NONE: str
 
     @classmethod
     def from_str(cls, value: str) -> Action: ...

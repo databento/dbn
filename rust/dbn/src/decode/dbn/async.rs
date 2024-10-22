@@ -656,16 +656,18 @@ mod tests {
             dbn::{AsyncEncoder, AsyncRecordEncoder},
             DbnEncodable,
         },
-        rtype, CbboMsg, Cmbp1Msg, Error, ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg,
-        Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader, Result, Schema, StatMsg, StatusMsg, TbboMsg,
-        TradeMsg, WithTsOut,
+        rtype, Bbo1SMsg, CbboMsg, Cmbp1Msg, Error, ErrorMsg, ImbalanceMsg, InstrumentDefMsg,
+        MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader, Result, Schema, StatMsg, StatusMsg,
+        TbboMsg, TradeMsg, WithTsOut,
     };
 
     #[rstest]
     #[case::mbo(Schema::Mbo, MboMsg::default())]
     #[case::trades(Schema::Trades, TradeMsg::default())]
     #[case::cmbp1(Schema::Cmbp1, Cmbp1Msg::default_for_schema(Schema::Cmbp1))]
-    #[case::cbbo(Schema::Cbbo1S, CbboMsg::default_for_schema(Schema::Cbbo1S))]
+    #[case::cbbo1s(Schema::Cbbo1S, CbboMsg::default_for_schema(Schema::Cbbo1S))]
+    #[case::bbo1s(Schema::Bbo1S, Bbo1SMsg::default_for_schema(Schema::Bbo1S))]
+    #[case::bbo1m(Schema::Bbo1M, Bbo1SMsg::default_for_schema(Schema::Bbo1M))]
     #[case::tbbo(Schema::Tbbo, TbboMsg::default())]
     #[case::mbp1(Schema::Mbp1, Mbp1Msg::default())]
     #[case::mbp10(Schema::Mbp10, Mbp10Msg::default())]
@@ -711,6 +713,9 @@ mod tests {
     #[case::mbo(Schema::Mbo, MboMsg::default())]
     #[case::trades(Schema::Trades, TradeMsg::default())]
     #[case::cmbp1(Schema::Cmbp1, Cmbp1Msg::default_for_schema(Schema::Cmbp1))]
+    #[case::cbbo1s(Schema::Cbbo1S, CbboMsg::default_for_schema(Schema::Cbbo1S))]
+    #[case::bbo1s(Schema::Bbo1S, Bbo1SMsg::default_for_schema(Schema::Bbo1S))]
+    #[case::bbo1m(Schema::Bbo1M, Bbo1SMsg::default_for_schema(Schema::Bbo1M))]
     #[case::tbbo(Schema::Tbbo, TbboMsg::default())]
     #[case::mbp1(Schema::Mbp1, Mbp1Msg::default())]
     #[case::mbp10(Schema::Mbp10, Mbp10Msg::default())]

@@ -206,10 +206,7 @@ mod tests {
     use crate::{
         compat::SYMBOL_CSTR_LEN_V1,
         datasets::GLBX_MDP3,
-        encode::{
-            json::serialize::write_c_char_field,
-            test_data::{VecStream, BID_ASK, RECORD_HEADER},
-        },
+        encode::test_data::{VecStream, BID_ASK, RECORD_HEADER},
         enums::{
             rtype, InstrumentClass, SType, Schema, SecurityUpdateAction, StatType,
             StatUpdateAction, UserDefinedInstrument,
@@ -687,15 +684,6 @@ mod tests {
             r#"{"hd":{"ts_event":null,"rtype":21,"publisher_id":0,"instrument_id":0},"err":"\"A test","code":255,"is_last":1}
 "#
         );
-    }
-
-    #[test]
-    fn test_write_char_nul() {
-        let mut buf = String::new();
-        let mut writer = json_writer::JSONObjectWriter::new(&mut buf);
-        write_c_char_field(&mut writer, "test", 0);
-        drop(writer);
-        assert_eq!(buf, r#"{"test":null}"#);
     }
 
     #[test]

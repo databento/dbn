@@ -210,11 +210,17 @@ pub fn write_ts_field<W: io::Write, const PRETTY_TS: bool>(
 }
 
 pub fn write_c_char_field<W: io::Write>(csv_writer: &mut Writer<W>, c: c_char) -> csv::Result<()> {
-    // Handle NUL byte
+    // Handle NUL byte as empty
     if c == 0 {
         csv_writer.write_field([])
     } else {
-        csv_writer.write_field([c as u8])
+        let mut buf = [0; 4];
+        let mut size = 0;
+        for byte in std::ascii::escape_default(c as u8) {
+            buf[size] = byte;
+            size += 1;
+        }
+        csv_writer.write_field(&buf[..size])
     }
 }
 
@@ -222,15 +228,22 @@ pub fn write_c_char_field<W: io::Write>(csv_writer: &mut Writer<W>, c: c_char) -
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_write_char_nul() {
+    use rstest::*;
+
+    #[rstest]
+    #[case::nul(0, "")]
+    #[case::max(0xFF, "\\xff")]
+    #[case::reg(b'C', "C")]
+    #[case::tab(b'\t', "\\t")]
+    #[case::newline(b'\n', "\\n")]
+    fn test_write_c_char_field(#[case] c: u8, #[case] exp: &str) {
         let mut buffer = Vec::new();
         let mut writer = csv::WriterBuilder::new().from_writer(&mut buffer);
-        write_c_char_field(&mut writer, 0).unwrap();
+        write_c_char_field(&mut writer, c as c_char).unwrap();
         writer.write_field("a").unwrap();
         writer.flush().unwrap();
         drop(writer);
         let s = std::str::from_utf8(buffer.as_slice()).unwrap();
-        assert_eq!(s, ",a");
+        assert_eq!(s, format!("{exp},a"));
     }
 }
