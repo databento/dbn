@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.23.0 - TBD
+## 0.23.0 - 2024-10-22
 
 ### Enhancements
 - Added new `None` `Action` variant that will be gradually rolled out
@@ -26,7 +26,7 @@
 - Added Python type stubs for Record `__init__` methods
 
 ### Breaking changes
-- Combine `_reserved3` and `_reserved4` fields in `CbboMsg`
+- Combined `_reserved3` and `_reserved4` fields in `CbboMsg`
 - Changed setters for `char` Record fields to accept a single-character strings
 - Changed `rtype` and `length` to no longer be settable from Python. Users should
   use the Record type `__init__` methods to initialize records
