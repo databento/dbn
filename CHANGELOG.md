@@ -9,6 +9,8 @@
   `c_char` fields
 - Implemented `Default` for `Action` and `Side`
 - Added support for Python 3.13 to `databento_dbn`
+- Implemented missing `Serialize` for (with `serde` feature enabled) for `Venue`,
+  `Dataset`, `Publisher`, `Compression`, `SType`, `Schema`, and `Encoding`
 
 ## 0.22.1 - 2024-10-08
 

@@ -1173,7 +1173,7 @@ impl FromStr for VersionUpgradePolicy {
 mod deserialize {
     use std::str::FromStr;
 
-    use serde::{de, Deserialize, Deserializer};
+    use serde::{de, Deserialize, Deserializer, Serialize};
 
     use super::*;
 
@@ -1184,10 +1184,28 @@ mod deserialize {
         }
     }
 
+    impl Serialize for Compression {
+        fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer,
+        {
+            self.as_str().serialize(serializer)
+        }
+    }
+
     impl<'de> Deserialize<'de> for SType {
         fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
             let str = String::deserialize(deserializer)?;
             FromStr::from_str(&str).map_err(de::Error::custom)
+        }
+    }
+
+    impl Serialize for SType {
+        fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer,
+        {
+            self.as_str().serialize(serializer)
         }
     }
 
@@ -1198,10 +1216,28 @@ mod deserialize {
         }
     }
 
+    impl Serialize for Schema {
+        fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer,
+        {
+            self.as_str().serialize(serializer)
+        }
+    }
+
     impl<'de> Deserialize<'de> for Encoding {
         fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
             let str = String::deserialize(deserializer)?;
             FromStr::from_str(&str).map_err(de::Error::custom)
+        }
+    }
+
+    impl Serialize for Encoding {
+        fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer,
+        {
+            self.as_str().serialize(serializer)
         }
     }
 }
