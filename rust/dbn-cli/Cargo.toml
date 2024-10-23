@@ -25,9 +25,9 @@ zstd = { workspace = true }
 
 [dev-dependencies]
 # CLI integration tests
-assert_cmd = "2.0.14"
+assert_cmd = "2.0.16"
 # assert_cmd companion
-predicates = "3.1.0"
+predicates = "3.1.2"
 rstest = { workspace = true }
 # A library for managing temporary files and directories
-tempfile = "3.10.1"
+tempfile = "3.13.0"

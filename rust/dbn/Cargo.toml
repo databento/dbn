@@ -27,7 +27,7 @@ trivial_copy = []
 [dependencies]
 dbn-macros = { version = "=0.23.0", path = "../dbn-macros" }
 
-async-compression = { version = "0.4.11", features = ["tokio", "zstd"], optional = true }
+async-compression = { version = "0.4.17", features = ["tokio", "zstd"], optional = true }
 csv = { workspace = true }
 fallible-streaming-iterator = { version = "0.1.9", features = ["std"] }
 # Fast integer to string conversion
