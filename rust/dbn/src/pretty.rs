@@ -81,6 +81,17 @@ pub fn fmt_ts(ts: u64) -> String {
     }
 }
 
+/// Converts a fixed-precision price to a floating point.
+///
+/// `UNDEF_PRICE` will be converted to NaN.
+pub fn px_to_f64(px: i64) -> f64 {
+    if px == crate::UNDEF_PRICE {
+        f64::NAN
+    } else {
+        px as f64 / FIXED_PRICE_SCALE as f64
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::UNDEF_PRICE;
