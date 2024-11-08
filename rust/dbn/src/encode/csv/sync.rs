@@ -381,6 +381,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::clone_on_copy)]
+
     use std::{array, io::BufWriter, os::raw::c_char};
 
     use rstest::*;
