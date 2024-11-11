@@ -1,10 +1,12 @@
 # Changelog
 
-## 0.23.1 - TBD
+## 0.23.1 - 2024-11-12
 
 ### Enhancements
 - Added floating-point getters for price fields
 - Added new IntelligentCross venues `ASPN`, `ASMT`, and `ASPI`
+- Upgraded `thiserror` version to 2.0
+- Upgraded `pyo3` version to 0.22.6
 
 ### Bug fixes
 - Fixed `pretty_activation` getter in `databento_dbn` returning `expiration` instead
