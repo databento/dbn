@@ -4,6 +4,7 @@
 
 ### Enhancements
 - Added floating-point getters for price fields
+- Added new IntelligentCross venues `ASPN`, `ASMT`, and `ASPI`
 
 ### Bug fixes
 - Fixed `pretty_activation` getter in `databento_dbn` returning `expiration` instead
