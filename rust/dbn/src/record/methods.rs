@@ -5,6 +5,7 @@ use num_enum::TryFromPrimitive;
 use crate::{
     compat::{ErrorMsgV1, InstrumentDefMsgV1, SymbolMappingMsgV1, SystemMsgV1},
     enums::{StatusAction, StatusReason},
+    pretty::px_to_f64,
     SType, TradingEvent, TriState,
 };
 
@@ -89,6 +90,13 @@ impl Debug for RecordHeader {
 }
 
 impl MboMsg {
+    /// Returns the price as a floating point.
+    ///
+    /// `UNDEF_PRICE` will be converted to NaN.
+    pub fn price_f64(&self) -> f64 {
+        px_to_f64(self.price)
+    }
+
     /// Tries to convert the raw order side to an enum.
     ///
     /// # Errors
@@ -121,7 +129,30 @@ impl MboMsg {
     }
 }
 
+impl BidAskPair {
+    /// Returns the bid price as a floating point.
+    ///
+    /// `UNDEF_PRICE` will be converted to NaN.
+    pub fn bid_px_f64(&self) -> f64 {
+        px_to_f64(self.bid_px)
+    }
+
+    /// Returns the ask price as a floating point.
+    ///
+    /// `UNDEF_PRICE` will be converted to NaN.
+    pub fn ask_px_f64(&self) -> f64 {
+        px_to_f64(self.ask_px)
+    }
+}
+
 impl TradeMsg {
+    /// Returns the price as a floating point.
+    ///
+    /// `UNDEF_PRICE` will be converted to NaN.
+    pub fn price_f64(&self) -> f64 {
+        px_to_f64(self.price)
+    }
+
     /// Tries to convert the raw order side to an enum.
     ///
     /// # Errors
@@ -155,6 +186,13 @@ impl TradeMsg {
 }
 
 impl BboMsg {
+    /// Returns the price as a floating point.
+    ///
+    /// `UNDEF_PRICE` will be converted to NaN.
+    pub fn price_f64(&self) -> f64 {
+        px_to_f64(self.price)
+    }
+
     /// Tries to convert the raw `side` to an enum.
     ///
     /// # Errors
@@ -173,6 +211,13 @@ impl BboMsg {
 }
 
 impl Cmbp1Msg {
+    /// Returns the price as a floating point.
+    ///
+    /// `UNDEF_PRICE` will be converted to NaN.
+    pub fn price_f64(&self) -> f64 {
+        px_to_f64(self.price)
+    }
+
     /// Tries to convert the raw `side` to an enum.
     ///
     /// # Errors
@@ -206,6 +251,13 @@ impl Cmbp1Msg {
 }
 
 impl CbboMsg {
+    /// Returns the price as a floating point.
+    ///
+    /// `UNDEF_PRICE` will be converted to NaN.
+    pub fn price_f64(&self) -> f64 {
+        px_to_f64(self.price)
+    }
+
     /// Tries to convert the raw `side` to an enum.
     ///
     /// # Errors
@@ -224,6 +276,20 @@ impl CbboMsg {
 }
 
 impl ConsolidatedBidAskPair {
+    /// Returns the bid price as a floating point.
+    ///
+    /// `UNDEF_PRICE` will be converted to NaN.
+    pub fn bid_px_f64(&self) -> f64 {
+        px_to_f64(self.bid_px)
+    }
+
+    /// Returns the ask price as a floating point.
+    ///
+    /// `UNDEF_PRICE` will be converted to NaN.
+    pub fn ask_px_f64(&self) -> f64 {
+        px_to_f64(self.ask_px)
+    }
+
     /// Tries to convert the raw `bid_pb` into an enum which is useful for
     /// exhaustive pattern matching.
     ///
@@ -248,6 +314,13 @@ impl ConsolidatedBidAskPair {
 }
 
 impl Mbp1Msg {
+    /// Returns the price as a floating point.
+    ///
+    /// `UNDEF_PRICE` will be converted to NaN.
+    pub fn price_f64(&self) -> f64 {
+        px_to_f64(self.price)
+    }
+
     /// Tries to convert the raw `side` to an enum.
     ///
     /// # Errors
@@ -281,6 +354,13 @@ impl Mbp1Msg {
 }
 
 impl Mbp10Msg {
+    /// Returns the price as a floating point.
+    ///
+    /// `UNDEF_PRICE` will be converted to NaN.
+    pub fn price_f64(&self) -> f64 {
+        px_to_f64(self.price)
+    }
+
     /// Tries to convert the raw `side` to an enum.
     ///
     /// # Errors
@@ -310,6 +390,36 @@ impl Mbp10Msg {
     /// Parses the raw `ts_in_delta`—the delta of `ts_recv - ts_exchange_send`—into a duration.
     pub fn ts_in_delta(&self) -> time::Duration {
         time::Duration::new(0, self.ts_in_delta)
+    }
+}
+
+impl OhlcvMsg {
+    /// Returns the open price as a floating point.
+    ///
+    /// `UNDEF_PRICE` will be converted to NaN.
+    pub fn open_f64(&self) -> f64 {
+        px_to_f64(self.open)
+    }
+
+    /// Returns the high price as a floating point.
+    ///
+    /// `UNDEF_PRICE` will be converted to NaN.
+    pub fn high_f64(&self) -> f64 {
+        px_to_f64(self.high)
+    }
+
+    /// Returns the low price as a floating point.
+    ///
+    /// `UNDEF_PRICE` will be converted to NaN.
+    pub fn low_f64(&self) -> f64 {
+        px_to_f64(self.low)
+    }
+
+    /// Returns the close price as a floating point.
+    ///
+    /// `UNDEF_PRICE` will be converted to NaN.
+    pub fn close_f64(&self) -> f64 {
+        px_to_f64(self.close)
     }
 }
 
@@ -374,6 +484,20 @@ impl InstrumentDefMsg {
     /// if `ts_recv` contains the sentinel for a null timestamp.
     pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
         ts_to_dt(self.ts_recv)
+    }
+
+    /// Returns the unit of measure quantity as a floating point.
+    ///
+    /// `UNDEF_PRICE` will be converted to NaN.
+    pub fn unit_of_measure_qty_f64(&self) -> f64 {
+        px_to_f64(self.unit_of_measure_qty)
+    }
+
+    /// Returns the strike price as a floating point.
+    ///
+    /// `UNDEF_PRICE` will be converted to NaN.
+    pub fn strike_price_f64(&self) -> f64 {
+        px_to_f64(self.strike_price)
     }
 
     /// Parses the raw last eligible trade time into a datetime. Returns `None` if
@@ -670,9 +794,39 @@ impl ImbalanceMsg {
     pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
         ts_to_dt(self.ts_recv)
     }
+
+    /// Returns the reference price as a floating point.
+    ///
+    /// `UNDEF_PRICE` will be converted to NaN.
+    pub fn ref_price_f64(&self) -> f64 {
+        px_to_f64(self.ref_price)
+    }
+
+    /// Returns the hypothetical auction-clearing price for cross and continuous orders
+    /// as a floating point.
+    ///
+    /// `UNDEF_PRICE` will be converted to NaN.
+    pub fn cont_book_clr_price_f64(&self) -> f64 {
+        px_to_f64(self.cont_book_clr_price)
+    }
+
+    /// Returns the hypothetical auction-clearing price for cross orders only as a
+    /// floating point.
+    ///
+    /// `UNDEF_PRICE` will be converted to NaN.
+    pub fn auct_interest_clr_price_f64(&self) -> f64 {
+        px_to_f64(self.auct_interest_clr_price)
+    }
 }
 
 impl StatMsg {
+    /// Returns the price as a floating point.
+    ///
+    /// `UNDEF_PRICE` will be converted to NaN.
+    pub fn price_f64(&self) -> f64 {
+        px_to_f64(self.price)
+    }
+
     /// Parses the raw capture-server-received timestamp into a datetime. Returns `None`
     /// if `ts_recv` contains the sentinel for a null timestamp.
     pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {

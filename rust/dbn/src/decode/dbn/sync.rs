@@ -672,6 +672,8 @@ pub(crate) fn decode_iso8601(raw: u32) -> Result<time::Date, String> {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::clone_on_copy)]
+
     use std::fs::File;
 
     use rstest::rstest;

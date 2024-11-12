@@ -97,10 +97,16 @@ pub enum Venue {
     Ltse = 42,
     /// Off-Exchange Transactions - Listed Instruments
     Xoff = 43,
+    /// IntelligentCross ASPEN Intelligent Bid/Offer
+    Aspn = 44,
+    /// IntelligentCross ASPEN Maker/Taker
+    Asmt = 45,
+    /// IntelligentCross ASPEN Inverted
+    Aspi = 46,
 }
 
 /// The number of Venue variants.
-pub const VENUE_COUNT: usize = 43;
+pub const VENUE_COUNT: usize = 46;
 
 impl Venue {
     /// Convert a Venue to its `str` representation.
@@ -149,6 +155,9 @@ impl Venue {
             Self::Sphr => "SPHR",
             Self::Ltse => "LTSE",
             Self::Xoff => "XOFF",
+            Self::Aspn => "ASPN",
+            Self::Asmt => "ASMT",
+            Self::Aspi => "ASPI",
         }
     }
 }
@@ -213,6 +222,9 @@ impl std::str::FromStr for Venue {
             "SPHR" => Ok(Self::Sphr),
             "LTSE" => Ok(Self::Ltse),
             "XOFF" => Ok(Self::Xoff),
+            "ASPN" => Ok(Self::Aspn),
+            "ASMT" => Ok(Self::Asmt),
+            "ASPI" => Ok(Self::Aspi),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }

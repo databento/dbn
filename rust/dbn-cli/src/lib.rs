@@ -289,6 +289,8 @@ fn open_output_file(path: &PathBuf, force: bool) -> anyhow::Result<File> {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::too_many_arguments)]
+
     use rstest::*;
 
     use super::*;

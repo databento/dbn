@@ -645,6 +645,8 @@ impl Buffer for Cursor<Vec<u8>> {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::clone_on_copy)]
+
     use rstest::rstest;
     use tokio::io::AsyncWriteExt;
 

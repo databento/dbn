@@ -712,7 +712,7 @@ fn omit_csv_header(#[case] output_enc: &str, #[case] sep: char) {
         .stdout(
             contains('\n')
                 .count(2)
-                .and(contains(&format!("ts_event{sep}")).not()),
+                .and(contains(format!("ts_event{sep}")).not()),
         )
         .stderr(is_empty());
 }
@@ -733,7 +733,7 @@ fn omit_csv_header_fragment(#[case] output_enc: &str, #[case] sep: char) {
         .stdout(
             contains('\n')
                 .count(2)
-                .and(contains(&format!("ts_event{sep}")).not()),
+                .and(contains(format!("ts_event{sep}")).not()),
         )
         .stderr(is_empty());
 }

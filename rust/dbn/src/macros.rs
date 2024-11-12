@@ -337,6 +337,7 @@ mod tests {
             T::has_rtype(0xFF)
         }
 
+        #[allow(clippy::extra_unused_type_parameters)]
         fn on_rtype_2<T: HasRType>(&self, x: u64, y: u64) -> u64 {
             x + y
         }
