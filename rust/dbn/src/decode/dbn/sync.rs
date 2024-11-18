@@ -1070,6 +1070,17 @@ mod tests {
     }
 
     #[test]
+    fn test_decode_partial_record() {
+        let buf = vec![6u8, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+        assert!(buf[0] as usize * RecordHeader::LENGTH_MULTIPLIER > buf.len());
+
+        let mut target = RecordDecoder::new(buf.as_slice());
+        let res = target.decode_ref();
+        dbg!(&res);
+        assert!(matches!(res, Ok(None)));
+    }
+
+    #[test]
     fn test_decode_record_length_less_than_header() {
         let buf = vec![3u8, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
         assert_eq!(buf[0] as usize * RecordHeader::LENGTH_MULTIPLIER, buf.len());

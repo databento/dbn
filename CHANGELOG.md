@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.24.0 - TBD
+
+### Breaking changes
+- Changed async DBN decoding to return `Ok(None)` when an incomplete record remains in
+  the stream. This matches the existing behavior of sync DBN decoding
+
 ## 0.23.1 - 2024-11-12
 
 ### Enhancements

@@ -377,16 +377,7 @@ where
                     }))
                 };
             } else if self.state == DecoderState::Eof {
-                // there should be no remaining bytes in the buffer after reaching EOF
-                // and yielding all complete records
-                return if self.read_buf.remaining() == 0 {
-                    Ok(None)
-                } else {
-                    Err(crate::Error::decode(format!(
-                        "unexpected partial record remaining in stream: {} bytes",
-                        self.read_buf.remaining()
-                    )))
-                };
+                return Ok(None);
             } else {
                 self.state = DecoderState::Read;
             }
@@ -835,12 +826,23 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_decode_partial_record() {
+        let buf = vec![6u8, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+        assert!(buf[0] as usize * RecordHeader::LENGTH_MULTIPLIER > buf.len());
+
+        let mut target = RecordDecoder::new(buf.as_slice());
+        let res = target.decode_ref().await;
+        dbg!(&res);
+        assert!(matches!(res, Ok(None)));
+    }
+
+    #[tokio::test]
     async fn test_decode_record_length_longer_than_buffer() {
         let rec = ErrorMsg::new(1680703198000000000, "Test", true);
         let mut target = RecordDecoder::new(&rec.as_ref()[..rec.record_size() - 1]);
         let res = target.decode_ref().await;
         dbg!(&res);
-        assert!(matches!(res, Err(Error::Decode(msg)) if msg.starts_with("unexpected")));
+        assert!(matches!(res, Ok(None)));
     }
 
     #[tokio::test]
