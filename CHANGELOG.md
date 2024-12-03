@@ -6,6 +6,10 @@
 - Changed async DBN decoding to return `Ok(None)` when an incomplete record remains in
   the stream. This matches the existing behavior of sync DBN decoding
 
+### Bug fixes
+- Added handling for `UNDEF_TIMESTAMP` in `pretty_` timestamp getters for Python. They
+  now return `None` in the case of `UNDEF_TIMESTAMP`
+
 ## 0.23.1 - 2024-11-12
 
 ### Enhancements

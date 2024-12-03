@@ -1140,7 +1140,7 @@ class Record(SupportsBytes):
         """
 
     @property
-    def pretty_ts_event(self) -> dt.datetime:
+    def pretty_ts_event(self) -> dt.datetime | None:
         """
         The matching-engine-received timestamp expressed as a
         datetime or a `pandas.Timestamp`, if available.
@@ -1281,7 +1281,7 @@ class _MBOBase:
         """
 
     @property
-    def pretty_ts_recv(self) -> dt.datetime:
+    def pretty_ts_recv(self) -> dt.datetime | None:
         """
         The capture-server-received timestamp as a datetime or
         `pandas.Timestamp`, if available.
@@ -1705,7 +1705,7 @@ class _MBPBase:
         """
 
     @property
-    def pretty_ts_recv(self) -> dt.datetime:
+    def pretty_ts_recv(self) -> dt.datetime | None:
         """
         The capture-server-received timestamp as a datetime or
         `pandas.Timestamp`, if available.
@@ -1897,7 +1897,7 @@ class BBOMsg(Record):
         """
 
     @property
-    def pretty_ts_recv(self) -> dt.datetime:
+    def pretty_ts_recv(self) -> dt.datetime | None:
         """
         The capture-server-received timestamp as a datetime or
         `pandas.Timestamp`, if available.
@@ -2054,7 +2054,7 @@ class CMBP1Msg(Record):
         """
 
     @property
-    def pretty_ts_recv(self) -> dt.datetime:
+    def pretty_ts_recv(self) -> dt.datetime | None:
         """
         The interval timestamp as a datetime or `pandas.Timestamp` if available.
 
@@ -2197,7 +2197,7 @@ class CBBOMsg(Record):
         """
 
     @property
-    def pretty_ts_recv(self) -> dt.datetime:
+    def pretty_ts_recv(self) -> dt.datetime | None:
         """
         The capture-server-received timestamp as a datetime or
         `pandas.Timestamp`, if available.
@@ -2506,7 +2506,7 @@ class InstrumentDefMsg(Record):
         tick_rule: int | None = None,
     ) -> None: ...
     @property
-    def pretty_ts_recv(self) -> dt.datetime:
+    def pretty_ts_recv(self) -> dt.datetime | None:
         """
         The capture-server-received timestamp as a datetime or
         `pandas.Timestamp`, if available.
@@ -2573,10 +2573,12 @@ class InstrumentDefMsg(Record):
         """
 
     @property
-    def pretty_expiration(self) -> dt.datetime:
+    def pretty_expiration(self) -> dt.datetime | None:
         """
         The last eligible trade time expressed as a datetime or
         `pandas.Timestamp`, if available.
+
+        Some publishers only provide date-level granularity.
 
         Returns
         -------
@@ -2590,6 +2592,9 @@ class InstrumentDefMsg(Record):
         The last eligible trade time expressed as a number of nanoseconds since
         the UNIX epoch.
 
+        Will be `UNDEF_TIMESTAMP` when null, such as for equities. Some publishers
+        only provide date-level granularity.
+
         Returns
         -------
         int
@@ -2597,10 +2602,12 @@ class InstrumentDefMsg(Record):
         """
 
     @property
-    def pretty_activation(self) -> dt.datetime:
+    def pretty_activation(self) -> dt.datetime | None:
         """
         The time of instrument activation expressed as a datetime or
         `pandas.Timestamp`, if available.
+
+        Some publishers only provide date-level granularity.
 
         Returns
         -------
@@ -2613,6 +2620,9 @@ class InstrumentDefMsg(Record):
         """
         The time of instrument activation expressed as a number of nanoseconds
         since the UNIX epoch.
+
+        Will be `UNDEF_TIMESTAMP` when null, such as for equities. Some publishers
+        only provide date-level granularity.
 
         Returns
         -------
@@ -3447,7 +3457,7 @@ class InstrumentDefMsgV1(Record):
         tick_rule: int | None = None,
     ) -> None: ...
     @property
-    def pretty_ts_recv(self) -> dt.datetime:
+    def pretty_ts_recv(self) -> dt.datetime | None:
         """
         The capture-server-received timestamp as a datetime or
         `pandas.Timestamp`, if available.
@@ -3514,10 +3524,12 @@ class InstrumentDefMsgV1(Record):
         """
 
     @property
-    def pretty_expiration(self) -> dt.datetime:
+    def pretty_expiration(self) -> dt.datetime | None:
         """
         The last eligible trade time expressed as a datetime or
         `pandas.Timestamp`, if available.
+
+        Some publishers only provide date-level granularity.
 
         Returns
         -------
@@ -3531,6 +3543,9 @@ class InstrumentDefMsgV1(Record):
         The last eligible trade time expressed as a number of nanoseconds since
         the UNIX epoch.
 
+        Will be `UNDEF_TIMESTAMP` when null, such as for equities. Some publishers
+        only provide date-level granularity.
+
         Returns
         -------
         int
@@ -3538,10 +3553,12 @@ class InstrumentDefMsgV1(Record):
         """
 
     @property
-    def pretty_activation(self) -> dt.datetime:
+    def pretty_activation(self) -> dt.datetime | None:
         """
         The time of instrument activation expressed as a datetime or
         `pandas.Timestamp`, if available.
+
+        Some publishers only provide date-level granularity.
 
         Returns
         -------
@@ -3554,6 +3571,9 @@ class InstrumentDefMsgV1(Record):
         """
         The time of instrument activation expressed as a number of nanoseconds
         since the UNIX epoch.
+
+        Will be `UNDEF_TIMESTAMP` when null, such as for equities. Some publishers
+        only provide date-level granularity.
 
         Returns
         -------
@@ -4337,7 +4357,7 @@ class ImbalanceMsg(Record):
         significant_imbalance: str,
     ) -> None: ...
     @property
-    def pretty_ts_recv(self) -> dt.datetime:
+    def pretty_ts_recv(self) -> dt.datetime | None:
         """
         The capture-server-received timestamp as a datetime or
         `pandas.Timestamp`, if available.
@@ -4660,7 +4680,7 @@ class StatMsg(Record):
         stat_flags: int = 0,
     ) -> None: ...
     @property
-    def pretty_ts_recv(self) -> dt.datetime:
+    def pretty_ts_recv(self) -> dt.datetime | None:
         """
         The capture-server-received timestamp as a datetime or
         `pandas.Timestamp`, if available.
@@ -4684,7 +4704,7 @@ class StatMsg(Record):
         """
 
     @property
-    def pretty_ts_ref(self) -> dt.datetime:
+    def pretty_ts_ref(self) -> dt.datetime | None:
         """
         Reference timestamp expressed as the number of nanoseconds since the
         UNIX epoch as a datetime or `pandas.Timestamp`, if available.
@@ -4823,7 +4843,7 @@ class StatusMsg(Record):
     """
 
     @property
-    def pretty_ts_recv(self) -> dt.datetime:
+    def pretty_ts_recv(self) -> dt.datetime | None:
         """
         The capture-server-received timestamp as a datetime or
         `pandas.Timestamp`, if available.
@@ -5007,7 +5027,7 @@ class SymbolMappingMsg(Record):
         """
 
     @property
-    def pretty_start_ts(self) -> dt.datetime:
+    def pretty_start_ts(self) -> dt.datetime | None:
         """
         The start of the mapping interval expressed as a datetime
         or `pandas.Timestamp`, if available.
@@ -5031,7 +5051,7 @@ class SymbolMappingMsg(Record):
         """
 
     @property
-    def pretty_end_ts(self) -> dt.datetime:
+    def pretty_end_ts(self) -> dt.datetime | None:
         """
         The end of the mapping interval expressed as a datetime
         or `pandas.Timestamp`, if available.
@@ -5201,7 +5221,7 @@ class Transcoder:
     pretty_px : bool, default True
         Whether to serialize fixed-precision prices as decimal strings. Only applicable
         to CSV and JSON.
-    pretty_ts : bool, default True
+    pretty_ts : bool, default Tru | Nonee
         Whether to serialize nanosecond UNIX timestamps as ISO8601 datetime strings.
         Only applicable to CSV and JSON.
     map_symbols : bool, default None

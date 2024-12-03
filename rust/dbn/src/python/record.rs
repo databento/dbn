@@ -126,12 +126,12 @@ impl MboMsg {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
     #[getter]
-    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.ts_recv)
     }
 
@@ -339,12 +339,12 @@ impl BboMsg {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
     #[getter]
-    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.ts_recv)
     }
 
@@ -486,12 +486,12 @@ impl Cmbp1Msg {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
     #[getter]
-    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.ts_recv)
     }
 
@@ -643,12 +643,12 @@ impl CbboMsg {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
     #[getter]
-    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.ts_recv)
     }
 
@@ -854,12 +854,12 @@ impl TradeMsg {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
     #[getter]
-    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.ts_recv)
     }
 
@@ -1019,12 +1019,12 @@ impl Mbp1Msg {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
     #[getter]
-    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.ts_recv)
     }
 
@@ -1196,12 +1196,12 @@ impl Mbp10Msg {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
     #[getter]
-    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.ts_recv)
     }
 
@@ -1352,7 +1352,7 @@ impl OhlcvMsg {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
@@ -1479,12 +1479,12 @@ impl StatusMsg {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
     #[getter]
-    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.ts_recv)
     }
 
@@ -1830,22 +1830,22 @@ impl InstrumentDefMsg {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
     #[getter]
-    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.ts_recv)
     }
 
     #[getter]
-    fn get_pretty_activation(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_activation(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.activation)
     }
 
     #[getter]
-    fn get_pretty_expiration(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_expiration(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.expiration)
     }
 
@@ -2275,22 +2275,22 @@ impl InstrumentDefMsgV1 {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
     #[getter]
-    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.ts_recv)
     }
 
     #[getter]
-    fn get_pretty_activation(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_activation(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.activation)
     }
 
     #[getter]
-    fn get_pretty_expiration(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_expiration(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.expiration)
     }
 
@@ -2530,12 +2530,12 @@ impl ImbalanceMsg {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
     #[getter]
-    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.ts_recv)
     }
 
@@ -2710,17 +2710,17 @@ impl StatMsg {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
     #[getter]
-    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.ts_recv)
     }
 
     #[getter]
-    fn get_pretty_ts_ref(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_ref(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.ts_ref)
     }
 
@@ -2815,7 +2815,7 @@ impl ErrorMsg {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
@@ -2914,7 +2914,7 @@ impl ErrorMsgV1 {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
@@ -3036,17 +3036,17 @@ impl SymbolMappingMsg {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
     #[getter]
-    fn get_pretty_end_ts(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_end_ts(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.end_ts)
     }
 
     #[getter]
-    fn get_pretty_start_ts(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_start_ts(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.start_ts)
     }
 
@@ -3180,17 +3180,17 @@ impl SymbolMappingMsgV1 {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
     #[getter]
-    fn get_pretty_end_ts(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_end_ts(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.end_ts)
     }
 
     #[getter]
-    fn get_pretty_start_ts(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_start_ts(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.start_ts)
     }
 
@@ -3294,7 +3294,7 @@ impl SystemMsg {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
@@ -3398,7 +3398,7 @@ impl SystemMsgV1 {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
@@ -3552,7 +3552,10 @@ impl<R: HasRType + IntoPy<Py<PyAny>>> IntoPy<PyObject> for WithTsOut<R> {
     }
 }
 
-fn new_py_timestamp_or_datetime(py: Python<'_>, timestamp: u64) -> PyResult<PyObject> {
+fn new_py_timestamp_or_datetime(py: Python<'_>, timestamp: u64) -> PyResult<Option<PyObject>> {
+    if timestamp == UNDEF_TIMESTAMP {
+        return Ok(None);
+    }
     if let Ok(pandas) = PyModule::import_bound(py, intern!(py, "pandas")) {
         let kwargs = PyDict::new_bound(py);
         if kwargs.set_item(intern!(py, "utc"), true).is_ok()
@@ -3565,10 +3568,10 @@ fn new_py_timestamp_or_datetime(py: Python<'_>, timestamp: u64) -> PyResult<PyOb
         {
             return pandas
                 .call_method(intern!(py, "to_datetime"), (timestamp,), Some(&kwargs))
-                .map(|o| o.into_py(py));
+                .map(|o| Some(o.into_py(py)));
         }
     }
     let utc_tz = timezone_utc_bound(py);
     let timestamp_ms = timestamp as f64 / 1_000_000.0;
-    PyDateTime::from_timestamp_bound(py, timestamp_ms, Some(&utc_tz)).map(|o| o.into_py(py))
+    PyDateTime::from_timestamp_bound(py, timestamp_ms, Some(&utc_tz)).map(|o| Some(o.into_py(py)))
 }
