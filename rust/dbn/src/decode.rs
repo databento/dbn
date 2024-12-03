@@ -126,7 +126,7 @@ where
     LegacyDbz(dbz::Decoder<R>),
 }
 
-impl<'a, R> DynDecoder<'a, BufReader<R>>
+impl<R> DynDecoder<'_, BufReader<R>>
 where
     R: io::Read,
 {
@@ -156,7 +156,7 @@ where
     }
 }
 
-impl<'a, R> DynDecoder<'a, R>
+impl<R> DynDecoder<'_, R>
 where
     R: io::BufRead,
 {
@@ -223,7 +223,7 @@ where
     }
 }
 
-impl<'a> DynDecoder<'a, BufReader<File>> {
+impl DynDecoder<'_, BufReader<File>> {
     /// Creates a new [`DynDecoder`] from the file at `path`. It will decode records
     /// from previous DBN versions according to `upgrade_policy`.
     ///
@@ -247,7 +247,7 @@ impl<'a> DynDecoder<'a, BufReader<File>> {
     }
 }
 
-impl<'a, R> DecodeRecordRef for DynDecoder<'a, R>
+impl<R> DecodeRecordRef for DynDecoder<'_, R>
 where
     R: io::BufRead,
 {
@@ -261,7 +261,7 @@ where
 }
 
 #[allow(deprecated)]
-impl<'a, R> DbnMetadata for DynDecoder<'a, R>
+impl<R> DbnMetadata for DynDecoder<'_, R>
 where
     R: io::BufRead,
 {
@@ -283,7 +283,7 @@ where
 }
 
 #[allow(deprecated)]
-impl<'a, R> DecodeRecord for DynDecoder<'a, R>
+impl<R> DecodeRecord for DynDecoder<'_, R>
 where
     R: io::BufRead,
 {
@@ -296,7 +296,7 @@ where
     }
 }
 
-impl<'a, R> DecodeStream for DynDecoder<'a, R>
+impl<R> DecodeStream for DynDecoder<'_, R>
 where
     R: io::BufRead,
 {
@@ -322,7 +322,7 @@ where
     ZStd(::zstd::stream::Decoder<'a, R>),
 }
 
-impl<'a, R> DynReader<'a, BufReader<R>>
+impl<R> DynReader<'_, BufReader<R>>
 where
     R: io::Read,
 {
@@ -348,7 +348,7 @@ where
     }
 }
 
-impl<'a, R> DynReader<'a, R>
+impl<R> DynReader<'_, R>
 where
     R: io::BufRead,
 {
@@ -403,7 +403,7 @@ where
     }
 }
 
-impl<'a> DynReader<'a, BufReader<File>> {
+impl DynReader<'_, BufReader<File>> {
     /// Creates a new [`DynReader`] from the file at `path`.
     ///
     /// # Errors
@@ -423,7 +423,7 @@ impl<'a> DynReader<'a, BufReader<File>> {
     }
 }
 
-impl<'a, R> io::Read for DynReader<'a, R>
+impl<R> io::Read for DynReader<'_, R>
 where
     R: io::BufRead,
 {
@@ -435,7 +435,7 @@ where
     }
 }
 
-impl<'a, R> private::BufferSlice for DynDecoder<'a, R>
+impl<R> private::BufferSlice for DynDecoder<'_, R>
 where
     R: io::BufRead,
 {

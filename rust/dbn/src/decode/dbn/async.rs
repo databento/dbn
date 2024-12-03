@@ -111,7 +111,7 @@ where
     /// # Cancel safety
     /// This method is cancel safe. It can be used within a `tokio::select!` statement
     /// without the potential for corrupting the input stream.
-    pub async fn decode_record<'a, T: HasRType + 'a>(&'a mut self) -> Result<Option<&T>> {
+    pub async fn decode_record<'a, T: HasRType + 'a>(&'a mut self) -> Result<Option<&'a T>> {
         self.decoder.decode().await
     }
 
@@ -310,7 +310,7 @@ where
     /// # Cancel safety
     /// This method is cancel safe. It can be used within a `tokio::select!` statement
     /// without the potential for corrupting the input stream.
-    pub async fn decode<'a, T: HasRType + 'a>(&'a mut self) -> Result<Option<&T>> {
+    pub async fn decode<'a, T: HasRType + 'a>(&'a mut self) -> Result<Option<&'a T>> {
         let rec_ref = self.decode_ref().await?;
         if let Some(rec_ref) = rec_ref {
             rec_ref

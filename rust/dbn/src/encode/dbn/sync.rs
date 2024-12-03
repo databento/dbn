@@ -46,7 +46,7 @@ where
     }
 }
 
-impl<'a, W> Encoder<zstd::stream::AutoFinishEncoder<'a, W>>
+impl<W> Encoder<zstd::stream::AutoFinishEncoder<'_, W>>
 where
     W: io::Write,
 {

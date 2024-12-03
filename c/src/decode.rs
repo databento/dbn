@@ -54,7 +54,7 @@ pub unsafe extern "C" fn DbnDecoder_metadata(decoder: *mut Decoder) -> *const Me
 #[no_mangle]
 pub unsafe extern "C" fn DbnDecoder_decode(decoder: *mut Decoder) -> *const RecordHeader {
     if let Some(Ok(Some(rec))) = decoder.as_mut().map(|d| d.decode_record_ref()) {
-        return rec.header();
+        rec.header()
     } else {
         null()
     }

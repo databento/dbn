@@ -104,7 +104,7 @@ impl<'a> From<&'a RecordEnum> for RecordRefEnum<'a> {
     }
 }
 
-impl<'a> RecordRefEnum<'a> {
+impl RecordRefEnum<'_> {
     /// Converts the reference enum into an owned enum value.
     pub fn to_owned(&self) -> RecordEnum {
         #[allow(clippy::clone_on_copy)] // required for when trivial_copy feature is disabled
@@ -382,7 +382,7 @@ impl RecordMut for RecordEnum {
     }
 }
 
-impl<'a> Record for RecordRefEnum<'a> {
+impl Record for RecordRefEnum<'_> {
     fn header(&self) -> &crate::RecordHeader {
         match self {
             RecordRefEnum::Mbo(rec) => rec.header(),

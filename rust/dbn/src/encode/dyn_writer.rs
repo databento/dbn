@@ -17,7 +17,7 @@ where
     Zstd(zstd::stream::AutoFinishEncoder<'a, W>),
 }
 
-impl<'a, W> DynWriter<'a, W>
+impl<W> DynWriter<'_, W>
 where
     W: io::Write,
 {
@@ -41,7 +41,7 @@ where
     }
 }
 
-impl<'a, W> io::Write for DynWriter<'a, W>
+impl<W> io::Write for DynWriter<'_, W>
 where
     W: io::Write,
 {

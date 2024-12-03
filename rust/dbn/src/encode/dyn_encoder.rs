@@ -155,7 +155,7 @@ where
     }
 }
 
-impl<'a, W> DynEncoder<'a, W>
+impl<W> DynEncoder<'_, W>
 where
     W: io::Write,
 {
@@ -230,7 +230,7 @@ where
     }
 }
 
-impl<'a, W> EncodeRecord for DynEncoder<'a, W>
+impl<W> EncodeRecord for DynEncoder<'_, W>
 where
     W: io::Write,
 {
@@ -243,7 +243,7 @@ where
     }
 }
 
-impl<'a, W> EncodeRecordRef for DynEncoder<'a, W>
+impl<W> EncodeRecordRef for DynEncoder<'_, W>
 where
     W: io::Write,
 {
@@ -256,7 +256,7 @@ where
     }
 }
 
-impl<'a, W> EncodeDbn for DynEncoder<'a, W>
+impl<W> EncodeDbn for DynEncoder<'_, W>
 where
     W: io::Write,
 {
@@ -276,7 +276,7 @@ where
     }
 }
 
-impl<'a, W> EncodeRecordTextExt for DynEncoder<'a, W>
+impl<W> EncodeRecordTextExt for DynEncoder<'_, W>
 where
     W: io::Write,
 {
@@ -289,7 +289,7 @@ where
     }
 }
 
-impl<'a, W> EncodeRecord for DynEncoderImpl<'a, W>
+impl<W> EncodeRecord for DynEncoderImpl<'_, W>
 where
     W: io::Write,
 {
@@ -310,7 +310,7 @@ where
     }
 }
 
-impl<'a, W> EncodeRecordRef for DynEncoderImpl<'a, W>
+impl<W> EncodeRecordRef for DynEncoderImpl<'_, W>
 where
     W: io::Write,
 {
@@ -331,7 +331,7 @@ where
     }
 }
 
-impl<'a, W> EncodeDbn for DynEncoderImpl<'a, W>
+impl<W> EncodeDbn for DynEncoderImpl<'_, W>
 where
     W: io::Write,
 {
@@ -363,7 +363,7 @@ where
     }
 }
 
-impl<'a, W> EncodeRecordTextExt for DynEncoderImpl<'a, W>
+impl<W> EncodeRecordTextExt for DynEncoderImpl<'_, W>
 where
     W: io::Write,
 {

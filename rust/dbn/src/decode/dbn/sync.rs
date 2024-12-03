@@ -91,7 +91,7 @@ where
     }
 }
 
-impl<'a, R> Decoder<zstd::stream::Decoder<'a, BufReader<R>>>
+impl<R> Decoder<zstd::stream::Decoder<'_, BufReader<R>>>
 where
     R: io::Read,
 {
@@ -107,7 +107,7 @@ where
     }
 }
 
-impl<'a, R> Decoder<zstd::stream::Decoder<'a, R>>
+impl<R> Decoder<zstd::stream::Decoder<'_, R>>
 where
     R: io::BufRead,
 {
@@ -140,7 +140,7 @@ impl Decoder<BufReader<File>> {
     }
 }
 
-impl<'a> Decoder<zstd::stream::Decoder<'a, BufReader<File>>> {
+impl Decoder<zstd::stream::Decoder<'_, BufReader<File>>> {
     /// Creates a DBN [`Decoder`] from the Zstandard-compressed file at `path`.
     ///
     /// # Errors

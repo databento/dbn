@@ -580,11 +580,12 @@ fn broken_pipe_is_silent(
     if !fragment_flag.is_empty() {
         dbn_cmd.arg(fragment_flag);
     }
-    let dbn_res = dbn_cmd
+    let mut dbn_res = dbn_cmd
         .stdout(process::Stdio::piped())
         .stderr(process::Stdio::piped())
         .spawn()
         .unwrap();
+    dbn_res.wait().unwrap();
     let mut false_cmd = process::Command::new("false");
     false_cmd.stdin(dbn_res.stdout.unwrap());
     Command::from_std(false_cmd)
