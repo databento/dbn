@@ -13,7 +13,7 @@ proc-macro = true
 [dependencies]
 # Get name of current crate in macros, like $crate in macro_rules macros
 proc-macro-crate = "3.2.0"
-proc-macro2 = "1.0.89"
+proc-macro2 = "1.0.92"
 # Convert code to token streams
 quote = "1.0.37"
 # Token parsing

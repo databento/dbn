@@ -1,6 +1,10 @@
 # Changelog
 
-## 0.24.0 - TBD
+## 0.24.0 - 2024-12-10
+
+### Enhancements
+- Upgraded `async-compression` version to 0.4.18
+- Upgraded `proc-macro2` version to 1.0.92
 
 ### Breaking changes
 - Changed async DBN decoding to return `Ok(None)` when an incomplete record remains in
