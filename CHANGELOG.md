@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.24.0 - 2024-12-10
+
+### Enhancements
+- Upgraded `async-compression` version to 0.4.18
+- Upgraded `proc-macro2` version to 1.0.92
+
+### Breaking changes
+- Changed async DBN decoding to return `Ok(None)` when an incomplete record remains in
+  the stream. This matches the existing behavior of sync DBN decoding
+
+### Bug fixes
+- Added handling for `UNDEF_TIMESTAMP` in `pretty_` timestamp getters for Python. They
+  now return `None` in the case of `UNDEF_TIMESTAMP`
+
 ## 0.23.1 - 2024-11-12
 
 ### Enhancements

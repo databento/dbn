@@ -194,7 +194,7 @@ impl<'a> From<RecordRefEnum<'a>> for RecordRef<'a> {
     }
 }
 
-impl<'a> Debug for RecordRef<'a> {
+impl Debug for RecordRef<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("RecordRef")
             .field(

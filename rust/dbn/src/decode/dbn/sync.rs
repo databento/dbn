@@ -91,7 +91,7 @@ where
     }
 }
 
-impl<'a, R> Decoder<zstd::stream::Decoder<'a, BufReader<R>>>
+impl<R> Decoder<zstd::stream::Decoder<'_, BufReader<R>>>
 where
     R: io::Read,
 {
@@ -107,7 +107,7 @@ where
     }
 }
 
-impl<'a, R> Decoder<zstd::stream::Decoder<'a, R>>
+impl<R> Decoder<zstd::stream::Decoder<'_, R>>
 where
     R: io::BufRead,
 {
@@ -140,7 +140,7 @@ impl Decoder<BufReader<File>> {
     }
 }
 
-impl<'a> Decoder<zstd::stream::Decoder<'a, BufReader<File>>> {
+impl Decoder<zstd::stream::Decoder<'_, BufReader<File>>> {
     /// Creates a DBN [`Decoder`] from the Zstandard-compressed file at `path`.
     ///
     /// # Errors
@@ -1067,6 +1067,17 @@ mod tests {
         assert!(
             matches!(target.decode_ref(), Err(Error::Decode(msg)) if msg.starts_with("invalid record with length"))
         );
+    }
+
+    #[test]
+    fn test_decode_partial_record() {
+        let buf = vec![6u8, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+        assert!(buf[0] as usize * RecordHeader::LENGTH_MULTIPLIER > buf.len());
+
+        let mut target = RecordDecoder::new(buf.as_slice());
+        let res = target.decode_ref();
+        dbg!(&res);
+        assert!(matches!(res, Ok(None)));
     }
 
     #[test]
