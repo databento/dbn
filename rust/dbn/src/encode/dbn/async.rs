@@ -489,17 +489,15 @@ mod tests {
     use super::*;
     use crate::{
         compat::version_symbol_cstr_len,
-        datasets::{GLBX_MDP3, XNAS_ITCH},
         decode::{dbn::AsyncMetadataDecoder as MetadataDecoder, FromLittleEndianSlice},
-        enums::{SType, Schema},
-        MappingInterval, MetadataBuilder,
+        Dataset, MappingInterval, MetadataBuilder, SType, Schema,
     };
 
     #[tokio::test]
     async fn test_encode_decode_metadata_identity() {
         let metadata = Metadata {
             version: crate::DBN_VERSION,
-            dataset: GLBX_MDP3.to_owned(),
+            dataset: Dataset::GlbxMdp3.to_string(),
             schema: Some(Schema::Mbp10),
             stype_in: Some(SType::RawSymbol),
             stype_out: SType::InstrumentId,
@@ -619,7 +617,7 @@ mod tests {
     #[tokio::test]
     async fn test_encode_decode_nulls() {
         let metadata = MetadataBuilder::new()
-            .dataset(XNAS_ITCH.to_owned())
+            .dataset(Dataset::XnasItch.to_string())
             .schema(Some(Schema::Mbo))
             .start(1697240529000000000)
             .stype_in(Some(SType::RawSymbol))

@@ -45,7 +45,7 @@ where
             decoder: RecordDecoder::with_version(
                 reader,
                 metadata.version,
-                VersionUpgradePolicy::Upgrade,
+                VersionUpgradePolicy::UpgradeToV2,
                 metadata.ts_out,
             )?,
             metadata,
@@ -867,7 +867,7 @@ mod tests {
             tokio::fs::File::open(format!("{TEST_DATA_PATH}/test_data.definition.v1.dbn"))
                 .await
                 .unwrap(),
-            VersionUpgradePolicy::Upgrade,
+            VersionUpgradePolicy::UpgradeToV2,
         )
         .await?;
         assert_eq!(decoder.metadata().version, crate::DBN_VERSION);

@@ -29,31 +29,29 @@ macro_rules! rtype_dispatch_base {
                 RType::Imbalance => $handler!(ImbalanceMsg),
                 RType::Status => $handler!(StatusMsg),
                 RType::InstrumentDef => {
-                    // TODO(carter): remove temporary version handling
                     if $rec_ref.record_size() < std::mem::size_of::<InstrumentDefMsg>() {
-                        $handler!($crate::compat::InstrumentDefMsgV1)
+                        $handler!($crate::v1::InstrumentDefMsg)
                     } else {
                         $handler!(InstrumentDefMsg)
                     }
                 }
                 RType::SymbolMapping => {
-                    // TODO(carter): remove temporary version handling
                     if $rec_ref.record_size() < std::mem::size_of::<SymbolMappingMsg>() {
-                        $handler!($crate::compat::SymbolMappingMsgV1)
+                        $handler!($crate::v1::SymbolMappingMsg)
                     } else {
                         $handler!(SymbolMappingMsg)
                     }
                 }
                 RType::Error => {
                     if $rec_ref.record_size() < std::mem::size_of::<ErrorMsg>() {
-                        $handler!($crate::compat::ErrorMsgV1)
+                        $handler!($crate::v1::ErrorMsg)
                     } else {
                         $handler!(ErrorMsg)
                     }
                 }
                 RType::System => {
                     if $rec_ref.record_size() < std::mem::size_of::<SystemMsg>() {
-                        $handler!($crate::compat::SystemMsgV1)
+                        $handler!($crate::v1::SystemMsg)
                     } else {
                         $handler!(SystemMsg)
                     }

@@ -437,17 +437,15 @@ mod tests {
     use super::*;
     use crate::{
         compat::version_symbol_cstr_len,
-        datasets::{GLBX_MDP3, XNAS_ITCH},
         decode::{dbn::MetadataDecoder, FromLittleEndianSlice},
-        enums::{SType, Schema},
-        MappingInterval, MetadataBuilder,
+        Dataset, MappingInterval, MetadataBuilder, SType, Schema,
     };
 
     #[test]
     fn test_encode_decode_metadata_identity() {
         let metadata = Metadata {
             version: crate::DBN_VERSION,
-            dataset: GLBX_MDP3.to_owned(),
+            dataset: Dataset::GlbxMdp3.to_string(),
             schema: Some(Schema::Mbp10),
             stype_in: Some(SType::RawSymbol),
             stype_out: SType::InstrumentId,
@@ -567,7 +565,7 @@ mod tests {
     fn test_update_encoded(#[case] version: u8) {
         let orig_metadata = Metadata {
             version,
-            dataset: GLBX_MDP3.to_owned(),
+            dataset: Dataset::GlbxMdp3.to_string(),
             schema: Some(Schema::Mbo),
             stype_in: Some(SType::Parent),
             stype_out: SType::RawSymbol,
@@ -615,7 +613,7 @@ mod tests {
     fn test_encode_decode_nulls(#[case] version: u8) {
         let metadata = MetadataBuilder::new()
             .version(version)
-            .dataset(XNAS_ITCH.to_owned())
+            .dataset(Dataset::XnasItch)
             .schema(Some(Schema::Mbo))
             .start(1697240529000000000)
             .stype_in(Some(SType::RawSymbol))
@@ -636,7 +634,7 @@ mod tests {
     fn test_metadata_min_encoded_size(#[case] version: u8) {
         let metadata = MetadataBuilder::new()
             .version(version)
-            .dataset(XNAS_ITCH.to_owned())
+            .dataset(Dataset::XnasItch)
             .schema(Some(Schema::Mbo))
             .start(1697240529000000000)
             .stype_in(Some(SType::RawSymbol))
@@ -654,7 +652,7 @@ mod tests {
     #[rstest]
     fn test_metadata_calc_size_unconventional_length() {
         let mut metadata = MetadataBuilder::new()
-            .dataset(XNAS_ITCH.to_owned())
+            .dataset(Dataset::XnasItch)
             .schema(Some(Schema::Mbo))
             .start(1697240529000000000)
             .stype_in(Some(SType::RawSymbol))

@@ -129,11 +129,10 @@ impl DbnDecoder {
 #[cfg(test)]
 mod tests {
     use dbn::{
-        datasets::XNAS_ITCH,
         encode::{dbn::Encoder, EncodeRecord},
         enums::{rtype, SType, Schema},
         record::{ErrorMsg, OhlcvMsg, RecordHeader},
-        MetadataBuilder, DBN_VERSION,
+        Dataset, MetadataBuilder, DBN_VERSION,
     };
     use pyo3::{py_run, types::PyString};
 
@@ -148,7 +147,7 @@ mod tests {
         let mut encoder = Encoder::new(
             buffer,
             &MetadataBuilder::new()
-                .dataset(XNAS_ITCH.to_owned())
+                .dataset(Dataset::XnasItch.to_string())
                 .schema(Some(Schema::Trades))
                 .stype_in(Some(SType::RawSymbol))
                 .stype_out(SType::InstrumentId)
@@ -191,7 +190,7 @@ mod tests {
         let mut encoder = Encoder::new(
             buffer,
             &MetadataBuilder::new()
-                .dataset(XNAS_ITCH.to_owned())
+                .dataset(Dataset::XnasItch.to_string())
                 .schema(Some(Schema::Ohlcv1S))
                 .stype_in(Some(SType::RawSymbol))
                 .stype_out(SType::InstrumentId)

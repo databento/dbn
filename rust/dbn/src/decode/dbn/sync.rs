@@ -681,14 +681,13 @@ mod tests {
     use super::*;
     use crate::{
         compat::InstrumentDefMsgV1,
-        datasets::XNAS_ITCH,
         decode::{tests::TEST_DATA_PATH, DynReader},
         encode::{
             dbn::Encoder, DbnEncodable, DbnRecordEncoder, DynWriter, EncodeDbn, EncodeRecord,
         },
-        rtype, Bbo1MMsg, Bbo1SMsg, Cbbo1SMsg, Cmbp1Msg, Compression, Error, ErrorMsg, ImbalanceMsg,
-        InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, MetadataBuilder, OhlcvMsg, RecordHeader,
-        Result, StatMsg, StatusMsg, TbboMsg, TradeMsg, WithTsOut, SYMBOL_CSTR_LEN,
+        rtype, Bbo1MMsg, Bbo1SMsg, Cbbo1SMsg, Cmbp1Msg, Compression, Dataset, Error, ErrorMsg,
+        ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, MetadataBuilder, OhlcvMsg,
+        RecordHeader, Result, StatMsg, StatusMsg, TbboMsg, TradeMsg, WithTsOut, SYMBOL_CSTR_LEN,
     };
 
     #[test]
@@ -1032,7 +1031,7 @@ mod tests {
         let mut encoder = Encoder::new(
             &mut buffer,
             &MetadataBuilder::new()
-                .dataset(XNAS_ITCH.to_owned())
+                .dataset(Dataset::XnasItch.to_string())
                 .schema(Some(Schema::Mbo))
                 .start(0)
                 .stype_in(Some(SType::InstrumentId))
@@ -1100,7 +1099,7 @@ mod tests {
 
     #[rstest]
     #[case::v1_as_is(InstrumentDefMsgV1::default(), VersionUpgradePolicy::AsIs)]
-    #[case::v1_upgrade(InstrumentDefMsg::default(), VersionUpgradePolicy::Upgrade)]
+    #[case::v1_upgrade(InstrumentDefMsg::default(), VersionUpgradePolicy::UpgradeToV2)]
     fn test_decode_multiframe_zst_from_v1<R: HasRType>(
         #[case] _r: R,
         #[case] upgrade_policy: VersionUpgradePolicy,
@@ -1129,7 +1128,7 @@ mod tests {
     fn test_decode_upgrade() -> crate::Result<()> {
         let decoder = Decoder::with_upgrade_policy(
             File::open(format!("{TEST_DATA_PATH}/test_data.definition.v1.dbn")).unwrap(),
-            VersionUpgradePolicy::Upgrade,
+            VersionUpgradePolicy::UpgradeToV2,
         )?;
         assert_eq!(decoder.metadata().version, crate::DBN_VERSION);
         assert_eq!(decoder.metadata().symbol_cstr_len, crate::SYMBOL_CSTR_LEN);

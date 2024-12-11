@@ -120,7 +120,8 @@ impl Metadata {
 
     /// Upgrades the metadata according to `upgrade_policy` if necessary.
     pub fn upgrade(&mut self, upgrade_policy: VersionUpgradePolicy) {
-        if self.version < crate::DBN_VERSION && upgrade_policy == VersionUpgradePolicy::Upgrade {
+        if self.version < crate::DBN_VERSION && upgrade_policy == VersionUpgradePolicy::UpgradeToV2
+        {
             self.version = crate::DBN_VERSION;
             self.symbol_cstr_len = crate::SYMBOL_CSTR_LEN;
         }
@@ -136,7 +137,7 @@ impl Metadata {
                     self.version = input_version;
                     self.symbol_cstr_len = crate::compat::SYMBOL_CSTR_LEN_V1;
                 }
-                VersionUpgradePolicy::Upgrade => {
+                VersionUpgradePolicy::UpgradeToV2 => {
                     self.version = crate::DBN_VERSION;
                     self.symbol_cstr_len = crate::SYMBOL_CSTR_LEN;
                 }
@@ -197,10 +198,13 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
     }
 
     /// Sets [`dataset`](Metadata::dataset) and returns the builder.
-    pub fn dataset(self, dataset: String) -> MetadataBuilder<String, Sch, Start, StIn, StOut> {
+    pub fn dataset(
+        self,
+        dataset: impl ToString,
+    ) -> MetadataBuilder<String, Sch, Start, StIn, StOut> {
         MetadataBuilder {
             version: self.version,
-            dataset,
+            dataset: dataset.to_string(),
             schema: self.schema,
             start: self.start,
             end: self.end,

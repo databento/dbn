@@ -4,7 +4,9 @@ use std::{cmp::Ordering, collections::HashMap, ops::Deref, sync::Arc};
 
 use time::{macros::time, PrimitiveDateTime};
 
-use crate::{compat, Error, HasRType, Metadata, RType, Record, RecordRef, SType, SymbolMappingMsg};
+use crate::{
+    compat, v1, Error, HasRType, Metadata, RType, Record, RecordRef, SType, SymbolMappingMsg,
+};
 
 /// A timeseries symbol map. Generally useful for working with historical data
 /// and is commonly built from a [`Metadata`] object via [`Self::from_metadata()`].
@@ -236,7 +238,7 @@ impl PitSymbolMap {
                 self.on_symbol_mapping(unsafe { record.get_unchecked::<SymbolMappingMsg>() })
             } else {
                 // Use get here to get still perform length checks
-                self.on_symbol_mapping(record.get::<compat::SymbolMappingMsgV1>().unwrap())
+                self.on_symbol_mapping(record.get::<v1::SymbolMappingMsg>().unwrap())
             }
         } else {
             Ok(())

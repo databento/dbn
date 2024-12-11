@@ -784,13 +784,15 @@ class VersionUpgradePolicy(Enum):
 
     AS_IS
         Decode data from previous versions as-is.
-    UPGRADE
-        Decode data from previous versions converting it to the latest version.
+    UPGRADE_TO_V2
+        Decode and convert data from DBN versions prior to version 2 to that version.
+        Attempting to decode data from newer versions (when they're introduced) will
+        fail.
 
     """
 
     AS_IS: int
-    UPGRADE: int
+    UPGRADE_TO_V2: int
 
 class Metadata(SupportsBytes):
     """
@@ -5324,3 +5326,11 @@ def update_encoded_metadata(
         When the file update fails.
 
     """
+
+# Aliases
+TBBOMsg = MBOMsg
+BBO1SMsg = BBOMsg
+BBO1MMsg = BBOMsg
+TCBBOMsg = CMBP1Msg
+CBBO1SMsg = CBBOMsg
+CBBO1MMsg = CBBOMsg

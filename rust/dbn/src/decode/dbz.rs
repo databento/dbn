@@ -70,7 +70,7 @@ impl<R: io::BufRead> Decoder<R> {
     /// # Errors
     /// This function will return an error if it is unable to parse the metadata in `reader`.
     pub fn new(reader: R) -> crate::Result<Self> {
-        Self::with_upgrade_policy(reader, VersionUpgradePolicy::Upgrade)
+        Self::with_upgrade_policy(reader, VersionUpgradePolicy::default())
     }
 
     /// Creates a new DBZ [`Decoder`] from `reader`. It will decode records from
