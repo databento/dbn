@@ -204,7 +204,7 @@ impl Args {
 
     pub fn upgrade_policy(&self) -> VersionUpgradePolicy {
         if self.should_upgrade {
-            VersionUpgradePolicy::Upgrade
+            VersionUpgradePolicy::UpgradeToV2
         } else {
             VersionUpgradePolicy::AsIs
         }

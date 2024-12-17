@@ -454,10 +454,9 @@ mod tests {
     use std::{io::Read, num::NonZeroU64};
 
     use dbn::{
-        datasets::XNAS_ITCH,
         encode::{DbnEncoder, EncodeRecord},
-        rtype, ErrorMsg, MappingInterval, MetadataBuilder, OhlcvMsg, RecordHeader, SType, Schema,
-        SymbolMapping, SymbolMappingMsg, WithTsOut, DBN_VERSION, UNDEF_TIMESTAMP,
+        rtype, Dataset, ErrorMsg, MappingInterval, MetadataBuilder, OhlcvMsg, RecordHeader, SType,
+        Schema, SymbolMapping, SymbolMappingMsg, WithTsOut, DBN_VERSION, UNDEF_TIMESTAMP,
     };
     use rstest::rstest;
     use time::macros::{date, datetime};
@@ -508,7 +507,7 @@ mod tests {
         let mut encoder = DbnEncoder::new(
             Vec::new(),
             &MetadataBuilder::new()
-                .dataset(XNAS_ITCH.to_owned())
+                .dataset(Dataset::XnasItch.to_string())
                 .schema(Some(Schema::Trades))
                 .stype_in(Some(SType::RawSymbol))
                 .stype_out(SType::InstrumentId)
@@ -579,7 +578,7 @@ mod tests {
         let mut encoder = DbnEncoder::new(
             buffer,
             &MetadataBuilder::new()
-                .dataset(XNAS_ITCH.to_owned())
+                .dataset(Dataset::XnasItch.to_string())
                 .schema(Some(Schema::Ohlcv1S))
                 .stype_in(Some(SType::RawSymbol))
                 .stype_out(SType::InstrumentId)
@@ -657,7 +656,7 @@ mod tests {
         let mut encoder = DbnEncoder::new(
             buffer,
             &MetadataBuilder::new()
-                .dataset(XNAS_ITCH.to_owned())
+                .dataset(Dataset::XnasItch.to_string())
                 .schema(Some(Schema::Ohlcv1S))
                 .stype_in(Some(SType::RawSymbol))
                 .stype_out(SType::InstrumentId)
@@ -783,7 +782,7 @@ mod tests {
         let mut encoder = DbnEncoder::new(
             buffer,
             &MetadataBuilder::new()
-                .dataset(XNAS_ITCH.to_owned())
+                .dataset(Dataset::XnasItch.to_string())
                 .schema(None) // Live: mixed schema
                 .stype_in(Some(SType::RawSymbol))
                 .stype_out(SType::InstrumentId)

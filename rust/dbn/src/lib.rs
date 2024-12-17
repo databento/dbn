@@ -54,6 +54,8 @@ pub mod record;
 mod record_enum;
 pub mod record_ref;
 pub mod symbol_map;
+pub mod v1;
+pub mod v2;
 
 pub use crate::{
     enums::{
@@ -104,6 +106,7 @@ pub const UNDEF_TIMESTAMP: u64 = u64::MAX;
 pub const MAX_RECORD_LEN: usize = std::mem::size_of::<WithTsOut<InstrumentDefMsg>>();
 
 /// Contains dataset code constants.
+#[deprecated(since = "0.25.0", note = "Use the `Dataset` enum instead")]
 pub mod datasets {
     use crate::publishers::Dataset;
 

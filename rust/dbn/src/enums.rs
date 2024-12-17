@@ -2,10 +2,7 @@
 
 //! Enums used in Databento APIs.
 
-use std::{
-    fmt::{self, Display, Formatter},
-    str::FromStr,
-};
+use std::fmt::{self, Display, Formatter};
 
 // Dummy derive macro to get around `cfg_attr` incompatibility of several
 // of pyo3's attribute macros. See https://github.com/PyO3/pyo3/issues/780
@@ -1139,7 +1136,7 @@ impl From<Option<bool>> for TriState {
     }
 }
 
-/// How to handle decoding DBN data from a prior version.
+/// How to handle decoding DBN data from other versions.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(
     feature = "python",
@@ -1148,25 +1145,14 @@ impl From<Option<bool>> for TriState {
 )]
 #[non_exhaustive]
 pub enum VersionUpgradePolicy {
-    /// Decode data from previous versions as-is.
+    /// Decode data from all supported versions (less than or equal to
+    /// [`DBN_VERSION`](crate::DBN_VERSION)) as-is.
     AsIs,
-    /// Decode data from previous versions converting it to the latest version. This
-    /// breaks zero-copy decoding for structs that need updating, but makes usage
-    /// simpler.
+    /// Decode and convert data from DBN versions prior to version 2 to that version.
+    /// Attempting to decode data from newer versions (when they're introduced) will
+    /// fail.
     #[default]
-    Upgrade,
-}
-
-impl FromStr for VersionUpgradePolicy {
-    type Err = crate::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "AsIs" => Ok(Self::AsIs),
-            "Upgrade" => Ok(Self::Upgrade),
-            _ => Err(crate::Error::conversion::<VersionUpgradePolicy>(s)),
-        }
-    }
+    UpgradeToV2,
 }
 
 #[cfg(feature = "serde")]

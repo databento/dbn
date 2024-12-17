@@ -1,17 +1,4 @@
 //! Compatibility shims for different DBN versions.
-use std::os::raw::c_char;
-
-use crate::{
-    macros::{dbn_record, CsvSerialize, JsonSerialize},
-    record::{transmute_header_bytes, transmute_record_bytes},
-    rtype, HasRType, RecordHeader, RecordRef, SecurityUpdateAction, UserDefinedInstrument,
-    VersionUpgradePolicy, WithTsOut,
-};
-
-// Dummy derive macro to get around `cfg_attr` incompatibility of several
-// of pyo3's attribute macros. See https://github.com/PyO3/pyo3/issues/780
-#[cfg(not(feature = "python"))]
-use dbn_macros::MockPyo3;
 
 /// The length of symbol fields in DBN version 1 (prior version being phased out).
 pub const SYMBOL_CSTR_LEN_V1: usize = 22;
@@ -32,12 +19,30 @@ pub use crate::record::InstrumentDefMsg as InstrumentDefMsgV2;
 pub use crate::record::SymbolMappingMsg as SymbolMappingMsgV2;
 pub use crate::record::SystemMsg as SystemMsgV2;
 
+use std::os::raw::c_char;
+
+// Dummy derive macro to get around `cfg_attr` incompatibility of several
+// of pyo3's attribute macros. See https://github.com/PyO3/pyo3/issues/780
+#[cfg(not(feature = "python"))]
+use dbn_macros::MockPyo3;
+
+use crate::{
+    macros::{dbn_record, CsvSerialize, JsonSerialize},
+    record::{transmute_header_bytes, transmute_record_bytes},
+    rtype, HasRType, RecordHeader, RecordRef, SecurityUpdateAction, UserDefinedInstrument,
+    VersionUpgradePolicy, WithTsOut, DBN_VERSION,
+};
+
 /// Decodes bytes into a [`RecordRef`], optionally applying conversion from structs
 /// of a prior DBN version to the current DBN version, according to the `version` and
 /// `upgrade_policy`.
 ///
+/// # Preconditions
+/// This function assumes `version` is valid (not greater than [`DBN_VERSION`]).
+///
 /// # Panics
-/// This function will panic if it's passed only a single partial record in `input`.
+/// This function will panic if it's passed only a single partial record in `input` and
+/// an upgrade is attempted. It will also panic if `version` is greater than [`DBN_VERSION`].
 ///
 /// # Safety
 /// Assumes `input` contains a full record.
@@ -48,31 +53,40 @@ pub unsafe fn decode_record_ref<'a>(
     compat_buffer: &'a mut [u8; crate::MAX_RECORD_LEN],
     input: &'a [u8],
 ) -> RecordRef<'a> {
-    if version == 1 && upgrade_policy == VersionUpgradePolicy::Upgrade {
-        let header = transmute_header_bytes(input).unwrap();
-        match header.rtype {
-            rtype::INSTRUMENT_DEF => {
-                return upgrade_record::<InstrumentDefMsgV1, InstrumentDefMsgV2>(
-                    ts_out,
-                    compat_buffer,
-                    input,
-                );
+    match (version, upgrade_policy) {
+        (1, VersionUpgradePolicy::UpgradeToV2) => {
+            let header = transmute_header_bytes(input).unwrap();
+            match header.rtype {
+                rtype::INSTRUMENT_DEF => {
+                    return upgrade_record::<InstrumentDefMsgV1, InstrumentDefMsgV2>(
+                        ts_out,
+                        compat_buffer,
+                        input,
+                    );
+                }
+                rtype::SYMBOL_MAPPING => {
+                    return upgrade_record::<SymbolMappingMsgV1, SymbolMappingMsgV2>(
+                        ts_out,
+                        compat_buffer,
+                        input,
+                    );
+                }
+                rtype::ERROR => {
+                    return upgrade_record::<ErrorMsgV1, ErrorMsgV2>(ts_out, compat_buffer, input);
+                }
+                rtype::SYSTEM => {
+                    return upgrade_record::<SystemMsgV1, SystemMsgV2>(
+                        ts_out,
+                        compat_buffer,
+                        input,
+                    );
+                }
+                _ => (),
             }
-            rtype::SYMBOL_MAPPING => {
-                return upgrade_record::<SymbolMappingMsgV1, SymbolMappingMsgV2>(
-                    ts_out,
-                    compat_buffer,
-                    input,
-                );
-            }
-            rtype::ERROR => {
-                return upgrade_record::<ErrorMsgV1, ErrorMsgV2>(ts_out, compat_buffer, input);
-            }
-            rtype::SYSTEM => {
-                return upgrade_record::<SystemMsgV1, SystemMsgV2>(ts_out, compat_buffer, input);
-            }
-            _ => (),
         }
+        (2, VersionUpgradePolicy::UpgradeToV2) => {}
+        (..=DBN_VERSION, VersionUpgradePolicy::AsIs) => {}
+        _ => panic!("Unsupported version {version}"),
     }
     RecordRef::new(input)
 }
@@ -97,8 +111,34 @@ where
     RecordRef::new(compat_buffer)
 }
 
+/// A trait for symbol mapping records.
+pub trait SymbolMappingRec: HasRType {
+    /// Returns the input symbol as a `&str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `stype_in_symbol` contains invalid UTF-8.
+    fn stype_in_symbol(&self) -> crate::Result<&str>;
+
+    /// Returns the output symbol as a `&str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `stype_out_symbol` contains invalid UTF-8.
+    fn stype_out_symbol(&self) -> crate::Result<&str>;
+
+    /// Parses the raw start of the mapping interval into a datetime. Returns `None` if
+    /// `start_ts` contains the sentinel for a null timestamp.
+    fn start_ts(&self) -> Option<time::OffsetDateTime>;
+
+    /// Parses the raw end of the mapping interval into a datetime. Returns `None` if
+    /// `end_ts` contains the sentinel for a null timestamp.
+    fn end_ts(&self) -> Option<time::OffsetDateTime>;
+}
+
+// Versioned records need to be defined here to work with cbindgen.
+
 /// Definition of an instrument in DBN version 1. The record of the
 /// [`Definition`](crate::enums::Schema::Definition) schema.
+// cbindgen:export_name=InstrumentDefMsgV1
 #[repr(C)]
 #[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
@@ -433,216 +473,6 @@ pub struct SystemMsgV1 {
     pub msg: [c_char; 64],
 }
 
-impl From<&InstrumentDefMsgV1> for InstrumentDefMsgV2 {
-    fn from(old: &InstrumentDefMsgV1) -> Self {
-        let mut res = Self {
-            // recalculate length
-            hd: RecordHeader::new::<Self>(
-                rtype::INSTRUMENT_DEF,
-                old.hd.publisher_id,
-                old.hd.instrument_id,
-                old.hd.ts_event,
-            ),
-            ts_recv: old.ts_recv,
-            min_price_increment: old.min_price_increment,
-            display_factor: old.display_factor,
-            expiration: old.expiration,
-            activation: old.activation,
-            high_limit_price: old.high_limit_price,
-            low_limit_price: old.low_limit_price,
-            max_price_variation: old.max_price_variation,
-            trading_reference_price: old.trading_reference_price,
-            unit_of_measure_qty: old.unit_of_measure_qty,
-            min_price_increment_amount: old.min_price_increment_amount,
-            price_ratio: old.price_ratio,
-            inst_attrib_value: old.inst_attrib_value,
-            underlying_id: old.underlying_id,
-            raw_instrument_id: old.raw_instrument_id,
-            market_depth_implied: old.market_depth_implied,
-            market_depth: old.market_depth,
-            market_segment_id: old.market_segment_id,
-            max_trade_vol: old.max_trade_vol,
-            min_lot_size: old.min_lot_size,
-            min_lot_size_block: old.min_lot_size_block,
-            min_lot_size_round_lot: old.min_lot_size_round_lot,
-            min_trade_vol: old.min_trade_vol,
-            contract_multiplier: old.contract_multiplier,
-            decay_quantity: old.decay_quantity,
-            original_contract_size: old.original_contract_size,
-            trading_reference_date: old.trading_reference_date,
-            appl_id: old.appl_id,
-            maturity_year: old.maturity_year,
-            decay_start_date: old.decay_start_date,
-            channel_id: old.channel_id,
-            currency: old.currency,
-            settl_currency: old.settl_currency,
-            secsubtype: old.secsubtype,
-            group: old.group,
-            exchange: old.exchange,
-            asset: old.asset,
-            cfi: old.cfi,
-            security_type: old.security_type,
-            unit_of_measure: old.unit_of_measure,
-            underlying: old.underlying,
-            strike_price_currency: old.strike_price_currency,
-            instrument_class: old.instrument_class,
-            strike_price: old.strike_price,
-            match_algorithm: old.match_algorithm,
-            md_security_trading_status: old.md_security_trading_status,
-            main_fraction: old.main_fraction,
-            price_display_format: old.price_display_format,
-            settl_price_type: old.settl_price_type,
-            sub_fraction: old.sub_fraction,
-            underlying_product: old.underlying_product,
-            security_update_action: old.security_update_action as c_char,
-            maturity_month: old.maturity_month,
-            maturity_day: old.maturity_day,
-            maturity_week: old.maturity_week,
-            user_defined_instrument: old.user_defined_instrument,
-            contract_multiplier_unit: old.contract_multiplier_unit,
-            flow_schedule_type: old.flow_schedule_type,
-            tick_rule: old.tick_rule,
-            ..Default::default()
-        };
-        // Safety: SYMBOL_CSTR_LEN_V1 is less than SYMBOL_CSTR_LEN
-        unsafe {
-            std::ptr::copy_nonoverlapping(
-                old.raw_symbol.as_ptr(),
-                res.raw_symbol.as_mut_ptr(),
-                SYMBOL_CSTR_LEN_V1,
-            );
-        }
-        res
-    }
-}
-
-impl From<&ErrorMsgV1> for ErrorMsgV2 {
-    fn from(old: &ErrorMsgV1) -> Self {
-        let mut new = Self {
-            hd: RecordHeader::new::<Self>(
-                rtype::ERROR,
-                old.hd.publisher_id,
-                old.hd.instrument_id,
-                old.hd.ts_event,
-            ),
-            ..Default::default()
-        };
-        // Safety: new `err` is longer than older
-        unsafe {
-            std::ptr::copy_nonoverlapping(old.err.as_ptr(), new.err.as_mut_ptr(), new.err.len());
-        }
-        new
-    }
-}
-
-impl From<&SymbolMappingMsgV1> for SymbolMappingMsgV2 {
-    fn from(old: &SymbolMappingMsgV1) -> Self {
-        let mut res = Self {
-            hd: RecordHeader::new::<Self>(
-                rtype::SYMBOL_MAPPING,
-                old.hd.publisher_id,
-                old.hd.instrument_id,
-                old.hd.ts_event,
-            ),
-            start_ts: old.start_ts,
-            end_ts: old.end_ts,
-            ..Default::default()
-        };
-        // Safety: SYMBOL_CSTR_LEN_V1 is less than SYMBOL_CSTR_LEN
-        unsafe {
-            std::ptr::copy_nonoverlapping(
-                old.stype_in_symbol.as_ptr(),
-                res.stype_in_symbol.as_mut_ptr(),
-                SYMBOL_CSTR_LEN_V1,
-            );
-            std::ptr::copy_nonoverlapping(
-                old.stype_out_symbol.as_ptr(),
-                res.stype_out_symbol.as_mut_ptr(),
-                SYMBOL_CSTR_LEN_V1,
-            );
-        }
-        res
-    }
-}
-
-impl From<&SystemMsgV1> for SystemMsgV2 {
-    fn from(old: &SystemMsgV1) -> Self {
-        let mut new = Self {
-            hd: RecordHeader::new::<Self>(
-                rtype::SYSTEM,
-                old.hd.publisher_id,
-                old.hd.instrument_id,
-                old.hd.ts_event,
-            ),
-            ..Default::default()
-        };
-        // Safety: new `msg` is longer than older
-        unsafe {
-            std::ptr::copy_nonoverlapping(old.msg.as_ptr(), new.msg.as_mut_ptr(), new.msg.len());
-        }
-        new
-    }
-}
-
-/// A trait for symbol mapping records.
-pub trait SymbolMappingRec: HasRType {
-    /// Returns the input symbol as a `&str`.
-    ///
-    /// # Errors
-    /// This function returns an error if `stype_in_symbol` contains invalid UTF-8.
-    fn stype_in_symbol(&self) -> crate::Result<&str>;
-
-    /// Returns the output symbol as a `&str`.
-    ///
-    /// # Errors
-    /// This function returns an error if `stype_out_symbol` contains invalid UTF-8.
-    fn stype_out_symbol(&self) -> crate::Result<&str>;
-
-    /// Parses the raw start of the mapping interval into a datetime. Returns `None` if
-    /// `start_ts` contains the sentinel for a null timestamp.
-    fn start_ts(&self) -> Option<time::OffsetDateTime>;
-
-    /// Parses the raw end of the mapping interval into a datetime. Returns `None` if
-    /// `end_ts` contains the sentinel for a null timestamp.
-    fn end_ts(&self) -> Option<time::OffsetDateTime>;
-}
-
-impl SymbolMappingRec for SymbolMappingMsgV1 {
-    fn stype_in_symbol(&self) -> crate::Result<&str> {
-        Self::stype_in_symbol(self)
-    }
-
-    fn stype_out_symbol(&self) -> crate::Result<&str> {
-        Self::stype_out_symbol(self)
-    }
-
-    fn start_ts(&self) -> Option<time::OffsetDateTime> {
-        Self::start_ts(self)
-    }
-
-    fn end_ts(&self) -> Option<time::OffsetDateTime> {
-        Self::end_ts(self)
-    }
-}
-
-impl SymbolMappingRec for SymbolMappingMsgV2 {
-    fn stype_in_symbol(&self) -> crate::Result<&str> {
-        Self::stype_in_symbol(self)
-    }
-
-    fn stype_out_symbol(&self) -> crate::Result<&str> {
-        Self::stype_out_symbol(self)
-    }
-
-    fn start_ts(&self) -> Option<time::OffsetDateTime> {
-        Self::start_ts(self)
-    }
-
-    fn end_ts(&self) -> Option<time::OffsetDateTime> {
-        Self::end_ts(self)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::{ffi::c_char, mem};
@@ -709,7 +539,7 @@ mod tests {
         let res = unsafe {
             decode_record_ref(
                 1,
-                VersionUpgradePolicy::Upgrade,
+                VersionUpgradePolicy::UpgradeToV2,
                 true,
                 &mut compat_buffer,
                 orig.as_ref(),
@@ -740,7 +570,7 @@ mod tests {
         let res = unsafe {
             decode_record_ref(
                 1,
-                VersionUpgradePolicy::Upgrade,
+                VersionUpgradePolicy::UpgradeToV2,
                 true,
                 &mut compat_buffer,
                 orig.as_ref(),

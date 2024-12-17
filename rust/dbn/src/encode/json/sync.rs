@@ -207,7 +207,6 @@ mod tests {
     use super::*;
     use crate::{
         compat::SYMBOL_CSTR_LEN_V1,
-        datasets::GLBX_MDP3,
         encode::test_data::{VecStream, BID_ASK, RECORD_HEADER},
         enums::{
             rtype, InstrumentClass, SType, Schema, SecurityUpdateAction, StatType,
@@ -217,7 +216,7 @@ mod tests {
             str_to_c_chars, ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg,
             OhlcvMsg, RecordHeader, StatMsg, StatusMsg, TradeMsg, WithTsOut,
         },
-        MappingInterval, RecordRef, SymbolMapping, FIXED_PRICE_SCALE,
+        Dataset, MappingInterval, RecordRef, SymbolMapping, FIXED_PRICE_SCALE,
     };
 
     fn write_json_to_string<R>(
@@ -614,7 +613,7 @@ mod tests {
     fn test_metadata_write_json() {
         let metadata = Metadata {
             version: 1,
-            dataset: GLBX_MDP3.to_owned(),
+            dataset: Dataset::GlbxMdp3.to_string(),
             schema: Some(Schema::Ohlcv1H),
             start: 1662734705128748281,
             end: NonZeroU64::new(1662734720914876944),

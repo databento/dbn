@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.25.0 - 2024-12-17
+
+### Breaking changes
+- Renamed `VersionUpgradePolicy::Upgrade` to `UpgradeToV2` in preparation for a future
+  DBN version 3
+
+### Enhancements
+- Added `v1` and `v2` modules to allow unambiguously referring to the record types for
+  a given DBN version regardless of whether the record type has changed. Previously
+  versioned aliases only existed for record types that have changed between DBN versions
+  - Added identical namespaces to `databento_dbn` Python package
+- Changed `dataset()` method on `MetadataBuilder` to accept an `impl ToString` so now
+  `Dataset` and `&str` can be passed directly
+- Added type aliases for `TBBOMsg`, `BBO1SMsg`, `BBO1MMsg`, `TCBBOMsg`, `CBBO1SMsg`,
+  `CBBO1MMsg` in Python
+
+### Deprecations
+- Deprecated `dataset` module. The top-level `Dataset` enum and its `const` `as_str()`
+  method provide the same functionality for all datasets. This module will be removed in
+  a future version
+
 ## 0.24.0 - 2024-12-10
 
 ### Enhancements

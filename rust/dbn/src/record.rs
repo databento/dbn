@@ -1,5 +1,5 @@
 //! Market data types for encoding different Databento [`Schema`](crate::enums::Schema)s
-//! and conversion functions.
+//! in the most recent DBN version, as well as conversion functions.
 
 pub(crate) mod conv;
 mod impl_default;
