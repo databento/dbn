@@ -8,13 +8,13 @@ use pyo3::{
 };
 
 use crate::{
-    compat::{ErrorMsgV1, InstrumentDefMsgV1, SymbolMappingMsgV1, SystemMsgV1},
+    compat::{ErrorMsgV1, InstrumentDefMsgV1, InstrumentDefMsgV3, SymbolMappingMsgV1, SystemMsgV1},
     pretty::px_to_f64,
     record::str_to_c_chars,
     rtype, BboMsg, BidAskPair, CbboMsg, Cmbp1Msg, ConsolidatedBidAskPair, ErrorMsg, FlagSet,
     HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, Record,
-    RecordHeader, SType, SecurityUpdateAction, StatMsg, StatUpdateAction, StatusAction, StatusMsg,
-    StatusReason, SymbolMappingMsg, SystemMsg, TradeMsg, TradingEvent, TriState,
+    RecordHeader, SType, SecurityUpdateAction, Side, StatMsg, StatUpdateAction, StatusAction,
+    StatusMsg, StatusReason, SymbolMappingMsg, SystemMsg, TradeMsg, TradingEvent, TriState,
     UserDefinedInstrument, WithTsOut, UNDEF_ORDER_SIZE, UNDEF_PRICE, UNDEF_TIMESTAMP,
 };
 
@@ -1511,6 +1511,519 @@ impl StatusMsg {
     #[classattr]
     fn size_hint() -> PyResult<usize> {
         Ok(mem::size_of::<Self>())
+    }
+
+    #[classattr]
+    #[pyo3(name = "_dtypes")]
+    fn py_dtypes() -> Vec<(String, String)> {
+        Self::field_dtypes("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_price_fields")]
+    fn py_price_fields() -> Vec<String> {
+        Self::price_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_timestamp_fields")]
+    fn py_timestamp_fields() -> Vec<String> {
+        Self::timestamp_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_hidden_fields")]
+    fn py_hidden_fields() -> Vec<String> {
+        Self::hidden_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_ordered_fields")]
+    fn py_ordered_fields() -> Vec<String> {
+        Self::ordered_fields("")
+    }
+}
+
+#[pymethods]
+impl InstrumentDefMsgV3 {
+    #[new]
+    #[pyo3(signature = (
+        publisher_id,
+        instrument_id,
+        ts_event,
+        ts_recv,
+        min_price_increment,
+        display_factor,
+        min_lot_size_round_lot,
+        raw_symbol,
+        group,
+        exchange,
+        instrument_class,
+        match_algorithm,
+        security_update_action,
+        expiration = UNDEF_TIMESTAMP,
+        activation = UNDEF_TIMESTAMP,
+        high_limit_price = UNDEF_PRICE,
+        low_limit_price = UNDEF_PRICE,
+        max_price_variation = UNDEF_PRICE,
+        unit_of_measure_qty = UNDEF_PRICE,
+        min_price_increment_amount = UNDEF_PRICE,
+        price_ratio = UNDEF_PRICE,
+        inst_attrib_value = None,
+        underlying_id = None,
+        raw_instrument_id = None,
+        market_depth_implied = None,
+        market_depth = None,
+        market_segment_id = None,
+        max_trade_vol = None,
+        min_lot_size = None,
+        min_lot_size_block = None,
+        min_trade_vol = None,
+        contract_multiplier = None,
+        decay_quantity = None,
+        original_contract_size = None,
+        appl_id = None,
+        maturity_year = None,
+        decay_start_date = None,
+        channel_id = None,
+        currency = "",
+        settl_currency = "",
+        secsubtype = "",
+        asset = "",
+        cfi = "",
+        security_type = "",
+        unit_of_measure = "",
+        underlying = "",
+        strike_price_currency = "",
+        strike_price = UNDEF_PRICE,
+        main_fraction = None,
+        price_display_format = None,
+        sub_fraction = None,
+        underlying_product = None,
+        maturity_month = None,
+        maturity_day = None,
+        maturity_week = None,
+        user_defined_instrument = None,
+        contract_multiplier_unit = None,
+        flow_schedule_type = None,
+        tick_rule = None,
+        leg_count = 0,
+        leg_index = 0,
+        leg_price = UNDEF_PRICE,
+        leg_delta = UNDEF_PRICE,
+        leg_instrument_id = 0,
+        leg_ratio_price_numerator = 0,
+        leg_ratio_price_denominator = 0,
+        leg_ratio_qty_numerator = 0,
+        leg_ratio_qty_denominator = 0,
+        leg_underlying_id = 0,
+        leg_raw_symbol = "",
+        leg_instrument_class = None,
+        leg_side = None,
+  ))]
+    fn py_new(
+        publisher_id: u16,
+        instrument_id: u32,
+        ts_event: u64,
+        ts_recv: u64,
+        min_price_increment: i64,
+        display_factor: i64,
+        min_lot_size_round_lot: i32,
+        raw_symbol: &str,
+        group: &str,
+        exchange: &str,
+        instrument_class: char,
+        match_algorithm: char,
+        security_update_action: SecurityUpdateAction,
+        expiration: u64,
+        activation: u64,
+        high_limit_price: i64,
+        low_limit_price: i64,
+        max_price_variation: i64,
+        unit_of_measure_qty: i64,
+        min_price_increment_amount: i64,
+        price_ratio: i64,
+        inst_attrib_value: Option<i32>,
+        underlying_id: Option<u32>,
+        raw_instrument_id: Option<u64>,
+        market_depth_implied: Option<i32>,
+        market_depth: Option<i32>,
+        market_segment_id: Option<u32>,
+        max_trade_vol: Option<u32>,
+        min_lot_size: Option<i32>,
+        min_lot_size_block: Option<i32>,
+        min_trade_vol: Option<u32>,
+        contract_multiplier: Option<i32>,
+        decay_quantity: Option<i32>,
+        original_contract_size: Option<i32>,
+        appl_id: Option<i16>,
+        maturity_year: Option<u16>,
+        decay_start_date: Option<u16>,
+        channel_id: Option<u16>,
+        currency: &str,
+        settl_currency: &str,
+        secsubtype: &str,
+        asset: &str,
+        cfi: &str,
+        security_type: &str,
+        unit_of_measure: &str,
+        underlying: &str,
+        strike_price_currency: &str,
+        strike_price: i64,
+        main_fraction: Option<u8>,
+        price_display_format: Option<u8>,
+        sub_fraction: Option<u8>,
+        underlying_product: Option<u8>,
+        maturity_month: Option<u8>,
+        maturity_day: Option<u8>,
+        maturity_week: Option<u8>,
+        user_defined_instrument: Option<UserDefinedInstrument>,
+        contract_multiplier_unit: Option<i8>,
+        flow_schedule_type: Option<i8>,
+        tick_rule: Option<u8>,
+        leg_count: u16,
+        leg_index: u16,
+        leg_price: i64,
+        leg_delta: i64,
+        leg_instrument_id: u32,
+        leg_ratio_price_numerator: i32,
+        leg_ratio_price_denominator: i32,
+        leg_ratio_qty_numerator: i32,
+        leg_ratio_qty_denominator: i32,
+        leg_underlying_id: u32,
+        leg_raw_symbol: &str,
+        leg_instrument_class: Option<char>,
+        leg_side: Option<char>,
+    ) -> PyResult<Self> {
+        Ok(Self {
+            hd: RecordHeader::new::<Self>(
+                rtype::INSTRUMENT_DEF,
+                publisher_id,
+                instrument_id,
+                ts_event,
+            ),
+            ts_recv,
+            min_price_increment,
+            display_factor,
+            expiration,
+            activation,
+            high_limit_price,
+            low_limit_price,
+            max_price_variation,
+            unit_of_measure_qty,
+            min_price_increment_amount,
+            price_ratio,
+            inst_attrib_value: inst_attrib_value.unwrap_or(i32::MAX),
+            underlying_id: underlying_id.unwrap_or_default(),
+            raw_instrument_id: raw_instrument_id.unwrap_or(instrument_id as u64),
+            market_depth_implied: market_depth_implied.unwrap_or(i32::MAX),
+            market_depth: market_depth.unwrap_or(i32::MAX),
+            market_segment_id: market_segment_id.unwrap_or(u32::MAX),
+            max_trade_vol: max_trade_vol.unwrap_or(u32::MAX),
+            min_lot_size: min_lot_size.unwrap_or(i32::MAX),
+            min_lot_size_block: min_lot_size_block.unwrap_or(i32::MAX),
+            min_lot_size_round_lot,
+            min_trade_vol: min_trade_vol.unwrap_or(u32::MAX),
+            contract_multiplier: contract_multiplier.unwrap_or(i32::MAX),
+            decay_quantity: decay_quantity.unwrap_or(i32::MAX),
+            original_contract_size: original_contract_size.unwrap_or(i32::MAX),
+            appl_id: appl_id.unwrap_or(i16::MAX),
+            maturity_year: maturity_year.unwrap_or(u16::MAX),
+            decay_start_date: decay_start_date.unwrap_or(u16::MAX),
+            channel_id: channel_id.unwrap_or(u16::MAX),
+            currency: str_to_c_chars(currency)?,
+            settl_currency: str_to_c_chars(settl_currency)?,
+            secsubtype: str_to_c_chars(secsubtype)?,
+            raw_symbol: str_to_c_chars(raw_symbol)?,
+            group: str_to_c_chars(group)?,
+            exchange: str_to_c_chars(exchange)?,
+            asset: str_to_c_chars(asset)?,
+            cfi: str_to_c_chars(cfi)?,
+            security_type: str_to_c_chars(security_type)?,
+            unit_of_measure: str_to_c_chars(unit_of_measure)?,
+            underlying: str_to_c_chars(underlying)?,
+            strike_price_currency: str_to_c_chars(strike_price_currency)?,
+            instrument_class: char_to_c_char(instrument_class)?,
+            strike_price,
+            match_algorithm: char_to_c_char(match_algorithm)?,
+            main_fraction: main_fraction.unwrap_or(u8::MAX),
+            price_display_format: price_display_format.unwrap_or(u8::MAX),
+            sub_fraction: sub_fraction.unwrap_or(u8::MAX),
+            underlying_product: underlying_product.unwrap_or(u8::MAX),
+            security_update_action: security_update_action as c_char,
+            maturity_month: maturity_month.unwrap_or(u8::MAX),
+            maturity_day: maturity_day.unwrap_or(u8::MAX),
+            maturity_week: maturity_week.unwrap_or(u8::MAX),
+            user_defined_instrument: user_defined_instrument
+                .map(|udi| udi as c_char)
+                .unwrap_or_default(),
+            contract_multiplier_unit: contract_multiplier_unit.unwrap_or(i8::MAX),
+            flow_schedule_type: flow_schedule_type.unwrap_or(i8::MAX),
+            tick_rule: tick_rule.unwrap_or(u8::MAX),
+            leg_count,
+            leg_index,
+            leg_price,
+            leg_delta,
+            leg_instrument_id,
+            leg_ratio_price_numerator,
+            leg_ratio_price_denominator,
+            leg_ratio_qty_numerator,
+            leg_ratio_qty_denominator,
+            leg_underlying_id,
+            leg_raw_symbol: str_to_c_chars(leg_raw_symbol)?,
+            leg_instrument_class: if let Some(ic) = leg_instrument_class {
+                char_to_c_char(ic)?
+            } else {
+                0
+            },
+            leg_side: if let Some(leg_side) = leg_side {
+                char_to_c_char(leg_side)?
+            } else {
+                Side::None as c_char
+            },
+            _reserved: Default::default(),
+        })
+    }
+
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+        match op {
+            CompareOp::Eq => self.eq(other).into_py(py),
+            CompareOp::Ne => self.ne(other).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
+
+    #[getter]
+    fn rtype(&self) -> u8 {
+        self.hd.rtype
+    }
+
+    #[getter]
+    fn publisher_id(&self) -> u16 {
+        self.hd.publisher_id
+    }
+
+    #[getter]
+    fn instrument_id(&self) -> u32 {
+        self.hd.instrument_id
+    }
+
+    #[getter]
+    fn ts_event(&self) -> u64 {
+        self.hd.ts_event
+    }
+
+    #[setter]
+    fn set_ts_event(&mut self, ts_event: u64) {
+        self.hd.ts_event = ts_event;
+    }
+
+    #[getter]
+    fn get_pretty_min_price_increment(&self) -> f64 {
+        px_to_f64(self.min_price_increment)
+    }
+
+    #[getter]
+    fn get_pretty_high_limit_price(&self) -> f64 {
+        px_to_f64(self.high_limit_price)
+    }
+
+    #[getter]
+    fn get_pretty_low_limit_price(&self) -> f64 {
+        px_to_f64(self.low_limit_price)
+    }
+
+    #[getter]
+    fn get_pretty_max_price_variation(&self) -> f64 {
+        px_to_f64(self.max_price_variation)
+    }
+
+    #[getter]
+    fn get_pretty_min_price_increment_amount(&self) -> f64 {
+        px_to_f64(self.min_price_increment_amount)
+    }
+
+    #[getter]
+    fn get_pretty_price_ratio(&self) -> f64 {
+        px_to_f64(self.price_ratio)
+    }
+
+    #[getter]
+    fn get_pretty_strike_price(&self) -> f64 {
+        self.strike_price_f64()
+    }
+
+    #[getter]
+    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+        new_py_timestamp_or_datetime(py, self.ts_event())
+    }
+
+    #[getter]
+    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+        new_py_timestamp_or_datetime(py, self.ts_recv)
+    }
+
+    #[getter]
+    fn get_pretty_activation(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+        new_py_timestamp_or_datetime(py, self.activation)
+    }
+
+    #[getter]
+    fn get_pretty_expiration(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+        new_py_timestamp_or_datetime(py, self.expiration)
+    }
+
+    #[pyo3(name = "record_size")]
+    fn py_record_size(&self) -> usize {
+        self.record_size()
+    }
+
+    #[classattr]
+    fn size_hint() -> PyResult<usize> {
+        Ok(mem::size_of::<Self>())
+    }
+
+    #[getter]
+    fn get_currency(&self) -> PyResult<&str> {
+        Ok(self.currency()?)
+    }
+
+    #[getter]
+    fn get_settl_currency(&self) -> PyResult<&str> {
+        Ok(self.settl_currency()?)
+    }
+
+    #[getter]
+    fn get_secsubtype(&self) -> PyResult<&str> {
+        Ok(self.secsubtype()?)
+    }
+
+    #[getter]
+    fn get_raw_symbol(&self) -> PyResult<&str> {
+        Ok(self.raw_symbol()?)
+    }
+
+    #[getter]
+    fn get_group(&self) -> PyResult<&str> {
+        Ok(self.group()?)
+    }
+
+    #[getter]
+    fn get_exchange(&self) -> PyResult<&str> {
+        Ok(self.exchange()?)
+    }
+
+    #[getter]
+    fn get_asset(&self) -> PyResult<&str> {
+        Ok(self.asset()?)
+    }
+
+    #[getter]
+    fn get_cfi(&self) -> PyResult<&str> {
+        Ok(self.cfi()?)
+    }
+
+    #[getter]
+    fn get_security_type(&self) -> PyResult<&str> {
+        Ok(self.security_type()?)
+    }
+
+    #[getter]
+    fn get_unit_of_measure(&self) -> PyResult<&str> {
+        Ok(self.unit_of_measure()?)
+    }
+
+    #[getter]
+    fn get_underlying(&self) -> PyResult<&str> {
+        Ok(self.underlying()?)
+    }
+
+    #[getter]
+    fn get_strike_price_currency(&self) -> PyResult<&str> {
+        Ok(self.strike_price_currency()?)
+    }
+
+    #[getter]
+    fn get_instrument_class(&self) -> char {
+        self.instrument_class as u8 as char
+    }
+    #[setter]
+    fn set_instrument_class(&mut self, instrument_class: char) -> PyResult<()> {
+        self.instrument_class = char_to_c_char(instrument_class)?;
+        Ok(())
+    }
+
+    #[getter]
+    fn get_match_algorithm(&self) -> char {
+        self.match_algorithm as u8 as char
+    }
+    #[setter]
+    fn set_match_algorithm(&mut self, match_algorithm: char) -> PyResult<()> {
+        self.match_algorithm = char_to_c_char(match_algorithm)?;
+        Ok(())
+    }
+
+    #[getter]
+    fn get_security_update_action(&self) -> char {
+        self.security_update_action as u8 as char
+    }
+    #[setter]
+    fn set_security_update_action(&mut self, security_update_action: char) -> PyResult<()> {
+        self.security_update_action = char_to_c_char(security_update_action)?;
+        Ok(())
+    }
+
+    #[getter]
+    fn get_user_defined_instrument(&self) -> char {
+        self.user_defined_instrument as u8 as char
+    }
+    #[setter]
+    fn set_user_defined_instrument(&mut self, user_defined_instrument: char) -> PyResult<()> {
+        self.user_defined_instrument = char_to_c_char(user_defined_instrument)?;
+        Ok(())
+    }
+
+    #[getter]
+    fn get_leg_raw_symbol(&self) -> PyResult<&str> {
+        Ok(self.leg_raw_symbol()?)
+    }
+
+    #[getter]
+    fn get_leg_instrument_class(&self) -> char {
+        self.leg_instrument_class as u8 as char
+    }
+    #[setter]
+    fn set_leg_instrument_class(&mut self, leg_instrument_class: char) -> PyResult<()> {
+        self.leg_instrument_class = char_to_c_char(leg_instrument_class)?;
+        Ok(())
+    }
+
+    #[getter]
+    fn get_leg_side(&self) -> char {
+        self.leg_side as u8 as char
+    }
+    #[setter]
+    fn set_leg_side(&mut self, leg_side: char) -> PyResult<()> {
+        self.leg_side = char_to_c_char(leg_side)?;
+        Ok(())
+    }
+
+    #[getter]
+    fn get_pretty_leg_price(&self) -> f64 {
+        self.leg_price_f64()
+    }
+
+    #[getter]
+    fn get_pretty_leg_delta(&self) -> f64 {
+        self.leg_delta_f64()
     }
 
     #[classattr]

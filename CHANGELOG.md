@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.26.0 - TBD
+
+### Enhancements
+- Added `v3` namespace in preparation for future DBN version 3 release. DBN version 2
+  remains the current and default version
+- Added `v3::InstrumentDefMsg` record with new fields to support normalizing multi-leg
+  strategy definitions
+  - Removal of statistics-schema related fields `trading_reference_price`,
+    `trading_reference_date`, and `settl_price_type`
+  - Removal of the status-schema related field `md_security_trading_status`
+- Added `from_instrument_def_v1_to_v3` and `from_instrument_def_v2_to_v3` conversion
+  functions to the C API
+- Updated the value of the `MAX_RECORD_LEN` constant for the changes to
+  `InstrumentDefMsg` in version 3
+
 ## 0.25.0 - 2024-12-17
 
 ### Breaking changes

@@ -33,3 +33,60 @@ impl SymbolMappingRec for SymbolMappingMsg {
         Self::end_ts(self)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::mem;
+
+    use rstest::*;
+    use type_layout::{Field, TypeLayout};
+
+    use crate::v2;
+
+    use super::*;
+
+    #[test]
+    fn test_default_equivalency() {
+        assert_eq!(
+            v2::InstrumentDefMsg::from(&InstrumentDefMsg::default()),
+            v2::InstrumentDefMsg::default()
+        );
+    }
+
+    #[cfg(feature = "python")]
+    #[test]
+    fn test_strike_price_order_didnt_change() {
+        use crate::python::PyFieldDesc;
+
+        assert_eq!(
+            InstrumentDefMsg::ordered_fields(""),
+            v2::InstrumentDefMsg::ordered_fields("")
+        );
+    }
+
+    #[rstest]
+    #[case::definition(InstrumentDefMsg::default(), 360)]
+    #[case::error(ErrorMsg::default(), 80)]
+    #[case::symbol_mapping(SymbolMappingMsg::default(), 80)]
+    #[case::system(SystemMsg::default(), 80)]
+    fn test_sizes<R: Sized>(#[case] _rec: R, #[case] exp: usize) {
+        assert_eq!(mem::size_of::<R>(), exp);
+        assert!(mem::size_of::<R>() <= crate::MAX_RECORD_LEN);
+    }
+
+    #[rstest]
+    #[case::definition(InstrumentDefMsg::default())]
+    #[case::error(ErrorMsg::default())]
+    #[case::symbol_mapping(SymbolMappingMsg::default())]
+    #[case::system(SystemMsg::default())]
+    fn test_alignment_and_no_padding<R: TypeLayout>(#[case] _rec: R) {
+        let layout = R::type_layout();
+        assert_eq!(layout.alignment, 8, "Unexpected alignment: {layout}");
+        for field in layout.fields.iter() {
+            assert!(
+                matches!(field, Field::Field { .. }),
+                "Detected padding: {layout}"
+            );
+        }
+    }
+}
