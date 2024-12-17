@@ -17,7 +17,7 @@ from ._lib import TradeMsg
 
 
 # Aliases
-TBBOMsg = MBOMsg
+TBBOMsg = MBP1Msg
 BBO1SMsg = BBOMsg
 BBO1MMsg = BBOMsg
 TCBBOMsg = CMBP1Msg
