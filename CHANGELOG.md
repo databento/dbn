@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.25.0 - TBD
+## 0.25.0 - 2024-12-17
 
 ### Breaking changes
 - Renamed `VersionUpgradePolicy::Upgrade` to `UpgradeToV2` in preparation for a future
