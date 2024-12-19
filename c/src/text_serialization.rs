@@ -265,17 +265,17 @@ fn write_null_and_ret(mut cursor: io::Cursor<&mut [u8]>, res: dbn::Result<()>) -
 mod tests {
     use std::os::raw::c_char;
 
-    use dbn::{compat::InstrumentDefMsgV1, InstrumentDefMsg};
+    use dbn::{v1, v2, v3};
 
     use super::*;
 
     #[test]
     fn test_serialize_def_v1() {
-        let mut def_v1 = InstrumentDefMsgV1 {
-            raw_symbol: [b'a' as c_char; dbn::compat::SYMBOL_CSTR_LEN_V1],
+        let mut def_v1 = v1::InstrumentDefMsg {
+            raw_symbol: [b'a' as c_char; v1::SYMBOL_CSTR_LEN],
             ..Default::default()
         };
-        def_v1.raw_symbol[dbn::compat::SYMBOL_CSTR_LEN_V1 - 1] = 0;
+        def_v1.raw_symbol[v1::SYMBOL_CSTR_LEN - 1] = 0;
         let mut buf = [0; 5000];
         assert!(
             unsafe {
@@ -301,11 +301,11 @@ mod tests {
 
     #[test]
     fn test_serialize_def_v2() {
-        let mut def_v2 = InstrumentDefMsg {
-            raw_symbol: [b'a' as c_char; dbn::compat::SYMBOL_CSTR_LEN_V2],
+        let mut def_v2 = v2::InstrumentDefMsg {
+            raw_symbol: [b'a' as c_char; v2::SYMBOL_CSTR_LEN],
             ..Default::default()
         };
-        def_v2.raw_symbol[dbn::compat::SYMBOL_CSTR_LEN_V2 - 1] = 0;
+        def_v2.raw_symbol[v2::SYMBOL_CSTR_LEN - 1] = 0;
         let mut buf = [0; 5000];
         assert!(
             unsafe {
@@ -325,7 +325,47 @@ mod tests {
         let res = std::str::from_utf8(buf.as_slice()).unwrap();
         assert!(res.contains(&format!(
             "\"raw_symbol\":\"{}\",",
-            "a".repeat(dbn::compat::SYMBOL_CSTR_LEN_V2 - 1)
+            "a".repeat(v2::SYMBOL_CSTR_LEN - 1)
         )));
+    }
+
+    #[test]
+    fn test_serialize_def_v3() {
+        let mut def_v3 = v3::InstrumentDefMsg {
+            raw_symbol: [b'a' as c_char; v3::SYMBOL_CSTR_LEN],
+            leg_raw_symbol: [b'c' as c_char; v3::SYMBOL_CSTR_LEN],
+            ..Default::default()
+        };
+        def_v3.raw_symbol[v3::SYMBOL_CSTR_LEN - 1] = 0;
+        def_v3.leg_raw_symbol[v3::SYMBOL_CSTR_LEN - 1] = 0;
+        def_v3.leg_index = 1;
+        def_v3.leg_count = 4;
+        let mut buf = [0; 5000];
+        assert!(
+            unsafe {
+                s_serialize_record(
+                    buf.as_mut_ptr().cast(),
+                    buf.len(),
+                    &def_v3.hd,
+                    &SerializeRecordOptions {
+                        encoding: TextEncoding::Json,
+                        ts_out: false,
+                        pretty_px: false,
+                        pretty_ts: false,
+                    },
+                )
+            } > 0
+        );
+        let res = std::str::from_utf8(buf.as_slice()).unwrap();
+        assert!(res.contains(&format!(
+            "\"raw_symbol\":\"{}\",",
+            "a".repeat(v3::SYMBOL_CSTR_LEN - 1)
+        )));
+        assert!(res.contains(&format!(
+            "\"leg_raw_symbol\":\"{}\",",
+            "c".repeat(v3::SYMBOL_CSTR_LEN - 1)
+        )));
+        assert!(res.contains("\"leg_index\":1,"));
+        assert!(res.contains("\"leg_count\":4,"));
     }
 }

@@ -29,10 +29,15 @@ macro_rules! rtype_dispatch_base {
                 RType::Imbalance => $handler!(ImbalanceMsg),
                 RType::Status => $handler!(StatusMsg),
                 RType::InstrumentDef => {
-                    if $rec_ref.record_size() < std::mem::size_of::<InstrumentDefMsg>() {
+                    if $rec_ref.record_size() < std::mem::size_of::<$crate::v2::InstrumentDefMsg>()
+                    {
                         $handler!($crate::v1::InstrumentDefMsg)
+                    } else if $rec_ref.record_size()
+                        < std::mem::size_of::<$crate::v3::InstrumentDefMsg>()
+                    {
+                        $handler!($crate::v2::InstrumentDefMsg)
                     } else {
-                        $handler!(InstrumentDefMsg)
+                        $handler!($crate::v3::InstrumentDefMsg)
                     }
                 }
                 RType::SymbolMapping => {
