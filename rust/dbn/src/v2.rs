@@ -83,14 +83,7 @@ impl From<&v1::InstrumentDefMsg> for InstrumentDefMsg {
             tick_rule: old.tick_rule,
             ..Default::default()
         };
-        // Safety: SYMBOL_CSTR_LEN_V1 is less than SYMBOL_CSTR_LEN
-        unsafe {
-            std::ptr::copy_nonoverlapping(
-                old.raw_symbol.as_ptr(),
-                res.raw_symbol.as_mut_ptr(),
-                v1::SYMBOL_CSTR_LEN,
-            );
-        }
+        res.raw_symbol[..v1::SYMBOL_CSTR_LEN].copy_from_slice(old.raw_symbol.as_slice());
         res
     }
 }
@@ -106,10 +99,7 @@ impl From<&v1::ErrorMsg> for ErrorMsg {
             ),
             ..Default::default()
         };
-        // Safety: new `err` is longer than older
-        unsafe {
-            std::ptr::copy_nonoverlapping(old.err.as_ptr(), new.err.as_mut_ptr(), new.err.len());
-        }
+        new.err[..old.err.len()].copy_from_slice(old.err.as_slice());
         new
     }
 }
@@ -127,19 +117,9 @@ impl From<&v1::SymbolMappingMsg> for SymbolMappingMsg {
             end_ts: old.end_ts,
             ..Default::default()
         };
-        // Safety: SYMBOL_CSTR_LEN_V1 is less than SYMBOL_CSTR_LEN
-        unsafe {
-            std::ptr::copy_nonoverlapping(
-                old.stype_in_symbol.as_ptr(),
-                res.stype_in_symbol.as_mut_ptr(),
-                v1::SYMBOL_CSTR_LEN,
-            );
-            std::ptr::copy_nonoverlapping(
-                old.stype_out_symbol.as_ptr(),
-                res.stype_out_symbol.as_mut_ptr(),
-                v1::SYMBOL_CSTR_LEN,
-            );
-        }
+        res.stype_in_symbol[..v1::SYMBOL_CSTR_LEN].copy_from_slice(old.stype_in_symbol.as_slice());
+        res.stype_out_symbol[..v1::SYMBOL_CSTR_LEN]
+            .copy_from_slice(old.stype_out_symbol.as_slice());
         res
     }
 }
@@ -155,10 +135,7 @@ impl From<&v1::SystemMsg> for SystemMsg {
             ),
             ..Default::default()
         };
-        // Safety: new `msg` is longer than older
-        unsafe {
-            std::ptr::copy_nonoverlapping(old.msg.as_ptr(), new.msg.as_mut_ptr(), new.msg.len());
-        }
+        new.msg[..old.msg.len()].copy_from_slice(old.msg.as_slice());
         new
     }
 }

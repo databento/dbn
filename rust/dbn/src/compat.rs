@@ -118,15 +118,15 @@ unsafe fn upgrade_record<'a, T, U>(
 ) -> RecordRef<'a>
 where
     T: HasRType,
-    U: HasRType + for<'b> From<&'b T>,
+    U: AsRef<[u8]> + HasRType + for<'b> From<&'b T>,
 {
     if ts_out {
         let rec = transmute_record_bytes::<WithTsOut<T>>(input).unwrap();
         let upgraded = WithTsOut::new(U::from(&rec.rec), rec.ts_out);
-        std::ptr::copy_nonoverlapping(&upgraded, compat_buffer.as_mut_ptr().cast(), 1);
+        compat_buffer[..upgraded.as_ref().len()].copy_from_slice(upgraded.as_ref());
     } else {
         let upgraded = U::from(transmute_record_bytes::<T>(input).unwrap());
-        std::ptr::copy_nonoverlapping(&upgraded, compat_buffer.as_mut_ptr().cast(), 1);
+        compat_buffer[..upgraded.as_ref().len()].copy_from_slice(upgraded.as_ref());
     }
     RecordRef::new(compat_buffer)
 }

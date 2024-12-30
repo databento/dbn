@@ -4,10 +4,10 @@ use crate::{
     pretty::px_to_f64,
     record::{c_chars_to_str, ts_to_dt},
     rtype, v1, v2, Error, InstrumentClass, MatchAlgorithm, RecordHeader, Result,
-    SecurityUpdateAction, Side, UserDefinedInstrument, UNDEF_PRICE,
+    SecurityUpdateAction, UserDefinedInstrument,
 };
 
-use super::{InstrumentDefMsg, SYMBOL_CSTR_LEN};
+use super::InstrumentDefMsg;
 
 impl From<&v1::InstrumentDefMsg> for InstrumentDefMsg {
     fn from(old: &v1::InstrumentDefMsg) -> Self {
@@ -74,31 +74,9 @@ impl From<&v1::InstrumentDefMsg> for InstrumentDefMsg {
             contract_multiplier_unit: old.contract_multiplier_unit,
             flow_schedule_type: old.flow_schedule_type,
             tick_rule: old.tick_rule,
-            // Set later
-            raw_symbol: [0; SYMBOL_CSTR_LEN],
-            leg_count: 0,
-            leg_index: 0,
-            leg_price: UNDEF_PRICE,
-            leg_delta: UNDEF_PRICE,
-            leg_instrument_id: 0,
-            leg_ratio_price_numerator: 0,
-            leg_ratio_price_denominator: 0,
-            leg_ratio_qty_numerator: 0,
-            leg_ratio_qty_denominator: 0,
-            leg_underlying_id: 0,
-            leg_raw_symbol: [0; SYMBOL_CSTR_LEN],
-            leg_instrument_class: 0,
-            leg_side: Side::None as c_char,
-            _reserved: Default::default(),
+            ..Default::default()
         };
-        // Safety: SYMBOL_CSTR_LEN_V1 is less than SYMBOL_CSTR_LEN
-        unsafe {
-            std::ptr::copy_nonoverlapping(
-                old.raw_symbol.as_ptr(),
-                res.raw_symbol.as_mut_ptr(),
-                v1::SYMBOL_CSTR_LEN,
-            );
-        }
+        res.raw_symbol[..v1::SYMBOL_CSTR_LEN].copy_from_slice(old.raw_symbol.as_slice());
         res
     }
 }
@@ -169,20 +147,7 @@ impl From<&v2::InstrumentDefMsg> for InstrumentDefMsg {
             flow_schedule_type: old.flow_schedule_type,
             tick_rule: old.tick_rule,
             raw_symbol: old.raw_symbol,
-            leg_count: 0,
-            leg_index: 0,
-            leg_price: UNDEF_PRICE,
-            leg_delta: UNDEF_PRICE,
-            leg_instrument_id: 0,
-            leg_ratio_price_numerator: 0,
-            leg_ratio_price_denominator: 0,
-            leg_ratio_qty_numerator: 0,
-            leg_ratio_qty_denominator: 0,
-            leg_underlying_id: 0,
-            leg_raw_symbol: [0; SYMBOL_CSTR_LEN],
-            leg_instrument_class: 0,
-            leg_side: Side::None as c_char,
-            _reserved: Default::default(),
+            ..Default::default()
         }
     }
 }

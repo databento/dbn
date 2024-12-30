@@ -21,6 +21,7 @@
 - Relaxed `DecodeRecord` trait constraint on `StreamIterDecoder`'s inner decoder
 - Added `DbnMetadata` implementation for `StreamInnerDecoder` if the inner decoder
   implements `DbnMetadata`
+- Eliminate `unsafe` in `From` implementations for record structs from different versions
 
 ## 0.25.0 - 2024-12-17
 
