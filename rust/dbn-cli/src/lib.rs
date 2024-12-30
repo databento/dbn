@@ -37,6 +37,7 @@ pub struct Args {
         value_name = "FILE...",
         value_delimiter = ' ',
         num_args = 1..,
+        required = true,
     )]
     pub input: Vec<PathBuf>,
     #[clap(

@@ -790,7 +790,16 @@ fn help() {
         .arg("--help")
         .assert()
         .success()
-        .stdout(contains("Usage:"));
+        .stdout(contains("Usage:"))
+        .stderr(is_empty());
+}
+
+#[test]
+fn empty() {
+    cmd().assert().failure().stdout(is_empty()).stderr(
+        contains("the following required arguments were not provided:\n  <FILE...>")
+            .and(contains("Usage:")),
+    );
 }
 
 #[test]
@@ -799,5 +808,6 @@ fn version() {
         .arg("--version")
         .assert()
         .success()
-        .stdout(contains(env!("CARGO_PKG_VERSION")));
+        .stdout(contains(env!("CARGO_PKG_VERSION")))
+        .stderr(is_empty());
 }
