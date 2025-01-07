@@ -331,7 +331,7 @@ fn is_inverse(metadata: &Metadata) -> crate::Result<bool> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use std::num::NonZeroU64;
 
     use rstest::rstest;
@@ -345,7 +345,7 @@ mod tests {
 
     use super::*;
 
-    fn metadata_w_mappings() -> Metadata {
+    pub fn metadata_w_mappings() -> Metadata {
         Metadata::builder()
             .dataset(Dataset::XnasItch.as_str().to_owned())
             .schema(Some(Schema::Trades))

@@ -101,6 +101,7 @@ pub unsafe fn transmute_record_mut<T: HasRType>(header: &mut RecordHeader) -> Op
 /// This function returns an error if `s` contains more than N - 1 characters. The last
 /// character is reserved for the null byte.
 pub fn str_to_c_chars<const N: usize>(s: &str) -> Result<[c_char; N]> {
+    let s = s.as_bytes();
     if s.len() > (N - 1) {
         return Err(Error::encode(format!(
             "string cannot be longer than {}; received str of length {}",
@@ -109,9 +110,10 @@ pub fn str_to_c_chars<const N: usize>(s: &str) -> Result<[c_char; N]> {
         )));
     }
     let mut res = [0; N];
-    for (i, byte) in s.as_bytes().iter().enumerate() {
-        res[i] = *byte as c_char;
-    }
+    res[..s.len()].copy_from_slice(
+        // Safety: checked length of string and okay to interpret `u8` as `c_char`.
+        unsafe { std::mem::transmute::<&[u8], &[c_char]>(s) },
+    );
     Ok(res)
 }
 

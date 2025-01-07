@@ -389,7 +389,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        encode::test_data::{VecStream, BID_ASK, RECORD_HEADER},
+        encode::test_data::{BID_ASK, RECORD_HEADER},
         enums::{
             rtype, InstrumentClass, SecurityUpdateAction, StatType, StatUpdateAction,
             UserDefinedInstrument,
@@ -398,6 +398,7 @@ mod tests {
             str_to_c_chars, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
             RecordHeader, StatMsg, StatusMsg, TradeMsg, WithTsOut,
         },
+        test_utils::VecStream,
         RecordRef, FIXED_PRICE_SCALE,
     };
 

@@ -2,18 +2,14 @@ use std::marker::PhantomData;
 
 use fallible_streaming_iterator::FallibleStreamingIterator;
 
-use super::{DecodeRecord, DecodeStream};
-use crate::{record::transmute_record_bytes, Error, HasRType, Result};
+use super::{DbnMetadata, DecodeStream};
+use crate::{Error, HasRType, Result};
 
-/// A consuming iterator wrapping a [`DecodeRecord`]. Lazily decodes the contents of the
-/// file or other input stream.
+/// A consuming iterator wrapping a [`DecodeRecord`](super::DecodeRecord). Lazily
+/// decodes the contents of the file or other input stream.
 ///
 /// Implements [`FallibleStreamingIterator`].
-pub struct StreamIterDecoder<D, T>
-where
-    D: DecodeRecord,
-    T: HasRType,
-{
+pub struct StreamIterDecoder<D, T> {
     /// The underlying decoder implementation.
     decoder: D,
     /// Number of element sthat have been decoded. Used for [`Iterator::size_hint()`].
@@ -25,7 +21,6 @@ where
 
 impl<D, T> StreamIterDecoder<D, T>
 where
-    D: DecodeRecord,
     T: HasRType,
 {
     /// Creates a new streaming decoder using the given `decoder`.
@@ -71,11 +66,23 @@ where
 
     fn get(&self) -> Option<&Self::Item> {
         if self.i.is_some() {
-            // Safety: `buffer` is specifically sized to `T` and `i` has been
-            // checked to see that the end of the stream hasn't been reached
-            unsafe { transmute_record_bytes(self.decoder.buffer_slice()) }
+            // SAFETY: Validated record type in `advance` with call to `decode_record`.
+            Some(unsafe { self.decoder.record_ref().get_unchecked() })
         } else {
             None
         }
+    }
+}
+
+impl<D, T> DbnMetadata for StreamIterDecoder<D, T>
+where
+    D: DbnMetadata,
+{
+    fn metadata(&self) -> &crate::Metadata {
+        self.decoder.metadata()
+    }
+
+    fn metadata_mut(&mut self) -> &mut crate::Metadata {
+        self.decoder.metadata_mut()
     }
 }

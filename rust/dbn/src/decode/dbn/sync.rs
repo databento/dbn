@@ -15,8 +15,8 @@ use crate::{
         FromLittleEndianSlice, StreamIterDecoder, VersionUpgradePolicy,
     },
     error::silence_eof_error,
-    HasRType, MappingInterval, Metadata, Record, RecordHeader, RecordRef, SType, Schema,
-    SymbolMapping, DBN_VERSION, METADATA_FIXED_LEN, NULL_SCHEMA, NULL_STYPE, UNDEF_TIMESTAMP,
+    HasRType, MappingInterval, Metadata, RecordHeader, RecordRef, SType, Schema, SymbolMapping,
+    DBN_VERSION, METADATA_FIXED_LEN, NULL_SCHEMA, NULL_STYPE, UNDEF_TIMESTAMP,
 };
 
 /// Type for decoding files and streams in Databento Binary Encoding (DBN), both metadata and records.
@@ -204,6 +204,14 @@ where
     fn buffer_slice(&self) -> &[u8] {
         self.decoder.buffer_slice()
     }
+
+    fn compat_buffer_slice(&self) -> &[u8] {
+        self.decoder.compat_buffer_slice()
+    }
+
+    fn record_ref(&self) -> RecordRef {
+        self.decoder.record_ref()
+    }
 }
 
 /// A DBN decoder of records
@@ -305,20 +313,7 @@ where
     /// If the next record is of a different type than `T`,
     /// this function returns an error of kind `io::ErrorKind::InvalidData`.
     pub fn decode<T: HasRType>(&mut self) -> crate::Result<Option<&T>> {
-        let rec_ref = self.decode_record_ref()?;
-        if let Some(rec_ref) = rec_ref {
-            rec_ref
-                .get::<T>()
-                .ok_or_else(|| {
-                    crate::Error::conversion::<T>(format!(
-                        "record with rtype {:#04X}",
-                        rec_ref.header().rtype
-                    ))
-                })
-                .map(Some)
-        } else {
-            Ok(None)
-        }
+        crate::decode::decode_record_from_ref(self.decode_ref()?)
     }
 
     /// Tries to decode a generic reference a record. Returns `Ok(None)` if
@@ -382,6 +377,21 @@ where
 {
     fn buffer_slice(&self) -> &[u8] {
         self.read_buffer.as_slice()
+    }
+
+    fn compat_buffer_slice(&self) -> &[u8] {
+        self.compat_buffer.as_slice()
+    }
+
+    fn record_ref(&self) -> RecordRef {
+        unsafe {
+            compat::choose_record_ref(
+                self.version,
+                self.upgrade_policy,
+                self.buffer_slice(),
+                self.compat_buffer_slice(),
+            )
+        }
     }
 }
 
@@ -687,7 +697,8 @@ mod tests {
         },
         rtype, Bbo1MMsg, Bbo1SMsg, Cbbo1SMsg, Cmbp1Msg, Compression, Dataset, Error, ErrorMsg,
         ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, MetadataBuilder, OhlcvMsg,
-        RecordHeader, Result, StatMsg, StatusMsg, TbboMsg, TradeMsg, WithTsOut, SYMBOL_CSTR_LEN,
+        Record, RecordHeader, Result, StatMsg, StatusMsg, TbboMsg, TradeMsg, WithTsOut,
+        SYMBOL_CSTR_LEN,
     };
 
     #[test]

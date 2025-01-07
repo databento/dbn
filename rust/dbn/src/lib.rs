@@ -54,8 +54,11 @@ pub mod record;
 mod record_enum;
 pub mod record_ref;
 pub mod symbol_map;
+#[cfg(test)]
+mod test_utils;
 pub mod v1;
 pub mod v2;
+pub mod v3;
 
 pub use crate::{
     enums::{
@@ -103,7 +106,7 @@ pub const UNDEF_STAT_QUANTITY: i32 = i32::MAX;
 /// The sentinel value for an unset or null timestamp.
 pub const UNDEF_TIMESTAMP: u64 = u64::MAX;
 /// The length in bytes of the largest record type.
-pub const MAX_RECORD_LEN: usize = std::mem::size_of::<WithTsOut<InstrumentDefMsg>>();
+pub const MAX_RECORD_LEN: usize = std::mem::size_of::<WithTsOut<v3::InstrumentDefMsg>>();
 
 /// Contains dataset code constants.
 #[deprecated(since = "0.25.0", note = "Use the `Dataset` enum instead")]

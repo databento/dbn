@@ -11,8 +11,8 @@ use predicates::{
     ord::eq,
     str::{contains, ends_with, is_empty, is_match, starts_with},
 };
-use rstest::rstest;
-use tempfile::{tempdir, NamedTempFile};
+use rstest::*;
+use tempfile::{tempdir, NamedTempFile, TempDir};
 
 fn cmd() -> Command {
     Command::cargo_bin("dbn").unwrap()
@@ -20,10 +20,13 @@ fn cmd() -> Command {
 
 const TEST_DATA_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/data");
 
+#[fixture]
+fn output_dir() -> TempDir {
+    tempdir().unwrap()
+}
+
 #[rstest]
-fn write_json_to_path(#[values("dbn", "dbn.zst")] extension: &str) {
-    // create a directory whose contents will be cleaned up at the end of the test
-    let output_dir = tempdir().unwrap();
+fn write_json_to_path(output_dir: TempDir, #[values("dbn", "dbn.zst")] extension: &str) {
     let output_path = format!("{}/a.json", output_dir.path().to_str().unwrap());
     cmd()
         .args([
@@ -84,13 +87,11 @@ fn read_from_nonexistent_path() {
         ])
         .assert()
         .failure()
-        .stderr(contains("while opening file to decode"));
+        .stderr(contains("opening file to decode"));
 }
 
 #[rstest]
-fn write_csv(#[values("dbn", "dbn.zst")] extension: &str) {
-    // create a directory whose contents will be cleaned up at the end of the test
-    let output_dir = tempdir().unwrap();
+fn write_csv(output_dir: TempDir, #[values("dbn", "dbn.zst")] extension: &str) {
     let output_path = format!("{}/a.csv", output_dir.path().to_str().unwrap());
     cmd()
         .args([
@@ -111,10 +112,8 @@ fn write_csv(#[values("dbn", "dbn.zst")] extension: &str) {
     assert!(contents.ends_with('\n'));
 }
 
-#[test]
-fn encoding_overrides_extension() {
-    // create a directory whose contents will be cleaned up at the end of the test
-    let output_dir = tempdir().unwrap();
+#[rstest]
+fn encoding_overrides_extension(output_dir: TempDir) {
     // output file extension is csv, but the encoding argument is json
     let output_path = format!("{}/a.csv", output_dir.path().to_str().unwrap());
     cmd()
@@ -136,9 +135,8 @@ fn encoding_overrides_extension() {
     assert!(contents.ends_with('\n'));
 }
 
-#[test]
-fn bad_infer() {
-    let output_dir = tempdir().unwrap();
+#[rstest]
+fn bad_infer(output_dir: TempDir) {
     let output_path = format!("{}/a.yaml", output_dir.path().to_str().unwrap());
     cmd()
         .args([
@@ -151,9 +149,8 @@ fn bad_infer() {
         .stderr(contains("Unable to infer output encoding from output path"));
 }
 
-#[test]
-fn no_extension_infer() {
-    let output_dir = tempdir().unwrap();
+#[rstest]
+fn no_extension_infer(output_dir: TempDir) {
     let output_path = format!("{}/a", output_dir.path().to_str().unwrap());
     cmd()
         .args([
@@ -341,9 +338,8 @@ fn read_from_stdin(#[values("csv", "json")] output_enc: &str) {
     assert!(read_from_file_output.stderr.is_empty());
 }
 
-#[test]
-fn convert_dbz_to_dbn() {
-    let output_dir = tempdir().unwrap();
+#[rstest]
+fn convert_dbz_to_dbn(output_dir: TempDir) {
     let output_path = format!("{}/a.dbn", output_dir.path().to_str().unwrap());
     cmd()
         .args([
@@ -430,9 +426,8 @@ fn input_fragment(
         .stderr(is_empty());
 }
 
-#[test]
-fn upgraded_definitions_data_is_same_but_larger() {
-    let output_dir = tempdir().unwrap();
+#[rstest]
+fn upgraded_definitions_data_is_same_but_larger(output_dir: TempDir) {
     let orig_csv = format!("{}/a.csv", output_dir.path().to_str().unwrap());
     let upgraded_dbn_output = format!("{}/a.dbn", output_dir.path().to_str().unwrap());
     let input_path = format!("{TEST_DATA_PATH}/test_data.definition.v1.dbn");
@@ -470,12 +465,12 @@ fn upgraded_definitions_data_is_same_but_larger() {
 #[case::uncompressed_definition("--input-fragment", Schema::Definition, "dbn.frag", "")]
 #[case::zstd_definition("--input-zstd-fragment", Schema::Definition, "dbn.frag.zst", "--zstd")]
 fn write_fragment(
+    output_dir: TempDir,
     #[case] input_flag: &str,
     #[case] schema: Schema,
     #[case] extension: &str,
     #[case] zstd_flag: &str,
 ) {
-    let output_dir = tempdir().unwrap();
     let orig_csv = format!("{}/a.csv", output_dir.path().to_str().unwrap());
     let frag_output = format!("{}/a.{extension}", output_dir.path().to_str().unwrap());
     let input_path = format!("{TEST_DATA_PATH}/test_data.{schema}.dbn");
@@ -504,8 +499,8 @@ fn write_fragment(
         .stdout(eq(orig_csv_contents));
 }
 
-#[test]
-fn test_limit_updates_metadata() {
+#[rstest]
+fn test_limit_updates_metadata(output_dir: TempDir) {
     // Check metadata shows limit = 2
     cmd()
         .args([
@@ -525,7 +520,6 @@ fn test_limit_updates_metadata() {
         .assert()
         .success()
         .stdout(contains('\n').count(2));
-    let output_dir = tempdir().unwrap();
     let output_path = format!("{}/limited.dbn", output_dir.path().to_str().unwrap());
     cmd()
         .args([
@@ -758,12 +752,54 @@ fn omit_header_conflicts(#[case] output_enc: &str) {
 }
 
 #[test]
+fn test_merge_mbp1_and_mbp10_diff_compression() {
+    cmd()
+        .args([
+            &format!("{TEST_DATA_PATH}/test_data.mbp-10.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.mbp-1.dbn"),
+            "--json",
+        ])
+        .assert()
+        .success()
+        .stdout(
+            contains("\"rtype\":1,")
+                .count(2)
+                .and(contains("\"rtype\":10,").count(2)),
+        )
+        .stderr(is_empty());
+}
+
+#[test]
+fn test_merge_mbp1_and_mbp10_metadata() {
+    cmd()
+        .args([
+            &format!("{TEST_DATA_PATH}/test_data.mbp-10.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.mbp-1.dbn"),
+            "--json",
+            "--metadata",
+        ])
+        .assert()
+        .success()
+        .stdout(contains("\"schema\":null,"))
+        .stderr(is_empty());
+}
+
+#[test]
 fn help() {
     cmd()
         .arg("--help")
         .assert()
         .success()
-        .stdout(contains("Usage:"));
+        .stdout(contains("Usage:"))
+        .stderr(is_empty());
+}
+
+#[test]
+fn empty() {
+    cmd().assert().failure().stdout(is_empty()).stderr(
+        contains("the following required arguments were not provided:\n  <FILE...>")
+            .and(contains("Usage:")),
+    );
 }
 
 #[test]
@@ -772,5 +808,6 @@ fn version() {
         .arg("--version")
         .assert()
         .success()
-        .stdout(contains(env!("CARGO_PKG_VERSION")));
+        .stdout(contains(env!("CARGO_PKG_VERSION")))
+        .stderr(is_empty());
 }

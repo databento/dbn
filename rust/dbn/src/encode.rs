@@ -224,12 +224,7 @@ fn async_zstd_encoder<W: tokio::io::AsyncWriteExt + Unpin>(
 
 #[cfg(test)]
 mod test_data {
-    use fallible_streaming_iterator::FallibleStreamingIterator;
-
-    use crate::{
-        record::{BidAskPair, RecordHeader},
-        Error,
-    };
+    use crate::record::{BidAskPair, RecordHeader};
 
     // Common data used in multiple tests
     pub const RECORD_HEADER: RecordHeader = RecordHeader {
@@ -248,32 +243,4 @@ mod test_data {
         bid_ct: 5,
         ask_ct: 2,
     };
-
-    /// A testing shim to get a streaming iterator from a [`Vec`].
-    pub struct VecStream<T> {
-        vec: Vec<T>,
-        idx: isize,
-    }
-
-    impl<T> VecStream<T> {
-        pub fn new(vec: Vec<T>) -> Self {
-            // initialize at -1 because `advance()` is always called before
-            // `get()`.
-            Self { vec, idx: -1 }
-        }
-    }
-
-    impl<T> FallibleStreamingIterator for VecStream<T> {
-        type Item = T;
-        type Error = Error;
-
-        fn advance(&mut self) -> Result<(), Error> {
-            self.idx += 1;
-            Ok(())
-        }
-
-        fn get(&self) -> Option<&Self::Item> {
-            self.vec.get(self.idx as usize)
-        }
-    }
 }

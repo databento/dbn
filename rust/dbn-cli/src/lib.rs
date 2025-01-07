@@ -33,10 +33,13 @@ pub enum OutputEncoding {
 #[cfg_attr(test, derive(Default))]
 pub struct Args {
     #[clap(
-        help = "A DBN or legacy DBZ file to convert to another encoding. Pass '-' to read from standard input",
-        value_name = "FILE"
+        help = "One or more DBN or legacy DBZ files to decode. Passing multiple files will result in a merge. Pass '-' to read from standard input",
+        value_name = "FILE...",
+        value_delimiter = ' ',
+        num_args = 1..,
+        required = true,
     )]
-    pub input: PathBuf,
+    pub input: Vec<PathBuf>,
     #[clap(
         short,
         long,

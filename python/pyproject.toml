@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "databento-dbn"
-version = "0.25.0"
+version = "0.26.0"
 description = "Python bindings for encoding and decoding Databento Binary Encoding (DBN)"
 authors = ["Databento <support@databento.com>"]
 license = "Apache-2.0"
@@ -17,7 +17,7 @@ build-backend = "maturin"
 
 [project]
 name = "databento-dbn"
-version = "0.25.0"
+version = "0.26.0"
 authors = [
     { name = "Databento", email = "support@databento.com" }
 ]

@@ -32,14 +32,18 @@ pub fn get_sorted_fields(fields: FieldsNamed) -> syn::Result<VecDeque<Field>> {
             encode_order_fields.push((encode_order, field.clone()));
         }
     }
-    encode_order_fields.sort_by(|lhs, rhs| lhs.0.cmp(&rhs.0));
+    encode_order_fields.sort_by_key(|field| field.0);
     for (encode_order, prioritized_field) in encode_order_fields {
         let idx = fields
             .iter()
             .position(|f| f.ident == prioritized_field.ident)
             .expect("to find field");
-        fields.remove(idx).expect("Field to be at index");
-        fields.insert(encode_order, prioritized_field);
+        fields.remove(idx).expect("to find field");
+        if encode_order >= fields.len() {
+            fields.push_back(prioritized_field);
+        } else {
+            fields.insert(encode_order, prioritized_field);
+        }
     }
     Ok(fields)
 }

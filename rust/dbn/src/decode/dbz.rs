@@ -16,8 +16,8 @@ use crate::{
     compat,
     decode::{dbn::decode_iso8601, FromLittleEndianSlice},
     error::silence_eof_error,
-    Compression, HasRType, MappingInterval, Metadata, Record, RecordHeader, RecordRef, SType,
-    Schema, SymbolMapping,
+    Compression, HasRType, MappingInterval, Metadata, RecordHeader, RecordRef, SType, Schema,
+    SymbolMapping,
 };
 
 /// Object for reading, parsing, and serializing a legacy Databento Binary Encoding (DBZ) file.
@@ -141,20 +141,7 @@ impl<R: io::BufRead> DbnMetadata for Decoder<R> {
 
 impl<R: io::BufRead> DecodeRecord for Decoder<R> {
     fn decode_record<T: HasRType>(&mut self) -> crate::Result<Option<&T>> {
-        let rec_ref = self.decode_record_ref()?;
-        if let Some(rec_ref) = rec_ref {
-            rec_ref
-                .get::<T>()
-                .ok_or_else(|| {
-                    crate::Error::conversion::<T>(format!(
-                        "record with rtype {:#04X}",
-                        rec_ref.header().rtype
-                    ))
-                })
-                .map(Some)
-        } else {
-            Ok(None)
-        }
+        super::decode_record_from_ref(self.decode_record_ref()?)
     }
 }
 
@@ -177,6 +164,21 @@ impl<R: io::BufRead> DecodeStream for Decoder<R> {
 impl<R: io::BufRead> BufferSlice for Decoder<R> {
     fn buffer_slice(&self) -> &[u8] {
         self.read_buffer.as_slice()
+    }
+
+    fn compat_buffer_slice(&self) -> &[u8] {
+        self.compat_buffer.as_slice()
+    }
+
+    fn record_ref(&self) -> RecordRef {
+        unsafe {
+            compat::choose_record_ref(
+                self.metadata.version,
+                self.upgrade_policy,
+                self.buffer_slice(),
+                self.compat_buffer_slice(),
+            )
+        }
     }
 }
 

@@ -34,6 +34,7 @@ _DBNRecord = Union[
     TradeMsg,
     InstrumentDefMsg,
     InstrumentDefMsgV1,
+    InstrumentDefMsgV3,
     ImbalanceMsg,
     ErrorMsg,
     ErrorMsgV1,
@@ -2433,6 +2434,976 @@ class OHLCVMsg(Record):
         Returns
         -------
         int
+
+        """
+
+class InstrumentDefMsgV3(Record):
+    """
+    Definition of an instrument in DBN version 3.
+    """
+
+    def __init__(
+        self,
+        publisher_id: int,
+        instrument_id: int,
+        ts_event: int,
+        ts_recv: int,
+        min_price_increment: int,
+        display_factor: int,
+        min_lot_size_round_lot: int,
+        raw_symbol: str,
+        group: str,
+        exchange: str,
+        instrument_class: str,
+        match_algorithm: str,
+        security_update_action: str,
+        expiration: int = UNDEF_TIMESTAMP,
+        activation: int = UNDEF_TIMESTAMP,
+        high_limit_price: int = UNDEF_PRICE,
+        low_limit_price: int = UNDEF_PRICE,
+        max_price_variation: int = UNDEF_PRICE,
+        unit_of_measure_qty: int = UNDEF_PRICE,
+        min_price_increment_amount: int = UNDEF_PRICE,
+        price_ratio: int = UNDEF_PRICE,
+        inst_attrib_value: int | None = None,
+        underlying_id: int | None = None,
+        raw_instrument_id: int | None = None,
+        market_depth_implied: int | None = None,
+        market_depth: int | None = None,
+        market_segment_id: int | None = None,
+        max_trade_vol: int | None = None,
+        min_lot_size: int | None = None,
+        min_lot_size_block: int | None = None,
+        min_trade_vol: int | None = None,
+        contract_multiplier: int | None = None,
+        decay_quantity: int | None = None,
+        original_contract_size: int | None = None,
+        appl_id: int | None = None,
+        maturity_year: int | None = None,
+        decay_start_date: int | None = None,
+        channel_id: int | None = None,
+        currency: str = "",
+        settl_currency: str = "",
+        secsubtype: str = "",
+        asset: str = "",
+        cfi: str = "",
+        security_type: str = "",
+        unit_of_measure: str = "",
+        underlying: str = "",
+        strike_price_currency: str = "",
+        strike_price: int = UNDEF_PRICE,
+        main_fraction: int | None = None,
+        price_display_format: int | None = None,
+        sub_fraction: int | None = None,
+        underlying_product: int | None = None,
+        maturity_month: int | None = None,
+        maturity_day: int | None = None,
+        maturity_week: int | None = None,
+        user_defined_instrument: str | None = None,
+        contract_multiplier_unit: int | None = None,
+        flow_schedule_type: int | None = None,
+        tick_rule: int | None = None,
+        leg_count: int = 0,
+        leg_index: int = 0,
+        leg_price: int = UNDEF_PRICE,
+        leg_delta: int = UNDEF_PRICE,
+        leg_instrument_id: int = 0,
+        leg_ratio_price_numerator: int = 0,
+        leg_ratio_price_denominator: int = 0,
+        leg_ratio_qty_numerator: int = 0,
+        leg_ratio_qty_denominator: int = 0,
+        leg_underlying_id: int = 0,
+        leg_raw_symbol: str = "",
+        leg_instrument_class: str | None = None,
+        leg_side: str | None = None,
+    ) -> None: ...
+    @property
+    def pretty_ts_recv(self) -> dt.datetime | None:
+        """
+        The capture-server-received timestamp as a datetime or
+        `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def ts_recv(self) -> int:
+        """
+        The capture-server-received timestamp expressed as number of
+        nanoseconds since the UNIX epoch.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_min_price_increment(self) -> float:
+        """
+        The minimum constant tick for the instrument as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        min_price_increment
+
+        """
+
+    @property
+    def min_price_increment(self) -> int:
+        """
+        The minimum constant tick for the instrument in units of 1e-9, i.e.
+        1/1,000,000,000 or 0.000000001.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        pretty_min_price_increment
+
+        """
+
+    @property
+    def display_factor(self) -> int:
+        """
+        The multiplier to convert the venue’s display price to the conventional
+        price.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_expiration(self) -> dt.datetime | None:
+        """
+        The last eligible trade time expressed as a datetime or
+        `pandas.Timestamp`, if available.
+
+        Some publishers only provide date-level granularity.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def expiration(self) -> int:
+        """
+        The last eligible trade time expressed as a number of nanoseconds since
+        the UNIX epoch.
+
+        Will be `UNDEF_TIMESTAMP` when null, such as for equities. Some publishers
+        only provide date-level granularity.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_activation(self) -> dt.datetime | None:
+        """
+        The time of instrument activation expressed as a datetime or
+        `pandas.Timestamp`, if available.
+
+        Some publishers only provide date-level granularity.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def activation(self) -> int:
+        """
+        The time of instrument activation expressed as a number of nanoseconds
+        since the UNIX epoch.
+
+        Will be `UNDEF_TIMESTAMP` when null, such as for equities. Some publishers
+        only provide date-level granularity.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_high_limit_price(self) -> float:
+        """
+        The allowable high limit price for the trading day as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        high_limit_price
+
+        """
+
+    @property
+    def high_limit_price(self) -> int:
+        """
+        The allowable high limit price for the trading day in units of 1e-9,
+        i.e. 1/1,000,000,000 or 0.000000001.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        pretty_high_limit_price
+
+        """
+
+    @property
+    def pretty_low_limit_price(self) -> float:
+        """
+        The allowable low limit price for the trading day as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        low_limit_price
+
+        """
+
+    @property
+    def low_limit_price(self) -> int:
+        """
+        The allowable low limit price for the trading day in units of 1e-9,
+        i.e. 1/1,000,000,000 or 0.000000001.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        pretty_low_limit_price
+
+        """
+
+    @property
+    def pretty_max_price_variation(self) -> float:
+        """
+        The differential value for price banding in units as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        max_price_variation
+
+        """
+
+    @property
+    def max_price_variation(self) -> int:
+        """
+        The differential value for price banding in units of 1e-9, i.e.
+        1/1,000,000,000 or 0.000000001.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        pretty_max_price_variation
+
+        """
+
+    @property
+    def pretty_trading_reference_price(self) -> float:
+        """
+        The trading session settlement price on `trading_reference_date` as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        trading_reference_price
+
+        """
+
+    @property
+    def unit_of_measure_qty(self) -> int:
+        """
+        The contract size for each instrument, in combination with
+        `unit_of_measure`.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_min_price_increment_amount(self) -> float:
+        """
+        The value currently under development by the venue as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        min_price_increment_amount
+
+        """
+
+    @property
+    def min_price_increment_amount(self) -> int:
+        """
+        The value currently under development by the venue. Converted to units
+        of 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        pretty_min_price_increment_amount
+
+        """
+
+    @property
+    def pretty_price_ratio(self) -> float:
+        """
+        The value used for price calculation in spread and leg pricing as a
+        float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        price_ratio
+
+        """
+
+    @property
+    def price_ratio(self) -> int:
+        """
+        The value used for price calculation in spread and leg pricing in units
+        of 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        pretty_price_ratio
+
+        """
+
+    @property
+    def inst_attrib_value(self) -> int:
+        """
+        A bitmap of instrument eligibility attributes.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def underlying_id(self) -> int:
+        """
+        The `instrument_id` of the first underlying instrument.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def raw_instrument_id(self) -> int:
+        """
+        The instrument ID assigned by the publisher. May be the same as `instrument_id`.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def market_depth_implied(self) -> int:
+        """
+        The implied book depth on the price level data feed.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def market_depth(self) -> int:
+        """
+        The (outright) book depth on the price level data feed.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def market_segment_id(self) -> int:
+        """
+        The market segment of the instrument.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def max_trade_vol(self) -> int:
+        """
+        The maximum trading volume for the instrument.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def min_lot_size(self) -> int:
+        """
+        The minimum order entry quantity for the instrument.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def min_lot_size_block(self) -> int:
+        """
+        The minimum quantity required for a block trade of the instrument.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def min_lot_size_round_lot(self) -> int:
+        """
+        The minimum quantity required for a round lot of the instrument.
+        Multiples of this quantity are also round lots.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def min_trade_vol(self) -> int:
+        """
+        The minimum trading volume for the instrument.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def contract_multiplier(self) -> int:
+        """
+        The number of deliverables per instrument, i.e. peak days.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def decay_quantity(self) -> int:
+        """
+        The quantity that a contract will decay daily, after `decay_start_date`
+        has been reached.
+
+        Retruns
+        -------
+        int
+
+        """
+
+    @property
+    def original_contract_size(self) -> int:
+        """
+        The fixed contract value assigned to each instrument.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def appl_id(self) -> int:
+        """
+        The channel ID assigned at the venue.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def maturity_year(self) -> int:
+        """
+        The calendar year reflected in the instrument symbol.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def decay_start_date(self) -> int:
+        """
+        The date at which a contract will begin to decay.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def channel_id(self) -> int:
+        """
+        The channel ID assigned by Databento as an incrementing integer
+        starting at zero.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def currency(self) -> str:
+        """
+        The currency used for price fields.
+
+        Returns
+        -------
+        str
+
+        """
+
+    @property
+    def settl_currency(self) -> str:
+        """
+        The currency used for settlement, if different from `currency`.
+
+        Returns
+        -------
+        str
+
+        """
+
+    @property
+    def secsubtype(self) -> str:
+        """
+        The strategy type of the spread.
+
+        Returns
+        -------
+        str
+
+        """
+
+    @property
+    def raw_symbol(self) -> str:
+        """
+        The instrument name (symbol).
+
+        Returns
+        -------
+        str
+
+        """
+
+    @property
+    def group(self) -> str:
+        """
+        The security group code of the instrument.
+
+        Returns
+        -------
+        str
+
+        """
+
+    @property
+    def exchange(self) -> str:
+        """
+        The exchange used to identify the instrument.
+
+        Returns
+        -------
+        str
+
+        """
+
+    @property
+    def asset(self) -> str:
+        """
+        The underlying asset code (product code) of the instrument.
+
+        Returns
+        -------
+        str
+
+        """
+
+    @property
+    def cfi(self) -> str:
+        """
+        The ISO standard instrument categorization code.
+
+        Returns
+        -------
+        str
+
+        """
+
+    @property
+    def security_type(self) -> str:
+        """
+        The type of the instrument, e.g. FUT for future or future spread.
+
+        Returns
+        -------
+        str
+
+        """
+
+    @property
+    def unit_of_measure(self) -> str:
+        """
+        The unit of measure for the instrument’s original contract size, e.g.
+        USD or LBS.
+
+        Returns
+        -------
+        str
+
+        """
+
+    @property
+    def underlying(self) -> str:
+        """
+        The symbol of the first underlying instrument.
+
+        Returns
+        -------
+        str
+
+        """
+
+    @property
+    def strike_price_currency(self) -> str:
+        """
+        The currency of `strike_price`.
+
+        Returns
+        -------
+        str
+
+        """
+
+    @property
+    def instrument_class(self) -> str:
+        """
+        The classification of the instrument.
+
+        Returns
+        -------
+        str
+
+        """
+
+    @property
+    def pretty_strike_price(self) -> float:
+        """
+        The strike price of the option as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        strike_price
+
+        """
+
+    @property
+    def strike_price(self) -> int:
+        """
+        The strike price of the option. Converted to units of 1e-9, i.e.
+        1/1,000,000,000 or 0.000000001.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        pretty_strike_price
+
+        """
+
+    @property
+    def match_algorithm(self) -> str:
+        """
+        The matching algorithm used for the instrument, typically **F**IFO.
+
+        Returns
+        -------
+        str
+
+        """
+
+    @property
+    def main_fraction(self) -> int:
+        """
+        The price denominator of the main fraction.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def price_display_format(self) -> int:
+        """
+        The number of digits to the right of the tick mark, to display
+        fractional prices.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def sub_fraction(self) -> int:
+        """
+        The price denominator of the sub fraction.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def underlying_product(self) -> int:
+        """
+        The product complex of the instrument.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def security_update_action(self) -> str:
+        """
+        Indicates if the instrument definition has been added, modified, or
+        deleted.
+
+        Returns
+        -------
+        str
+
+        """
+
+    @property
+    def maturity_month(self) -> int:
+        """
+        The calendar month reflected in the instrument symbol.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def maturity_day(self) -> int:
+        """
+        The calendar day reflected in the instrument symbol, or 0.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def maturity_week(self) -> int:
+        """
+        The calendar week reflected in the instrument symbol, or 0.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def user_defined_instrument(self) -> str:
+        """
+        Indicates if the instrument is user defined: `Y`es or `N`o.
+
+        Returns
+        -------
+        str
+
+        """
+
+    @property
+    def contract_multiplier_unit(self) -> int:
+        """
+        The type of `contract_multiplier`. Either `1` for hours, or `2` for
+        days.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def flow_schedule_type(self) -> int:
+        """
+        The schedule for delivering electricity.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def tick_rule(self) -> int:
+        """
+        The tick rule of the spread.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_leg_price(self) -> float:
+        """
+        The leg price as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        leg_price
+
+        """
+
+    @property
+    def leg_price(self) -> int:
+        """
+        The leg price. Converted to units of 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        pretty_leg_price
+
+        """
+
+    @property
+    def pretty_leg_delta(self) -> float:
+        """
+        The leg delta as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        leg_delta
+
+        """
+
+    @property
+    def leg_delta(self) -> int:
+        """
+        The leg delta. Converted to units of 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        leg_delta
 
         """
 

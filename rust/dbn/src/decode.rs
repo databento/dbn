@@ -13,6 +13,7 @@ pub mod dbn;
 pub mod dbz;
 mod stream;
 // used in databento_dbn
+mod merge;
 #[doc(hidden)]
 pub mod zstd;
 
@@ -20,6 +21,7 @@ pub mod zstd;
 pub use self::dbn::{
     Decoder as DbnDecoder, MetadataDecoder as DbnMetadataDecoder, RecordDecoder as DbnRecordDecoder,
 };
+pub use merge::{Decoder as MergeDecoder, RecordDecoder as MergeRecordDecoder};
 pub use stream::StreamIterDecoder;
 
 use std::{
@@ -33,7 +35,7 @@ use crate::{
     enums::{Compression, VersionUpgradePolicy},
     record::HasRType,
     record_ref::RecordRef,
-    Metadata,
+    Metadata, Record,
 };
 
 /// Trait for types that decode references to DBN records of a dynamic type.
@@ -95,6 +97,22 @@ pub trait DecodeRecord {
             res.push(rec.clone());
         }
         Ok(res)
+    }
+}
+
+fn decode_record_from_ref<T: HasRType>(rec_ref: Option<RecordRef>) -> crate::Result<Option<&T>> {
+    if let Some(rec_ref) = rec_ref {
+        rec_ref
+            .get::<T>()
+            .ok_or_else(|| {
+                crate::Error::conversion::<T>(format!(
+                    "record with rtype {:#04X}",
+                    rec_ref.header().rtype
+                ))
+            })
+            .map(Some)
+    } else {
+        Ok(None)
     }
 }
 
@@ -446,16 +464,36 @@ where
             DynDecoderImpl::LegacyDbz(decoder) => decoder.buffer_slice(),
         }
     }
+
+    fn compat_buffer_slice(&self) -> &[u8] {
+        match &self.0 {
+            DynDecoderImpl::Dbn(decoder) => decoder.compat_buffer_slice(),
+            DynDecoderImpl::ZstdDbn(decoder) => decoder.compat_buffer_slice(),
+            DynDecoderImpl::LegacyDbz(decoder) => decoder.compat_buffer_slice(),
+        }
+    }
+
+    fn record_ref(&self) -> RecordRef {
+        match &self.0 {
+            DynDecoderImpl::Dbn(decoder) => decoder.record_ref(),
+            DynDecoderImpl::ZstdDbn(decoder) => decoder.record_ref(),
+            DynDecoderImpl::LegacyDbz(decoder) => decoder.record_ref(),
+        }
+    }
 }
 
 #[doc(hidden)]
 pub mod private {
+    use crate::RecordRef;
+
     /// An implementation detail for the interaction between [`StreamingIterator`] and
     /// implementors of [`DecodeRecord`].
     #[doc(hidden)]
     pub trait BufferSlice {
         /// Returns an immutable slice of the decoder's buffer.
         fn buffer_slice(&self) -> &[u8];
+        fn compat_buffer_slice(&self) -> &[u8];
+        fn record_ref(&self) -> RecordRef;
     }
 }
 
