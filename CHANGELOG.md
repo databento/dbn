@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.26.0 - TBD
+## 0.26.0 - 2025-01-07
 
 ### Enhancements
 - Added `v3` namespace in preparation for future DBN version 3 release. DBN version 2
