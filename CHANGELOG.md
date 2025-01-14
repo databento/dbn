@@ -1,12 +1,13 @@
 # Changelog
 
-## 0.27.0 - TBD
+## 0.27.0 - 2025-01-21
 
 ### Breaking changes
-- Updated enumerations for unreleased datasets and publishers.
+- Updated enumerations for unreleased US equities datasets and publishers
 
 ### Enhancements
-- Added new dataset `EQUS.MINI` and new publishers `EQUS.MINI.EQUS`, `XNYS.TRADES.EQUS`
+- Added new venue `EQUS` for consolidated US equities
+- Added new dataset `EQUS.MINI` and new publishers `EQUS.MINI.EQUS` and `XNYS.TRADES.EQUS`
 - Upgraded `pyo3` version to 0.23.4 with improved support for Python 3.13
 
 ### Bug fixes
