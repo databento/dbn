@@ -1,10 +1,10 @@
 use std::{ffi::c_char, mem};
 
 use pyo3::{
+    conversion::IntoPyObjectExt,
     intern,
     prelude::*,
-    pyclass::CompareOp,
-    types::{timezone_utc_bound, PyDateTime, PyDict},
+    types::{timezone_utc, PyDateTime, PyDict},
 };
 
 use crate::{
@@ -83,14 +83,6 @@ impl MboMsg {
         self.as_ref()
     }
 
-    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
@@ -126,12 +118,12 @@ impl MboMsg {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_ts_event<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
     #[getter]
-    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_ts_recv<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_recv)
     }
 
@@ -235,14 +227,6 @@ impl BidAskPair {
         self.bid_px_f64()
     }
 
-    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
@@ -296,14 +280,6 @@ impl BboMsg {
         self.as_ref()
     }
 
-    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
@@ -339,12 +315,12 @@ impl BboMsg {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_ts_event<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
     #[getter]
-    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_ts_recv<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_recv)
     }
 
@@ -444,14 +420,6 @@ impl Cmbp1Msg {
         self.as_ref()
     }
 
-    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
@@ -486,12 +454,12 @@ impl Cmbp1Msg {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_ts_event<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
     #[getter]
-    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_ts_recv<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_recv)
     }
 
@@ -601,14 +569,6 @@ impl CbboMsg {
         self.as_ref()
     }
 
-    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
@@ -643,12 +603,12 @@ impl CbboMsg {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_ts_event<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
     #[getter]
-    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_ts_recv<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_recv)
     }
 
@@ -749,14 +709,6 @@ impl ConsolidatedBidAskPair {
         self.bid_pb().map(|pb| pb.to_string()).ok()
     }
 
-    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
@@ -811,14 +763,6 @@ impl TradeMsg {
         self.as_ref()
     }
 
-    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
@@ -854,12 +798,12 @@ impl TradeMsg {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_ts_event<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
     #[getter]
-    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_ts_recv<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_recv)
     }
 
@@ -976,14 +920,6 @@ impl Mbp1Msg {
         self.as_ref()
     }
 
-    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
@@ -1019,12 +955,12 @@ impl Mbp1Msg {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_ts_event<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
     #[getter]
-    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_ts_recv<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_recv)
     }
 
@@ -1153,14 +1089,6 @@ impl Mbp10Msg {
         self.as_ref()
     }
 
-    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
@@ -1196,12 +1124,12 @@ impl Mbp10Msg {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_ts_event<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
     #[getter]
-    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_ts_recv<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_recv)
     }
 
@@ -1294,14 +1222,6 @@ impl OhlcvMsg {
         self.as_ref()
     }
 
-    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
@@ -1352,7 +1272,7 @@ impl OhlcvMsg {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_ts_event<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
@@ -1441,14 +1361,6 @@ impl StatusMsg {
         self.as_ref()
     }
 
-    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
@@ -1479,12 +1391,12 @@ impl StatusMsg {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_ts_event<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
     #[getter]
-    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_ts_recv<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_recv)
     }
 
@@ -1789,14 +1701,6 @@ impl InstrumentDefMsgV3 {
         self.as_ref()
     }
 
-    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
@@ -1862,22 +1766,22 @@ impl InstrumentDefMsgV3 {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_ts_event<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
     #[getter]
-    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_ts_recv<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_recv)
     }
 
     #[getter]
-    fn get_pretty_activation(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_activation<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.activation)
     }
 
     #[getter]
-    fn get_pretty_expiration(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_expiration<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.expiration)
     }
 
@@ -2265,14 +2169,6 @@ impl InstrumentDefMsg {
         self.as_ref()
     }
 
-    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
@@ -2343,22 +2239,22 @@ impl InstrumentDefMsg {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_ts_event<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
     #[getter]
-    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_ts_recv<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_recv)
     }
 
     #[getter]
-    fn get_pretty_activation(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_activation<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.activation)
     }
 
     #[getter]
-    fn get_pretty_expiration(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_expiration<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.expiration)
     }
 
@@ -2710,14 +2606,6 @@ impl InstrumentDefMsgV1 {
         self.as_ref()
     }
 
-    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
@@ -2788,22 +2676,22 @@ impl InstrumentDefMsgV1 {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_ts_event<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
     #[getter]
-    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_ts_recv<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_recv)
     }
 
     #[getter]
-    fn get_pretty_activation(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_activation<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.activation)
     }
 
     #[getter]
-    fn get_pretty_expiration(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_expiration<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.expiration)
     }
 
@@ -2985,14 +2873,6 @@ impl ImbalanceMsg {
         self.as_ref()
     }
 
-    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
@@ -3043,12 +2923,12 @@ impl ImbalanceMsg {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_ts_event<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
     #[getter]
-    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_ts_recv<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_recv)
     }
 
@@ -3181,14 +3061,6 @@ impl StatMsg {
         self.as_ref()
     }
 
-    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
@@ -3223,17 +3095,17 @@ impl StatMsg {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_ts_event<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
     #[getter]
-    fn get_pretty_ts_recv(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_ts_recv<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_recv)
     }
 
     #[getter]
-    fn get_pretty_ts_ref(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_ts_ref<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_ref)
     }
 
@@ -3290,14 +3162,6 @@ impl ErrorMsg {
         self.as_ref()
     }
 
-    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
@@ -3328,7 +3192,7 @@ impl ErrorMsg {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_ts_event<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
@@ -3389,14 +3253,6 @@ impl ErrorMsgV1 {
         self.as_ref()
     }
 
-    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
@@ -3427,7 +3283,7 @@ impl ErrorMsgV1 {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_ts_event<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
@@ -3511,14 +3367,6 @@ impl SymbolMappingMsg {
         self.as_ref()
     }
 
-    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
@@ -3549,17 +3397,17 @@ impl SymbolMappingMsg {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_ts_event<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
     #[getter]
-    fn get_pretty_end_ts(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_end_ts<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.end_ts)
     }
 
     #[getter]
-    fn get_pretty_start_ts(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_start_ts<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.start_ts)
     }
 
@@ -3655,14 +3503,6 @@ impl SymbolMappingMsgV1 {
         self.as_ref()
     }
 
-    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
@@ -3693,17 +3533,17 @@ impl SymbolMappingMsgV1 {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_ts_event<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
     #[getter]
-    fn get_pretty_end_ts(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_end_ts<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.end_ts)
     }
 
     #[getter]
-    fn get_pretty_start_ts(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_start_ts<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.start_ts)
     }
 
@@ -3769,14 +3609,6 @@ impl SystemMsg {
         self.as_ref()
     }
 
-    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
@@ -3807,7 +3639,7 @@ impl SystemMsg {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_ts_event<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
@@ -3873,14 +3705,6 @@ impl SystemMsgV1 {
         self.as_ref()
     }
 
-    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
@@ -3911,7 +3735,7 @@ impl SystemMsgV1 {
     }
 
     #[getter]
-    fn get_pretty_ts_event(&self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn get_pretty_ts_event<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_event())
     }
 
@@ -4056,21 +3880,31 @@ impl<const N: usize> PyFieldDesc for [ConsolidatedBidAskPair; N] {
     }
 }
 
-// `WithTsOut` is converted to a 2-tuple in Python
-impl<R: HasRType + IntoPy<Py<PyAny>>> IntoPy<PyObject> for WithTsOut<R> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        let obj = self.rec.into_py(py);
-        obj.setattr(py, intern!(py, "ts_out"), self.ts_out).unwrap();
-        obj
+/// `WithTsOut` adds a `ts_out` field to the main record when converted to Python.
+impl<'py, R> IntoPyObject<'py> for WithTsOut<R>
+where
+    R: HasRType + IntoPyObject<'py>,
+{
+    type Target = PyAny;
+    type Output = Bound<'py, PyAny>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let obj = self.rec.into_bound_py_any(py)?;
+        obj.setattr(intern!(py, "ts_out"), self.ts_out).unwrap();
+        Ok(obj)
     }
 }
 
-fn new_py_timestamp_or_datetime(py: Python<'_>, timestamp: u64) -> PyResult<Option<PyObject>> {
+fn new_py_timestamp_or_datetime(
+    py: Python<'_>,
+    timestamp: u64,
+) -> PyResult<Option<Bound<'_, PyAny>>> {
     if timestamp == UNDEF_TIMESTAMP {
         return Ok(None);
     }
-    if let Ok(pandas) = PyModule::import_bound(py, intern!(py, "pandas")) {
-        let kwargs = PyDict::new_bound(py);
+    if let Ok(pandas) = PyModule::import(py, intern!(py, "pandas")) {
+        let kwargs = PyDict::new(py);
         if kwargs.set_item(intern!(py, "utc"), true).is_ok()
             && kwargs
                 .set_item(intern!(py, "errors"), intern!(py, "coerce"))
@@ -4081,10 +3915,11 @@ fn new_py_timestamp_or_datetime(py: Python<'_>, timestamp: u64) -> PyResult<Opti
         {
             return pandas
                 .call_method(intern!(py, "to_datetime"), (timestamp,), Some(&kwargs))
-                .map(|o| Some(o.into_py(py)));
+                .map(|o| Some(o.into_pyobject(py).unwrap()));
         }
     }
-    let utc_tz = timezone_utc_bound(py);
+    let utc_tz = timezone_utc(py);
     let timestamp_ms = timestamp as f64 / 1_000_000.0;
-    PyDateTime::from_timestamp_bound(py, timestamp_ms, Some(&utc_tz)).map(|o| Some(o.into_py(py)))
+    PyDateTime::from_timestamp(py, timestamp_ms, Some(&utc_tz))
+        .map(|o| Some(o.into_pyobject(py).unwrap().into_any()))
 }

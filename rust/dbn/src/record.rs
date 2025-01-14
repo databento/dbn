@@ -34,7 +34,7 @@ pub use conv::{
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(get_all, dict, module = "databento_dbn"),
+    pyo3::pyclass(eq, get_all, dict, module = "databento_dbn"),
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -69,7 +69,7 @@ pub struct RecordHeader {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(dict, module = "databento_dbn", name = "MBOMsg"),
+    pyo3::pyclass(dict, eq, module = "databento_dbn", name = "MBOMsg"),
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -128,7 +128,7 @@ pub struct MboMsg {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn"),
+    pyo3::pyclass(eq, get_all, set_all, dict, module = "databento_dbn"),
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(test, derive(type_layout::TypeLayout))]
@@ -156,7 +156,7 @@ pub struct BidAskPair {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(get_all, set_all, dict, module = "databento_dbn"),
+    pyo3::pyclass(eq, get_all, set_all, dict, module = "databento_dbn"),
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(test, derive(type_layout::TypeLayout))]
@@ -195,7 +195,7 @@ pub struct ConsolidatedBidAskPair {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(dict, module = "databento_dbn"),
+    pyo3::pyclass(dict, eq, module = "databento_dbn"),
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -250,7 +250,7 @@ pub struct TradeMsg {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(dict, module = "databento_dbn", name = "MBP1Msg"),
+    pyo3::pyclass(dict, eq, module = "databento_dbn", name = "MBP1Msg"),
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -309,7 +309,7 @@ pub struct Mbp1Msg {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(dict, module = "databento_dbn", name = "MBP10Msg"),
+    pyo3::pyclass(dict, eq, module = "databento_dbn", name = "MBP10Msg"),
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -368,7 +368,7 @@ pub struct Mbp10Msg {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(dict, module = "databento_dbn", name = "BBOMsg"),
+    pyo3::pyclass(dict, eq, module = "databento_dbn", name = "BBOMsg"),
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -427,7 +427,7 @@ pub struct BboMsg {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(dict, module = "databento_dbn", name = "CMBP1Msg"),
+    pyo3::pyclass(dict, eq, module = "databento_dbn", name = "CMBP1Msg"),
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -486,7 +486,7 @@ pub struct Cmbp1Msg {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(dict, module = "databento_dbn", name = "CBBOMsg"),
+    pyo3::pyclass(dict, eq, module = "databento_dbn", name = "CBBOMsg"),
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -560,7 +560,7 @@ pub type Cbbo1MMsg = CbboMsg;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(get_all, dict, module = "databento_dbn", name = "OHLCVMsg"),
+    pyo3::pyclass(dict, eq, get_all, module = "databento_dbn", name = "OHLCVMsg"),
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -605,7 +605,7 @@ pub struct OhlcvMsg {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(dict, module = "databento_dbn"),
+    pyo3::pyclass(dict, eq, module = "databento_dbn"),
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -658,7 +658,7 @@ pub struct StatusMsg {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(dict, module = "databento_dbn"),
+    pyo3::pyclass(dict, eq, module = "databento_dbn"),
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -911,7 +911,7 @@ pub struct InstrumentDefMsg {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(dict, module = "databento_dbn"),
+    pyo3::pyclass(dict, eq, module = "databento_dbn"),
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -1005,7 +1005,7 @@ pub struct ImbalanceMsg {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(get_all, dict, module = "databento_dbn"),
+    pyo3::pyclass(dict, eq, get_all, module = "databento_dbn"),
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -1071,7 +1071,7 @@ pub struct StatMsg {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(dict, module = "databento_dbn"),
+    pyo3::pyclass(dict, eq, module = "databento_dbn"),
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -1102,7 +1102,7 @@ pub struct ErrorMsg {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(dict, module = "databento_dbn"),
+    pyo3::pyclass(dict, eq, module = "databento_dbn"),
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -1149,7 +1149,7 @@ pub struct SymbolMappingMsg {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(dict, module = "databento_dbn"),
+    pyo3::pyclass(dict, eq, module = "databento_dbn"),
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope

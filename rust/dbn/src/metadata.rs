@@ -22,7 +22,7 @@ use crate::{
 /// Information about the data contained in a DBN file or stream. DBN requires the
 /// Metadata to be included at the start of the encoded data.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "python", pyo3::pyclass(module = "databento_dbn"))]
+#[cfg_attr(feature = "python", pyo3::pyclass(eq, module = "databento_dbn"))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 pub struct Metadata {
     /// The DBN schema version number. Newly-encoded DBN files will use

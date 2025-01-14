@@ -30,7 +30,7 @@ fn databento_dbn(_py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     }
     // all functions exposed to Python need to be added here
     m.add_wrapped(wrap_pyfunction!(encode::update_encoded_metadata))?;
-    m.add("DBNError", m.py().get_type_bound::<DBNError>())?;
+    m.add("DBNError", m.py().get_type::<DBNError>())?;
     checked_add_class::<EnumIterator>(m)?;
     checked_add_class::<Metadata>(m)?;
     checked_add_class::<dbn_decoder::DbnDecoder>(m)?;
@@ -99,6 +99,7 @@ mod tests {
     use std::sync::Once;
 
     use dbn::enums::SType;
+    use pyo3::ffi::c_str;
 
     use super::*;
 
@@ -157,8 +158,9 @@ assert metadata.ts_out is False"#
     fn test_dbn_decoder_metadata_error() {
         setup();
         Python::with_gil(|py| {
-            py.run_bound(
-                r#"from _lib import DBNDecoder
+            py.run(
+                c_str!(
+                    r#"from _lib import DBNDecoder
 
 decoder = DBNDecoder()
 try:
@@ -167,7 +169,8 @@ try:
     assert False
 except Exception:
     pass
-"#,
+"#
+                ),
                 None,
                 None,
             )

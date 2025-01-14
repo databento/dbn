@@ -1,6 +1,6 @@
 use std::io::{self, Write};
 
-use pyo3::prelude::*;
+use pyo3::{prelude::*, IntoPyObjectExt};
 
 use dbn::{
     decode::dbn::{MetadataDecoder, RecordDecoder},
@@ -59,7 +59,10 @@ impl DbnDecoder {
                     self.input_version = metadata.version;
                     self.ts_out = metadata.ts_out;
                     metadata.upgrade(self.upgrade_policy);
-                    Python::with_gil(|py| recs.push(metadata.into_py(py)));
+                    Python::with_gil(|py| -> PyResult<()> {
+                        recs.push(metadata.into_py_any(py)?);
+                        Ok(())
+                    })?;
                     self.has_decoded_metadata = true;
                 }
                 Err(err) => {
@@ -84,12 +87,11 @@ impl DbnDecoder {
             while let Some(rec) = decoder.decode_ref()? {
                 // Bug in clippy generates an error here. trivial_copy feature isn't enabled,
                 // but clippy thinks these records are `Copy`
-                fn push_rec<R: Clone + HasRType + IntoPy<Py<PyAny>>>(
-                    rec: &R,
-                    py: Python,
-                    recs: &mut Vec<Py<PyAny>>,
-                ) {
-                    recs.push(rec.clone().into_py(py))
+                fn push_rec<'py, R>(rec: &R, py: Python<'py>, recs: &mut Vec<PyObject>)
+                where
+                    R: Clone + HasRType + IntoPyObject<'py>,
+                {
+                    recs.push(rec.clone().into_py_any(py).unwrap());
                 }
 
                 // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
@@ -232,7 +234,7 @@ mod tests {
     fn test_dbn_decoder() {
         setup();
         Python::with_gil(|py| {
-            let path = PyString::new_bound(
+            let path = PyString::new(
                 py,
                 concat!(
                     env!("CARGO_MANIFEST_DIR"),

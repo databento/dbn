@@ -19,8 +19,8 @@ license = "Apache-2.0"
 [workspace.dependencies]
 anyhow = "1.0.94"
 csv = "1.3"
-pyo3 = "0.22.6"
-pyo3-build-config = "0.22.6"
+pyo3 = "0.23.4"
+pyo3-build-config = "0.23.4"
 rstest = "0.23.0"
 serde = { version = "1.0", features = ["derive"] }
 time = ">=0.3.35"
