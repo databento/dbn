@@ -309,10 +309,12 @@ pub enum Dataset {
     XcisTradesbbo = 33,
     /// NYSE Trades and BBO
     XnysTradesbbo = 34,
+    /// Databento US Equities Mini
+    EqusMini = 35,
 }
 
 /// The number of Dataset variants.
-pub const DATASET_COUNT: usize = 34;
+pub const DATASET_COUNT: usize = 35;
 
 impl Dataset {
     /// Convert a Dataset to its `str` representation.
@@ -354,6 +356,7 @@ impl Dataset {
             Self::EqusSummary => "EQUS.SUMMARY",
             Self::XcisTradesbbo => "XCIS.TRADESBBO",
             Self::XnysTradesbbo => "XNYS.TRADESBBO",
+            Self::EqusMini => "EQUS.MINI",
         }
     }
 }
@@ -411,6 +414,7 @@ impl std::str::FromStr for Dataset {
             "EQUS.SUMMARY" => Ok(Self::EqusSummary),
             "XCIS.TRADESBBO" => Ok(Self::XcisTradesbbo),
             "XNYS.TRADESBBO" => Ok(Self::XnysTradesbbo),
+            "EQUS.MINI" => Ok(Self::EqusMini),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
@@ -609,10 +613,12 @@ pub enum Publisher {
     XnasBasicEqus = 93,
     /// Databento US Equities (All Feeds) - Consolidated
     EqusAllEqus = 94,
+    /// Databento US Equities Mini
+    EqusMiniEqus = 95,
 }
 
 /// The number of Publisher variants.
-pub const PUBLISHER_COUNT: usize = 94;
+pub const PUBLISHER_COUNT: usize = 95;
 
 impl Publisher {
     /// Convert a Publisher to its `str` representation.
@@ -712,6 +718,7 @@ impl Publisher {
             Self::XnysTradesbboXnys => "XNYS.TRADESBBO.XNYS",
             Self::XnasBasicEqus => "XNAS.BASIC.EQUS",
             Self::EqusAllEqus => "EQUS.ALL.EQUS",
+            Self::EqusMiniEqus => "EQUS.MINI.EQUS",
         }
     }
 
@@ -812,6 +819,7 @@ impl Publisher {
             Self::XnysTradesbboXnys => Venue::Xnys,
             Self::XnasBasicEqus => Venue::Equs,
             Self::EqusAllEqus => Venue::Equs,
+            Self::EqusMiniEqus => Venue::Equs,
         }
     }
 
@@ -912,6 +920,7 @@ impl Publisher {
             Self::XnysTradesbboXnys => Dataset::XnysTradesbbo,
             Self::XnasBasicEqus => Dataset::XnasBasic,
             Self::EqusAllEqus => Dataset::EqusAll,
+            Self::EqusMiniEqus => Dataset::EqusMini,
         }
     }
 
@@ -1014,6 +1023,7 @@ impl Publisher {
             (Dataset::XnysTradesbbo, Venue::Xnys) => Ok(Self::XnysTradesbboXnys),
             (Dataset::XnasBasic, Venue::Equs) => Ok(Self::XnasBasicEqus),
             (Dataset::EqusAll, Venue::Equs) => Ok(Self::EqusAllEqus),
+            (Dataset::EqusMini, Venue::Equs) => Ok(Self::EqusMiniEqus),
             _ => Err(Error::conversion::<Self>(format!("({dataset}, {venue})"))),
         }
     }
@@ -1130,6 +1140,7 @@ impl std::str::FromStr for Publisher {
             "XNYS.TRADESBBO.XNYS" => Ok(Self::XnysTradesbboXnys),
             "XNAS.BASIC.EQUS" => Ok(Self::XnasBasicEqus),
             "EQUS.ALL.EQUS" => Ok(Self::EqusAllEqus),
+            "EQUS.MINI.EQUS" => Ok(Self::EqusMiniEqus),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
