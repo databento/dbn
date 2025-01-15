@@ -1,12 +1,15 @@
 # Changelog
 
-### 0.27.0 - TBD (coming soon)
+## 0.27.0 - TBD
 
 ### Breaking changes
 - Updated enumerations for unreleased datasets and publishers.
 
 ### Enhancements
 - Added new dataset `EQUS.MINI` and new publisher `EQUS.MINI.EQUS`
+
+### Bug fixes
+- Fixed export of `InstrumentDefMsgV3` to Python
 
 ## 0.26.0 - 2025-01-07
 
