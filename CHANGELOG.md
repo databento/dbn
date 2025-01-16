@@ -6,7 +6,7 @@
 - Updated enumerations for unreleased datasets and publishers.
 
 ### Enhancements
-- Added new dataset `EQUS.MINI` and new publisher `EQUS.MINI.EQUS`
+- Added new dataset `EQUS.MINI` and new publishers `EQUS.MINI.EQUS`, `XNYS.TRADES.EQUS`
 - Upgraded `pyo3` version to 0.23.4 with improved support for Python 3.13
 
 ### Bug fixes

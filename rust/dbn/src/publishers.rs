@@ -615,10 +615,12 @@ pub enum Publisher {
     EqusAllEqus = 94,
     /// Databento US Equities Mini
     EqusMiniEqus = 95,
+    /// NYSE Trades - Consolidated
+    XnysTradesEqus = 96,
 }
 
 /// The number of Publisher variants.
-pub const PUBLISHER_COUNT: usize = 95;
+pub const PUBLISHER_COUNT: usize = 96;
 
 impl Publisher {
     /// Convert a Publisher to its `str` representation.
@@ -719,6 +721,7 @@ impl Publisher {
             Self::XnasBasicEqus => "XNAS.BASIC.EQUS",
             Self::EqusAllEqus => "EQUS.ALL.EQUS",
             Self::EqusMiniEqus => "EQUS.MINI.EQUS",
+            Self::XnysTradesEqus => "XNYS.TRADES.EQUS",
         }
     }
 
@@ -820,6 +823,7 @@ impl Publisher {
             Self::XnasBasicEqus => Venue::Equs,
             Self::EqusAllEqus => Venue::Equs,
             Self::EqusMiniEqus => Venue::Equs,
+            Self::XnysTradesEqus => Venue::Equs,
         }
     }
 
@@ -921,6 +925,7 @@ impl Publisher {
             Self::XnasBasicEqus => Dataset::XnasBasic,
             Self::EqusAllEqus => Dataset::EqusAll,
             Self::EqusMiniEqus => Dataset::EqusMini,
+            Self::XnysTradesEqus => Dataset::XnysTrades,
         }
     }
 
@@ -1024,6 +1029,7 @@ impl Publisher {
             (Dataset::XnasBasic, Venue::Equs) => Ok(Self::XnasBasicEqus),
             (Dataset::EqusAll, Venue::Equs) => Ok(Self::EqusAllEqus),
             (Dataset::EqusMini, Venue::Equs) => Ok(Self::EqusMiniEqus),
+            (Dataset::XnysTrades, Venue::Equs) => Ok(Self::XnysTradesEqus),
             _ => Err(Error::conversion::<Self>(format!("({dataset}, {venue})"))),
         }
     }
@@ -1141,6 +1147,7 @@ impl std::str::FromStr for Publisher {
             "XNAS.BASIC.EQUS" => Ok(Self::XnasBasicEqus),
             "EQUS.ALL.EQUS" => Ok(Self::EqusAllEqus),
             "EQUS.MINI.EQUS" => Ok(Self::EqusMiniEqus),
+            "XNYS.TRADES.EQUS" => Ok(Self::XnysTradesEqus),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
