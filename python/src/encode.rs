@@ -1,10 +1,11 @@
 use std::{
     io::{self, Read, Seek},
     num::NonZeroU64,
+    sync::Mutex,
 };
 
 use dbn::encode::dbn::MetadataEncoder;
-use pyo3::{exceptions::PyTypeError, intern, prelude::*, types::PyBytes};
+use pyo3::{exceptions::PyTypeError, intern, prelude::*, types::PyBytes, IntoPyObjectExt};
 
 /// Updates existing fields that have already been written to the given file.
 #[pyfunction]
@@ -30,7 +31,7 @@ pub fn update_encoded_metadata(
 
 /// A Python object that implements the Python file interface.
 pub struct PyFileLike {
-    inner: PyObject,
+    inner: Mutex<PyObject>,
 }
 
 impl<'py> FromPyObject<'py> for PyFileLike {
@@ -52,7 +53,9 @@ impl<'py> FromPyObject<'py> for PyFileLike {
                     "object is missing a `seek()` method".to_owned(),
                 ));
             }
-            Ok(PyFileLike { inner: obj })
+            Ok(PyFileLike {
+                inner: Mutex::new(obj),
+            })
         })
     }
 }
@@ -62,7 +65,9 @@ impl io::Read for PyFileLike {
         Python::with_gil(|py| {
             let bytes: Vec<u8> = self
                 .inner
-                .call_method_bound(py, intern!(py, "read"), (buf.len(),), None)
+                .lock()
+                .unwrap()
+                .call_method(py, intern!(py, "read"), (buf.len(),), None)
                 .map_err(py_to_rs_io_err)?
                 .extract(py)?;
             buf[..bytes.len()].clone_from_slice(&bytes);
@@ -74,10 +79,12 @@ impl io::Read for PyFileLike {
 impl io::Write for PyFileLike {
     fn write(&mut self, buf: &[u8]) -> Result<usize, io::Error> {
         Python::with_gil(|py| {
-            let bytes = PyBytes::new_bound(py, buf).to_object(py);
+            let bytes = PyBytes::new(py, buf);
             let number_bytes_written = self
                 .inner
-                .call_method_bound(py, intern!(py, "write"), (bytes,), None)
+                .lock()
+                .unwrap()
+                .call_method(py, intern!(py, "write"), (bytes,), None)
                 .map_err(py_to_rs_io_err)?;
 
             number_bytes_written.extract(py).map_err(py_to_rs_io_err)
@@ -87,7 +94,9 @@ impl io::Write for PyFileLike {
     fn flush(&mut self) -> Result<(), io::Error> {
         Python::with_gil(|py| {
             self.inner
-                .call_method_bound(py, intern!(py, "flush"), (), None)
+                .lock()
+                .unwrap()
+                .call_method(py, intern!(py, "flush"), (), None)
                 .map_err(py_to_rs_io_err)?;
 
             Ok(())
@@ -106,7 +115,9 @@ impl io::Seek for PyFileLike {
 
             let new_position = self
                 .inner
-                .call_method_bound(py, intern!(py, "seek"), (offset, whence), None)
+                .lock()
+                .unwrap()
+                .call_method(py, intern!(py, "seek"), (offset, whence), None)
                 .map_err(py_to_rs_io_err)?;
 
             new_position.extract(py).map_err(py_to_rs_io_err)
@@ -116,10 +127,10 @@ impl io::Seek for PyFileLike {
 
 fn py_to_rs_io_err(e: PyErr) -> io::Error {
     Python::with_gil(|py| {
-        let e_as_object: PyObject = e.into_py(py);
+        let e_as_object = e.into_bound_py_any(py).unwrap();
 
-        match e_as_object.call_method_bound(py, intern!(py, "__str__"), (), None) {
-            Ok(repr) => match repr.extract::<String>(py) {
+        match e_as_object.call_method(intern!(py, "__str__"), (), None) {
+            Ok(repr) => match repr.extract::<String>() {
                 Ok(s) => io::Error::new(io::ErrorKind::Other, s),
                 Err(_e) => io::Error::new(io::ErrorKind::Other, "An unknown error has occurred"),
             },

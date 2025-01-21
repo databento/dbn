@@ -89,7 +89,7 @@ pub enum Venue {
     Ifeu = 38,
     /// ICE Endex
     Ndex = 39,
-    /// Databento Equities - Consolidated
+    /// Databento US Equities - Consolidated
     Dbeq = 40,
     /// MIAX Sapphire
     Sphr = 41,
@@ -103,10 +103,12 @@ pub enum Venue {
     Asmt = 45,
     /// IntelligentCross ASPEN Inverted
     Aspi = 46,
+    /// Databento US Equities - Consolidated
+    Equs = 47,
 }
 
 /// The number of Venue variants.
-pub const VENUE_COUNT: usize = 46;
+pub const VENUE_COUNT: usize = 47;
 
 impl Venue {
     /// Convert a Venue to its `str` representation.
@@ -158,6 +160,7 @@ impl Venue {
             Self::Aspn => "ASPN",
             Self::Asmt => "ASMT",
             Self::Aspi => "ASPI",
+            Self::Equs => "EQUS",
         }
     }
 }
@@ -225,6 +228,7 @@ impl std::str::FromStr for Venue {
             "ASPN" => Ok(Self::Aspn),
             "ASMT" => Ok(Self::Asmt),
             "ASPI" => Ok(Self::Aspi),
+            "EQUS" => Ok(Self::Equs),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
@@ -275,14 +279,14 @@ pub enum Dataset {
     FinyTrades = 18,
     /// OPRA Binary
     OpraPillar = 19,
-    /// Databento Equities Basic
+    /// Databento US Equities Basic
     DbeqBasic = 20,
     /// NYSE Arca Integrated
     ArcxPillar = 21,
     /// IEX TOPS
     IexgTops = 22,
-    /// Databento Equities Plus
-    DbeqPlus = 23,
+    /// Databento US Equities Plus
+    EqusPlus = 23,
     /// NYSE BBO
     XnysBbo = 24,
     /// NYSE Trades
@@ -295,20 +299,22 @@ pub enum Dataset {
     IfeuImpact = 28,
     /// ICE Endex iMpact
     NdexImpact = 29,
-    /// Databento Equities Max
-    DbeqMax = 30,
+    /// Databento US Equities (All Feeds)
+    EqusAll = 30,
     /// Nasdaq Basic (NLS and QBBO)
     XnasBasic = 31,
-    /// Databento Equities Summary
-    DbeqSummary = 32,
-    /// NYSE National BBO and Trades
-    XcisBbotrades = 33,
-    /// NYSE BBO and Trades
-    XnysBbotrades = 34,
+    /// Databento US Equities Summary
+    EqusSummary = 32,
+    /// NYSE National Trades and BBO
+    XcisTradesbbo = 33,
+    /// NYSE Trades and BBO
+    XnysTradesbbo = 34,
+    /// Databento US Equities Mini
+    EqusMini = 35,
 }
 
 /// The number of Dataset variants.
-pub const DATASET_COUNT: usize = 34;
+pub const DATASET_COUNT: usize = 35;
 
 impl Dataset {
     /// Convert a Dataset to its `str` representation.
@@ -338,18 +344,19 @@ impl Dataset {
             Self::DbeqBasic => "DBEQ.BASIC",
             Self::ArcxPillar => "ARCX.PILLAR",
             Self::IexgTops => "IEXG.TOPS",
-            Self::DbeqPlus => "DBEQ.PLUS",
+            Self::EqusPlus => "EQUS.PLUS",
             Self::XnysBbo => "XNYS.BBO",
             Self::XnysTrades => "XNYS.TRADES",
             Self::XnasQbbo => "XNAS.QBBO",
             Self::XnasNls => "XNAS.NLS",
             Self::IfeuImpact => "IFEU.IMPACT",
             Self::NdexImpact => "NDEX.IMPACT",
-            Self::DbeqMax => "DBEQ.MAX",
+            Self::EqusAll => "EQUS.ALL",
             Self::XnasBasic => "XNAS.BASIC",
-            Self::DbeqSummary => "DBEQ.SUMMARY",
-            Self::XcisBbotrades => "XCIS.BBOTRADES",
-            Self::XnysBbotrades => "XNYS.BBOTRADES",
+            Self::EqusSummary => "EQUS.SUMMARY",
+            Self::XcisTradesbbo => "XCIS.TRADESBBO",
+            Self::XnysTradesbbo => "XNYS.TRADESBBO",
+            Self::EqusMini => "EQUS.MINI",
         }
     }
 }
@@ -395,18 +402,19 @@ impl std::str::FromStr for Dataset {
             "DBEQ.BASIC" => Ok(Self::DbeqBasic),
             "ARCX.PILLAR" => Ok(Self::ArcxPillar),
             "IEXG.TOPS" => Ok(Self::IexgTops),
-            "DBEQ.PLUS" => Ok(Self::DbeqPlus),
+            "EQUS.PLUS" => Ok(Self::EqusPlus),
             "XNYS.BBO" => Ok(Self::XnysBbo),
             "XNYS.TRADES" => Ok(Self::XnysTrades),
             "XNAS.QBBO" => Ok(Self::XnasQbbo),
             "XNAS.NLS" => Ok(Self::XnasNls),
             "IFEU.IMPACT" => Ok(Self::IfeuImpact),
             "NDEX.IMPACT" => Ok(Self::NdexImpact),
-            "DBEQ.MAX" => Ok(Self::DbeqMax),
+            "EQUS.ALL" => Ok(Self::EqusAll),
             "XNAS.BASIC" => Ok(Self::XnasBasic),
-            "DBEQ.SUMMARY" => Ok(Self::DbeqSummary),
-            "XCIS.BBOTRADES" => Ok(Self::XcisBbotrades),
-            "XNYS.BBOTRADES" => Ok(Self::XnysBbotrades),
+            "EQUS.SUMMARY" => Ok(Self::EqusSummary),
+            "XCIS.TRADESBBO" => Ok(Self::XcisTradesbbo),
+            "XNYS.TRADESBBO" => Ok(Self::XnysTradesbbo),
+            "EQUS.MINI" => Ok(Self::EqusMini),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
@@ -511,72 +519,72 @@ pub enum Publisher {
     XnasQbboXnas = 46,
     /// Nasdaq Trades
     XnasNlsXnas = 47,
-    /// DBEQ Plus - NYSE Chicago
-    DbeqPlusXchi = 48,
-    /// DBEQ Plus - NYSE National
-    DbeqPlusXcis = 49,
-    /// DBEQ Plus - IEX
-    DbeqPlusIexg = 50,
-    /// DBEQ Plus - MIAX Pearl
-    DbeqPlusEprl = 51,
-    /// DBEQ Plus - Nasdaq
-    DbeqPlusXnas = 52,
-    /// DBEQ Plus - NYSE
-    DbeqPlusXnys = 53,
-    /// DBEQ Plus - FINRA/Nasdaq TRF Carteret
-    DbeqPlusFinn = 54,
-    /// DBEQ Plus - FINRA/NYSE TRF
-    DbeqPlusFiny = 55,
-    /// DBEQ Plus - FINRA/Nasdaq TRF Chicago
-    DbeqPlusFinc = 56,
+    /// Databento US Equities Plus - NYSE Chicago
+    EqusPlusXchi = 48,
+    /// Databento US Equities Plus - NYSE National
+    EqusPlusXcis = 49,
+    /// Databento US Equities Plus - IEX
+    EqusPlusIexg = 50,
+    /// Databento US Equities Plus - MIAX Pearl
+    EqusPlusEprl = 51,
+    /// Databento US Equities Plus - Nasdaq
+    EqusPlusXnas = 52,
+    /// Databento US Equities Plus - NYSE
+    EqusPlusXnys = 53,
+    /// Databento US Equities Plus - FINRA/Nasdaq TRF Carteret
+    EqusPlusFinn = 54,
+    /// Databento US Equities Plus - FINRA/NYSE TRF
+    EqusPlusFiny = 55,
+    /// Databento US Equities Plus - FINRA/Nasdaq TRF Chicago
+    EqusPlusFinc = 56,
     /// ICE Futures Europe (Commodities)
     IfeuImpactIfeu = 57,
     /// ICE Endex
     NdexImpactNdex = 58,
-    /// DBEQ Basic - Consolidated
+    /// Databento US Equities Basic - Consolidated
     DbeqBasicDbeq = 59,
-    /// DBEQ Plus - Consolidated
-    DbeqPlusDbeq = 60,
+    /// EQUS Plus - Consolidated
+    EqusPlusEqus = 60,
     /// OPRA - MIAX Sapphire
     OpraPillarSphr = 61,
-    /// DBEQ Max - NYSE Chicago
-    DbeqMaxXchi = 62,
-    /// DBEQ Max - NYSE National
-    DbeqMaxXcis = 63,
-    /// DBEQ Max - IEX
-    DbeqMaxIexg = 64,
-    /// DBEQ Max - MIAX Pearl
-    DbeqMaxEprl = 65,
-    /// DBEQ Max - Nasdaq
-    DbeqMaxXnas = 66,
-    /// DBEQ Max - NYSE
-    DbeqMaxXnys = 67,
-    /// DBEQ Max - FINRA/Nasdaq TRF Carteret
-    DbeqMaxFinn = 68,
-    /// DBEQ Max - FINRA/NYSE TRF
-    DbeqMaxFiny = 69,
-    /// DBEQ Max - FINRA/Nasdaq TRF Chicago
-    DbeqMaxFinc = 70,
-    /// DBEQ Max - CBOE BZX
-    DbeqMaxBats = 71,
-    /// DBEQ Max - CBOE BYX
-    DbeqMaxBaty = 72,
-    /// DBEQ Max - CBOE EDGA
-    DbeqMaxEdga = 73,
-    /// DBEQ Max - CBOE EDGX
-    DbeqMaxEdgx = 74,
-    /// DBEQ Max - Nasdaq BX
-    DbeqMaxXbos = 75,
-    /// DBEQ Max - Nasdaq PSX
-    DbeqMaxXpsx = 76,
-    /// DBEQ Max - MEMX
-    DbeqMaxMemx = 77,
-    /// DBEQ Max - NYSE American
-    DbeqMaxXase = 78,
-    /// DBEQ Max - NYSE Arca
-    DbeqMaxArcx = 79,
-    /// DBEQ Max - Long-Term Stock Exchange
-    DbeqMaxLtse = 80,
+    /// Databento US Equities (All Feeds) - NYSE Chicago
+    EqusAllXchi = 62,
+    /// Databento US Equities (All Feeds) - NYSE National
+    EqusAllXcis = 63,
+    /// Databento US Equities (All Feeds) - IEX
+    EqusAllIexg = 64,
+    /// Databento US Equities (All Feeds) - MIAX Pearl
+    EqusAllEprl = 65,
+    /// Databento US Equities (All Feeds) - Nasdaq
+    EqusAllXnas = 66,
+    /// Databento US Equities (All Feeds) - NYSE
+    EqusAllXnys = 67,
+    /// Databento US Equities (All Feeds) - FINRA/Nasdaq TRF Carteret
+    EqusAllFinn = 68,
+    /// Databento US Equities (All Feeds) - FINRA/NYSE TRF
+    EqusAllFiny = 69,
+    /// Databento US Equities (All Feeds) - FINRA/Nasdaq TRF Chicago
+    EqusAllFinc = 70,
+    /// Databento US Equities (All Feeds) - CBOE BZX
+    EqusAllBats = 71,
+    /// Databento US Equities (All Feeds) - CBOE BYX
+    EqusAllBaty = 72,
+    /// Databento US Equities (All Feeds) - CBOE EDGA
+    EqusAllEdga = 73,
+    /// Databento US Equities (All Feeds) - CBOE EDGX
+    EqusAllEdgx = 74,
+    /// Databento US Equities (All Feeds) - Nasdaq BX
+    EqusAllXbos = 75,
+    /// Databento US Equities (All Feeds) - Nasdaq PSX
+    EqusAllXpsx = 76,
+    /// Databento US Equities (All Feeds) - MEMX
+    EqusAllMemx = 77,
+    /// Databento US Equities (All Feeds) - NYSE American
+    EqusAllXase = 78,
+    /// Databento US Equities (All Feeds) - NYSE Arca
+    EqusAllArcx = 79,
+    /// Databento US Equities (All Feeds) - Long-Term Stock Exchange
+    EqusAllLtse = 80,
     /// Nasdaq Basic - Nasdaq
     XnasBasicXnas = 81,
     /// Nasdaq Basic - FINRA/Nasdaq TRF Carteret
@@ -596,19 +604,23 @@ pub enum Publisher {
     /// Nasdaq Basic - Nasdaq PSX
     XnasBasicXpsx = 89,
     /// Databento Equities Summary
-    DbeqSummaryDbeq = 90,
-    /// NYSE National BBO and Trades
-    XcisBbotradesXcis = 91,
-    /// NYSE BBO and Trades
-    XnysBbotradesXnys = 92,
+    EqusSummaryEqus = 90,
+    /// NYSE National Trades and BBO
+    XcisTradesbboXcis = 91,
+    /// NYSE Trades and BBO
+    XnysTradesbboXnys = 92,
     /// Nasdaq Basic - Consolidated
-    XnasBasicDbeq = 93,
-    /// DBEQ Max - Consolidated
-    DbeqMaxDbeq = 94,
+    XnasBasicEqus = 93,
+    /// Databento US Equities (All Feeds) - Consolidated
+    EqusAllEqus = 94,
+    /// Databento US Equities Mini
+    EqusMiniEqus = 95,
+    /// NYSE Trades - Consolidated
+    XnysTradesEqus = 96,
 }
 
 /// The number of Publisher variants.
-pub const PUBLISHER_COUNT: usize = 94;
+pub const PUBLISHER_COUNT: usize = 96;
 
 impl Publisher {
     /// Convert a Publisher to its `str` representation.
@@ -661,39 +673,39 @@ impl Publisher {
             Self::XnysTradesXnys => "XNYS.TRADES.XNYS",
             Self::XnasQbboXnas => "XNAS.QBBO.XNAS",
             Self::XnasNlsXnas => "XNAS.NLS.XNAS",
-            Self::DbeqPlusXchi => "DBEQ.PLUS.XCHI",
-            Self::DbeqPlusXcis => "DBEQ.PLUS.XCIS",
-            Self::DbeqPlusIexg => "DBEQ.PLUS.IEXG",
-            Self::DbeqPlusEprl => "DBEQ.PLUS.EPRL",
-            Self::DbeqPlusXnas => "DBEQ.PLUS.XNAS",
-            Self::DbeqPlusXnys => "DBEQ.PLUS.XNYS",
-            Self::DbeqPlusFinn => "DBEQ.PLUS.FINN",
-            Self::DbeqPlusFiny => "DBEQ.PLUS.FINY",
-            Self::DbeqPlusFinc => "DBEQ.PLUS.FINC",
+            Self::EqusPlusXchi => "EQUS.PLUS.XCHI",
+            Self::EqusPlusXcis => "EQUS.PLUS.XCIS",
+            Self::EqusPlusIexg => "EQUS.PLUS.IEXG",
+            Self::EqusPlusEprl => "EQUS.PLUS.EPRL",
+            Self::EqusPlusXnas => "EQUS.PLUS.XNAS",
+            Self::EqusPlusXnys => "EQUS.PLUS.XNYS",
+            Self::EqusPlusFinn => "EQUS.PLUS.FINN",
+            Self::EqusPlusFiny => "EQUS.PLUS.FINY",
+            Self::EqusPlusFinc => "EQUS.PLUS.FINC",
             Self::IfeuImpactIfeu => "IFEU.IMPACT.IFEU",
             Self::NdexImpactNdex => "NDEX.IMPACT.NDEX",
             Self::DbeqBasicDbeq => "DBEQ.BASIC.DBEQ",
-            Self::DbeqPlusDbeq => "DBEQ.PLUS.DBEQ",
+            Self::EqusPlusEqus => "EQUS.PLUS.EQUS",
             Self::OpraPillarSphr => "OPRA.PILLAR.SPHR",
-            Self::DbeqMaxXchi => "DBEQ.MAX.XCHI",
-            Self::DbeqMaxXcis => "DBEQ.MAX.XCIS",
-            Self::DbeqMaxIexg => "DBEQ.MAX.IEXG",
-            Self::DbeqMaxEprl => "DBEQ.MAX.EPRL",
-            Self::DbeqMaxXnas => "DBEQ.MAX.XNAS",
-            Self::DbeqMaxXnys => "DBEQ.MAX.XNYS",
-            Self::DbeqMaxFinn => "DBEQ.MAX.FINN",
-            Self::DbeqMaxFiny => "DBEQ.MAX.FINY",
-            Self::DbeqMaxFinc => "DBEQ.MAX.FINC",
-            Self::DbeqMaxBats => "DBEQ.MAX.BATS",
-            Self::DbeqMaxBaty => "DBEQ.MAX.BATY",
-            Self::DbeqMaxEdga => "DBEQ.MAX.EDGA",
-            Self::DbeqMaxEdgx => "DBEQ.MAX.EDGX",
-            Self::DbeqMaxXbos => "DBEQ.MAX.XBOS",
-            Self::DbeqMaxXpsx => "DBEQ.MAX.XPSX",
-            Self::DbeqMaxMemx => "DBEQ.MAX.MEMX",
-            Self::DbeqMaxXase => "DBEQ.MAX.XASE",
-            Self::DbeqMaxArcx => "DBEQ.MAX.ARCX",
-            Self::DbeqMaxLtse => "DBEQ.MAX.LTSE",
+            Self::EqusAllXchi => "EQUS.ALL.XCHI",
+            Self::EqusAllXcis => "EQUS.ALL.XCIS",
+            Self::EqusAllIexg => "EQUS.ALL.IEXG",
+            Self::EqusAllEprl => "EQUS.ALL.EPRL",
+            Self::EqusAllXnas => "EQUS.ALL.XNAS",
+            Self::EqusAllXnys => "EQUS.ALL.XNYS",
+            Self::EqusAllFinn => "EQUS.ALL.FINN",
+            Self::EqusAllFiny => "EQUS.ALL.FINY",
+            Self::EqusAllFinc => "EQUS.ALL.FINC",
+            Self::EqusAllBats => "EQUS.ALL.BATS",
+            Self::EqusAllBaty => "EQUS.ALL.BATY",
+            Self::EqusAllEdga => "EQUS.ALL.EDGA",
+            Self::EqusAllEdgx => "EQUS.ALL.EDGX",
+            Self::EqusAllXbos => "EQUS.ALL.XBOS",
+            Self::EqusAllXpsx => "EQUS.ALL.XPSX",
+            Self::EqusAllMemx => "EQUS.ALL.MEMX",
+            Self::EqusAllXase => "EQUS.ALL.XASE",
+            Self::EqusAllArcx => "EQUS.ALL.ARCX",
+            Self::EqusAllLtse => "EQUS.ALL.LTSE",
             Self::XnasBasicXnas => "XNAS.BASIC.XNAS",
             Self::XnasBasicFinn => "XNAS.BASIC.FINN",
             Self::XnasBasicFinc => "XNAS.BASIC.FINC",
@@ -703,11 +715,13 @@ impl Publisher {
             Self::XnasNlsXpsx => "XNAS.NLS.XPSX",
             Self::XnasBasicXbos => "XNAS.BASIC.XBOS",
             Self::XnasBasicXpsx => "XNAS.BASIC.XPSX",
-            Self::DbeqSummaryDbeq => "DBEQ.SUMMARY.DBEQ",
-            Self::XcisBbotradesXcis => "XCIS.BBOTRADES.XCIS",
-            Self::XnysBbotradesXnys => "XNYS.BBOTRADES.XNYS",
-            Self::XnasBasicDbeq => "XNAS.BASIC.DBEQ",
-            Self::DbeqMaxDbeq => "DBEQ.MAX.DBEQ",
+            Self::EqusSummaryEqus => "EQUS.SUMMARY.EQUS",
+            Self::XcisTradesbboXcis => "XCIS.TRADESBBO.XCIS",
+            Self::XnysTradesbboXnys => "XNYS.TRADESBBO.XNYS",
+            Self::XnasBasicEqus => "XNAS.BASIC.EQUS",
+            Self::EqusAllEqus => "EQUS.ALL.EQUS",
+            Self::EqusMiniEqus => "EQUS.MINI.EQUS",
+            Self::XnysTradesEqus => "XNYS.TRADES.EQUS",
         }
     }
 
@@ -761,39 +775,39 @@ impl Publisher {
             Self::XnysTradesXnys => Venue::Xnys,
             Self::XnasQbboXnas => Venue::Xnas,
             Self::XnasNlsXnas => Venue::Xnas,
-            Self::DbeqPlusXchi => Venue::Xchi,
-            Self::DbeqPlusXcis => Venue::Xcis,
-            Self::DbeqPlusIexg => Venue::Iexg,
-            Self::DbeqPlusEprl => Venue::Eprl,
-            Self::DbeqPlusXnas => Venue::Xnas,
-            Self::DbeqPlusXnys => Venue::Xnys,
-            Self::DbeqPlusFinn => Venue::Finn,
-            Self::DbeqPlusFiny => Venue::Finy,
-            Self::DbeqPlusFinc => Venue::Finc,
+            Self::EqusPlusXchi => Venue::Xchi,
+            Self::EqusPlusXcis => Venue::Xcis,
+            Self::EqusPlusIexg => Venue::Iexg,
+            Self::EqusPlusEprl => Venue::Eprl,
+            Self::EqusPlusXnas => Venue::Xnas,
+            Self::EqusPlusXnys => Venue::Xnys,
+            Self::EqusPlusFinn => Venue::Finn,
+            Self::EqusPlusFiny => Venue::Finy,
+            Self::EqusPlusFinc => Venue::Finc,
             Self::IfeuImpactIfeu => Venue::Ifeu,
             Self::NdexImpactNdex => Venue::Ndex,
             Self::DbeqBasicDbeq => Venue::Dbeq,
-            Self::DbeqPlusDbeq => Venue::Dbeq,
+            Self::EqusPlusEqus => Venue::Equs,
             Self::OpraPillarSphr => Venue::Sphr,
-            Self::DbeqMaxXchi => Venue::Xchi,
-            Self::DbeqMaxXcis => Venue::Xcis,
-            Self::DbeqMaxIexg => Venue::Iexg,
-            Self::DbeqMaxEprl => Venue::Eprl,
-            Self::DbeqMaxXnas => Venue::Xnas,
-            Self::DbeqMaxXnys => Venue::Xnys,
-            Self::DbeqMaxFinn => Venue::Finn,
-            Self::DbeqMaxFiny => Venue::Finy,
-            Self::DbeqMaxFinc => Venue::Finc,
-            Self::DbeqMaxBats => Venue::Bats,
-            Self::DbeqMaxBaty => Venue::Baty,
-            Self::DbeqMaxEdga => Venue::Edga,
-            Self::DbeqMaxEdgx => Venue::Edgx,
-            Self::DbeqMaxXbos => Venue::Xbos,
-            Self::DbeqMaxXpsx => Venue::Xpsx,
-            Self::DbeqMaxMemx => Venue::Memx,
-            Self::DbeqMaxXase => Venue::Xase,
-            Self::DbeqMaxArcx => Venue::Arcx,
-            Self::DbeqMaxLtse => Venue::Ltse,
+            Self::EqusAllXchi => Venue::Xchi,
+            Self::EqusAllXcis => Venue::Xcis,
+            Self::EqusAllIexg => Venue::Iexg,
+            Self::EqusAllEprl => Venue::Eprl,
+            Self::EqusAllXnas => Venue::Xnas,
+            Self::EqusAllXnys => Venue::Xnys,
+            Self::EqusAllFinn => Venue::Finn,
+            Self::EqusAllFiny => Venue::Finy,
+            Self::EqusAllFinc => Venue::Finc,
+            Self::EqusAllBats => Venue::Bats,
+            Self::EqusAllBaty => Venue::Baty,
+            Self::EqusAllEdga => Venue::Edga,
+            Self::EqusAllEdgx => Venue::Edgx,
+            Self::EqusAllXbos => Venue::Xbos,
+            Self::EqusAllXpsx => Venue::Xpsx,
+            Self::EqusAllMemx => Venue::Memx,
+            Self::EqusAllXase => Venue::Xase,
+            Self::EqusAllArcx => Venue::Arcx,
+            Self::EqusAllLtse => Venue::Ltse,
             Self::XnasBasicXnas => Venue::Xnas,
             Self::XnasBasicFinn => Venue::Finn,
             Self::XnasBasicFinc => Venue::Finc,
@@ -803,11 +817,13 @@ impl Publisher {
             Self::XnasNlsXpsx => Venue::Xpsx,
             Self::XnasBasicXbos => Venue::Xbos,
             Self::XnasBasicXpsx => Venue::Xpsx,
-            Self::DbeqSummaryDbeq => Venue::Dbeq,
-            Self::XcisBbotradesXcis => Venue::Xcis,
-            Self::XnysBbotradesXnys => Venue::Xnys,
-            Self::XnasBasicDbeq => Venue::Dbeq,
-            Self::DbeqMaxDbeq => Venue::Dbeq,
+            Self::EqusSummaryEqus => Venue::Equs,
+            Self::XcisTradesbboXcis => Venue::Xcis,
+            Self::XnysTradesbboXnys => Venue::Xnys,
+            Self::XnasBasicEqus => Venue::Equs,
+            Self::EqusAllEqus => Venue::Equs,
+            Self::EqusMiniEqus => Venue::Equs,
+            Self::XnysTradesEqus => Venue::Equs,
         }
     }
 
@@ -861,39 +877,39 @@ impl Publisher {
             Self::XnysTradesXnys => Dataset::XnysTrades,
             Self::XnasQbboXnas => Dataset::XnasQbbo,
             Self::XnasNlsXnas => Dataset::XnasNls,
-            Self::DbeqPlusXchi => Dataset::DbeqPlus,
-            Self::DbeqPlusXcis => Dataset::DbeqPlus,
-            Self::DbeqPlusIexg => Dataset::DbeqPlus,
-            Self::DbeqPlusEprl => Dataset::DbeqPlus,
-            Self::DbeqPlusXnas => Dataset::DbeqPlus,
-            Self::DbeqPlusXnys => Dataset::DbeqPlus,
-            Self::DbeqPlusFinn => Dataset::DbeqPlus,
-            Self::DbeqPlusFiny => Dataset::DbeqPlus,
-            Self::DbeqPlusFinc => Dataset::DbeqPlus,
+            Self::EqusPlusXchi => Dataset::EqusPlus,
+            Self::EqusPlusXcis => Dataset::EqusPlus,
+            Self::EqusPlusIexg => Dataset::EqusPlus,
+            Self::EqusPlusEprl => Dataset::EqusPlus,
+            Self::EqusPlusXnas => Dataset::EqusPlus,
+            Self::EqusPlusXnys => Dataset::EqusPlus,
+            Self::EqusPlusFinn => Dataset::EqusPlus,
+            Self::EqusPlusFiny => Dataset::EqusPlus,
+            Self::EqusPlusFinc => Dataset::EqusPlus,
             Self::IfeuImpactIfeu => Dataset::IfeuImpact,
             Self::NdexImpactNdex => Dataset::NdexImpact,
             Self::DbeqBasicDbeq => Dataset::DbeqBasic,
-            Self::DbeqPlusDbeq => Dataset::DbeqPlus,
+            Self::EqusPlusEqus => Dataset::EqusPlus,
             Self::OpraPillarSphr => Dataset::OpraPillar,
-            Self::DbeqMaxXchi => Dataset::DbeqMax,
-            Self::DbeqMaxXcis => Dataset::DbeqMax,
-            Self::DbeqMaxIexg => Dataset::DbeqMax,
-            Self::DbeqMaxEprl => Dataset::DbeqMax,
-            Self::DbeqMaxXnas => Dataset::DbeqMax,
-            Self::DbeqMaxXnys => Dataset::DbeqMax,
-            Self::DbeqMaxFinn => Dataset::DbeqMax,
-            Self::DbeqMaxFiny => Dataset::DbeqMax,
-            Self::DbeqMaxFinc => Dataset::DbeqMax,
-            Self::DbeqMaxBats => Dataset::DbeqMax,
-            Self::DbeqMaxBaty => Dataset::DbeqMax,
-            Self::DbeqMaxEdga => Dataset::DbeqMax,
-            Self::DbeqMaxEdgx => Dataset::DbeqMax,
-            Self::DbeqMaxXbos => Dataset::DbeqMax,
-            Self::DbeqMaxXpsx => Dataset::DbeqMax,
-            Self::DbeqMaxMemx => Dataset::DbeqMax,
-            Self::DbeqMaxXase => Dataset::DbeqMax,
-            Self::DbeqMaxArcx => Dataset::DbeqMax,
-            Self::DbeqMaxLtse => Dataset::DbeqMax,
+            Self::EqusAllXchi => Dataset::EqusAll,
+            Self::EqusAllXcis => Dataset::EqusAll,
+            Self::EqusAllIexg => Dataset::EqusAll,
+            Self::EqusAllEprl => Dataset::EqusAll,
+            Self::EqusAllXnas => Dataset::EqusAll,
+            Self::EqusAllXnys => Dataset::EqusAll,
+            Self::EqusAllFinn => Dataset::EqusAll,
+            Self::EqusAllFiny => Dataset::EqusAll,
+            Self::EqusAllFinc => Dataset::EqusAll,
+            Self::EqusAllBats => Dataset::EqusAll,
+            Self::EqusAllBaty => Dataset::EqusAll,
+            Self::EqusAllEdga => Dataset::EqusAll,
+            Self::EqusAllEdgx => Dataset::EqusAll,
+            Self::EqusAllXbos => Dataset::EqusAll,
+            Self::EqusAllXpsx => Dataset::EqusAll,
+            Self::EqusAllMemx => Dataset::EqusAll,
+            Self::EqusAllXase => Dataset::EqusAll,
+            Self::EqusAllArcx => Dataset::EqusAll,
+            Self::EqusAllLtse => Dataset::EqusAll,
             Self::XnasBasicXnas => Dataset::XnasBasic,
             Self::XnasBasicFinn => Dataset::XnasBasic,
             Self::XnasBasicFinc => Dataset::XnasBasic,
@@ -903,11 +919,13 @@ impl Publisher {
             Self::XnasNlsXpsx => Dataset::XnasNls,
             Self::XnasBasicXbos => Dataset::XnasBasic,
             Self::XnasBasicXpsx => Dataset::XnasBasic,
-            Self::DbeqSummaryDbeq => Dataset::DbeqSummary,
-            Self::XcisBbotradesXcis => Dataset::XcisBbotrades,
-            Self::XnysBbotradesXnys => Dataset::XnysBbotrades,
-            Self::XnasBasicDbeq => Dataset::XnasBasic,
-            Self::DbeqMaxDbeq => Dataset::DbeqMax,
+            Self::EqusSummaryEqus => Dataset::EqusSummary,
+            Self::XcisTradesbboXcis => Dataset::XcisTradesbbo,
+            Self::XnysTradesbboXnys => Dataset::XnysTradesbbo,
+            Self::XnasBasicEqus => Dataset::XnasBasic,
+            Self::EqusAllEqus => Dataset::EqusAll,
+            Self::EqusMiniEqus => Dataset::EqusMini,
+            Self::XnysTradesEqus => Dataset::XnysTrades,
         }
     }
 
@@ -963,39 +981,39 @@ impl Publisher {
             (Dataset::XnysTrades, Venue::Xnys) => Ok(Self::XnysTradesXnys),
             (Dataset::XnasQbbo, Venue::Xnas) => Ok(Self::XnasQbboXnas),
             (Dataset::XnasNls, Venue::Xnas) => Ok(Self::XnasNlsXnas),
-            (Dataset::DbeqPlus, Venue::Xchi) => Ok(Self::DbeqPlusXchi),
-            (Dataset::DbeqPlus, Venue::Xcis) => Ok(Self::DbeqPlusXcis),
-            (Dataset::DbeqPlus, Venue::Iexg) => Ok(Self::DbeqPlusIexg),
-            (Dataset::DbeqPlus, Venue::Eprl) => Ok(Self::DbeqPlusEprl),
-            (Dataset::DbeqPlus, Venue::Xnas) => Ok(Self::DbeqPlusXnas),
-            (Dataset::DbeqPlus, Venue::Xnys) => Ok(Self::DbeqPlusXnys),
-            (Dataset::DbeqPlus, Venue::Finn) => Ok(Self::DbeqPlusFinn),
-            (Dataset::DbeqPlus, Venue::Finy) => Ok(Self::DbeqPlusFiny),
-            (Dataset::DbeqPlus, Venue::Finc) => Ok(Self::DbeqPlusFinc),
+            (Dataset::EqusPlus, Venue::Xchi) => Ok(Self::EqusPlusXchi),
+            (Dataset::EqusPlus, Venue::Xcis) => Ok(Self::EqusPlusXcis),
+            (Dataset::EqusPlus, Venue::Iexg) => Ok(Self::EqusPlusIexg),
+            (Dataset::EqusPlus, Venue::Eprl) => Ok(Self::EqusPlusEprl),
+            (Dataset::EqusPlus, Venue::Xnas) => Ok(Self::EqusPlusXnas),
+            (Dataset::EqusPlus, Venue::Xnys) => Ok(Self::EqusPlusXnys),
+            (Dataset::EqusPlus, Venue::Finn) => Ok(Self::EqusPlusFinn),
+            (Dataset::EqusPlus, Venue::Finy) => Ok(Self::EqusPlusFiny),
+            (Dataset::EqusPlus, Venue::Finc) => Ok(Self::EqusPlusFinc),
             (Dataset::IfeuImpact, Venue::Ifeu) => Ok(Self::IfeuImpactIfeu),
             (Dataset::NdexImpact, Venue::Ndex) => Ok(Self::NdexImpactNdex),
             (Dataset::DbeqBasic, Venue::Dbeq) => Ok(Self::DbeqBasicDbeq),
-            (Dataset::DbeqPlus, Venue::Dbeq) => Ok(Self::DbeqPlusDbeq),
+            (Dataset::EqusPlus, Venue::Equs) => Ok(Self::EqusPlusEqus),
             (Dataset::OpraPillar, Venue::Sphr) => Ok(Self::OpraPillarSphr),
-            (Dataset::DbeqMax, Venue::Xchi) => Ok(Self::DbeqMaxXchi),
-            (Dataset::DbeqMax, Venue::Xcis) => Ok(Self::DbeqMaxXcis),
-            (Dataset::DbeqMax, Venue::Iexg) => Ok(Self::DbeqMaxIexg),
-            (Dataset::DbeqMax, Venue::Eprl) => Ok(Self::DbeqMaxEprl),
-            (Dataset::DbeqMax, Venue::Xnas) => Ok(Self::DbeqMaxXnas),
-            (Dataset::DbeqMax, Venue::Xnys) => Ok(Self::DbeqMaxXnys),
-            (Dataset::DbeqMax, Venue::Finn) => Ok(Self::DbeqMaxFinn),
-            (Dataset::DbeqMax, Venue::Finy) => Ok(Self::DbeqMaxFiny),
-            (Dataset::DbeqMax, Venue::Finc) => Ok(Self::DbeqMaxFinc),
-            (Dataset::DbeqMax, Venue::Bats) => Ok(Self::DbeqMaxBats),
-            (Dataset::DbeqMax, Venue::Baty) => Ok(Self::DbeqMaxBaty),
-            (Dataset::DbeqMax, Venue::Edga) => Ok(Self::DbeqMaxEdga),
-            (Dataset::DbeqMax, Venue::Edgx) => Ok(Self::DbeqMaxEdgx),
-            (Dataset::DbeqMax, Venue::Xbos) => Ok(Self::DbeqMaxXbos),
-            (Dataset::DbeqMax, Venue::Xpsx) => Ok(Self::DbeqMaxXpsx),
-            (Dataset::DbeqMax, Venue::Memx) => Ok(Self::DbeqMaxMemx),
-            (Dataset::DbeqMax, Venue::Xase) => Ok(Self::DbeqMaxXase),
-            (Dataset::DbeqMax, Venue::Arcx) => Ok(Self::DbeqMaxArcx),
-            (Dataset::DbeqMax, Venue::Ltse) => Ok(Self::DbeqMaxLtse),
+            (Dataset::EqusAll, Venue::Xchi) => Ok(Self::EqusAllXchi),
+            (Dataset::EqusAll, Venue::Xcis) => Ok(Self::EqusAllXcis),
+            (Dataset::EqusAll, Venue::Iexg) => Ok(Self::EqusAllIexg),
+            (Dataset::EqusAll, Venue::Eprl) => Ok(Self::EqusAllEprl),
+            (Dataset::EqusAll, Venue::Xnas) => Ok(Self::EqusAllXnas),
+            (Dataset::EqusAll, Venue::Xnys) => Ok(Self::EqusAllXnys),
+            (Dataset::EqusAll, Venue::Finn) => Ok(Self::EqusAllFinn),
+            (Dataset::EqusAll, Venue::Finy) => Ok(Self::EqusAllFiny),
+            (Dataset::EqusAll, Venue::Finc) => Ok(Self::EqusAllFinc),
+            (Dataset::EqusAll, Venue::Bats) => Ok(Self::EqusAllBats),
+            (Dataset::EqusAll, Venue::Baty) => Ok(Self::EqusAllBaty),
+            (Dataset::EqusAll, Venue::Edga) => Ok(Self::EqusAllEdga),
+            (Dataset::EqusAll, Venue::Edgx) => Ok(Self::EqusAllEdgx),
+            (Dataset::EqusAll, Venue::Xbos) => Ok(Self::EqusAllXbos),
+            (Dataset::EqusAll, Venue::Xpsx) => Ok(Self::EqusAllXpsx),
+            (Dataset::EqusAll, Venue::Memx) => Ok(Self::EqusAllMemx),
+            (Dataset::EqusAll, Venue::Xase) => Ok(Self::EqusAllXase),
+            (Dataset::EqusAll, Venue::Arcx) => Ok(Self::EqusAllArcx),
+            (Dataset::EqusAll, Venue::Ltse) => Ok(Self::EqusAllLtse),
             (Dataset::XnasBasic, Venue::Xnas) => Ok(Self::XnasBasicXnas),
             (Dataset::XnasBasic, Venue::Finn) => Ok(Self::XnasBasicFinn),
             (Dataset::XnasBasic, Venue::Finc) => Ok(Self::XnasBasicFinc),
@@ -1005,11 +1023,13 @@ impl Publisher {
             (Dataset::XnasNls, Venue::Xpsx) => Ok(Self::XnasNlsXpsx),
             (Dataset::XnasBasic, Venue::Xbos) => Ok(Self::XnasBasicXbos),
             (Dataset::XnasBasic, Venue::Xpsx) => Ok(Self::XnasBasicXpsx),
-            (Dataset::DbeqSummary, Venue::Dbeq) => Ok(Self::DbeqSummaryDbeq),
-            (Dataset::XcisBbotrades, Venue::Xcis) => Ok(Self::XcisBbotradesXcis),
-            (Dataset::XnysBbotrades, Venue::Xnys) => Ok(Self::XnysBbotradesXnys),
-            (Dataset::XnasBasic, Venue::Dbeq) => Ok(Self::XnasBasicDbeq),
-            (Dataset::DbeqMax, Venue::Dbeq) => Ok(Self::DbeqMaxDbeq),
+            (Dataset::EqusSummary, Venue::Equs) => Ok(Self::EqusSummaryEqus),
+            (Dataset::XcisTradesbbo, Venue::Xcis) => Ok(Self::XcisTradesbboXcis),
+            (Dataset::XnysTradesbbo, Venue::Xnys) => Ok(Self::XnysTradesbboXnys),
+            (Dataset::XnasBasic, Venue::Equs) => Ok(Self::XnasBasicEqus),
+            (Dataset::EqusAll, Venue::Equs) => Ok(Self::EqusAllEqus),
+            (Dataset::EqusMini, Venue::Equs) => Ok(Self::EqusMiniEqus),
+            (Dataset::XnysTrades, Venue::Equs) => Ok(Self::XnysTradesEqus),
             _ => Err(Error::conversion::<Self>(format!("({dataset}, {venue})"))),
         }
     }
@@ -1079,39 +1099,39 @@ impl std::str::FromStr for Publisher {
             "XNYS.TRADES.XNYS" => Ok(Self::XnysTradesXnys),
             "XNAS.QBBO.XNAS" => Ok(Self::XnasQbboXnas),
             "XNAS.NLS.XNAS" => Ok(Self::XnasNlsXnas),
-            "DBEQ.PLUS.XCHI" => Ok(Self::DbeqPlusXchi),
-            "DBEQ.PLUS.XCIS" => Ok(Self::DbeqPlusXcis),
-            "DBEQ.PLUS.IEXG" => Ok(Self::DbeqPlusIexg),
-            "DBEQ.PLUS.EPRL" => Ok(Self::DbeqPlusEprl),
-            "DBEQ.PLUS.XNAS" => Ok(Self::DbeqPlusXnas),
-            "DBEQ.PLUS.XNYS" => Ok(Self::DbeqPlusXnys),
-            "DBEQ.PLUS.FINN" => Ok(Self::DbeqPlusFinn),
-            "DBEQ.PLUS.FINY" => Ok(Self::DbeqPlusFiny),
-            "DBEQ.PLUS.FINC" => Ok(Self::DbeqPlusFinc),
+            "EQUS.PLUS.XCHI" => Ok(Self::EqusPlusXchi),
+            "EQUS.PLUS.XCIS" => Ok(Self::EqusPlusXcis),
+            "EQUS.PLUS.IEXG" => Ok(Self::EqusPlusIexg),
+            "EQUS.PLUS.EPRL" => Ok(Self::EqusPlusEprl),
+            "EQUS.PLUS.XNAS" => Ok(Self::EqusPlusXnas),
+            "EQUS.PLUS.XNYS" => Ok(Self::EqusPlusXnys),
+            "EQUS.PLUS.FINN" => Ok(Self::EqusPlusFinn),
+            "EQUS.PLUS.FINY" => Ok(Self::EqusPlusFiny),
+            "EQUS.PLUS.FINC" => Ok(Self::EqusPlusFinc),
             "IFEU.IMPACT.IFEU" => Ok(Self::IfeuImpactIfeu),
             "NDEX.IMPACT.NDEX" => Ok(Self::NdexImpactNdex),
             "DBEQ.BASIC.DBEQ" => Ok(Self::DbeqBasicDbeq),
-            "DBEQ.PLUS.DBEQ" => Ok(Self::DbeqPlusDbeq),
+            "EQUS.PLUS.EQUS" => Ok(Self::EqusPlusEqus),
             "OPRA.PILLAR.SPHR" => Ok(Self::OpraPillarSphr),
-            "DBEQ.MAX.XCHI" => Ok(Self::DbeqMaxXchi),
-            "DBEQ.MAX.XCIS" => Ok(Self::DbeqMaxXcis),
-            "DBEQ.MAX.IEXG" => Ok(Self::DbeqMaxIexg),
-            "DBEQ.MAX.EPRL" => Ok(Self::DbeqMaxEprl),
-            "DBEQ.MAX.XNAS" => Ok(Self::DbeqMaxXnas),
-            "DBEQ.MAX.XNYS" => Ok(Self::DbeqMaxXnys),
-            "DBEQ.MAX.FINN" => Ok(Self::DbeqMaxFinn),
-            "DBEQ.MAX.FINY" => Ok(Self::DbeqMaxFiny),
-            "DBEQ.MAX.FINC" => Ok(Self::DbeqMaxFinc),
-            "DBEQ.MAX.BATS" => Ok(Self::DbeqMaxBats),
-            "DBEQ.MAX.BATY" => Ok(Self::DbeqMaxBaty),
-            "DBEQ.MAX.EDGA" => Ok(Self::DbeqMaxEdga),
-            "DBEQ.MAX.EDGX" => Ok(Self::DbeqMaxEdgx),
-            "DBEQ.MAX.XBOS" => Ok(Self::DbeqMaxXbos),
-            "DBEQ.MAX.XPSX" => Ok(Self::DbeqMaxXpsx),
-            "DBEQ.MAX.MEMX" => Ok(Self::DbeqMaxMemx),
-            "DBEQ.MAX.XASE" => Ok(Self::DbeqMaxXase),
-            "DBEQ.MAX.ARCX" => Ok(Self::DbeqMaxArcx),
-            "DBEQ.MAX.LTSE" => Ok(Self::DbeqMaxLtse),
+            "EQUS.ALL.XCHI" => Ok(Self::EqusAllXchi),
+            "EQUS.ALL.XCIS" => Ok(Self::EqusAllXcis),
+            "EQUS.ALL.IEXG" => Ok(Self::EqusAllIexg),
+            "EQUS.ALL.EPRL" => Ok(Self::EqusAllEprl),
+            "EQUS.ALL.XNAS" => Ok(Self::EqusAllXnas),
+            "EQUS.ALL.XNYS" => Ok(Self::EqusAllXnys),
+            "EQUS.ALL.FINN" => Ok(Self::EqusAllFinn),
+            "EQUS.ALL.FINY" => Ok(Self::EqusAllFiny),
+            "EQUS.ALL.FINC" => Ok(Self::EqusAllFinc),
+            "EQUS.ALL.BATS" => Ok(Self::EqusAllBats),
+            "EQUS.ALL.BATY" => Ok(Self::EqusAllBaty),
+            "EQUS.ALL.EDGA" => Ok(Self::EqusAllEdga),
+            "EQUS.ALL.EDGX" => Ok(Self::EqusAllEdgx),
+            "EQUS.ALL.XBOS" => Ok(Self::EqusAllXbos),
+            "EQUS.ALL.XPSX" => Ok(Self::EqusAllXpsx),
+            "EQUS.ALL.MEMX" => Ok(Self::EqusAllMemx),
+            "EQUS.ALL.XASE" => Ok(Self::EqusAllXase),
+            "EQUS.ALL.ARCX" => Ok(Self::EqusAllArcx),
+            "EQUS.ALL.LTSE" => Ok(Self::EqusAllLtse),
             "XNAS.BASIC.XNAS" => Ok(Self::XnasBasicXnas),
             "XNAS.BASIC.FINN" => Ok(Self::XnasBasicFinn),
             "XNAS.BASIC.FINC" => Ok(Self::XnasBasicFinc),
@@ -1121,11 +1141,13 @@ impl std::str::FromStr for Publisher {
             "XNAS.NLS.XPSX" => Ok(Self::XnasNlsXpsx),
             "XNAS.BASIC.XBOS" => Ok(Self::XnasBasicXbos),
             "XNAS.BASIC.XPSX" => Ok(Self::XnasBasicXpsx),
-            "DBEQ.SUMMARY.DBEQ" => Ok(Self::DbeqSummaryDbeq),
-            "XCIS.BBOTRADES.XCIS" => Ok(Self::XcisBbotradesXcis),
-            "XNYS.BBOTRADES.XNYS" => Ok(Self::XnysBbotradesXnys),
-            "XNAS.BASIC.DBEQ" => Ok(Self::XnasBasicDbeq),
-            "DBEQ.MAX.DBEQ" => Ok(Self::DbeqMaxDbeq),
+            "EQUS.SUMMARY.EQUS" => Ok(Self::EqusSummaryEqus),
+            "XCIS.TRADESBBO.XCIS" => Ok(Self::XcisTradesbboXcis),
+            "XNYS.TRADESBBO.XNYS" => Ok(Self::XnysTradesbboXnys),
+            "XNAS.BASIC.EQUS" => Ok(Self::XnasBasicEqus),
+            "EQUS.ALL.EQUS" => Ok(Self::EqusAllEqus),
+            "EQUS.MINI.EQUS" => Ok(Self::EqusMiniEqus),
+            "XNYS.TRADES.EQUS" => Ok(Self::XnysTradesEqus),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }

@@ -3,7 +3,6 @@ use std::{collections::HashMap, io, num::NonZeroU64};
 use pyo3::{
     intern,
     prelude::*,
-    pyclass::CompareOp,
     types::{PyBytes, PyDate, PyDict, PyType},
     Bound,
 };
@@ -67,30 +66,25 @@ impl Metadata {
             .build()
     }
 
-    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        match op {
-            CompareOp::Eq => self.eq(other).into_py(py),
-            CompareOp::Ne => self.ne(other).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
     fn __repr__(&self) -> String {
         format!("{self:?}")
     }
 
     /// Encodes Metadata back into DBN format.
-    fn __bytes__(&self, py: Python<'_>) -> PyResult<Py<PyBytes>> {
+    fn __bytes__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
         self.py_encode(py)
     }
 
     #[getter]
-    fn get_mappings(&self) -> HashMap<String, Vec<MappingInterval>> {
+    fn get_mappings<'py>(&self, py: Python<'py>) -> PyResult<HashMap<String, Bound<'py, PyAny>>> {
         let mut res = HashMap::new();
         for mapping in self.mappings.iter() {
-            res.insert(mapping.raw_symbol.clone(), mapping.intervals.clone());
+            res.insert(
+                mapping.raw_symbol.clone(),
+                mapping.intervals.into_pyobject(py)?,
+            );
         }
-        res
+        Ok(res)
     }
 
     #[pyo3(name = "decode", signature = (data, upgrade_policy = VersionUpgradePolicy::default()))]
@@ -109,29 +103,24 @@ impl Metadata {
     }
 
     #[pyo3(name = "encode")]
-    fn py_encode(&self, py: Python<'_>) -> PyResult<Py<PyBytes>> {
+    fn py_encode<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
         let mut buffer = Vec::new();
         let mut encoder = MetadataEncoder::new(&mut buffer);
         encoder.encode(self)?;
-        Ok(PyBytes::new_bound(py, buffer.as_slice()).into())
+        Ok(PyBytes::new(py, buffer.as_slice()))
     }
 }
 
-impl IntoPy<PyObject> for SymbolMapping {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.to_object(py)
-    }
-}
+impl<'py> IntoPyObject<'py> for SymbolMapping {
+    type Target = PyDict;
+    type Output = Bound<'py, PyDict>;
+    type Error = PyErr;
 
-// `ToPyObject` is about copying and is required for `PyDict::set_item`
-impl ToPyObject for SymbolMapping {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        let dict = PyDict::new_bound(py);
-        dict.set_item(intern!(py, "raw_symbol"), &self.raw_symbol)
-            .unwrap();
-        dict.set_item(intern!(py, "intervals"), &self.intervals)
-            .unwrap();
-        dict.into_py(py)
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let dict = PyDict::new(py);
+        dict.set_item(intern!(py, "raw_symbol"), &self.raw_symbol)?;
+        dict.set_item(intern!(py, "intervals"), &self.intervals)?;
+        Ok(dict)
     }
 }
 
@@ -157,39 +146,33 @@ impl<'py> FromPyObject<'py> for MappingInterval {
     }
 }
 
-impl ToPyObject for MappingInterval {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        let dict = PyDict::new_bound(py);
+impl<'py> IntoPyObject<'py> for &MappingInterval {
+    type Target = PyDict;
+    type Output = Bound<'py, PyDict>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let dict = PyDict::new(py);
         dict.set_item(
             intern!(py, "start_date"),
-            PyDate::new_bound(
+            PyDate::new(
                 py,
                 self.start_date.year(),
                 self.start_date.month() as u8,
                 self.start_date.day(),
-            )
-            .unwrap(),
-        )
-        .unwrap();
+            )?,
+        )?;
         dict.set_item(
             intern!(py, "end_date"),
-            PyDate::new_bound(
+            PyDate::new(
                 py,
                 self.end_date.year(),
                 self.end_date.month() as u8,
                 self.end_date.day(),
-            )
-            .unwrap(),
-        )
-        .unwrap();
-        dict.set_item(intern!(py, "symbol"), &self.symbol).unwrap();
-        dict.into_py(py)
-    }
-}
-
-impl IntoPy<PyObject> for MappingInterval {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.to_object(py)
+            )?,
+        )?;
+        dict.set_item(intern!(py, "symbol"), &self.symbol)?;
+        Ok(dict)
     }
 }
 

@@ -191,7 +191,7 @@ impl PitSymbolMap {
         let is_inverse = is_inverse(metadata)?;
         let datetime = PrimitiveDateTime::new(date, time!(0:00)).assume_utc();
         // need to compare with `end` as a datetime to handle midnight case
-        if date < metadata.start().date() || metadata.end().map_or(false, |end| datetime >= end) {
+        if date < metadata.start().date() || metadata.end().is_some_and(|end| datetime >= end) {
             return Err(crate::Error::BadArgument {
                 param_name: "date".to_owned(),
                 desc: "Outside the query range".to_owned(),

@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use pyo3::{prelude::*, pyclass::CompareOp, type_object::PyTypeInfo, types::PyType, Bound};
+use pyo3::{prelude::*, type_object::PyTypeInfo, types::PyType, Bound};
 
 use crate::{
     enums::{Compression, Encoding, SType, Schema, SecurityUpdateAction, UserDefinedInstrument},
@@ -15,7 +15,7 @@ impl Side {
     #[new]
     fn py_new(py: Python<'_>, value: &Bound<PyAny>) -> PyResult<Self> {
         let Ok(i) = value.extract::<u8>() else {
-            let t = Self::type_object_bound(py);
+            let t = Self::type_object(py);
             let c = value.extract::<char>().map_err(to_py_err)?;
             return Self::py_from_str(&t, c);
         };
@@ -34,20 +34,16 @@ impl Side {
         format!("<Side.{}: '{}'>", self.name(), self.value())
     }
 
-    fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(py, other)) else {
-            return py.NotImplemented();
-        };
-        match op {
-            CompareOp::Eq => self.eq(&other_enum).into_py(py),
-            CompareOp::Ne => self.ne(&other_enum).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
     #[getter]
     fn name(&self) -> String {
         self.as_ref().to_ascii_uppercase()
+    }
+
+    fn __eq__(&self, other: &Bound<PyAny>, py: Python<'_>) -> bool {
+        let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(py, other)) else {
+            return false;
+        };
+        self.eq(&other_enum)
     }
 
     #[getter]
@@ -56,7 +52,7 @@ impl Side {
     }
 
     #[classmethod]
-    fn variants(_: &Bound<PyType>, py: Python<'_>) -> EnumIterator {
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> PyResult<EnumIterator> {
         EnumIterator::new::<Self>(py)
     }
 
@@ -72,7 +68,7 @@ impl Action {
     #[new]
     fn py_new(py: Python<'_>, value: &Bound<PyAny>) -> PyResult<Self> {
         let Ok(i) = value.extract::<u8>() else {
-            let t = Self::type_object_bound(py);
+            let t = Self::type_object(py);
             let c = value.extract::<char>().map_err(to_py_err)?;
             return Self::py_from_str(&t, c);
         };
@@ -91,20 +87,16 @@ impl Action {
         format!("<Action.{}: '{}'>", self.name(), self.value())
     }
 
-    fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(py, other)) else {
-            return py.NotImplemented();
-        };
-        match op {
-            CompareOp::Eq => self.eq(&other_enum).into_py(py),
-            CompareOp::Ne => self.ne(&other_enum).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
     #[getter]
     fn name(&self) -> String {
         self.as_ref().to_ascii_uppercase()
+    }
+
+    fn __eq__(&self, other: &Bound<PyAny>, py: Python<'_>) -> bool {
+        let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(py, other)) else {
+            return false;
+        };
+        self.eq(&other_enum)
     }
 
     #[getter]
@@ -113,7 +105,7 @@ impl Action {
     }
 
     #[classmethod]
-    fn variants(_: &Bound<PyType>, py: Python<'_>) -> EnumIterator {
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> PyResult<EnumIterator> {
         EnumIterator::new::<Self>(py)
     }
 
@@ -129,7 +121,7 @@ impl InstrumentClass {
     #[new]
     fn py_new(py: Python<'_>, value: &Bound<PyAny>) -> PyResult<Self> {
         let Ok(i) = value.extract::<u8>() else {
-            let t = Self::type_object_bound(py);
+            let t = Self::type_object(py);
             let c = value.extract::<char>().map_err(to_py_err)?;
             return Self::py_from_str(&t, c);
         };
@@ -144,15 +136,11 @@ impl InstrumentClass {
         format!("{}", *self as u8 as char)
     }
 
-    fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+    fn __eq__(&self, other: &Bound<PyAny>, py: Python<'_>) -> bool {
         let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(py, other)) else {
-            return py.NotImplemented();
+            return false;
         };
-        match op {
-            CompareOp::Eq => self.eq(&other_enum).into_py(py),
-            CompareOp::Ne => self.ne(&other_enum).into_py(py),
-            _ => py.NotImplemented(),
-        }
+        self.eq(&other_enum)
     }
 
     #[getter]
@@ -161,7 +149,7 @@ impl InstrumentClass {
     }
 
     #[classmethod]
-    fn variants(_: &Bound<PyType>, py: Python<'_>) -> EnumIterator {
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> PyResult<EnumIterator> {
         EnumIterator::new::<Self>(py)
     }
 
@@ -177,7 +165,7 @@ impl MatchAlgorithm {
     #[new]
     fn py_new(py: Python<'_>, value: &Bound<PyAny>) -> PyResult<Self> {
         let Ok(i) = value.extract::<u8>() else {
-            let t = Self::type_object_bound(py);
+            let t = Self::type_object(py);
             let c = value.extract::<char>().map_err(to_py_err)?;
             return Self::py_from_str(&t, c);
         };
@@ -192,15 +180,11 @@ impl MatchAlgorithm {
         format!("{}", *self as u8 as char)
     }
 
-    fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+    fn __eq__(&self, other: &Bound<PyAny>, py: Python<'_>) -> bool {
         let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(py, other)) else {
-            return py.NotImplemented();
+            return false;
         };
-        match op {
-            CompareOp::Eq => self.eq(&other_enum).into_py(py),
-            CompareOp::Ne => self.ne(&other_enum).into_py(py),
-            _ => py.NotImplemented(),
-        }
+        self.eq(&other_enum)
     }
 
     #[getter]
@@ -209,7 +193,7 @@ impl MatchAlgorithm {
     }
 
     #[classmethod]
-    fn variants(_: &Bound<PyType>, py: Python<'_>) -> EnumIterator {
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> PyResult<EnumIterator> {
         EnumIterator::new::<Self>(py)
     }
 
@@ -225,7 +209,7 @@ impl UserDefinedInstrument {
     #[new]
     fn py_new(py: Python<'_>, value: &Bound<PyAny>) -> PyResult<Self> {
         let Ok(i) = value.extract::<u8>() else {
-            let t = Self::type_object_bound(py);
+            let t = Self::type_object(py);
             let c = value.extract::<char>().map_err(to_py_err)?;
             return Self::py_from_str(&t, c);
         };
@@ -248,20 +232,16 @@ impl UserDefinedInstrument {
         )
     }
 
-    fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(py, other)) else {
-            return py.NotImplemented();
-        };
-        match op {
-            CompareOp::Eq => self.eq(&other_enum).into_py(py),
-            CompareOp::Ne => self.ne(&other_enum).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
     #[getter]
     fn name(&self) -> String {
         self.as_ref().to_ascii_uppercase()
+    }
+
+    fn __eq__(&self, other: &Bound<PyAny>, py: Python<'_>) -> bool {
+        let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(py, other)) else {
+            return false;
+        };
+        self.eq(&other_enum)
     }
 
     #[getter]
@@ -270,7 +250,7 @@ impl UserDefinedInstrument {
     }
 
     #[classmethod]
-    fn variants(_: &Bound<PyType>, py: Python<'_>) -> EnumIterator {
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> PyResult<EnumIterator> {
         EnumIterator::new::<Self>(py)
     }
 
@@ -285,7 +265,7 @@ impl UserDefinedInstrument {
 impl SType {
     #[new]
     fn py_new(py: Python<'_>, value: &Bound<PyAny>) -> PyResult<Self> {
-        let t = Self::type_object_bound(py);
+        let t = Self::type_object(py);
         Self::py_from_str(&t, value)
     }
 
@@ -301,20 +281,16 @@ impl SType {
         format!("<SType.{}: '{}'>", self.name(), self.value(),)
     }
 
-    fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        let Ok(other_enum) = Self::py_from_str(&Self::type_object_bound(py), other) else {
-            return py.NotImplemented();
-        };
-        match op {
-            CompareOp::Eq => self.eq(&other_enum).into_py(py),
-            CompareOp::Ne => self.ne(&other_enum).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
     #[getter]
     fn name(&self) -> String {
         self.as_str().to_uppercase()
+    }
+
+    fn __eq__(&self, other: &Bound<PyAny>, py: Python<'_>) -> bool {
+        let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(py, other)) else {
+            return false;
+        };
+        self.eq(&other_enum)
     }
 
     #[getter]
@@ -323,7 +299,7 @@ impl SType {
     }
 
     #[classmethod]
-    fn variants(_: &Bound<PyType>, py: Python<'_>) -> EnumIterator {
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> PyResult<EnumIterator> {
         EnumIterator::new::<Self>(py)
     }
 
@@ -340,7 +316,7 @@ impl SType {
 impl RType {
     #[new]
     fn py_new(py: Python<'_>, value: &Bound<PyAny>) -> PyResult<Self> {
-        let t = Self::type_object_bound(py);
+        let t = Self::type_object(py);
         Self::py_from_str(&t, value).or_else(|_| Self::py_from_int(&t, value))
     }
 
@@ -356,23 +332,16 @@ impl RType {
         format!("<RType.{}: '{}'>", self.name(), self.value(),)
     }
 
-    fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        if let Ok(other_enum) = Self::py_from_str(&Self::type_object_bound(py), other)
-            .or_else(|_| Self::py_from_int(&Self::type_object_bound(py), other))
-        {
-            match op {
-                CompareOp::Eq => self.eq(&other_enum).into_py(py),
-                CompareOp::Ne => self.ne(&other_enum).into_py(py),
-                _ => py.NotImplemented(),
-            }
-        } else {
-            py.NotImplemented()
-        }
-    }
-
     #[getter]
     fn name(&self) -> String {
         self.as_str().to_uppercase()
+    }
+
+    fn __eq__(&self, other: &Bound<PyAny>, py: Python<'_>) -> bool {
+        let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(py, other)) else {
+            return false;
+        };
+        self.eq(&other_enum)
     }
 
     #[getter]
@@ -381,7 +350,7 @@ impl RType {
     }
 
     #[classmethod]
-    fn variants(_: &Bound<PyType>, py: Python<'_>) -> EnumIterator {
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> PyResult<EnumIterator> {
         EnumIterator::new::<Self>(py)
     }
 
@@ -405,7 +374,7 @@ impl RType {
     fn py_from_schema(pytype: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
         let schema: Schema = value
             .extract()
-            .or_else(|_| Schema::py_from_str(&Schema::type_object_bound(pytype.py()), value))
+            .or_else(|_| Schema::py_from_str(&Schema::type_object(pytype.py()), value))
             .map_err(to_py_err)?;
         Ok(Self::from(schema))
     }
@@ -415,7 +384,7 @@ impl RType {
 impl Schema {
     #[new]
     fn py_new(py: Python<'_>, value: &Bound<PyAny>) -> PyResult<Self> {
-        let t = Self::type_object_bound(py);
+        let t = Self::type_object(py);
         Self::py_from_str(&t, value)
     }
 
@@ -431,20 +400,16 @@ impl Schema {
         format!("<Schema.{}: '{}'>", self.name(), self.value(),)
     }
 
-    fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        let Ok(other_enum) = Self::py_from_str(&Self::type_object_bound(py), other) else {
-            return py.NotImplemented();
-        };
-        match op {
-            CompareOp::Eq => self.eq(&other_enum).into_py(py),
-            CompareOp::Ne => self.ne(&other_enum).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
     #[getter]
     fn name(&self) -> String {
         self.as_str().to_uppercase()
+    }
+
+    fn __eq__(&self, other: &Bound<PyAny>, py: Python<'_>) -> bool {
+        let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(py, other)) else {
+            return false;
+        };
+        self.eq(&other_enum)
     }
 
     #[getter]
@@ -453,7 +418,7 @@ impl Schema {
     }
 
     #[classmethod]
-    fn variants(_: &Bound<PyType>, py: Python<'_>) -> EnumIterator {
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> PyResult<EnumIterator> {
         EnumIterator::new::<Self>(py)
     }
 
@@ -470,7 +435,7 @@ impl Schema {
 impl Encoding {
     #[new]
     fn py_new(py: Python<'_>, value: &Bound<PyAny>) -> PyResult<Self> {
-        let t = Self::type_object_bound(py);
+        let t = Self::type_object(py);
         Self::py_from_str(&t, value)
     }
 
@@ -486,20 +451,16 @@ impl Encoding {
         format!("<Encoding.{}: '{}'>", self.name(), self.value(),)
     }
 
-    fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        let Ok(other_enum) = Self::py_from_str(&Self::type_object_bound(py), other) else {
-            return py.NotImplemented();
-        };
-        match op {
-            CompareOp::Eq => self.eq(&other_enum).into_py(py),
-            CompareOp::Ne => self.ne(&other_enum).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
     #[getter]
     fn name(&self) -> String {
         self.as_str().to_uppercase()
+    }
+
+    fn __eq__(&self, other: &Bound<PyAny>, py: Python<'_>) -> bool {
+        let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(py, other)) else {
+            return false;
+        };
+        self.eq(&other_enum)
     }
 
     #[getter]
@@ -508,7 +469,7 @@ impl Encoding {
     }
 
     #[classmethod]
-    fn variants(_: &Bound<PyType>, py: Python<'_>) -> EnumIterator {
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> PyResult<EnumIterator> {
         EnumIterator::new::<Self>(py)
     }
 
@@ -525,7 +486,7 @@ impl Encoding {
 impl Compression {
     #[new]
     fn py_new(py: Python<'_>, value: &Bound<PyAny>) -> PyResult<Self> {
-        let t = Self::type_object_bound(py);
+        let t = Self::type_object(py);
         Self::py_from_str(&t, value)
     }
 
@@ -541,20 +502,16 @@ impl Compression {
         format!("<Compression.{}: '{}'>", self.name(), self.value(),)
     }
 
-    fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        let Ok(other_enum) = Self::py_from_str(&Self::type_object_bound(py), other) else {
-            return py.NotImplemented();
-        };
-        match op {
-            CompareOp::Eq => self.eq(&other_enum).into_py(py),
-            CompareOp::Ne => self.ne(&other_enum).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
     #[getter]
     fn name(&self) -> String {
         self.as_str().to_uppercase()
+    }
+
+    fn __eq__(&self, other: &Bound<PyAny>, py: Python<'_>) -> bool {
+        let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(py, other)) else {
+            return false;
+        };
+        self.eq(&other_enum)
     }
 
     #[getter]
@@ -564,7 +521,7 @@ impl Compression {
 
     // No metaclass support with pyo3, so `for c in Compression: ...` isn't possible
     #[classmethod]
-    fn variants(_: &Bound<PyType>, py: Python<'_>) -> EnumIterator {
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> PyResult<EnumIterator> {
         EnumIterator::new::<Self>(py)
     }
 
@@ -582,7 +539,7 @@ impl SecurityUpdateAction {
     #[new]
     fn py_new(py: Python<'_>, value: &Bound<PyAny>) -> PyResult<Self> {
         let Ok(i) = value.extract::<u8>() else {
-            let t = Self::type_object_bound(py);
+            let t = Self::type_object(py);
             let c = value.extract::<char>().map_err(to_py_err)?;
             return Self::py_from_str(&t, c);
         };
@@ -597,20 +554,16 @@ impl SecurityUpdateAction {
         format!("<SecurityUpdateAction.{}: '{}'>", self.name(), self.value())
     }
 
-    fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(py, other)) else {
-            return py.NotImplemented();
-        };
-        match op {
-            CompareOp::Eq => self.eq(&other_enum).into_py(py),
-            CompareOp::Ne => self.ne(&other_enum).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
     #[getter]
     fn name(&self) -> String {
         self.as_ref().to_ascii_uppercase()
+    }
+
+    fn __eq__(&self, other: &Bound<PyAny>, py: Python<'_>) -> bool {
+        let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(py, other)) else {
+            return false;
+        };
+        self.eq(&other_enum)
     }
 
     #[getter]
@@ -619,7 +572,7 @@ impl SecurityUpdateAction {
     }
 
     #[classmethod]
-    fn variants(_: &Bound<PyType>, py: Python<'_>) -> EnumIterator {
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> PyResult<EnumIterator> {
         EnumIterator::new::<Self>(py)
     }
 
@@ -642,15 +595,11 @@ impl StatType {
         *self as isize
     }
 
-    fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+    fn __eq__(&self, other: &Bound<PyAny>) -> bool {
         let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(other)) else {
-            return py.NotImplemented();
+            return false;
         };
-        match op {
-            CompareOp::Eq => self.eq(&other_enum).into_py(py),
-            CompareOp::Ne => self.ne(&other_enum).into_py(py),
-            _ => py.NotImplemented(),
-        }
+        self.eq(&other_enum)
     }
 
     #[getter]
@@ -659,7 +608,7 @@ impl StatType {
     }
 
     #[classmethod]
-    fn variants(_: &Bound<PyType>, py: Python<'_>) -> EnumIterator {
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> PyResult<EnumIterator> {
         EnumIterator::new::<Self>(py)
     }
 }
@@ -676,15 +625,11 @@ impl StatusAction {
         *self as isize
     }
 
-    fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+    fn __eq__(&self, other: &Bound<PyAny>) -> bool {
         let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(other)) else {
-            return py.NotImplemented();
+            return false;
         };
-        match op {
-            CompareOp::Eq => self.eq(&other_enum).into_py(py),
-            CompareOp::Ne => self.ne(&other_enum).into_py(py),
-            _ => py.NotImplemented(),
-        }
+        self.eq(&other_enum)
     }
 
     #[getter]
@@ -693,7 +638,7 @@ impl StatusAction {
     }
 
     #[classmethod]
-    fn variants(_: &Bound<PyType>, py: Python<'_>) -> EnumIterator {
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> PyResult<EnumIterator> {
         EnumIterator::new::<Self>(py)
     }
 }
@@ -710,15 +655,11 @@ impl StatusReason {
         *self as isize
     }
 
-    fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+    fn __eq__(&self, other: &Bound<PyAny>) -> bool {
         let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(other)) else {
-            return py.NotImplemented();
+            return false;
         };
-        match op {
-            CompareOp::Eq => self.eq(&other_enum).into_py(py),
-            CompareOp::Ne => self.ne(&other_enum).into_py(py),
-            _ => py.NotImplemented(),
-        }
+        self.eq(&other_enum)
     }
 
     #[getter]
@@ -727,7 +668,7 @@ impl StatusReason {
     }
 
     #[classmethod]
-    fn variants(_: &Bound<PyType>, py: Python<'_>) -> EnumIterator {
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> PyResult<EnumIterator> {
         EnumIterator::new::<Self>(py)
     }
 }
@@ -744,15 +685,11 @@ impl TradingEvent {
         *self as isize
     }
 
-    fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
+    fn __eq__(&self, other: &Bound<PyAny>) -> bool {
         let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(other)) else {
-            return py.NotImplemented();
+            return false;
         };
-        match op {
-            CompareOp::Eq => self.eq(&other_enum).into_py(py),
-            CompareOp::Ne => self.ne(&other_enum).into_py(py),
-            _ => py.NotImplemented(),
-        }
+        self.eq(&other_enum)
     }
 
     #[getter]
@@ -761,7 +698,7 @@ impl TradingEvent {
     }
 
     #[classmethod]
-    fn variants(_: &Bound<PyType>, py: Python<'_>) -> EnumIterator {
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> PyResult<EnumIterator> {
         EnumIterator::new::<Self>(py)
     }
 }
@@ -771,7 +708,7 @@ impl TriState {
     #[new]
     fn py_new(py: Python<'_>, value: &Bound<PyAny>) -> PyResult<Self> {
         let Ok(i) = value.extract::<u8>() else {
-            let t = Self::type_object_bound(py);
+            let t = Self::type_object(py);
             let c = value.extract::<char>().map_err(to_py_err)?;
             return Self::py_from_str(&t, c);
         };
@@ -786,19 +723,15 @@ impl TriState {
         format!("{}", *self as u8 as char)
     }
 
-    fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(py, other)) else {
-            return py.NotImplemented();
-        };
-        match op {
-            CompareOp::Eq => self.eq(&other_enum).into_py(py),
-            CompareOp::Ne => self.ne(&other_enum).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
     fn opt_bool(&self) -> Option<bool> {
         Option::from(*self)
+    }
+
+    fn __eq__(&self, other: &Bound<PyAny>, py: Python<'_>) -> bool {
+        let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(py, other)) else {
+            return false;
+        };
+        self.eq(&other_enum)
     }
 
     #[getter]
@@ -807,7 +740,7 @@ impl TriState {
     }
 
     #[classmethod]
-    fn variants(_: &Bound<PyType>, py: Python<'_>) -> EnumIterator {
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> PyResult<EnumIterator> {
         EnumIterator::new::<Self>(py)
     }
 
@@ -824,19 +757,8 @@ impl VersionUpgradePolicy {
         *self as isize
     }
 
-    fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp, py: Python<'_>) -> Py<PyAny> {
-        let Ok(other_enum) = other.extract::<Self>() else {
-            return py.NotImplemented();
-        };
-        match op {
-            CompareOp::Eq => self.eq(&other_enum).into_py(py),
-            CompareOp::Ne => self.ne(&other_enum).into_py(py),
-            _ => py.NotImplemented(),
-        }
-    }
-
     #[classmethod]
-    fn variants(_: &Bound<PyType>, py: Python<'_>) -> EnumIterator {
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> PyResult<EnumIterator> {
         EnumIterator::new::<Self>(py)
     }
 }

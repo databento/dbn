@@ -3,7 +3,7 @@
 use std::{
     collections::HashMap,
     io::{self, BufWriter, Write},
-    sync::Arc,
+    sync::{Arc, Mutex},
 };
 
 use dbn::{
@@ -16,12 +16,16 @@ use dbn::{
     Compression, Encoding, PitSymbolMap, RType, Record, RecordRef, Schema, SymbolIndex,
     TsSymbolMap, VersionUpgradePolicy,
 };
-use pyo3::{exceptions::PyValueError, prelude::*, types::PyDate};
+use pyo3::{
+    exceptions::PyValueError,
+    prelude::*,
+    types::{PyBytes, PyDate},
+};
 
 use crate::encode::PyFileLike;
 
 #[pyclass(module = "databento_dbn")]
-pub struct Transcoder(Box<dyn Transcode + Send>);
+pub struct Transcoder(Mutex<Box<dyn Transcode + Send>>);
 
 pub type PySymbolIntervalMap<'py> =
     HashMap<u32, Vec<(Bound<'py, PyDate>, Bound<'py, PyDate>, String)>>;
@@ -73,7 +77,7 @@ impl Transcoder {
         } else {
             None
         };
-        Ok(Self(match encoding {
+        Ok(Self(Mutex::new(match encoding {
             Encoding::Dbn => Box::new(Inner::<{ Encoding::Dbn as u8 }>::new(
                 file,
                 compression,
@@ -113,19 +117,19 @@ impl Transcoder {
                 input_version,
                 upgrade_policy,
             )?),
-        }))
+        })))
     }
 
     fn write(&mut self, bytes: &[u8]) -> PyResult<()> {
-        self.0.write(bytes)
+        self.0.lock().unwrap().write(bytes)
     }
 
     fn flush(&mut self) -> PyResult<()> {
-        self.0.flush()
+        self.0.lock().unwrap().flush()
     }
 
-    fn buffer(&self) -> &[u8] {
-        self.0.buffer()
+    fn buffer<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        PyBytes::new(py, self.0.lock().unwrap().buffer())
     }
 }
 
@@ -471,7 +475,7 @@ mod tests {
     impl Transcoder {
         fn downcast_unchecked<const E: u8>(&self) -> &Inner<E> {
             unsafe {
-                let ptr = &*self.0 as *const (dyn Transcode + Send);
+                let ptr = self.0.lock().unwrap().as_ref() as *const (dyn Transcode + Send);
                 ptr.cast::<Inner<E>>().as_ref().unwrap()
             }
         }
@@ -531,7 +535,9 @@ mod tests {
         let metadata_pos = encoder.get_ref().len();
         let rec = ErrorMsg::new(1680708278000000000, "This is a test", true);
         encoder.encode_record(&rec).unwrap();
-        assert!(target.buffer().is_empty());
+        Python::with_gil(|py| {
+            assert!(target.buffer(py).is_empty().unwrap());
+        });
         let record_pos = encoder.get_ref().len();
         // write record byte by byte
         for i in metadata_pos..record_pos {
@@ -540,11 +546,15 @@ mod tests {
             if i == record_pos - 1 {
                 break;
             }
-            assert_eq!(target.buffer().len(), i + 1 - metadata_pos);
+            Python::with_gil(|py| {
+                assert_eq!(target.buffer(py).len().unwrap(), i + 1 - metadata_pos);
+            });
         }
         // writing the remainder of the record should have the transcoder
         // transcode the record to the output file
-        assert!(target.buffer().is_empty());
+        Python::with_gil(|py| {
+            assert!(target.buffer(py).is_empty().unwrap());
+        });
         assert_eq!(record_pos - metadata_pos, std::mem::size_of_val(&rec));
         target.flush().unwrap();
         let output = output_buf.lock().unwrap();
@@ -605,7 +615,9 @@ mod tests {
         encoder.encode_record(&rec1).unwrap();
         let rec1_pos = encoder.get_ref().len();
         encoder.encode_record(&rec2).unwrap();
-        assert!(transcoder.buffer().is_empty());
+        Python::with_gil(|py| {
+            assert!(transcoder.buffer(py).is_empty().unwrap());
+        });
         // Write first record and part of second
         transcoder
             .write(&encoder.get_ref()[metadata_pos..rec1_pos + 4])
@@ -720,7 +732,9 @@ mod tests {
         );
         encoder.encode_record(&rec1).unwrap();
         encoder.encode_record(&rec2).unwrap();
-        assert!(transcoder.buffer().is_empty());
+        Python::with_gil(|py| {
+            assert!(transcoder.buffer(py).is_empty().unwrap());
+        });
         // Write first record and part of second
         transcoder.write(encoder.get_ref()).unwrap();
         transcoder.flush().unwrap();
@@ -849,7 +863,9 @@ mod tests {
             .unwrap();
         encoder.encode_record(&rec1).unwrap();
         encoder.encode_record(&rec2).unwrap();
-        assert!(transcoder.buffer().is_empty());
+        Python::with_gil(|py| {
+            assert!(transcoder.buffer(py).is_empty().unwrap());
+        });
         // Write first record and part of second
         transcoder.write(encoder.get_ref()).unwrap();
         transcoder.flush().unwrap();

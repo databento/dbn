@@ -3,7 +3,7 @@
 use pyo3::{prelude::*, wrap_pyfunction, PyClass};
 
 use dbn::{
-    compat::{ErrorMsgV1, InstrumentDefMsgV1, SymbolMappingMsgV1, SystemMsgV1},
+    compat::{ErrorMsgV1, InstrumentDefMsgV1, InstrumentDefMsgV3, SymbolMappingMsgV1, SystemMsgV1},
     flags,
     python::{DBNError, EnumIterator},
     Action, BboMsg, BidAskPair, CbboMsg, Cmbp1Msg, Compression, ConsolidatedBidAskPair, Encoding,
@@ -30,7 +30,7 @@ fn databento_dbn(_py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     }
     // all functions exposed to Python need to be added here
     m.add_wrapped(wrap_pyfunction!(encode::update_encoded_metadata))?;
-    m.add("DBNError", m.py().get_type_bound::<DBNError>())?;
+    m.add("DBNError", m.py().get_type::<DBNError>())?;
     checked_add_class::<EnumIterator>(m)?;
     checked_add_class::<Metadata>(m)?;
     checked_add_class::<dbn_decoder::DbnDecoder>(m)?;
@@ -48,6 +48,7 @@ fn databento_dbn(_py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     checked_add_class::<StatusMsg>(m)?;
     checked_add_class::<InstrumentDefMsg>(m)?;
     checked_add_class::<InstrumentDefMsgV1>(m)?;
+    checked_add_class::<InstrumentDefMsgV3>(m)?;
     checked_add_class::<ErrorMsg>(m)?;
     checked_add_class::<ErrorMsgV1>(m)?;
     checked_add_class::<SymbolMappingMsg>(m)?;
@@ -98,6 +99,7 @@ mod tests {
     use std::sync::Once;
 
     use dbn::enums::SType;
+    use pyo3::ffi::c_str;
 
     use super::*;
 
@@ -156,8 +158,9 @@ assert metadata.ts_out is False"#
     fn test_dbn_decoder_metadata_error() {
         setup();
         Python::with_gil(|py| {
-            py.run_bound(
-                r#"from _lib import DBNDecoder
+            py.run(
+                c_str!(
+                    r#"from _lib import DBNDecoder
 
 decoder = DBNDecoder()
 try:
@@ -166,7 +169,8 @@ try:
     assert False
 except Exception:
     pass
-"#,
+"#
+                ),
                 None,
                 None,
             )

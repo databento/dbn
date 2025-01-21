@@ -2,13 +2,14 @@
 //! to be able to implement [`pyo3`] traits for DBN types.
 #![allow(clippy::too_many_arguments)]
 
-use std::fmt;
+use std::{convert::Infallible, fmt};
 
 use pyo3::{
     create_exception,
     exceptions::PyException,
     prelude::*,
-    types::{PyDate, PyDateAccess},
+    types::{PyDate, PyDateAccess, PyInt},
+    IntoPyObjectExt,
 };
 use strum::IntoEnumIterator;
 
@@ -41,7 +42,7 @@ impl From<Error> for PyErr {
 #[pyclass(module = "databento_dbn")]
 pub struct EnumIterator {
     // Type erasure for code reuse. Generic types can't be exposed to Python.
-    iter: Box<dyn Iterator<Item = PyObject> + Send>,
+    iter: Box<dyn Iterator<Item = PyObject> + Send + Sync>,
 }
 
 #[pymethods]
@@ -56,26 +57,30 @@ impl EnumIterator {
 }
 
 impl EnumIterator {
-    fn new<E>(py: Python<'_>) -> Self
+    fn new<'py, E>(py: Python<'py>) -> PyResult<Self>
     where
-        E: strum::IntoEnumIterator + IntoPy<Py<PyAny>>,
-        <E as IntoEnumIterator>::Iterator: Send,
+        E: strum::IntoEnumIterator + IntoPyObject<'py>,
+        <E as IntoEnumIterator>::Iterator: Send + Sync,
     {
-        Self {
+        Ok(Self {
             iter: Box::new(
                 E::iter()
-                    .map(|var| var.into_py(py))
+                    .map(|var| var.into_py_any(py))
                     // force eager evaluation because `py` isn't `Send`
-                    .collect::<Vec<_>>()
+                    .collect::<PyResult<Vec<_>>>()?
                     .into_iter(),
             ),
-        }
+        })
     }
 }
 
-impl IntoPy<PyObject> for FlagSet {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.raw().into_py(py)
+impl<'py> IntoPyObject<'py> for FlagSet {
+    type Target = PyInt;
+    type Output = Bound<'py, Self::Target>;
+    type Error = Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        self.raw().into_pyobject(py)
     }
 }
 
