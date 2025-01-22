@@ -53,7 +53,7 @@ pub struct Args {
         action = ArgAction::SetTrue,
         default_value = "false",
         group = "output_encoding",
-        help = "Output the result as NDJSON (newline-delimited JSON)"
+        help = "Output the result as JSON lines"
     )]
     pub json: bool,
     #[clap(

@@ -19,8 +19,7 @@ cargo install dbn-cli
 
 ## Usage
 
-`dbn` currently supports CSV and JSON (technically [newline-delimited JSON](http://ndjson.org/))
-as output formats.
+`dbn` currently supports CSV and [JSON lines](https://jsonlines.org/) as output formats.
 By default, `dbn` outputs the result to standard output for ease of use with
 text-based command-line utilities.
 Running
