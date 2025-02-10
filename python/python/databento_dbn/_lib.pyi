@@ -129,6 +129,8 @@ class InstrumentClass(Enum):
         A spread composed of options.
     FX_SPOT
         A foreign exchange spot.
+    COMMODITY_SPOT
+        A commodity being traded for immediate delivery.
 
     """
 
@@ -141,6 +143,7 @@ class InstrumentClass(Enum):
     FUTURE_SPREAD: str
     OPTION_SPREAD: str
     FX_SPOT: str
+    COMMODITY_SPOT: str
 
     @classmethod
     def from_str(cls, value: str) -> InstrumentClass: ...
