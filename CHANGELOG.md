@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.28.0 - 2025-02-11
+
+### Breaking changes
+- Added `CommoditySpot` `InstrumentClass` variant and made `InstrumentClass`
+  non-exhaustive to allow future additions without breaking changes
+
 ## 0.27.0 - 2025-01-21
 
 ### Breaking changes

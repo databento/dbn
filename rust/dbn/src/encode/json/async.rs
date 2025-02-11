@@ -6,7 +6,7 @@ use crate::{
     Metadata, Result,
 };
 
-/// Type for encoding files and streams of DBN records in newline-delimited JSON (ndjson).
+/// Type for encoding files and streams of DBN records in JSON lines.
 pub struct Encoder<W>
 where
     W: io::AsyncWriteExt + Unpin,

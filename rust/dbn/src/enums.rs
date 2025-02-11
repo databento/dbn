@@ -82,6 +82,7 @@ impl From<Action> for char {
     derive(strum::EnumIter),
     pyo3::pyclass(module = "databento_dbn", rename_all = "SCREAMING_SNAKE_CASE")
 )]
+#[non_exhaustive]
 #[repr(u8)]
 pub enum InstrumentClass {
     /// A bond.
@@ -102,6 +103,8 @@ pub enum InstrumentClass {
     OptionSpread = b'T',
     /// A foreign exchange spot.
     FxSpot = b'X',
+    /// A commodity being traded for immediate delivery.
+    CommoditySpot = b'Y',
 }
 
 impl From<InstrumentClass> for char {

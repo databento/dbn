@@ -1,4 +1,4 @@
-//! Encoding of DBN records into newline-delimited JSON (ndjson).
+//! Encoding of DBN records into [JSON lines](https://jsonlines.org).
 
 pub(crate) mod serialize;
 mod sync;
