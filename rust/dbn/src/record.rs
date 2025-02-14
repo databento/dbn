@@ -54,8 +54,8 @@ pub struct RecordHeader {
     /// The numeric ID assigned to the instrument.
     #[pyo3(set)]
     pub instrument_id: u32,
-    /// The matching-engine-received timestamp expressed as number of nanoseconds since
-    /// the UNIX epoch.
+    /// The matching-engine-received timestamp expressed as the number of nanoseconds
+    /// since the UNIX epoch.
     #[dbn(encode_order(0), unix_nanos)]
     #[pyo3(set)]
     pub ts_event: u64,
@@ -108,8 +108,8 @@ pub struct MboMsg {
     /// **N**one where no side is specified by the original source.
     #[dbn(c_char, encode_order(3))]
     pub side: c_char,
-    /// The capture-server-received timestamp expressed as number of nanoseconds since
-    /// the UNIX epoch.
+    /// The capture-server-received timestamp expressed as the number of nanoseconds
+    /// since the UNIX epoch.
     #[dbn(encode_order(0), index_ts, unix_nanos)]
     #[pyo3(get, set)]
     pub ts_recv: u64,
@@ -229,8 +229,8 @@ pub struct TradeMsg {
     #[dbn(encode_order(4))]
     #[pyo3(get, set)]
     pub depth: u8,
-    /// The capture-server-received timestamp expressed as number of nanoseconds since
-    /// the UNIX epoch.
+    /// The capture-server-received timestamp expressed as the number of nanoseconds
+    /// since the UNIX epoch.
     #[dbn(encode_order(0), index_ts, unix_nanos)]
     #[pyo3(get, set)]
     pub ts_recv: u64,
@@ -285,8 +285,8 @@ pub struct Mbp1Msg {
     #[dbn(encode_order(4))]
     #[pyo3(get, set)]
     pub depth: u8,
-    /// The capture-server-received timestamp expressed as number of nanoseconds since
-    /// the UNIX epoch.
+    /// The capture-server-received timestamp expressed as the number of nanoseconds
+    /// since the UNIX epoch.
     #[dbn(encode_order(0), index_ts, unix_nanos)]
     #[pyo3(get, set)]
     pub ts_recv: u64,
@@ -344,8 +344,8 @@ pub struct Mbp10Msg {
     #[dbn(encode_order(4))]
     #[pyo3(get, set)]
     pub depth: u8,
-    /// The capture-server-received timestamp expressed as number of nanoseconds since
-    /// the UNIX epoch.
+    /// The capture-server-received timestamp expressed as the number of nanoseconds
+    /// since the UNIX epoch.
     #[dbn(encode_order(0), index_ts, unix_nanos)]
     #[pyo3(get, set)]
     pub ts_recv: u64,
@@ -379,11 +379,12 @@ pub struct BboMsg {
     #[pyo3(get)]
     pub hd: RecordHeader,
     /// The price of the last trade expressed as a signed integer where every 1 unit
-    /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be [`UNDEF_PRICE`](crate::UNDEF_PRICE)
+    /// if there was no last trade in the session.
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub price: i64,
-    /// The quantity of the last trade.
+    /// The last trade quantity.
     #[pyo3(get, set)]
     pub size: u32,
     // Reserved for later usage.
@@ -392,7 +393,8 @@ pub struct BboMsg {
     pub _reserved1: u8,
     /// The side that initiated the last trade. Can be **A**sk for a sell order (or sell
     /// aggressor in a trade), **B**id for a buy order (or buy aggressor in a trade), or
-    /// **N**one where no side is specified by the original source.
+    /// **N**one where no side is specified by the original source or if there was no last
+    /// trade.
     #[dbn(c_char, encode_order(2))]
     pub side: c_char,
     /// A bit field indicating event end, message characteristics, and data quality. See
@@ -403,7 +405,8 @@ pub struct BboMsg {
     #[doc(hidden)]
     #[cfg_attr(feature = "serde", serde(skip))]
     pub _reserved2: u8,
-    /// The interval timestamp expressed as number of nanoseconds since the UNIX epoch.
+    /// The end timestamp of the interval as the number of nanoseconds since the UNIX
+    /// epoch. Clamped to the 1-second or 1-minute boundary.
     #[dbn(encode_order(0), index_ts, unix_nanos)]
     #[pyo3(get, set)]
     pub ts_recv: u64,
@@ -462,8 +465,8 @@ pub struct Cmbp1Msg {
     #[doc(hidden)]
     #[cfg_attr(feature = "serde", serde(skip))]
     pub _reserved1: [c_char; 1],
-    /// The capture-server-received timestamp expressed as number of nanoseconds since
-    /// the UNIX epoch.
+    /// The capture-server-received timestamp expressed as the number of nanoseconds
+    /// since the UNIX epoch.
     #[dbn(encode_order(0), index_ts, unix_nanos)]
     #[pyo3(get, set)]
     pub ts_recv: u64,
@@ -521,7 +524,8 @@ pub struct CbboMsg {
     #[doc(hidden)]
     #[cfg_attr(feature = "serde", serde(skip))]
     pub _reserved2: u8,
-    /// The interval timestamp expressed as number of nanoseconds since the UNIX epoch.
+    /// The interval timestamp expressed as the number of nanoseconds since the UNIX
+    /// epoch.
     #[dbn(encode_order(0), index_ts, unix_nanos)]
     #[pyo3(get, set)]
     pub ts_recv: u64,
@@ -615,8 +619,8 @@ pub struct StatusMsg {
     /// The common header.
     #[pyo3(get)]
     pub hd: RecordHeader,
-    /// The capture-server-received timestamp expressed as number of nanoseconds since
-    /// the UNIX epoch.
+    /// The capture-server-received timestamp expressed as the number of nanoseconds
+    /// since the UNIX epoch.
     #[dbn(encode_order(0), index_ts, unix_nanos)]
     #[pyo3(get, set)]
     pub ts_recv: u64,
@@ -668,8 +672,8 @@ pub struct InstrumentDefMsg {
     /// The common header.
     #[pyo3(get, set)]
     pub hd: RecordHeader,
-    /// The capture-server-received timestamp expressed as number of nanoseconds since the
-    /// UNIX epoch.
+    /// The capture-server-received timestamp expressed as the number of nanoseconds
+    /// since the UNIX epoch.
     #[dbn(encode_order(0), index_ts, unix_nanos)]
     #[pyo3(get, set)]
     pub ts_recv: u64,
@@ -1027,7 +1031,7 @@ pub struct StatMsg {
     pub ts_ref: u64,
     /// The value for price statistics expressed as a signed integer where every 1 unit
     /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be
-    /// [`crate::UNDEF_PRICE`] when unused.
+    /// [`UNDEF_PRICE`](crate::UNDEF_PRICE) when unused.
     #[dbn(fixed_price)]
     #[pyo3(set)]
     pub price: i64,
@@ -1247,7 +1251,8 @@ pub trait HasRType: Record + RecordMut {
 pub struct WithTsOut<T: HasRType> {
     /// The inner record.
     pub rec: T,
-    /// The live gateway send timestamp expressed as number of nanoseconds since the UNIX epoch.
+    /// The live gateway send timestamp expressed as the number of nanoseconds since the
+    /// UNIX epoch.
     pub ts_out: u64,
 }
 

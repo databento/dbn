@@ -1062,7 +1062,7 @@ class RecordHeader:
     @property
     def ts_event(self) -> int:
         """
-        The matching-engine-received timestamp expressed as number of
+        The matching-engine-received timestamp expressed as the number of
         nanoseconds since the UNIX epoch.
 
         Returns
@@ -1160,7 +1160,7 @@ class Record(SupportsBytes):
     @property
     def ts_event(self) -> int:
         """
-        The matching-engine-received timestamp expressed as number of
+        The matching-engine-received timestamp expressed as the number of
         nanoseconds since the UNIX epoch.
 
         Returns
@@ -1172,7 +1172,7 @@ class Record(SupportsBytes):
     @property
     def ts_out(self) -> int | None:
         """
-        The live gateway send timestamp expressed as number of nanoseconds
+        The live gateway send timestamp expressed as the number of nanoseconds
         since the UNIX epoch.
 
         Returns
@@ -1301,7 +1301,7 @@ class _MBOBase:
     @property
     def ts_recv(self) -> int:
         """
-        The capture-server-received timestamp expressed as number of
+        The capture-server-received timestamp expressed as the number of
         nanoseconds since the UNIX epoch.
 
         Returns
@@ -1725,7 +1725,7 @@ class _MBPBase:
     @property
     def ts_recv(self) -> int:
         """
-        The capture-server-received timestamp expressed as number of
+        The capture-server-received timestamp expressed as the number of
         nanoseconds since the UNIX epoch.
 
         Returns
@@ -1917,7 +1917,7 @@ class BBOMsg(Record):
     @property
     def ts_recv(self) -> int:
         """
-        The capture-server-received timestamp expressed as number of
+        The capture-server-received timestamp expressed as the number of
         nanoseconds since the UNIX epoch.
 
         Returns
@@ -2073,7 +2073,7 @@ class CMBP1Msg(Record):
     @property
     def ts_recv(self) -> int:
         """
-        The interval timestamp expressed as number of nanoseconds since the UNIX epoch.
+        The interval timestamp expressed as the number of nanoseconds since the UNIX epoch.
 
         Returns
         -------
@@ -2217,7 +2217,7 @@ class CBBOMsg(Record):
     @property
     def ts_recv(self) -> int:
         """
-        The capture-server-received timestamp expressed as number of
+        The capture-server-received timestamp expressed as the number of
         nanoseconds since the UNIX epoch.
 
         Returns
@@ -2535,7 +2535,7 @@ class InstrumentDefMsgV3(Record):
     @property
     def ts_recv(self) -> int:
         """
-        The capture-server-received timestamp expressed as number of
+        The capture-server-received timestamp expressed as the number of
         nanoseconds since the UNIX epoch.
 
         Returns
@@ -3496,7 +3496,7 @@ class InstrumentDefMsg(Record):
     @property
     def ts_recv(self) -> int:
         """
-        The capture-server-received timestamp expressed as number of
+        The capture-server-received timestamp expressed as the number of
         nanoseconds since the UNIX epoch.
 
         Returns
@@ -4447,7 +4447,7 @@ class InstrumentDefMsgV1(Record):
     @property
     def ts_recv(self) -> int:
         """
-        The capture-server-received timestamp expressed as number of
+        The capture-server-received timestamp expressed as the number of
         nanoseconds since the UNIX epoch.
 
         Returns

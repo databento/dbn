@@ -174,8 +174,8 @@ pub struct InstrumentDefMsgV1 {
     /// The common header.
     #[pyo3(get, set)]
     pub hd: RecordHeader,
-    /// The capture-server-received timestamp expressed as number of nanoseconds since the
-    /// UNIX epoch.
+    /// The capture-server-received timestamp expressed as the number of nanoseconds
+    /// since the UNIX epoch.
     #[dbn(encode_order(0), index_ts, unix_nanos)]
     #[pyo3(get, set)]
     pub ts_recv: u64,
@@ -510,8 +510,8 @@ pub struct InstrumentDefMsgV3 {
     /// The common header.
     #[pyo3(get, set)]
     pub hd: RecordHeader,
-    /// The capture-server-received timestamp expressed as number of nanoseconds since the
-    /// UNIX epoch.
+    /// The capture-server-received timestamp expressed as the number of nanoseconds
+    /// since the UNIX epoch.
     #[dbn(encode_order(0), index_ts, unix_nanos)]
     #[pyo3(get, set)]
     pub ts_recv: u64,
@@ -642,7 +642,7 @@ pub struct InstrumentDefMsgV3 {
     #[dbn(encode_order(168))]
     #[pyo3(get, set)]
     pub leg_ratio_price_denominator: i32,
-    /// The denominator of the price ratio of the leg within the spread.
+    /// The numerator of the price ratio of the leg within the spread.
     #[dbn(encode_order(169))]
     #[pyo3(get, set)]
     pub leg_ratio_qty_numerator: i32,
