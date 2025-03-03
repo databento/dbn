@@ -1,6 +1,10 @@
 # Changelog
 
-## 0.28.1 - TBD
+## 0.29.0 - TBD
+
+### Enhancements
+- Added new venues, datasets, and publishers for ICE Futures US and for ICE Futures
+  Europe (Financial products)
 
 ### Bug fixes
 - Fixed typo in `-s`/`--map-symbols` help text (credit: @wtn)
@@ -18,7 +22,8 @@
 
 ### Enhancements
 - Added new venue `EQUS` for consolidated US equities
-- Added new dataset `EQUS.MINI` and new publishers `EQUS.MINI.EQUS` and `XNYS.TRADES.EQUS`
+- Added new dataset `EQUS.MINI` and new publishers `EQUS.MINI.EQUS` and
+  `XNYS.TRADES.EQUS`
 - Upgraded `pyo3` version to 0.23.4 with improved support for Python 3.13
 
 ### Bug fixes
@@ -45,7 +50,8 @@
 - Relaxed `DecodeRecord` trait constraint on `StreamIterDecoder`'s inner decoder
 - Added `DbnMetadata` implementation for `StreamInnerDecoder` if the inner decoder
   implements `DbnMetadata`
-- Eliminate `unsafe` in `From` implementations for record structs from different versions
+- Eliminate `unsafe` in `From` implementations for record structs from different
+  versions
 
 ## 0.25.0 - 2024-12-17
 
