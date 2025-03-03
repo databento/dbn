@@ -27,7 +27,7 @@ trivial_copy = []
 [dependencies]
 dbn-macros = { version = "=0.28.0", path = "../dbn-macros" }
 
-async-compression = { version = "0.4.18", features = ["tokio", "zstd"], optional = true }
+async-compression = { version = "0.4.20", features = ["tokio", "zstd"], optional = true }
 csv = { workspace = true }
 fallible-streaming-iterator = { version = "0.1.9", features = ["std"] }
 # Fast integer to string conversion
@@ -37,7 +37,7 @@ pyo3 = { workspace = true, optional = true }
 json-writer = "0.4"
 serde = { workspace = true, features = ["derive"], optional = true }
 # extra enum traits for Python
-strum = { version = "0.26", features = ["derive"], optional = true }
+strum = { version = "0.27", features = ["derive"], optional = true }
 thiserror = "2.0"
 time = { workspace = true, features = ["formatting", "macros"] }
 tokio = { version = ">=1.28", features = ["fs", "io-util"], optional = true }
@@ -45,7 +45,7 @@ zstd = { workspace = true }
 
 [dev-dependencies]
 rstest = { workspace = true }
-strum = { version = "0.26", features = ["derive"] }
+strum = { version = "0.27", features = ["derive"] }
 tokio = { version = "1", features = ["fs", "io-util", "macros", "rt-multi-thread"] }
 # Checking alignment and padding
 type-layout = "0.2.0"

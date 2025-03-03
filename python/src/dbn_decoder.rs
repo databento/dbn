@@ -136,7 +136,7 @@ mod tests {
         record::{ErrorMsg, OhlcvMsg, RecordHeader},
         Dataset, MetadataBuilder, DBN_VERSION,
     };
-    use pyo3::{py_run, types::PyString};
+    use pyo3::{ffi::c_str, py_run, types::PyString};
 
     use super::*;
     use crate::tests::setup;
@@ -262,8 +262,8 @@ for record in records[1:]:
     fn test_dbn_decoder_decoding_error() {
         setup();
         Python::with_gil(|py| {
-            py.run_bound(
-                r#"from _lib import DBNDecoder, DBNError, Metadata, Schema, SType
+            Python::run(py,
+                c_str!(r#"from _lib import DBNDecoder, DBNError, Metadata, Schema, SType
 
 metadata = Metadata(
     dataset="GLBX.MDP3",
@@ -290,7 +290,7 @@ except DBNError as ex:
     assert "RType" in str(ex)
 except Exception:
     assert False
-"#,
+"#),
                 None,
                 None,
             )
@@ -301,8 +301,10 @@ except Exception:
     fn test_dbn_decoder_no_metadata() {
         setup();
         Python::with_gil(|py| {
-            py.run_bound(
-                r#"from _lib import DBNDecoder, OHLCVMsg
+            Python::run(
+                py,
+                c_str!(
+                    r#"from _lib import DBNDecoder, OHLCVMsg
 
 decoder = DBNDecoder(has_metadata=False)
 record = OHLCVMsg(0x20, 1, 10, 0, 0, 0, 0, 0, 0)
@@ -310,7 +312,8 @@ decoder.write(bytes(record))
 records = decoder.decode()
 assert len(records) == 1
 assert records[0] == record
-"#,
+"#
+                ),
                 None,
                 None,
             )
