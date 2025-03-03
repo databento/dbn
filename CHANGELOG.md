@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.28.1 - TBD
+
+### Bug fixes
+- Fixed typo in `-s`/`--map-symbols` help text (credit: @wtn)
+
 ## 0.28.0 - 2025-02-11
 
 ### Breaking changes
