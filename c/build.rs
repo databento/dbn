@@ -14,9 +14,8 @@ fn find_target_dir() -> PathBuf {
         if dir.file_name() == Some(OsStr::new("target"))
             // Want to find the top directory containing a CACHEDIR.TAG file
             || (dir.join("CACHEDIR.TAG").exists()
-                && !(dir
-                    .parent()
-                    .map_or(true, |p| p.join("CACHEDIR.TAG").exists())))
+                && !dir
+                    .parent().is_none_or(|p| p.join("CACHEDIR.TAG").exists()))
         {
             return dir;
         }
