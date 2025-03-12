@@ -9,8 +9,9 @@ use tokio::{
 use crate::{
     compat,
     decode::{
-        r#async::ZSTD_FILE_BUFFER_CAPACITY, zstd::zstd_decoder, FromLittleEndianSlice,
-        VersionUpgradePolicy,
+        r#async::{AsyncSkipBytes, ZSTD_FILE_BUFFER_CAPACITY},
+        zstd::zstd_decoder,
+        FromLittleEndianSlice, VersionUpgradePolicy,
     },
     HasRType, Metadata, Record, RecordHeader, RecordRef, Result, DBN_VERSION, METADATA_FIXED_LEN,
 };
@@ -78,7 +79,14 @@ where
     }
 
     /// Returns a mutable reference to the inner reader.
+    ///
+    /// Note: be careful not to modify the inner reader after beginning decoding.
+    #[deprecated(
+        since = "0.29.0",
+        note = "Will be removed in a future version because modifying the inner reader through this method can leave the decoder in an inconsistent state"
+    )]
     pub fn get_mut(&mut self) -> &mut R {
+        #[expect(deprecated)]
         self.decoder.get_mut()
     }
 
@@ -224,7 +232,7 @@ where
     ts_out: bool,
     reader: R,
     state: DecoderState,
-    framer: RecordFrameDecoder,
+    framer: RecordFramer,
     read_buf: Cursor<Vec<u8>>,
     compat_buf: [u8; crate::MAX_RECORD_LEN],
 }
@@ -268,7 +276,7 @@ where
             ts_out,
             reader,
             state: DecoderState::Read,
-            framer: RecordFrameDecoder::Head,
+            framer: RecordFramer::Head,
             read_buf: Cursor::default(),
             compat_buf: [0; crate::MAX_RECORD_LEN],
         })
@@ -385,6 +393,12 @@ where
     }
 
     /// Returns a mutable reference to the inner reader.
+    ///
+    /// Note: be careful not to modify the inner reader after beginning decoding.
+    #[deprecated(
+        since = "0.29.0",
+        note = "Will be removed in a future version because modifying the inner reader through this method can leave the decoder in an inconsistent state"
+    )]
     pub fn get_mut(&mut self) -> &mut R {
         &mut self.reader
     }
@@ -392,6 +406,51 @@ where
     /// Consumes the decoder and returns the inner reader.
     pub fn into_inner(self) -> R {
         self.reader
+    }
+}
+
+impl<R> RecordDecoder<R>
+where
+    R: AsyncSkipBytes + io::AsyncReadExt + Unpin,
+{
+    /// Seeks forward the specified number of bytes.
+    ///
+    /// # Cancel safety
+    /// This method may not be cancellation safe, depending on the cancellation safety
+    /// of `skip_bytes()` of the inner reader `R`.
+    ///
+    /// # Errors
+    /// This function returns an error if it fails to seek ahead in the inner reader.
+    pub async fn skip_bytes(&mut self, n_bytes: usize) -> crate::Result<()> {
+        let bytes_past_buf = self.read_buf.remaining() as i64 - n_bytes as i64;
+        if bytes_past_buf >= 0 {
+            // All bytes to be skipped are already in `read_buf`
+            self.read_buf.advance(n_bytes);
+            self.state = if bytes_past_buf == 0 {
+                DecoderState::Read
+            } else {
+                DecoderState::Yield
+            };
+        } else {
+            let skip_bytes = (-bytes_past_buf) as usize;
+            // Skip additional bytes not in `read_buf`
+            self.reader
+                .skip_bytes(skip_bytes)
+                .await
+                .map_err(|mut err| {
+                    if let crate::Error::Io { context, .. } = &mut err {
+                        // add more context
+                        *context = format!(
+                            "seeking ahead {skip_bytes} bytes for a total skip of size {n_bytes}"
+                        );
+                    };
+                    err
+                })?;
+            // Reset state
+            self.read_buf.clear();
+            self.state = DecoderState::Read;
+        }
+        Ok(())
     }
 }
 
@@ -516,12 +575,12 @@ where
 // - returning bytes slice didn't work well with the existing lifetime requirements for RecordRef
 #[derive(Debug, Clone, Copy)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
-enum RecordFrameDecoder {
+enum RecordFramer {
     Head,
     Data(usize),
 }
 
-impl RecordFrameDecoder {
+impl RecordFramer {
     fn decode_head(&mut self, src: &mut Cursor<Vec<u8>>) -> Option<usize> {
         if src.remaining() == 0 {
             // Not enough data
@@ -548,19 +607,19 @@ impl RecordFrameDecoder {
 
     fn decode<'a>(&mut self, src: &'a mut Cursor<Vec<u8>>) -> Option<&'a [u8]> {
         let n = match self {
-            RecordFrameDecoder::Head => match self.decode_head(src) {
+            RecordFramer::Head => match self.decode_head(src) {
                 Some(n) => {
-                    *self = RecordFrameDecoder::Data(n);
+                    *self = RecordFramer::Data(n);
                     n
                 }
                 None => return None,
             },
-            RecordFrameDecoder::Data(n) => *n,
+            RecordFramer::Data(n) => *n,
         };
         match self.validate_len(n, src) {
             Some(n) => {
                 // Update the decode state
-                *self = RecordFrameDecoder::Head;
+                *self = RecordFramer::Head;
 
                 // Make sure the buffer has enough space to read the next head
                 let additional = 1usize.saturating_sub(src.remaining());
@@ -589,6 +648,8 @@ trait Buffer {
     fn reserve(&mut self, additional: usize);
     /// Advances the read position by `n` bytes.
     fn advance(&mut self, n: usize);
+    /// Clears the buffer.
+    fn clear(&mut self);
 }
 
 impl Buffer for Cursor<Vec<u8>> {
@@ -629,8 +690,17 @@ impl Buffer for Cursor<Vec<u8>> {
 
     fn advance(&mut self, n: usize) {
         let new_pos = self.position() + n as u64;
-        debug_assert!(new_pos as usize <= self.get_ref().len());
+        debug_assert!(
+            new_pos as usize <= self.get_ref().len(),
+            "{new_pos} should not be > {}",
+            self.get_ref().len()
+        );
         self.set_position(new_pos);
+    }
+
+    fn clear(&mut self) {
+        self.get_mut().clear();
+        self.set_position(0);
     }
 }
 
@@ -749,6 +819,20 @@ mod tests {
         }
         assert_eq!(buf_records, file_records);
         Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_skip_bytes() {
+        let mut decoder = Decoder::from_file(format!("{TEST_DATA_PATH}/test_data.mbo.dbn"))
+            .await
+            .unwrap();
+        decoder
+            .decoder
+            .skip_bytes(std::mem::size_of::<MboMsg>())
+            .await
+            .unwrap();
+        assert!(decoder.decode_record::<MboMsg>().await.unwrap().is_some());
+        assert!(decoder.decode_record::<MboMsg>().await.unwrap().is_none());
     }
 
     #[tokio::test]
@@ -897,7 +981,7 @@ mod tests {
         #[case] exp: Option<usize>,
     ) {
         let mut src = dummy_buffer(pos, size);
-        let res = RecordFrameDecoder::Head.decode_head(&mut src);
+        let res = RecordFramer::Head.decode_head(&mut src);
         assert_eq!(res, exp);
     }
 
@@ -914,24 +998,24 @@ mod tests {
         #[case] exp: Option<usize>,
     ) {
         let src = dummy_buffer(pos, size);
-        let res = RecordFrameDecoder::Head.validate_len(n, &src);
+        let res = RecordFramer::Head.validate_len(n, &src);
         assert_eq!(res, exp);
     }
 
     #[rstest]
-    #[case::empty(0, 0, RecordFrameDecoder::Head, None, 0, RecordFrameDecoder::Head)]
-    #[case::end(16, 16, RecordFrameDecoder::Head, None, 16, RecordFrameDecoder::Head)]
-    #[case::last(15, 16, RecordFrameDecoder::Head, None, 15, RecordFrameDecoder::Data(15 * RecordHeader::LENGTH_MULTIPLIER))]
-    #[case::last(2, 12, RecordFrameDecoder::Head, Some(2..10), 10, RecordFrameDecoder::Head)]
-    #[case::middle(8, 16, RecordFrameDecoder::Data(8), Some(8..16), 16, RecordFrameDecoder::Head)]
-    #[case::extra(24, 256, RecordFrameDecoder::Data(56), Some(24..80), 80, RecordFrameDecoder::Head)]
+    #[case::empty(0, 0, RecordFramer::Head, None, 0, RecordFramer::Head)]
+    #[case::end(16, 16, RecordFramer::Head, None, 16, RecordFramer::Head)]
+    #[case::last(15, 16, RecordFramer::Head, None, 15, RecordFramer::Data(15 * RecordHeader::LENGTH_MULTIPLIER))]
+    #[case::last(2, 12, RecordFramer::Head, Some(2..10), 10, RecordFramer::Head)]
+    #[case::middle(8, 16, RecordFramer::Data(8), Some(8..16), 16, RecordFramer::Head)]
+    #[case::extra(24, 256, RecordFramer::Data(56), Some(24..80), 80, RecordFramer::Head)]
     fn frame_decoder_decode(
         #[case] pos: usize,
         #[case] size: usize,
-        #[case] mut decoder: RecordFrameDecoder,
+        #[case] mut decoder: RecordFramer,
         #[case] exp: Option<std::ops::Range<u8>>,
         #[case] exp_pos: usize,
-        #[case] exp_decoder: RecordFrameDecoder,
+        #[case] exp_decoder: RecordFramer,
     ) {
         let mut src = dummy_buffer(pos, size);
         let res = decoder.decode(&mut src);

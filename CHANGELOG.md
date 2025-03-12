@@ -5,6 +5,14 @@
 ### Enhancements
 - Added new venues, datasets, and publishers for ICE Futures US, ICE Futures Europe
   (Financial products), Eurex, and European Energy Exchange (EEX)
+- Added new `SkipBytes` and `AsyncSkipBytes` traits which are a subset of the `Seek`
+  and `AsyncSeek` traits respectively, only supporting seeking forward from the current
+  position
+
+### Deprecations
+- Deprecated `AsyncRecordDecoder::get_mut()` and `AsyncDecoder::get_mut()` as modifying
+  the inner reader after decoding any records could lead to a corrupted stream and
+  decoding errors
 
 ### Bug fixes
 - Fixed typo in `-s`/`--map-symbols` help text (credit: @wtn)

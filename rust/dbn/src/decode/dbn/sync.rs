@@ -12,7 +12,7 @@ use crate::{
     compat::{self, SYMBOL_CSTR_LEN_V1},
     decode::{
         private::BufferSlice, DbnMetadata, DecodeRecord, DecodeRecordRef, DecodeStream,
-        FromLittleEndianSlice, StreamIterDecoder, VersionUpgradePolicy,
+        FromLittleEndianSlice, SkipBytes, StreamIterDecoder, VersionUpgradePolicy,
     },
     error::silence_eof_error,
     HasRType, MappingInterval, Metadata, RecordHeader, RecordRef, SType, Schema, SymbolMapping,
@@ -392,6 +392,15 @@ where
                 self.compat_buffer_slice(),
             )
         }
+    }
+}
+
+impl<R> SkipBytes for RecordDecoder<R>
+where
+    R: SkipBytes,
+{
+    fn skip_bytes(&mut self, n_bytes: usize) -> crate::Result<()> {
+        self.reader.skip_bytes(n_bytes)
     }
 }
 
@@ -995,6 +1004,18 @@ mod tests {
         assert_eq!(buf_decoder.metadata(), &file_metadata);
         assert_eq!(decoded_records, buf_decoder.decode_records()?);
         Ok(())
+    }
+
+    #[test]
+    fn test_skip_bytes() {
+        let mut decoder =
+            Decoder::from_file(format!("{TEST_DATA_PATH}/test_data.mbo.dbn")).unwrap();
+        decoder
+            .decoder
+            .skip_bytes(std::mem::size_of::<MboMsg>())
+            .unwrap();
+        assert!(decoder.decode_record::<MboMsg>().unwrap().is_some());
+        assert!(decoder.decode_record::<MboMsg>().unwrap().is_none());
     }
 
     #[test]
