@@ -26,7 +26,7 @@ pub use stream::StreamIterDecoder;
 
 use std::{
     fs::File,
-    io::{self, BufReader},
+    io::{self, BufReader, ErrorKind, Read, Seek},
     mem,
     path::Path,
 };
@@ -326,6 +326,27 @@ where
     }
 }
 
+/// Like [`Seek`], but only allows seeking forward from the current
+/// position.
+pub trait SkipBytes {
+    /// Skips `n_bytes` ahead.
+    ///
+    /// # Errors
+    /// This function returns an error if the I/O operations fail.
+    fn skip_bytes(&mut self, n_bytes: usize) -> crate::Result<()>;
+}
+
+impl<T> SkipBytes for T
+where
+    T: Seek,
+{
+    fn skip_bytes(&mut self, n_bytes: usize) -> crate::Result<()> {
+        self.seek(std::io::SeekFrom::Current(n_bytes as i64))
+            .map(drop)
+            .map_err(|err| crate::Error::io(err, format!("seeking ahead {n_bytes} bytes")))
+    }
+}
+
 /// Type for runtime polymorphism over whether decoding uncompressed or ZStd-compressed
 /// DBN records. Implements [`std::io::Write`].
 pub struct DynReader<'a, R>(DynReaderImpl<'a, R>)
@@ -449,6 +470,39 @@ where
         match &mut self.0 {
             DynReaderImpl::Uncompressed(r) => r.read(buf),
             DynReaderImpl::ZStd(r) => r.read(buf),
+        }
+    }
+}
+
+impl<R> SkipBytes for DynReader<'_, R>
+where
+    R: io::BufRead + io::Read + io::Seek,
+{
+    fn skip_bytes(&mut self, n_bytes: usize) -> crate::Result<()> {
+        let handle_err = |err| crate::Error::io(err, format!("seeking ahead {n_bytes} bytes"));
+        match &mut self.0 {
+            DynReaderImpl::Uncompressed(reader) => {
+                reader.seek_relative(n_bytes as i64).map_err(handle_err)
+            }
+            DynReaderImpl::ZStd(reader) => {
+                let mut buf = [0; 1024];
+                let mut remaining = n_bytes;
+                while remaining > 0 {
+                    let max_read_size = remaining.min(buf.len());
+                    let read_size = reader.read(&mut buf[..max_read_size]).map_err(handle_err)?;
+                    if read_size == 0 {
+                        return Err(crate::Error::io(
+                            std::io::Error::from(ErrorKind::UnexpectedEof),
+                            format!(
+                                "seeking ahead {n_bytes} bytes. Only able to seek {} bytes",
+                                n_bytes - remaining
+                            ),
+                        ));
+                    }
+                    remaining -= read_size;
+                }
+                Ok(())
+            }
         }
     }
 }
@@ -596,12 +650,12 @@ pub use self::{
 
 #[cfg(feature = "async")]
 mod r#async {
-    use std::{path::Path, pin::Pin};
+    use std::{future::Future, io::ErrorKind, path::Path, pin::Pin};
 
     use async_compression::tokio::bufread::ZstdDecoder;
     use tokio::{
         fs::File,
-        io::{self, BufReader},
+        io::{self, AsyncReadExt, AsyncSeekExt, BufReader},
     };
 
     pub(crate) const ZSTD_FILE_BUFFER_CAPACITY: usize = 1 << 20;
@@ -609,6 +663,27 @@ mod r#async {
     use crate::enums::Compression;
 
     use super::zstd::zstd_decoder;
+
+    /// Like [`AsyncSeek`](tokio::io::AsyncSeek), but only allows seeking forward from the current position.
+    pub trait AsyncSkipBytes {
+        /// Skips ahead `n_bytes` bytes.
+        ///
+        /// # Errors
+        /// This function returns an error if the I/O operations fail.
+        fn skip_bytes(&mut self, n_bytes: usize) -> impl Future<Output = crate::Result<()>>;
+    }
+
+    impl<T> AsyncSkipBytes for T
+    where
+        T: AsyncSeekExt + Unpin,
+    {
+        async fn skip_bytes(&mut self, n_bytes: usize) -> crate::Result<()> {
+            self.seek(std::io::SeekFrom::Current(n_bytes as i64))
+                .await
+                .map(drop)
+                .map_err(|err| crate::Error::io(err, format!("seeking ahead {n_bytes} bytes")))
+        }
+    }
 
     /// A type for runtime polymorphism on compressed and uncompressed input.
     /// The async version of [`DynReader`](super::DynReader).
@@ -729,11 +804,52 @@ mod r#async {
                 DynReaderImpl::Uncompressed(reader) => {
                     io::AsyncRead::poll_read(Pin::new(reader), cx, buf)
                 }
-                DynReaderImpl::ZStd(dec) => io::AsyncRead::poll_read(Pin::new(dec), cx, buf),
+                DynReaderImpl::ZStd(reader) => io::AsyncRead::poll_read(Pin::new(reader), cx, buf),
             }
         }
     }
 
+    impl<R> AsyncSkipBytes for DynReader<R>
+    where
+        R: io::AsyncSeekExt + io::AsyncBufReadExt + Unpin,
+    {
+        /// Like AsyncSeek, but only allows seeking forward from the current position.
+        ///
+        /// # Cancellation safety
+        /// This method is not cancel safe.
+        async fn skip_bytes(&mut self, n_bytes: usize) -> crate::Result<()> {
+            let handle_err = |err| crate::Error::io(err, format!("seeking ahead {n_bytes} bytes"));
+            match &mut self.0 {
+                DynReaderImpl::Uncompressed(reader) => reader
+                    .seek(std::io::SeekFrom::Current(n_bytes as i64))
+                    .await
+                    .map(drop)
+                    .map_err(handle_err),
+                DynReaderImpl::ZStd(reader) => {
+                    let mut buf = [0; 1024];
+                    let mut remaining = n_bytes;
+                    while remaining > 0 {
+                        let max_read_size = remaining.min(buf.len());
+                        let read_size = reader
+                            .read(&mut buf[..max_read_size])
+                            .await
+                            .map_err(handle_err)?;
+                        if read_size == 0 {
+                            return Err(crate::Error::io(
+                                std::io::Error::from(ErrorKind::UnexpectedEof),
+                                format!(
+                                    "seeking ahead {n_bytes} bytes. Only able to seek {} bytes",
+                                    n_bytes - remaining
+                                ),
+                            ));
+                        }
+                        remaining -= read_size;
+                    }
+                    Ok(())
+                }
+            }
+        }
+    }
     #[cfg(test)]
     mod tests {
         use crate::{

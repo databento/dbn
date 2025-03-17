@@ -31,6 +31,11 @@ where
             _marker: PhantomData,
         }
     }
+
+    /// Returns an immutable reference to the inner decoder.
+    pub fn get_ref(&self) -> &D {
+        &self.decoder
+    }
 }
 
 impl<D, T> FallibleStreamingIterator for StreamIterDecoder<D, T>

@@ -16,7 +16,7 @@ name = "dbn"
 path = "src/main.rs"
 
 [dependencies]
-dbn = { path = "../dbn", version = "=0.28.0", default-features = false }
+dbn = { path = "../dbn", version = "=0.29.0", default-features = false }
 
 anyhow = { workspace = true }
 clap = { version = "4.5", features = ["derive", "wrap_help"] }
@@ -25,9 +25,9 @@ zstd = { workspace = true }
 
 [dev-dependencies]
 # CLI integration tests
-assert_cmd = "2.0.16"
+assert_cmd = "2.0"
 # assert_cmd companion
-predicates = "3.1.2"
+predicates = "3.1"
 rstest = { workspace = true }
 # A library for managing temporary files and directories
-tempfile = "3.14.0"
+tempfile = "3.17"

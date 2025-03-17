@@ -134,7 +134,7 @@ pub struct Args {
          action = ArgAction::SetTrue,
          default_value = "false",
          conflicts_with_all = ["input_fragment", "dbn", "fragment"],
-         help ="Use symbology mappings from the metadata to create a 'symbol' field mapping the intstrument ID to its requested symbol."
+         help ="Use symbology mappings from the metadata to create a 'symbol' field mapping the instrument ID to its requested symbol."
     )]
     pub map_symbols: bool,
     #[clap(

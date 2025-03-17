@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.29.0 - 2025-03-17
+
+### Enhancements
+- Added new venues, datasets, and publishers for ICE Futures US, ICE Futures Europe
+  (Financial products), Eurex, and European Energy Exchange (EEX)
+- Added new `SkipBytes` and `AsyncSkipBytes` traits which are a subset of the `Seek`
+  and `AsyncSeek` traits respectively, only supporting seeking forward from the current
+  position
+
+### Deprecations
+- Deprecated `AsyncRecordDecoder::get_mut()` and `AsyncDecoder::get_mut()` as modifying
+  the inner reader after decoding any records could lead to a corrupted stream and
+  decoding errors
+
+### Bug fixes
+- Fixed typo in `-s`/`--map-symbols` help text (credit: @wtn)
+
 ## 0.28.0 - 2025-02-11
 
 ### Breaking changes
@@ -13,7 +30,8 @@
 
 ### Enhancements
 - Added new venue `EQUS` for consolidated US equities
-- Added new dataset `EQUS.MINI` and new publishers `EQUS.MINI.EQUS` and `XNYS.TRADES.EQUS`
+- Added new dataset `EQUS.MINI` and new publishers `EQUS.MINI.EQUS` and
+  `XNYS.TRADES.EQUS`
 - Upgraded `pyo3` version to 0.23.4 with improved support for Python 3.13
 
 ### Bug fixes
@@ -40,7 +58,8 @@
 - Relaxed `DecodeRecord` trait constraint on `StreamIterDecoder`'s inner decoder
 - Added `DbnMetadata` implementation for `StreamInnerDecoder` if the inner decoder
   implements `DbnMetadata`
-- Eliminate `unsafe` in `From` implementations for record structs from different versions
+- Eliminate `unsafe` in `From` implementations for record structs from different
+  versions
 
 ## 0.25.0 - 2024-12-17
 
