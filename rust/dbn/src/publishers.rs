@@ -263,13 +263,13 @@ pub enum Dataset {
     XbosItch = 3,
     /// Nasdaq PSX TotalView-ITCH
     XpsxItch = 4,
-    /// Cboe BZX Depth Pitch
+    /// Cboe BZX Depth
     BatsPitch = 5,
-    /// Cboe BYX Depth Pitch
+    /// Cboe BYX Depth
     BatyPitch = 6,
-    /// Cboe EDGA Depth Pitch
+    /// Cboe EDGA Depth
     EdgaPitch = 7,
-    /// Cboe EDGX Depth Pitch
+    /// Cboe EDGX Depth
     EdgxPitch = 8,
     /// NYSE Integrated
     XnysPillar = 9,
@@ -465,13 +465,13 @@ pub enum Publisher {
     XbosItchXbos = 3,
     /// Nasdaq PSX TotalView-ITCH
     XpsxItchXpsx = 4,
-    /// Cboe BZX Depth Pitch
+    /// Cboe BZX Depth
     BatsPitchBats = 5,
-    /// Cboe BYX Depth Pitch
+    /// Cboe BYX Depth
     BatyPitchBaty = 6,
-    /// Cboe EDGA Depth Pitch
+    /// Cboe EDGA Depth
     EdgaPitchEdga = 7,
-    /// Cboe EDGX Depth Pitch
+    /// Cboe EDGX Depth
     EdgxPitchEdgx = 8,
     /// NYSE Integrated
     XnysPillarXnys = 9,
