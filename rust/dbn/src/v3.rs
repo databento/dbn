@@ -1,16 +1,41 @@
 //! Record data types for encoding different Databento [`Schema`](crate::enums::Schema)s
 //! in the upcoming DBN version 3.
 
-pub use crate::compat::InstrumentDefMsgV3 as InstrumentDefMsg;
-pub use crate::compat::SYMBOL_CSTR_LEN_V3 as SYMBOL_CSTR_LEN;
+pub use crate::compat::{
+    InstrumentDefMsgV3 as InstrumentDefMsg, SYMBOL_CSTR_LEN_V3 as SYMBOL_CSTR_LEN,
+};
 pub use crate::record::{
     Bbo1MMsg, Bbo1SMsg, BboMsg, Cbbo1MMsg, Cbbo1SMsg, CbboMsg, Cmbp1Msg, ErrorMsg, ImbalanceMsg,
     MboMsg, OhlcvMsg, StatMsg, StatusMsg, SymbolMappingMsg, SystemMsg, TbboMsg, TcbboMsg, TradeMsg,
     WithTsOut,
 };
 
+use crate::compat::InstrumentDefRec;
+
 mod impl_default;
 mod methods;
+
+impl InstrumentDefRec for InstrumentDefMsg {
+    fn raw_symbol(&self) -> crate::Result<&str> {
+        Self::raw_symbol(self)
+    }
+
+    fn asset(&self) -> crate::Result<&str> {
+        Self::asset(self)
+    }
+
+    fn security_type(&self) -> crate::Result<&str> {
+        Self::security_type(self)
+    }
+
+    fn security_update_action(&self) -> crate::Result<crate::SecurityUpdateAction> {
+        Self::security_update_action(self)
+    }
+
+    fn channel_id(&self) -> u16 {
+        self.channel_id
+    }
+}
 
 #[cfg(test)]
 mod tests {

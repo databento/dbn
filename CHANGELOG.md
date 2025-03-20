@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.30.0 - TBD
+
+### Enhancements
+- Added support for mapping symbols from instrument definitions to `PitSymbolMap`
+  with a new `on_instrument_def()` method
+- Added instrument definition compatibility trait `InstrumentDefRec` for generalizing
+  across different versions of the instrument definition record
+
 ## 0.29.0 - 2025-03-17
 
 ### Enhancements

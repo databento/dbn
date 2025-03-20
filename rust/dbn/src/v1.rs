@@ -3,6 +3,7 @@
 
 pub use crate::compat::ErrorMsgV1 as ErrorMsg;
 pub use crate::compat::InstrumentDefMsgV1 as InstrumentDefMsg;
+use crate::compat::InstrumentDefRec;
 pub use crate::compat::SymbolMappingMsgV1 as SymbolMappingMsg;
 pub use crate::compat::SystemMsgV1 as SystemMsg;
 pub use crate::compat::SYMBOL_CSTR_LEN_V1 as SYMBOL_CSTR_LEN;
@@ -31,6 +32,28 @@ impl SymbolMappingRec for SymbolMappingMsg {
 
     fn end_ts(&self) -> Option<time::OffsetDateTime> {
         Self::end_ts(self)
+    }
+}
+
+impl InstrumentDefRec for InstrumentDefMsg {
+    fn raw_symbol(&self) -> crate::Result<&str> {
+        Self::raw_symbol(self)
+    }
+
+    fn asset(&self) -> crate::Result<&str> {
+        Self::asset(self)
+    }
+
+    fn security_type(&self) -> crate::Result<&str> {
+        Self::security_type(self)
+    }
+
+    fn security_update_action(&self) -> crate::Result<crate::SecurityUpdateAction> {
+        Ok(self.security_update_action)
+    }
+
+    fn channel_id(&self) -> u16 {
+        self.channel_id
     }
 }
 

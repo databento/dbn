@@ -95,7 +95,8 @@ pub struct MboMsg {
     /// [`enums::flags`](crate::enums::flags) for possible values.
     #[pyo3(get, set)]
     pub flags: FlagSet,
-    /// A channel ID within the venue.
+    /// The channel ID assigned by Databento as an incrementing integer starting at
+    /// zero.
     #[dbn(encode_order(6))]
     #[pyo3(get, set)]
     pub channel_id: u8,
@@ -800,7 +801,8 @@ pub struct InstrumentDefMsg {
     /// The date at which a contract will begin to decay.
     #[pyo3(get, set)]
     pub decay_start_date: u16,
-    /// The channel ID assigned by Databento as an incrementing integer starting at zero.
+    /// The channel ID assigned by Databento as an incrementing integer starting at
+    /// zero.
     #[pyo3(get, set)]
     pub channel_id: u16,
     /// The currency used for price fields.
@@ -1050,7 +1052,8 @@ pub struct StatMsg {
     #[dbn(fmt_method)]
     #[pyo3(set)]
     pub stat_type: u16,
-    /// A channel ID within the venue.
+    /// The channel ID assigned by Databento as an incrementing integer starting at
+    /// zero.
     #[pyo3(set)]
     pub channel_id: u16,
     /// Indicates if the statistic is newly added (1) or deleted (2). (Deleted is only used with
