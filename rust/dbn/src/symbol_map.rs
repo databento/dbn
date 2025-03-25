@@ -228,27 +228,29 @@ impl PitSymbolMap {
     /// Handles updating the mappings (if required) for a generic record.
     ///
     /// # Errors
-    /// This function returns an error when `record` contains a [`SymbolMappingMsg`] but
-    /// it contains invalid UTF-8.
+    /// This function returns an error when `record` contains a symbol mapping
+    /// with invalid UTF-8.
     pub fn on_record(&mut self, record: RecordRef) -> crate::Result<()> {
-        if matches!(record.rtype(), Ok(RType::SymbolMapping)) {
+        match record.rtype() {
             // >= to allow WithTsOut
-            if record.record_size() >= std::mem::size_of::<SymbolMappingMsg>() {
+            Ok(RType::SymbolMapping)
+                if record.record_size() >= std::mem::size_of::<SymbolMappingMsg>() =>
+            {
                 // Safety: checked rtype and length
                 self.on_symbol_mapping(unsafe { record.get_unchecked::<SymbolMappingMsg>() })
-            } else {
-                // Use get here to get still perform length checks
+            }
+            Ok(RType::SymbolMapping) => {
+                // Use `get` here to get still perform length checks
                 self.on_symbol_mapping(record.get::<v1::SymbolMappingMsg>().unwrap())
             }
-        } else {
-            Ok(())
+            _ => Ok(()),
         }
     }
 
-    /// Handles updating the mappings for a symbol mapping record.
+    /// Handles updating the mappings from a symbol mapping record.
     ///
     /// # Errors
-    /// This function returns an error when `symbol_mapping` contains invalid UTF-8.
+    /// This function returns an error if the symbol contains invalid UTF-8.
     pub fn on_symbol_mapping<S: compat::SymbolMappingRec>(
         &mut self,
         symbol_mapping: &S,
@@ -258,6 +260,20 @@ impl PitSymbolMap {
             symbol_mapping.header().instrument_id,
             stype_out_symbol.to_owned(),
         );
+        Ok(())
+    }
+
+    /// Handles updating the mappings from an instrument definition record.
+    ///
+    /// # Errors
+    /// This function returns an error if the symbol contains invalid UTF-8.
+    pub fn on_instrument_def<D: compat::InstrumentDefRec>(
+        &mut self,
+        instrument_def: &D,
+    ) -> crate::Result<()> {
+        let raw_symbol = instrument_def.raw_symbol()?;
+        self.0
+            .insert(instrument_def.header().instrument_id, raw_symbol.to_owned());
         Ok(())
     }
 

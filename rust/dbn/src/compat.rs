@@ -131,7 +131,7 @@ where
     RecordRef::new(compat_buffer)
 }
 
-/// A trait for symbol mapping records.
+/// A trait for compatibility between different versions of symbol mapping records.
 pub trait SymbolMappingRec: HasRType {
     /// Returns the input symbol as a `&str`.
     ///
@@ -154,7 +154,41 @@ pub trait SymbolMappingRec: HasRType {
     fn end_ts(&self) -> Option<time::OffsetDateTime>;
 }
 
-// Versioned records need to be defined here to work with cbindgen.
+/// A trait for compatibility between different versions of definition records.
+pub trait InstrumentDefRec: HasRType {
+    /// Returns the instrument raw symbol assigned by the publisher as a `&str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `raw_symbol` contains invalid UTF-8.
+    fn raw_symbol(&self) -> crate::Result<&str>;
+
+    /// Returns the underlying asset code (product code) of the instrument as a `&str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `asset` contains invalid UTF-8.
+    fn asset(&self) -> crate::Result<&str>;
+
+    /// Returns the type of the strument, e.g. FUT for future or future spread as
+    /// a `&str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `security_type` contains invalid UTF-8.
+    fn security_type(&self) -> crate::Result<&str>;
+
+    /// Returns the action indicating whether the instrument definition has been added,
+    /// modified, or deleted.
+    ///
+    /// # Errors
+    /// This function returns an error if the `security_update_action` field does not
+    /// contain a valid [`SecurityUpdateAction`].
+    fn security_update_action(&self) -> crate::Result<SecurityUpdateAction>;
+
+    /// The channel ID assigned by Databento as an incrementing integer starting at
+    /// zero.
+    fn channel_id(&self) -> u16;
+}
+
+// NOTE: Versioned records need to be defined in this file to work with cbindgen.
 
 /// Definition of an instrument in DBN version 1. The record of the
 /// [`Definition`](crate::enums::Schema::Definition) schema.

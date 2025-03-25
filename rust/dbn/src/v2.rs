@@ -3,6 +3,7 @@
 
 use std::os::raw::c_char;
 
+use crate::compat::InstrumentDefRec;
 pub use crate::compat::SYMBOL_CSTR_LEN_V2 as SYMBOL_CSTR_LEN;
 pub use crate::record::{
     Bbo1MMsg, Bbo1SMsg, BboMsg, Cbbo1MMsg, Cbbo1SMsg, CbboMsg, Cmbp1Msg, ErrorMsg, ImbalanceMsg,
@@ -155,5 +156,27 @@ impl SymbolMappingRec for SymbolMappingMsg {
 
     fn end_ts(&self) -> Option<time::OffsetDateTime> {
         Self::end_ts(self)
+    }
+}
+
+impl InstrumentDefRec for InstrumentDefMsg {
+    fn raw_symbol(&self) -> crate::Result<&str> {
+        Self::raw_symbol(self)
+    }
+
+    fn asset(&self) -> crate::Result<&str> {
+        Self::asset(self)
+    }
+
+    fn security_type(&self) -> crate::Result<&str> {
+        Self::security_type(self)
+    }
+
+    fn security_update_action(&self) -> crate::Result<crate::SecurityUpdateAction> {
+        Self::security_update_action(self)
+    }
+
+    fn channel_id(&self) -> u16 {
+        self.channel_id
     }
 }
