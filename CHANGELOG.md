@@ -1,12 +1,13 @@
 # Changelog
 
-## 0.30.0 - TBD
+## 0.30.0 - 2025-03-25
 
 ### Enhancements
 - Added support for mapping symbols from instrument definitions to `PitSymbolMap`
   with a new `on_instrument_def()` method
 - Added instrument definition compatibility trait `InstrumentDefRec` for generalizing
   across different versions of the instrument definition record
+- Upgraded `pyo3` version to 0.24.0
 
 ## 0.29.0 - 2025-03-17
 

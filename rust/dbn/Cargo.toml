@@ -25,9 +25,9 @@ serde = ["dep:serde", "time/parsing", "time/serde"]
 trivial_copy = []
 
 [dependencies]
-dbn-macros = { version = "=0.29.0", path = "../dbn-macros" }
+dbn-macros = { version = "=0.30.0", path = "../dbn-macros" }
 
-async-compression = { version = "0.4.20", features = ["tokio", "zstd"], optional = true }
+async-compression = { version = "0.4.22", features = ["tokio", "zstd"], optional = true }
 csv = { workspace = true }
 fallible-streaming-iterator = { version = "0.1.9", features = ["std"] }
 # Fast integer to string conversion
