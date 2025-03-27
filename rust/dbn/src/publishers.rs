@@ -7,7 +7,9 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use crate::{Error, Result};
 
 /// A trading execution venue.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, IntoPrimitive, TryFromPrimitive,
+)]
 #[non_exhaustive]
 #[repr(u16)]
 pub enum Venue {
@@ -251,7 +253,9 @@ impl std::str::FromStr for Venue {
 }
 
 /// A source of data.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, IntoPrimitive, TryFromPrimitive,
+)]
 #[non_exhaustive]
 #[repr(u16)]
 pub enum Dataset {
@@ -453,7 +457,9 @@ impl std::str::FromStr for Dataset {
 }
 
 /// A specific Venue from a specific data source.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, IntoPrimitive, TryFromPrimitive,
+)]
 #[non_exhaustive]
 #[repr(u16)]
 pub enum Publisher {
