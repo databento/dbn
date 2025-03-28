@@ -123,6 +123,20 @@ where
         self.decoder.decode().await
     }
 
+    /// Tries to decode all records into a `Vec`. This eagerly decodes the data.
+    ///
+    /// # Errors
+    /// This function returns an error if the underlying reader returns an error. If
+    /// the next record is of a different type than `T`, this function returns a
+    /// [`Error::Conversion`](crate::Error::Conversion) error.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If used within a `tokio::select!` statement
+    /// partially decoded records will be lost and the stream may be corrupted.
+    pub async fn decode_records<T: HasRType + Clone>(&mut self) -> Result<Vec<T>> {
+        self.decoder.decode_records().await
+    }
+
     /// Tries to decode a single record and returns a reference to the record that
     /// lasts until the next method call. Returns `Ok(None)` if `reader` has been
     /// exhausted.
@@ -333,6 +347,24 @@ where
         } else {
             Ok(None)
         }
+    }
+
+    /// Tries to decode all records into a `Vec`. This eagerly decodes the data.
+    ///
+    /// # Errors
+    /// This function returns an error if the underlying reader returns an error. If
+    /// the next record is of a different type than `T`, this function returns a
+    /// [`Error::Conversion`](crate::Error::Conversion) error.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If used within a `tokio::select!` statement
+    /// partially decoded records will be lost and the stream may be corrupted.
+    pub async fn decode_records<T: HasRType + Clone>(&mut self) -> Result<Vec<T>> {
+        let mut res = Vec::new();
+        while let Some(rec) = self.decode::<T>().await? {
+            res.push(rec.clone());
+        }
+        Ok(res)
     }
 
     /// Tries to decode a single record and returns a reference to the record that

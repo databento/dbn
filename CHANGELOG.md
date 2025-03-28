@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.31.0 - TBD
+
+### Enhancements
+- Added `Ord` and `PartialOrd` implementations for all enums and `FlagSet` to allow
+  for use in ordered containers like `BTreeMap`
+- Added `decode_records()` method to `AsyncDbnDecoder` and `AsyncDbnRecordDecoder`
+  which is similar to the sync decoder methods of the same name
+
 ## 0.30.0 - 2025-03-25
 
 ### Enhancements
