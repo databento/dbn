@@ -8,6 +8,11 @@
 - Added `decode_records()` method to `AsyncDbnDecoder` and `AsyncDbnRecordDecoder`
   which is similar to the sync decoder methods of the same name
 
+### Breaking changes
+- Removed deprecated `dataset` module. The top-level `Dataset` enum and its `const` `as_str()`
+  method provide the same functionality for all datasets
+- Removed deprecated `SymbolIndex::get_for_rec_ref()` method
+
 ## 0.30.0 - 2025-03-25
 
 ### Enhancements
