@@ -23,7 +23,7 @@ pub const MAYBE_BAD_BOOK: u8 = 1 << 2;
 /// A transparent wrapper around the bit field used in several DBN record types,
 /// namely [`MboMsg`](crate::MboMsg) and record types derived from it.
 #[repr(transparent)]
-#[derive(Copy, Clone, PartialEq, Eq, Default, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
 #[cfg_attr(feature = "python", derive(FromPyObject), pyo3(transparent))]
 #[cfg_attr(
     feature = "serde",

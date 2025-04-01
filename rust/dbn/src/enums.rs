@@ -13,7 +13,19 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 /// A [side](https://databento.com/docs/standards-and-conventions/common-fields-enums-types)
 /// of the market. The side of the market for resting orders, or the side of the
 /// aggressor for trades.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, TryFromPrimitive, IntoPrimitive)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Default,
+    TryFromPrimitive,
+    IntoPrimitive,
+)]
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter, strum::AsRefStr),
@@ -41,7 +53,19 @@ impl From<Side> for char {
 /// For example usage see:
 /// - [Order actions](https://databento.com/docs/examples/order-book/order-actions)
 /// - [Order tracking](https://databento.com/docs/examples/order-book/order-tracking)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, TryFromPrimitive, IntoPrimitive)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Default,
+    TryFromPrimitive,
+    IntoPrimitive,
+)]
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter, strum::AsRefStr),
@@ -76,7 +100,9 @@ impl From<Action> for char {
 ///
 /// For example usage see
 /// [Getting options with their underlying](https://databento.com/docs/examples/options/options-and-futures).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, TryFromPrimitive, IntoPrimitive,
+)]
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
@@ -139,7 +165,19 @@ impl InstrumentClass {
 }
 
 /// The type of matching algorithm used for the instrument at the exchange.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    TryFromPrimitive,
+    IntoPrimitive,
+)]
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
@@ -186,7 +224,19 @@ impl From<MatchAlgorithm> for char {
 ///
 /// For example usage see
 /// [Getting options with their underlying](https://databento.com/docs/examples/options/options-and-futures).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, IntoPrimitive, Default)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    TryFromPrimitive,
+    IntoPrimitive,
+    Default,
+)]
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter, strum::AsRefStr),
@@ -211,7 +261,7 @@ impl From<UserDefinedInstrument> for char {
 /// A symbology type. Refer to the
 /// [symbology documentation](https://databento.com/docs/api-reference-historical/basics/symbology)
 /// for more information.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, TryFromPrimitive)]
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
@@ -323,7 +373,7 @@ pub mod rtype {
     /// Use in [`RecordHeader`](crate::RecordHeader) to indicate the type of record,
     /// which is useful when working with DBN streams containing multiple record types
     /// or an unknown record type.
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, TryFromPrimitive)]
     #[cfg_attr(
         feature = "python",
         derive(strum::EnumIter),
@@ -572,7 +622,7 @@ pub mod rtype {
 ///
 /// See [List of supported market data schemas](https://databento.com/docs/schemas-and-data-formats/whats-a-schema)
 /// for an overview of the differences and use cases of each schema.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, TryFromPrimitive)]
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
@@ -723,7 +773,7 @@ impl Display for Schema {
 }
 
 /// A data encoding format.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, TryFromPrimitive)]
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
@@ -776,7 +826,7 @@ impl Display for Encoding {
 }
 
 /// A compression format or none if uncompressed.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, TryFromPrimitive)]
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
@@ -847,7 +897,9 @@ pub mod flags {
 
 /// The type of [`InstrumentDefMsg`](crate::record::InstrumentDefMsg) update.
 #[allow(clippy::manual_non_exhaustive)] // false positive
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, IntoPrimitive, TryFromPrimitive,
+)]
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter, strum::AsRefStr),
@@ -868,7 +920,9 @@ pub enum SecurityUpdateAction {
 }
 
 /// The type of statistic contained in a [`StatMsg`](crate::record::StatMsg).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, IntoPrimitive, TryFromPrimitive,
+)]
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
@@ -932,7 +986,9 @@ pub enum StatType {
 }
 
 /// The type of [`StatMsg`](crate::record::StatMsg) update.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, IntoPrimitive, TryFromPrimitive,
+)]
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
@@ -947,7 +1003,19 @@ pub enum StatUpdateAction {
 }
 
 /// The primary enum for the type of [`StatusMsg`](crate::record::StatusMsg) update.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive, Default)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    IntoPrimitive,
+    TryFromPrimitive,
+    Default,
+)]
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
@@ -994,7 +1062,19 @@ pub enum StatusAction {
 
 /// The secondary enum for a [`StatusMsg`](crate::record::StatusMsg) update, explains
 /// the cause of a halt or other change in `action`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive, Default)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    IntoPrimitive,
+    TryFromPrimitive,
+    Default,
+)]
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
@@ -1078,7 +1158,19 @@ pub enum StatusReason {
 }
 
 /// Further information about a status update.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive, Default)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    IntoPrimitive,
+    TryFromPrimitive,
+    Default,
+)]
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
@@ -1102,7 +1194,19 @@ pub enum TradingEvent {
 
 /// An enum for representing unknown, true, or false values. Equivalent to
 /// `Option<bool>` but with a human-readable repr.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive, Default)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    IntoPrimitive,
+    TryFromPrimitive,
+    Default,
+)]
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
@@ -1140,7 +1244,7 @@ impl From<Option<bool>> for TriState {
 }
 
 /// How to handle decoding DBN data from other versions.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),

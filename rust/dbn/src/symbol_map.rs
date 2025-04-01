@@ -24,16 +24,6 @@ pub trait SymbolIndex {
     /// Returns the associated symbol mapping for `record`. Returns `None` if no mapping
     /// exists.
     fn get_for_rec<R: Record>(&self, record: &R) -> Option<&String>;
-
-    /// Returns the associated symbol mapping for `rec_ref`. Returns `None` if no mapping
-    /// exists.
-    #[deprecated(
-        since = "0.13.0",
-        note = "The trait bound for get_for_rec was loosened to accept RecordRefs, making this function redundant"
-    )]
-    fn get_for_rec_ref(&self, rec_ref: RecordRef) -> Option<&String> {
-        self.get_for_rec(&rec_ref)
-    }
 }
 
 impl TsSymbolMap {

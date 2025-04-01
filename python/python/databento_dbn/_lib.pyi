@@ -6094,10 +6094,9 @@ class SystemMsgV1(Record):
 
         """
 
-    @property
     def is_heartbeat(self) -> bool:
         """
-        `true` if this message is a heartbeat, used to indicate the connection
+        Return `true` if this message is a heartbeat, used to indicate the connection
         with the gateway is still open.
 
         Returns

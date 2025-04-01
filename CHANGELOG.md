@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.31.0 - 2025-04-01
+
+### Enhancements
+- Added `Ord` and `PartialOrd` implementations for all enums and `FlagSet` to allow
+  for use in ordered containers like `BTreeMap`
+- Added `decode_records()` method to `AsyncDbnDecoder` and `AsyncDbnRecordDecoder`
+  which is similar to the sync decoder methods of the same name
+- Upgraded `pyo3` version to 0.24.1
+- Upgraded `time` version to 0.3.41
+
+### Breaking changes
+- Removed deprecated `dataset` module. The top-level `Dataset` enum and its `const` `as_str()`
+  method provide the same functionality for all datasets
+- Removed deprecated `SymbolIndex::get_for_rec_ref()` method
+
+### Bug fixes
+- Fixed Python type annotation for `SystemMsg::is_heartbeat()` method that was previously
+  annotated as a property
+
 ## 0.30.0 - 2025-03-25
 
 ### Enhancements
