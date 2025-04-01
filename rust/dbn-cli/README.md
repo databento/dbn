@@ -52,6 +52,9 @@ By default, `dbn` will not overwrite an existing file.
 To replace the contents of an existing file and allow overwriting files, pass
 the `-f` or `--force` flag.
 
+### Merging DBN files
+You can use `dbn` to merge multiple DBN files, including those with different schemas.
+
 ### Compressing the output
 In addition to reading Zstandard-compressed files, `dbn` can also write compressed JSON and CSV.
 
