@@ -3805,29 +3805,11 @@ impl<const N: usize> PyFieldDesc for [BidAskPair; N] {
     }
 
     fn price_fields(_field_name: &str) -> Vec<String> {
-        let mut res = Vec::new();
-        let price_fields = BidAskPair::price_fields("");
-        for level in 0..N {
-            let mut fields = price_fields.clone();
-            for field in fields.iter_mut() {
-                field.push_str(&format!("_{level:02}"));
-            }
-            res.extend(fields);
-        }
-        res
+        append_level_suffix::<N>(BidAskPair::price_fields(""))
     }
 
     fn ordered_fields(_field_name: &str) -> Vec<String> {
-        let mut res = Vec::new();
-        let ordered_fields = BidAskPair::ordered_fields("");
-        for level in 0..N {
-            let mut fields = ordered_fields.clone();
-            for field in fields.iter_mut() {
-                field.push_str(&format!("_{level:02}"));
-            }
-            res.extend(fields);
-        }
-        res
+        append_level_suffix::<N>(BidAskPair::ordered_fields(""))
     }
 }
 
@@ -3846,40 +3828,29 @@ impl<const N: usize> PyFieldDesc for [ConsolidatedBidAskPair; N] {
     }
 
     fn price_fields(_field_name: &str) -> Vec<String> {
-        let mut res = Vec::new();
-        let price_fields = ConsolidatedBidAskPair::price_fields("");
-        for level in 0..N {
-            let mut fields = price_fields.clone();
-            for field in fields.iter_mut() {
-                field.push_str(&format!("_{level:02}"));
-            }
-            res.extend(fields);
-        }
-        res
+        append_level_suffix::<N>(ConsolidatedBidAskPair::price_fields(""))
     }
 
     fn ordered_fields(_field_name: &str) -> Vec<String> {
-        let mut res = Vec::new();
-        let ordered_fields = ConsolidatedBidAskPair::ordered_fields("");
-        for level in 0..N {
-            let mut fields = ordered_fields.clone();
-            for field in fields.iter_mut() {
-                field.push_str(&format!("_{level:02}"));
-            }
-            res.extend(fields);
-        }
-        res
+        append_level_suffix::<N>(ConsolidatedBidAskPair::ordered_fields(""))
     }
 
     fn hidden_fields(_field_name: &str) -> Vec<String> {
-        Vec::new()
-    }
-
-    fn timestamp_fields(_field_name: &str) -> Vec<String> {
-        Vec::new()
+        append_level_suffix::<N>(ConsolidatedBidAskPair::hidden_fields(""))
     }
 }
 
+fn append_level_suffix<const N: usize>(fields: Vec<String>) -> Vec<String> {
+    let mut res = Vec::new();
+    for level in 0..N {
+        let mut fields = fields.clone();
+        for field in fields.iter_mut() {
+            field.push_str(&format!("_{level:02}"));
+        }
+        res.extend(fields);
+    }
+    res
+}
 /// `WithTsOut` adds a `ts_out` field to the main record when converted to Python.
 impl<'py, R> IntoPyObject<'py> for WithTsOut<R>
 where

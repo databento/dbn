@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.31.1 - TBD
+
+### Bug fixes
+- Fixed issue with Python `_hidden_fields` definition that caused `KeyError: _reserved1_00`
+  with `CMBP1Msg` and other records with `ConsolidatedBidAskPair`
+
 ## 0.31.0 - 2025-04-01
 
 ### Enhancements

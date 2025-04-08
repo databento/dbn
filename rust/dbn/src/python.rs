@@ -348,7 +348,9 @@ mod tests {
             vec![
                 "length".to_owned(),
                 "_reserved1".to_owned(),
-                "_reserved2".to_owned()
+                "_reserved2".to_owned(),
+                "_reserved1_00".to_owned(),
+                "_reserved2_00".to_owned()
             ]
         );
         assert_eq!(
