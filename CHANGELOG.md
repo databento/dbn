@@ -1,6 +1,22 @@
 # Changelog
 
-## 0.31.1 - TBD
+## 0.32.0 - TBD
+
+### Enhancements
+- Refactored the `rtype_dispatch` macro to be more flexible: it supports `ts_out`
+  dispatching, async functions and methods, and now always verifies the record length
+- Refactored the `schema_dispatch` macro to be more flexible: it supports `ts_out`
+  dispatching and async functions and methods
+
+### Breaking changes
+- Updated the `rtype_dispatch` and `schema_dispatch` macro invocations to look more like
+  function invocation
+
+### Deprecations
+- Deprecated macros `rtype_async_dispatch`, `rtype_ts_out_dispatch`,
+  `rtype_dispatch_with_ts_out`, `rtype_ts_out_async_dispatch`,
+  `rtype_ts_out_method_dispatch`, and `rtype_ts_out_async_method_dispatch` in favor of
+  an updated, more flexible `rtype_dispatch` macro
 
 ### Bug fixes
 - Fixed issue with Python `_hidden_fields` definition that caused `KeyError: _reserved1_00`

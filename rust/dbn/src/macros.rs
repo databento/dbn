@@ -72,6 +72,138 @@ macro_rules! rtype_dispatch_base {
     }};
 }
 
+/// Specializes a generic function to all record types and dispatches based `rtype`.
+///
+/// # Errors
+/// This macro returns an error if the rtype is not recognized.
+#[macro_export]
+macro_rules! rtype_dispatch {
+    // generic async method
+    ($rec_ref:expr, $this:ident.$generic_method:ident($($arg:expr),*).await$(,)?) => {{
+        macro_rules! handler {
+            ($r:ty) => {{
+                $this.$generic_method($rec_ref.get::<$r>().unwrap() $(, $arg)*).await
+            }}
+        }
+        $crate::rtype_dispatch_base!($rec_ref, handler)
+    }};
+    // generic method
+    ($rec_ref:expr, $this:ident.$generic_method:ident($($arg:expr),*)$(,)?) => {{
+        macro_rules! handler {
+            ($r:ty) => {{
+                $this.$generic_method($rec_ref.get::<$r>().unwrap() $(, $arg)*)
+            }}
+        }
+        $crate::rtype_dispatch_base!($rec_ref, handler)
+    }};
+    // generic async function
+    ($rec_ref:expr, $generic_fn:ident($($arg:expr),*).await$(,)?) => {{
+        macro_rules! handler {
+            ($r:ty) => {{
+                $generic_fn($rec_ref.get::<$r>().unwrap() $(, $arg)*).await
+            }}
+        }
+        $crate::rtype_dispatch_base!($rec_ref, handler)
+    }};
+    // generic function
+    ($rec_ref:expr, $generic_fn:ident($($arg:expr),*)$(,)?) => {{
+        macro_rules! handler {
+            ($r:ty) => {{
+                $generic_fn($rec_ref.get::<$r>().unwrap() $(, $arg)*)
+            }}
+        }
+        $crate::rtype_dispatch_base!($rec_ref, handler)
+    }};
+    // generic always ts_out async method
+    ($rec_ref:expr, ts_out: true, $this:ident.$generic_method:ident($($arg:expr),*).await$(,)?) => {{
+        macro_rules! handler {
+            ($r:ty) => {{
+                $this.$generic_method($rec_ref.get::<$crate::WithTsOut<$r>>().unwrap() $(, $arg)*).await
+            }}
+        }
+        $crate::rtype_dispatch_base!($rec_ref, handler)
+    }};
+    // generic always ts_out method
+    ($rec_ref:expr, ts_out: true, $this:ident.$generic_method:ident($($arg:expr),*)$(,)?) => {{
+        macro_rules! handler {
+            ($r:ty) => {{
+                $this.$generic_method($rec_ref.get::<$crate::WithTsOut<$r>>().unwrap(), $(, $arg)*)
+            }}
+        }
+        $crate::rtype_dispatch_base!($rec_ref, handler)
+    }};
+    // generic always ts_out async function
+    ($rec_ref:expr, ts_out: true, $generic_fn:ident($($arg:expr),*).await$(,)?) => {{
+        macro_rules! handler {
+            ($r:ty) => {{
+                $generic_fn($rec_ref.get::<$crate::WithTsOut<$r>>().unwrap() $(, $arg)*).await
+            }}
+        }
+        $crate::rtype_dispatch_base!($rec_ref, handler)
+    }};
+    // generic always ts_out function
+    ($rec_ref:expr, ts_out: true, $generic_fn:ident($($arg:expr),*)$(,)?) => {{
+        macro_rules! handler {
+            ($r:ty) => {{
+                $generic_fn($rec_ref.get::<$crate::WithTsOut<$r>>().unwrap() $(, $arg)*)
+            }}
+        }
+        $crate::rtype_dispatch_base!($rec_ref, handler)
+    }};
+    // ts_out generic async method
+    ($rec_ref:expr, ts_out: $ts_out:expr, $this:ident.$generic_method:ident($($arg:expr),*).await$(,)?) => {{
+        macro_rules! handler {
+            ($r:ty) => {{
+                if $ts_out {
+                    $this.$generic_method($rec_ref.get::<$crate::WithTsOut<$r>>().unwrap() $(, $arg)*).await
+                } else {
+                    $this.$generic_method($rec_ref.get::<$r>().unwrap() $(, $arg)*).await
+                }
+            }}
+        }
+        $crate::rtype_dispatch_base!($rec_ref, handler)
+    }};
+    // ts_out generic method
+    ($rec_ref:expr, ts_out: $ts_out:expr, $this:ident.$generic_method:ident($($arg:expr),*)$(,)?) => {{
+        macro_rules! handler {
+            ($r:ty) => {{
+                if $ts_out {
+                    $this.$generic_method($rec_ref.get::<$crate::WithTsOut<$r>>().unwrap() $(, $arg)*)
+                } else {
+                    $this.$generic_method($rec_ref.get::<$r>().unwrap() $(, $arg)*)
+                }
+            }}
+        }
+        $crate::rtype_dispatch_base!($rec_ref, handler)
+    }};
+    // ts_out generic async function
+    ($rec_ref:expr, ts_out: $ts_out:expr, $generic_fn:ident($($arg:expr),*).await$(,)?) => {{
+        macro_rules! handler {
+            ($r:ty) => {{
+                if $ts_out {
+                    $generic_fn($rec_ref.get::<$crate::WithTsOut<$r>>().unwrap() $(, $arg)*).await
+                } else {
+                    $generic_fn($rec_ref.get::<$r>().unwrap() $(, $arg)*).await
+                }
+            }}
+        }
+        $crate::rtype_dispatch_base!($rec_ref, handler)
+    }};
+    // ts_out generic function
+    ($rec_ref:expr, ts_out: $ts_out:expr, $generic_fn:ident($($arg:expr),*)$(,)?) => {{
+        macro_rules! handler {
+            ($r:ty) => {{
+                if $ts_out {
+                    $generic_fn($rec_ref.get::<$crate::WithTsOut<$r>>().unwrap() $(, $arg)*)
+                } else {
+                    $generic_fn($rec_ref.get::<$r>().unwrap() $(, $arg)*)
+                }
+            }}
+        }
+        $crate::rtype_dispatch_base!($rec_ref, handler)
+    }};
+}
+
 #[doc(hidden)]
 #[macro_export]
 macro_rules! schema_dispatch_base {
@@ -105,6 +237,101 @@ macro_rules! schema_dispatch_base {
     }};
 }
 
+/// Specializes a generic function to all record types with an associated schema.
+#[macro_export]
+macro_rules! schema_dispatch {
+    // generic async method
+    ($schema:expr, $this:ident.$generic_method:ident($($arg:expr),*).await$(,)?) => {{
+        macro_rules! handler {
+            ($r:ty) => {{
+                $this.$generic_method::<$r>($($arg),*).await
+            }}
+        }
+        $crate::schema_dispatch_base!($schema, handler)
+    }};
+    // generic method
+    ($schema:expr, $this:ident.$generic_method:ident($($arg:expr),*)$(,)?) => {{
+        macro_rules! handler {
+            ($r:ty) => {{
+                $this.$generic_method::<$r>($($arg),*)
+            }}
+        }
+        $crate::schema_dispatch_base!($schema, handler)
+    }};
+    // generic async function
+    ($schema:expr, $generic_fn:ident($($arg:expr),*).await$(,)?) => {{
+        macro_rules! handler {
+            ($r:ty) => {{
+                $generic_fn::<$r>($($arg),*).await
+            }}
+        }
+        $crate::schema_dispatch_base!($schema, handler)
+    }};
+    // generic function
+    ($schema:expr, $generic_fn:ident($($arg:expr),*)$(,)?) => {{
+        macro_rules! handler {
+            ($r:ty) => {{
+                $generic_fn::<$r>($($arg),*)
+            }}
+        }
+        $crate::schema_dispatch_base!($schema, handler)
+    }};
+    // generic async method
+    ($schema:expr, ts_out: $ts_out:expr, $this:ident.$generic_method:ident($($arg:expr),*).await$(,)?) => {{
+        macro_rules! handler {
+            ($r:ty) => {{
+                if $ts_out {
+                    $this.$generic_method::<$crate::WithTsOut<$r>>($($arg),*).await
+                } else {
+                    $this.$generic_method::<$r>($($arg),*).await
+                }
+            }}
+        }
+        $crate::schema_dispatch_base!($schema, handler)
+   }};
+    // generic method
+    ($schema:expr, ts_out: $ts_out:expr, $this:ident.$generic_method:ident($($arg:expr),*)$(,)?) => {{
+        macro_rules! handler {
+            ($r:ty) => {{
+                if $ts_out {
+                    $this.$generic_method::<$crate::WithTsOut<$r>>($($arg),*)
+                } else {
+                    $this.$generic_method::<$r>($($arg),*)
+                }
+            }}
+        }
+        $crate::schema_dispatch_base!($schema, handler)
+    }};
+    // generic async function
+    ($schema:expr, ts_out: $ts_out:expr, $generic_fn:ident($($arg:expr),*).await$(,)?) => {{
+        macro_rules! handler {
+            ($r:ty) => {{
+                if $ts_out {
+                    $generic_fn::<$crate::WithTsOut<$r>>($($arg),*).await
+                } else {
+                    $generic_fn::<$r>($($arg),*).await
+                }
+            }}
+        }
+        $crate::schema_dispatch_base!($schema, handler)
+    }};
+    // generic function
+    ($schema:expr, ts_out: $ts_out:expr, $generic_fn:ident($($arg:expr),*)$(,)?) => {{
+        macro_rules! handler {
+            ($r:ty) => {{
+                if $ts_out {
+                    $generic_fn::<$crate::WithTsOut<$r>>($($arg),*)
+                } else {
+                    $generic_fn::<$r>($($arg),*)
+                }
+            }}
+        }
+        $crate::schema_dispatch_base!($schema, handler)
+    }};
+}
+
+// DEPRECATED macros
+
 /// Specializes a generic function to all record types and dispatches based on the
 /// `rtype` and `ts_out`.
 ///
@@ -114,6 +341,7 @@ macro_rules! schema_dispatch_base {
 ///
 /// # Errors
 /// This macro returns an error if the rtype is not recognized.
+#[deprecated(since = "0.32.0", note = "Use the updated rtype_dispatch macro")]
 #[macro_export]
 macro_rules! rtype_ts_out_dispatch {
     ($rec_ref:expr, $ts_out:expr, $generic_fn:expr $(,$arg:expr)*) => {{
@@ -129,7 +357,6 @@ macro_rules! rtype_ts_out_dispatch {
         $crate::rtype_dispatch_base!($rec_ref, maybe_ts_out)
     }};
 }
-
 /// Specializes a generic method to all record types and dispatches based on the
 /// `rtype` and `ts_out`.
 ///
@@ -139,6 +366,7 @@ macro_rules! rtype_ts_out_dispatch {
 ///
 /// # Errors
 /// This macro returns an error if the rtype is not recognized.
+#[deprecated(since = "0.32.0", note = "Use the updated rtype_dispatch macro")]
 #[macro_export]
 macro_rules! rtype_ts_out_method_dispatch {
     ($rec_ref:expr, $ts_out:expr, $this:expr, $generic_method:ident $(,$arg:expr)*) => {{
@@ -154,12 +382,12 @@ macro_rules! rtype_ts_out_method_dispatch {
         $crate::rtype_dispatch_base!($rec_ref, maybe_ts_out)
     }};
 }
-
 /// Specializes a generic async function to all record types and dispatches based
 /// `rtype` and `ts_out`.
 ///
 /// # Errors
 /// This macro returns an error if the rtype is not recognized.
+#[deprecated(since = "0.32.0", note = "Use the updated rtype_dispatch macro")]
 #[macro_export]
 macro_rules! rtype_ts_out_async_dispatch {
     ($rec_ref:expr, $ts_out:expr, $generic_fn:expr $(,$arg:expr)*) => {{
@@ -175,12 +403,12 @@ macro_rules! rtype_ts_out_async_dispatch {
         $crate::rtype_dispatch_base!($rec_ref, maybe_ts_out)
     }};
 }
-
 /// Specializes a generic async method to all record types and dispatches based
 /// `rtype` and `ts_out`.
 ///
 /// # Errors
 /// This macro returns an error if the rtype is not recognized.
+#[deprecated(since = "0.32.0", note = "Use the updated rtype_dispatch macro")]
 #[macro_export]
 macro_rules! rtype_ts_out_async_method_dispatch {
     ($rec_ref:expr, $ts_out:expr, $this:expr, $generic_method:ident $(,$arg:expr)*) => {{
@@ -196,28 +424,11 @@ macro_rules! rtype_ts_out_async_method_dispatch {
         $crate::rtype_dispatch_base!($rec_ref, maybe_ts_out)
     }};
 }
-
-/// Specializes a generic function to all record types and dispatches based `rtype`.
-///
-/// # Errors
-/// This macro returns an error if the rtype is not recognized.
-#[macro_export]
-macro_rules! rtype_dispatch {
-    ($rec_ref:expr, $generic_fn:expr $(,$arg:expr)*) => {{
-        macro_rules! handler {
-            ($r:ty) => {{
-                // Safety: checks rtype before converting.
-                $generic_fn( unsafe { $rec_ref.get_unchecked::<$r>() } $(, $arg)*)
-            }}
-        }
-        $crate::rtype_dispatch_base!($rec_ref, handler)
-    }};
-}
-
 /// Specializes a generic method to all record types and dispatches based `rtype`.
 ///
 /// # Errors
 /// This macro returns an error if the rtype is not recognized.
+#[deprecated(since = "0.32.0", note = "Use the updated rtype_dispatch macro")]
 #[macro_export]
 macro_rules! rtype_method_dispatch {
     ($rec_ref:expr, $this:expr, $generic_method:ident $(,$arg:expr)*) => {{
@@ -230,12 +441,12 @@ macro_rules! rtype_method_dispatch {
         $crate::rtype_dispatch_base!($rec_ref, handler)
     }};
 }
-
 /// Specializes a generic async function to all record types and dispatches based
 /// `rtype`.
 ///
 /// # Errors
 /// This macro returns an error if the rtype is not recognized.
+#[deprecated(since = "0.32.0", note = "Use the updated rtype_dispatch macro")]
 #[macro_export]
 macro_rules! rtype_async_dispatch {
     ($rec_ref:expr, $generic_fn:expr $(,$arg:expr)*) => {{
@@ -248,7 +459,6 @@ macro_rules! rtype_async_dispatch {
         $crate::rtype_dispatch_base!($rec_ref, handler)
     }};
 }
-
 /// Specializes a generic function to all record types wrapped in
 /// [`WithTsOut`](crate::record::WithTsOut) and dispatches based on the `rtype`.
 ///
@@ -258,6 +468,7 @@ macro_rules! rtype_async_dispatch {
 ///
 /// # Errors
 /// This macro returns an error if the rtype is not recognized.
+#[deprecated(since = "0.32.0", note = "Use the updated rtype_dispatch macro")]
 #[macro_export]
 macro_rules! rtype_dispatch_with_ts_out {
     ($rec_ref:expr, $generic_fn:expr $(,$arg:expr)*) => {{
@@ -271,6 +482,7 @@ macro_rules! rtype_dispatch_with_ts_out {
 }}
 
 /// Specializes a generic method to all record types with an associated schema.
+#[deprecated(since = "0.32.0", note = "Use the updated schema_dispatch macro")]
 #[macro_export]
 macro_rules! schema_method_dispatch {
     ($schema:expr, $this:expr, $generic_method:ident $(,$arg:expr)*) => {{
@@ -282,9 +494,9 @@ macro_rules! schema_method_dispatch {
         $crate::schema_dispatch_base!($schema, handler)
     }};
 }
-
 /// Specializes a generic method to all record types based on the associated type for
 /// `schema` and `ts_out`.
+#[deprecated(since = "0.32.0", note = "Use the updated schema_dispatch macro")]
 #[macro_export]
 macro_rules! schema_ts_out_method_dispatch {
     ($schema:expr, $ts_out:expr, $this:expr, $generic_method:ident $(,$arg:expr)*) => {{
@@ -300,9 +512,9 @@ macro_rules! schema_ts_out_method_dispatch {
         $crate::schema_dispatch_base!($schema, handler)
     }};
 }
-
 /// Specializes a generic async method to all record types with an associated
 /// schema.
+#[deprecated(since = "0.32.0", note = "Use the updated schema_dispatch macro")]
 #[macro_export]
 macro_rules! schema_async_method_dispatch {
     ($schema:expr, $this:expr, $generic_method:ident $(,$arg:expr)*) => {{
@@ -315,22 +527,9 @@ macro_rules! schema_async_method_dispatch {
     }};
 }
 
-/// Specializes a generic function to all record types with an associated schema.
-#[macro_export]
-macro_rules! schema_dispatch {
-    ($schema:expr, $generic_fn:ident $(,$arg:expr)*) => {{
-        macro_rules! handler {
-            ($r:ty) => {{
-                $generic_fn::<$r>($($arg),*)
-            }}
-        }
-        $crate::schema_dispatch_base!($schema, handler)
-    }};
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::{record::HasRType, schema_method_dispatch};
+    use crate::{record::HasRType, rtype, schema_dispatch};
 
     struct Dummy {}
 
@@ -350,34 +549,44 @@ mod tests {
         }
     }
 
+    fn has_rtype<T: HasRType>(arg: u8) -> bool {
+        T::has_rtype(arg)
+    }
+
     #[test]
     fn test_two_args() {
-        let ret = schema_method_dispatch!(Schema::Definition, Dummy {}, on_rtype_2, 5, 6);
+        assert!(schema_dispatch!(
+            Schema::Imbalance,
+            has_rtype(rtype::IMBALANCE)
+        ))
+    }
+
+    #[test]
+    fn test_method_two_args() {
+        let dummy = Dummy {};
+        let ret = schema_dispatch!(Schema::Definition, dummy.on_rtype_2(5, 6));
         assert_eq!(ret, 11);
     }
 
     #[test]
-    fn test_no_args() {
-        let ret = schema_method_dispatch!(Schema::Definition, Dummy {}, on_rtype);
+    fn test_method_no_args() {
+        let dummy = Dummy {};
+        let ret = schema_dispatch!(Schema::Definition, dummy.on_rtype());
         assert!(!ret);
     }
 
     #[cfg(feature = "async")]
     mod r#async {
         use super::*;
-        use crate::schema_async_method_dispatch;
 
         #[tokio::test]
         async fn test_self() {
             let target = Dummy {};
-            let ret_true = schema_async_method_dispatch!(
+            let ret_true = schema_dispatch!(
                 Schema::Trades,
-                target,
-                do_something,
-                crate::enums::rtype::MBP_0
+                target.do_something(crate::enums::rtype::MBP_0).await,
             );
-            let ret_false =
-                schema_async_method_dispatch!(Schema::Trades, target, do_something, 0xff);
+            let ret_false = schema_dispatch!(Schema::Trades, target.do_something(0xff).await);
             assert!(ret_true);
             assert!(!ret_false);
         }

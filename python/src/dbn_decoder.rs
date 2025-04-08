@@ -5,7 +5,7 @@ use pyo3::{prelude::*, IntoPyObjectExt};
 use dbn::{
     decode::dbn::{MetadataDecoder, RecordDecoder},
     python::to_py_err,
-    rtype_ts_out_dispatch, HasRType, VersionUpgradePolicy,
+    rtype_dispatch, HasRType, VersionUpgradePolicy,
 };
 
 #[pyclass(module = "databento_dbn", name = "DBNDecoder")]
@@ -96,7 +96,7 @@ impl DbnDecoder {
 
                 // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
                 // from the metadata header.
-                unsafe { rtype_ts_out_dispatch!(rec, self.ts_out, push_rec, py, &mut recs) }?;
+                rtype_dispatch!(rec, ts_out: self.ts_out, push_rec(py, &mut recs))?;
                 // keep track of position after last _successful_ decoding to
                 // ensure buffer is left in correct state in the case where one
                 // or more successful decodings is followed by a partial one, i.e.

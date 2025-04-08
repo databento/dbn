@@ -106,7 +106,7 @@ where
     }
     while let Some(record) = decoder.decode_record_ref()? {
         if !has_written_header {
-            rtype_dispatch!(record, write_header, &mut encoder)??;
+            rtype_dispatch!(record, write_header(&mut encoder))??;
             has_written_header = true;
         }
         encoder.encode_record_ref(record)?;
