@@ -11,11 +11,11 @@ use crate::{
     compat::{ErrorMsgV1, InstrumentDefMsgV1, InstrumentDefMsgV3, SymbolMappingMsgV1, SystemMsgV1},
     pretty::px_to_f64,
     record::str_to_c_chars,
-    rtype, BboMsg, BidAskPair, CbboMsg, Cmbp1Msg, ConsolidatedBidAskPair, ErrorMsg, FlagSet,
-    HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, Record,
+    rtype, BboMsg, BidAskPair, CbboMsg, Cmbp1Msg, ConsolidatedBidAskPair, ErrorCode, ErrorMsg,
+    FlagSet, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, Record,
     RecordHeader, SType, SecurityUpdateAction, Side, StatMsg, StatUpdateAction, StatusAction,
-    StatusMsg, StatusReason, SymbolMappingMsg, SystemMsg, TradeMsg, TradingEvent, TriState,
-    UserDefinedInstrument, WithTsOut, UNDEF_ORDER_SIZE, UNDEF_PRICE, UNDEF_TIMESTAMP,
+    StatusMsg, StatusReason, SymbolMappingMsg, SystemCode, SystemMsg, TradeMsg, TradingEvent,
+    TriState, UserDefinedInstrument, WithTsOut, UNDEF_ORDER_SIZE, UNDEF_PRICE, UNDEF_TIMESTAMP,
 };
 
 use super::{to_py_err, PyFieldDesc};
@@ -3153,9 +3153,9 @@ impl StatMsg {
 #[pymethods]
 impl ErrorMsg {
     #[new]
-    #[pyo3(signature = (ts_event, err, is_last = true))]
-    fn py_new(ts_event: u64, err: &str, is_last: bool) -> PyResult<Self> {
-        Ok(ErrorMsg::new(ts_event, err, is_last))
+    #[pyo3(signature = (ts_event, err, is_last = true, code = None))]
+    fn py_new(ts_event: u64, err: &str, is_last: bool, code: Option<ErrorCode>) -> PyResult<Self> {
+        Ok(ErrorMsg::new(ts_event, code, err, is_last))
     }
 
     fn __bytes__(&self) -> &[u8] {
@@ -3204,6 +3204,11 @@ impl ErrorMsg {
     #[classattr]
     fn size_hint() -> PyResult<usize> {
         Ok(mem::size_of::<Self>())
+    }
+
+    #[getter]
+    fn get_code(&self) -> Option<ErrorCode> {
+        self.code()
     }
 
     #[getter]
@@ -3601,8 +3606,9 @@ impl SymbolMappingMsgV1 {
 #[pymethods]
 impl SystemMsg {
     #[new]
-    fn py_new(ts_event: u64, msg: &str) -> PyResult<Self> {
-        Ok(SystemMsg::new(ts_event, msg)?)
+    #[pyo3(signature = (ts_event, msg, code = None))]
+    fn py_new(ts_event: u64, msg: &str, code: Option<SystemCode>) -> PyResult<Self> {
+        Ok(SystemMsg::new(ts_event, code, msg)?)
     }
 
     fn __bytes__(&self) -> &[u8] {
@@ -3651,6 +3657,11 @@ impl SystemMsg {
     #[classattr]
     fn size_hint() -> PyResult<usize> {
         Ok(mem::size_of::<Self>())
+    }
+
+    #[getter]
+    fn get_code(&self) -> Option<SystemCode> {
+        self.code()
     }
 
     #[getter]

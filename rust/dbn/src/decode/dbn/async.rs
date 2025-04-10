@@ -954,7 +954,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_decode_record_length_longer_than_buffer() {
-        let rec = ErrorMsg::new(1680703198000000000, "Test", true);
+        let rec = ErrorMsg::new(1680703198000000000, None, "Test", true);
         let mut target = RecordDecoder::new(&rec.as_ref()[..rec.record_size() - 1]);
         let res = target.decode_ref().await;
         dbg!(&res);

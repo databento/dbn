@@ -1,4 +1,4 @@
-//! The [`RecordRef`] struct for non-owning references to DBN records.
+//! The [`RecordRef`] struct for non-owning dynamically-typed references to DBN records.
 
 use std::{fmt::Debug, marker::PhantomData, mem, ptr::NonNull};
 
@@ -8,7 +8,32 @@ use crate::{
 };
 
 /// A wrapper around a non-owning immutable reference to a DBN record. This wrapper
-/// allows for mixing of record types and schemas, and runtime record polymorphism.
+/// allows for mixing of record types and schemas and runtime record polymorphism.
+///
+/// It has the [`has()`](Self::has) method for testing if the contained value is of a
+/// particular type, and the inner value can be downcasted to specific record types via
+/// the [`get()`](Self::get) method.
+/// ```
+/// use dbn::{MboMsg, RecordRef, TradeMsg};
+///
+/// let mbo = MboMsg::default();
+/// let rec = RecordRef::from(&mbo);
+///
+/// // This isn't a trade
+/// assert!(!rec.has::<TradeMsg>());
+/// // It's an MBO record
+/// assert!(rec.has::<MboMsg>());
+///
+/// // `get()` can be used in `if let` chains:
+/// if let Some(_trade) = rec.get::<TradeMsg>() {
+///     panic!("Unexpected record type");
+/// } else if let Some(mbo) = rec.get::<MboMsg>() {
+///     println!("{mbo:?}");
+/// }
+/// ```
+///
+/// The common record header is directly accessible through the
+/// [`header()`](Self::header) method.
 #[derive(Copy, Clone)]
 pub struct RecordRef<'a> {
     ptr: NonNull<RecordHeader>,

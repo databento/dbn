@@ -11,6 +11,7 @@ pub use crate::record::{
     TcbboMsg, TradeMsg, WithTsOut,
 };
 
+use crate::SystemCode;
 use crate::{compat::SymbolMappingRec, rtype, v1, RecordHeader};
 
 impl From<&v1::InstrumentDefMsg> for InstrumentDefMsg {
@@ -136,6 +137,9 @@ impl From<&v1::SystemMsg> for SystemMsg {
             ),
             ..Default::default()
         };
+        if old.is_heartbeat() {
+            new.code = SystemCode::Heartbeat as u8;
+        }
         new.msg[..old.msg.len()].copy_from_slice(old.msg.as_slice());
         new
     }

@@ -1277,6 +1277,106 @@ pub enum VersionUpgradePolicy {
     UpgradeToV2,
 }
 
+/// An error code from the live subscription gateway.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, IntoPrimitive, TryFromPrimitive,
+)]
+#[cfg_attr(
+    feature = "python",
+    derive(strum::EnumIter),
+    pyo3::pyclass(module = "databento_dbn", rename_all = "SCREAMING_SNAKE_CASE")
+)]
+#[non_exhaustive]
+#[repr(u8)]
+pub enum ErrorCode {
+    /// The authentication step failed.
+    AuthFailed = 1,
+    /// The user account or API key were deactivated.
+    ApiKeyDeactivated = 2,
+    /// The user has exceeded their open connection limit
+    ConnectionLimitExceeded = 3,
+    /// One or more symbols failed to resolve.
+    SymbolResolutionFailed = 4,
+    /// There was an issue with a subscription request (other than symbol resolution).
+    InvalidSubscription = 5,
+    /// An error occurred in the gateway.
+    InternalError = 6,
+}
+
+impl AsRef<str> for ErrorCode {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl ErrorCode {
+    /// Converts the given error code to a `&'static str`.
+    pub const fn as_str(&self) -> &'static str {
+        match self {
+            ErrorCode::AuthFailed => "auth_failed",
+            ErrorCode::ApiKeyDeactivated => "api_key_deactivated",
+            ErrorCode::ConnectionLimitExceeded => "connection_limit_exceeded",
+            ErrorCode::SymbolResolutionFailed => "symbol_resolution_failed",
+            ErrorCode::InvalidSubscription => "invalid_subscription",
+            ErrorCode::InternalError => "internal_error",
+        }
+    }
+}
+
+impl Display for ErrorCode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// A [`SystemMsg`](crate::SystemMsg) code indicating the type of message from the live
+/// subscription gateway.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, IntoPrimitive, TryFromPrimitive,
+)]
+#[cfg_attr(
+    feature = "python",
+    derive(strum::EnumIter),
+    pyo3::pyclass(module = "databento_dbn", rename_all = "SCREAMING_SNAKE_CASE")
+)]
+#[non_exhaustive]
+#[repr(u8)]
+pub enum SystemCode {
+    /// A message sent in the absence of other records to indicate the connection
+    /// remains open.
+    Heartbeat = 0,
+    /// An acknowledgement of a subscription request.
+    SubscriptionAck = 1,
+    /// The gateway has detected this session is falling behind real-time.
+    SlowReaderWarning = 2,
+    /// Indicates a replay subscription has caught up with real-time data.
+    ReplayCompleted = 3,
+}
+
+impl AsRef<str> for SystemCode {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl SystemCode {
+    /// Converts the given system code to a `&'static str`.
+    pub const fn as_str(&self) -> &'static str {
+        match self {
+            SystemCode::Heartbeat => "heartbeat",
+            SystemCode::SubscriptionAck => "subscription_ack",
+            SystemCode::SlowReaderWarning => "slow_reader_warning",
+            SystemCode::ReplayCompleted => "replay_completed",
+        }
+    }
+}
+
+impl Display for SystemCode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 #[cfg(feature = "serde")]
 mod deserialize {
     use std::str::FromStr;
