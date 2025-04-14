@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.32.0 - TBD
+## 0.32.0 - 2025-04-14
 
 ### Enhancements
 - Refactored the `rtype_dispatch` macro to be more flexible: it supports `ts_out`
