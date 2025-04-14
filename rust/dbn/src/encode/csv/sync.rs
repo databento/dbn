@@ -5,8 +5,7 @@ use fallible_streaming_iterator::FallibleStreamingIterator;
 use crate::{
     decode::{DbnMetadata, DecodeRecordRef},
     encode::{DbnEncodable, EncodeDbn, EncodeRecord, EncodeRecordRef, EncodeRecordTextExt},
-    rtype_method_dispatch, rtype_ts_out_method_dispatch, schema_method_dispatch,
-    schema_ts_out_method_dispatch, Error, RType, Record, Result, Schema,
+    rtype_dispatch, schema_dispatch, Error, RType, Record, Result, Schema,
 };
 
 /// Type for encoding files and streams of DBN records in CSV or other text-delimited
@@ -204,7 +203,7 @@ where
         ts_out: bool,
         with_symbol: bool,
     ) -> Result<()> {
-        schema_ts_out_method_dispatch!(schema, ts_out, self, encode_header, with_symbol)?;
+        schema_dispatch!(schema, ts_out: ts_out, self.encode_header(with_symbol))?;
         self.has_written_header = true;
         Ok(())
     }
@@ -256,7 +255,7 @@ where
     W: io::Write,
 {
     fn encode_record_ref(&mut self, record: crate::RecordRef) -> Result<()> {
-        rtype_method_dispatch!(record, self, encode_record)?
+        rtype_dispatch!(record, self.encode_record())?
     }
 
     unsafe fn encode_record_ref_ts_out(
@@ -264,7 +263,7 @@ where
         record: crate::RecordRef,
         ts_out: bool,
     ) -> Result<()> {
-        rtype_ts_out_method_dispatch!(record, ts_out, self, encode_record)?
+        rtype_dispatch!(record, ts_out: ts_out, self.encode_record())?
     }
 }
 
@@ -329,7 +328,7 @@ where
     ) -> Result<()> {
         let ts_out = decoder.metadata().ts_out;
         if let Some(schema) = decoder.metadata().schema {
-            schema_method_dispatch!(schema, self, encode_header, false)?;
+            schema_dispatch!(schema, self.encode_header(false))?;
             let rtype = RType::from(schema);
             let mut i = 0;
             while let Some(record) = decoder.decode_record_ref()? {

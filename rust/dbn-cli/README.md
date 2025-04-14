@@ -52,6 +52,16 @@ By default, `dbn` will not overwrite an existing file.
 To replace the contents of an existing file and allow overwriting files, pass
 the `-f` or `--force` flag.
 
+### Merging DBN files
+You can use `dbn` to merge several DBN files into one, including files of different schemas.
+```sh
+# Merge files split by symbols
+dbn aapl.trades.dbn tsla.trades.dbn nvda.trades.dbn -o equities.trades.dbn
+# Or by date
+dbn equs-mini-20250331.dbn equs-mini-20250401.dbn equs-mini-20250402.dbn -o equs-mini-2025W14.dbn
+```
+The only limitation is they must be from the same dataset.
+
 ### Compressing the output
 In addition to reading Zstandard-compressed files, `dbn` can also write compressed JSON and CSV.
 

@@ -6,7 +6,7 @@ use std::{
 
 use dbn::{
     encode::{csv, json, DbnEncodable, EncodeRecordRef},
-    rtype, rtype_ts_out_dispatch, RecordHeader, RecordRef, Schema,
+    rtype, rtype_dispatch, RecordHeader, RecordRef, Schema,
 };
 
 use crate::cfile::CFileRef;
@@ -80,7 +80,7 @@ pub unsafe extern "C" fn s_serialize_record_header(
             .use_pretty_ts(options.pretty_ts)
             .build()
             .and_then(|mut encoder| {
-                rtype_ts_out_dispatch!(record, options.ts_out, serialize_csv_header, &mut encoder)
+                rtype_dispatch!(record, ts_out: options.ts_out, serialize_csv_header(&mut encoder))
             }),
     }
     // flatten
@@ -126,7 +126,7 @@ pub unsafe extern "C" fn f_serialize_record_header(
             .use_pretty_ts(options.pretty_ts)
             .build()
             .and_then(|mut encoder| {
-                rtype_ts_out_dispatch!(record, options.ts_out, serialize_csv_header, &mut encoder)
+                rtype_dispatch!(record, ts_out: options.ts_out, serialize_csv_header(&mut encoder))
             }),
     };
     res.map(|_| cfile.bytes_written() as i32)

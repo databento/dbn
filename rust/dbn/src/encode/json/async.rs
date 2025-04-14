@@ -1,10 +1,7 @@
 use tokio::io;
 
 use super::serialize::to_json_string;
-use crate::{
-    encode::DbnEncodable, record_ref::RecordRef, rtype_ts_out_async_method_dispatch, Error,
-    Metadata, Result,
-};
+use crate::{encode::DbnEncodable, record_ref::RecordRef, rtype_dispatch, Error, Metadata, Result};
 
 /// Type for encoding files and streams of DBN records in JSON lines.
 pub struct Encoder<W>
@@ -111,7 +108,7 @@ where
         record_ref: RecordRef<'_>,
         ts_out: bool,
     ) -> Result<()> {
-        rtype_ts_out_async_method_dispatch!(record_ref, ts_out, self, encode_record)?
+        rtype_dispatch!(record_ref, ts_out: ts_out, self.encode_record().await)?
     }
 
     /// Flushes any buffered content to the true output.

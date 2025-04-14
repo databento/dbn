@@ -1,4 +1,4 @@
-# ruff: noqa: UP007 PYI021 PYI053 PYI011
+# ruff: noqa: UP007 PYI021 PYI011
 from __future__ import annotations
 
 import datetime as dt
@@ -269,12 +269,12 @@ class RType(Enum):
     """
     A DBN record type.
 
-    MBP0
+    MBP_0
         Denotes a market-by-price record with a book depth of 0 (used for the `Trades` schema).
-    MBP1
+    MBP_1
         Denotes a market-by-price record with a book depth of 1 (also used for the
         `Tbbo` schema).
-    MBP10
+    MBP_10
         Denotes a market-by-price record with a book depth of 10.
     OHLCV_DEPRECATED
         Denotes an open, high, low, close, and volume record at an unspecified cadence.
@@ -306,7 +306,7 @@ class RType(Enum):
         Denotes a statistics record from the publisher (not calculated by Databento).
     MBO
         Denotes a market by order record.
-    CBBO
+    CMBP_1
         Denotes a consolidated best bid and offer record.
     CBBO_1S
         Denotes a consolidated best bid and offer record.
@@ -322,6 +322,30 @@ class RType(Enum):
         Denotes a best bid and offer record subsampled on a one-minute interval.
 
     """  # noqa: D405, D411
+
+    MBP_0: int
+    MBP_1: int
+    MBP_10: int
+    OHLCV_DEPRECATED: int
+    OHLCV_1S: int
+    OHLCV_1M: int
+    OHLCV_1H: int
+    OHLCV_1D: int
+    OHLCV_EOD: int
+    STATUS: int
+    INSTRUMENT_DEF: int
+    IMBALANCE: int
+    ERROR: int
+    SYMBOL_MAPPING: int
+    SYSTEM: int
+    STATISTICS: int
+    MBO: int
+    CMBP_1: int
+    CBBO_1S: int
+    CBBO_1M: int
+    TCBBO: int
+    BBO_1S: int
+    BBO_1M: int
 
     @classmethod
     def from_int(cls, value: int) -> RType: ...

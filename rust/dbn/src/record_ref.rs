@@ -146,7 +146,10 @@ impl<'a> Record for RecordRef<'a> {
     }
 
     fn raw_index_ts(&self) -> u64 {
-        rtype_dispatch!(self, Record::raw_index_ts).unwrap_or_else(|_| self.header().ts_event)
+        fn raw_index_ts<T: HasRType>(t: &T) -> u64 {
+            t.raw_index_ts()
+        }
+        rtype_dispatch!(self, raw_index_ts()).unwrap_or_else(|_| self.header().ts_event)
     }
 }
 

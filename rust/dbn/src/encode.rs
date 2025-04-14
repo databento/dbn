@@ -33,8 +33,7 @@ pub use self::{
 
 use crate::{
     decode::{DbnMetadata, DecodeRecordRef},
-    rtype_method_dispatch, rtype_ts_out_method_dispatch, Error, HasRType, Record, RecordRef,
-    Result,
+    rtype_dispatch, Error, HasRType, Record, RecordRef, Result,
 };
 
 use self::{csv::serialize::CsvSerialize, json::serialize::JsonSerialize};
@@ -176,7 +175,7 @@ pub trait EncodeRecordTextExt: EncodeRecord + EncodeRecordRef {
     /// This function returns an error if it's unable to write to the underlying writer
     /// or there's a serialization error.
     fn encode_ref_with_sym(&mut self, record: RecordRef, symbol: Option<&str>) -> Result<()> {
-        rtype_method_dispatch!(record, self, encode_record_with_sym, symbol)?
+        rtype_dispatch!(record, self.encode_record_with_sym(symbol))?
     }
 
     /// Encodes a single DBN [`RecordRef`] with an optional `ts_out` (see
@@ -195,7 +194,7 @@ pub trait EncodeRecordTextExt: EncodeRecord + EncodeRecordRef {
         ts_out: bool,
         symbol: Option<&str>,
     ) -> Result<()> {
-        rtype_ts_out_method_dispatch!(record, ts_out, self, encode_record_with_sym, symbol)?
+        rtype_dispatch!(record, ts_out: ts_out, self.encode_record_with_sym(symbol))?
     }
 }
 
