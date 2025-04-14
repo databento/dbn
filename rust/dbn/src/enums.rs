@@ -363,6 +363,8 @@ pub use rtype::RType;
 /// Record types, possible values for [`RecordHeader::rtype`][crate::RecordHeader::rtype]
 #[allow(deprecated)]
 pub mod rtype {
+    #[cfg(not(feature = "python"))]
+    use dbn_macros::MockPyo3;
     use num_enum::TryFromPrimitive;
 
     use super::Schema;
@@ -379,15 +381,19 @@ pub mod rtype {
         derive(strum::EnumIter),
         pyo3::pyclass(module = "databento_dbn", rename_all = "SCREAMING_SNAKE_CASE")
     )]
+    #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
     #[repr(u8)]
     pub enum RType {
         /// Denotes a market-by-price record with a book depth of 0 (used for the
         /// [`Trades`](super::Schema::Trades) schema).
+        #[pyo3(name = "MBP_0")]
         Mbp0 = 0,
         /// Denotes a market-by-price record with a book depth of 1 (also used for the
         /// [`Tbbo`](super::Schema::Tbbo) schema).
+        #[pyo3(name = "MBP_1")]
         Mbp1 = 0x01,
         /// Denotes a market-by-price record with a book depth of 10.
+        #[pyo3(name = "MBP_10")]
         Mbp10 = 0x0A,
         /// Denotes an open, high, low, close, and volume record at an unspecified cadence.
         #[deprecated(
@@ -396,13 +402,17 @@ pub mod rtype {
         )]
         OhlcvDeprecated = 0x11,
         /// Denotes an open, high, low, close, and volume record at a 1-second cadence.
+        #[pyo3(name = "OHLCV_1S")]
         Ohlcv1S = 0x20,
         /// Denotes an open, high, low, close, and volume record at a 1-minute cadence.
+        #[pyo3(name = "OHLCV_1M")]
         Ohlcv1M = 0x21,
         /// Denotes an open, high, low, close, and volume record at an hourly cadence.
+        #[pyo3(name = "OHLCV_1H")]
         Ohlcv1H = 0x22,
         /// Denotes an open, high, low, close, and volume record at a daily cadence
         /// based on the UTC date.
+        #[pyo3(name = "OHLCV_1D")]
         Ohlcv1D = 0x23,
         /// Denotes an open, high, low, close, and volume record at a daily cadence
         /// based on the end of the trading session.
@@ -424,19 +434,24 @@ pub mod rtype {
         /// Denotes a market by order record.
         Mbo = 0xA0,
         /// Denotes a consolidated best bid and offer record.
+        #[pyo3(name = "CMBP_1")]
         Cmbp1 = 0xB1,
         /// Denotes a consolidated best bid and offer record subsampled on a one-second
         /// interval.
+        #[pyo3(name = "CBBO_1S")]
         Cbbo1S = 0xC0,
         /// Denotes a consolidated best bid and offer record subsampled on a one-minute
         /// interval.
+        #[pyo3(name = "CBBO_1M")]
         Cbbo1M = 0xC1,
         /// Denotes a consolidated best bid and offer trade record containing the
         /// consolidated BBO before the trade.
         Tcbbo = 0xC2,
         /// Denotes a best bid and offer record subsampled on a one-second interval.
+        #[pyo3(name = "BBO_1S")]
         Bbo1S = 0xC3,
         /// Denotes a best bid and offer record subsampled on a one-minute interval.
+        #[pyo3(name = "BBO_1M")]
         Bbo1M = 0xC4,
     }
 

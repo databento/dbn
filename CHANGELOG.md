@@ -19,6 +19,8 @@
   an updated, more flexible `rtype_dispatch` macro
 
 ### Bug fixes
+- Fixed `RType` variant names in Python to match `Schema`
+- Added missing Python type declarations for `RType` variants
 - Fixed issue with Python `_hidden_fields` definition that caused `KeyError: _reserved1_00`
   with `CMBP1Msg` and other records with `ConsolidatedBidAskPair`
 
