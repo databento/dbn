@@ -4,6 +4,7 @@
 use std::os::raw::c_char;
 
 use crate::compat::InstrumentDefRec;
+pub use crate::compat::ASSET_CSTR_LEN_V2 as ASSET_CSTR_LEN;
 pub use crate::compat::SYMBOL_CSTR_LEN_V2 as SYMBOL_CSTR_LEN;
 pub use crate::record::{
     Bbo1MMsg, Bbo1SMsg, BboMsg, Cbbo1MMsg, Cbbo1SMsg, CbboMsg, Cmbp1Msg, ErrorMsg, ImbalanceMsg,

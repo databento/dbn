@@ -9,11 +9,14 @@
   one exists and equivalent properties in Python
 - Converting a `v1::SystemMsg` to a `v2::SystemMsg` now sets to `code` to the heartbeat
   value
+- Introduced `ASSET_CSTR_LEN` constant containing the size of `asset` field in `InstrumentDefMsg`
 
 ### Breaking changes
 - Added `code` parameter to `SystemCode::new()` and `ErrorMsg::new()`
 - Updated the `rtype_dispatch` and `schema_dispatch` macro invocations to look more like
   function invocation
+- Increased the size of `asset` field in `InstrumentDefMsgV3` from 7 to 11. The `InstrumentDefMsgV3`
+  message size remains 520 bytes.
 
 ## 0.32.0 - 2025-04-14
 
