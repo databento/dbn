@@ -131,10 +131,10 @@ fn py_to_rs_io_err(e: PyErr) -> io::Error {
 
         match e_as_object.call_method(intern!(py, "__str__"), (), None) {
             Ok(repr) => match repr.extract::<String>() {
-                Ok(s) => io::Error::new(io::ErrorKind::Other, s),
-                Err(_e) => io::Error::new(io::ErrorKind::Other, "An unknown error has occurred"),
+                Ok(s) => io::Error::other(s),
+                Err(_e) => io::Error::other("An unknown error has occurred"),
             },
-            Err(_) => io::Error::new(io::ErrorKind::Other, "Err doesn't have __str__"),
+            Err(_) => io::Error::other("Err doesn't have __str__"),
         }
     })
 }
