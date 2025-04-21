@@ -695,7 +695,7 @@ class StatusReason(Enum):
         The news has been fully disseminated and times are available for the resumption in quoting
         and trading.
     NEWS_NOT_FORTHCOMING
-        The relevants news was not forthcoming.
+        The relevant news was not forthcoming.
     ORDER_IMBALANCE
         Halted for order imbalance.
     LULD_PAUSE
@@ -721,7 +721,7 @@ class StatusReason(Enum):
     MARKET_WIDE_HALT_CARRYOVER
         Halted due to the carryover of a market-wide circuit breaker from the previous trading day.
     MARKET_WIDE_HALT_RESUMPTION
-        Resumption due to the end of the a market-wide circuit breaker halt.
+        Resumption due to the end of a market-wide circuit breaker halt.
     QUOTATION_NOT_AVAILABLE
         Halted because quotation is not available.
 
@@ -2191,17 +2191,6 @@ class CMBP1Msg(Record):
         """
 
     @property
-    def depth(self) -> int:
-        """
-        The depth of actual book change.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
     def pretty_ts_recv(self) -> dt.datetime | None:
         """
         The capture-server-received timestamp expressed as a datetime or `pandas.Timestamp`
@@ -2234,17 +2223,6 @@ class CMBP1Msg(Record):
         `ts_recv`.
 
         See `ts_in_delta` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-in-delta.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def sequence(self) -> int:
-        """
-        The message sequence number assigned at the venue.
 
         Returns
         -------
@@ -2370,17 +2348,6 @@ class CBBOMsg(Record):
         """
         The end timestamp of the interval, clamped to the second/minute boundary,
         expressed as the number of nanoseconds since the UNIX epoch.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def sequence(self) -> int:
-        """
-        The message sequence number assigned at the venue of the last update.
 
         Returns
         -------

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.35.0 - TBD
+
+### Bug Fixes
+- Removed incorrect `sequence` and `depth` Python type stubs for `CMBP1Msg` and `CBBOMsg`
+
 ## 0.34.0 - 2025-05-13
 
 ### Enhancements

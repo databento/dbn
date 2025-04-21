@@ -1142,7 +1142,7 @@ pub enum StatusReason {
     /// The news has been fully disseminated and times are available for the resumption
     /// in quoting and trading.
     NewsAndResumptionTimes = 32,
-    /// The relevants news was not forthcoming.
+    /// The relevant news was not forthcoming.
     NewsNotForthcoming = 33,
     /// Halted for order imbalance.
     OrderImbalance = 40,
@@ -1169,7 +1169,7 @@ pub enum StatusReason {
     /// Halted due to the carryover of a market-wide circuit breaker from the previous
     /// trading day.
     MarketWideHaltCarryover = 123,
-    /// Resumption due to the end of the a market-wide circuit breaker halt.
+    /// Resumption due to the end of a market-wide circuit breaker halt.
     MarketWideHaltResumption = 124,
     /// Halted because quotation is not available.
     QuotationNotAvailable = 130,
