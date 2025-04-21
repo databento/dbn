@@ -1,6 +1,6 @@
 use tokio::io;
 
-use super::serialize::to_json_string;
+use super::serialize::{to_json_string, to_json_string_with_sym};
 use crate::{encode::DbnEncodable, record_ref::RecordRef, rtype_dispatch, Error, Metadata, Result};
 
 /// Type for encoding files and streams of DBN records in JSON lines.
@@ -89,10 +89,39 @@ where
             self.use_pretty_px,
             self.use_pretty_ts,
         );
-        match self.writer.write_all(json.as_bytes()).await {
-            Ok(()) => Ok(()),
-            Err(e) => Err(Error::io(e, "writing record")),
-        }
+        self.writer
+            .write_all(json.as_bytes())
+            .await
+            .map_err(|e| Error::io(e, "writing record"))
+    }
+
+    /// Encodes a single DBN record of type `R` along with the record's text symbol.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to write to the underlying
+    /// writer.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If this method is used in a
+    /// `tokio::select!` statement and another branch completes first, then the
+    /// record may have been partially written, but future calls will begin writing the
+    /// encoded record from the beginning.
+    pub async fn encode_record_with_sym<R: DbnEncodable>(
+        &mut self,
+        record: &R,
+        symbol: Option<&str>,
+    ) -> Result<()> {
+        let json = to_json_string_with_sym(
+            record,
+            self.should_pretty_print,
+            self.use_pretty_px,
+            self.use_pretty_ts,
+            symbol,
+        );
+        self.writer
+            .write_all(json.as_bytes())
+            .await
+            .map_err(|e| Error::io(e, "writing record"))
     }
 
     /// Encodes a single DBN record.

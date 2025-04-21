@@ -10,6 +10,8 @@
 - Converting a `v1::SystemMsg` to a `v2::SystemMsg` now sets to `code` to the heartbeat
   value
 - Introduced `ASSET_CSTR_LEN` constant containing the size of `asset` field in `InstrumentDefMsg`
+- Added `encode_record_with_sym()`  method to `AsyncJsonEncoder` which encodes a record along with its
+  text symbolto match the sync encoder
 
 ### Breaking changes
 - Added `code` parameter to `SystemCode::new()` and `ErrorMsg::new()`
