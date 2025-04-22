@@ -4,6 +4,7 @@
 use std::os::raw::c_char;
 
 use crate::compat::InstrumentDefRec;
+pub use crate::compat::ASSET_CSTR_LEN_V2 as ASSET_CSTR_LEN;
 pub use crate::compat::SYMBOL_CSTR_LEN_V2 as SYMBOL_CSTR_LEN;
 pub use crate::record::{
     Bbo1MMsg, Bbo1SMsg, BboMsg, Cbbo1MMsg, Cbbo1SMsg, CbboMsg, Cmbp1Msg, ErrorMsg, ImbalanceMsg,
@@ -11,6 +12,7 @@ pub use crate::record::{
     TcbboMsg, TradeMsg, WithTsOut,
 };
 
+use crate::SystemCode;
 use crate::{compat::SymbolMappingRec, rtype, v1, RecordHeader};
 
 impl From<&v1::InstrumentDefMsg> for InstrumentDefMsg {
@@ -136,6 +138,9 @@ impl From<&v1::SystemMsg> for SystemMsg {
             ),
             ..Default::default()
         };
+        if old.is_heartbeat() {
+            new.code = SystemCode::Heartbeat as u8;
+        }
         new.msg[..old.msg.len()].copy_from_slice(old.msg.as_slice());
         new
     }

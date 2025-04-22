@@ -72,7 +72,11 @@ macro_rules! rtype_dispatch_base {
     }};
 }
 
-/// Specializes a generic function to all record types and dispatches based `rtype`.
+/// Dispatches to a generic function or method based on `$rtype` and optionally `$ts_out`.
+///
+/// # Panics
+/// This function will panic if the encoded length of the given record is shorter
+/// than expected for its `rtype`.
 ///
 /// # Errors
 /// This macro returns an error if the rtype is not recognized.
@@ -237,7 +241,10 @@ macro_rules! schema_dispatch_base {
     }};
 }
 
-/// Specializes a generic function to all record types with an associated schema.
+/// Dispatches to a generic function or method based on `$schema` and optionally `$ts_out`.
+///
+/// # Errors
+/// This macro returns an error when the generic function or method returns an error.
 #[macro_export]
 macro_rules! schema_dispatch {
     // generic async method

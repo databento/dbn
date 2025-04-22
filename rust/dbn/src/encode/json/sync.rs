@@ -676,7 +676,7 @@ mod tests {
     #[test]
     fn test_serialize_quoted_str_to_json() {
         let json = write_json_to_string(
-            vec![ErrorMsg::new(0, "\"A test", true)].as_slice(),
+            vec![ErrorMsg::new(0, None, "\"A test", true)].as_slice(),
             false,
             true,
             true,

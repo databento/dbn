@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.33.0 - 2025-04-22
+
+### Enhancements
+- Added `SystemCode` and `ErrorCode` enums to indicate types of system and error
+  messages
+- Added `code()` methods to `SystemMsg` and `ErrorMsg` to retrieve the enum value if
+  one exists and equivalent properties in Python
+- Converting a `v1::SystemMsg` to a `v2::SystemMsg` now sets to `code` to the heartbeat
+  value
+- Added `ASSET_CSTR_LEN` constants for the size of `asset` field in `InstrumentDefMsg`
+  in different DBN versions
+- Added `encode_record_with_sym()`  method to `AsyncJsonEncoder` which encodes a record
+  along with its text symbol to match the sync encoder
+
+### Breaking changes
+- Added `code` parameter to `SystemCode::new()` and `ErrorMsg::new()`
+- Updated the `rtype_dispatch` and `schema_dispatch` macro invocations to look more like
+  function invocation
+- Increased the size of `asset` field in `v3::InstrumentDefMsg` from 7 to 11. The
+  `InstrumentDefMsgV3` message size remains 520 bytes.
+
 ## 0.32.0 - 2025-04-14
 
 ### Enhancements
@@ -7,10 +28,6 @@
   dispatching, async functions and methods, and now always verifies the record length
 - Refactored the `schema_dispatch` macro to be more flexible: it supports `ts_out`
   dispatching and async functions and methods
-
-### Breaking changes
-- Updated the `rtype_dispatch` and `schema_dispatch` macro invocations to look more like
-  function invocation
 
 ### Deprecations
 - Deprecated macros `rtype_async_dispatch`, `rtype_ts_out_dispatch`,

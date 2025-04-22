@@ -62,9 +62,10 @@ pub mod v3;
 
 pub use crate::{
     enums::{
-        rtype, Action, Compression, Encoding, InstrumentClass, MatchAlgorithm, RType, SType,
-        Schema, SecurityUpdateAction, Side, StatType, StatUpdateAction, StatusAction, StatusReason,
-        TradingEvent, TriState, UserDefinedInstrument, VersionUpgradePolicy,
+        rtype, Action, Compression, Encoding, ErrorCode, InstrumentClass, MatchAlgorithm, RType,
+        SType, Schema, SecurityUpdateAction, Side, StatType, StatUpdateAction, StatusAction,
+        StatusReason, SystemCode, TradingEvent, TriState, UserDefinedInstrument,
+        VersionUpgradePolicy,
     },
     error::{Error, Result},
     flags::FlagSet,

@@ -533,7 +533,7 @@ mod tests {
                 .has_decoded_metadata
         );
         let metadata_pos = encoder.get_ref().len();
-        let rec = ErrorMsg::new(1680708278000000000, "This is a test", true);
+        let rec = ErrorMsg::new(1680708278000000000, None, "This is a test", true);
         encoder.encode_record(&rec).unwrap();
         Python::with_gil(|py| {
             assert!(target.buffer(py).is_empty().unwrap());
@@ -603,7 +603,7 @@ mod tests {
                 .downcast_unchecked::<{ Encoding::Csv as u8 }>()
                 .has_decoded_metadata
         );
-        let rec1 = ErrorMsg::new(1680708278000000000, "This is a test", true);
+        let rec1 = ErrorMsg::new(1680708278000000000, None, "This is a test", true);
         let rec2 = OhlcvMsg {
             hd: RecordHeader::new::<OhlcvMsg>(rtype::OHLCV_1S, 1, 1, 1681228173000000000),
             open: 100,

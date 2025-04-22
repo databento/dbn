@@ -6,6 +6,7 @@ pub use crate::compat::InstrumentDefMsgV1 as InstrumentDefMsg;
 use crate::compat::InstrumentDefRec;
 pub use crate::compat::SymbolMappingMsgV1 as SymbolMappingMsg;
 pub use crate::compat::SystemMsgV1 as SystemMsg;
+pub use crate::compat::ASSET_CSTR_LEN_V1 as ASSET_CSTR_LEN;
 pub use crate::compat::SYMBOL_CSTR_LEN_V1 as SYMBOL_CSTR_LEN;
 pub use crate::record::{
     Bbo1MMsg, Bbo1SMsg, BboMsg, Cbbo1MMsg, Cbbo1SMsg, CbboMsg, Cmbp1Msg, ImbalanceMsg, MboMsg,

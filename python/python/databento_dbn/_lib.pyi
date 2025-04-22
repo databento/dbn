@@ -822,6 +822,60 @@ class VersionUpgradePolicy(Enum):
     AS_IS: int
     UPGRADE_TO_V2: int
 
+class ErrorCode(Enum):
+    """
+    An error code from the live subscription gateway.
+
+    AUTH_FAILED
+        The authentication step failed.
+    API_KEY_DEACTIVATED
+        The user account or API key were deactivated.
+    CONNECTION_LIMIT_EXCEEDED
+        The user has exceeded their open connection limit
+    SYMBOL_RESOLUTION_FAILED
+        One or more symbols failed to resolve.
+    INVALID_SUBSCRIPTION
+        There was an issue with a subscription request (other than symbol resolution).
+     INTERNAL_ERROR
+        An error occurred in the gateway.
+
+    """
+
+    AUTH_FAILED: int
+    API_KEY_DEACTIVATED: int
+    CONNECTION_LIMIT_EXCEEDED: int
+    SYMBOL_RESOLUTION_FAILED: int
+    INVALID_SUBSCRIPTION: int
+    INTERNAL_ERROR: int
+
+    @classmethod
+    def variants(cls) -> Iterable[ErrorCode]: ...
+
+class SystemCode(Enum):
+    """
+    A `SystemMsg` code indicating the type of message from the live subscription
+    gateway.
+
+    HEARTBEAT
+        A message sent in the absence of other records to indicate the connection
+        remains open.
+    SUBSCRIPTION_ACK
+        An acknowledgement of a subscription request.
+    SLOW_READER_WARNING
+        The gateway has detected this session is falling behind real-time.
+    REPLAY_COMPLETED
+        Indicates a replay subscription has caught up with real-time data.
+
+    """
+
+    HEARTBEAT: int
+    SUBSCRIPTION_ACK: int
+    SLOW_READER_WARNING: int
+    REPLAY_COMPLETED: int
+
+    @classmethod
+    def variants(cls) -> Iterable[ErrorCode]: ...
+
 class Metadata(SupportsBytes):
     """
     Information about the data contained in a DBN file or stream. DBN requires
@@ -5937,6 +5991,19 @@ class ErrorMsg(ErrorMsgV1):
     An error message from the Databento Live Subscription Gateway (LSG).
     """
 
+    def __init__(
+        self, ts_event: int, err: str, is_last: bool = True, code: ErrorCode | None = None
+    ) -> None: ...
+    @property
+    def code(self) -> ErrorCode | None:
+        """
+        The error code, if any.
+
+        Returns
+        -------
+        ErrorCode | None
+        """
+
     @property
     def is_last(self) -> int:
         """
@@ -6087,14 +6154,15 @@ class SystemMsg(SystemMsgV1):
 
     """
 
+    def __init__(self, ts_event: int, msg: str, code: SystemCode | None = None) -> None: ...
     @property
-    def code(self) -> int:
+    def code(self) -> SystemCode | None:
         """
-        Type of system message, currently unused.
+        Type of system message, if any.
 
         Returns
         -------
-        int
+        SystemCode | None
         """
 
 class SystemMsgV1(Record):

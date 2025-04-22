@@ -1092,7 +1092,7 @@ pub struct ErrorMsg {
     #[dbn(fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub err: [c_char; 302],
-    /// The error code. Currently unused.
+    /// The error code.
     #[pyo3(get, set)]
     pub code: u8,
     /// Sometimes multiple errors are sent together. This field will be non-zero for the
@@ -1170,7 +1170,7 @@ pub struct SystemMsg {
     #[dbn(fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub msg: [c_char; 303],
-    /// Type of system message, currently unused.
+    /// Type of system message.
     #[pyo3(get, set)]
     pub code: u8,
 }
@@ -1419,6 +1419,6 @@ mod tests {
 
     #[test]
     fn test_record_object_safe() {
-        let _record: Box<dyn Record> = Box::new(ErrorMsg::new(1, "Boxed record", true));
+        let _record: Box<dyn Record> = Box::new(ErrorMsg::new(1, None, "Boxed record", true));
     }
 }

@@ -2,7 +2,8 @@
 //! in the upcoming DBN version 3.
 
 pub use crate::compat::{
-    InstrumentDefMsgV3 as InstrumentDefMsg, SYMBOL_CSTR_LEN_V3 as SYMBOL_CSTR_LEN,
+    InstrumentDefMsgV3 as InstrumentDefMsg, ASSET_CSTR_LEN_V3 as ASSET_CSTR_LEN,
+    SYMBOL_CSTR_LEN_V3 as SYMBOL_CSTR_LEN,
 };
 pub use crate::record::{
     Bbo1MMsg, Bbo1SMsg, BboMsg, Cbbo1MMsg, Cbbo1SMsg, CbboMsg, Cmbp1Msg, ErrorMsg, ImbalanceMsg,

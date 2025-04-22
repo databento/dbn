@@ -7,12 +7,12 @@ use dbn::{
     flags,
     python::{DBNError, EnumIterator},
     Action, BboMsg, BidAskPair, CbboMsg, Cmbp1Msg, Compression, ConsolidatedBidAskPair, Encoding,
-    ErrorMsg, ImbalanceMsg, InstrumentClass, InstrumentDefMsg, MatchAlgorithm, MboMsg, Mbp10Msg,
-    Mbp1Msg, Metadata, OhlcvMsg, RType, RecordHeader, SType, Schema, SecurityUpdateAction, Side,
-    StatMsg, StatType, StatUpdateAction, StatusAction, StatusMsg, StatusReason, SymbolMappingMsg,
-    SystemMsg, TradeMsg, TradingEvent, TriState, UserDefinedInstrument, VersionUpgradePolicy,
-    DBN_VERSION, FIXED_PRICE_SCALE, UNDEF_ORDER_SIZE, UNDEF_PRICE, UNDEF_STAT_QUANTITY,
-    UNDEF_TIMESTAMP,
+    ErrorCode, ErrorMsg, ImbalanceMsg, InstrumentClass, InstrumentDefMsg, MatchAlgorithm, MboMsg,
+    Mbp10Msg, Mbp1Msg, Metadata, OhlcvMsg, RType, RecordHeader, SType, Schema,
+    SecurityUpdateAction, Side, StatMsg, StatType, StatUpdateAction, StatusAction, StatusMsg,
+    StatusReason, SymbolMappingMsg, SystemCode, SystemMsg, TradeMsg, TradingEvent, TriState,
+    UserDefinedInstrument, VersionUpgradePolicy, DBN_VERSION, FIXED_PRICE_SCALE, UNDEF_ORDER_SIZE,
+    UNDEF_PRICE, UNDEF_STAT_QUANTITY, UNDEF_TIMESTAMP,
 };
 
 mod dbn_decoder;
@@ -63,6 +63,7 @@ fn databento_dbn(_py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     checked_add_class::<Action>(m)?;
     checked_add_class::<Compression>(m)?;
     checked_add_class::<Encoding>(m)?;
+    checked_add_class::<ErrorCode>(m)?;
     checked_add_class::<InstrumentClass>(m)?;
     checked_add_class::<MatchAlgorithm>(m)?;
     checked_add_class::<RType>(m)?;
@@ -74,6 +75,7 @@ fn databento_dbn(_py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     checked_add_class::<StatUpdateAction>(m)?;
     checked_add_class::<StatusAction>(m)?;
     checked_add_class::<StatusReason>(m)?;
+    checked_add_class::<SystemCode>(m)?;
     checked_add_class::<TradingEvent>(m)?;
     checked_add_class::<TriState>(m)?;
     checked_add_class::<UserDefinedInstrument>(m)?;

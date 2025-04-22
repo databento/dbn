@@ -6,6 +6,14 @@ pub const SYMBOL_CSTR_LEN_V1: usize = 22;
 pub const SYMBOL_CSTR_LEN_V2: usize = 71;
 /// The length of symbol fields in DBN version 3 (future version).
 pub const SYMBOL_CSTR_LEN_V3: usize = SYMBOL_CSTR_LEN_V2;
+
+/// The length of asset field in instrument definitions in DBN version 1.
+pub const ASSET_CSTR_LEN_V1: usize = 7;
+/// The length of asset field in instrument definitions in DBN version 2 (current version).
+pub const ASSET_CSTR_LEN_V2: usize = ASSET_CSTR_LEN_V1;
+/// The length of asset field in instrument definitions in DBN version 3 (future version).
+pub const ASSET_CSTR_LEN_V3: usize = 11;
+
 pub(crate) const METADATA_RESERVED_LEN_V1: usize = 47;
 
 /// Returns the length of symbol fields in the given DBN version
@@ -735,7 +743,7 @@ pub struct InstrumentDefMsgV3 {
     /// The underlying asset code (product code) of the instrument.
     #[dbn(fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
-    pub asset: [c_char; 7],
+    pub asset: [c_char; ASSET_CSTR_LEN_V3],
     /// The ISO standard instrument categorization code.
     #[dbn(fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
@@ -814,7 +822,7 @@ pub struct InstrumentDefMsgV3 {
     // Filler for alignment.
     #[doc(hidden)]
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub _reserved: [u8; 21],
+    pub _reserved: [u8; 17],
 }
 
 #[cfg(test)]

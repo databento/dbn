@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use num_enum::TryFromPrimitive;
 
 use crate::{
-    enums::{StatusAction, StatusReason},
+    enums::{ErrorCode, StatusAction, StatusReason, SystemCode},
     pretty::px_to_f64,
     SType, TradingEvent, TriState,
 };
@@ -730,17 +730,25 @@ impl ErrorMsg {
     ///
     /// # Errors
     /// This function returns an error if `msg` is too long.
-    pub fn new(ts_event: u64, msg: &str, is_last: bool) -> Self {
+    pub fn new(ts_event: u64, code: Option<ErrorCode>, msg: &str, is_last: bool) -> Self {
         let mut error = Self {
             hd: RecordHeader::new::<Self>(rtype::ERROR, 0, 0, ts_event),
             is_last: is_last as u8,
             ..Default::default()
         };
+        if let Some(code) = code {
+            error.code = code as u8;
+        }
         // leave at least one null byte
         for (i, byte) in msg.as_bytes().iter().take(error.err.len() - 1).enumerate() {
             error.err[i] = *byte as c_char;
         }
         error
+    }
+
+    /// Returns the error code enum variant if one was specified, otherwise `None`.
+    pub fn code(&self) -> Option<ErrorCode> {
+        ErrorCode::try_from(self.code).ok()
     }
 
     /// Returns `err` as a `&str`.
@@ -833,12 +841,17 @@ impl SystemMsg {
     ///
     /// # Errors
     /// This function returns an error if `msg` is too long.
-    pub fn new(ts_event: u64, msg: &str) -> Result<Self> {
+    pub fn new(ts_event: u64, code: Option<SystemCode>, msg: &str) -> Result<Self> {
         Ok(Self {
             hd: RecordHeader::new::<Self>(rtype::SYSTEM, 0, 0, ts_event),
             msg: str_to_c_chars(msg)?,
-            ..Default::default()
+            code: code.map(u8::from).unwrap_or(u8::MAX),
         })
+    }
+
+    /// Returns the system code enum variant if one was specified, otherwise `None`.
+    pub fn code(&self) -> Option<SystemCode> {
+        SystemCode::try_from(self.code).ok()
     }
 
     /// Creates a new heartbeat `SystemMsg`.
@@ -846,15 +859,19 @@ impl SystemMsg {
         Self {
             hd: RecordHeader::new::<Self>(rtype::SYSTEM, 0, 0, ts_event),
             msg: str_to_c_chars(Self::HEARTBEAT).unwrap(),
-            code: u8::MAX,
+            code: SystemCode::Heartbeat as u8,
         }
     }
 
     /// Checks whether the message is a heartbeat from the gateway.
     pub fn is_heartbeat(&self) -> bool {
-        self.msg()
-            .map(|msg| msg == Self::HEARTBEAT)
-            .unwrap_or_default()
+        if let Some(code) = self.code() {
+            code == SystemCode::Heartbeat
+        } else {
+            self.msg()
+                .map(|msg| msg == Self::HEARTBEAT)
+                .unwrap_or_default()
+        }
     }
 
     /// Returns the message from the Databento Live Subscription Gateway (LSG) as
@@ -988,7 +1005,7 @@ mod tests {
         assert_eq!(
             format!("{rec:?}"),
             "SystemMsg { hd: RecordHeader { length: 80, rtype: System, publisher_id: 0, \
-            instrument_id: 0, ts_event: 123 }, msg: \"Heartbeat\", code: 255 }"
+            instrument_id: 0, ts_event: 123 }, msg: \"Heartbeat\", code: 0 }"
         );
     }
 

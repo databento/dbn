@@ -53,7 +53,6 @@ impl From<&v1::InstrumentDefMsg> for InstrumentDefMsg {
             secsubtype: old.secsubtype,
             group: old.group,
             exchange: old.exchange,
-            asset: old.asset,
             cfi: old.cfi,
             security_type: old.security_type,
             unit_of_measure: old.unit_of_measure,
@@ -76,6 +75,7 @@ impl From<&v1::InstrumentDefMsg> for InstrumentDefMsg {
             tick_rule: old.tick_rule,
             ..Default::default()
         };
+        res.asset[..v1::ASSET_CSTR_LEN].copy_from_slice(old.asset.as_slice());
         res.raw_symbol[..v1::SYMBOL_CSTR_LEN].copy_from_slice(old.raw_symbol.as_slice());
         res
     }
@@ -83,7 +83,7 @@ impl From<&v1::InstrumentDefMsg> for InstrumentDefMsg {
 
 impl From<&v2::InstrumentDefMsg> for InstrumentDefMsg {
     fn from(old: &v2::InstrumentDefMsg) -> Self {
-        Self {
+        let mut res = Self {
             // recalculate length
             hd: RecordHeader::new::<Self>(
                 rtype::INSTRUMENT_DEF,
@@ -125,7 +125,6 @@ impl From<&v2::InstrumentDefMsg> for InstrumentDefMsg {
             secsubtype: old.secsubtype,
             group: old.group,
             exchange: old.exchange,
-            asset: old.asset,
             cfi: old.cfi,
             security_type: old.security_type,
             unit_of_measure: old.unit_of_measure,
@@ -148,7 +147,9 @@ impl From<&v2::InstrumentDefMsg> for InstrumentDefMsg {
             tick_rule: old.tick_rule,
             raw_symbol: old.raw_symbol,
             ..Default::default()
-        }
+        };
+        res.asset[..v2::ASSET_CSTR_LEN].copy_from_slice(old.asset.as_slice());
+        res
     }
 }
 

@@ -4,8 +4,8 @@ use pyo3::{prelude::*, type_object::PyTypeInfo, types::PyType, Bound};
 
 use crate::{
     enums::{Compression, Encoding, SType, Schema, SecurityUpdateAction, UserDefinedInstrument},
-    Action, InstrumentClass, MatchAlgorithm, RType, Side, StatType, StatusAction, StatusReason,
-    TradingEvent, TriState, VersionUpgradePolicy,
+    Action, ErrorCode, InstrumentClass, MatchAlgorithm, RType, Side, StatType, StatusAction,
+    StatusReason, SystemCode, TradingEvent, TriState, VersionUpgradePolicy,
 };
 
 use super::{to_py_err, EnumIterator, PyFieldDesc};
@@ -772,5 +772,91 @@ impl PyFieldDesc for SecurityUpdateAction {
 impl PyFieldDesc for UserDefinedInstrument {
     fn field_dtypes(field_name: &str) -> Vec<(String, String)> {
         vec![(field_name.to_owned(), "S1".to_owned())]
+    }
+}
+
+#[pymethods]
+impl ErrorCode {
+    #[new]
+    fn py_new(value: &Bound<PyAny>) -> PyResult<Self> {
+        let i = value.extract::<u8>().map_err(to_py_err)?;
+        Self::try_from(i).map_err(to_py_err)
+    }
+
+    fn __hash__(&self) -> isize {
+        *self as isize
+    }
+
+    fn __str__(&self) -> &'static str {
+        self.as_str()
+    }
+
+    fn __repr__(&self) -> String {
+        format!("<ErrorCode.{}: '{}'>", self.name(), self.value())
+    }
+
+    #[getter]
+    fn name(&self) -> String {
+        self.as_ref().to_ascii_uppercase()
+    }
+
+    fn __eq__(&self, other: &Bound<PyAny>) -> bool {
+        let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(other)) else {
+            return false;
+        };
+        self.eq(&other_enum)
+    }
+
+    #[getter]
+    fn value(&self) -> &'static str {
+        self.as_str()
+    }
+
+    #[classmethod]
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> PyResult<EnumIterator> {
+        EnumIterator::new::<Self>(py)
+    }
+}
+
+#[pymethods]
+impl SystemCode {
+    #[new]
+    fn py_new(value: &Bound<PyAny>) -> PyResult<Self> {
+        let i = value.extract::<u8>().map_err(to_py_err)?;
+        Self::try_from(i).map_err(to_py_err)
+    }
+
+    fn __hash__(&self) -> isize {
+        *self as isize
+    }
+
+    fn __str__(&self) -> &'static str {
+        self.as_str()
+    }
+
+    fn __repr__(&self) -> String {
+        format!("<SystemCode.{}: '{}'>", self.name(), self.value())
+    }
+
+    #[getter]
+    fn name(&self) -> String {
+        self.as_ref().to_ascii_uppercase()
+    }
+
+    fn __eq__(&self, other: &Bound<PyAny>) -> bool {
+        let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(other)) else {
+            return false;
+        };
+        self.eq(&other_enum)
+    }
+
+    #[getter]
+    fn value(&self) -> &'static str {
+        self.as_str()
+    }
+
+    #[classmethod]
+    fn variants(_: &Bound<PyType>, py: Python<'_>) -> PyResult<EnumIterator> {
+        EnumIterator::new::<Self>(py)
     }
 }
