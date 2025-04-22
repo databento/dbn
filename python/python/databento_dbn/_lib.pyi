@@ -176,6 +176,10 @@ class MatchAlgorithm(Enum):
     TIME_PRO_RATA
         Trade quantity is shared between all orders at the best price. Orders with the
         highest time priority receive a higher matched quantity.
+    INSTITUTIONAL_PRIORITIZATION
+        A two-pass FIFO algorithm. The first pass fills the Institutional Group the aggressing
+        order is associated with. The second pass matches orders without an Institutional Group
+        association.
     """
 
     UNDEFINED: str
@@ -188,6 +192,7 @@ class MatchAlgorithm(Enum):
     THRESHOLD_PRO_RATA_LMM: str
     EURODOLLAR_FUTURES: str
     TIME_PRO_RATA: str
+    INSTITUTIONAL_PRIORITIZATION: str
 
     @classmethod
     def from_str(cls, value: str) -> MatchAlgorithm: ...

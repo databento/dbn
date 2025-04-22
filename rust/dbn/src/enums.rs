@@ -206,12 +206,15 @@ pub enum MatchAlgorithm {
     FifoTopLmm = b'S',
     /// Like [`Self::ThresholdProRata`] but includes a special priority to LMMs.
     ThresholdProRataLmm = b'Q',
-    /// Special variant used only for Eurodollar futures on CME. See
-    /// [CME documentation](https://www.cmegroup.com/confluence/display/EPICSANDBOX/Supported+Matching+Algorithms#SupportedMatchingAlgorithms-Pro-RataAllocationforEurodollarFutures).
+    /// Special variant used only for Eurodollar futures on CME.
     EurodollarFutures = b'Y',
     /// Trade quantity is shared between all orders at the best price. Orders with the
     /// highest time priority receive a higher matched quantity.
     TimeProRata = b'P',
+    /// A two-pass FIFO algorithm. The first pass fills the Institutional Group the aggressing
+    /// order is associated with. The second pass matches orders without an Institutional Group
+    /// association. See [CME documentation](https://cmegroupclientsite.atlassian.net/wiki/spaces/EPICSANDBOX/pages/457217267#InstitutionalPrioritizationMatchAlgorithm).
+    InstitutionalPrioritization = b'V',
 }
 
 impl From<MatchAlgorithm> for char {
