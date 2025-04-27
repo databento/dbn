@@ -49,13 +49,17 @@ pub struct RecordHeader {
     /// a given rtype. The set of possible values is defined in [`rtype`].
     pub rtype: u8,
     /// The publisher ID assigned by Databento, which denotes the dataset and venue.
+    ///
+    /// See [Publishers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[pyo3(set)]
     pub publisher_id: u16,
-    /// The numeric ID assigned to the instrument.
+    /// The numeric instrument ID. See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers).
     #[pyo3(set)]
     pub instrument_id: u32,
     /// The matching-engine-received timestamp expressed as the number of nanoseconds
     /// since the UNIX epoch.
+    ///
+    /// See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event).
     #[dbn(encode_order(0), unix_nanos)]
     #[pyo3(set)]
     pub ts_event: u64,
@@ -82,8 +86,10 @@ pub struct MboMsg {
     /// The order ID assigned at the venue.
     #[pyo3(get, set)]
     pub order_id: u64,
-    /// The order price expressed as a signed integer where every 1 unit
-    /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    /// The order price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
+    /// 0.000000001.
+    ///
+    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(encode_order(4), fixed_price)]
     #[pyo3(get, set)]
     pub price: i64,
@@ -100,21 +106,30 @@ pub struct MboMsg {
     #[dbn(encode_order(6))]
     #[pyo3(get, set)]
     pub channel_id: u8,
-    /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**,
-    /// **T**rade, **F**ill, or **N**one.
+    /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R** book, **T**rade,
+    /// **F**ill, or **N**one.
+    ///
+    /// See [Action](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#action).
     #[dbn(c_char, encode_order(2))]
     pub action: c_char,
-    /// The side that initiates the event. Can be **A**sk for a sell order (or sell
-    /// aggressor in a trade), **B**id for a buy order (or buy aggressor in a trade), or
-    /// **N**one where no side is specified by the original source.
+    /// The side that initiates the event. Can be **A**sk for a sell order
+    /// (or sell aggressor in a trade), **B**id for a buy order (or buy aggressor in a trade),
+    /// or **N**one where no side is specified.
+    ///
+    /// See [Side](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#side).
     #[dbn(c_char, encode_order(3))]
     pub side: c_char,
     /// The capture-server-received timestamp expressed as the number of nanoseconds
     /// since the UNIX epoch.
+    ///
+    /// See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
     #[dbn(encode_order(0), index_ts, unix_nanos)]
     #[pyo3(get, set)]
     pub ts_recv: u64,
-    /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
+    /// The matching-engine-sending timestamp expressed as the number of nanoseconds before
+    /// `ts_recv`.
+    ///
+    /// See [ts_in_delta](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-in-delta).
     #[pyo3(get, set)]
     pub ts_in_delta: i32,
     /// The message sequence number assigned at the venue.
@@ -134,10 +149,16 @@ pub struct MboMsg {
 )]
 #[cfg_attr(test, derive(type_layout::TypeLayout))]
 pub struct BidAskPair {
-    /// The bid price.
+    /// The bid price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
+    /// 0.000000001.
+    ///
+    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     pub bid_px: i64,
-    /// The ask price.
+    /// The ask price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
+    /// 0.000000001.
+    ///
+    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     pub ask_px: i64,
     /// The bid size.
@@ -162,24 +183,34 @@ pub struct BidAskPair {
 )]
 #[cfg_attr(test, derive(type_layout::TypeLayout))]
 pub struct ConsolidatedBidAskPair {
-    /// The bid price.
+    /// The bid price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
+    /// 0.000000001.
+    ///
+    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     pub bid_px: i64,
-    /// The ask price.
+    /// The ask price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
+    /// 0.000000001.
+    ///
+    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     pub ask_px: i64,
     /// The bid size.
     pub bid_sz: u32,
     /// The ask size.
     pub ask_sz: u32,
-    /// The bid publisher ID assigned by Databento, which denotes the dataset and venue.
+    /// The publisher ID indicating the venue containing the best bid.
+    ///
+    /// See [Publishers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fmt_method)]
     pub bid_pb: u16,
     // Reserved for later usage.
     #[doc(hidden)]
     #[cfg_attr(feature = "serde", serde(skip))]
     pub _reserved1: [c_char; 2],
-    /// The ask publisher ID assigned by Databento, which denotes the dataset and venue.
+    /// The publisher ID indicating the venue containing the best ask.
+    ///
+    /// See [Publishers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fmt_method)]
     pub ask_pb: u16,
     // Reserved for later usage.
@@ -206,8 +237,10 @@ pub struct TradeMsg {
     /// The common header.
     #[pyo3(get)]
     pub hd: RecordHeader,
-    /// The order price expressed as a signed integer where every 1 unit
-    /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    /// The order price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
+    /// 0.000000001.
+    ///
+    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub price: i64,
@@ -215,27 +248,35 @@ pub struct TradeMsg {
     #[pyo3(get, set)]
     pub size: u32,
     /// The event action. Always **T**rade in the trades schema.
+    ///
+    /// See [Action](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#action).
     #[dbn(c_char, encode_order(2))]
     pub action: c_char,
-    /// The side that initiates the trade. Can be **A**sk for a sell aggressor in a
-    /// trade, **B**id for a buy aggressor in a trade, or **N**one where no side is
-    /// specified by the original source.
+    /// The side that initiates the trade. Can be **A**sk for a sell aggressor in a trade,
+    /// **B**id for a buy aggressor in a trade, or **N**one where no side is specified.
+    ///
+    /// See [Side](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#side).
     #[dbn(c_char, encode_order(3))]
     pub side: c_char,
     /// A bit field indicating event end, message characteristics, and data quality. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
     #[pyo3(get, set)]
     pub flags: FlagSet,
-    /// The depth of actual book change.
+    /// The book level where the update event occurred.
     #[dbn(encode_order(4))]
     #[pyo3(get, set)]
     pub depth: u8,
     /// The capture-server-received timestamp expressed as the number of nanoseconds
     /// since the UNIX epoch.
+    ///
+    /// See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
     #[dbn(encode_order(0), index_ts, unix_nanos)]
     #[pyo3(get, set)]
     pub ts_recv: u64,
-    /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
+    /// The matching-engine-sending timestamp expressed as the number of nanoseconds before
+    /// `ts_recv`.
+    ///
+    /// See [ts_in_delta](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-in-delta).
     #[pyo3(get, set)]
     pub ts_in_delta: i32,
     /// The message sequence number assigned at the venue.
@@ -261,37 +302,47 @@ pub struct Mbp1Msg {
     /// The common header.
     #[pyo3(get)]
     pub hd: RecordHeader,
-    /// The order price expressed as a signed integer where every 1 unit
-    /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    /// The order price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
+    /// 0.000000001.
+    ///
+    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub price: i64,
     /// The order quantity.
     #[pyo3(get, set)]
     pub size: u32,
-    /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or
-    /// **T**rade.
+    /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R** book, or **T**rade.
+    ///
+    /// See [Action](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#action).
     #[dbn(c_char, encode_order(2))]
     pub action: c_char,
-    /// The side that initiates the event. Can be **A**sk for a sell order (or sell
-    /// aggressor in a trade), **B**id for a buy order (or buy aggressor in a trade), or
-    /// **N**one where no side is specified by the original source.
+    /// The side that initiates the event. Can be **A**sk for a sell order
+    /// (or sell aggressor in a trade), **B**id for a buy order (or buy aggressor in a trade),
+    /// or **N**one where no side is specified.
+    ///
+    /// See [Side](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#side).
     #[dbn(c_char, encode_order(3))]
     pub side: c_char,
     /// A bit field indicating event end, message characteristics, and data quality. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
     #[pyo3(get, set)]
     pub flags: FlagSet,
-    /// The depth of actual book change.
+    /// The book level where the update event occurred.
     #[dbn(encode_order(4))]
     #[pyo3(get, set)]
     pub depth: u8,
     /// The capture-server-received timestamp expressed as the number of nanoseconds
     /// since the UNIX epoch.
+    ///
+    /// See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
     #[dbn(encode_order(0), index_ts, unix_nanos)]
     #[pyo3(get, set)]
     pub ts_recv: u64,
-    /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
+    /// The matching-engine-sending timestamp expressed as the number of nanoseconds before
+    /// `ts_recv`.
+    ///
+    /// See [ts_in_delta](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-in-delta).
     #[pyo3(get, set)]
     pub ts_in_delta: i32,
     /// The message sequence number assigned at the venue.
@@ -320,37 +371,47 @@ pub struct Mbp10Msg {
     /// The common header.
     #[pyo3(get)]
     pub hd: RecordHeader,
-    /// The order price expressed as a signed integer where every 1 unit
-    /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    /// The order price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
+    /// 0.000000001.
+    ///
+    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub price: i64,
     /// The order quantity.
     #[pyo3(get, set)]
     pub size: u32,
-    /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or
-    /// **T**rade.
+    /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R** book, or **T**rade.
+    ///
+    /// See [Action](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#action).
     #[dbn(c_char, encode_order(2))]
     pub action: c_char,
-    /// The side that initiates the event. Can be **A**sk for a sell order (or sell
-    /// aggressor in a trade), **B**id for a buy order (or buy aggressor in a trade), or
-    /// **N**one where no side is specified by the original source.
+    /// The side that initiates the event. Can be **A**sk for a sell order
+    /// (or sell aggressor in a trade), **B**id for a buy order (or buy aggressor in a trade),
+    /// or **N**one where no side is specified.
+    ///
+    /// See [Side](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#side).
     #[dbn(c_char, encode_order(3))]
     pub side: c_char,
     /// A bit field indicating event end, message characteristics, and data quality. See
     /// [`enums::flags`](crate::enums::flags) for possible values.
     #[pyo3(get, set)]
     pub flags: FlagSet,
-    /// The depth of actual book change.
+    /// The book level where the update event occurred.
     #[dbn(encode_order(4))]
     #[pyo3(get, set)]
     pub depth: u8,
     /// The capture-server-received timestamp expressed as the number of nanoseconds
     /// since the UNIX epoch.
+    ///
+    /// See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
     #[dbn(encode_order(0), index_ts, unix_nanos)]
     #[pyo3(get, set)]
     pub ts_recv: u64,
-    /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
+    /// The matching-engine-sending timestamp expressed as the number of nanoseconds before
+    /// `ts_recv`.
+    ///
+    /// See [ts_in_delta](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-in-delta).
     #[pyo3(get, set)]
     pub ts_in_delta: i32,
     /// The message sequence number assigned at the venue.
@@ -379,9 +440,11 @@ pub struct BboMsg {
     /// The common header.
     #[pyo3(get)]
     pub hd: RecordHeader,
-    /// The price of the last trade expressed as a signed integer where every 1 unit
-    /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be [`UNDEF_PRICE`](crate::UNDEF_PRICE)
-    /// if there was no last trade in the session.
+    /// The last trade price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
+    /// 0.000000001. Will be [`UNDEF_PRICE`](crate::UNDEF_PRICE) if there was no last trade in
+    /// the session.
+    ///
+    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub price: i64,
@@ -392,10 +455,10 @@ pub struct BboMsg {
     #[doc(hidden)]
     #[cfg_attr(feature = "serde", serde(skip))]
     pub _reserved1: u8,
-    /// The side that initiated the last trade. Can be **A**sk for a sell order (or sell
-    /// aggressor in a trade), **B**id for a buy order (or buy aggressor in a trade), or
-    /// **N**one where no side is specified by the original source or if there was no last
-    /// trade.
+    /// The side that initiated the last trade. Can be **A**sk for a sell aggressor, **B**id
+    /// for a buy aggressor, or **N**one where no side is specified.
+    ///
+    /// See [Side](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#side).
     #[dbn(c_char, encode_order(2))]
     pub side: c_char,
     /// A bit field indicating event end, message characteristics, and data quality. See
@@ -406,8 +469,8 @@ pub struct BboMsg {
     #[doc(hidden)]
     #[cfg_attr(feature = "serde", serde(skip))]
     pub _reserved2: u8,
-    /// The end timestamp of the interval as the number of nanoseconds since the UNIX
-    /// epoch. Clamped to the 1-second or 1-minute boundary.
+    /// The end timestamp of the interval, clamped to the second/minute boundary, expressed
+    /// as the number of nanoseconds since the UNIX epoch.
     #[dbn(encode_order(0), index_ts, unix_nanos)]
     #[pyo3(get, set)]
     pub ts_recv: u64,
@@ -441,21 +504,27 @@ pub struct Cmbp1Msg {
     /// The common header.
     #[pyo3(get)]
     pub hd: RecordHeader,
-    /// The order price expressed as a signed integer where every 1 unit
-    /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    /// The order price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
+    /// 0.000000001.
+    ///
+    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub price: i64,
     /// The order quantity.
     #[pyo3(get, set)]
     pub size: u32,
-    /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or
+    /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R** book, or
     /// **T**rade.
+    ///
+    /// See [Action](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#action).
     #[dbn(c_char, encode_order(2))]
     pub action: c_char,
-    /// The side that initiates the event. Can be **A**sk for a sell order (or sell
-    /// aggressor in a trade), **B**id for a buy order (or buy aggressor in a trade), or
-    /// **N**one where no side is specified by the original source.
+    /// The side that initiates the event. Can be **A**sk for a sell order
+    /// (or sell aggressor in a trade), **B**id for a buy order (or buy aggressor in a trade),
+    /// or **N**one where no side is specified.
+    ///
+    /// See [Side](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#side).
     #[dbn(c_char, encode_order(3))]
     pub side: c_char,
     /// A bit field indicating event end, message characteristics, and data quality. See
@@ -468,10 +537,15 @@ pub struct Cmbp1Msg {
     pub _reserved1: [c_char; 1],
     /// The capture-server-received timestamp expressed as the number of nanoseconds
     /// since the UNIX epoch.
+    ///
+    /// See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
     #[dbn(encode_order(0), index_ts, unix_nanos)]
     #[pyo3(get, set)]
     pub ts_recv: u64,
-    /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
+    /// The matching-engine-sending timestamp expressed as the number of nanoseconds before
+    /// `ts_recv`.
+    ///
+    /// See [ts_in_delta](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-in-delta).
     #[pyo3(get, set)]
     pub ts_in_delta: i32,
     #[doc(hidden)]
@@ -500,8 +574,11 @@ pub struct CbboMsg {
     /// The common header.
     #[pyo3(get)]
     pub hd: RecordHeader,
-    /// The price of the last trade expressed as a signed integer where every 1 unit
-    /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    /// The last trade price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
+    /// 0.000000001. Will be [`UNDEF_PRICE`](crate::UNDEF_PRICE) if there was no last trade in
+    /// the session.
+    ///
+    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub price: i64,
@@ -512,9 +589,10 @@ pub struct CbboMsg {
     #[doc(hidden)]
     #[cfg_attr(feature = "serde", serde(skip))]
     pub _reserved1: u8,
-    /// The side that initiated the last trade. Can be **A**sk for a sell order (or sell
-    /// aggressor in a trade), **B**id for a buy order (or buy aggressor in a trade), or
-    /// **N**one where no side is specified by the original source.
+    /// The side that initiated the last trade. Can be **A**sk for a sell aggressor, **B**id
+    /// for a buy aggressor, or **N**one where no side is specified.
+    ///
+    /// See [Side](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#side).
     #[dbn(c_char, encode_order(2))]
     pub side: c_char,
     /// A bit field indicating event end, message characteristics, and data quality. See
@@ -525,8 +603,8 @@ pub struct CbboMsg {
     #[doc(hidden)]
     #[cfg_attr(feature = "serde", serde(skip))]
     pub _reserved2: u8,
-    /// The interval timestamp expressed as the number of nanoseconds since the UNIX
-    /// epoch.
+    /// The end timestamp of the interval, clamped to the second/minute boundary, expressed
+    /// as the number of nanoseconds since the UNIX epoch.
     #[dbn(encode_order(0), index_ts, unix_nanos)]
     #[pyo3(get, set)]
     pub ts_recv: u64,
@@ -581,19 +659,31 @@ pub type Cbbo1MMsg = CbboMsg;
 pub struct OhlcvMsg {
     /// The common header.
     pub hd: RecordHeader,
-    /// The open price for the bar.
+    /// The open price for the bar where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
+    /// 0.000000001.
+    ///
+    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     #[pyo3(set)]
     pub open: i64,
-    /// The high price for the bar.
+    /// The high price for the bar where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
+    /// 0.000000001.
+    ///
+    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     #[pyo3(set)]
     pub high: i64,
-    /// The low price for the bar.
+    /// The low price for the bar where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
+    /// 0.000000001.
+    ///
+    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     #[pyo3(set)]
     pub low: i64,
-    /// The close price for the bar.
+    /// The close price for the bar where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
+    /// 0.000000001.
+    ///
+    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     #[pyo3(set)]
     pub close: i64,
@@ -622,6 +712,8 @@ pub struct StatusMsg {
     pub hd: RecordHeader,
     /// The capture-server-received timestamp expressed as the number of nanoseconds
     /// since the UNIX epoch.
+    ///
+    /// See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
     #[dbn(encode_order(0), index_ts, unix_nanos)]
     #[pyo3(get, set)]
     pub ts_recv: u64,
@@ -637,15 +729,16 @@ pub struct StatusMsg {
     #[dbn(fmt_method)]
     #[pyo3(get, set)]
     pub trading_event: u16,
-    /// The state of trading in the instrument.
+    /// The best-efforts state of trading in the instrument, either `Y`, `N` or `~`.
     #[dbn(c_char)]
     #[pyo3(get, set)]
     pub is_trading: c_char,
-    /// The state of quoting in the instrument.
+    /// The best-efforts state of quoting in the instrument, either `Y`, `N` or `~`.
     #[dbn(c_char)]
     #[pyo3(get, set)]
     pub is_quoting: c_char,
-    /// The state of short sell restrictions for the instrument.
+    /// The best-efforts state of short sell restrictions for the instrument (if applicable),
+    /// either `Y`, `N`, or `~`.
     #[dbn(c_char)]
     #[pyo3(get, set)]
     pub is_short_sell_restricted: c_char,
@@ -675,20 +768,26 @@ pub struct InstrumentDefMsg {
     pub hd: RecordHeader,
     /// The capture-server-received timestamp expressed as the number of nanoseconds
     /// since the UNIX epoch.
+    ///
+    /// See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
     #[dbn(encode_order(0), index_ts, unix_nanos)]
     #[pyo3(get, set)]
     pub ts_recv: u64,
-    /// The minimum constant tick for the instrument in units of 1e-9, i.e.
+    /// The minimum constant tick for the instrument where every 1 unit corresponds to 1e-9, i.e.
     /// 1/1,000,000,000 or 0.000000001.
+    ///
+    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub min_price_increment: i64,
-    /// The multiplier to convert the venue’s display price to the conventional price,
-    /// in units of 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    /// The multiplier to convert the venue’s display price to the conventional price where every
+    /// 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    ///
+    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub display_factor: i64,
-    /// The last eligible trade time expressed as a number of nanoseconds since the
+    /// The last eligible trade time expressed as the number of nanoseconds since the
     /// UNIX epoch.
     ///
     /// Will be [`crate::UNDEF_TIMESTAMP`] when null, such as for equities. Some publishers
@@ -696,7 +795,7 @@ pub struct InstrumentDefMsg {
     #[dbn(unix_nanos)]
     #[pyo3(get, set)]
     pub expiration: u64,
-    /// The time of instrument activation expressed as a number of nanoseconds since the
+    /// The time of instrument activation expressed as the number of nanoseconds since the
     /// UNIX epoch.
     ///
     /// Will be [`crate::UNDEF_TIMESTAMP`] when null, such as for equities. Some publishers
@@ -704,42 +803,59 @@ pub struct InstrumentDefMsg {
     #[dbn(unix_nanos)]
     #[pyo3(get, set)]
     pub activation: u64,
-    /// The allowable high limit price for the trading day in units of 1e-9, i.e.
-    /// 1/1,000,000,000 or 0.000000001.
+    /// The allowable high limit price for the trading day where every 1 unit corresponds to
+    /// 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    ///
+    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub high_limit_price: i64,
-    /// The allowable low limit price for the trading day in units of 1e-9, i.e.
-    /// 1/1,000,000,000 or 0.000000001.
+    /// The allowable low limit price for the trading day where every 1 unit corresponds to
+    /// 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    ///
+    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub low_limit_price: i64,
-    /// The differential value for price banding in units of 1e-9, i.e. 1/1,000,000,000
-    /// or 0.000000001.
+    /// The differential value for price banding where every 1 unit corresponds to 1e-9,
+    /// i.e. 1/1,000,000,000 or 0.000000001.
+    ///
+    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub max_price_variation: i64,
-    /// The trading session settlement price on `trading_reference_date`.
+    /// The trading session settlement price on `trading_reference_date` where every 1 unit
+    /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    ///
+    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub trading_reference_price: i64,
-    /// The contract size for each instrument, in combination with `unit_of_measure`, in units
-    /// of 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    /// The contract size for each instrument, in combination with `unit_of_measure`, where every
+    /// 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    ///
+    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub unit_of_measure_qty: i64,
-    /// The value currently under development by the venue. Converted to units of 1e-9, i.e.
-    /// 1/1,000,000,000 or 0.000000001.
+    /// The value currently under development by the venue where every 1 unit corresponds to 1e-9,
+    /// i.e. 1/1,000,000,000 or 0.000000001.
+    ///
+    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub min_price_increment_amount: i64,
-    /// The value used for price calculation in spread and leg pricing in units of 1e-9,
-    /// i.e. 1/1,000,000,000 or 0.000000001.
+    /// The value used for price calculation in spread and leg pricing where every 1 unit
+    /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    ///
+    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub price_ratio: i64,
-    /// The strike price of the option. Converted to units of 1e-9, i.e. 1/1,000,000,000
-    /// or 0.000000001.
+    /// The strike price of the option where every 1 unit corresponds to 1e-9, i.e.
+    /// 1/1,000,000,000 or 0.000000001.
+    ///
+    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price, encode_order(46))]
     #[pyo3(get, set)]
     pub strike_price: i64,
@@ -748,9 +864,13 @@ pub struct InstrumentDefMsg {
     #[pyo3(get, set)]
     pub inst_attrib_value: i32,
     /// The `instrument_id` of the first underlying instrument.
+    ///
+    /// See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers)
     #[pyo3(get, set)]
     pub underlying_id: u32,
     /// The instrument ID assigned by the publisher. May be the same as `instrument_id`.
+    ///
+    /// See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers)
     #[pyo3(get, set)]
     pub raw_instrument_id: u32,
     /// The implied book depth on the price level data feed.
@@ -837,8 +957,9 @@ pub struct InstrumentDefMsg {
     #[dbn(fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub cfi: [c_char; 7],
-    /// The [Security type](https://databento.com/docs/schemas-and-data-formats/instrument-definitions#security-type)
-    /// of the instrument, e.g. FUT for future or future spread.
+    /// The security type of the instrument, e.g. FUT for future or future spread.
+    ///
+    /// See [Security type](https://databento.com/docs/schemas-and-data-formats/instrument-definitions#security-type).
     #[dbn(fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub security_type: [c_char; 7],
@@ -855,10 +976,14 @@ pub struct InstrumentDefMsg {
     #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub strike_price_currency: [c_char; 4],
     /// The classification of the instrument.
+    ///
+    /// See [Instrument class](https://databento.com/docs/schemas-and-data-formats/instrument-definitions#instrument-class).
     #[dbn(c_char, encode_order(4))]
     #[pyo3(set)]
     pub instrument_class: c_char,
     /// The matching algorithm used for the instrument, typically **F**IFO.
+    ///
+    /// See [Matching algorithm](https://databento.com/docs/schemas-and-data-formats/instrument-definitions#matching-algorithm).
     #[dbn(c_char)]
     #[pyo3(set)]
     pub match_algorithm: c_char,
@@ -868,7 +993,7 @@ pub struct InstrumentDefMsg {
     /// The price denominator of the main fraction.
     #[pyo3(get, set)]
     pub main_fraction: u8,
-    ///  The number of digits to the right of the tick mark, to display fractional prices.
+    /// The number of digits to the right of the tick mark, to display fractional prices.
     #[pyo3(get, set)]
     pub price_display_format: u8,
     /// The type indicators for the settlement price, as a bitmap.
@@ -930,22 +1055,32 @@ pub struct ImbalanceMsg {
     pub hd: RecordHeader,
     /// The capture-server-received timestamp expressed as the number of nanoseconds
     /// since the UNIX epoch.
+    ///
+    /// See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
     #[dbn(encode_order(0), index_ts, unix_nanos)]
     #[pyo3(get, set)]
     pub ts_recv: u64,
-    /// The price at which the imbalance shares are calculated, where every 1 unit corresponds to
-    /// 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    /// The price at which the imbalance shares are calculated, where every 1 unit corresponds
+    /// to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    ///
+    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub ref_price: i64,
     /// Reserved for future use.
     #[pyo3(get, set)]
     pub auction_time: u64,
-    /// The hypothetical auction-clearing price for both cross and continuous orders.
+    /// The hypothetical auction-clearing price for both cross and continuous orders where every
+    /// 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    ///
+    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub cont_book_clr_price: i64,
-    /// The hypothetical auction-clearing price for cross orders only.
+    /// The hypothetical auction-clearing price for cross orders only where every 1 unit corresponds
+    /// to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    ///
+    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub auct_interest_clr_price: i64,
@@ -981,6 +1116,8 @@ pub struct ImbalanceMsg {
     #[dbn(c_char)]
     pub auction_type: c_char,
     /// The market side of the `total_imbalance_qty`. Can be **A**sk, **B**id, or **N**one.
+    ///
+    /// See [Side](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#side).
     #[dbn(c_char)]
     pub side: c_char,
     /// Reserved for future use.
@@ -1023,6 +1160,8 @@ pub struct StatMsg {
     pub hd: RecordHeader,
     /// The capture-server-received timestamp expressed as the number of nanoseconds
     /// since the UNIX epoch.
+    ///
+    /// See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
     #[dbn(encode_order(0), index_ts, unix_nanos)]
     #[pyo3(set)]
     pub ts_recv: u64,
@@ -1032,9 +1171,10 @@ pub struct StatMsg {
     #[dbn(unix_nanos)]
     #[pyo3(set)]
     pub ts_ref: u64,
-    /// The value for price statistics expressed as a signed integer where every 1 unit
-    /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be
-    /// [`UNDEF_PRICE`](crate::UNDEF_PRICE) when unused.
+    /// The value for price statistics where every 1 unit corresponds to 1e-9, i.e.
+    /// 1/1,000,000,000 or 0.000000001. Will be [`UNDEF_PRICE`](crate::UNDEF_PRICE) when unused.
+    ///
+    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices)
     #[dbn(fixed_price)]
     #[pyo3(set)]
     pub price: i64,
@@ -1045,11 +1185,14 @@ pub struct StatMsg {
     /// The message sequence number assigned at the venue.
     #[pyo3(set)]
     pub sequence: u32,
-    /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
+    /// The matching-engine-sending timestamp expressed as the number of nanoseconds before
+    /// `ts_recv`.
+    ///
+    /// See [ts_in_delta](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-in-delta).
     #[pyo3(set)]
     pub ts_in_delta: i32,
     /// The type of statistic value contained in the message. Refer to the
-    /// [`StatType`](crate::enums::StatType) for variants.
+    /// [`StatType`](crate::enums::StatType) enum for possible variants.
     #[dbn(fmt_method)]
     #[pyo3(set)]
     pub stat_type: u16,
@@ -1093,7 +1236,8 @@ pub struct ErrorMsg {
     #[dbn(fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub err: [c_char; 302],
-    /// The error code.
+    /// The error code. See the [`ErrorCode`](crate::enums::ErrorCode) enum
+    /// for possible values.
     #[pyo3(get, set)]
     pub code: u8,
     /// Sometimes multiple errors are sent together. This field will be non-zero for the
@@ -1171,7 +1315,8 @@ pub struct SystemMsg {
     #[dbn(fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub msg: [c_char; 303],
-    /// Type of system message.
+    /// Type of system message. See the [`SystemCode`](crate::enums::SystemCode) enum
+    /// for possible values.
     #[pyo3(get, set)]
     pub code: u8,
 }
@@ -1257,6 +1402,8 @@ pub struct WithTsOut<T: HasRType> {
     pub rec: T,
     /// The live gateway send timestamp expressed as the number of nanoseconds since the
     /// UNIX epoch.
+    ///
+    /// See [ts_out](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out).
     pub ts_out: u64,
 }
 

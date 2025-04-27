@@ -1126,6 +1126,8 @@ class RecordHeader:
         """
         The publisher ID assigned by Databento, which denotes the dataset and venue.
 
+        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
+
         Returns
         -------
         int
@@ -1135,7 +1137,9 @@ class RecordHeader:
     @property
     def instrument_id(self) -> int:
         """
-        The numeric ID assigned to the instrument.
+        The numeric instrument ID.
+
+        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
 
         Returns
         -------
@@ -1146,8 +1150,10 @@ class RecordHeader:
     @property
     def ts_event(self) -> int:
         """
-        The matching-engine-received timestamp expressed as the number of
-        nanoseconds since the UNIX epoch.
+        The matching-engine-received timestamp expressed as the number of nanoseconds
+        since the UNIX epoch.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
 
         Returns
         -------
@@ -1212,6 +1218,8 @@ class Record(SupportsBytes):
         """
         The publisher ID assigned by Databento, which denotes the dataset and venue.
 
+        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
+
         Returns
         -------
         int
@@ -1221,7 +1229,9 @@ class Record(SupportsBytes):
     @property
     def instrument_id(self) -> int:
         """
-        The numeric ID assigned to the instrument.
+        The numeric instrument ID.
+
+        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
 
         Returns
         -------
@@ -1244,8 +1254,10 @@ class Record(SupportsBytes):
     @property
     def ts_event(self) -> int:
         """
-        The matching-engine-received timestamp expressed as the number of
-        nanoseconds since the UNIX epoch.
+        The matching-engine-received timestamp expressed as the number of nanoseconds
+        since the UNIX epoch.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
 
         Returns
         -------
@@ -1256,8 +1268,10 @@ class Record(SupportsBytes):
     @property
     def ts_out(self) -> int | None:
         """
-        The live gateway send timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+        The live gateway send timestamp expressed as the number of nanoseconds since the
+        UNIX epoch.
+
+        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
 
         Returns
         -------
@@ -1299,8 +1313,10 @@ class _MBOBase:
     @property
     def price(self) -> int:
         """
-        The order price expressed as a signed integer where every 1 unit
-        corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+        The order price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
+        0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -1337,7 +1353,8 @@ class _MBOBase:
     @property
     def channel_id(self) -> int:
         """
-        A channel ID within the venue.
+        The channel ID assigned by Databento as an incrementing integer starting at
+        zero.
 
         Returns
         -------
@@ -1348,8 +1365,10 @@ class _MBOBase:
     @property
     def action(self) -> str:
         """
-        The event action. Can be `A`dd, `C`ancel, `M`odify, clea`R`, `T`rade,
-        or `F`ill.
+        The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R** book, **T**rade,
+        **F**ill, or **N**one.
+
+        See `Action` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#action.
 
         Returns
         -------
@@ -1360,9 +1379,11 @@ class _MBOBase:
     @property
     def side(self) -> str:
         """
-        The side that initiates the event. Can be `A`sk for a sell order (or sell
-        aggressor in a trade), `B`id for a buy order (or buy aggressor in a trade), or
-        `N`one where no side is specified by the original source.
+        The side that initiates the event. Can be **A**sk for a sell order
+        (or sell aggressor in a trade), **B**id for a buy order (or buy aggressor in a trade),
+        or **N**one where no side is specified.
+
+        See `Side` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#side.
 
         Returns
         -------
@@ -1385,8 +1406,10 @@ class _MBOBase:
     @property
     def ts_recv(self) -> int:
         """
-        The capture-server-received timestamp expressed as the number of
-        nanoseconds since the UNIX epoch.
+        The capture-server-received timestamp expressed as the number of nanoseconds
+        since the UNIX epoch.
+
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
 
         Returns
         -------
@@ -1397,7 +1420,10 @@ class _MBOBase:
     @property
     def ts_in_delta(self) -> int:
         """
-        The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
+        The matching-engine-sending timestamp expressed as the number of nanoseconds before
+        `ts_recv`.
+
+        See `ts_in_delta` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-in-delta.
 
         Returns
         -------
@@ -1470,8 +1496,10 @@ class BidAskPair:
     @property
     def bid_px(self) -> int:
         """
-        The bid price expressed as a signed integer where every 1 unit
-        corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+        The bid price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
+        0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -1501,8 +1529,10 @@ class BidAskPair:
     @property
     def ask_px(self) -> int:
         """
-        The ask price as a signed integer where every 1 unit
-        corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+        The ask price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
+        0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -1590,8 +1620,10 @@ class ConsolidatedBidAskPair:
     @property
     def bid_px(self) -> int:
         """
-        The bid price expressed as a signed integer where every 1 unit
-        corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+        The bid price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
+        0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -1621,8 +1653,10 @@ class ConsolidatedBidAskPair:
     @property
     def ask_px(self) -> int:
         """
-        The ask price as a signed integer where every 1 unit
-        corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+        The ask price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
+        0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -1659,7 +1693,9 @@ class ConsolidatedBidAskPair:
     @property
     def bid_pb(self) -> int:
         """
-        The bid publisher.
+        The publisher ID indicating the venue containing the best bid.
+
+        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -1681,7 +1717,9 @@ class ConsolidatedBidAskPair:
     @property
     def ask_pb(self) -> int:
         """
-        The ask publisher.
+        The publisher ID indicating the venue containing the best ask.
+
+        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -1723,8 +1761,10 @@ class _MBPBase:
     @property
     def price(self) -> int:
         """
-        The order price expressed as a signed integer where every 1 unit
-        corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+        The order price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
+        0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -1750,8 +1790,9 @@ class _MBPBase:
     @property
     def action(self) -> str:
         """
-        The event action. Can be `A`dd, `C`ancel, `M`odify, clea`R`, or
-        `T`rade.
+        The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R** book or **T**rade.
+
+        See `Action` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#action.
 
         Returns
         -------
@@ -1762,9 +1803,11 @@ class _MBPBase:
     @property
     def side(self) -> str:
         """
-        The side that initiates the event. Can be `A`sk for a sell order (or sell
-        aggressor in a trade), `B`id for a buy order (or buy aggressor in a trade), or
-        `N`one where no side is specified by the original source.
+        The side that initiates the event. Can be **A**sk for a sell order
+        (or sell aggressor in a trade), **B**id for a buy order (or buy aggressor in a trade),
+        or **N**one where no side is specified.
+
+        See `Side` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#side.
 
         Returns
         -------
@@ -1809,8 +1852,10 @@ class _MBPBase:
     @property
     def ts_recv(self) -> int:
         """
-        The capture-server-received timestamp expressed as the number of
-        nanoseconds since the UNIX epoch.
+        The capture-server-received timestamp expressed as the number of nanoseconds
+        since the UNIX epoch.
+
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
 
         Returns
         -------
@@ -1821,7 +1866,10 @@ class _MBPBase:
     @property
     def ts_in_delta(self) -> int:
         """
-        The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
+        The matching-engine-sending timestamp expressed as the number of nanoseconds before
+        `ts_recv`.
+
+        See `ts_in_delta` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-in-delta.
 
         Returns
         -------
@@ -1938,8 +1986,10 @@ class BBOMsg(Record):
     @property
     def price(self) -> int:
         """
-        The price of the last trade expressed as a signed integer where every 1 unit
-        corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+        The order price of the last trade where every 1 unit corresponds to 1e-9, i.e.
+        1/1,000,000,000 or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -1965,9 +2015,10 @@ class BBOMsg(Record):
     @property
     def side(self) -> str:
         """
-        The side that initiated the last trade. Can be `A`sk for a sell order (or sell
-        aggressor in a trade), `B`id for a buy order (or buy aggressor in a trade), or
-        `N`one where no side is specified by the original source.
+        The side that initiated the last trade. Can be **A**sk for a sell aggressor in a trade,
+        **B**id for a buy aggressor in a trade, or **N**one where no side is specified.
+
+        See `Side` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#side.
 
         Returns
         -------
@@ -1989,8 +2040,8 @@ class BBOMsg(Record):
     @property
     def pretty_ts_recv(self) -> dt.datetime | None:
         """
-        The capture-server-received timestamp as a datetime or
-        `pandas.Timestamp`, if available.
+        The end timestamp of the interval, clamped to the second/minute boundary, expressed as
+        a datetime or`pandas.Timestamp`, if available.
 
         Returns
         -------
@@ -2001,8 +2052,8 @@ class BBOMsg(Record):
     @property
     def ts_recv(self) -> int:
         """
-        The capture-server-received timestamp expressed as the number of
-        nanoseconds since the UNIX epoch.
+        The end timestamp of the interval, clamped to the second/minute boundary,
+        expressed as the number of nanoseconds since the UNIX epoch.
 
         Returns
         -------
@@ -2074,8 +2125,10 @@ class CMBP1Msg(Record):
     @property
     def price(self) -> int:
         """
-        The order price expressed as a signed integer where every 1 unit
-        corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+        The order price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
+        0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -2101,8 +2154,9 @@ class CMBP1Msg(Record):
     @property
     def action(self) -> str:
         """
-        The event action. Can be `A`dd, `C`ancel, `M`odify, clea`R`, or
-        `T`rade.
+        The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R** book, or **T**rade.
+
+        See `Action` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#action.
 
         Returns
         -------
@@ -2113,7 +2167,11 @@ class CMBP1Msg(Record):
     @property
     def side(self) -> str:
         """
-        The order side. Can be `A`sk, `B`id or `N`one.
+        The side that initiates the event. Can be **A**sk for a sell order
+        (or sell aggressor in a trade), **B**id for a buy order (or buy aggressor in a trade),
+        or **N**one where no side is specified.
+
+        See `Side` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#side.
 
         Returns
         -------
@@ -2146,7 +2204,8 @@ class CMBP1Msg(Record):
     @property
     def pretty_ts_recv(self) -> dt.datetime | None:
         """
-        The interval timestamp as a datetime or `pandas.Timestamp` if available.
+        The capture-server-received timestamp expressed as a datetime or `pandas.Timestamp`
+        if available.
 
         Returns
         -------
@@ -2157,7 +2216,10 @@ class CMBP1Msg(Record):
     @property
     def ts_recv(self) -> int:
         """
-        The interval timestamp expressed as the number of nanoseconds since the UNIX epoch.
+        The capture-server-received timestamp expressed as the number of nanoseconds
+        since the UNIX epoch.
+
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
 
         Returns
         -------
@@ -2168,7 +2230,10 @@ class CMBP1Msg(Record):
     @property
     def ts_in_delta(self) -> int:
         """
-        The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
+        The matching-engine-sending timestamp expressed as the number of nanoseconds before
+        `ts_recv`.
+
+        See `ts_in_delta` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-in-delta.
 
         Returns
         -------
@@ -2223,7 +2288,7 @@ class CBBOMsg(Record):
     @property
     def pretty_price(self) -> float:
         """
-        The price of the last trade as a float.
+        The order price of the last trade as a float.
 
         Returns
         -------
@@ -2238,8 +2303,10 @@ class CBBOMsg(Record):
     @property
     def price(self) -> int:
         """
-        The price of the last trade expressed as a signed integer where every 1 unit
-        corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+        The order price of the last trade where every 1 unit corresponds to 1e-9, i.e.
+        1/1,000,000,000 or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -2265,9 +2332,9 @@ class CBBOMsg(Record):
     @property
     def side(self) -> str:
         """
-        The side that initiated the last trade. Can be `A`sk for a sell order (or sell
-        aggressor in a trade), `B`id for a buy order (or buy aggressor in a trade), or
-        `N`one where no side is specified by the original source.
+        The side that initiated the last trade. Can be **A**sk for a sell order (or sell
+        aggressor in a trade), **B**id for a buy order (or buy aggressor in a trade), or
+        **N**one where no side is specified by the original source.
 
         Returns
         -------
@@ -2289,8 +2356,8 @@ class CBBOMsg(Record):
     @property
     def pretty_ts_recv(self) -> dt.datetime | None:
         """
-        The capture-server-received timestamp as a datetime or
-        `pandas.Timestamp`, if available.
+        The end timestamp of the interval, clamped to the second/minute boundary,
+        expressed as a datetime or `pandas.Timestamp`, if available.
 
         Returns
         -------
@@ -2301,8 +2368,8 @@ class CBBOMsg(Record):
     @property
     def ts_recv(self) -> int:
         """
-        The capture-server-received timestamp expressed as the number of
-        nanoseconds since the UNIX epoch.
+        The end timestamp of the interval, clamped to the second/minute boundary,
+        expressed as the number of nanoseconds since the UNIX epoch.
 
         Returns
         -------
@@ -2407,8 +2474,10 @@ class OHLCVMsg(Record):
     @property
     def open(self) -> int:
         """
-        The open price for the bar expressed as a signed integer where every 1
-        unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+        The open price for the bar where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000
+        or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -2438,8 +2507,10 @@ class OHLCVMsg(Record):
     @property
     def high(self) -> int:
         """
-        The high price for the bar expressed as a signed integer where every 1
-        unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+        The high price for the bar where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000
+        or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -2469,8 +2540,10 @@ class OHLCVMsg(Record):
     @property
     def low(self) -> int:
         """
-        The low price for the bar expressed as a signed integer where every 1
-        unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+        The low price for the bar where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000
+        or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -2500,8 +2573,10 @@ class OHLCVMsg(Record):
     @property
     def close(self) -> int:
         """
-        The close price for the bar expressed as a signed integer where every 1
-        unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+        The close price for the bar where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000
+        or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -2619,8 +2694,10 @@ class InstrumentDefMsgV3(Record):
     @property
     def ts_recv(self) -> int:
         """
-        The capture-server-received timestamp expressed as the number of
-        nanoseconds since the UNIX epoch.
+        The capture-server-received timestamp expressed as the number of nanoseconds
+        since the UNIX epoch.
+
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
 
         Returns
         -------
@@ -2646,8 +2723,10 @@ class InstrumentDefMsgV3(Record):
     @property
     def min_price_increment(self) -> int:
         """
-        The minimum constant tick for the instrument in units of 1e-9, i.e.
+        The minimum constant tick for the instrument where every 1 unit corresponds to 1e-9, i.e.
         1/1,000,000,000 or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -2662,8 +2741,10 @@ class InstrumentDefMsgV3(Record):
     @property
     def display_factor(self) -> int:
         """
-        The multiplier to convert the venue’s display price to the conventional
-        price.
+        The multiplier to convert the venue’s display price to the conventional price where every
+        1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -2747,8 +2828,10 @@ class InstrumentDefMsgV3(Record):
     @property
     def high_limit_price(self) -> int:
         """
-        The allowable high limit price for the trading day in units of 1e-9,
-        i.e. 1/1,000,000,000 or 0.000000001.
+        The allowable high limit price for the trading day where every 1 unit corresponds to
+        1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -2778,8 +2861,10 @@ class InstrumentDefMsgV3(Record):
     @property
     def low_limit_price(self) -> int:
         """
-        The allowable low limit price for the trading day in units of 1e-9,
-        i.e. 1/1,000,000,000 or 0.000000001.
+        The allowable low limit price for the trading day where every 1 unit corresponds to
+        1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -2809,8 +2894,10 @@ class InstrumentDefMsgV3(Record):
     @property
     def max_price_variation(self) -> int:
         """
-        The differential value for price banding in units of 1e-9, i.e.
-        1/1,000,000,000 or 0.000000001.
+        The differential value for price banding where every 1 unit corresponds to 1e-9,
+        i.e. 1/1,000,000,000 or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -2823,25 +2910,12 @@ class InstrumentDefMsgV3(Record):
         """
 
     @property
-    def pretty_trading_reference_price(self) -> float:
-        """
-        The trading session settlement price on `trading_reference_date` as a float.
-
-        Returns
-        -------
-        float
-
-        See Also
-        --------
-        trading_reference_price
-
-        """
-
-    @property
     def unit_of_measure_qty(self) -> int:
         """
-        The contract size for each instrument, in combination with
-        `unit_of_measure`.
+        The contract size for each instrument, in combination with `unit_of_measure`, where every
+        1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -2867,8 +2941,10 @@ class InstrumentDefMsgV3(Record):
     @property
     def min_price_increment_amount(self) -> int:
         """
-        The value currently under development by the venue. Converted to units
-        of 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+        The value currently under development by the venue where every 1 unit corresponds to 1e-9,
+        i.e. 1/1,000,000,000 or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -2899,8 +2975,10 @@ class InstrumentDefMsgV3(Record):
     @property
     def price_ratio(self) -> int:
         """
-        The value used for price calculation in spread and leg pricing in units
-        of 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+        The value used for price calculation in spread and leg pricing where every 1 unit
+        corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -2928,6 +3006,8 @@ class InstrumentDefMsgV3(Record):
         """
         The `instrument_id` of the first underlying instrument.
 
+        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
+
         Returns
         -------
         int
@@ -2938,6 +3018,8 @@ class InstrumentDefMsgV3(Record):
     def raw_instrument_id(self) -> int:
         """
         The instrument ID assigned by the publisher. May be the same as `instrument_id`.
+
+        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
 
         Returns
         -------
@@ -3051,7 +3133,7 @@ class InstrumentDefMsgV3(Record):
         The quantity that a contract will decay daily, after `decay_start_date`
         has been reached.
 
-        Retruns
+        Returns
         -------
         int
 
@@ -3149,7 +3231,7 @@ class InstrumentDefMsgV3(Record):
     @property
     def raw_symbol(self) -> str:
         """
-        The instrument name (symbol).
+        The instrument raw symbol assigned by the publisher.
 
         Returns
         -------
@@ -3204,7 +3286,9 @@ class InstrumentDefMsgV3(Record):
     @property
     def security_type(self) -> str:
         """
-        The type of the instrument, e.g. FUT for future or future spread.
+        The security type of the instrument, e.g. FUT for future or future spread.
+
+        See `Security Type` https://databento.com/docs/schemas-and-data-formats/instrument-definitions#security-type.
 
         Returns
         -------
@@ -3251,6 +3335,8 @@ class InstrumentDefMsgV3(Record):
         """
         The classification of the instrument.
 
+        See `Instrument class` https://databento.com/docs/schemas-and-data-formats/instrument-definitions#instrument-class
+
         Returns
         -------
         str
@@ -3275,8 +3361,10 @@ class InstrumentDefMsgV3(Record):
     @property
     def strike_price(self) -> int:
         """
-        The strike price of the option. Converted to units of 1e-9, i.e.
+        The strike price of the option where every 1 unit corresponds to 1e-9, i.e.
         1/1,000,000,000 or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -3292,6 +3380,8 @@ class InstrumentDefMsgV3(Record):
     def match_algorithm(self) -> str:
         """
         The matching algorithm used for the instrument, typically **F**IFO.
+
+        See `Matching algorithm` https://databento.com/docs/schemas-and-data-formats/instrument-definitions#matching-algorithm.
 
         Returns
         -------
@@ -3392,7 +3482,7 @@ class InstrumentDefMsgV3(Record):
     @property
     def user_defined_instrument(self) -> str:
         """
-        Indicates if the instrument is user defined: `Y`es or `N`o.
+        Indicates if the instrument is user defined: **Y**es or **N**o.
 
         Returns
         -------
@@ -3452,7 +3542,10 @@ class InstrumentDefMsgV3(Record):
     @property
     def leg_price(self) -> int:
         """
-        The leg price. Converted to units of 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+        The leg price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
+        0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -3482,7 +3575,10 @@ class InstrumentDefMsgV3(Record):
     @property
     def leg_delta(self) -> int:
         """
-        The leg delta. Converted to units of 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+        The leg delta where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
+        0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -3580,8 +3676,10 @@ class InstrumentDefMsg(Record):
     @property
     def ts_recv(self) -> int:
         """
-        The capture-server-received timestamp expressed as the number of
-        nanoseconds since the UNIX epoch.
+        The capture-server-received timestamp expressed as the number of nanoseconds
+        since the UNIX epoch.
+
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
 
         Returns
         -------
@@ -3607,8 +3705,10 @@ class InstrumentDefMsg(Record):
     @property
     def min_price_increment(self) -> int:
         """
-        The minimum constant tick for the instrument in units of 1e-9, i.e.
+        The minimum constant tick for the instrument where every 1 unit corresponds to 1e-9, i.e.
         1/1,000,000,000 or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -3623,8 +3723,10 @@ class InstrumentDefMsg(Record):
     @property
     def display_factor(self) -> int:
         """
-        The multiplier to convert the venue’s display price to the conventional
-        price.
+        The multiplier to convert the venue’s display price to the conventional price where every
+        1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -3708,8 +3810,10 @@ class InstrumentDefMsg(Record):
     @property
     def high_limit_price(self) -> int:
         """
-        The allowable high limit price for the trading day in units of 1e-9,
-        i.e. 1/1,000,000,000 or 0.000000001.
+        The allowable high limit price for the trading day where every 1 unit corresponds to
+        1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -3739,8 +3843,10 @@ class InstrumentDefMsg(Record):
     @property
     def low_limit_price(self) -> int:
         """
-        The allowable low limit price for the trading day in units of 1e-9,
-        i.e. 1/1,000,000,000 or 0.000000001.
+        The allowable low limit price for the trading day where every 1 unit corresponds to
+        1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -3770,8 +3876,10 @@ class InstrumentDefMsg(Record):
     @property
     def max_price_variation(self) -> int:
         """
-        The differential value for price banding in units of 1e-9, i.e.
-        1/1,000,000,000 or 0.000000001.
+        The differential value for price banding where every 1 unit corresponds to 1e-9,
+        i.e. 1/1,000,000,000 or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -3801,8 +3909,10 @@ class InstrumentDefMsg(Record):
     @property
     def trading_reference_price(self) -> int:
         """
-        The trading session settlement price on `trading_reference_date` in units of 1e-9, i.e.
-        1/1,000,000,000 or 0.000000001.
+        The trading session settlement price on `trading_reference_date` where every 1 unit
+        corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -3817,8 +3927,10 @@ class InstrumentDefMsg(Record):
     @property
     def unit_of_measure_qty(self) -> int:
         """
-        The contract size for each instrument, in combination with
-        `unit_of_measure`.
+        The contract size for each instrument, in combination with `unit_of_measure`, where every
+        1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -3844,8 +3956,10 @@ class InstrumentDefMsg(Record):
     @property
     def min_price_increment_amount(self) -> int:
         """
-        The value currently under development by the venue. Converted to units
-        of 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+        The value currently under development by the venue where every 1 unit corresponds to 1e-9,
+        i.e. 1/1,000,000,000 or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -3876,8 +3990,10 @@ class InstrumentDefMsg(Record):
     @property
     def price_ratio(self) -> int:
         """
-        The value used for price calculation in spread and leg pricing in units
-        of 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+        The value used for price calculation in spread and leg pricing where every 1 unit
+        corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -3905,6 +4021,8 @@ class InstrumentDefMsg(Record):
         """
         The `instrument_id` of the first underlying instrument.
 
+        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
+
         Returns
         -------
         int
@@ -3915,6 +4033,8 @@ class InstrumentDefMsg(Record):
     def raw_instrument_id(self) -> int:
         """
         The instrument ID assigned by the publisher. May be the same as `instrument_id`.
+
+        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
 
         Returns
         -------
@@ -4028,7 +4148,7 @@ class InstrumentDefMsg(Record):
         The quantity that a contract will decay daily, after `decay_start_date`
         has been reached.
 
-        Retruns
+        Returns
         -------
         int
 
@@ -4193,7 +4313,9 @@ class InstrumentDefMsg(Record):
     @property
     def security_type(self) -> str:
         """
-        The type of the instrument, e.g. FUT for future or future spread.
+        The security type of the instrument, e.g. FUT for future or future spread.
+
+        See `Security Type` https://databento.com/docs/schemas-and-data-formats/instrument-definitions#security-type.
 
         Returns
         -------
@@ -4240,6 +4362,8 @@ class InstrumentDefMsg(Record):
         """
         The classification of the instrument.
 
+        See `Instrument class` https://databento.com/docs/schemas-and-data-formats/instrument-definitions#instrument-class
+
         Returns
         -------
         str
@@ -4264,8 +4388,10 @@ class InstrumentDefMsg(Record):
     @property
     def strike_price(self) -> int:
         """
-        The strike price of the option. Converted to units of 1e-9, i.e.
+        The strike price of the option where every 1 unit corresponds to 1e-9, i.e.
         1/1,000,000,000 or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -4281,6 +4407,8 @@ class InstrumentDefMsg(Record):
     def match_algorithm(self) -> str:
         """
         The matching algorithm used for the instrument, typically **F**IFO.
+
+        See `Matching algorithm` https://databento.com/docs/schemas-and-data-formats/instrument-definitions#matching-algorithm.
 
         Returns
         -------
@@ -4403,7 +4531,7 @@ class InstrumentDefMsg(Record):
     @property
     def user_defined_instrument(self) -> str:
         """
-        Indicates if the instrument is user defined: `Y`es or `N`o.
+        Indicates if the instrument is user defined: **Y**es or **N**o.
 
         Returns
         -------
@@ -4531,8 +4659,10 @@ class InstrumentDefMsgV1(Record):
     @property
     def ts_recv(self) -> int:
         """
-        The capture-server-received timestamp expressed as the number of
-        nanoseconds since the UNIX epoch.
+        The capture-server-received timestamp expressed as the number of nanoseconds
+        since the UNIX epoch.
+
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
 
         Returns
         -------
@@ -4558,8 +4688,10 @@ class InstrumentDefMsgV1(Record):
     @property
     def min_price_increment(self) -> int:
         """
-        The minimum constant tick for the instrument in units of 1e-9, i.e.
+        The minimum constant tick for the instrument where every 1 unit corresponds to 1e-9, i.e.
         1/1,000,000,000 or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -4574,8 +4706,10 @@ class InstrumentDefMsgV1(Record):
     @property
     def display_factor(self) -> int:
         """
-        The multiplier to convert the venue’s display price to the conventional
-        price.
+        The multiplier to convert the venue’s display price to the conventional price where every
+        1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -4659,8 +4793,10 @@ class InstrumentDefMsgV1(Record):
     @property
     def high_limit_price(self) -> int:
         """
-        The allowable high limit price for the trading day in units of 1e-9,
-        i.e. 1/1,000,000,000 or 0.000000001.
+        The allowable high limit price for the trading day where every 1 unit corresponds to
+        1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -4690,8 +4826,10 @@ class InstrumentDefMsgV1(Record):
     @property
     def low_limit_price(self) -> int:
         """
-        The allowable low limit price for the trading day in units of 1e-9,
-        i.e. 1/1,000,000,000 or 0.000000001.
+        The allowable low limit price for the trading day where every 1 unit corresponds to
+        1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -4721,8 +4859,10 @@ class InstrumentDefMsgV1(Record):
     @property
     def max_price_variation(self) -> int:
         """
-        The differential value for price banding in units of 1e-9, i.e.
-        1/1,000,000,000 or 0.000000001.
+        The differential value for price banding where every 1 unit corresponds to 1e-9,
+        i.e. 1/1,000,000,000 or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -4752,8 +4892,10 @@ class InstrumentDefMsgV1(Record):
     @property
     def trading_reference_price(self) -> int:
         """
-        The trading session settlement price on `trading_reference_date` in units of 1e-9, i.e.
-        1/1,000,000,000 or 0.000000001.
+        The trading session settlement price on `trading_reference_date` where every 1 unit
+        corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -4768,8 +4910,10 @@ class InstrumentDefMsgV1(Record):
     @property
     def unit_of_measure_qty(self) -> int:
         """
-        The contract size for each instrument, in combination with
-        `unit_of_measure`.
+        The contract size for each instrument, in combination with `unit_of_measure`, where every
+        1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -4795,8 +4939,10 @@ class InstrumentDefMsgV1(Record):
     @property
     def min_price_increment_amount(self) -> int:
         """
-        The value currently under development by the venue. Converted to units
-        of 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+        The value currently under development by the venue where every 1 unit corresponds to 1e-9,
+        i.e. 1/1,000,000,000 or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -4827,8 +4973,10 @@ class InstrumentDefMsgV1(Record):
     @property
     def price_ratio(self) -> int:
         """
-        The value used for price calculation in spread and leg pricing in units
-        of 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+        The value used for price calculation in spread and leg pricing where every 1 unit
+        corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -4856,6 +5004,8 @@ class InstrumentDefMsgV1(Record):
         """
         The `instrument_id` of the first underlying instrument.
 
+        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
+
         Returns
         -------
         int
@@ -4866,6 +5016,8 @@ class InstrumentDefMsgV1(Record):
     def raw_instrument_id(self) -> int:
         """
         The instrument ID assigned by the publisher. May be the same as `instrument_id`.
+
+        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
 
         Returns
         -------
@@ -4979,7 +5131,7 @@ class InstrumentDefMsgV1(Record):
         The quantity that a contract will decay daily, after `decay_start_date`
         has been reached.
 
-        Retruns
+        Returns
         -------
         int
 
@@ -5144,7 +5296,9 @@ class InstrumentDefMsgV1(Record):
     @property
     def security_type(self) -> str:
         """
-        The type of the instrument, e.g. FUT for future or future spread.
+        The security type of the instrument, e.g. FUT for future or future spread.
+
+        See `Security Type` https://databento.com/docs/schemas-and-data-formats/instrument-definitions#security-type.
 
         Returns
         -------
@@ -5191,6 +5345,8 @@ class InstrumentDefMsgV1(Record):
         """
         The classification of the instrument.
 
+        See `Instrument class` https://databento.com/docs/schemas-and-data-formats/instrument-definitions#instrument-class
+
         Returns
         -------
         str
@@ -5215,8 +5371,10 @@ class InstrumentDefMsgV1(Record):
     @property
     def strike_price(self) -> int:
         """
-        The strike price of the option. Converted to units of 1e-9, i.e.
+        The strike price of the option where every 1 unit corresponds to 1e-9, i.e.
         1/1,000,000,000 or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -5232,6 +5390,8 @@ class InstrumentDefMsgV1(Record):
     def match_algorithm(self) -> str:
         """
         The matching algorithm used for the instrument, typically **F**IFO.
+
+        See `Matching algorithm` https://databento.com/docs/schemas-and-data-formats/instrument-definitions#matching-algorithm.
 
         Returns
         -------
@@ -5354,7 +5514,7 @@ class InstrumentDefMsgV1(Record):
     @property
     def user_defined_instrument(self) -> str:
         """
-        Indicates if the instrument is user defined: `Y`es or `N`o.
+        Indicates if the instrument is user defined: **Y**es or **N**o.
 
         Returns
         -------
@@ -5431,8 +5591,10 @@ class ImbalanceMsg(Record):
     @property
     def ts_recv(self) -> int:
         """
-        The capture-server-received timestamp expressed as the number of
-        nanoseconds since the UNIX epoch.
+        The capture-server-received timestamp expressed as the number of nanoseconds
+        since the UNIX epoch.
+
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
 
         Returns
         -------
@@ -5460,6 +5622,8 @@ class ImbalanceMsg(Record):
         """
         The price at which the imbalance shares are calculated, where every 1
         unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -5505,6 +5669,8 @@ class ImbalanceMsg(Record):
         orders where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
         0.000000001.
 
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
+
         Returns
         -------
         int
@@ -5536,6 +5702,8 @@ class ImbalanceMsg(Record):
         """
         The hypothetical auction-clearing price for cross orders only where
         every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -5649,8 +5817,8 @@ class ImbalanceMsg(Record):
     @property
     def side(self) -> str:
         """
-        The market side of the `total_imbalance_qty`. Can be `A`sk, `B`id, or
-        `N`one.
+        The market side of the `total_imbalance_qty`. Can be **A**sk, **B**id, or
+        **N**one.
 
         Returns
         -------
@@ -5754,8 +5922,10 @@ class StatMsg(Record):
     @property
     def ts_recv(self) -> int:
         """
-        The capture-server-received timestamp expressed as the number of
-        nanoseconds since the UNIX epoch.
+        The capture-server-received timestamp expressed as the number of nanoseconds
+        since the UNIX epoch.
+
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
 
         Returns
         -------
@@ -5778,8 +5948,8 @@ class StatMsg(Record):
     @property
     def ts_ref(self) -> int:
         """
-        Reference timestamp expressed as the number of nanoseconds since the
-        UNIX epoch.
+        The reference timestamp of the statistic value expressed as the number of
+        nanoseconds since the UNIX epoch. Will be `UNDEF_TIMESTAMP` when unused.
 
         Returns
         -------
@@ -5805,9 +5975,10 @@ class StatMsg(Record):
     @property
     def price(self) -> int:
         """
-        The value for price statistics expressed as a signed integer where
-        every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
-        Will be undefined when unused.
+        The order price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
+        0.000000001.
+
+        See `Prices` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
 
         Returns
         -------
@@ -5844,7 +6015,10 @@ class StatMsg(Record):
     @property
     def ts_in_delta(self) -> int:
         """
-        The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
+        The matching-engine-sending timestamp expressed as the number of nanoseconds before
+        `ts_recv`.
+
+        See `ts_in_delta` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-in-delta.
 
         Returns
         -------
@@ -5917,8 +6091,10 @@ class StatusMsg(Record):
     @property
     def ts_recv(self) -> int:
         """
-        The capture-server-received timestamp expressed as the number of
-        nanoseconds since the UNIX epoch.
+        The capture-server-received timestamp expressed as the number of nanoseconds
+        since the UNIX epoch.
+
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
 
         Returns
         -------
@@ -5962,7 +6138,7 @@ class StatusMsg(Record):
     @property
     def is_trading(self) -> bool | None:
         """
-        The state of trading in the instrument.
+        The best-efforts state of trading in the instrument, either `Y`, `N`, or `~`.
 
         Returns
         -------
@@ -5973,7 +6149,7 @@ class StatusMsg(Record):
     @property
     def is_quoting(self) -> bool | None:
         """
-        The state of quoting in the instrument.
+        The best-efforts state of quoting in the instrument, either `Y`, `N`, or `~`.
 
         Returns
         -------
@@ -5984,7 +6160,8 @@ class StatusMsg(Record):
     @property
     def is_short_sell_restricted(self) -> bool | None:
         """
-        The state of short sell restrictions for the instrument.
+        The best-efforts state of short sell restrictions for the instrument (if applicable),
+        either `Y`, `N`, or `~`.
 
         Returns
         -------
@@ -6022,7 +6199,8 @@ class ErrorMsg(ErrorMsgV1):
     @property
     def is_last(self) -> int:
         """
-        Whether this is the last record in a chain.
+        Sometimes multiple errors are sent together. This field will be non-zero for the
+        last error.
 
         Returns
         -------

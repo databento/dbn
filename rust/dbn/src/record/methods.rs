@@ -122,7 +122,8 @@ impl MboMsg {
         ts_to_dt(self.ts_recv)
     }
 
-    /// Parses the raw `ts_in_delta`—the delta of `ts_recv - ts_exchange_send`—into a duration.
+    /// Parses the raw `ts_in_delta`—the delta of `ts_recv` - matching-engine-sending timestamp—
+    /// into a duration.
     pub fn ts_in_delta(&self) -> time::Duration {
         time::Duration::new(0, self.ts_in_delta)
     }
@@ -178,7 +179,7 @@ impl TradeMsg {
         ts_to_dt(self.ts_recv)
     }
 
-    /// Parses the raw `ts_in_delta`—the delta of `ts_recv - ts_exchange_send`—into a duration.
+    /// Parses the raw `ts_in_delta` into a duration.
     pub fn ts_in_delta(&self) -> time::Duration {
         time::Duration::new(0, self.ts_in_delta)
     }
@@ -243,7 +244,7 @@ impl Cmbp1Msg {
         ts_to_dt(self.ts_recv)
     }
 
-    /// Parses the raw `ts_in_delta`—the delta of `ts_recv - ts_exchange_send`—into a duration.
+    /// Parses the raw `ts_in_delta` into a duration.
     pub fn ts_in_delta(&self) -> time::Duration {
         time::Duration::new(0, self.ts_in_delta)
     }
@@ -346,7 +347,7 @@ impl Mbp1Msg {
         ts_to_dt(self.ts_recv)
     }
 
-    /// Parses the raw `ts_in_delta`—the delta of `ts_recv - ts_exchange_send`—into a duration.
+    /// Parses the raw `ts_in_delta` into a duration.
     pub fn ts_in_delta(&self) -> time::Duration {
         time::Duration::new(0, self.ts_in_delta)
     }
@@ -386,7 +387,7 @@ impl Mbp10Msg {
         ts_to_dt(self.ts_recv)
     }
 
-    /// Parses the raw `ts_in_delta`—the delta of `ts_recv - ts_exchange_send`—into a duration.
+    /// Parses the raw `ts_in_delta` into a duration.
     pub fn ts_in_delta(&self) -> time::Duration {
         time::Duration::new(0, self.ts_in_delta)
     }
@@ -719,7 +720,7 @@ impl StatMsg {
         })
     }
 
-    /// Parses the raw `ts_in_delta`—the delta of `ts_recv - ts_exchange_send`—into a duration.
+    /// Parses the raw `ts_in_delta` into a duration.
     pub fn ts_in_delta(&self) -> time::Duration {
         time::Duration::new(0, self.ts_in_delta)
     }
