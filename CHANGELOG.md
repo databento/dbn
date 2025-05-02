@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.33.2 - TBD
+
+### Enhancements
+- Added `with_compression_level` methods to `DynWriter`, `AsyncDynWriter`, and
+  `AsyncDynBufWriter`
+
+### Bug fixes
+- Fixed `AsyncDynBufWriter` interface
+
 ## 0.33.1 - 2025-04-29
 
 ### Enhancements
