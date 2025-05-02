@@ -1,13 +1,12 @@
 //! Record data types for encoding different Databento [`Schema`](crate::enums::Schema)s
 //! in DBN version 1.
 
-pub use crate::compat::ErrorMsgV1 as ErrorMsg;
-pub use crate::compat::InstrumentDefMsgV1 as InstrumentDefMsg;
-use crate::compat::InstrumentDefRec;
-pub use crate::compat::SymbolMappingMsgV1 as SymbolMappingMsg;
-pub use crate::compat::SystemMsgV1 as SystemMsg;
-pub use crate::compat::ASSET_CSTR_LEN_V1 as ASSET_CSTR_LEN;
-pub use crate::compat::SYMBOL_CSTR_LEN_V1 as SYMBOL_CSTR_LEN;
+pub use crate::compat::{
+    ErrorMsgV1 as ErrorMsg, InstrumentDefMsgV1 as InstrumentDefMsg,
+    SymbolMappingMsgV1 as SymbolMappingMsg, SystemMsgV1 as SystemMsg,
+    ASSET_CSTR_LEN_V1 as ASSET_CSTR_LEN, SYMBOL_CSTR_LEN_V1 as SYMBOL_CSTR_LEN,
+    UNDEF_STAT_QUANTITY_V1 as UNDEF_STAT_QUANTITY,
+};
 pub use crate::record::{
     Bbo1MMsg, Bbo1SMsg, BboMsg, Cbbo1MMsg, Cbbo1SMsg, CbboMsg, Cmbp1Msg, ImbalanceMsg, MboMsg,
     OhlcvMsg, StatMsg, StatusMsg, TbboMsg, TcbboMsg, TradeMsg, WithTsOut,
@@ -16,7 +15,10 @@ pub use crate::record::{
 mod impl_default;
 mod methods;
 
-use crate::compat::SymbolMappingRec;
+use crate::compat::{InstrumentDefRec, StatRec, SymbolMappingRec};
+
+/// The DBN version of this module.
+pub const DBN_VERSION: u8 = 1;
 
 impl SymbolMappingRec for SymbolMappingMsg {
     fn stype_in_symbol(&self) -> crate::Result<&str> {
@@ -55,6 +57,34 @@ impl InstrumentDefRec for InstrumentDefMsg {
 
     fn channel_id(&self) -> u16 {
         self.channel_id
+    }
+}
+
+impl StatRec for StatMsg {
+    const UNDEF_STAT_QUANTITY: i64 = UNDEF_STAT_QUANTITY as i64;
+
+    fn stat_type(&self) -> crate::Result<crate::StatType> {
+        Self::stat_type(self)
+    }
+
+    fn ts_recv(&self) -> Option<time::OffsetDateTime> {
+        Self::ts_recv(self)
+    }
+
+    fn ts_ref(&self) -> Option<time::OffsetDateTime> {
+        Self::ts_ref(self)
+    }
+
+    fn update_action(&self) -> crate::Result<crate::StatUpdateAction> {
+        Self::update_action(self)
+    }
+
+    fn price(&self) -> i64 {
+        self.price
+    }
+
+    fn quantity(&self) -> i64 {
+        self.quantity as i64
     }
 }
 

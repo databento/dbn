@@ -46,10 +46,7 @@ where
     }
 }
 
-impl<T> BufferSlice for VecStream<T>
-where
-    T: HasRType + AsRef<[u8]>,
-{
+impl<T: HasRType> BufferSlice for VecStream<T> {
     fn buffer_slice(&self) -> &[u8] {
         self.vec
             .get(self.idx as usize)

@@ -3,7 +3,10 @@
 use pyo3::{prelude::*, wrap_pyfunction, PyClass};
 
 use dbn::{
-    compat::{ErrorMsgV1, InstrumentDefMsgV1, InstrumentDefMsgV3, SymbolMappingMsgV1, SystemMsgV1},
+    compat::{
+        ErrorMsgV1, InstrumentDefMsgV1, InstrumentDefMsgV3, StatMsgV3, SymbolMappingMsgV1,
+        SystemMsgV1,
+    },
     flags,
     python::{DBNError, EnumIterator},
     Action, BboMsg, BidAskPair, CbboMsg, Cmbp1Msg, Compression, ConsolidatedBidAskPair, Encoding,
@@ -56,6 +59,7 @@ fn databento_dbn(_py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     checked_add_class::<SystemMsg>(m)?;
     checked_add_class::<SystemMsgV1>(m)?;
     checked_add_class::<StatMsg>(m)?;
+    checked_add_class::<StatMsgV3>(m)?;
     checked_add_class::<BboMsg>(m)?;
     checked_add_class::<CbboMsg>(m)?;
     checked_add_class::<Cmbp1Msg>(m)?;

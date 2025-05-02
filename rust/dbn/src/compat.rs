@@ -14,6 +14,13 @@ pub const ASSET_CSTR_LEN_V2: usize = ASSET_CSTR_LEN_V1;
 /// The length of asset field in instrument definitions in DBN version 3 (future version).
 pub const ASSET_CSTR_LEN_V3: usize = 11;
 
+/// The sentinel value for an unset or null stat quantity in DBN version 1.
+pub const UNDEF_STAT_QUANTITY_V1: i32 = i32::MAX;
+/// The sentinel value for an unset or null stat quantity in DBN version 2.
+pub const UNDEF_STAT_QUANTITY_V2: i32 = UNDEF_STAT_QUANTITY_V1;
+/// The sentinel value for an unset or null stat quantity in DBN version 3.
+pub const UNDEF_STAT_QUANTITY_V3: i64 = i64::MAX;
+
 pub(crate) const METADATA_RESERVED_LEN_V1: usize = 47;
 
 /// Returns the length of symbol fields in the given DBN version
@@ -39,8 +46,8 @@ use dbn_macros::MockPyo3;
 use crate::{
     macros::{dbn_record, CsvSerialize, JsonSerialize},
     record::{transmute_header_bytes, transmute_record_bytes},
-    rtype, HasRType, RecordHeader, RecordRef, SecurityUpdateAction, UserDefinedInstrument,
-    VersionUpgradePolicy, WithTsOut, DBN_VERSION,
+    rtype, HasRType, RecordHeader, RecordRef, SecurityUpdateAction, StatType, StatUpdateAction,
+    UserDefinedInstrument, VersionUpgradePolicy, WithTsOut, DBN_VERSION,
 };
 
 /// Decodes bytes into a [`RecordRef`], optionally applying conversion from structs
@@ -126,7 +133,7 @@ unsafe fn upgrade_record<'a, T, U>(
 ) -> RecordRef<'a>
 where
     T: HasRType,
-    U: AsRef<[u8]> + HasRType + for<'b> From<&'b T>,
+    U: HasRType + for<'b> From<&'b T>,
 {
     if ts_out {
         let rec = transmute_record_bytes::<WithTsOut<T>>(input).unwrap();
@@ -176,7 +183,8 @@ pub trait InstrumentDefRec: HasRType {
     /// This function returns an error if `asset` contains invalid UTF-8.
     fn asset(&self) -> crate::Result<&str>;
 
-    /// Returns the [Security type](https://databento.com/docs/schemas-and-data-formats/instrument-definitions#security-type) of the instrument, e.g. FUT for future or future spread as a `&str`.
+    /// Returns the [Security type](https://databento.com/docs/schemas-and-data-formats/instrument-definitions#security-type)
+    /// of the instrument, e.g. FUT for future or future spread as a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `security_type` contains invalid UTF-8.
@@ -193,6 +201,42 @@ pub trait InstrumentDefRec: HasRType {
     /// The channel ID assigned by Databento as an incrementing integer starting at
     /// zero.
     fn channel_id(&self) -> u16;
+}
+
+/// A trait for compatibility between different versions of statistics records.
+pub trait StatRec: HasRType {
+    /// The sentinel value for a null `quantity`.
+    const UNDEF_STAT_QUANTITY: i64;
+
+    /// Tries to convert the raw type of the statistic value to an enum.
+    ///
+    /// # Errors
+    /// This function returns an error if the `stat_type` field does not
+    /// contain a valid [`StatType`].
+    fn stat_type(&self) -> crate::Result<StatType>;
+
+    /// Parses the raw capture-server-received timestamp into a datetime. Returns `None`
+    /// if `ts_recv` contains the sentinel for a null timestamp.
+    fn ts_recv(&self) -> Option<time::OffsetDateTime>;
+
+    /// Parses the raw reference timestamp of the statistic value into a datetime.
+    /// Returns `None` if `ts_ref` contains the sentinel for a null timestamp.
+    fn ts_ref(&self) -> Option<time::OffsetDateTime>;
+
+    /// Tries to convert the raw `update_action` to an enum.
+    ///
+    /// # Errors
+    /// This function returns an error if the `update_action` field does not
+    /// contain a valid [`StatUpdateAction`].
+    fn update_action(&self) -> crate::Result<StatUpdateAction>;
+
+    /// The value for price statistics expressed as a signed integer where every 1 unit
+    /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be
+    /// [`UNDEF_PRICE`](crate::UNDEF_PRICE) when unused.
+    fn price(&self) -> i64;
+
+    /// The value for quantity statistics. Will be `UNDEF_STAT_QUANTITY` when unused.
+    fn quantity(&self) -> i64;
 }
 
 // NOTE: Versioned records need to be defined in this file to work with cbindgen.
@@ -369,7 +413,8 @@ pub struct InstrumentDefMsgV1 {
     /// The ISO standard instrument categorization code.
     #[dbn(fmt_method)]
     pub cfi: [c_char; 7],
-    /// The type of the instrument, e.g. FUT for future or future spread.
+    /// The [Security type](https://databento.com/docs/schemas-and-data-formats/instrument-definitions#security-type)
+    /// of the instrument, e.g. FUT for future or future spread.
     #[dbn(fmt_method)]
     pub security_type: [c_char; 7],
     /// The unit of measure for the instrument’s original contract size, e.g. USD or LBS.
@@ -747,7 +792,8 @@ pub struct InstrumentDefMsgV3 {
     #[dbn(fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub cfi: [c_char; 7],
-    /// The type of the instrument, e.g. FUT for future or future spread.
+    /// The [Security type](https://databento.com/docs/schemas-and-data-formats/instrument-definitions#security-type)
+    /// of the instrument, e.g. FUT for future or future spread.
     #[dbn(fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub security_type: [c_char; 7],
@@ -822,6 +868,74 @@ pub struct InstrumentDefMsgV3 {
     #[doc(hidden)]
     #[cfg_attr(feature = "serde", serde(skip))]
     pub _reserved: [u8; 17],
+}
+
+/// A statistics message. A catchall for various data disseminated by publishers.
+/// The [`stat_type`](Self::stat_type) indicates the statistic contained in the message.
+#[repr(C)]
+#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(dict, eq, get_all, module = "databento_dbn"),
+    derive(crate::macros::PyFieldDesc)
+)]
+#[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
+#[cfg_attr(test, derive(type_layout::TypeLayout))]
+#[dbn_record(rtype::STATISTICS)]
+pub struct StatMsgV3 {
+    /// The common header.
+    pub hd: RecordHeader,
+    /// The capture-server-received timestamp expressed as the number of nanoseconds
+    /// since the UNIX epoch.
+    #[dbn(encode_order(0), index_ts, unix_nanos)]
+    #[pyo3(set)]
+    pub ts_recv: u64,
+    /// The reference timestamp of the statistic value expressed as the number of
+    /// nanoseconds since the UNIX epoch. Will be [`crate::UNDEF_TIMESTAMP`] when
+    /// unused.
+    #[dbn(unix_nanos)]
+    #[pyo3(set)]
+    pub ts_ref: u64,
+    /// The value for price statistics expressed as a signed integer where every 1 unit
+    /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be
+    /// [`UNDEF_PRICE`](crate::UNDEF_PRICE) when unused.
+    #[dbn(fixed_price)]
+    #[pyo3(set)]
+    pub price: i64,
+    /// The value for non-price statistics. Will be [`crate::UNDEF_STAT_QUANTITY`] when
+    /// unused.
+    #[pyo3(set)]
+    pub quantity: i64,
+    /// The message sequence number assigned at the venue.
+    #[pyo3(set)]
+    pub sequence: u32,
+    /// The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
+    #[pyo3(set)]
+    pub ts_in_delta: i32,
+    /// The type of statistic value contained in the message. Refer to the
+    /// [`StatType`](crate::enums::StatType) for variants.
+    #[dbn(fmt_method)]
+    #[pyo3(set)]
+    pub stat_type: u16,
+    /// The channel ID assigned by Databento as an incrementing integer starting at
+    /// zero.
+    #[pyo3(set)]
+    pub channel_id: u16,
+    /// Indicates if the statistic is newly added (1) or deleted (2). (Deleted is only used with
+    /// some stat types)
+    #[dbn(fmt_method)]
+    #[pyo3(set)]
+    pub update_action: u8,
+    /// Additional flags associate with certain stat types.
+    #[dbn(fmt_binary)]
+    #[pyo3(set)]
+    pub stat_flags: u8,
+    // Filler for alignment
+    #[doc(hidden)]
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub _reserved: [u8; 18],
 }
 
 #[cfg(test)]
