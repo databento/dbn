@@ -176,8 +176,7 @@ pub trait InstrumentDefRec: HasRType {
     /// This function returns an error if `asset` contains invalid UTF-8.
     fn asset(&self) -> crate::Result<&str>;
 
-    /// Returns the type of the strument, e.g. FUT for future or future spread as
-    /// a `&str`.
+    /// Returns the [Security type](https://databento.com/docs/schemas-and-data-formats/instrument-definitions#security-type) of the instrument, e.g. FUT for future or future spread as a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `security_type` contains invalid UTF-8.
