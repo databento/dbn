@@ -1,6 +1,6 @@
 use std::io;
 
-use super::zstd_encoder;
+use super::{zstd_encoder, zstd_encoder_with_clevel};
 use crate::{Compression, Result};
 
 /// Type for runtime polymorphism over whether encoding uncompressed or ZStd-compressed
@@ -21,15 +21,25 @@ impl<W> DynWriter<'_, W>
 where
     W: io::Write,
 {
-    /// Create a new instance of [`DynWriter`] which will wrap `writer` with `compression`.
+    /// Creates a new instance of [`DynWriter`] which will wrap `writer` with `compression`.
     ///
     /// # Errors
-    /// This function returns an error if it fails to initialize the Zstd compression.
+    /// This function returns an error if it fails to initialize the Zstd encoder.
     pub fn new(writer: W, compression: Compression) -> Result<Self> {
         match compression {
             Compression::None => Ok(Self(DynWriterImpl::Uncompressed(writer))),
             Compression::ZStd => zstd_encoder(writer).map(|enc| Self(DynWriterImpl::Zstd(enc))),
         }
+    }
+
+    /// Creates a new instance with zstd compression of the specified level.
+    ///
+    /// # Errors
+    /// This function returns an error if it fails to initialize the Zstd encoder.
+    pub fn with_compression_level(writer: W, level: i32) -> Result<Self> {
+        Ok(Self(DynWriterImpl::Zstd(zstd_encoder_with_clevel(
+            writer, level,
+        )?)))
     }
 
     /// Returns a mutable reference to the underlying writer.
@@ -96,50 +106,40 @@ mod r#async {
     use async_compression::tokio::write::ZstdEncoder;
     use tokio::io::{self, BufWriter};
 
-    use crate::{encode::async_zstd_encoder, enums::Compression};
+    use crate::{
+        encode::{async_zstd_encoder, async_zstd_encoder_with_clevel},
+        enums::Compression,
+    };
 
     /// An object that allows for abstracting over compressed and uncompressed output
     /// with buffering.
-    pub struct DynBufWriter<W, B = W>(DynBufWriterImpl<W, B>)
-    where
-        W: io::AsyncWriteExt + Unpin,
-        B: io::AsyncWriteExt + Unpin;
+    pub struct DynBufWriter<W, B = W>(DynBufWriterImpl<W, B>);
 
-    enum DynBufWriterImpl<W, B>
-    where
-        W: io::AsyncWriteExt + Unpin,
-        B: io::AsyncWriteExt + Unpin,
-    {
+    enum DynBufWriterImpl<W, B> {
         Uncompressed(B),
         Zstd(ZstdEncoder<W>),
-    }
-
-    impl<W> DynBufWriter<W>
-    where
-        W: io::AsyncWriteExt + Unpin,
-    {
-        /// Creates a new instance of [`DynWriter`] which will wrap `writer` with
-        /// `compression`.
-        pub fn new(writer: W, compression: Compression) -> Self {
-            Self(match compression {
-                Compression::None => DynBufWriterImpl::Uncompressed(writer),
-                Compression::ZStd => DynBufWriterImpl::Zstd(async_zstd_encoder(writer)),
-            })
-        }
     }
 
     impl<W> DynBufWriter<W, BufWriter<W>>
     where
         W: io::AsyncWriteExt + Unpin,
     {
-        /// Creates a new instance of [`DynWriter`], wrapping `writer` in a `BufWriter`.
-        pub fn new_buffered(writer: W, compression: Compression) -> Self {
+        /// Creates a new instance which will wrap `writer` in a `BufWriter` and
+        /// `compression`.
+        pub fn new(writer: W, compression: Compression) -> Self {
             Self(match compression {
                 Compression::None => DynBufWriterImpl::Uncompressed(BufWriter::new(writer)),
-                // `ZstdEncoder` already wraps `W` in a `BufWriter`, cf.
-                // https://github.com/Nullus157/async-compression/blob/main/src/tokio/write/generic/encoder.rs
+                // async zstd always wraps the writer in a BufWriter
                 Compression::ZStd => DynBufWriterImpl::Zstd(async_zstd_encoder(writer)),
             })
+        }
+
+        /// Creates a new instance, wrapping `writer` in a `BufWriter` and compressing
+        /// the output according to `level`.
+        pub fn with_compression_level(writer: W, level: i32) -> Self {
+            Self(DynBufWriterImpl::Zstd(async_zstd_encoder_with_clevel(
+                writer, level,
+            )))
         }
     }
 
@@ -202,6 +202,13 @@ mod r#async {
                 Compression::None => DynWriterImpl::Uncompressed(writer),
                 Compression::ZStd => DynWriterImpl::Zstd(async_zstd_encoder(writer)),
             })
+        }
+
+        /// Creates a new instance, compressing the output according to `level`.
+        pub fn with_compression_level(writer: W, level: i32) -> Self {
+            Self(DynWriterImpl::Zstd(async_zstd_encoder_with_clevel(
+                writer, level,
+            )))
         }
 
         /// Returns a mutable reference to the underlying writer.

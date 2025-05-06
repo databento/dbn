@@ -202,8 +202,15 @@ pub trait EncodeRecordTextExt: EncodeRecord + EncodeRecordRef {
 pub const ZSTD_COMPRESSION_LEVEL: i32 = 0;
 
 fn zstd_encoder<'a, W: io::Write>(writer: W) -> Result<zstd::stream::AutoFinishEncoder<'a, W>> {
-    let mut zstd_encoder = zstd::Encoder::new(writer, ZSTD_COMPRESSION_LEVEL)
-        .map_err(|e| Error::io(e, "creating zstd encoder"))?;
+    zstd_encoder_with_clevel(writer, ZSTD_COMPRESSION_LEVEL)
+}
+
+fn zstd_encoder_with_clevel<'a, W: io::Write>(
+    writer: W,
+    level: i32,
+) -> Result<zstd::stream::AutoFinishEncoder<'a, W>> {
+    let mut zstd_encoder =
+        zstd::Encoder::new(writer, level).map_err(|e| Error::io(e, "creating zstd encoder"))?;
     zstd_encoder
         .include_checksum(true)
         .map_err(|e| Error::io(e, "setting zstd checksum"))?;
@@ -214,9 +221,17 @@ fn zstd_encoder<'a, W: io::Write>(writer: W) -> Result<zstd::stream::AutoFinishE
 fn async_zstd_encoder<W: tokio::io::AsyncWriteExt + Unpin>(
     writer: W,
 ) -> async_compression::tokio::write::ZstdEncoder<W> {
+    async_zstd_encoder_with_clevel(writer, ZSTD_COMPRESSION_LEVEL)
+}
+
+#[cfg(feature = "async")]
+fn async_zstd_encoder_with_clevel<W: tokio::io::AsyncWriteExt + Unpin>(
+    writer: W,
+    level: i32,
+) -> async_compression::tokio::write::ZstdEncoder<W> {
     async_compression::tokio::write::ZstdEncoder::with_quality_and_params(
         writer,
-        async_compression::Level::Precise(ZSTD_COMPRESSION_LEVEL),
+        async_compression::Level::Precise(level),
         &[async_compression::zstd::CParameter::checksum_flag(true)],
     )
 }
