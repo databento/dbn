@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.33.2 - TBD
+## 0.33.2 - 2025-05-06
 
 ### Enhancements
 - Added `with_compression_level` methods to `DynWriter`, `AsyncDynWriter`, and
