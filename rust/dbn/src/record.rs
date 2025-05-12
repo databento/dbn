@@ -16,7 +16,8 @@ use crate::{
     enums::rtype,
     macros::{dbn_record, CsvSerialize, JsonSerialize, RecordDebug},
     Action, Error, FlagSet, InstrumentClass, MatchAlgorithm, Publisher, RType, Result,
-    SecurityUpdateAction, Side, StatType, StatUpdateAction, UserDefinedInstrument, SYMBOL_CSTR_LEN,
+    SecurityUpdateAction, Side, StatType, StatUpdateAction, UserDefinedInstrument, ASSET_CSTR_LEN,
+    SYMBOL_CSTR_LEN,
 };
 pub(crate) use conv::as_u8_slice;
 #[cfg(feature = "serde")]
@@ -782,8 +783,6 @@ pub struct InstrumentDefMsg {
     pub min_price_increment: i64,
     /// The multiplier to convert the venue’s display price to the conventional price where every
     /// 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
-    ///
-    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub display_factor: i64,
@@ -824,17 +823,8 @@ pub struct InstrumentDefMsg {
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub max_price_variation: i64,
-    /// The trading session settlement price on `trading_reference_date` where every 1 unit
-    /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
-    ///
-    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
-    #[dbn(fixed_price)]
-    #[pyo3(get, set)]
-    pub trading_reference_price: i64,
     /// The contract size for each instrument, in combination with `unit_of_measure`, where every
     /// 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
-    ///
-    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub unit_of_measure_qty: i64,
@@ -847,8 +837,6 @@ pub struct InstrumentDefMsg {
     pub min_price_increment_amount: i64,
     /// The value used for price calculation in spread and leg pricing where every 1 unit
     /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
-    ///
-    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub price_ratio: i64,
@@ -856,9 +844,23 @@ pub struct InstrumentDefMsg {
     /// 1/1,000,000,000 or 0.000000001.
     ///
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
-    #[dbn(fixed_price, encode_order(46))]
+    #[dbn(fixed_price, encode_order(54))]
     #[pyo3(get, set)]
     pub strike_price: i64,
+    /// The instrument ID assigned by the publisher. May be the same as `instrument_id`.
+    ///
+    /// See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers)
+    #[dbn(encode_order(20))]
+    #[pyo3(get, set)]
+    pub raw_instrument_id: u64,
+    /// The tied price (if any) of the leg.
+    #[dbn(fixed_price, encode_order(165))]
+    #[pyo3(get, set)]
+    pub leg_price: i64,
+    /// The associated delta (if any) of the leg.
+    #[dbn(fixed_price, encode_order(166))]
+    #[pyo3(get, set)]
+    pub leg_delta: i64,
     /// A bitmap of instrument eligibility attributes.
     #[dbn(fmt_binary)]
     #[pyo3(get, set)]
@@ -868,11 +870,6 @@ pub struct InstrumentDefMsg {
     /// See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers)
     #[pyo3(get, set)]
     pub underlying_id: u32,
-    /// The instrument ID assigned by the publisher. May be the same as `instrument_id`.
-    ///
-    /// See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers)
-    #[pyo3(get, set)]
-    pub raw_instrument_id: u32,
     /// The implied book depth on the price level data feed.
     #[pyo3(get, set)]
     pub market_depth_implied: i32,
@@ -908,10 +905,34 @@ pub struct InstrumentDefMsg {
     /// The fixed contract value assigned to each instrument.
     #[pyo3(get, set)]
     pub original_contract_size: i32,
-    /// The trading session date corresponding to the settlement price in
-    /// `trading_reference_price`, in number of days since the UNIX epoch.
+    /// The numeric ID assigned to the leg instrument.
+    ///
+    /// See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers)
+    #[dbn(encode_order(160))]
     #[pyo3(get, set)]
-    pub trading_reference_date: u16,
+    pub leg_instrument_id: u32,
+    /// The numerator of the price ratio of the leg within the spread.
+    #[dbn(encode_order(167))]
+    #[pyo3(get, set)]
+    pub leg_ratio_price_numerator: i32,
+    /// The denominator of the price ratio of the leg within the spread.
+    #[dbn(encode_order(168))]
+    #[pyo3(get, set)]
+    pub leg_ratio_price_denominator: i32,
+    /// The numerator of the quantity ratio of the leg within the spread.
+    #[dbn(encode_order(169))]
+    #[pyo3(get, set)]
+    pub leg_ratio_qty_numerator: i32,
+    /// The denominator of the quantity ratio of the leg within the spread.
+    #[dbn(encode_order(170))]
+    #[pyo3(get, set)]
+    pub leg_ratio_qty_denominator: i32,
+    /// The numeric ID of the leg instrument's underlying instrument.
+    ///
+    /// See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers)
+    #[dbn(encode_order(171))]
+    #[pyo3(get, set)]
+    pub leg_underlying_id: u32,
     /// The channel ID assigned at the venue.
     #[pyo3(get, set)]
     pub appl_id: i16,
@@ -925,56 +946,69 @@ pub struct InstrumentDefMsg {
     /// zero.
     #[pyo3(get, set)]
     pub channel_id: u16,
+    /// The number of legs in the strategy or spread. Will be 0 for outrights.
+    #[dbn(encode_order(158))]
+    #[pyo3(get, set)]
+    pub leg_count: u16,
+    /// The 0-based index of the leg.
+    #[dbn(encode_order(159))]
+    #[pyo3(get, set)]
+    pub leg_index: u16,
     /// The currency used for price fields.
     #[dbn(fmt_method)]
-    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
+    #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub currency: [c_char; 4],
     /// The currency used for settlement, if different from `currency`.
     #[dbn(fmt_method)]
-    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
+    #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub settl_currency: [c_char; 4],
     /// The strategy type of the spread.
     #[dbn(fmt_method)]
-    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
+    #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub secsubtype: [c_char; 6],
     /// The instrument raw symbol assigned by the publisher.
     #[dbn(encode_order(2), fmt_method)]
-    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
+    #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub raw_symbol: [c_char; SYMBOL_CSTR_LEN],
     /// The security group code of the instrument.
     #[dbn(fmt_method)]
-    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
+    #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub group: [c_char; 21],
     /// The exchange used to identify the instrument.
     #[dbn(fmt_method)]
-    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
+    #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub exchange: [c_char; 5],
     /// The underlying asset code (product code) of the instrument.
     #[dbn(fmt_method)]
-    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
-    pub asset: [c_char; 7],
+    #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
+    pub asset: [c_char; ASSET_CSTR_LEN],
     /// The ISO standard instrument categorization code.
     #[dbn(fmt_method)]
-    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
+    #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub cfi: [c_char; 7],
     /// The security type of the instrument, e.g. FUT for future or future spread.
     ///
     /// See [Security type](https://databento.com/docs/schemas-and-data-formats/instrument-definitions#security-type).
     #[dbn(fmt_method)]
-    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
+    #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub security_type: [c_char; 7],
     /// The unit of measure for the instrument’s original contract size, e.g. USD or LBS.
     #[dbn(fmt_method)]
-    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
+    #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub unit_of_measure: [c_char; 31],
     /// The symbol of the first underlying instrument.
     #[dbn(fmt_method)]
-    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
+    #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub underlying: [c_char; 21],
     /// The currency of [`strike_price`](Self::strike_price).
     #[dbn(fmt_method)]
-    #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
+    #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub strike_price_currency: [c_char; 4],
+    /// The leg instrument's raw symbol assigned by the publisher.
+    #[dbn(encode_order(161), fmt_method)]
+    #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
+    #[pyo3(get)]
+    pub leg_raw_symbol: [c_char; SYMBOL_CSTR_LEN],
     /// The classification of the instrument.
     ///
     /// See [Instrument class](https://databento.com/docs/schemas-and-data-formats/instrument-definitions#instrument-class).
@@ -987,18 +1021,12 @@ pub struct InstrumentDefMsg {
     #[dbn(c_char)]
     #[pyo3(set)]
     pub match_algorithm: c_char,
-    /// The current trading state of the instrument.
-    #[pyo3(get, set)]
-    pub md_security_trading_status: u8,
     /// The price denominator of the main fraction.
     #[pyo3(get, set)]
     pub main_fraction: u8,
     /// The number of digits to the right of the tick mark, to display fractional prices.
     #[pyo3(get, set)]
     pub price_display_format: u8,
-    /// The type indicators for the settlement price, as a bitmap.
-    #[pyo3(get, set)]
-    pub settl_price_type: u8,
     /// The price denominator of the sub fraction.
     #[pyo3(get, set)]
     pub sub_fraction: u8,
@@ -1007,7 +1035,6 @@ pub struct InstrumentDefMsg {
     pub underlying_product: u8,
     /// Indicates if the instrument definition has been added, modified, or deleted.
     #[dbn(c_char, encode_order(3))]
-    #[pyo3(set)]
     pub security_update_action: c_char,
     /// The calendar month reflected in the instrument symbol.
     #[pyo3(get, set)]
@@ -1019,8 +1046,8 @@ pub struct InstrumentDefMsg {
     #[pyo3(get, set)]
     pub maturity_week: u8,
     /// Indicates if the instrument is user defined: **Y**es or **N**o.
-    #[pyo3(set)]
-    pub user_defined_instrument: UserDefinedInstrument,
+    #[dbn(c_char)]
+    pub user_defined_instrument: c_char,
     /// The type of `contract_multiplier`. Either `1` for hours, or `2` for days.
     #[pyo3(get, set)]
     pub contract_multiplier_unit: i8,
@@ -1030,10 +1057,16 @@ pub struct InstrumentDefMsg {
     /// The tick rule of the spread.
     #[pyo3(get, set)]
     pub tick_rule: u8,
+    /// The classification of the leg instrument.
+    #[dbn(c_char, encode_order(163))]
+    pub leg_instrument_class: c_char,
+    /// The side taken for the leg when purchasing the spread.
+    #[dbn(c_char, encode_order(164))]
+    pub leg_side: c_char,
     // Filler for alignment.
     #[doc(hidden)]
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub _reserved: [u8; 10],
+    pub _reserved: [u8; 17],
 }
 
 /// An auction imbalance message.
@@ -1141,8 +1174,8 @@ pub struct ImbalanceMsg {
     pub _reserved: [u8; 1],
 }
 
-/// A statistics message. A catchall for various data disseminated by publishers.
-/// The [`stat_type`](Self::stat_type) indicates the statistic contained in the message.
+/// A statistics message. A catchall for various data disseminated by publishers. The
+/// [`stat_type`](Self::stat_type) indicates the statistic contained in the message.
 #[repr(C)]
 #[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
@@ -1172,7 +1205,8 @@ pub struct StatMsg {
     #[pyo3(set)]
     pub ts_ref: u64,
     /// The value for price statistics where every 1 unit corresponds to 1e-9, i.e.
-    /// 1/1,000,000,000 or 0.000000001. Will be [`UNDEF_PRICE`](crate::UNDEF_PRICE) when unused.
+    /// 1/1,000,000,000 or 0.000000001. Will be [`UNDEF_PRICE`](crate::UNDEF_PRICE)
+    /// when unused.
     ///
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices)
     #[dbn(fixed_price)]
@@ -1181,12 +1215,12 @@ pub struct StatMsg {
     /// The value for non-price statistics. Will be [`crate::UNDEF_STAT_QUANTITY`] when
     /// unused.
     #[pyo3(set)]
-    pub quantity: i32,
+    pub quantity: i64,
     /// The message sequence number assigned at the venue.
     #[pyo3(set)]
     pub sequence: u32,
-    /// The matching-engine-sending timestamp expressed as the number of nanoseconds before
-    /// `ts_recv`.
+    /// The matching-engine-sending timestamp expressed as the number of nanoseconds
+    /// before `ts_recv`.
     ///
     /// See [ts_in_delta](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-in-delta).
     #[pyo3(set)]
@@ -1200,8 +1234,8 @@ pub struct StatMsg {
     /// zero.
     #[pyo3(set)]
     pub channel_id: u16,
-    /// Indicates if the statistic is newly added (1) or deleted (2). (Deleted is only used with
-    /// some stat types)
+    /// Indicates if the statistic is newly added (1) or deleted (2). (Deleted is only
+    /// used with some stat types)
     #[dbn(fmt_method)]
     #[pyo3(set)]
     pub update_action: u8,
@@ -1212,7 +1246,7 @@ pub struct StatMsg {
     // Filler for alignment
     #[doc(hidden)]
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub _reserved: [u8; 6],
+    pub _reserved: [u8; 18],
 }
 
 /// An error message from the Databento Live Subscription Gateway (LSG).
@@ -1486,9 +1520,9 @@ mod tests {
     #[case::cbbo(CbboMsg::default_for_schema(Schema::Cbbo1S), mem::size_of::<Mbp1Msg>())]
     #[case::ohlcv(OhlcvMsg::default_for_schema(Schema::Ohlcv1S), 56)]
     #[case::status(StatusMsg::default(), 40)]
-    #[case::definition(InstrumentDefMsg::default(), 400)]
+    #[case::definition(InstrumentDefMsg::default(), 520)]
     #[case::imbalance(ImbalanceMsg::default(), 112)]
-    #[case::stat(StatMsg::default(), 64)]
+    #[case::stat(StatMsg::default(), 80)]
     #[case::error(ErrorMsg::default(), 320)]
     #[case::symbol_mapping(SymbolMappingMsg::default(), 176)]
     #[case::system(SystemMsg::default(), 320)]

@@ -32,9 +32,9 @@ _DBNRecord = Union[
     MBP10Msg,
     OHLCVMsg,
     TradeMsg,
-    InstrumentDefMsg,
     InstrumentDefMsgV1,
-    InstrumentDefMsgV3,
+    InstrumentDefMsgV2,
+    InstrumentDefMsg,
     ImbalanceMsg,
     ErrorMsg,
     ErrorMsgV1,
@@ -42,8 +42,8 @@ _DBNRecord = Union[
     SymbolMappingMsgV1,
     SystemMsg,
     SystemMsgV1,
+    StatMsgV1,
     StatMsg,
-    StatMsgV3,
     StatusMsg,
 ]
 
@@ -820,6 +820,9 @@ class VersionUpgradePolicy(Enum):
         Decode data from previous versions as-is.
     UPGRADE_TO_V2
         Decode and convert data from DBN versions prior to version 2 to that version.
+        Attempting to decode data from newer versions will fail.
+    UPGRADE_TO_V3
+        Decode and convert data from DBN versions prior to version 3 to that version.
         Attempting to decode data from newer versions (when they're introduced) will
         fail.
 
@@ -827,6 +830,7 @@ class VersionUpgradePolicy(Enum):
 
     AS_IS: int
     UPGRADE_TO_V2: int
+    UPGRADE_TO_V3: int
 
 class ErrorCode(Enum):
     """
@@ -2566,7 +2570,7 @@ class OHLCVMsg(Record):
 
         """
 
-class InstrumentDefMsgV3(Record):
+class InstrumentDefMsg(Record):
     """
     Definition of an instrument in DBN version 3.
     """
@@ -3557,9 +3561,9 @@ class InstrumentDefMsgV3(Record):
 
         """
 
-class InstrumentDefMsg(Record):
+class InstrumentDefMsgV2(Record):
     """
-    Definition of an instrument.
+    Definition of an instrument in DBN version 2.
     """
 
     def __init__(
@@ -4542,7 +4546,7 @@ class InstrumentDefMsg(Record):
 
 class InstrumentDefMsgV1(Record):
     """
-    A DBN version 1 definition of an instrument.
+    Definition of an instrument in DBN version 1.
     """
 
     def __init__(
@@ -5849,7 +5853,7 @@ class ImbalanceMsg(Record):
 
         """
 
-class StatMsg(Record):
+class StatMsgV1(Record):
     """
     A statistics message.
 
@@ -6038,6 +6042,15 @@ class StatMsg(Record):
 
         """
 
+class StatMsg(StatMsgV1):
+    """
+    A statistics message.
+
+    A catchall for various data disseminated by publishers. The
+    `stat_type` field indicates the statistic contained in the message.
+
+    """
+
 class StatusMsg(Record):
     """
     A trading status update message.
@@ -6135,15 +6148,6 @@ class StatusMsg(Record):
         bool | None
 
         """
-
-class StatMsgV3(StatMsg):
-    """
-    A statistics message.
-
-    A catchall for various data disseminated by publishers. The
-    `stat_type` field indicates the statistic contained in the message.
-
-    """
 
 class ErrorMsg(ErrorMsgV1):
     """
@@ -6369,8 +6373,8 @@ class DBNDecoder:
     ts_out : bool, default False
         Whether the records include the server send timestamp ts_out. Only needs to be
         specified if `has_metadata` is False.
-    input_version : int, default current DBN version
-        Specify the DBN version of the input. Only used when transcoding data without
+    input_version : int, default None
+        Specify the DBN version of the input. Only used when decoding data without
         metadata.
     upgrade_policy : VersionUpgradePolicy, default UPGRADE
         How to decode data from prior DBN versions. Defaults to upgrade decoding.
@@ -6380,7 +6384,7 @@ class DBNDecoder:
         self,
         has_metadata: bool = True,
         ts_out: bool = False,
-        input_version: int = 2,
+        input_version: int | None = None,
         upgrade_policy: VersionUpgradePolicy | None = None,
     ): ...
     def buffer(self) -> bytes:
@@ -6467,7 +6471,7 @@ class Transcoder:
     schema : Schema | None, default None
         The data record schema to encode. This is required for transcoding Live CSV data,
         as the tabular format is incompatible with mixed schemas.
-    input_version : int, default current DBN version
+    input_version : int, default None
         Specify the DBN version of the input. Only used when transcoding data without
         metadata.
     upgrade_policy : VersionUpgradePolicy, default UPGRADE
@@ -6486,7 +6490,7 @@ class Transcoder:
         ts_out: bool = False,
         symbol_interval_map: dict[int, list[tuple[dt.date, dt.date, str]]] | None = None,
         schema: Schema | None = None,
-        input_version: int = 2,
+        input_version: int | None = None,
         upgrade_policy: VersionUpgradePolicy | None = None,
     ): ...
     def buffer(self) -> bytes:

@@ -3,14 +3,14 @@
 
 pub(crate) use crate::compat::METADATA_RESERVED_LEN_V1 as METADATA_RESERVED_LEN;
 pub use crate::compat::{
-    ErrorMsgV1 as ErrorMsg, InstrumentDefMsgV1 as InstrumentDefMsg,
+    ErrorMsgV1 as ErrorMsg, InstrumentDefMsgV1 as InstrumentDefMsg, StatMsgV1 as StatMsg,
     SymbolMappingMsgV1 as SymbolMappingMsg, SystemMsgV1 as SystemMsg,
     ASSET_CSTR_LEN_V1 as ASSET_CSTR_LEN, SYMBOL_CSTR_LEN_V1 as SYMBOL_CSTR_LEN,
     UNDEF_STAT_QUANTITY_V1 as UNDEF_STAT_QUANTITY,
 };
 pub use crate::record::{
     Bbo1MMsg, Bbo1SMsg, BboMsg, Cbbo1MMsg, Cbbo1SMsg, CbboMsg, Cmbp1Msg, ImbalanceMsg, MboMsg,
-    OhlcvMsg, StatMsg, StatusMsg, TbboMsg, TcbboMsg, TradeMsg, WithTsOut,
+    Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, TbboMsg, TcbboMsg, TradeMsg, WithTsOut,
 };
 
 mod impl_default;
@@ -96,7 +96,7 @@ mod tests {
     use rstest::*;
     use type_layout::{Field, TypeLayout};
 
-    use crate::v2;
+    use crate::{v2, v3};
 
     use super::*;
 
@@ -105,6 +105,14 @@ mod tests {
         assert_eq!(
             v2::InstrumentDefMsg::from(&InstrumentDefMsg::default()),
             v2::InstrumentDefMsg::default()
+        );
+        assert_eq!(
+            v3::InstrumentDefMsg::from(&InstrumentDefMsg::default()),
+            v3::InstrumentDefMsg::default()
+        );
+        assert_eq!(
+            v3::StatMsg::from(&StatMsg::default()),
+            v3::StatMsg::default()
         );
     }
 
@@ -117,10 +125,12 @@ mod tests {
             InstrumentDefMsg::ordered_fields(""),
             v2::InstrumentDefMsg::ordered_fields("")
         );
+        assert_eq!(StatMsg::ordered_fields(""), v3::StatMsg::ordered_fields(""));
     }
 
     #[rstest]
     #[case::definition(InstrumentDefMsg::default(), 360)]
+    #[case::stat(StatMsg::default(), 64)]
     #[case::error(ErrorMsg::default(), 80)]
     #[case::symbol_mapping(SymbolMappingMsg::default(), 80)]
     #[case::system(SystemMsg::default(), 80)]
@@ -131,6 +141,7 @@ mod tests {
 
     #[rstest]
     #[case::definition(InstrumentDefMsg::default())]
+    #[case::stat(StatMsg::default())]
     #[case::error(ErrorMsg::default())]
     #[case::symbol_mapping(SymbolMappingMsg::default())]
     #[case::system(SystemMsg::default())]

@@ -96,10 +96,14 @@ where
     }
 
     /// Sets the behavior for decoding DBN data of previous versions.
-    pub fn set_upgrade_policy(&mut self, upgrade_policy: VersionUpgradePolicy) {
-        self.metadata
-            .set_version(self.decoder.fsm.input_dbn_version(), upgrade_policy);
-        self.decoder.set_upgrade_policy(upgrade_policy);
+    ///
+    /// # Errors
+    /// This function will return an error if the `version` and `upgrade_policy` are
+    /// incompatible.
+    pub fn set_upgrade_policy(&mut self, upgrade_policy: VersionUpgradePolicy) -> Result<()> {
+        self.decoder.set_upgrade_policy(upgrade_policy)?;
+        self.metadata.set_version(upgrade_policy);
+        Ok(())
     }
 
     /// Tries to decode a single record and returns a reference to the record that
@@ -248,7 +252,7 @@ where
         let MetadataDecoder { reader, mut fsm } = metadata_decoder;
         if fsm
             .upgrade_policy()
-            .is_upgrade_situation(fsm.input_dbn_version())
+            .is_upgrade_situation(fsm.input_dbn_version().unwrap())
         {
             fsm.grow_compat(DbnFsm::DEFAULT_BUF_SIZE);
         }
@@ -279,11 +283,13 @@ where
         upgrade_policy: VersionUpgradePolicy,
         ts_out: bool,
     ) -> crate::Result<Self> {
-        let mut fsm = DbnFsm::new(DbnFsm::DEFAULT_BUF_SIZE, crate::MAX_RECORD_LEN);
-        fsm.skip_metadata();
-        fsm.set_input_dbn_version(version)?;
-        fsm.set_upgrade_policy(upgrade_policy);
-        fsm.set_ts_out(ts_out);
+        let fsm = DbnFsm::builder()
+            .compat_size(crate::MAX_RECORD_LEN)
+            .skip_metadata(true)
+            .input_dbn_version(Some(version))?
+            .upgrade_policy(upgrade_policy)
+            .ts_out(ts_out)
+            .build()?;
         Ok(Self { reader, fsm })
     }
 
@@ -291,14 +297,21 @@ where
     ///
     /// # Errors
     /// This function will return an error if the `version` exceeds the highest
-    /// supported version.
+    /// supported version or the `version` and `upgrade_policy` are incompatible.
     pub fn set_version(&mut self, version: u8) -> crate::Result<()> {
         self.fsm.set_input_dbn_version(version).map(drop)
     }
 
     /// Sets the behavior for decoding DBN data of previous versions.
-    pub fn set_upgrade_policy(&mut self, upgrade_policy: VersionUpgradePolicy) {
-        self.fsm.set_upgrade_policy(upgrade_policy);
+    ///
+    /// # Errors
+    /// This function will return an error if the `version` and `upgrade_policy` are
+    /// incompatible.
+    pub fn set_upgrade_policy(
+        &mut self,
+        upgrade_policy: VersionUpgradePolicy,
+    ) -> crate::Result<()> {
+        self.fsm.set_upgrade_policy(upgrade_policy)
     }
 
     /// Sets whether to expect a send timestamp appended after every record.
@@ -474,8 +487,12 @@ where
     /// This function will return an error if it is unable to parse the metadata in
     /// `reader`.
     pub fn with_upgrade_policy(reader: R, upgrade_policy: VersionUpgradePolicy) -> Self {
-        let mut fsm = DbnFsm::new(DbnFsm::DEFAULT_BUF_SIZE, 0);
-        fsm.set_upgrade_policy(upgrade_policy);
+        let fsm = DbnFsm::builder()
+            .compat_size(0)
+            .upgrade_policy(upgrade_policy)
+            .build()
+            // No error because `input_dbn_version` wasn't overwritten
+            .unwrap();
         Self { reader, fsm }
     }
 
@@ -560,15 +577,14 @@ mod tests {
 
     use super::*;
     use crate::{
-        compat::InstrumentDefMsgV1,
         decode::tests::TEST_DATA_PATH,
         encode::{
             dbn::{AsyncEncoder, AsyncRecordEncoder},
             DbnEncodable,
         },
-        rtype, Bbo1SMsg, CbboMsg, Cmbp1Msg, Error, ErrorMsg, ImbalanceMsg, InstrumentDefMsg,
-        MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader, Result, Schema, StatMsg, StatusMsg,
-        TbboMsg, TradeMsg, WithTsOut,
+        rtype, v1, v2, Bbo1SMsg, CbboMsg, Cmbp1Msg, Error, ErrorMsg, ImbalanceMsg,
+        InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader, Result, Schema,
+        StatMsg, StatusMsg, TbboMsg, TradeMsg, WithTsOut,
     };
 
     #[rstest]
@@ -595,55 +611,8 @@ mod tests {
         #[case] _rec: R,
     ) -> Result<()> {
         let mut file_decoder =
-            Decoder::from_file(format!("{TEST_DATA_PATH}/test_data.{schema}.dbn")).await?;
-        let file_metadata = file_decoder.metadata().clone();
-        let mut file_records = Vec::new();
-        while let Some(record) = file_decoder.decode_record::<R>().await? {
-            file_records.push(record.clone());
-        }
-        assert_eq!(file_records.is_empty(), schema == Schema::Ohlcv1D);
-        let mut buffer = Vec::new();
-        let mut buf_encoder = AsyncEncoder::new(&mut buffer, &file_metadata).await?;
-
-        for record in file_records.iter() {
-            buf_encoder.encode_record(record).await.unwrap();
-        }
-        let mut buf_cursor = std::io::Cursor::new(&mut buffer);
-        let mut buf_decoder = Decoder::new(&mut buf_cursor).await?;
-        assert_eq!(*buf_decoder.metadata(), file_metadata);
-        let mut buf_records = Vec::new();
-        while let Some(record) = buf_decoder.decode_record::<R>().await? {
-            buf_records.push(record.clone());
-        }
-        assert_eq!(buf_records, file_records);
-        Ok(())
-    }
-
-    #[rstest]
-    #[case::mbo(Schema::Mbo, MboMsg::default())]
-    #[case::trades(Schema::Trades, TradeMsg::default())]
-    #[case::cmbp1(Schema::Cmbp1, Cmbp1Msg::default_for_schema(Schema::Cmbp1))]
-    #[case::cbbo1s(Schema::Cbbo1S, CbboMsg::default_for_schema(Schema::Cbbo1S))]
-    #[case::bbo1s(Schema::Bbo1S, Bbo1SMsg::default_for_schema(Schema::Bbo1S))]
-    #[case::bbo1m(Schema::Bbo1M, Bbo1SMsg::default_for_schema(Schema::Bbo1M))]
-    #[case::tbbo(Schema::Tbbo, TbboMsg::default())]
-    #[case::mbp1(Schema::Mbp1, Mbp1Msg::default())]
-    #[case::mbp10(Schema::Mbp10, Mbp10Msg::default())]
-    #[case::ohlcv1d(Schema::Ohlcv1D, OhlcvMsg::default_for_schema(Schema::Ohlcv1D))]
-    #[case::ohlcv1h(Schema::Ohlcv1H, OhlcvMsg::default_for_schema(Schema::Ohlcv1H))]
-    #[case::ohlcv1m(Schema::Ohlcv1M, OhlcvMsg::default_for_schema(Schema::Ohlcv1M))]
-    #[case::ohlcv1s(Schema::Ohlcv1S, OhlcvMsg::default_for_schema(Schema::Ohlcv1S))]
-    #[case::definitions(Schema::Definition, InstrumentDefMsg::default())]
-    #[case::imbalance(Schema::Imbalance, ImbalanceMsg::default())]
-    #[case::statistics(Schema::Statistics, StatMsg::default())]
-    #[case::status(Schema::Status, StatusMsg::default())]
-    #[tokio::test]
-    async fn test_dbn_zstd_identity<R: DbnEncodable + HasRType + PartialEq + Clone>(
-        #[case] schema: Schema,
-        #[case] _rec: R,
-    ) -> Result<()> {
-        let mut file_decoder =
-            Decoder::from_zstd_file(format!("{TEST_DATA_PATH}/test_data.{schema}.dbn.zst")).await?;
+            Decoder::from_zstd_file(format!("{TEST_DATA_PATH}/test_data.{schema}.v3.dbn.zst"))
+                .await?;
         let file_metadata = file_decoder.metadata().clone();
         let mut file_records = Vec::new();
         while let Some(record) = file_decoder.decode_record::<R>().await? {
@@ -670,7 +639,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_skip_bytes() {
-        let mut decoder = Decoder::from_file(format!("{TEST_DATA_PATH}/test_data.mbo.dbn"))
+        let mut decoder = Decoder::from_file(format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn"))
             .await
             .unwrap();
         decoder
@@ -784,19 +753,42 @@ mod tests {
             .unwrap(),
         );
         let mut count = 0;
-        while let Some(_rec) = decoder.decode::<InstrumentDefMsgV1>().await.unwrap() {
+        while let Some(_rec) = decoder.decode::<v1::InstrumentDefMsg>().await.unwrap() {
             count += 1;
         }
         assert_eq!(count, 8);
     }
 
     #[tokio::test]
-    async fn test_decode_upgrade() -> crate::Result<()> {
+    async fn test_decode_upgrade_v2() -> crate::Result<()> {
         let mut decoder = Decoder::with_upgrade_policy(
-            tokio::fs::File::open(format!("{TEST_DATA_PATH}/test_data.definition.v1.dbn"))
-                .await
-                .unwrap(),
+            zstd_decoder(BufReader::new(
+                tokio::fs::File::open(format!("{TEST_DATA_PATH}/test_data.definition.v1.dbn.zst"))
+                    .await
+                    .unwrap(),
+            )),
             VersionUpgradePolicy::UpgradeToV2,
+        )
+        .await?;
+        assert_eq!(decoder.metadata().version, crate::DBN_VERSION);
+        assert_eq!(decoder.metadata().symbol_cstr_len, crate::SYMBOL_CSTR_LEN);
+        let mut has_decoded = false;
+        while let Some(_rec) = decoder.decode_record::<v2::InstrumentDefMsg>().await? {
+            has_decoded = true;
+        }
+        assert!(has_decoded);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_decode_upgrade_v3() -> crate::Result<()> {
+        let mut decoder = Decoder::with_upgrade_policy(
+            zstd_decoder(BufReader::new(
+                tokio::fs::File::open(format!("{TEST_DATA_PATH}/test_data.definition.v1.dbn.zst"))
+                    .await
+                    .unwrap(),
+            )),
+            VersionUpgradePolicy::UpgradeToV3,
         )
         .await?;
         assert_eq!(decoder.metadata().version, crate::DBN_VERSION);

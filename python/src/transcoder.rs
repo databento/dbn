@@ -44,7 +44,7 @@ impl Transcoder {
         ts_out = false,
         symbol_interval_map = None,
         schema = None,
-        input_version = dbn::DBN_VERSION,
+        input_version = None,
         upgrade_policy = VersionUpgradePolicy::default(),
     ))]
     fn new(
@@ -58,7 +58,7 @@ impl Transcoder {
         ts_out: bool,
         symbol_interval_map: Option<PySymbolIntervalMap>,
         schema: Option<Schema>,
-        input_version: u8,
+        input_version: Option<u8>,
         upgrade_policy: VersionUpgradePolicy,
     ) -> PyResult<Self> {
         let symbol_map = if let Some(symbol_interval_map) = symbol_interval_map {
@@ -180,7 +180,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
         ts_out: bool,
         symbol_map: Option<TsSymbolMap>,
         schema: Option<Schema>,
-        input_version: u8,
+        input_version: Option<u8>,
         upgrade_policy: VersionUpgradePolicy,
     ) -> PyResult<Self> {
         if OUTPUT_ENC == Encoding::Dbn as u8 && map_symbols.unwrap_or(false) {
@@ -188,15 +188,23 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
                 "map_symbols=True is incompatible with DBN encoding",
             ));
         }
-        let mut fsm = DbnFsm::default();
-        fsm.set_input_dbn_version(input_version)?
-            .set_upgrade_policy(upgrade_policy)
-            .set_ts_out(ts_out);
+        let fsm = DbnFsm::builder()
+            .skip_metadata(!has_metadata)
+            .input_dbn_version(input_version)
+            .map_err(to_py_err)?
+            .upgrade_policy(upgrade_policy)
+            .ts_out(ts_out)
+            .build()
+            .map_err(to_py_err)?;
 
         let mut output = DynWriter::new(BufWriter::new(file), compression)?;
         let map_symbols = map_symbols.unwrap_or(true);
         if !has_metadata {
-            fsm.skip_metadata();
+            let Some(input_version) = input_version else {
+                return Err(PyValueError::new_err(
+                    "must specify input_version when has_metadata=False",
+                ));
+            };
             // if there's metadata, the header will be encoded when the metadata is processed
             Self::encode_header_if_csv(
                 &mut output,
@@ -204,6 +212,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
                 pretty_ts,
                 ts_out,
                 map_symbols,
+                upgrade_policy.output_version(input_version),
                 schema,
             )?;
         }
@@ -315,6 +324,10 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
             self.use_pretty_ts,
             self.fsm.ts_out(),
             self.map_symbols,
+            self.fsm
+                .upgrade_policy()
+                // Input version will be populated after decoding metadata
+                .output_version(self.fsm.input_dbn_version().unwrap()),
             self.schema,
         )
     }
@@ -325,6 +338,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
         use_pretty_ts: bool,
         ts_out: bool,
         map_symbols: bool,
+        output_version: u8,
         schema: Option<Schema>,
     ) -> PyResult<()> {
         if OUTPUT_ENC == Encoding::Csv as u8 {
@@ -334,7 +348,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
                 ));
             };
             let mut encoder = CsvEncoder::new(output, use_pretty_px, use_pretty_ts);
-            encoder.encode_header_for_schema(schema, ts_out, map_symbols)?;
+            encoder.encode_header_for_schema(output_version, schema, ts_out, map_symbols)?;
         }
         Ok(())
     }
@@ -414,7 +428,7 @@ mod tests {
                 false,
                 None,
                 None,
-                DBN_VERSION,
+                Some(DBN_VERSION),
                 VersionUpgradePolicy::default(),
             )
             .unwrap()
@@ -485,7 +499,7 @@ mod tests {
                 false,
                 None,
                 None,
-                DBN_VERSION,
+                Some(DBN_VERSION),
                 VersionUpgradePolicy::default(),
             )
             .unwrap()
@@ -556,7 +570,7 @@ mod tests {
                 true,
                 None,
                 None,
-                DBN_VERSION,
+                None,
                 VersionUpgradePolicy::default(),
             )
             .unwrap()
@@ -684,7 +698,7 @@ mod tests {
                 false,
                 None,
                 Some(Schema::Ohlcv1S),
-                DBN_VERSION,
+                None,
                 VersionUpgradePolicy::default(),
             )
             .unwrap()
@@ -799,10 +813,10 @@ mod tests {
     fn test_from_test_data_file(#[case] encoding: Encoding, #[case] schema: Schema) {
         setup();
 
-        let mut input = Vec::new();
-        let mut input_file =
-            std::fs::File::open(format!("{TEST_DATA_PATH}/test_data.{schema}.dbn")).unwrap();
-        input_file.read_to_end(&mut input).unwrap();
+        let input = zstd::stream::decode_all(
+            std::fs::File::open(format!("{TEST_DATA_PATH}/test_data.{schema}.v3.dbn.zst")).unwrap(),
+        )
+        .unwrap();
         let file = MockPyFile::new();
         let output_buf = file.inner();
         let mut transcoder = Python::with_gil(|py| {
@@ -817,7 +831,7 @@ mod tests {
                 false,
                 None,
                 Some(schema),
-                DBN_VERSION,
+                None,
                 VersionUpgradePolicy::default(),
             )
             .unwrap()
@@ -844,7 +858,8 @@ mod tests {
 
         let mut input = Vec::new();
         let mut input_file =
-            std::fs::File::open(format!("{TEST_DATA_PATH}/test_data.definition.dbn.frag")).unwrap();
+            std::fs::File::open(format!("{TEST_DATA_PATH}/test_data.definition.v3.dbn.frag"))
+                .unwrap();
         input_file.read_to_end(&mut input).unwrap();
         let file = MockPyFile::new();
         let output_buf = file.inner();
@@ -860,7 +875,7 @@ mod tests {
                 false,
                 None,
                 Some(Schema::Definition),
-                DBN_VERSION,
+                Some(3),
                 VersionUpgradePolicy::default(),
             )
             .unwrap()

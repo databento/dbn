@@ -453,13 +453,12 @@ mod tests {
             high_limit_price: 1_000_000,
             low_limit_price: -1_000_000,
             max_price_variation: 0,
-            trading_reference_price: 500_000,
             unit_of_measure_qty: 5_000_000_000,
             min_price_increment_amount: 5,
             price_ratio: 10,
             inst_attrib_value: 10,
             underlying_id: 256785,
-            raw_instrument_id: RECORD_HEADER.instrument_id,
+            raw_instrument_id: RECORD_HEADER.instrument_id as u64,
             market_depth_implied: 0,
             market_depth: 13,
             market_segment_id: 0,
@@ -471,7 +470,6 @@ mod tests {
             contract_multiplier: 0,
             decay_quantity: 0,
             original_contract_size: 0,
-            trading_reference_date: 0,
             appl_id: 0,
             maturity_year: 0,
             decay_start_date: 0,
@@ -491,21 +489,26 @@ mod tests {
             instrument_class: InstrumentClass::Call as c_char,
             strike_price: 4_100_000_000_000,
             match_algorithm: 'F' as c_char,
-            md_security_trading_status: 2,
             main_fraction: 4,
             price_display_format: 8,
-            settl_price_type: 9,
             sub_fraction: 23,
             underlying_product: 10,
             security_update_action: SecurityUpdateAction::Add as c_char,
             maturity_month: 8,
             maturity_day: 9,
             maturity_week: 11,
-            user_defined_instrument: UserDefinedInstrument::No,
+            user_defined_instrument: UserDefinedInstrument::No as c_char,
             contract_multiplier_unit: 0,
             flow_schedule_type: 5,
             tick_rule: 0,
-            _reserved: Default::default(),
+            leg_count: 2,
+            leg_index: 1,
+            leg_instrument_id: 24,
+            leg_underlying_id: 25,
+            leg_instrument_class: InstrumentClass::Future as c_char,
+            leg_ratio_qty_numerator: 1,
+            leg_ratio_qty_denominator: 2,
+            ..Default::default()
         }];
         let slice_res = write_json_to_string(data.as_slice(), false, true, true);
         let stream_res = write_json_stream_to_string(data, false, true, true);
@@ -519,14 +522,17 @@ mod tests {
                 r#""hd":{"ts_event":"2022-07-21T22:17:31.000000000Z","rtype":4,"publisher_id":1,"instrument_id":323}"#,
                 concat!(
                     r#""raw_symbol":"ESZ4 C4100","security_update_action":"A","instrument_class":"C","min_price_increment":"0.000000100","display_factor":"1.000000000","expiration":"2023-10-27T23:40:00.000000000Z","activation":"2023-10-15T06:06:40.000000000Z","#,
-                    r#""high_limit_price":"0.001000000","low_limit_price":"-0.001000000","max_price_variation":"0.000000000","trading_reference_price":"0.000500000","unit_of_measure_qty":"5.000000000","#,
-                    r#""min_price_increment_amount":"0.000000005","price_ratio":"0.000000010","inst_attrib_value":10,"underlying_id":256785,"raw_instrument_id":323,"market_depth_implied":0,"#,
+                    r#""high_limit_price":"0.001000000","low_limit_price":"-0.001000000","max_price_variation":"0.000000000","unit_of_measure_qty":"5.000000000","#,
+                    r#""min_price_increment_amount":"0.000000005","price_ratio":"0.000000010","inst_attrib_value":10,"underlying_id":256785,"raw_instrument_id":"323","market_depth_implied":0,"#,
                     r#""market_depth":13,"market_segment_id":0,"max_trade_vol":10000,"min_lot_size":1,"min_lot_size_block":1000,"min_lot_size_round_lot":100,"min_trade_vol":1,"#,
-                    r#""contract_multiplier":0,"decay_quantity":0,"original_contract_size":0,"trading_reference_date":0,"appl_id":0,"#,
+                    r#""contract_multiplier":0,"decay_quantity":0,"original_contract_size":0,"appl_id":0,"#,
                     r#""maturity_year":0,"decay_start_date":0,"channel_id":4,"currency":"USD","settl_currency":"USD","secsubtype":"","group":"EW","exchange":"XCME","asset":"ES","cfi":"OCAFPS","#,
-                    r#""security_type":"OOF","unit_of_measure":"IPNT","underlying":"ESZ4","strike_price_currency":"USD","strike_price":"4100.000000000","match_algorithm":"F","md_security_trading_status":2,"main_fraction":4,"price_display_format":8,"#,
-                    r#""settl_price_type":9,"sub_fraction":23,"underlying_product":10,"maturity_month":8,"maturity_day":9,"maturity_week":11,"#,
-                    r#""user_defined_instrument":"N","contract_multiplier_unit":0,"flow_schedule_type":5,"tick_rule":0"#
+                    r#""security_type":"OOF","unit_of_measure":"IPNT","underlying":"ESZ4","strike_price_currency":"USD","strike_price":"4100.000000000","match_algorithm":"F","main_fraction":4,"price_display_format":8,"#,
+                    r#""sub_fraction":23,"underlying_product":10,"maturity_month":8,"maturity_day":9,"maturity_week":11,"#,
+                    r#""user_defined_instrument":"N","contract_multiplier_unit":0,"flow_schedule_type":5,"tick_rule":0,"#,
+                    r#""leg_count":2,"leg_index":1,"leg_instrument_id":24,"leg_raw_symbol":"","leg_instrument_class":"F","#,
+                    r#""leg_side":"N","leg_price":null,"leg_delta":null,"leg_ratio_price_numerator":0,"leg_ratio_price_denominator":0,"#,
+                    r#""leg_ratio_qty_numerator":1,"leg_ratio_qty_denominator":2,"leg_underlying_id":25"#,
                 )
             )
         );
@@ -603,7 +609,7 @@ mod tests {
                 "{{{},{HEADER_JSON},{}}}\n",
                 r#""ts_recv":"1""#,
                 concat!(
-                    r#""ts_ref":"2","price":"0.000000003","quantity":0,"sequence":4,"#,
+                    r#""ts_ref":"2","price":"0.000000003","quantity":"0","sequence":4,"#,
                     r#""ts_in_delta":5,"stat_type":1,"channel_id":7,"update_action":1,"stat_flags":0"#,
                 )
             )

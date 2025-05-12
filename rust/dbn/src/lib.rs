@@ -83,9 +83,12 @@ pub use crate::{
 };
 
 /// The current version of the DBN encoding, which is different from the crate version.
-pub const DBN_VERSION: u8 = 2;
+pub const DBN_VERSION: u8 = 3;
+
 /// The length of fixed-length symbol strings.
-pub const SYMBOL_CSTR_LEN: usize = compat::SYMBOL_CSTR_LEN_V2;
+pub const SYMBOL_CSTR_LEN: usize = v3::SYMBOL_CSTR_LEN;
+/// The length of the fixed-length asset string.
+pub const ASSET_CSTR_LEN: usize = v3::ASSET_CSTR_LEN;
 
 const METADATA_DATASET_CSTR_LEN: usize = 16;
 const METADATA_RESERVED_LEN: usize = 53;
@@ -103,7 +106,7 @@ pub const UNDEF_PRICE: i64 = i64::MAX;
 /// The sentinel value for an unset or null order quantity.
 pub const UNDEF_ORDER_SIZE: u32 = u32::MAX;
 /// The sentinel value for an unset or null stat quantity.
-pub const UNDEF_STAT_QUANTITY: i32 = compat::UNDEF_STAT_QUANTITY_V2;
+pub const UNDEF_STAT_QUANTITY: i64 = v3::UNDEF_STAT_QUANTITY;
 /// The sentinel value for an unset or null timestamp.
 pub const UNDEF_TIMESTAMP: u64 = u64::MAX;
 /// The length in bytes of the largest record type.

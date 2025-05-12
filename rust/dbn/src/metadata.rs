@@ -125,8 +125,7 @@ impl Metadata {
 
     /// Upgrades the metadata according to `upgrade_policy` if necessary.
     pub fn upgrade(&mut self, upgrade_policy: VersionUpgradePolicy) {
-        if self.version < crate::DBN_VERSION && upgrade_policy == VersionUpgradePolicy::UpgradeToV2
-        {
+        if upgrade_policy.is_upgrade_situation(self.version) {
             self.version = crate::DBN_VERSION;
             self.symbol_cstr_len = crate::SYMBOL_CSTR_LEN;
         }
@@ -135,18 +134,23 @@ impl Metadata {
     /// Allows upgrade policy to be configured from decoders after Metadata decoding.
     /// Using [`upgrade()`] would leave metadata with the wrong `version` and
     /// `symbol_cstr_len`.
-    pub(crate) fn set_version(&mut self, input_version: u8, upgrade_policy: VersionUpgradePolicy) {
-        if input_version < 2 {
+    pub(crate) fn set_version(&mut self, upgrade_policy: VersionUpgradePolicy) {
+        if self.version < 2 {
             match upgrade_policy {
                 VersionUpgradePolicy::AsIs => {
-                    self.version = input_version;
-                    self.symbol_cstr_len = crate::compat::SYMBOL_CSTR_LEN_V1;
+                    self.symbol_cstr_len = crate::v1::SYMBOL_CSTR_LEN;
                 }
                 VersionUpgradePolicy::UpgradeToV2 => {
-                    self.version = crate::DBN_VERSION;
-                    self.symbol_cstr_len = crate::SYMBOL_CSTR_LEN;
+                    self.version = 2;
+                    self.symbol_cstr_len = crate::v2::SYMBOL_CSTR_LEN;
+                }
+                VersionUpgradePolicy::UpgradeToV3 => {
+                    self.version = 3;
+                    self.symbol_cstr_len = crate::v3::SYMBOL_CSTR_LEN;
                 }
             }
+        } else if self.version == 2 && upgrade_policy == VersionUpgradePolicy::UpgradeToV3 {
+            self.version = 3;
         }
     }
 

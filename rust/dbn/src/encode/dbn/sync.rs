@@ -131,7 +131,7 @@ where
             // greater than this version of the crate supports
             .write_all(&[metadata.version.clamp(1, DBN_VERSION)])
             .map_err(metadata_err)?;
-        let length = Self::calc_length(metadata);
+        let (length, end_padding) = Self::calc_length(metadata);
         self.writer
             .write_all(length.to_le_bytes().as_slice())
             .map_err(metadata_err)?;
@@ -178,18 +178,24 @@ where
         self.encode_repeated_symbol_cstr(metadata.symbol_cstr_len, metadata.partial.as_slice())?;
         self.encode_repeated_symbol_cstr(metadata.symbol_cstr_len, metadata.not_found.as_slice())?;
         self.encode_symbol_mappings(metadata.symbol_cstr_len, metadata.mappings.as_slice())?;
+        if end_padding > 0 {
+            let padding = [0; 7];
+            self.writer
+                .write_all(&padding[..end_padding as usize])
+                .map_err(metadata_err)?;
+        }
 
         Ok(())
     }
 
-    pub(super) fn calc_length(metadata: &Metadata) -> u32 {
+    pub(super) fn calc_length(metadata: &Metadata) -> (u32, u32) {
         let mapping_interval_len = mem::size_of::<u32>() * 2 + metadata.symbol_cstr_len;
         // schema_definition_length, symbols_count, partial_count, not_found_count, mappings_count
         let var_len_counts_size = mem::size_of::<u32>() * 5;
 
         let c_str_count =
             metadata.symbols.len() + metadata.partial.len() + metadata.not_found.len();
-        (crate::METADATA_FIXED_LEN
+        let needed_len = (crate::METADATA_FIXED_LEN
             + var_len_counts_size
             + c_str_count * metadata.symbol_cstr_len
             + metadata
@@ -200,7 +206,15 @@ where
                         + mem::size_of::<u32>()
                         + m.intervals.len() * mapping_interval_len
                 })
-                .sum::<usize>()) as u32
+                .sum::<usize>()) as u32;
+        let rem = needed_len % 8;
+        if metadata.version < 3 || rem == 0 {
+            (needed_len, 0)
+        } else {
+            let end_padding = 8 - rem;
+            // round up size to keep 8-byte alignment
+            (needed_len + end_padding, end_padding)
+        }
     }
 
     fn encode_range_and_counts(
@@ -558,9 +572,7 @@ mod tests {
     }
 
     #[rstest]
-    #[case(1)]
-    #[case(2)]
-    fn test_update_encoded(#[case] version: u8) {
+    fn test_update_encoded(#[values(1, 2, 3)] version: u8) {
         let orig_metadata = Metadata {
             version,
             dataset: Dataset::GlbxMdp3.to_string(),
@@ -609,9 +621,7 @@ mod tests {
     }
 
     #[rstest]
-    #[case(1)]
-    #[case(2)]
-    fn test_encode_decode_nulls(#[case] version: u8) {
+    fn test_encode_decode_nulls(#[values(1, 2, 3)] version: u8) {
         let metadata = MetadataBuilder::new()
             .version(version)
             .dataset(Dataset::XnasItch)
@@ -630,9 +640,7 @@ mod tests {
     }
 
     #[rstest]
-    #[case(1)]
-    #[case(2)]
-    fn test_metadata_min_encoded_size(#[case] version: u8) {
+    fn test_metadata_min_encoded_size(#[values(1, 2, 3)] version: u8) {
         let metadata = MetadataBuilder::new()
             .version(version)
             .dataset(Dataset::XnasItch)
@@ -641,18 +649,20 @@ mod tests {
             .stype_in(Some(SType::RawSymbol))
             .stype_out(SType::InstrumentId)
             .build();
-        let calc_length = MetadataEncoder::<Vec<u8>>::calc_length(&metadata);
+        let (calc_length, end_padding) = MetadataEncoder::<Vec<u8>>::calc_length(&metadata);
         let mut buffer = Vec::new();
         let mut encoder = MetadataEncoder::new(&mut buffer);
         encoder.encode(&metadata).unwrap();
         // plus 8 for prefix
         assert_eq!(calc_length as usize + 8, buffer.len());
         assert_eq!(MetadataEncoder::<Vec<u8>>::MIN_ENCODED_SIZE, buffer.len());
+        assert_eq!(end_padding, 0);
     }
 
     #[rstest]
-    fn test_metadata_calc_size_unconventional_length() {
+    fn test_metadata_calc_size_unconventional_length(#[values(1, 2, 3)] version: u8) {
         let mut metadata = MetadataBuilder::new()
+            .version(version)
             .dataset(Dataset::XnasItch)
             .schema(Some(Schema::Mbo))
             .start(1697240529000000000)
@@ -665,11 +675,16 @@ mod tests {
             ])
             .build();
         metadata.symbol_cstr_len = 50;
-        let calc_length = MetadataEncoder::<Vec<u8>>::calc_length(&metadata);
+        let (calc_length, end_padding) = MetadataEncoder::<Vec<u8>>::calc_length(&metadata);
         let mut buffer = Vec::new();
         let mut encoder = MetadataEncoder::new(&mut buffer);
         encoder.encode(&metadata).unwrap();
         // plus 8 for prefix
         assert_eq!(calc_length as usize + 8, buffer.len());
+        if version < 3 {
+            assert_eq!(end_padding, 0);
+        } else {
+            assert!((1..8).contains(&end_padding));
+        }
     }
 }

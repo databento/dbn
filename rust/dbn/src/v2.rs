@@ -2,14 +2,18 @@
 //! in DBN version 2.
 
 pub use crate::compat::{
+    InstrumentDefMsgV2 as InstrumentDefMsg, StatMsgV1 as StatMsg,
     ASSET_CSTR_LEN_V2 as ASSET_CSTR_LEN, SYMBOL_CSTR_LEN_V2 as SYMBOL_CSTR_LEN,
     UNDEF_STAT_QUANTITY_V2 as UNDEF_STAT_QUANTITY,
 };
 pub use crate::record::{
     Bbo1MMsg, Bbo1SMsg, BboMsg, Cbbo1MMsg, Cbbo1SMsg, CbboMsg, Cmbp1Msg, ErrorMsg, ImbalanceMsg,
-    InstrumentDefMsg, MboMsg, OhlcvMsg, StatMsg, StatusMsg, SymbolMappingMsg, SystemMsg, TbboMsg,
-    TcbboMsg, TradeMsg, WithTsOut,
+    MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, SymbolMappingMsg, SystemMsg, TbboMsg, TcbboMsg,
+    TradeMsg, WithTsOut,
 };
+
+mod impl_default;
+mod methods;
 
 use std::os::raw::c_char;
 
@@ -189,5 +193,69 @@ impl InstrumentDefRec for InstrumentDefMsg {
 
     fn channel_id(&self) -> u16 {
         self.channel_id
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::mem;
+
+    use rstest::*;
+    use type_layout::{Field, TypeLayout};
+
+    use crate::v3;
+
+    use super::*;
+
+    #[test]
+    fn test_default_equivalency() {
+        assert_eq!(
+            v3::InstrumentDefMsg::from(&InstrumentDefMsg::default()),
+            v3::InstrumentDefMsg::default()
+        );
+    }
+
+    #[cfg(feature = "python")]
+    #[test]
+    fn test_strike_price_order_didnt_change() {
+        use crate::python::PyFieldDesc;
+
+        let v2_fields: Vec<_> = InstrumentDefMsg::ordered_fields("")
+            .into_iter()
+            .filter(|f| {
+                !matches!(
+                    f.as_ref(),
+                    "md_security_trading_status"
+                        | "trading_reference_date"
+                        | "trading_reference_price"
+                        | "settl_price_type"
+                )
+            })
+            .collect();
+        let v3_fields: Vec<_> = v3::InstrumentDefMsg::ordered_fields("")
+            .into_iter()
+            .take_while(|f| !f.starts_with("leg_"))
+            .collect();
+        assert_eq!(v2_fields, v3_fields);
+    }
+
+    #[rstest]
+    #[case::definition(InstrumentDefMsg::default(), 400)]
+    fn test_sizes<R: Sized>(#[case] _rec: R, #[case] exp: usize) {
+        assert_eq!(mem::size_of::<R>(), exp);
+        assert!(mem::size_of::<R>() <= crate::MAX_RECORD_LEN);
+    }
+
+    #[rstest]
+    #[case::definition(InstrumentDefMsg::default())]
+    fn test_alignment_and_no_padding<R: TypeLayout>(#[case] _rec: R) {
+        let layout = R::type_layout();
+        assert_eq!(layout.alignment, 8, "Unexpected alignment: {layout}");
+        for field in layout.fields.iter() {
+            assert!(
+                matches!(field, Field::Field { .. }),
+                "Detected padding: {layout}"
+            );
+        }
     }
 }

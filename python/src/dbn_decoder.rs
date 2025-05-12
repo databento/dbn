@@ -2,6 +2,7 @@ use pyo3::{prelude::*, IntoPyObjectExt};
 
 use dbn::{
     decode::dbn::fsm::{DbnFsm, ProcessResult},
+    python::to_py_err,
     rtype_dispatch, HasRType, VersionUpgradePolicy,
 };
 
@@ -16,23 +17,23 @@ impl DbnDecoder {
     #[pyo3(signature = (
         has_metadata = true,
         ts_out = false,
-        input_version = dbn::DBN_VERSION,
+        input_version = None,
         upgrade_policy = VersionUpgradePolicy::default()
     ))]
     fn new(
         has_metadata: bool,
         ts_out: bool,
-        input_version: u8,
+        input_version: Option<u8>,
         upgrade_policy: VersionUpgradePolicy,
     ) -> PyResult<Self> {
-        let mut fsm = DbnFsm::default();
-        fsm.set_ts_out(ts_out)
-            .set_input_dbn_version(input_version)
-            .map_err(PyErr::from)?
-            .set_upgrade_policy(upgrade_policy);
-        if !has_metadata {
-            fsm.skip_metadata();
-        }
+        let fsm = DbnFsm::builder()
+            .ts_out(ts_out)
+            .input_dbn_version(input_version)
+            .map_err(to_py_err)?
+            .upgrade_policy(upgrade_policy)
+            .skip_metadata(!has_metadata)
+            .build()
+            .map_err(to_py_err)?;
         Ok(Self { fsm })
     }
 
@@ -88,7 +89,7 @@ mod tests {
         encode::{dbn::Encoder, EncodeRecord},
         enums::{rtype, SType, Schema},
         record::{ErrorMsg, OhlcvMsg, RecordHeader},
-        Dataset, MetadataBuilder, DBN_VERSION,
+        Dataset, MetadataBuilder,
     };
     use pyo3::{ffi::c_str, py_run, types::PyString};
 
@@ -99,7 +100,7 @@ mod tests {
     fn test_partial_metadata_and_records() {
         setup();
         let mut target =
-            DbnDecoder::new(true, false, DBN_VERSION, VersionUpgradePolicy::default()).unwrap();
+            DbnDecoder::new(true, false, None, VersionUpgradePolicy::default()).unwrap();
         let buffer = Vec::new();
         let mut encoder = Encoder::new(
             buffer,
@@ -141,7 +142,7 @@ mod tests {
     fn test_full_with_partial_record() {
         setup();
         let mut decoder =
-            DbnDecoder::new(true, false, DBN_VERSION, VersionUpgradePolicy::default()).unwrap();
+            DbnDecoder::new(true, false, None, VersionUpgradePolicy::default()).unwrap();
         let buffer = Vec::new();
         let mut encoder = Encoder::new(
             buffer,
@@ -194,7 +195,7 @@ mod tests {
                 py,
                 concat!(
                     env!("CARGO_MANIFEST_DIR"),
-                    "/../tests/data/test_data.mbo.dbn"
+                    "/../tests/data/test_data.mbo.v3.dbn"
                 ),
             );
             py_run!(

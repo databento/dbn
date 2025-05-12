@@ -4,7 +4,7 @@ use pyo3::{prelude::*, wrap_pyfunction, PyClass};
 
 use dbn::{
     compat::{
-        ErrorMsgV1, InstrumentDefMsgV1, InstrumentDefMsgV3, StatMsgV3, SymbolMappingMsgV1,
+        ErrorMsgV1, InstrumentDefMsgV1, InstrumentDefMsgV2, StatMsgV1, SymbolMappingMsgV1,
         SystemMsgV1,
     },
     flags,
@@ -50,8 +50,8 @@ fn databento_dbn(_py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     checked_add_class::<ImbalanceMsg>(m)?;
     checked_add_class::<StatusMsg>(m)?;
     checked_add_class::<InstrumentDefMsg>(m)?;
+    checked_add_class::<InstrumentDefMsgV2>(m)?;
     checked_add_class::<InstrumentDefMsgV1>(m)?;
-    checked_add_class::<InstrumentDefMsgV3>(m)?;
     checked_add_class::<ErrorMsg>(m)?;
     checked_add_class::<ErrorMsgV1>(m)?;
     checked_add_class::<SymbolMappingMsg>(m)?;
@@ -59,7 +59,7 @@ fn databento_dbn(_py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     checked_add_class::<SystemMsg>(m)?;
     checked_add_class::<SystemMsgV1>(m)?;
     checked_add_class::<StatMsg>(m)?;
-    checked_add_class::<StatMsgV3>(m)?;
+    checked_add_class::<StatMsgV1>(m)?;
     checked_add_class::<BboMsg>(m)?;
     checked_add_class::<CbboMsg>(m)?;
     checked_add_class::<Cmbp1Msg>(m)?;

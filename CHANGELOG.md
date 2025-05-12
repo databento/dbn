@@ -1,8 +1,12 @@
 # Changelog
 
 ## 0.35.0 - TBD
+This version marks the release of DBN version 3 (DBNv3), which is the new default.
+Decoders support decoding all versions of DBN and the DBN encoders default to
+upgrading the input to DBNv3.
 
 ### Enhancements
+- Added a new `UpgradeToV3` `VersionUpgradePolicy` variant
 - Consolidated DBN decoding logic in a new sans-I/O style state machine. All existing
   decoders now use `DbnFsm` internally
 - Added an internal buffer to DBN decoders so wrapping the reader in a `BufReader` is no
@@ -13,17 +17,42 @@
   `Write::write_vectored`
 - Improved performance of the Python `DBNDecoder` by batching acquisition of the GIL for
   multiple records
+- Added `version()` setter to `CsvEncoderBuilder` to configure the output version
+
+### Breaking changes
+- Release of DBN version 3
+  - Definition
+    - Updated `InstrumentDefMsg` with new `leg_` fields to support multi-leg strategy
+      definitions.
+    - Expanded `asset` to 11 bytes and `ASSET_CSTR_LEN` to match
+    - Expanded `raw_instrument_id` to 64 bits to support more venues. Like other 64-bit
+      integer fields, its value will now be quoted in JSON
+    - Removed `trading_reference_date`, `trading_reference_price`, and
+      `settl_price_type` fields which will be normalized in the statistics schema
+    - Removed `md_security_trading_status` better served by the status schema
+    - Statistics
+    - Updated `StatMsg` has an expanded 64-bit `quantity` field. Like other 64-bit
+      integer fields, its value will now be quoted in JSON
+    - The previous `StatMsg` has been moved to `v2::StatMsg` or `StatMsgV2`
+  - Changed the default `VersionUpgradePolicy` to `UpgradeToV3`
+  - Metadata will now always be encoded with a length divisible by 8 bytes for better
+    alignment
+  - Version 1 and 2 structs can be converted to version 3 structs with the `From` trait
+- Added a `version` parameter to the `encode_header_for_schema()` method on `CsvEncoder`
+  and `DynEncoder` to handle change in definition schema fields between versions
+- Changed the return type of `DbnDecoder::from_file` and `AsyncDbnDecoder::from_file` to
+  no longer include a `BufReader`
+- The `set_upgrade_policy()` methods on `DbnDecoder`, `AsyncDbnDecoder`,
+  `DbnRecordDecoder`, `AsyncDbnRecordDecoder` now return a `Result`
+- Removed `compat::decode_record_ref`. It's recommended to use `DbnFsm` or the decoders
+  directly
 
 ### Bug fixes
+- Fixed conversion of `v1::StatMsg` to `v3::StatMsg`
 - Changed default `upgrade_policy` of synchronous `DbnRecord`
 - Fixed Python `Transcoder` not writing CSV header when `has_metadata=False`
 - Removed incorrect `sequence` and `depth` Python type stubs for `CMBP1Msg` and `CBBOMsg`
-
-### Breaking changes
-- Changed the return type of `DbnDecoder::from_file` and `AsyncDbnDecoder::from_file` to
-  no longer include a `BufReader`
-- Removed `compat::decode_record_ref`. It's recommended to use `DbnFsm` or the decoders
-  directly
+- Fixed missing export of `Mbp1Msg` and `Mbp10Msg` from `v1`, `v2`, and `v3` modules
 
 ## 0.34.0 - 2025-05-13
 

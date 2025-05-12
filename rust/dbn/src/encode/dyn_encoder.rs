@@ -135,6 +135,7 @@ where
             Encoding::Dbn => DynEncoderImpl::Dbn(DbnEncoder::new(writer, self.metadata)?),
             Encoding::Csv => DynEncoderImpl::Csv(
                 CsvEncoder::builder(writer)
+                    .version(self.metadata.version)
                     .use_pretty_px(self.use_pretty_px)
                     .use_pretty_ts(self.use_pretty_ts)
                     .delimiter(self.delimiter)
@@ -217,13 +218,14 @@ where
     /// This function returns an error if there's an error writing to `writer`.
     pub fn encode_header_for_schema(
         &mut self,
+        version: u8,
         schema: Schema,
         ts_out: bool,
         with_symbol: bool,
     ) -> Result<()> {
         match &mut self.0 {
             DynEncoderImpl::Csv(encoder) => {
-                encoder.encode_header_for_schema(schema, ts_out, with_symbol)
+                encoder.encode_header_for_schema(version, schema, ts_out, with_symbol)
             }
             _ => Ok(()),
         }

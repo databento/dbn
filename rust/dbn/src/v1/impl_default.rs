@@ -1,11 +1,14 @@
 use std::os::raw::c_char;
 
 use crate::{
-    rtype, MatchAlgorithm, RecordHeader, SecurityUpdateAction, UserDefinedInstrument, UNDEF_PRICE,
-    UNDEF_TIMESTAMP,
+    rtype, MatchAlgorithm, RecordHeader, SecurityUpdateAction, StatUpdateAction,
+    UserDefinedInstrument, UNDEF_PRICE, UNDEF_TIMESTAMP,
 };
 
-use super::{ErrorMsg, InstrumentDefMsg, SymbolMappingMsg, SystemMsg, SYMBOL_CSTR_LEN};
+use super::{
+    ErrorMsg, InstrumentDefMsg, StatMsg, SymbolMappingMsg, SystemMsg, SYMBOL_CSTR_LEN,
+    UNDEF_STAT_QUANTITY,
+};
 
 impl Default for InstrumentDefMsg {
     fn default() -> Self {
@@ -76,6 +79,25 @@ impl Default for InstrumentDefMsg {
             _reserved4: Default::default(),
             _reserved5: Default::default(),
             _dummy: Default::default(),
+        }
+    }
+}
+
+impl Default for StatMsg {
+    fn default() -> Self {
+        Self {
+            hd: RecordHeader::default::<Self>(rtype::STATISTICS),
+            ts_recv: UNDEF_TIMESTAMP,
+            ts_ref: UNDEF_TIMESTAMP,
+            price: UNDEF_PRICE,
+            quantity: UNDEF_STAT_QUANTITY,
+            sequence: 0,
+            ts_in_delta: 0,
+            stat_type: 0,
+            channel_id: 0,
+            update_action: StatUpdateAction::New as u8,
+            stat_flags: 0,
+            _reserved: Default::default(),
         }
     }
 }

@@ -253,7 +253,7 @@ where
             .write_all(&[metadata.version.clamp(1, DBN_VERSION)])
             .await
             .map_err(metadata_err)?;
-        let length = super::MetadataEncoder::<std::fs::File>::calc_length(metadata);
+        let (length, end_padding) = super::MetadataEncoder::<std::fs::File>::calc_length(metadata);
         self.writer
             .write_u32_le(length)
             .await
@@ -308,6 +308,13 @@ where
             .await?;
         self.encode_symbol_mappings(metadata.symbol_cstr_len, &metadata.mappings)
             .await?;
+        if end_padding > 0 {
+            let padding = [0; 7];
+            self.writer
+                .write_all(&padding[..end_padding as usize])
+                .await
+                .map_err(metadata_err)?;
+        }
 
         Ok(())
     }

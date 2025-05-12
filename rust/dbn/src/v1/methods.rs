@@ -1,11 +1,13 @@
 use std::os::raw::c_char;
 
 use crate::{
+    pretty::px_to_f64,
     record::{c_chars_to_str, str_to_c_chars, ts_to_dt},
-    rtype, Error, InstrumentClass, MatchAlgorithm, RecordHeader, Result,
+    rtype, Error, InstrumentClass, MatchAlgorithm, RecordHeader, Result, StatType,
+    StatUpdateAction,
 };
 
-use super::{ErrorMsg, InstrumentDefMsg, SymbolMappingMsg, SystemMsg};
+use super::{ErrorMsg, InstrumentDefMsg, StatMsg, SymbolMappingMsg, SystemMsg};
 
 impl InstrumentDefMsg {
     /// Parses the raw capture-server-received timestamp into a datetime. Returns `None`
@@ -144,6 +146,53 @@ impl InstrumentDefMsg {
         MatchAlgorithm::try_from(self.match_algorithm as u8).map_err(|_| {
             Error::conversion::<MatchAlgorithm>(format!("{:#04X}", self.match_algorithm as u8))
         })
+    }
+}
+
+impl StatMsg {
+    /// Returns the price as a floating point.
+    ///
+    /// `UNDEF_PRICE` will be converted to NaN.
+    pub fn price_f64(&self) -> f64 {
+        px_to_f64(self.price)
+    }
+
+    /// Parses the raw capture-server-received timestamp into a datetime. Returns `None`
+    /// if `ts_recv` contains the sentinel for a null timestamp.
+    pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
+        ts_to_dt(self.ts_recv)
+    }
+
+    /// Parses the raw reference timestamp of the statistic value into a datetime.
+    /// Returns `None` if `ts_ref` contains the sentinel for a null timestamp.
+    pub fn ts_ref(&self) -> Option<time::OffsetDateTime> {
+        ts_to_dt(self.ts_ref)
+    }
+
+    /// Tries to convert the raw type of the statistic value to an enum.
+    ///
+    /// # Errors
+    /// This function returns an error if the `stat_type` field does not
+    /// contain a valid [`StatType`].
+    pub fn stat_type(&self) -> Result<StatType> {
+        StatType::try_from(self.stat_type)
+            .map_err(|_| Error::conversion::<StatType>(self.stat_type))
+    }
+
+    /// Tries to convert the raw `update_action` to an enum.
+    ///
+    /// # Errors
+    /// This function returns an error if the `update_action` field does not
+    /// contain a valid [`StatUpdateAction`].
+    pub fn update_action(&self) -> Result<StatUpdateAction> {
+        StatUpdateAction::try_from(self.update_action).map_err(|_| {
+            Error::conversion::<StatUpdateAction>(format!("{:04X}", self.update_action))
+        })
+    }
+
+    /// Parses the raw `ts_in_delta`—the delta of `ts_recv - ts_exchange_send`—into a duration.
+    pub fn ts_in_delta(&self) -> time::Duration {
+        time::Duration::new(0, self.ts_in_delta)
     }
 }
 

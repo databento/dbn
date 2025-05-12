@@ -84,12 +84,15 @@ impl<R: io::BufRead> Decoder<R> {
         upgrade_policy: VersionUpgradePolicy,
     ) -> crate::Result<Self> {
         let mut metadata = MetadataDecoder::read(&mut reader)?;
-        let mut fsm = DbnFsm::default();
-        fsm.set_input_dbn_version(1)?;
-        fsm.set_ts_out(metadata.ts_out);
-        fsm.set_upgrade_policy(upgrade_policy);
-        // decoded metadata separately
-        fsm.skip_metadata();
+        let fsm = DbnFsm::builder()
+            // DBN version 1 records are the same as DBZ
+            .input_dbn_version(Some(1))
+            .unwrap() // 1 is a valid DBN version
+            .ts_out(metadata.ts_out)
+            .upgrade_policy(upgrade_policy)
+            // decoded metadata separately
+            .skip_metadata(true)
+            .build()?;
         metadata.upgrade(upgrade_policy);
         let reader = zstd::Decoder::with_buffer(reader)
             .map_err(|e| crate::Error::io(e, "creating zstd decoder"))?;

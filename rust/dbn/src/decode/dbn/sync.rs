@@ -73,10 +73,17 @@ where
     }
 
     /// Sets the behavior for decoding DBN data of previous versions.
-    pub fn set_upgrade_policy(&mut self, upgrade_policy: VersionUpgradePolicy) {
-        self.metadata
-            .set_version(self.decoder.fsm.input_dbn_version(), upgrade_policy);
-        self.decoder.set_upgrade_policy(upgrade_policy);
+    ///
+    /// # Errors
+    /// This function will return an error if the `version` and `upgrade_policy` are
+    /// incompatible.
+    pub fn set_upgrade_policy(
+        &mut self,
+        upgrade_policy: VersionUpgradePolicy,
+    ) -> crate::Result<()> {
+        self.decoder.set_upgrade_policy(upgrade_policy)?;
+        self.metadata.set_version(upgrade_policy);
+        Ok(())
     }
 }
 
@@ -209,7 +216,8 @@ where
         let MetadataDecoder { reader, mut fsm } = metadata_decoder;
         if fsm
             .upgrade_policy()
-            .is_upgrade_situation(fsm.input_dbn_version())
+            // Okay to unwrap because input DBN version will always be set after decoding metadata
+            .is_upgrade_situation(fsm.input_dbn_version().unwrap())
         {
             fsm.grow_compat(DbnFsm::DEFAULT_BUF_SIZE);
         }
@@ -235,18 +243,20 @@ where
     ///
     /// # Errors
     /// This function will return an error if the `version` exceeds the highest
-    /// supported version.
+    /// supported version or the `version` and `upgrade_policy` are incompatible.
     pub fn with_version(
         reader: R,
         version: u8,
         upgrade_policy: VersionUpgradePolicy,
         ts_out: bool,
     ) -> crate::Result<Self> {
-        let mut fsm = DbnFsm::new(DbnFsm::DEFAULT_BUF_SIZE, crate::MAX_RECORD_LEN);
-        fsm.skip_metadata();
-        fsm.set_input_dbn_version(version)?;
-        fsm.set_upgrade_policy(upgrade_policy);
-        fsm.set_ts_out(ts_out);
+        let fsm = DbnFsm::builder()
+            .compat_size(crate::MAX_RECORD_LEN)
+            .skip_metadata(true)
+            .input_dbn_version(Some(version))?
+            .upgrade_policy(upgrade_policy)
+            .ts_out(ts_out)
+            .build()?;
         Ok(Self { reader, fsm })
     }
 
@@ -254,14 +264,21 @@ where
     ///
     /// # Errors
     /// This function will return an error if the `version` exceeds the highest
-    /// supported version.
+    /// supported version or the `version` and `upgrade_policy` are incompatible.
     pub fn set_version(&mut self, version: u8) -> crate::Result<()> {
         self.fsm.set_input_dbn_version(version).map(drop)
     }
 
     /// Sets the behavior for decoding DBN data of previous versions.
-    pub fn set_upgrade_policy(&mut self, upgrade_policy: VersionUpgradePolicy) {
-        self.fsm.set_upgrade_policy(upgrade_policy);
+    ///
+    /// # Errors
+    /// This function will return an error if the `version` and `upgrade_policy` are
+    /// incompatible.
+    pub fn set_upgrade_policy(
+        &mut self,
+        upgrade_policy: VersionUpgradePolicy,
+    ) -> crate::Result<()> {
+        self.fsm.set_upgrade_policy(upgrade_policy)
     }
 
     /// Sets whether to expect a send timestamp appended after every record.
@@ -396,8 +413,12 @@ where
     /// This function will return an error if it is unable to parse the metadata in
     /// `reader`.
     pub fn with_upgrade_policy(reader: R, upgrade_policy: VersionUpgradePolicy) -> Self {
-        let mut fsm = DbnFsm::new(DbnFsm::DEFAULT_BUF_SIZE, 0);
-        fsm.set_upgrade_policy(upgrade_policy);
+        let fsm = DbnFsm::builder()
+            .compat_size(0)
+            .upgrade_policy(upgrade_policy)
+            .build()
+            // No error because `input_dbn_version` wasn't overwritten
+            .unwrap();
         Self { reader, fsm }
     }
 
@@ -475,15 +496,12 @@ mod tests {
 
     use super::*;
     use crate::{
-        compat::InstrumentDefMsgV1,
         decode::{tests::TEST_DATA_PATH, DynReader},
         encode::{
             dbn::Encoder, DbnEncodable, DbnRecordEncoder, DynWriter, EncodeDbn, EncodeRecord,
         },
-        rtype, Bbo1MMsg, Bbo1SMsg, Cbbo1SMsg, Cmbp1Msg, Compression, Dataset, Error, ErrorMsg,
-        ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, MetadataBuilder, OhlcvMsg,
-        Record, RecordHeader, Result, SType, Schema, StatMsg, StatusMsg, TbboMsg, TradeMsg,
-        WithTsOut,
+        rtype, v1, v2, v3, Compression, Dataset, Error, ErrorMsg, MboMsg, MetadataBuilder,
+        OhlcvMsg, Record, RecordHeader, Result, SType, Schema, WithTsOut,
     };
 
     #[test]
@@ -509,239 +527,60 @@ mod tests {
     }
 
     #[rstest]
-    #[case::uncompressed_mbo_v1(1, Schema::Mbo, Compression::None, MboMsg::default())]
-    #[case::uncompressed_trades_v1(1, Schema::Trades, Compression::None, TradeMsg::default())]
-    #[case::uncompressed_tbbo_v1(1, Schema::Tbbo, Compression::None, TbboMsg::default())]
-    #[case::uncompressed_mbp1_v1(1, Schema::Mbp1, Compression::None, Mbp1Msg::default())]
-    #[case::uncompressed_mbp10_v1(1, Schema::Mbp10, Compression::None, Mbp10Msg::default())]
-    #[case::uncompressed_ohlcv1d_v1(
-        1,
-        Schema::Ohlcv1D,
-        Compression::None,
-        OhlcvMsg::default_for_schema(Schema::Ohlcv1D)
-    )]
-    #[case::uncompressed_ohlcv1h_v1(
-        1,
-        Schema::Ohlcv1H,
-        Compression::None,
-        OhlcvMsg::default_for_schema(Schema::Ohlcv1H)
-    )]
-    #[case::uncompressed_ohlcv1m_v1(
-        1,
-        Schema::Ohlcv1M,
-        Compression::None,
-        OhlcvMsg::default_for_schema(Schema::Ohlcv1M)
-    )]
-    #[case::uncompressed_ohlcv1s_v1(
-        1,
-        Schema::Ohlcv1S,
-        Compression::None,
-        OhlcvMsg::default_for_schema(Schema::Ohlcv1S)
-    )]
-    #[case::uncompressed_definitions_v1(
-        1,
-        Schema::Definition,
-        Compression::None,
-        InstrumentDefMsgV1::default()
-    )]
-    #[case::uncompressed_imbalance_v1(
-        1,
-        Schema::Imbalance,
-        Compression::None,
-        ImbalanceMsg::default()
-    )]
-    #[case::uncompressed_statistics_v1(
-        1,
-        Schema::Statistics,
-        Compression::None,
-        StatMsg::default()
-    )]
-    #[case::zstd_mbo_v1(1, Schema::Mbo, Compression::ZStd, MboMsg::default())]
-    #[case::zstd_trades_v1(1, Schema::Trades, Compression::ZStd, TradeMsg::default())]
-    #[case::zstd_tbbo_v1(1, Schema::Tbbo, Compression::ZStd, TbboMsg::default())]
-    #[case::zstd_mbp1_v1(1, Schema::Mbp1, Compression::ZStd, Mbp1Msg::default())]
-    #[case::zstd_mbp10_v1(1, Schema::Mbp10, Compression::ZStd, Mbp10Msg::default())]
-    #[case::zstd_ohlcv1d_v1(
-        1,
-        Schema::Ohlcv1D,
-        Compression::ZStd,
-        OhlcvMsg::default_for_schema(Schema::Ohlcv1D)
-    )]
-    #[case::zstd_ohlcv1h_v1(
-        1,
-        Schema::Ohlcv1H,
-        Compression::ZStd,
-        OhlcvMsg::default_for_schema(Schema::Ohlcv1H)
-    )]
-    #[case::zstd_ohlcv1m_v1(
-        1,
-        Schema::Ohlcv1M,
-        Compression::ZStd,
-        OhlcvMsg::default_for_schema(Schema::Ohlcv1M)
-    )]
-    #[case::zstd_ohlcv1s_v1(
-        1,
-        Schema::Ohlcv1S,
-        Compression::ZStd,
-        OhlcvMsg::default_for_schema(Schema::Ohlcv1S)
-    )]
-    #[case::zstd_definitions_v1(
-        1,
-        Schema::Definition,
-        Compression::ZStd,
-        InstrumentDefMsgV1::default()
-    )]
-    #[case::zstd_imbalance_v1(1, Schema::Imbalance, Compression::ZStd, ImbalanceMsg::default())]
-    #[case::zstd_statistics_v1(1, Schema::Statistics, Compression::ZStd, StatMsg::default())]
-    #[case::uncompressed_mbo_v2(2, Schema::Mbo, Compression::None, MboMsg::default())]
-    #[case::uncompressed_trades_v2(2, Schema::Trades, Compression::None, TradeMsg::default())]
-    #[case::uncompressed_cmbp1_v2(
-        2,
-        Schema::Cmbp1,
-        Compression::None,
-        Cmbp1Msg::default_for_schema(Schema::Cmbp1)
-    )]
-    #[case::uncompressed_cbbo1s_v2(
-        2,
-        Schema::Cbbo1S,
-        Compression::None,
-        Cbbo1SMsg::default_for_schema(Schema::Cbbo1S)
-    )]
-    #[case::uncompressed_bbo1s_v2(
-        2,
-        Schema::Bbo1S,
-        Compression::None,
-        Bbo1SMsg::default_for_schema(Schema::Bbo1S)
-    )]
-    #[case::uncompressed_bbo1m_v2(
-        2,
-        Schema::Bbo1M,
-        Compression::None,
-        Bbo1MMsg::default_for_schema(Schema::Bbo1M)
-    )]
-    #[case::uncompressed_tbbo_v2(2, Schema::Tbbo, Compression::None, TbboMsg::default())]
-    #[case::uncompressed_mbp1_v2(2, Schema::Mbp1, Compression::None, Mbp1Msg::default())]
-    #[case::uncompressed_mbp10_v2(2, Schema::Mbp10, Compression::None, Mbp10Msg::default())]
-    #[case::uncompressed_ohlcv1d_v2(
-        2,
-        Schema::Ohlcv1D,
-        Compression::None,
-        OhlcvMsg::default_for_schema(Schema::Ohlcv1D)
-    )]
-    #[case::uncompressed_ohlcv1h_v2(
-        2,
-        Schema::Ohlcv1H,
-        Compression::None,
-        OhlcvMsg::default_for_schema(Schema::Ohlcv1H)
-    )]
-    #[case::uncompressed_ohlcv1m_v2(
-        2,
-        Schema::Ohlcv1M,
-        Compression::None,
-        OhlcvMsg::default_for_schema(Schema::Ohlcv1M)
-    )]
-    #[case::uncompressed_ohlcv1s_v2(
-        2,
-        Schema::Ohlcv1S,
-        Compression::None,
-        OhlcvMsg::default_for_schema(Schema::Ohlcv1S)
-    )]
-    #[case::uncompressed_definitions_v2(
-        2,
-        Schema::Definition,
-        Compression::None,
-        InstrumentDefMsg::default()
-    )]
-    #[case::uncompressed_imbalance_v2(
-        2,
-        Schema::Imbalance,
-        Compression::None,
-        ImbalanceMsg::default()
-    )]
-    #[case::uncompressed_statistics_v2(
-        2,
-        Schema::Statistics,
-        Compression::None,
-        StatMsg::default()
-    )]
-    #[case::uncompressed_status_v2(2, Schema::Status, Compression::None, StatusMsg::default())]
-    #[case::zstd_mbo_v2(2, Schema::Mbo, Compression::ZStd, MboMsg::default())]
-    #[case::zstd_trades_v2(2, Schema::Trades, Compression::ZStd, TradeMsg::default())]
-    #[case::zstd_tbbo_v2(2, Schema::Tbbo, Compression::ZStd, TbboMsg::default())]
-    #[case::zstd_mbp1_v2(2, Schema::Mbp1, Compression::ZStd, Mbp1Msg::default())]
-    #[case::zstd_cmbp1_v2(
-        2,
-        Schema::Cmbp1,
-        Compression::ZStd,
-        Cmbp1Msg::default_for_schema(Schema::Cmbp1)
-    )]
-    #[case::zstd_cbbo1s_v2(
-        2,
-        Schema::Cbbo1S,
-        Compression::ZStd,
-        Cbbo1SMsg::default_for_schema(Schema::Cbbo1S)
-    )]
-    #[case::zstd_bbo1s_v2(
-        2,
-        Schema::Bbo1S,
-        Compression::ZStd,
-        Bbo1SMsg::default_for_schema(Schema::Bbo1S)
-    )]
-    #[case::zstd_bbo1m_v2(
-        2,
-        Schema::Bbo1M,
-        Compression::ZStd,
-        Bbo1MMsg::default_for_schema(Schema::Bbo1M)
-    )]
-    #[case::zstd_mbp10_v2(2, Schema::Mbp10, Compression::ZStd, Mbp10Msg::default())]
-    #[case::zstd_ohlcv1d_v2(
-        2,
-        Schema::Ohlcv1D,
-        Compression::ZStd,
-        OhlcvMsg::default_for_schema(Schema::Ohlcv1D)
-    )]
-    #[case::zstd_ohlcv1h_v2(
-        2,
-        Schema::Ohlcv1H,
-        Compression::ZStd,
-        OhlcvMsg::default_for_schema(Schema::Ohlcv1H)
-    )]
-    #[case::zstd_ohlcv1m_v2(
-        2,
-        Schema::Ohlcv1M,
-        Compression::ZStd,
-        OhlcvMsg::default_for_schema(Schema::Ohlcv1M)
-    )]
-    #[case::zstd_ohlcv1s_v2(
-        2,
-        Schema::Ohlcv1S,
-        Compression::ZStd,
-        OhlcvMsg::default_for_schema(Schema::Ohlcv1S)
-    )]
-    #[case::zstd_definitions_v2(
-        2,
-        Schema::Definition,
-        Compression::ZStd,
-        InstrumentDefMsg::default()
-    )]
-    #[case::zstd_imbalance_v2(2, Schema::Imbalance, Compression::ZStd, ImbalanceMsg::default())]
-    #[case::zstd_statistics_v2(2, Schema::Statistics, Compression::ZStd, StatMsg::default())]
-    #[case::zstd_status_v2(2, Schema::Status, Compression::ZStd, StatusMsg::default())]
+    #[case::mbo_v1(1, Schema::Mbo, v1::MboMsg::default())]
+    #[case::trades_v1(1, Schema::Trades, v1::TradeMsg::default())]
+    #[case::tbbo_v1(1, Schema::Tbbo, v1::TbboMsg::default())]
+    #[case::mbp1_v1(1, Schema::Mbp1, v1::Mbp1Msg::default())]
+    #[case::mbp10_v1(1, Schema::Mbp10, v1::Mbp10Msg::default())]
+    #[case::ohlcv1d_v1(1, Schema::Ohlcv1D, v1::OhlcvMsg::default_for_schema(Schema::Ohlcv1D))]
+    #[case::ohlcv1h_v1(1, Schema::Ohlcv1H, v1::OhlcvMsg::default_for_schema(Schema::Ohlcv1H))]
+    #[case::ohlcv1m_v1(1, Schema::Ohlcv1M, v1::OhlcvMsg::default_for_schema(Schema::Ohlcv1M))]
+    #[case::ohlcv1s_v1(1, Schema::Ohlcv1S, v1::OhlcvMsg::default_for_schema(Schema::Ohlcv1S))]
+    #[case::definitions_v1(1, Schema::Definition, v1::InstrumentDefMsg::default())]
+    #[case::imbalance_v1(1, Schema::Imbalance, v1::ImbalanceMsg::default())]
+    #[case::statistics_v1(1, Schema::Statistics, v1::StatMsg::default())]
+    #[case::mbo_v2(2, Schema::Mbo, v2::MboMsg::default())]
+    #[case::trades_v2(2, Schema::Trades, v2::TradeMsg::default())]
+    #[case::tbbo_v2(2, Schema::Tbbo, v2::TbboMsg::default())]
+    #[case::mbp1_v2(2, Schema::Mbp1, v2::Mbp1Msg::default())]
+    #[case::cmbp1_v2(2, Schema::Cmbp1, v2::Cmbp1Msg::default_for_schema(Schema::Cmbp1))]
+    #[case::cbbo1s_v2(2, Schema::Cbbo1S, v2::Cbbo1SMsg::default_for_schema(Schema::Cbbo1S))]
+    #[case::bbo1s_v2(2, Schema::Bbo1S, v2::Bbo1SMsg::default_for_schema(Schema::Bbo1S))]
+    #[case::bbo1m_v2(2, Schema::Bbo1M, v2::Bbo1MMsg::default_for_schema(Schema::Bbo1M))]
+    #[case::mbp10_v2(2, Schema::Mbp10, v2::Mbp10Msg::default())]
+    #[case::ohlcv1d_v2(2, Schema::Ohlcv1D, v2::OhlcvMsg::default_for_schema(Schema::Ohlcv1D))]
+    #[case::ohlcv1h_v2(2, Schema::Ohlcv1H, v2::OhlcvMsg::default_for_schema(Schema::Ohlcv1H))]
+    #[case::ohlcv1m_v2(2, Schema::Ohlcv1M, v2::OhlcvMsg::default_for_schema(Schema::Ohlcv1M))]
+    #[case::ohlcv1s_v2(2, Schema::Ohlcv1S, v2::OhlcvMsg::default_for_schema(Schema::Ohlcv1S))]
+    #[case::definitions_v2(2, Schema::Definition, v2::InstrumentDefMsg::default())]
+    #[case::imbalance_v2(2, Schema::Imbalance, v2::ImbalanceMsg::default())]
+    #[case::statistics_v2(2, Schema::Statistics, v2::StatMsg::default())]
+    #[case::status_v2(2, Schema::Status, v2::StatusMsg::default())]
+    #[case::mbo_v3(3, Schema::Mbo, v3::MboMsg::default())]
+    #[case::trades_v3(3, Schema::Trades, v3::TradeMsg::default())]
+    #[case::tbbo_v3(3, Schema::Tbbo, v3::TbboMsg::default())]
+    #[case::mbp1_v3(3, Schema::Mbp1, v3::Mbp1Msg::default())]
+    #[case::cmbp1_v3(3, Schema::Cmbp1, v3::Cmbp1Msg::default_for_schema(Schema::Cmbp1))]
+    #[case::cbbo1s_v3(3, Schema::Cbbo1S, v3::Cbbo1SMsg::default_for_schema(Schema::Cbbo1S))]
+    #[case::bbo1s_v3(3, Schema::Bbo1S, v3::Bbo1SMsg::default_for_schema(Schema::Bbo1S))]
+    #[case::bbo1m_v3(3, Schema::Bbo1M, v3::Bbo1MMsg::default_for_schema(Schema::Bbo1M))]
+    #[case::mbp10_v3(3, Schema::Mbp10, v3::Mbp10Msg::default())]
+    #[case::ohlcv1d_v3(3, Schema::Ohlcv1D, v3::OhlcvMsg::default_for_schema(Schema::Ohlcv1D))]
+    #[case::ohlcv1h_v3(3, Schema::Ohlcv1H, v3::OhlcvMsg::default_for_schema(Schema::Ohlcv1H))]
+    #[case::ohlcv1m_v3(3, Schema::Ohlcv1M, v3::OhlcvMsg::default_for_schema(Schema::Ohlcv1M))]
+    #[case::ohlcv1s_v3(3, Schema::Ohlcv1S, v3::OhlcvMsg::default_for_schema(Schema::Ohlcv1S))]
+    #[case::definitions_v3(3, Schema::Definition, v3::InstrumentDefMsg::default())]
+    #[case::imbalance_v3(3, Schema::Imbalance, v3::ImbalanceMsg::default())]
+    #[case::statistics_v3(3, Schema::Statistics, v3::StatMsg::default())]
+    #[case::status_v3(3, Schema::Status, v3::StatusMsg::default())]
     fn test_dbn_identity<R: DbnEncodable + HasRType + PartialEq + Clone>(
         #[case] version: u8,
         #[case] schema: Schema,
-        #[case] compression: Compression,
         #[case] _rec: R,
     ) -> Result<()> {
         let file_decoder = Decoder::with_upgrade_policy(
             DynReader::from_file(format!(
-                "{TEST_DATA_PATH}/test_data.{schema}{}.{}",
-                if version == 1 { ".v1" } else { "" },
-                if compression == Compression::ZStd {
-                    "dbn.zst"
-                } else {
-                    "dbn"
-                }
+                "{TEST_DATA_PATH}/test_data.{schema}.v{version}.dbn.zst",
             ))?,
             VersionUpgradePolicy::AsIs,
         )?;
@@ -749,8 +588,11 @@ mod tests {
         let decoded_records = file_decoder.decode_records::<R>()?;
         let mut buffer = Vec::new();
 
-        Encoder::new(DynWriter::new(&mut buffer, compression)?, &file_metadata)?
-            .encode_records(decoded_records.as_slice())?;
+        Encoder::new(
+            DynWriter::new(&mut buffer, Compression::ZStd)?,
+            &file_metadata,
+        )?
+        .encode_records(decoded_records.as_slice())?;
         let buf_decoder = Decoder::with_upgrade_policy(
             DynReader::inferred_with_buffer(buffer.as_slice())?,
             VersionUpgradePolicy::AsIs,
@@ -763,7 +605,7 @@ mod tests {
     #[test]
     fn test_skip_bytes() {
         let mut decoder =
-            Decoder::from_file(format!("{TEST_DATA_PATH}/test_data.mbo.dbn")).unwrap();
+            Decoder::from_file(format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn")).unwrap();
         decoder
             .decoder
             .skip_bytes(std::mem::size_of::<MboMsg>())
@@ -882,8 +724,8 @@ mod tests {
     }
 
     #[rstest]
-    #[case::v1_as_is(InstrumentDefMsgV1::default(), VersionUpgradePolicy::AsIs)]
-    #[case::v1_upgrade(InstrumentDefMsg::default(), VersionUpgradePolicy::UpgradeToV2)]
+    #[case::v1_as_is(v1::InstrumentDefMsg::default(), VersionUpgradePolicy::AsIs)]
+    #[case::v1_upgrade(v1::InstrumentDefMsg::default(), VersionUpgradePolicy::UpgradeToV2)]
     fn test_decode_multiframe_zst_from_v1<R: HasRType>(
         #[case] _r: R,
         #[case] upgrade_policy: VersionUpgradePolicy,
@@ -909,14 +751,32 @@ mod tests {
     }
 
     #[test]
-    fn test_decode_upgrade() -> crate::Result<()> {
+    fn test_decode_upgrade_v2() -> crate::Result<()> {
         let decoder = Decoder::with_upgrade_policy(
-            File::open(format!("{TEST_DATA_PATH}/test_data.definition.v1.dbn")).unwrap(),
+            zstd::Decoder::new(
+                File::open(format!("{TEST_DATA_PATH}/test_data.definition.v1.dbn.zst")).unwrap(),
+            )
+            .unwrap(),
             VersionUpgradePolicy::UpgradeToV2,
         )?;
         assert_eq!(decoder.metadata().version, crate::DBN_VERSION);
         assert_eq!(decoder.metadata().symbol_cstr_len, crate::SYMBOL_CSTR_LEN);
-        decoder.decode_records::<InstrumentDefMsg>()?;
+        decoder.decode_records::<v2::InstrumentDefMsg>()?;
+        Ok(())
+    }
+
+    #[test]
+    fn test_decode_upgrade_v3() -> crate::Result<()> {
+        let decoder = Decoder::with_upgrade_policy(
+            zstd::Decoder::new(
+                File::open(format!("{TEST_DATA_PATH}/test_data.definition.v1.dbn.zst")).unwrap(),
+            )
+            .unwrap(),
+            VersionUpgradePolicy::UpgradeToV3,
+        )?;
+        assert_eq!(decoder.metadata().version, crate::DBN_VERSION);
+        assert_eq!(decoder.metadata().symbol_cstr_len, crate::SYMBOL_CSTR_LEN);
+        decoder.decode_records::<v3::InstrumentDefMsg>()?;
         Ok(())
     }
 }

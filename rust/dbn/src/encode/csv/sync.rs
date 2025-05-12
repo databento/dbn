@@ -5,7 +5,8 @@ use fallible_streaming_iterator::FallibleStreamingIterator;
 use crate::{
     decode::{DbnMetadata, DecodeRecordRef},
     encode::{DbnEncodable, EncodeDbn, EncodeRecord, EncodeRecordRef, EncodeRecordTextExt},
-    rtype_dispatch, schema_dispatch, Error, RType, Record, Result, Schema,
+    rtype_dispatch, schema_dispatch, v2, Error, RType, Record, Result, Schema, WithTsOut,
+    DBN_VERSION,
 };
 
 /// Type for encoding files and streams of DBN records in CSV or other text-delimited
@@ -34,6 +35,7 @@ where
     use_pretty_px: bool,
     use_pretty_ts: bool,
     write_header: bool,
+    version: u8,
     schema: Option<Schema>,
     ts_out: bool,
     with_symbol: bool,
@@ -51,6 +53,7 @@ where
             use_pretty_px: false,
             use_pretty_ts: false,
             write_header: true,
+            version: DBN_VERSION,
             schema: None,
             ts_out: false,
             with_symbol: false,
@@ -109,6 +112,16 @@ where
         self
     }
 
+    /// Sets the DBN version which is used for determining which fields to include in
+    /// the header. Currently only relevant to the definition schema where fields have
+    /// changed between versions.
+    ///
+    /// If not specified, defaults to [`DBN_VERSION`].
+    pub fn version(mut self, version: u8) -> Self {
+        self.version = version;
+        self
+    }
+
     /// Creates the new encoder with the previously specified settings and if
     /// `write_header` is `true`, encodes the header row.
     ///
@@ -126,7 +139,12 @@ where
         };
         if self.write_header {
             if let Some(schema) = self.schema {
-                encoder.encode_header_for_schema(schema, self.ts_out, self.with_symbol)?;
+                encoder.encode_header_for_schema(
+                    self.version,
+                    schema,
+                    self.ts_out,
+                    self.with_symbol,
+                )?;
             } else {
                 encoder.has_written_header = false;
             }
@@ -201,11 +219,21 @@ where
     /// This function returns an error if there's an error writing to `writer`.
     pub fn encode_header_for_schema(
         &mut self,
+        version: u8,
         schema: Schema,
         ts_out: bool,
         with_symbol: bool,
     ) -> Result<()> {
-        schema_dispatch!(schema, ts_out: ts_out, self.encode_header(with_symbol))?;
+        // Workaround for definitions fields changing between versions 1/2 and 3
+        if version < 3 && schema == Schema::Definition {
+            if ts_out {
+                self.encode_header::<WithTsOut<v2::InstrumentDefMsg>>(with_symbol)?;
+            } else {
+                self.encode_header::<v2::InstrumentDefMsg>(with_symbol)?;
+            }
+        } else {
+            schema_dispatch!(schema, ts_out: ts_out, self.encode_header(with_symbol))?;
+        }
         self.has_written_header = true;
         Ok(())
     }
@@ -400,7 +428,7 @@ mod tests {
             RecordHeader, StatMsg, StatusMsg, TradeMsg, WithTsOut,
         },
         test_utils::VecStream,
-        RecordRef, FIXED_PRICE_SCALE,
+        RecordRef, FIXED_PRICE_SCALE, UNDEF_PRICE,
     };
 
     fn header(sep: char) -> String {
@@ -646,13 +674,12 @@ mod tests {
             high_limit_price: 1_000_000,
             low_limit_price: -1_000_000,
             max_price_variation: 0,
-            trading_reference_price: 500_000,
             unit_of_measure_qty: 5,
             min_price_increment_amount: 5,
             price_ratio: 10,
             inst_attrib_value: 10,
             underlying_id: 256785,
-            raw_instrument_id: RECORD_HEADER.instrument_id,
+            raw_instrument_id: RECORD_HEADER.instrument_id as u64,
             market_depth_implied: 0,
             market_depth: 13,
             market_segment_id: 0,
@@ -664,7 +691,6 @@ mod tests {
             contract_multiplier: 0,
             decay_quantity: 0,
             original_contract_size: 0,
-            trading_reference_date: 0,
             appl_id: 0,
             maturity_year: 0,
             decay_start_date: 0,
@@ -684,21 +710,26 @@ mod tests {
             instrument_class: InstrumentClass::Call as u8 as c_char,
             strike_price: 4_100_000_000_000,
             match_algorithm: 'F' as c_char,
-            md_security_trading_status: 2,
             main_fraction: 4,
             price_display_format: 8,
-            settl_price_type: 9,
             sub_fraction: 23,
             underlying_product: 10,
             security_update_action: SecurityUpdateAction::Add as c_char,
             maturity_month: 8,
             maturity_day: 9,
             maturity_week: 11,
-            user_defined_instrument: UserDefinedInstrument::No,
+            user_defined_instrument: UserDefinedInstrument::No as c_char,
             contract_multiplier_unit: 0,
             flow_schedule_type: 5,
             tick_rule: 0,
-            _reserved: Default::default(),
+            leg_count: 2,
+            leg_index: 1,
+            leg_instrument_id: 24,
+            leg_underlying_id: 25,
+            leg_instrument_class: InstrumentClass::Future as c_char,
+            leg_ratio_qty_numerator: 1,
+            leg_ratio_qty_denominator: 2,
+            ..Default::default()
         }];
         let mut buffer = Vec::new();
         let writer = BufWriter::new(&mut buffer);
@@ -712,12 +743,13 @@ mod tests {
         let sep = sep as char;
         assert_eq!(line, format!("1658441891000000000{sep}{}{sep}ESZ4 C4100{sep}A{sep}C{sep}100{sep}\
                                  1000{sep}1698450000000000000{sep}1697350000000000000{sep}1000000\
-                                 {sep}-1000000{sep}0{sep}500000{sep}5{sep}5{sep}10{sep}10{sep}256785\
+                                 {sep}-1000000{sep}0{sep}5{sep}5{sep}10{sep}10{sep}256785\
                                  {sep}323{sep}0{sep}13{sep}0{sep}10000{sep}1{sep}1000{sep}100{sep}1\
-                                 {sep}0{sep}0{sep}0{sep}0{sep}0{sep}0{sep}0{sep}4{sep}USD{sep}USD\
+                                 {sep}0{sep}0{sep}0{sep}0{sep}0{sep}0{sep}4{sep}USD{sep}USD\
                                  {sep}{sep}EW{sep}XCME{sep}ES{sep}OCAFPS{sep}OOF{sep}IPNT{sep}ESZ4{sep}\
-                                 USD{sep}4100000000000{sep}F{sep}2{sep}4{sep}8{sep}9{sep}23{sep}10\
-                                 {sep}8{sep}9{sep}11{sep}N{sep}0{sep}5{sep}0", header(sep)));
+                                 USD{sep}4100000000000{sep}F{sep}4{sep}8{sep}23{sep}10\
+                                 {sep}8{sep}9{sep}11{sep}N{sep}0{sep}5{sep}0{sep}2{sep}1{sep}24{sep}\
+                                 {sep}F{sep}N{sep}{UNDEF_PRICE}{sep}{UNDEF_PRICE}{sep}0{sep}0{sep}1{sep}2{sep}25", header(sep)));
     }
 
     #[rstest]
@@ -878,13 +910,13 @@ mod tests {
         {
             let mut encoder = Encoder::new(&mut buffer, false, false);
             encoder
-                .encode_header_for_schema(Schema::Statistics, false, false)
+                .encode_header_for_schema(DBN_VERSION, Schema::Statistics, false, false)
                 .unwrap();
         }
         {
             let mut encoder = Encoder::new(&mut buffer, false, false);
             encoder
-                .encode_header_for_schema(Schema::Statistics, true, true)
+                .encode_header_for_schema(DBN_VERSION, Schema::Statistics, true, true)
                 .unwrap();
         }
 

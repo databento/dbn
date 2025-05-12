@@ -646,6 +646,56 @@ impl InstrumentDefMsg {
             ))
         })
     }
+
+    /// Returns the enum whether the instrument definition is user-defined or not.
+    ///
+    /// # Errors
+    /// This function returns an error if the `security_update_action` field does not
+    /// contain a valid [`UserDefinedInstrument`].
+    pub fn user_defined_instrument(&self) -> Result<UserDefinedInstrument> {
+        UserDefinedInstrument::try_from(self.user_defined_instrument as u8).map_err(|_| {
+            Error::conversion::<UserDefinedInstrument>(format!(
+                "{:#04X}",
+                self.user_defined_instrument as u8
+            ))
+        })
+    }
+
+    /// Returns the leg's raw symbol assigned by the publisher as a `&str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `raw_symbol` contains invalid UTF-8.
+    pub fn leg_raw_symbol(&self) -> Result<&str> {
+        c_chars_to_str(&self.leg_raw_symbol)
+    }
+
+    /// Tries to convert the raw classification of the leg instrument to an enum.
+    ///
+    /// # Errors
+    /// This function returns an error if the `instrument_class` field does not
+    /// contain a valid [`InstrumentClass`].
+    pub fn leg_instrument_class(&self) -> Result<InstrumentClass> {
+        InstrumentClass::try_from(self.leg_instrument_class as u8).map_err(|_| {
+            Error::conversion::<InstrumentClass>(format!(
+                "{:#04X}",
+                self.leg_instrument_class as u8
+            ))
+        })
+    }
+
+    /// Returns the leg price as a floating point.
+    ///
+    /// `UNDEF_PRICE` will be converted to NaN.
+    pub fn leg_price_f64(&self) -> f64 {
+        px_to_f64(self.leg_price)
+    }
+
+    /// Returns the leg delta as a floating point.
+    ///
+    /// `UNDEF_PRICE` will be converted to NaN.
+    pub fn leg_delta_f64(&self) -> f64 {
+        px_to_f64(self.leg_delta)
+    }
 }
 
 impl ImbalanceMsg {
@@ -980,7 +1030,7 @@ mod tests {
         };
         assert_eq!(
             format!("{rec:?}"),
-            "StatMsg { hd: RecordHeader { length: 16, rtype: Statistics, publisher_id: 0, \
+            "StatMsg { hd: RecordHeader { length: 20, rtype: Statistics, publisher_id: 0, \
             instrument_id: 0, ts_event: 18446744073709551615 }, ts_recv: 18446744073709551615, \
             ts_ref: 18446744073709551615, price: UNDEF_PRICE, quantity: 5, sequence: 0, ts_in_delta: 0, \
             stat_type: OpenInterest, channel_id: 0, update_action: New, stat_flags: 0b00000010 }"
