@@ -61,7 +61,13 @@ macro_rules! rtype_dispatch_base {
                         $handler!(SystemMsg)
                     }
                 }
-                RType::Statistics => $handler!(StatMsg),
+                RType::Statistics => {
+                    if $rec_ref.record_size() < std::mem::size_of::<$crate::v3::StatMsg>() {
+                        $handler!($crate::v1::StatMsg)
+                    } else {
+                        $handler!($crate::v3::StatMsg)
+                    }
+                }
                 RType::Mbo => $handler!(MboMsg),
                 RType::Cmbp1 | RType::Tcbbo => $handler!(Cmbp1Msg),
                 RType::Bbo1S | RType::Bbo1M => $handler!(BboMsg),

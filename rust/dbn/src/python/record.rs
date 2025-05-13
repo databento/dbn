@@ -8,7 +8,10 @@ use pyo3::{
 };
 
 use crate::{
-    compat::{ErrorMsgV1, InstrumentDefMsgV1, InstrumentDefMsgV3, SymbolMappingMsgV1, SystemMsgV1},
+    compat::{
+        ErrorMsgV1, InstrumentDefMsgV1, InstrumentDefMsgV3, StatMsgV3, SymbolMappingMsgV1,
+        SystemMsgV1,
+    },
     pretty::px_to_f64,
     record::str_to_c_chars,
     rtype, BboMsg, BidAskPair, CbboMsg, Cmbp1Msg, ConsolidatedBidAskPair, ErrorCode, ErrorMsg,
@@ -3034,6 +3037,148 @@ impl StatMsg {
         ts_ref: u64,
         price: i64,
         quantity: i32,
+        stat_type: u16,
+        sequence: Option<u32>,
+        ts_in_delta: Option<i32>,
+        channel_id: Option<u16>,
+        update_action: Option<u8>,
+        stat_flags: u8,
+    ) -> Self {
+        Self {
+            hd: RecordHeader::new::<Self>(rtype::STATISTICS, publisher_id, instrument_id, ts_event),
+            ts_recv,
+            ts_ref,
+            price,
+            quantity,
+            sequence: sequence.unwrap_or_default(),
+            ts_in_delta: ts_in_delta.unwrap_or_default(),
+            stat_type,
+            channel_id: channel_id.unwrap_or_default(),
+            update_action: update_action.unwrap_or(StatUpdateAction::New as u8),
+            stat_flags,
+            _reserved: Default::default(),
+        }
+    }
+
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
+    #[getter]
+    fn rtype(&self) -> u8 {
+        self.hd.rtype
+    }
+
+    #[getter]
+    fn publisher_id(&self) -> u16 {
+        self.hd.publisher_id
+    }
+
+    #[getter]
+    fn instrument_id(&self) -> u32 {
+        self.hd.instrument_id
+    }
+
+    #[getter]
+    fn ts_event(&self) -> u64 {
+        self.hd.ts_event
+    }
+
+    #[setter]
+    fn set_ts_event(&mut self, ts_event: u64) {
+        self.hd.ts_event = ts_event;
+    }
+
+    #[getter]
+    fn get_pretty_price(&self) -> f64 {
+        self.price_f64()
+    }
+
+    #[getter]
+    fn get_pretty_ts_event<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+        new_py_timestamp_or_datetime(py, self.ts_event())
+    }
+
+    #[getter]
+    fn get_pretty_ts_recv<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+        new_py_timestamp_or_datetime(py, self.ts_recv)
+    }
+
+    #[getter]
+    fn get_pretty_ts_ref<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+        new_py_timestamp_or_datetime(py, self.ts_ref)
+    }
+
+    #[pyo3(name = "record_size")]
+    fn py_record_size(&self) -> usize {
+        self.record_size()
+    }
+
+    #[classattr]
+    fn size_hint() -> PyResult<usize> {
+        Ok(mem::size_of::<Self>())
+    }
+
+    #[classattr]
+    #[pyo3(name = "_dtypes")]
+    fn py_dtypes() -> Vec<(String, String)> {
+        Self::field_dtypes("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_price_fields")]
+    fn py_price_fields() -> Vec<String> {
+        Self::price_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_timestamp_fields")]
+    fn py_timestamp_fields() -> Vec<String> {
+        Self::timestamp_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_hidden_fields")]
+    fn py_hidden_fields() -> Vec<String> {
+        Self::hidden_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_ordered_fields")]
+    fn py_ordered_fields() -> Vec<String> {
+        Self::ordered_fields("")
+    }
+}
+
+#[pymethods]
+impl StatMsgV3 {
+    #[new]
+    #[pyo3(signature= (
+        publisher_id,
+        instrument_id,
+        ts_event,
+        ts_recv,
+        ts_ref,
+        price,
+        quantity,
+        stat_type,
+        sequence = None,
+        ts_in_delta = None,
+        channel_id = None,
+        update_action = None,
+        stat_flags = 0,
+    ))]
+    fn py_new(
+        publisher_id: u16,
+        instrument_id: u32,
+        ts_event: u64,
+        ts_recv: u64,
+        ts_ref: u64,
+        price: i64,
+        quantity: i64,
         stat_type: u16,
         sequence: Option<u32>,
         ts_in_delta: Option<i32>,

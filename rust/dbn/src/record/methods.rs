@@ -567,7 +567,8 @@ impl InstrumentDefMsg {
         c_chars_to_str(&self.cfi)
     }
 
-    /// Returns the [Security type](https://databento.com/docs/schemas-and-data-formats/instrument-definitions#security-type) of the instrument, e.g. FUT for future or future spread as a `&str`.
+    /// Returns the [Security type](https://databento.com/docs/schemas-and-data-formats/instrument-definitions#security-type)
+    /// of the instrument, e.g. FUT for future or future spread as a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `security_type` contains invalid UTF-8.
@@ -907,7 +908,7 @@ impl<T: HasRType> HasRType for WithTsOut<T> {
 
 impl<T> AsRef<[u8]> for WithTsOut<T>
 where
-    T: HasRType + AsRef<[u8]>,
+    T: HasRType,
 {
     fn as_ref(&self) -> &[u8] {
         unsafe { as_u8_slice(self) }

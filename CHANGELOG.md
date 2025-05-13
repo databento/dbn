@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.34.0 - 2025-05-13
+
+### Enhancements
+- Added a `v3::StatMsg` record with an expanded 64-bit `quantity` field
+- Added `with_compression_level` methods to `DynWriter`, `AsyncDynWriter`, and
+  `AsyncDynBufWriter`
+- Added `DBN_VERSION` constants to each version module: `v1`, `v2`, and `v3`
+- Added `UNDEF_STAT_QUANTITY` constants to each version module
+- Added statistics compatibility trait `StatRec` for generalizing across different
+  versions of the statistics record
+- Added `AsRef<[u8]>` implementations for `RecordEnum` and `RecordRefEnum`
+- Added new off-market publishers for Eurex and European Energy Exchange (EEX)
+
+### Breaking changes
+- Made `Record` a subtrait of `AsRef<[u8]>` as all records should be convertible to
+  bytes
+
 ## 0.33.2 - 2025-05-06
 
 ### Enhancements
@@ -125,7 +142,7 @@
 ### Enhancements
 - Added `v3` namespace in preparation for future DBN version 3 release. DBN version 2
   remains the current and default version
-- Added `v3::InstrumentDefMsg` record with new fields to support normalizing multi-leg
+- Added a `v3::InstrumentDefMsg` record with new fields to support normalizing multi-leg
   strategy definitions
   - Removal of statistics-schema related fields `trading_reference_price`,
     `trading_reference_date`, and `settl_price_type`

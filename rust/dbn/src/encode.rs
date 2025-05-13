@@ -33,17 +33,14 @@ pub use self::{
 
 use crate::{
     decode::{DbnMetadata, DecodeRecordRef},
-    rtype_dispatch, Error, HasRType, Record, RecordRef, Result,
+    rtype_dispatch, Error, Record, RecordRef, Result,
 };
 
 use self::{csv::serialize::CsvSerialize, json::serialize::JsonSerialize};
 
-/// Trait alias for [`HasRType`], `AsRef<[u8]>`, `CsvSerialize`, [`fmt::Debug`], and `JsonSerialize`.
-pub trait DbnEncodable: Record + AsRef<[u8]> + CsvSerialize + fmt::Debug + JsonSerialize {}
-impl<T> DbnEncodable for T where
-    T: HasRType + AsRef<[u8]> + CsvSerialize + fmt::Debug + JsonSerialize
-{
-}
+/// Trait alias for [`Record`], `CsvSerialize`, [`fmt::Debug`], and `JsonSerialize`.
+pub trait DbnEncodable: Record + CsvSerialize + fmt::Debug + JsonSerialize {}
+impl<T> DbnEncodable for T where T: Record + CsvSerialize + fmt::Debug + JsonSerialize {}
 
 /// Trait for types that encode a DBN record of a specific type.
 pub trait EncodeRecord {

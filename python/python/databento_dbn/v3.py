@@ -9,7 +9,7 @@ from ._lib import MBOMsg
 from ._lib import MBP1Msg
 from ._lib import MBP10Msg
 from ._lib import OHLCVMsg
-from ._lib import StatMsg
+from ._lib import StatMsgV3 as StatMsg
 from ._lib import StatusMsg
 from ._lib import SymbolMappingMsg
 from ._lib import SystemMsg

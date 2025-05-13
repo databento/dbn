@@ -1,19 +1,25 @@
 //! Record data types for encoding different Databento [`Schema`](crate::enums::Schema)s
 //! in DBN version 2.
 
-use std::os::raw::c_char;
-
-use crate::compat::InstrumentDefRec;
-pub use crate::compat::ASSET_CSTR_LEN_V2 as ASSET_CSTR_LEN;
-pub use crate::compat::SYMBOL_CSTR_LEN_V2 as SYMBOL_CSTR_LEN;
+pub use crate::compat::{
+    ASSET_CSTR_LEN_V2 as ASSET_CSTR_LEN, SYMBOL_CSTR_LEN_V2 as SYMBOL_CSTR_LEN,
+    UNDEF_STAT_QUANTITY_V2 as UNDEF_STAT_QUANTITY,
+};
 pub use crate::record::{
     Bbo1MMsg, Bbo1SMsg, BboMsg, Cbbo1MMsg, Cbbo1SMsg, CbboMsg, Cmbp1Msg, ErrorMsg, ImbalanceMsg,
     InstrumentDefMsg, MboMsg, OhlcvMsg, StatMsg, StatusMsg, SymbolMappingMsg, SystemMsg, TbboMsg,
     TcbboMsg, TradeMsg, WithTsOut,
 };
 
-use crate::SystemCode;
-use crate::{compat::SymbolMappingRec, rtype, v1, RecordHeader};
+use std::os::raw::c_char;
+
+use crate::{
+    compat::{InstrumentDefRec, SymbolMappingRec},
+    rtype, v1, RecordHeader, SystemCode,
+};
+
+/// The DBN version of this module.
+pub const DBN_VERSION: u8 = 2;
 
 impl From<&v1::InstrumentDefMsg> for InstrumentDefMsg {
     fn from(old: &v1::InstrumentDefMsg) -> Self {

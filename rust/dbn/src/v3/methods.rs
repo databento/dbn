@@ -4,10 +4,10 @@ use crate::{
     pretty::px_to_f64,
     record::{c_chars_to_str, ts_to_dt},
     rtype, v1, v2, Error, InstrumentClass, MatchAlgorithm, RecordHeader, Result,
-    SecurityUpdateAction, UserDefinedInstrument,
+    SecurityUpdateAction, StatType, StatUpdateAction, UserDefinedInstrument,
 };
 
-use super::InstrumentDefMsg;
+use super::{InstrumentDefMsg, StatMsg, UNDEF_STAT_QUANTITY};
 
 impl From<&v1::InstrumentDefMsg> for InstrumentDefMsg {
     fn from(old: &v1::InstrumentDefMsg) -> Self {
@@ -242,7 +242,8 @@ impl InstrumentDefMsg {
         c_chars_to_str(&self.cfi)
     }
 
-    /// Returns the [Security type](https://databento.com/docs/schemas-and-data-formats/instrument-definitions#security-type) of the instrument, e.g. FUT for future or future spread as a `&str`.
+    /// Returns the [Security type](https://databento.com/docs/schemas-and-data-formats/instrument-definitions#security-type)
+    /// of the instrument, e.g. FUT for future or future spread as a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `security_type` contains invalid UTF-8.
@@ -368,5 +369,81 @@ impl InstrumentDefMsg {
     /// `UNDEF_PRICE` will be converted to NaN.
     pub fn leg_delta_f64(&self) -> f64 {
         px_to_f64(self.leg_delta)
+    }
+}
+
+impl From<&v1::StatMsg> for StatMsg {
+    fn from(old: &v1::StatMsg) -> Self {
+        Self {
+            // recalculate length
+            hd: RecordHeader::new::<Self>(
+                rtype::INSTRUMENT_DEF,
+                old.hd.publisher_id,
+                old.hd.instrument_id,
+                old.hd.ts_event,
+            ),
+            ts_recv: old.ts_recv,
+            ts_ref: old.ts_ref,
+            price: old.price,
+            quantity: if old.quantity == v1::UNDEF_STAT_QUANTITY {
+                UNDEF_STAT_QUANTITY
+            } else {
+                old.quantity as i64
+            },
+            sequence: old.sequence,
+            ts_in_delta: old.ts_in_delta,
+            stat_type: old.stat_type,
+            channel_id: old.channel_id,
+            update_action: old.update_action,
+            stat_flags: old.stat_flags,
+            _reserved: Default::default(),
+        }
+    }
+}
+
+impl StatMsg {
+    /// Returns the price as a floating point.
+    ///
+    /// `UNDEF_PRICE` will be converted to NaN.
+    pub fn price_f64(&self) -> f64 {
+        px_to_f64(self.price)
+    }
+
+    /// Parses the raw capture-server-received timestamp into a datetime. Returns `None`
+    /// if `ts_recv` contains the sentinel for a null timestamp.
+    pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
+        ts_to_dt(self.ts_recv)
+    }
+
+    /// Parses the raw reference timestamp of the statistic value into a datetime.
+    /// Returns `None` if `ts_ref` contains the sentinel for a null timestamp.
+    pub fn ts_ref(&self) -> Option<time::OffsetDateTime> {
+        ts_to_dt(self.ts_ref)
+    }
+
+    /// Tries to convert the raw type of the statistic value to an enum.
+    ///
+    /// # Errors
+    /// This function returns an error if the `stat_type` field does not
+    /// contain a valid [`StatType`].
+    pub fn stat_type(&self) -> Result<StatType> {
+        StatType::try_from(self.stat_type)
+            .map_err(|_| Error::conversion::<StatType>(self.stat_type))
+    }
+
+    /// Tries to convert the raw `update_action` to an enum.
+    ///
+    /// # Errors
+    /// This function returns an error if the `update_action` field does not
+    /// contain a valid [`StatUpdateAction`].
+    pub fn update_action(&self) -> Result<StatUpdateAction> {
+        StatUpdateAction::try_from(self.update_action).map_err(|_| {
+            Error::conversion::<StatUpdateAction>(format!("{:04X}", self.update_action))
+        })
+    }
+
+    /// Parses the raw `ts_in_delta`—the delta of `ts_recv - ts_exchange_send`—into a duration.
+    pub fn ts_in_delta(&self) -> time::Duration {
+        time::Duration::new(0, self.ts_in_delta)
     }
 }

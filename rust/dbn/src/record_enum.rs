@@ -360,6 +360,28 @@ impl Record for RecordEnum {
     }
 }
 
+impl AsRef<[u8]> for RecordEnum {
+    fn as_ref(&self) -> &[u8] {
+        match self {
+            RecordEnum::Mbo(rec) => rec.as_ref(),
+            RecordEnum::Trade(rec) => rec.as_ref(),
+            RecordEnum::Mbp1(rec) => rec.as_ref(),
+            RecordEnum::Mbp10(rec) => rec.as_ref(),
+            RecordEnum::Ohlcv(rec) => rec.as_ref(),
+            RecordEnum::Status(rec) => rec.as_ref(),
+            RecordEnum::InstrumentDef(rec) => rec.as_ref(),
+            RecordEnum::Imbalance(rec) => rec.as_ref(),
+            RecordEnum::Stat(rec) => rec.as_ref(),
+            RecordEnum::Error(rec) => rec.as_ref(),
+            RecordEnum::SymbolMapping(rec) => rec.as_ref(),
+            RecordEnum::System(rec) => rec.as_ref(),
+            RecordEnum::Cmbp1(rec) => rec.as_ref(),
+            RecordEnum::Bbo(rec) => rec.as_ref(),
+            RecordEnum::Cbbo(rec) => rec.as_ref(),
+        }
+    }
+}
+
 impl RecordMut for RecordEnum {
     fn header_mut(&mut self) -> &mut crate::RecordHeader {
         match self {
@@ -420,6 +442,28 @@ impl Record for RecordRefEnum<'_> {
             RecordRefEnum::Cmbp1(rec) => rec.raw_index_ts(),
             RecordRefEnum::Bbo(rec) => rec.raw_index_ts(),
             RecordRefEnum::Cbbo(rec) => rec.raw_index_ts(),
+        }
+    }
+}
+
+impl AsRef<[u8]> for RecordRefEnum<'_> {
+    fn as_ref(&self) -> &[u8] {
+        match self {
+            RecordRefEnum::Mbo(rec) => rec.as_ref(),
+            RecordRefEnum::Trade(rec) => rec.as_ref(),
+            RecordRefEnum::Mbp1(rec) => rec.as_ref(),
+            RecordRefEnum::Mbp10(rec) => rec.as_ref(),
+            RecordRefEnum::Ohlcv(rec) => rec.as_ref(),
+            RecordRefEnum::Status(rec) => rec.as_ref(),
+            RecordRefEnum::InstrumentDef(rec) => rec.as_ref(),
+            RecordRefEnum::Imbalance(rec) => rec.as_ref(),
+            RecordRefEnum::Stat(rec) => rec.as_ref(),
+            RecordRefEnum::Error(rec) => rec.as_ref(),
+            RecordRefEnum::SymbolMapping(rec) => rec.as_ref(),
+            RecordRefEnum::System(rec) => rec.as_ref(),
+            RecordRefEnum::Cmbp1(rec) => rec.as_ref(),
+            RecordRefEnum::Bbo(rec) => rec.as_ref(),
+            RecordRefEnum::Cbbo(rec) => rec.as_ref(),
         }
     }
 }

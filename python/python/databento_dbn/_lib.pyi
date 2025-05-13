@@ -43,6 +43,7 @@ _DBNRecord = Union[
     SystemMsg,
     SystemMsgV1,
     StatMsg,
+    StatMsgV3,
     StatusMsg,
 ]
 
@@ -5990,6 +5991,15 @@ class StatusMsg(Record):
         bool | None
 
         """
+
+class StatMsgV3(StatMsg):
+    """
+    A statistics message.
+
+    A catchall for various data disseminated by publishers. The
+    `stat_type` field indicates the statistic contained in the message.
+
+    """
 
 class ErrorMsg(ErrorMsgV1):
     """

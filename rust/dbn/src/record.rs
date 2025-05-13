@@ -837,7 +837,8 @@ pub struct InstrumentDefMsg {
     #[dbn(fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub cfi: [c_char; 7],
-    /// The type of the instrument, e.g. FUT for future or future spread.
+    /// The [Security type](https://databento.com/docs/schemas-and-data-formats/instrument-definitions#security-type)
+    /// of the instrument, e.g. FUT for future or future spread.
     #[dbn(fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "conv::cstr_serde"))]
     pub security_type: [c_char; 7],
@@ -1177,7 +1178,7 @@ pub struct SystemMsg {
 
 /// Used for polymorphism around types all beginning with a [`RecordHeader`] where
 /// `rtype` is the discriminant used for indicating the type of record.
-pub trait Record {
+pub trait Record: AsRef<[u8]> {
     /// Returns a reference to the `RecordHeader` that comes at the beginning of all
     /// record types.
     fn header(&self) -> &RecordHeader;

@@ -103,7 +103,7 @@ pub const UNDEF_PRICE: i64 = i64::MAX;
 /// The sentinel value for an unset or null order quantity.
 pub const UNDEF_ORDER_SIZE: u32 = u32::MAX;
 /// The sentinel value for an unset or null stat quantity.
-pub const UNDEF_STAT_QUANTITY: i32 = i32::MAX;
+pub const UNDEF_STAT_QUANTITY: i32 = compat::UNDEF_STAT_QUANTITY_V2;
 /// The sentinel value for an unset or null timestamp.
 pub const UNDEF_TIMESTAMP: u64 = u64::MAX;
 /// The length in bytes of the largest record type.

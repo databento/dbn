@@ -2,19 +2,23 @@
 //! in the upcoming DBN version 3.
 
 pub use crate::compat::{
-    InstrumentDefMsgV3 as InstrumentDefMsg, ASSET_CSTR_LEN_V3 as ASSET_CSTR_LEN,
-    SYMBOL_CSTR_LEN_V3 as SYMBOL_CSTR_LEN,
+    InstrumentDefMsgV3 as InstrumentDefMsg, StatMsgV3 as StatMsg,
+    ASSET_CSTR_LEN_V3 as ASSET_CSTR_LEN, SYMBOL_CSTR_LEN_V3 as SYMBOL_CSTR_LEN,
+    UNDEF_STAT_QUANTITY_V3 as UNDEF_STAT_QUANTITY,
 };
 pub use crate::record::{
     Bbo1MMsg, Bbo1SMsg, BboMsg, Cbbo1MMsg, Cbbo1SMsg, CbboMsg, Cmbp1Msg, ErrorMsg, ImbalanceMsg,
-    MboMsg, OhlcvMsg, StatMsg, StatusMsg, SymbolMappingMsg, SystemMsg, TbboMsg, TcbboMsg, TradeMsg,
+    MboMsg, OhlcvMsg, StatusMsg, SymbolMappingMsg, SystemMsg, TbboMsg, TcbboMsg, TradeMsg,
     WithTsOut,
 };
 
-use crate::compat::InstrumentDefRec;
+use crate::compat::{InstrumentDefRec, StatRec};
 
 mod impl_default;
 mod methods;
+
+/// The DBN version of this module.
+pub const DBN_VERSION: u8 = 3;
 
 impl InstrumentDefRec for InstrumentDefMsg {
     fn raw_symbol(&self) -> crate::Result<&str> {
@@ -35,6 +39,34 @@ impl InstrumentDefRec for InstrumentDefMsg {
 
     fn channel_id(&self) -> u16 {
         self.channel_id
+    }
+}
+
+impl StatRec for StatMsg {
+    const UNDEF_STAT_QUANTITY: i64 = UNDEF_STAT_QUANTITY;
+
+    fn stat_type(&self) -> crate::Result<crate::StatType> {
+        Self::stat_type(self)
+    }
+
+    fn ts_recv(&self) -> Option<time::OffsetDateTime> {
+        Self::ts_recv(self)
+    }
+
+    fn ts_ref(&self) -> Option<time::OffsetDateTime> {
+        Self::ts_ref(self)
+    }
+
+    fn update_action(&self) -> crate::Result<crate::StatUpdateAction> {
+        Self::update_action(self)
+    }
+
+    fn price(&self) -> i64 {
+        self.price
+    }
+
+    fn quantity(&self) -> i64 {
+        self.quantity
     }
 }
 
@@ -96,6 +128,7 @@ mod tests {
 
     #[rstest]
     #[case::definition(InstrumentDefMsg::default(), 520)]
+    #[case::definition(StatMsg::default(), 80)]
     fn test_sizes<R: Sized>(#[case] _rec: R, #[case] exp: usize) {
         assert_eq!(mem::size_of::<R>(), exp);
         assert!(mem::size_of::<R>() <= crate::MAX_RECORD_LEN);
