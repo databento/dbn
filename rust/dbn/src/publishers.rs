@@ -667,10 +667,14 @@ pub enum Publisher {
     XeurEobiXeur = 101,
     /// European Energy Exchange EOBI
     XeerEobiXeer = 102,
+    /// Eurex EOBI - Off-Market Trades
+    XeurEobiXoff = 103,
+    /// European Energy Exchange EOBI - Off-Market Trades
+    XeerEobiXoff = 104,
 }
 
 /// The number of Publisher variants.
-pub const PUBLISHER_COUNT: usize = 102;
+pub const PUBLISHER_COUNT: usize = 104;
 
 impl Publisher {
     /// Convert a Publisher to its `str` representation.
@@ -778,6 +782,8 @@ impl Publisher {
             Self::IfllImpactXoff => "IFLL.IMPACT.XOFF",
             Self::XeurEobiXeur => "XEUR.EOBI.XEUR",
             Self::XeerEobiXeer => "XEER.EOBI.XEER",
+            Self::XeurEobiXoff => "XEUR.EOBI.XOFF",
+            Self::XeerEobiXoff => "XEER.EOBI.XOFF",
         }
     }
 
@@ -886,6 +892,8 @@ impl Publisher {
             Self::IfllImpactXoff => Venue::Xoff,
             Self::XeurEobiXeur => Venue::Xeur,
             Self::XeerEobiXeer => Venue::Xeer,
+            Self::XeurEobiXoff => Venue::Xoff,
+            Self::XeerEobiXoff => Venue::Xoff,
         }
     }
 
@@ -994,6 +1002,8 @@ impl Publisher {
             Self::IfllImpactXoff => Dataset::IfllImpact,
             Self::XeurEobiXeur => Dataset::XeurEobi,
             Self::XeerEobiXeer => Dataset::XeerEobi,
+            Self::XeurEobiXoff => Dataset::XeurEobi,
+            Self::XeerEobiXoff => Dataset::XeerEobi,
         }
     }
 
@@ -1104,6 +1114,8 @@ impl Publisher {
             (Dataset::IfllImpact, Venue::Xoff) => Ok(Self::IfllImpactXoff),
             (Dataset::XeurEobi, Venue::Xeur) => Ok(Self::XeurEobiXeur),
             (Dataset::XeerEobi, Venue::Xeer) => Ok(Self::XeerEobiXeer),
+            (Dataset::XeurEobi, Venue::Xoff) => Ok(Self::XeurEobiXoff),
+            (Dataset::XeerEobi, Venue::Xoff) => Ok(Self::XeerEobiXoff),
             _ => Err(Error::conversion::<Self>(format!("({dataset}, {venue})"))),
         }
     }
@@ -1228,6 +1240,8 @@ impl std::str::FromStr for Publisher {
             "IFLL.IMPACT.XOFF" => Ok(Self::IfllImpactXoff),
             "XEUR.EOBI.XEUR" => Ok(Self::XeurEobiXeur),
             "XEER.EOBI.XEER" => Ok(Self::XeerEobiXeer),
+            "XEUR.EOBI.XOFF" => Ok(Self::XeurEobiXoff),
+            "XEER.EOBI.XOFF" => Ok(Self::XeerEobiXoff),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
