@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.34.0 - TBD
+## 0.34.0 - 2025-05-13
 
 ### Enhancements
 - Added a `v3::StatMsg` record with an expanded 64-bit `quantity` field
@@ -11,7 +11,7 @@
 - Added statistics compatibility trait `StatRec` for generalizing across different
   versions of the statistics record
 - Added `AsRef<[u8]>` implementations for `RecordEnum` and `RecordRefEnum`
-- Added new off-market publishers for Eurex, and European Energy Exchange (EEX)
+- Added new off-market publishers for Eurex and European Energy Exchange (EEX)
 
 ### Breaking changes
 - Made `Record` a subtrait of `AsRef<[u8]>` as all records should be convertible to
