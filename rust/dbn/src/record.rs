@@ -556,8 +556,8 @@ pub struct Cmbp1Msg {
     pub levels: [ConsolidatedBidAskPair; 1],
 }
 
-/// Subsampled market by price with a known book depth of 1. The record of the
-/// [`Bbo1S`](crate::Schema::Bbo1S) and [`Bbo1M`](crate::Schema::Bbo1M) schemas.
+/// Subsampled consolidated market by price with a known book depth of 1. The record of the
+/// [`Cbbo1S`](crate::Schema::Cbbo1S) and [`Cbbo1M`](crate::Schema::Cbbo1M) schemas.
 #[repr(C)]
 #[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
