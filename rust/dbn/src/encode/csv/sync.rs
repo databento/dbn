@@ -186,7 +186,9 @@ where
     }
 
     /// Encodes the CSV header for `schema`, i.e. the names of each of the fields to
-    /// the output.
+    /// the output. Only supports the current [`DBN_VERSION`](crate::DBN_VERSION), use
+    /// [`encode_header()`](Self::encode_header) to encode a header for older versions
+    /// of schemas that changed between DBN versions.
     ///
     /// If `ts_out` is `true`, it will add a header field "ts_out".
     ///

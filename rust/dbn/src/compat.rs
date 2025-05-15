@@ -45,106 +45,9 @@ use dbn_macros::MockPyo3;
 
 use crate::{
     macros::{dbn_record, CsvSerialize, JsonSerialize},
-    record::{transmute_header_bytes, transmute_record_bytes},
-    rtype, HasRType, RecordHeader, RecordRef, SecurityUpdateAction, StatType, StatUpdateAction,
-    UserDefinedInstrument, VersionUpgradePolicy, WithTsOut, DBN_VERSION,
+    rtype, HasRType, RecordHeader, SecurityUpdateAction, StatType, StatUpdateAction,
+    UserDefinedInstrument,
 };
-
-/// Decodes bytes into a [`RecordRef`], optionally applying conversion from structs
-/// of a prior DBN version to the current DBN version, according to the `version` and
-/// `upgrade_policy`.
-///
-/// # Preconditions
-/// This function assumes `version` is valid (not greater than [`DBN_VERSION`]).
-///
-/// # Panics
-/// This function will panic if it's passed only a single partial record in `input` and
-/// an upgrade is attempted. It will also panic if `version` is greater than [`DBN_VERSION`].
-///
-/// # Safety
-/// Assumes `input` contains a full record.
-pub unsafe fn decode_record_ref<'a>(
-    version: u8,
-    upgrade_policy: VersionUpgradePolicy,
-    ts_out: bool,
-    compat_buffer: &'a mut [u8; crate::MAX_RECORD_LEN],
-    input: &'a [u8],
-) -> RecordRef<'a> {
-    match (version, upgrade_policy) {
-        (1, VersionUpgradePolicy::UpgradeToV2) => {
-            let header = transmute_header_bytes(input).unwrap();
-            match header.rtype {
-                rtype::INSTRUMENT_DEF => {
-                    return upgrade_record::<InstrumentDefMsgV1, InstrumentDefMsgV2>(
-                        ts_out,
-                        compat_buffer,
-                        input,
-                    );
-                }
-                rtype::SYMBOL_MAPPING => {
-                    return upgrade_record::<SymbolMappingMsgV1, SymbolMappingMsgV2>(
-                        ts_out,
-                        compat_buffer,
-                        input,
-                    );
-                }
-                rtype::ERROR => {
-                    return upgrade_record::<ErrorMsgV1, ErrorMsgV2>(ts_out, compat_buffer, input);
-                }
-                rtype::SYSTEM => {
-                    return upgrade_record::<SystemMsgV1, SystemMsgV2>(
-                        ts_out,
-                        compat_buffer,
-                        input,
-                    );
-                }
-                _ => (),
-            }
-        }
-        (2, VersionUpgradePolicy::UpgradeToV2) => {}
-        (..=DBN_VERSION, VersionUpgradePolicy::AsIs) => {}
-        _ => panic!("Unsupported version {version}"),
-    }
-    RecordRef::new(input)
-}
-
-pub(crate) unsafe fn choose_record_ref<'a>(
-    version: u8,
-    upgrade_policy: VersionUpgradePolicy,
-    buffer: &'a [u8],
-    compat_buffer: &'a [u8],
-) -> RecordRef<'a> {
-    if version == 1 && upgrade_policy == VersionUpgradePolicy::UpgradeToV2 {
-        let header = transmute_header_bytes(buffer).unwrap();
-        match header.rtype {
-            rtype::INSTRUMENT_DEF | rtype::SYMBOL_MAPPING | rtype::ERROR | rtype::SYSTEM => {
-                return RecordRef::new(compat_buffer);
-            }
-            _ => (),
-        }
-    }
-    RecordRef::new(buffer)
-}
-
-unsafe fn upgrade_record<'a, T, U>(
-    ts_out: bool,
-    compat_buffer: &'a mut [u8; crate::MAX_RECORD_LEN],
-    input: &'a [u8],
-) -> RecordRef<'a>
-where
-    T: HasRType,
-    U: HasRType + for<'b> From<&'b T>,
-{
-    if ts_out {
-        let rec = transmute_record_bytes::<WithTsOut<T>>(input).unwrap();
-        let upgraded = WithTsOut::new(U::from(&rec.rec), rec.ts_out);
-        compat_buffer[..upgraded.as_ref().len()].copy_from_slice(upgraded.as_ref());
-    } else {
-        let upgraded = U::from(transmute_record_bytes::<T>(input).unwrap());
-        compat_buffer[..upgraded.as_ref().len()].copy_from_slice(upgraded.as_ref());
-    }
-    RecordRef::new(compat_buffer)
-}
 
 /// A trait for compatibility between different versions of symbol mapping records.
 pub trait SymbolMappingRec: HasRType {
@@ -938,17 +841,10 @@ pub struct StatMsgV3 {
     pub _reserved: [u8; 18],
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "python"))]
 mod tests {
-    use std::ffi::c_char;
-
-    use time::OffsetDateTime;
-
-    use crate::{Mbp1Msg, Record, MAX_RECORD_LEN};
-
     use super::*;
 
-    #[cfg(feature = "python")]
     #[test]
     fn test_strike_price_order_didnt_change() {
         use crate::python::PyFieldDesc;
@@ -957,58 +853,5 @@ mod tests {
             InstrumentDefMsgV1::ordered_fields(""),
             InstrumentDefMsgV2::ordered_fields("")
         );
-    }
-
-    #[test]
-    fn upgrade_symbol_mapping_ts_out() -> crate::Result<()> {
-        let orig = WithTsOut::new(
-            SymbolMappingMsgV1::new(1, 2, "ES.c.0", "ESH4", 0, 0)?,
-            OffsetDateTime::now_utc().unix_timestamp_nanos() as u64,
-        );
-        let mut compat_buffer = [0; MAX_RECORD_LEN];
-        let res = unsafe {
-            decode_record_ref(
-                1,
-                VersionUpgradePolicy::UpgradeToV2,
-                true,
-                &mut compat_buffer,
-                orig.as_ref(),
-            )
-        };
-        let upgraded = res.get::<WithTsOut<SymbolMappingMsgV2>>().unwrap();
-        assert_eq!(orig.ts_out, upgraded.ts_out);
-        assert_eq!(orig.rec.stype_in_symbol()?, upgraded.rec.stype_in_symbol()?);
-        assert_eq!(
-            orig.rec.stype_out_symbol()?,
-            upgraded.rec.stype_out_symbol()?
-        );
-        assert_eq!(upgraded.record_size(), std::mem::size_of_val(upgraded));
-        // used compat buffer
-        assert!(std::ptr::addr_eq(upgraded.header(), compat_buffer.as_ptr()));
-        Ok(())
-    }
-
-    #[test]
-    fn upgrade_mbp1_ts_out() -> crate::Result<()> {
-        let rec = Mbp1Msg {
-            price: 1_250_000_000,
-            side: b'A' as c_char,
-            ..Mbp1Msg::default()
-        };
-        let orig = WithTsOut::new(rec, OffsetDateTime::now_utc().unix_timestamp_nanos() as u64);
-        let mut compat_buffer = [0; MAX_RECORD_LEN];
-        let res = unsafe {
-            decode_record_ref(
-                1,
-                VersionUpgradePolicy::UpgradeToV2,
-                true,
-                &mut compat_buffer,
-                orig.as_ref(),
-            )
-        };
-        let upgraded = res.get::<WithTsOut<Mbp1Msg>>().unwrap();
-        // compat buffer unused and pointer unchanged
-        assert!(std::ptr::eq(orig.header(), upgraded.header()));
-        Ok(())
     }
 }

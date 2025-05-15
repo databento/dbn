@@ -2,8 +2,28 @@
 
 ## 0.35.0 - TBD
 
-### Bug Fixes
+### Enhancements
+- Consolidated DBN decoding logic in a new sans-I/O style state machine. All existing
+  decoders now use `DbnFsm` internally
+- Added an internal buffer to DBN decoders so wrapping the reader in a `BufReader` is no
+  longer recommended
+- Added `with_upgrade_policy()` construction methods to `MetadataDecoder` and
+  `AsyncMetadataDecoder` to match other decoders
+- Implemented conversion from `RecordRef` to `IoSlice` for use with
+  `Write::write_vectored`
+- Improved performance of the Python `DBNDecoder` by batching acquisition of the GIL for
+  multiple records
+
+### Bug fixes
+- Changed default `upgrade_policy` of synchronous `DbnRecord`
+- Fixed Python `Transcoder` not writing CSV header when `has_metadata=False`
 - Removed incorrect `sequence` and `depth` Python type stubs for `CMBP1Msg` and `CBBOMsg`
+
+### Breaking changes
+- Changed the return type of `DbnDecoder::from_file` and `AsyncDbnDecoder::from_file` to
+  no longer include a `BufReader`
+- Removed `compat::decode_record_ref`. It's recommended to use `DbnFsm` or the decoders
+  directly
 
 ## 0.34.0 - 2025-05-13
 

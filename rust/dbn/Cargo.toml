@@ -35,6 +35,7 @@ itoa = "1.0"
 num_enum = "0.7"
 pyo3 = { workspace = true, optional = true }
 json-writer = "0.4"
+oval = "2.0"
 serde = { workspace = true, features = ["derive"], optional = true }
 # extra enum traits for Python
 strum = { version = "0.27", features = ["derive"], optional = true }

@@ -1,4 +1,4 @@
-use std::{io::Cursor, path::Path};
+use std::path::Path;
 
 use async_compression::tokio::bufread::ZstdDecoder;
 use tokio::{
@@ -7,13 +7,13 @@ use tokio::{
 };
 
 use crate::{
-    compat,
     decode::{
+        dbn::fsm::{DbnFsm, ProcessResult},
         r#async::{AsyncSkipBytes, ZSTD_FILE_BUFFER_CAPACITY},
         zstd::zstd_decoder,
-        FromLittleEndianSlice, VersionUpgradePolicy,
+        VersionUpgradePolicy,
     },
-    HasRType, Metadata, Record, RecordHeader, RecordRef, Result, DBN_VERSION, METADATA_FIXED_LEN,
+    HasRType, Metadata, Record, RecordRef, Result, DBN_VERSION,
 };
 
 /// An async decoder for Databento Binary Encoding (DBN), both metadata and records.
@@ -40,15 +40,12 @@ where
     /// This method is not cancellation safe. If this method is used in a
     /// `tokio::select!` statement and another branch completes first, the metadata
     /// may have been partially read, corrupting the stream.
-    pub async fn new(mut reader: R) -> crate::Result<Self> {
-        let metadata = MetadataDecoder::new(&mut reader).decode().await?;
+    pub async fn new(reader: R) -> crate::Result<Self> {
+        let mut metadata_decoder = MetadataDecoder::new(reader);
+        let mut metadata = metadata_decoder.decode().await?;
+        metadata.upgrade(VersionUpgradePolicy::default());
         Ok(Self {
-            decoder: RecordDecoder::with_version(
-                reader,
-                metadata.version,
-                VersionUpgradePolicy::UpgradeToV2,
-                metadata.ts_out,
-            )?,
+            decoder: RecordDecoder::from(metadata_decoder),
             metadata,
         })
     }
@@ -65,15 +62,13 @@ where
     /// `tokio::select!` statement and another branch completes first, the metadata
     /// may have been partially read, corrupting the stream.
     pub async fn with_upgrade_policy(
-        mut reader: R,
+        reader: R,
         upgrade_policy: VersionUpgradePolicy,
     ) -> crate::Result<Self> {
-        let mut metadata = MetadataDecoder::new(&mut reader).decode().await?;
-        // need to get the original version
-        let version = metadata.version;
-        metadata.upgrade(upgrade_policy);
+        let mut metadata_decoder = MetadataDecoder::with_upgrade_policy(reader, upgrade_policy);
+        let metadata = metadata_decoder.decode().await?;
         Ok(Self {
-            decoder: RecordDecoder::with_version(reader, version, upgrade_policy, metadata.ts_out)?,
+            decoder: RecordDecoder::from(metadata_decoder),
             metadata,
         })
     }
@@ -103,7 +98,7 @@ where
     /// Sets the behavior for decoding DBN data of previous versions.
     pub fn set_upgrade_policy(&mut self, upgrade_policy: VersionUpgradePolicy) {
         self.metadata
-            .set_version(self.decoder.version, upgrade_policy);
+            .set_version(self.decoder.fsm.input_dbn_version(), upgrade_policy);
         self.decoder.set_upgrade_policy(upgrade_policy);
     }
 
@@ -189,7 +184,7 @@ where
     }
 }
 
-impl Decoder<BufReader<File>> {
+impl Decoder<File> {
     /// Creates a new async DBN [`Decoder`] from the file at `path`.
     ///
     /// # Errors
@@ -207,7 +202,7 @@ impl Decoder<BufReader<File>> {
                 format!("opening DBN file at path '{}'", path.as_ref().display()),
             )
         })?;
-        Self::new(BufReader::with_capacity(ZSTD_FILE_BUFFER_CAPACITY, file)).await
+        Self::new(file).await
     }
 }
 
@@ -241,21 +236,24 @@ pub struct RecordDecoder<R>
 where
     R: io::AsyncReadExt + Unpin,
 {
-    version: u8,
-    upgrade_policy: VersionUpgradePolicy,
-    ts_out: bool,
     reader: R,
-    state: DecoderState,
-    framer: RecordFramer,
-    read_buf: Cursor<Vec<u8>>,
-    compat_buf: [u8; crate::MAX_RECORD_LEN],
+    fsm: DbnFsm,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum DecoderState {
-    Read,
-    Yield,
-    Eof,
+impl<R> From<MetadataDecoder<R>> for RecordDecoder<R>
+where
+    R: io::AsyncReadExt + Unpin,
+{
+    fn from(metadata_decoder: MetadataDecoder<R>) -> Self {
+        let MetadataDecoder { reader, mut fsm } = metadata_decoder;
+        if fsm
+            .upgrade_policy()
+            .is_upgrade_situation(fsm.input_dbn_version())
+        {
+            fsm.grow_compat(DbnFsm::DEFAULT_BUF_SIZE);
+        }
+        Self { reader, fsm }
+    }
 }
 
 impl<R> RecordDecoder<R>
@@ -281,19 +279,12 @@ where
         upgrade_policy: VersionUpgradePolicy,
         ts_out: bool,
     ) -> crate::Result<Self> {
-        if version > DBN_VERSION {
-            return Err(crate::Error::decode(format!("can't decode newer version of DBN. Decoder version is {DBN_VERSION}, input version is {version}")));
-        }
-        Ok(Self {
-            version,
-            upgrade_policy,
-            ts_out,
-            reader,
-            state: DecoderState::Read,
-            framer: RecordFramer::Head,
-            read_buf: Cursor::default(),
-            compat_buf: [0; crate::MAX_RECORD_LEN],
-        })
+        let mut fsm = DbnFsm::new(DbnFsm::DEFAULT_BUF_SIZE, crate::MAX_RECORD_LEN);
+        fsm.skip_metadata();
+        fsm.set_input_dbn_version(version)?;
+        fsm.set_upgrade_policy(upgrade_policy);
+        fsm.set_ts_out(ts_out);
+        Ok(Self { reader, fsm })
     }
 
     /// Sets the DBN version to expect when decoding.
@@ -302,22 +293,17 @@ where
     /// This function will return an error if the `version` exceeds the highest
     /// supported version.
     pub fn set_version(&mut self, version: u8) -> crate::Result<()> {
-        if version > DBN_VERSION {
-            Err(crate::Error::decode(format!("can't decode newer version of DBN. Decoder version is {DBN_VERSION}, input version is {version}")))
-        } else {
-            self.version = version;
-            Ok(())
-        }
+        self.fsm.set_input_dbn_version(version).map(drop)
     }
 
     /// Sets the behavior for decoding DBN data of previous versions.
     pub fn set_upgrade_policy(&mut self, upgrade_policy: VersionUpgradePolicy) {
-        self.upgrade_policy = upgrade_policy;
+        self.fsm.set_upgrade_policy(upgrade_policy);
     }
 
     /// Sets whether to expect a send timestamp appended after every record.
     pub fn set_ts_out(&mut self, ts_out: bool) {
-        self.ts_out = ts_out;
+        self.fsm.set_ts_out(ts_out);
     }
 
     /// Tries to decode a single record and returns a reference to the record that
@@ -380,46 +366,23 @@ where
     /// This method is cancel safe. It can be used within a `tokio::select!` statement
     /// without the potential for corrupting the input stream.
     pub async fn decode_ref(&mut self) -> Result<Option<RecordRef>> {
-        let io_err = |e| crate::Error::io(e, "decoding record reference");
         loop {
-            // maybe read more into buffer
-            if self.state == DecoderState::Read {
-                // read_buf is cancellation safe
-                let bytes_read = self
-                    .reader
-                    .read_buf(self.read_buf.get_mut())
-                    .await
-                    .map_err(io_err)?;
-                self.state = if bytes_read == 0 {
-                    DecoderState::Eof
-                } else {
-                    DecoderState::Yield
-                };
-            }
-            // yield if a complete record is in the buffer
-            if let Some(frame) = self.framer.decode(&mut self.read_buf) {
-                // sanity check
-                return if frame.len() < std::mem::size_of::<RecordHeader>() {
-                    Err(crate::Error::decode(format!(
-                        "invalid record with length {} shorter than header",
-                        frame.len()
-                    )))
-                } else {
-                    Ok(Some(unsafe {
-                        compat::decode_record_ref(
-                            self.version,
-                            self.upgrade_policy,
-                            self.ts_out,
-                            &mut self.compat_buf,
-                            // Recreate slice to get around borrow checker
-                            std::slice::from_raw_parts(frame.as_ptr(), frame.len()),
-                        )
-                    }))
-                };
-            } else if self.state == DecoderState::Eof {
-                return Ok(None);
-            } else {
-                self.state = DecoderState::Read;
+            match self.fsm.process() {
+                ProcessResult::ReadMore(_) => match self.reader.read(self.fsm.space()).await {
+                    Ok(0) => return Ok(None),
+                    Ok(nbytes) => {
+                        self.fsm.fill(nbytes);
+                    }
+                    Err(err) if err.kind() == std::io::ErrorKind::UnexpectedEof => {
+                        return Ok(None);
+                    }
+                    Err(err) => {
+                        return Err(crate::Error::io(err, "decoding record reference"));
+                    }
+                },
+                ProcessResult::Record(_) => return Ok(self.fsm.last_record()),
+                ProcessResult::Err(error) => return Err(error),
+                ProcessResult::Metadata(_) => unreachable!("skipped metadata"),
             }
         }
     }
@@ -454,35 +417,12 @@ where
     /// # Errors
     /// This function returns an error if it fails to seek ahead in the inner reader.
     pub async fn skip_bytes(&mut self, n_bytes: usize) -> crate::Result<()> {
-        let bytes_past_buf = self.read_buf.remaining() as i64 - n_bytes as i64;
-        if bytes_past_buf >= 0 {
-            // All bytes to be skipped are already in `read_buf`
-            self.read_buf.advance(n_bytes);
-            self.state = if bytes_past_buf == 0 {
-                DecoderState::Read
-            } else {
-                DecoderState::Yield
-            };
+        let skipped = self.fsm.skip(n_bytes);
+        if skipped < n_bytes {
+            self.reader.skip_bytes(n_bytes - skipped).await
         } else {
-            let skip_bytes = (-bytes_past_buf) as usize;
-            // Skip additional bytes not in `read_buf`
-            self.reader
-                .skip_bytes(skip_bytes)
-                .await
-                .map_err(|mut err| {
-                    if let crate::Error::Io { context, .. } = &mut err {
-                        // add more context
-                        *context = format!(
-                            "seeking ahead {skip_bytes} bytes for a total skip of size {n_bytes}"
-                        );
-                    };
-                    err
-                })?;
-            // Reset state
-            self.read_buf.clear();
-            self.state = DecoderState::Read;
+            Ok(())
         }
-        Ok(())
     }
 }
 
@@ -506,21 +446,13 @@ where
     }
 }
 
-impl<R> From<MetadataDecoder<R>> for RecordDecoder<R>
-where
-    R: io::AsyncReadExt + Unpin,
-{
-    fn from(meta_decoder: MetadataDecoder<R>) -> Self {
-        RecordDecoder::new(meta_decoder.into_inner())
-    }
-}
-
 /// An async decoder for the metadata in files and streams in Databento Binary Encoding (DBN).
 pub struct MetadataDecoder<R>
 where
     R: io::AsyncReadExt + Unpin,
 {
     reader: R,
+    fsm: DbnFsm,
 }
 
 impl<R> MetadataDecoder<R>
@@ -529,7 +461,22 @@ where
 {
     /// Creates a new async DBN [`MetadataDecoder`] from `reader`.
     pub fn new(reader: R) -> Self {
-        Self { reader }
+        Self {
+            reader,
+            fsm: DbnFsm::new(DbnFsm::DEFAULT_BUF_SIZE, 0),
+        }
+    }
+
+    /// Creates a new async DBN [`MetadataDecoder`] from `reader`. It will decode
+    /// metadata from previous DBN versions according to `upgrade_policy`.
+    ///
+    /// # Errors
+    /// This function will return an error if it is unable to parse the metadata in
+    /// `reader`.
+    pub fn with_upgrade_policy(reader: R, upgrade_policy: VersionUpgradePolicy) -> Self {
+        let mut fsm = DbnFsm::new(DbnFsm::DEFAULT_BUF_SIZE, 0);
+        fsm.set_upgrade_policy(upgrade_policy);
+        Self { reader, fsm }
     }
 
     /// Decodes and returns a DBN [`Metadata`].
@@ -543,31 +490,34 @@ where
     /// `tokio::select!` statement and another branch completes first, the metadata
     /// may have been partially read, corrupting the stream.
     pub async fn decode(&mut self) -> Result<Metadata> {
-        let mut prelude_buffer = [0u8; 8];
-        self.reader
-            .read_exact(&mut prelude_buffer)
-            .await
-            .map_err(|e| crate::Error::io(e, "reading metadata prelude"))?;
-        if &prelude_buffer[..super::DBN_PREFIX_LEN] != super::DBN_PREFIX {
-            return Err(crate::Error::decode("invalid DBN header"));
+        let io_err = |err| crate::Error::io(err, "decoding metadata");
+        let nbytes = self.reader.read(self.fsm.space()).await.map_err(io_err)?;
+        self.fsm.fill(nbytes);
+        loop {
+            match self.fsm.process() {
+                ProcessResult::ReadMore(n) => {
+                    // asm guarantees there's at least `n` bytes available in `space()`
+                    let mut total_read = 0;
+                    loop {
+                        let read = self.reader.read(self.fsm.space()).await.map_err(io_err)?;
+                        if read == 0 {
+                            return Err(crate::Error::io(
+                                io::Error::from(io::ErrorKind::UnexpectedEof),
+                                "decoding metadata",
+                            ));
+                        }
+                        self.fsm.fill(read);
+                        total_read += read;
+                        if total_read >= n {
+                            break;
+                        }
+                    }
+                }
+                ProcessResult::Metadata(metadata) => return Ok(metadata),
+                ProcessResult::Record(_) => unreachable!("metadata precedes records"),
+                ProcessResult::Err(error) => return Err(error),
+            }
         }
-        let version = prelude_buffer[super::DBN_PREFIX_LEN];
-        if version > DBN_VERSION {
-            return Err(crate::Error::decode(format!("can't decode newer version of DBN. Decoder version is {DBN_VERSION}, input version is {version}")));
-        }
-        let length = u32::from_le_slice(&prelude_buffer[4..]);
-        if (length as usize) < METADATA_FIXED_LEN {
-            return Err(crate::Error::decode(
-                "invalid DBN metadata. Metadata length shorter than fixed length.",
-            ));
-        }
-
-        let mut metadata_buffer = vec![0u8; length as usize];
-        self.reader
-            .read_exact(&mut metadata_buffer)
-            .await
-            .map_err(|e| crate::Error::io(e, "reading fixed metadata"))?;
-        super::MetadataDecoder::<std::fs::File>::decode_metadata_fields(version, metadata_buffer)
     }
 
     /// Returns a mutable reference to the inner reader.
@@ -598,141 +548,6 @@ where
     /// Creates a new async DBN [`MetadataDecoder`] from a Zstandard-compressed buffered `reader`.
     pub fn with_zstd_buffer(reader: R) -> Self {
         MetadataDecoder::new(zstd_decoder(reader))
-    }
-}
-
-// Reworked version of `tokio_util::codec::LengthDelimitedCodec` because
-// - it lacked support for a multiplier for the length
-// - it assumed some operations were fallible
-// - returning bytes slice didn't work well with the existing lifetime requirements for RecordRef
-#[derive(Debug, Clone, Copy)]
-#[cfg_attr(test, derive(PartialEq, Eq))]
-enum RecordFramer {
-    Head,
-    Data(usize),
-}
-
-impl RecordFramer {
-    fn decode_head(&mut self, src: &mut Cursor<Vec<u8>>) -> Option<usize> {
-        if src.remaining() == 0 {
-            // Not enough data
-            return None;
-        }
-        // Unlike the original implementation, we don't want to advance the position in buffer
-        // because each record includes the `length`.
-        let n = src.remaining_bytes()[0] as usize * RecordHeader::LENGTH_MULTIPLIER;
-
-        // Ensure that the buffer has enough space to read the incoming
-        // payload
-        let additional = n.saturating_sub(src.remaining());
-        src.reserve(additional);
-
-        Some(n)
-    }
-
-    fn validate_len(&self, n: usize, src: &Cursor<Vec<u8>>) -> Option<usize> {
-        if src.remaining() < n {
-            return None;
-        }
-        Some(n)
-    }
-
-    fn decode<'a>(&mut self, src: &'a mut Cursor<Vec<u8>>) -> Option<&'a [u8]> {
-        let n = match self {
-            RecordFramer::Head => match self.decode_head(src) {
-                Some(n) => {
-                    *self = RecordFramer::Data(n);
-                    n
-                }
-                None => return None,
-            },
-            RecordFramer::Data(n) => *n,
-        };
-        match self.validate_len(n, src) {
-            Some(n) => {
-                // Update the decode state
-                *self = RecordFramer::Head;
-
-                // Make sure the buffer has enough space to read the next head
-                let additional = 1usize.saturating_sub(src.remaining());
-                src.reserve(additional);
-                // Need to advance position after reserving so as not to free the
-                // slice being returned
-                let pos = src.position() as usize;
-                src.advance(n); // modifies `position`
-                let end = pos + n;
-
-                Some(&src.get_ref()[pos..end])
-            }
-            None => None,
-        }
-    }
-}
-
-/// Helper methods for working with `Cursor<Vec<u8>>`. Inspired by `bytes::BytesMut`.
-trait Buffer {
-    /// Returns the length of the remaining unread bytes.
-    fn remaining(&self) -> usize;
-    /// Returns a slice of the bytes after `position`. Based on unstable `remaining_slice`.
-    fn remaining_bytes(&self) -> &[u8];
-    /// Reserves capacity for `additional` more bytes. May shift `position` to reclaim
-    /// previously read bytes.
-    fn reserve(&mut self, additional: usize);
-    /// Advances the read position by `n` bytes.
-    fn advance(&mut self, n: usize);
-    /// Clears the buffer.
-    fn clear(&mut self);
-}
-
-impl Buffer for Cursor<Vec<u8>> {
-    fn remaining(&self) -> usize {
-        self.get_ref()
-            .len()
-            .saturating_sub(self.position() as usize)
-    }
-
-    fn remaining_bytes(&self) -> &[u8] {
-        &self.get_ref()[(self.position() as usize).min(self.get_ref().len())..]
-    }
-
-    fn reserve(&mut self, additional: usize) {
-        // short circuit
-        if self.get_ref().capacity() - self.get_ref().len() >= additional {
-            return;
-        }
-        let reclaimable = self.position() as usize;
-        if reclaimable >= additional && reclaimable >= self.remaining() {
-            let pos = (self.position() as usize).min(self.get_ref().len());
-            let remaining = self.remaining();
-            // Safety: Checked `reclaimable` is greater than or equal to `remaining` so there's no overlap
-            unsafe {
-                // Use pointer arithmetic to handle special case where `remaining` = 0. Regular indexing
-                // would panic.
-                let pos_mut_ptr = self.get_mut().as_mut_ptr().add(pos);
-                std::ptr::copy_nonoverlapping(pos_mut_ptr, self.get_mut().as_mut_ptr(), remaining)
-            }
-            // Update vector length so `remaining` remains unchanged and new data will
-            // be read into the correct place
-            self.get_mut().truncate(remaining);
-            self.set_position(0);
-        } else {
-            self.get_mut().reserve(additional);
-        }
-    }
-
-    fn advance(&mut self, n: usize) {
-        let new_pos = self.position() + n as u64;
-        debug_assert!(
-            new_pos as usize <= self.get_ref().len(),
-            "{new_pos} should not be > {}",
-            self.get_ref().len()
-        );
-        self.set_position(new_pos);
-    }
-
-    fn clear(&mut self) {
-        self.get_mut().clear();
-        self.set_position(0);
     }
 }
 
@@ -921,23 +736,21 @@ mod tests {
 
     #[tokio::test]
     async fn test_decode_record_0_length() {
-        let buf = vec![0];
+        let buf = vec![0; std::mem::size_of::<RecordHeader>()];
         let mut target = RecordDecoder::new(buf.as_slice());
         assert!(
-            matches!(target.decode_ref().await, Err(Error::Decode(msg)) if msg.starts_with("invalid record with length"))
+            matches!(target.decode_ref().await, Err(Error::Decode(msg)) if msg.starts_with("invalid record with impossible length"))
         );
     }
 
     #[tokio::test]
     async fn test_decode_record_length_less_than_header() {
-        let buf = vec![3u8, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-        assert_eq!(buf[0] as usize * RecordHeader::LENGTH_MULTIPLIER, buf.len());
-
+        let buf = vec![3u8, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
         let mut target = RecordDecoder::new(buf.as_slice());
         let res = target.decode_ref().await;
         dbg!(&res);
         assert!(
-            matches!(res, Err(Error::Decode(msg)) if msg.starts_with("invalid record with length"))
+            matches!(res, Err(Error::Decode(msg)) if msg.starts_with("invalid record with impossible length"))
         );
     }
 
@@ -994,102 +807,5 @@ mod tests {
         }
         assert!(has_decoded);
         Ok(())
-    }
-
-    fn dummy_buffer(pos: usize, size: usize) -> Cursor<Vec<u8>> {
-        let mut res = Cursor::new((0..size).map(|i| i as u8).collect());
-        res.set_position(pos as u64);
-        res
-    }
-
-    #[rstest]
-    #[case::empty(0, 0, None)]
-    #[case::end(16, 16, None)]
-    #[case::last(15, 16, Some(15 * RecordHeader::LENGTH_MULTIPLIER))]
-    #[case::middle(8, 16, Some(8 * RecordHeader::LENGTH_MULTIPLIER))]
-    fn frame_decoder_decode_head(
-        #[case] pos: usize,
-        #[case] size: usize,
-        #[case] exp: Option<usize>,
-    ) {
-        let mut src = dummy_buffer(pos, size);
-        let res = RecordFramer::Head.decode_head(&mut src);
-        assert_eq!(res, exp);
-    }
-
-    #[rstest]
-    #[case::empty(0, 0, 32, None)]
-    #[case::end(16, 16, 64, None)]
-    #[case::last(15, 16, 56, None)]
-    #[case::middle(8, 16, 8, Some(8))]
-    #[case::extra(24, 256, 128, Some(128))]
-    fn frame_decoder_validate_len(
-        #[case] pos: usize,
-        #[case] size: usize,
-        #[case] n: usize,
-        #[case] exp: Option<usize>,
-    ) {
-        let src = dummy_buffer(pos, size);
-        let res = RecordFramer::Head.validate_len(n, &src);
-        assert_eq!(res, exp);
-    }
-
-    #[rstest]
-    #[case::empty(0, 0, RecordFramer::Head, None, 0, RecordFramer::Head)]
-    #[case::end(16, 16, RecordFramer::Head, None, 16, RecordFramer::Head)]
-    #[case::last(15, 16, RecordFramer::Head, None, 15, RecordFramer::Data(15 * RecordHeader::LENGTH_MULTIPLIER))]
-    #[case::last(2, 12, RecordFramer::Head, Some(2..10), 10, RecordFramer::Head)]
-    #[case::middle(8, 16, RecordFramer::Data(8), Some(8..16), 16, RecordFramer::Head)]
-    #[case::extra(24, 256, RecordFramer::Data(56), Some(24..80), 80, RecordFramer::Head)]
-    fn frame_decoder_decode(
-        #[case] pos: usize,
-        #[case] size: usize,
-        #[case] mut decoder: RecordFramer,
-        #[case] exp: Option<std::ops::Range<u8>>,
-        #[case] exp_pos: usize,
-        #[case] exp_decoder: RecordFramer,
-    ) {
-        let mut src = dummy_buffer(pos, size);
-        let res = decoder.decode(&mut src);
-        let exp = exp.map(|exp| exp.collect::<Vec<u8>>());
-        assert_eq!(res, exp.as_deref());
-        assert_eq!(decoder, exp_decoder);
-        assert_eq!(src.position() as usize, exp_pos);
-    }
-
-    #[rstest]
-    #[case::short_circuit(4, 8, 16, 4, 4)]
-    #[case::reclaim(100, 142, 150, 32, 0)]
-    #[case::reclaim(124, 124, 148, 56, 0)]
-    #[case::nothing_to_reclaim(0, 10, 16, 16, 0)]
-    #[case::nothing_to_reclaim(0, 16, 16, 16, 0)]
-    #[case::nothing_to_reclaim(16, 16, 16, 32, 16)]
-    #[case::vec_reserve(10, 42, 50, 32, 10)]
-    fn buffer_reserve(
-        #[case] pos: usize,
-        #[case] size: usize,
-        #[case] capacity: usize,
-        #[case] additional: usize,
-        #[case] exp_pos: usize,
-    ) {
-        assert!(capacity >= size);
-        let mut vec = Vec::with_capacity(capacity);
-        assert_eq!(vec.capacity(), capacity);
-        for i in 0..size {
-            vec.push(i as u8);
-        }
-        let mut target = Cursor::new(vec);
-        target.set_position(pos as u64);
-
-        let remaining = target.remaining();
-        assert_eq!(remaining, size - pos);
-        let remaining_bytes = target.remaining_bytes().to_vec();
-
-        target.reserve(additional);
-
-        assert_eq!(target.position() as usize, exp_pos);
-        // the contents should never be changed
-        assert_eq!(target.remaining(), remaining);
-        assert_eq!(target.remaining_bytes(), remaining_bytes.as_slice());
     }
 }

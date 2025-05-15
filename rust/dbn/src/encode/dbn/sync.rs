@@ -436,7 +436,7 @@ mod tests {
     use crate::{
         compat::version_symbol_cstr_len,
         decode::{dbn::MetadataDecoder, FromLittleEndianSlice},
-        Dataset, MappingInterval, MetadataBuilder, SType, Schema,
+        Dataset, MappingInterval, MetadataBuilder, SType, Schema, VersionUpgradePolicy,
     };
 
     #[test]
@@ -580,9 +580,12 @@ mod tests {
         let mut buffer = Vec::new();
         let mut target = MetadataEncoder::new(&mut buffer);
         target.encode(&orig_metadata).unwrap();
-        let orig_res = MetadataDecoder::new(&mut buffer.as_slice())
-            .decode()
-            .unwrap();
+        let orig_res = MetadataDecoder::with_upgrade_policy(
+            &mut buffer.as_slice(),
+            VersionUpgradePolicy::AsIs,
+        )
+        .decode()
+        .unwrap();
         assert_eq!(orig_metadata, orig_res);
         let mut cursor = io::Cursor::new(&mut buffer);
         assert_eq!(cursor.position(), 0);

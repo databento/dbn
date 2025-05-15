@@ -281,6 +281,7 @@ dependencies = [
  "itoa",
  "json-writer",
  "num_enum",
+ "oval",
  "pyo3",
  "rstest",
  "serde",
@@ -629,6 +630,12 @@ name = "once_cell"
 version = "1.21.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42f5e15c9953c5e4ccceeb2e7382a716482c34515315f7b03532b8b4e8393d2d"
+
+[[package]]
+name = "oval"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "135cef32720c6746450d910890b0b69bcba2bbf6f85c9f4583df13fe415de828"
 
 [[package]]
 name = "pin-project-lite"

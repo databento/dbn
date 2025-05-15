@@ -1280,6 +1280,16 @@ pub enum VersionUpgradePolicy {
     UpgradeToV2,
 }
 
+impl VersionUpgradePolicy {
+    pub(crate) fn is_upgrade_situation(self, version: u8) -> bool {
+        match (self, version) {
+            (VersionUpgradePolicy::AsIs, _) => false,
+            (VersionUpgradePolicy::UpgradeToV2, v) if v < 2 => true,
+            (VersionUpgradePolicy::UpgradeToV2, _) => false,
+        }
+    }
+}
+
 /// An error code from the live subscription gateway.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, IntoPrimitive, TryFromPrimitive,

@@ -71,8 +71,10 @@ where
 
     fn get(&self) -> Option<&Self::Item> {
         if self.i.is_some() {
-            // SAFETY: Validated record type in `advance` with call to `decode_record`.
-            Some(unsafe { self.decoder.record_ref().get_unchecked() })
+            self.decoder
+                .last_record()
+                // SAFETY: Validated record type in `advance` with call to `decode_record`.
+                .map(|r| unsafe { r.get_unchecked() })
         } else {
             None
         }

@@ -1,6 +1,7 @@
 //! Record data types for encoding different Databento [`Schema`](crate::enums::Schema)s
 //! in DBN version 1.
 
+pub(crate) use crate::compat::METADATA_RESERVED_LEN_V1 as METADATA_RESERVED_LEN;
 pub use crate::compat::{
     ErrorMsgV1 as ErrorMsg, InstrumentDefMsgV1 as InstrumentDefMsg,
     SymbolMappingMsgV1 as SymbolMappingMsg, SystemMsgV1 as SystemMsg,

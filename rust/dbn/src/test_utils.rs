@@ -1,7 +1,7 @@
 use fallible_streaming_iterator::FallibleStreamingIterator;
 
 use crate::{
-    decode::{private::BufferSlice, DecodeRecordRef},
+    decode::{private::LastRecord, DecodeRecordRef},
     Error, HasRType, RecordRef,
 };
 
@@ -46,19 +46,15 @@ where
     }
 }
 
-impl<T: HasRType> BufferSlice for VecStream<T> {
-    fn buffer_slice(&self) -> &[u8] {
-        self.vec
-            .get(self.idx as usize)
-            .map(|r| r.as_ref())
-            .unwrap_or_default()
-    }
-
-    fn compat_buffer_slice(&self) -> &[u8] {
-        &[]
-    }
-
-    fn record_ref(&self) -> RecordRef {
-        RecordRef::from(self.vec.get(self.idx as usize).unwrap())
+impl<T> LastRecord for VecStream<T>
+where
+    T: HasRType + AsRef<[u8]>,
+{
+    fn last_record(&self) -> Option<RecordRef> {
+        if self.vec.is_empty() {
+            None
+        } else {
+            Some(RecordRef::from(self.vec.get(self.idx as usize).unwrap()))
+        }
     }
 }

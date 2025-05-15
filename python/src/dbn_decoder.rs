@@ -1,20 +1,13 @@
-use std::io::{self, Write};
-
 use pyo3::{prelude::*, IntoPyObjectExt};
 
 use dbn::{
-    decode::dbn::{MetadataDecoder, RecordDecoder},
-    python::to_py_err,
+    decode::dbn::fsm::{DbnFsm, ProcessResult},
     rtype_dispatch, HasRType, VersionUpgradePolicy,
 };
 
 #[pyclass(module = "databento_dbn", name = "DBNDecoder")]
 pub struct DbnDecoder {
-    buffer: io::Cursor<Vec<u8>>,
-    has_decoded_metadata: bool,
-    ts_out: bool,
-    input_version: u8,
-    upgrade_policy: VersionUpgradePolicy,
+    fsm: DbnFsm,
 }
 
 #[pymethods]
@@ -31,100 +24,61 @@ impl DbnDecoder {
         ts_out: bool,
         input_version: u8,
         upgrade_policy: VersionUpgradePolicy,
-    ) -> Self {
-        Self {
-            buffer: io::Cursor::default(),
-            has_decoded_metadata: !has_metadata,
-            ts_out,
-            input_version,
-            upgrade_policy,
+    ) -> PyResult<Self> {
+        let mut fsm = DbnFsm::default();
+        fsm.set_ts_out(ts_out)
+            .set_input_dbn_version(input_version)
+            .map_err(PyErr::from)?
+            .set_upgrade_policy(upgrade_policy);
+        if !has_metadata {
+            fsm.skip_metadata();
         }
+        Ok(Self { fsm })
     }
 
     fn write(&mut self, bytes: &[u8]) -> PyResult<()> {
-        self.buffer.write_all(bytes).map_err(to_py_err)
+        self.fsm.write_all(bytes);
+        Ok(())
     }
 
     fn buffer(&self) -> &[u8] {
-        self.buffer.get_ref().as_slice()
+        self.fsm.data()
     }
 
     fn decode(&mut self) -> PyResult<Vec<PyObject>> {
-        let mut recs = Vec::new();
-        let orig_position = self.buffer.position();
-        self.buffer.set_position(0);
-        if !self.has_decoded_metadata {
-            match MetadataDecoder::new(&mut self.buffer).decode() {
-                Ok(mut metadata) => {
-                    self.input_version = metadata.version;
-                    self.ts_out = metadata.ts_out;
-                    metadata.upgrade(self.upgrade_policy);
+        let ts_out = self.fsm.ts_out();
+        let mut py_recs = Vec::new();
+        loop {
+            let mut rec_refs = Vec::new();
+            match self.fsm.process_all(&mut rec_refs, None) {
+                ProcessResult::ReadMore(_) => return Ok(py_recs),
+                ProcessResult::Metadata(metadata) => {
+                    py_recs.push(Python::with_gil(|py| metadata.into_py_any(py))?)
+                }
+                ProcessResult::Record(_) => {
+                    // Bug in clippy generates an error here. trivial_copy feature isn't enabled,
+                    // but clippy thinks these records are `Copy`
+                    fn push_rec<'py, R>(rec: &R, py: Python<'py>, py_recs: &mut Vec<PyObject>)
+                    where
+                        R: Clone + HasRType + IntoPyObject<'py>,
+                    {
+                        py_recs.push(rec.clone().into_py_any(py).unwrap());
+                    }
+
                     Python::with_gil(|py| -> PyResult<()> {
-                        recs.push(metadata.into_py_any(py)?);
+                        for rec in rec_refs {
+                            // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
+                            // from the metadata header.
+                            rtype_dispatch!(rec, ts_out: ts_out, push_rec(py, &mut py_recs))
+                                .map_err(PyErr::from)?;
+                        }
                         Ok(())
                     })?;
-                    self.has_decoded_metadata = true;
+                    return Ok(py_recs);
                 }
-                Err(err) => {
-                    self.buffer.set_position(orig_position);
-                    // haven't read enough data for metadata
-                    if matches!(err, dbn::Error::Io { ref source, .. } if source.kind() == std::io::ErrorKind::UnexpectedEof)
-                    {
-                        return Ok(Vec::new());
-                    }
-                    return Err(PyErr::from(err));
-                }
+                ProcessResult::Err(error) => return Err(PyErr::from(error)),
             }
         }
-        let mut read_position = self.buffer.position() as usize;
-        let mut decoder = RecordDecoder::with_version(
-            &mut self.buffer,
-            self.input_version,
-            self.upgrade_policy,
-            self.ts_out,
-        )?;
-        Python::with_gil(|py| -> PyResult<()> {
-            while let Some(rec) = decoder.decode_ref()? {
-                // Bug in clippy generates an error here. trivial_copy feature isn't enabled,
-                // but clippy thinks these records are `Copy`
-                fn push_rec<'py, R>(rec: &R, py: Python<'py>, recs: &mut Vec<PyObject>)
-                where
-                    R: Clone + HasRType + IntoPyObject<'py>,
-                {
-                    recs.push(rec.clone().into_py_any(py).unwrap());
-                }
-
-                // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
-                // from the metadata header.
-                rtype_dispatch!(rec, ts_out: self.ts_out, push_rec(py, &mut recs))?;
-                // keep track of position after last _successful_ decoding to
-                // ensure buffer is left in correct state in the case where one
-                // or more successful decodings is followed by a partial one, i.e.
-                // `decode_record_ref` returning `Ok(None)`
-                read_position = decoder.get_ref().position() as usize;
-            }
-            Ok(())
-        })
-        .inspect_err(|_| {
-            self.buffer.set_position(orig_position);
-        })?;
-        if recs.is_empty() {
-            self.buffer.set_position(orig_position);
-        } else {
-            self.shift_buffer(read_position);
-        }
-        Ok(recs)
-    }
-}
-
-impl DbnDecoder {
-    fn shift_buffer(&mut self, read_position: usize) {
-        let inner_buf = self.buffer.get_mut();
-        let length = inner_buf.len();
-        let new_length = length - read_position;
-        inner_buf.drain(..read_position);
-        debug_assert_eq!(inner_buf.len(), new_length);
-        self.buffer.set_position(new_length as u64);
     }
 }
 
@@ -144,7 +98,8 @@ mod tests {
     #[test]
     fn test_partial_metadata_and_records() {
         setup();
-        let mut target = DbnDecoder::new(true, false, DBN_VERSION, VersionUpgradePolicy::default());
+        let mut target =
+            DbnDecoder::new(true, false, DBN_VERSION, VersionUpgradePolicy::default()).unwrap();
         let buffer = Vec::new();
         let mut encoder = Encoder::new(
             buffer,
@@ -163,14 +118,13 @@ mod tests {
         target.write(&encoder.get_ref()[metadata_split..]).unwrap();
         let metadata_pos = encoder.get_ref().len();
         assert!(matches!(target.decode(), Ok(recs) if recs.len() == 1));
-        assert!(target.has_decoded_metadata);
         let rec = ErrorMsg::new(1680708278000000000, None, "Python", true);
         encoder.encode_record(&rec).unwrap();
-        assert!(target.buffer.get_ref().is_empty());
+        assert!(target.buffer().is_empty());
         let record_pos = encoder.get_ref().len();
         for i in metadata_pos..record_pos {
             target.write(&encoder.get_ref()[i..i + 1]).unwrap();
-            assert_eq!(target.buffer.get_ref().len(), i + 1 - metadata_pos);
+            assert_eq!(target.buffer().len(), i + 1 - metadata_pos);
             // wrote last byte
             if i == record_pos - 1 {
                 let res = target.decode();
@@ -187,7 +141,7 @@ mod tests {
     fn test_full_with_partial_record() {
         setup();
         let mut decoder =
-            DbnDecoder::new(true, false, DBN_VERSION, VersionUpgradePolicy::default());
+            DbnDecoder::new(true, false, DBN_VERSION, VersionUpgradePolicy::default()).unwrap();
         let buffer = Vec::new();
         let mut encoder = Encoder::new(
             buffer,
@@ -202,8 +156,10 @@ mod tests {
         .unwrap();
         decoder.write(encoder.get_ref().as_slice()).unwrap();
         let metadata_pos = encoder.get_ref().len();
-        assert!(matches!(decoder.decode(), Ok(recs) if recs.len() == 1));
-        assert!(decoder.has_decoded_metadata);
+        let res = decoder.decode();
+        dbg!(&res);
+        assert!(matches!(res, Ok(recs) if recs.len() == 1));
+        // assert!(decoder.has_decoded_metadata);
         let rec1 = ErrorMsg::new(1680708278000000000, None, "Python", true);
         let rec2 = OhlcvMsg {
             hd: RecordHeader::new::<OhlcvMsg>(rtype::OHLCV_1S, 1, 1, 1681228173000000000),
@@ -216,7 +172,7 @@ mod tests {
         encoder.encode_record(&rec1).unwrap();
         let rec1_pos = encoder.get_ref().len();
         encoder.encode_record(&rec2).unwrap();
-        assert!(decoder.buffer.get_ref().is_empty());
+        assert!(decoder.buffer().is_empty());
         // Write first record and part of second
         decoder
             .write(&encoder.get_ref()[metadata_pos..rec1_pos + 4])
