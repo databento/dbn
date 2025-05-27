@@ -4,7 +4,7 @@ use pyo3::{
     conversion::IntoPyObjectExt,
     intern,
     prelude::*,
-    types::{timezone_utc, PyDateTime, PyDict},
+    types::{PyDateTime, PyDict, PyTzInfo},
 };
 
 use crate::{
@@ -4039,7 +4039,7 @@ fn new_py_timestamp_or_datetime(
                 .map(|o| Some(o.into_pyobject(py).unwrap()));
         }
     }
-    let utc_tz = timezone_utc(py);
+    let utc_tz = PyTzInfo::utc(py)?;
     let timestamp_ms = timestamp as f64 / 1_000_000.0;
     PyDateTime::from_timestamp(py, timestamp_ms, Some(&utc_tz))
         .map(|o| Some(o.into_pyobject(py).unwrap().into_any()))

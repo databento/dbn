@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.35.0 - TBD
+## 0.35.0 - 2025-05-28
 This version marks the release of DBN version 3 (DBNv3), which is the new default.
 Decoders support decoding all versions of DBN and the DBN encoders default to
 upgrading the input to DBNv3.
@@ -18,10 +18,11 @@ upgrading the input to DBNv3.
 - Improved performance of the Python `DBNDecoder` by batching acquisition of the GIL for
   multiple records
 - Added `version()` setter to `CsvEncoderBuilder` to configure the output version
+- Upgraded `pyo3` version to 0.25.0
 
 ### Breaking changes
 - Release of DBN version 3
-  - Definition
+  - Definition schema:
     - Updated `InstrumentDefMsg` with new `leg_` fields to support multi-leg strategy
       definitions.
     - Expanded `asset` to 11 bytes and `ASSET_CSTR_LEN` to match
@@ -30,7 +31,7 @@ upgrading the input to DBNv3.
     - Removed `trading_reference_date`, `trading_reference_price`, and
       `settl_price_type` fields which will be normalized in the statistics schema
     - Removed `md_security_trading_status` better served by the status schema
-    - Statistics
+  - Statistics schema:
     - Updated `StatMsg` has an expanded 64-bit `quantity` field. Like other 64-bit
       integer fields, its value will now be quoted in JSON
     - The previous `StatMsg` has been moved to `v2::StatMsg` or `StatMsgV2`
@@ -46,6 +47,7 @@ upgrading the input to DBNv3.
   `DbnRecordDecoder`, `AsyncDbnRecordDecoder` now return a `Result`
 - Removed `compat::decode_record_ref`. It's recommended to use `DbnFsm` or the decoders
   directly
+- Updated the minimum supported `tokio` version to 1.38, which was released one year ago
 
 ### Bug fixes
 - Fixed conversion of `v1::StatMsg` to `v3::StatMsg`
