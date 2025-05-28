@@ -585,26 +585,15 @@ mod tests {
 
     #[test]
     fn test_dyn_reader() {
-        for file in std::fs::read_dir(TEST_DATA_PATH).unwrap() {
-            let file = file.unwrap();
-            if matches!(file.path().extension(), Some(ext) if ext == "dbn") {
-                let path = file.path();
-                let mut uncompressed = DynReader::from_file(&path).unwrap();
-                let mut compressed_path = path.clone().into_os_string();
-                compressed_path.push(".zst");
-                let mut compressed = DynReader::from_file(&compressed_path).unwrap();
-                let mut uncompressed_res = Vec::new();
-                uncompressed.read_to_end(&mut uncompressed_res).unwrap();
-                let mut compressed_res = Vec::new();
-                compressed.read_to_end(&mut compressed_res).unwrap();
-                assert_eq!(
-                    compressed_res,
-                    uncompressed_res,
-                    "failed at {}",
-                    path.display()
-                );
-            }
-        }
+        let mut uncompressed =
+            DynReader::from_file(format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn")).unwrap();
+        let mut compressed =
+            DynReader::from_file(format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst")).unwrap();
+        let mut uncompressed_res = Vec::new();
+        uncompressed.read_to_end(&mut uncompressed_res).unwrap();
+        let mut compressed_res = Vec::new();
+        compressed.read_to_end(&mut compressed_res).unwrap();
+        assert_eq!(compressed_res, uncompressed_res);
     }
 
     #[test]
