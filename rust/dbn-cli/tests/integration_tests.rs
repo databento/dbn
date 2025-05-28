@@ -26,11 +26,11 @@ fn output_dir() -> TempDir {
 }
 
 #[rstest]
-fn write_json_to_path(output_dir: TempDir, #[values("dbn", "dbn.zst")] extension: &str) {
+fn write_json_to_path(output_dir: TempDir) {
     let output_path = format!("{}/a.json", output_dir.path().to_str().unwrap());
     cmd()
         .args([
-            &format!("{TEST_DATA_PATH}/test_data.mbp-1.{extension}"),
+            &format!("{TEST_DATA_PATH}/test_data.mbp-1.v3.dbn.zst"),
             "--output",
             &output_path,
             "--json",
@@ -52,7 +52,10 @@ fn write_json_to_path(output_dir: TempDir, #[values("dbn", "dbn.zst")] extension
 #[test]
 fn write_to_stdout() {
     cmd()
-        .args([&format!("{TEST_DATA_PATH}/test_data.mbo.dbn.zst"), "--csv"])
+        .args([
+            &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst"),
+            "--csv",
+        ])
         .assert()
         .success()
         .stdout(contains("channel_id"));
@@ -62,7 +65,7 @@ fn write_to_stdout() {
 fn write_to_nonexistent_path() {
     cmd()
         .args([
-            &format!("{TEST_DATA_PATH}/test_data.tbbo.dbn"),
+            &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn"),
             "--output",
             "./a/b/c/d/e",
             "-C", // CSV
@@ -91,11 +94,11 @@ fn read_from_nonexistent_path() {
 }
 
 #[rstest]
-fn write_csv(output_dir: TempDir, #[values("dbn", "dbn.zst")] extension: &str) {
+fn write_csv(output_dir: TempDir) {
     let output_path = format!("{}/a.csv", output_dir.path().to_str().unwrap());
     cmd()
         .args([
-            &format!("{TEST_DATA_PATH}/test_data.mbp-1.{extension}"),
+            &format!("{TEST_DATA_PATH}/test_data.mbp-1.v3.dbn.zst"),
             "--output",
             &output_path,
             "--csv",
@@ -118,7 +121,7 @@ fn encoding_overrides_extension(output_dir: TempDir) {
     let output_path = format!("{}/a.csv", output_dir.path().to_str().unwrap());
     cmd()
         .args([
-            &format!("{TEST_DATA_PATH}/test_data.mbp-10.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.mbp-10.v3.dbn.zst"),
             "--output",
             &output_path,
             "-J", // JSON
@@ -154,7 +157,7 @@ fn no_extension_infer(output_dir: TempDir) {
     let output_path = format!("{}/a", output_dir.path().to_str().unwrap());
     cmd()
         .args([
-            &format!("{TEST_DATA_PATH}/test_data.mbo.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst"),
             "--output",
             &output_path,
         ])
@@ -169,7 +172,7 @@ fn overwrite_fails() {
 
     cmd()
         .args([
-            &format!("{TEST_DATA_PATH}/test_data.mbo.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.mbo.v2.dbn.zst"),
             "--output",
             (output_file.path().to_str().unwrap()),
             "--csv",
@@ -184,7 +187,7 @@ fn force_overwrite() {
     let output_file = NamedTempFile::new().unwrap();
     cmd()
         .args([
-            &format!("{TEST_DATA_PATH}/test_data.mbo.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst"),
             "--output",
             (output_file.path().to_str().unwrap()),
             "-C", // CSV
@@ -207,7 +210,7 @@ fn force_truncates_file() {
     let before_size = output_file.path().metadata().unwrap().len();
     cmd()
         .args([
-            &format!("{TEST_DATA_PATH}/test_data.ohlcv-1d.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.ohlcv-1d.v1.dbn.zst"),
             "--output",
             (output_file.path().to_str().unwrap()),
             "-C", // CSV
@@ -224,7 +227,7 @@ fn force_truncates_file() {
 fn cant_specify_json_and_csv() {
     cmd()
         .args([
-            &format!("{TEST_DATA_PATH}/test_data.mbo.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst"),
             "--json",
             "--csv",
         ])
@@ -237,7 +240,7 @@ fn cant_specify_json_and_csv() {
 fn metadata() {
     cmd()
         .args([
-            &format!("{TEST_DATA_PATH}/test_data.ohlcv-1m.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.ohlcv-1m.v3.dbn.zst"),
             "-J",
             "-m",
         ])
@@ -251,7 +254,7 @@ fn metadata() {
 fn no_csv_metadata() {
     cmd()
         .args([
-            &format!("{TEST_DATA_PATH}/test_data.ohlcv-1m.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.ohlcv-1m.v3.dbn.zst"),
             "--csv",
             "-m",
         ])
@@ -265,7 +268,7 @@ fn no_csv_metadata() {
 fn pretty_print_json_data() {
     cmd()
         .args([
-            &format!("{TEST_DATA_PATH}/test_data.mbo.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst"),
             "--json",
             "--pretty",
         ])
@@ -286,7 +289,7 @@ fn pretty_print_json_data() {
 fn pretty_print_csv_data() {
     cmd()
         .args([
-            &format!("{TEST_DATA_PATH}/test_data.mbo.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst"),
             "--csv",
             "--pretty",
         ])
@@ -307,7 +310,7 @@ const PRETTY_PX_REGEX: &str = r"\d+\.\d{9}";
 fn pretty_print_data_metadata() {
     cmd()
         .args([
-            &format!("{TEST_DATA_PATH}/test_data.mbo.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst"),
             "-J",
             "--metadata",
             "-p",
@@ -318,7 +321,7 @@ fn pretty_print_data_metadata() {
 
 #[rstest]
 fn read_from_stdin(#[values("csv", "json")] output_enc: &str) {
-    let path = format!("{TEST_DATA_PATH}/test_data.mbp-10.dbn.zst");
+    let path = format!("{TEST_DATA_PATH}/test_data.mbp-10.v3.dbn.zst");
     let read_from_stdin_output = cmd()
         .args([
             "-", // STDIN
@@ -357,7 +360,7 @@ fn convert_dbz_to_dbn(output_dir: TempDir) {
 fn limit_and_schema_filter_update_metadata() {
     cmd()
         .args([
-            &format!("{TEST_DATA_PATH}/test_data.ohlcv-1m.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.ohlcv-1m.v3.dbn.zst"),
             "--json",
             "--metadata",
             "--limit",
@@ -416,7 +419,7 @@ fn input_fragment(
 ) {
     cmd()
         .args([
-            &format!("{TEST_DATA_PATH}/test_data.definition.{extension}"),
+            &format!("{TEST_DATA_PATH}/test_data.definition.v3.{extension}"),
             flag,
             &format!("--{output_enc}"),
         ])
@@ -429,8 +432,9 @@ fn input_fragment(
 #[rstest]
 fn upgraded_definitions_data_is_same_but_larger(output_dir: TempDir) {
     let orig_csv = format!("{}/a.csv", output_dir.path().to_str().unwrap());
-    let upgraded_dbn_output = format!("{}/a.dbn", output_dir.path().to_str().unwrap());
-    let input_path = format!("{TEST_DATA_PATH}/test_data.definition.v1.dbn");
+    let new_csv = format!("{}/b.csv", output_dir.path().to_str().unwrap());
+    let upgraded_dbn_output = format!("{}/a.dbn.zst", output_dir.path().to_str().unwrap());
+    let input_path = format!("{TEST_DATA_PATH}/test_data.definition.v1.dbn.zst");
     cmd()
         .args([&input_path, "--csv", "--output", &orig_csv])
         .assert()
@@ -446,11 +450,19 @@ fn upgraded_definitions_data_is_same_but_larger(output_dir: TempDir) {
         .stderr(is_empty())
         .stdout(is_empty());
     cmd()
-        .args([&upgraded_dbn_output, "--csv"])
+        .args([&upgraded_dbn_output, "--csv", "--output", &new_csv])
         .assert()
         .success()
         .stderr(is_empty())
-        .stdout(eq(orig_csv_contents));
+        .stdout(is_empty());
+    let new_csv_contents = std::fs::read_to_string(new_csv).unwrap();
+    let orig_lines: Vec<_> = orig_csv_contents.lines().collect();
+    let new_lines: Vec<_> = new_csv_contents.lines().collect();
+    assert_eq!(orig_lines.len(), new_lines.len());
+    for (orig_line, new_line) in new_lines.into_iter().zip(orig_lines.into_iter()) {
+        // V3 adds new fields only at the end
+        new_line.starts_with(orig_line);
+    }
     assert!(
         std::fs::metadata(input_path).unwrap().len()
             < std::fs::metadata(upgraded_dbn_output).unwrap().len()
@@ -473,7 +485,7 @@ fn write_fragment(
 ) {
     let orig_csv = format!("{}/a.csv", output_dir.path().to_str().unwrap());
     let frag_output = format!("{}/a.{extension}", output_dir.path().to_str().unwrap());
-    let input_path = format!("{TEST_DATA_PATH}/test_data.{schema}.dbn");
+    let input_path = format!("{TEST_DATA_PATH}/test_data.{schema}.v3.dbn.zst");
     cmd()
         .args([&input_path, "--csv", "--output", &orig_csv])
         .assert()
@@ -502,33 +514,21 @@ fn write_fragment(
 #[rstest]
 fn test_limit_updates_metadata(output_dir: TempDir) {
     // Check metadata shows limit = 2
+    let input = format!("{TEST_DATA_PATH}/test_data.definition.v3.dbn.zst");
     cmd()
-        .args([
-            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.zst"),
-            "--json",
-            "--metadata",
-        ])
+        .args([&input, "--json", "--metadata"])
         .assert()
         .success()
         .stdout(contains("\"limit\":\"2\","));
     // Check contains 2 records
     cmd()
-        .args([
-            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.zst"),
-            "--json",
-        ])
+        .args([&input, "--json"])
         .assert()
         .success()
         .stdout(contains('\n').count(2));
     let output_path = format!("{}/limited.dbn", output_dir.path().to_str().unwrap());
     cmd()
-        .args([
-            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.zst"),
-            "--output",
-            &output_path,
-            "--limit",
-            "1",
-        ])
+        .args([&input, "--output", &output_path, "--limit", "1"])
         .assert()
         .success()
         .stderr(is_empty());
@@ -548,19 +548,27 @@ fn test_limit_updates_metadata(output_dir: TempDir) {
 
 #[cfg(not(target_os = "windows"))]
 #[rstest]
-#[case::uncompressed_to_csv("test_data.mbo.dbn", "--csv", "")]
-#[case::zstd_to_csv("test_data.mbo.dbn.zst", "--csv", "")]
-#[case::uncompressed_fragment_to_csv("test_data.definition.dbn.frag", "--csv", "--input-fragment")]
-#[case::zstd_fragment_to_csv("test_data.definition.dbn.frag.zst", "--csv", "--input-zstd-fragment")]
-#[case::uncompressed_to_json("test_data.mbo.dbn", "--json", "")]
-#[case::zstd_to_json("test_data.mbo.dbn.zst", "--json", "")]
+#[case::uncompressed_to_csv("test_data.mbo.v3.dbn", "--csv", "")]
+#[case::zstd_to_csv("test_data.mbo.v3.dbn.zst", "--csv", "")]
+#[case::uncompressed_fragment_to_csv(
+    "test_data.definition.v3.dbn.frag",
+    "--csv",
+    "--input-fragment"
+)]
+#[case::zstd_fragment_to_csv(
+    "test_data.definition.v3.dbn.frag.zst",
+    "--csv",
+    "--input-zstd-fragment"
+)]
+#[case::uncompressed_to_json("test_data.mbo.v3.dbn", "--json", "")]
+#[case::zstd_to_json("test_data.mbo.v3.dbn.zst", "--json", "")]
 #[case::uncompressed_fragment_to_json(
-    "test_data.definition.dbn.frag",
+    "test_data.definition.v3.dbn.frag",
     "--json",
     "--input-fragment"
 )]
 #[case::zstd_fragment_to_json(
-    "test_data.definition.dbn.frag.zst",
+    "test_data.definition.v3.dbn.frag.zst",
     "--json",
     "--input-zstd-fragment"
 )]
@@ -596,7 +604,7 @@ fn broken_pipe_is_silent(
 fn writes_csv_header_for_0_records() {
     cmd()
         .args([
-            &format!("{TEST_DATA_PATH}/test_data.ohlcv-1d.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.ohlcv-1d.v3.dbn.zst"),
             "--csv",
         ])
         .assert()
@@ -611,7 +619,7 @@ fn writes_csv_header_for_0_records() {
 fn map_symbols(#[case] output_flag: &str) {
     let cmd = cmd()
         .args([
-            &format!("{TEST_DATA_PATH}/test_data.mbo.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst"),
             output_flag,
             "--map-symbols",
         ])
@@ -631,7 +639,7 @@ fn map_symbols(#[case] output_flag: &str) {
 fn map_symbols_fails_for_invalid_output(#[case] output_flag: &str) {
     cmd()
         .args([
-            &format!("{TEST_DATA_PATH}/test_data.mbo.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst"),
             output_flag,
             "--map-symbols",
         ])
@@ -645,7 +653,7 @@ fn map_symbols_fails_for_invalid_output(#[case] output_flag: &str) {
 fn passing_current_dbn_version_is_accepted() {
     cmd()
         .args([
-            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.frag"),
+            &format!("{TEST_DATA_PATH}/test_data.definition.v3.dbn.frag"),
             "--input-fragment",
             "--input-dbn-version",
             &dbn::DBN_VERSION.to_string(),
@@ -679,7 +687,7 @@ fn passing_next_dbn_version_is_rejected() {
 fn passing_dbn_version_conflicts_with_non_fragment_input(#[case] output_flag: &str) {
     cmd()
         .args([
-            &format!("{TEST_DATA_PATH}/test_data.mbo.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst"),
             output_flag,
             "--input-dbn-version",
             "1",
@@ -698,7 +706,7 @@ fn passing_dbn_version_conflicts_with_non_fragment_input(#[case] output_flag: &s
 fn omit_csv_header(#[case] output_enc: &str, #[case] sep: char) {
     cmd()
         .args([
-            &format!("{TEST_DATA_PATH}/test_data.mbo.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst"),
             &format!("--{output_enc}"),
             "--omit-header",
         ])
@@ -719,7 +727,7 @@ fn omit_csv_header_fragment(#[case] output_enc: &str, #[case] sep: char) {
     cmd()
         .args([
             "--input-zstd-fragment",
-            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.frag.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.definition.v3.dbn.frag.zst"),
             &format!("--{output_enc}"),
             "--omit-header",
         ])
@@ -741,7 +749,7 @@ fn omit_header_conflicts(#[case] output_enc: &str) {
     cmd()
         .args([
             "--input-zstd-fragment",
-            &format!("{TEST_DATA_PATH}/test_data.definition.dbn.frag.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.definition.v3.dbn.frag.zst"),
             &format!("--{output_enc}"),
             "--omit-header",
         ])
@@ -752,17 +760,17 @@ fn omit_header_conflicts(#[case] output_enc: &str) {
 }
 
 #[test]
-fn test_merge_mbp1_and_mbp10_diff_compression() {
+fn test_merge_mbo_and_mbp10_diff_compression() {
     cmd()
         .args([
-            &format!("{TEST_DATA_PATH}/test_data.mbp-10.dbn.zst"),
-            &format!("{TEST_DATA_PATH}/test_data.mbp-1.dbn"),
+            &format!("{TEST_DATA_PATH}/test_data.mbp-10.v3.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn"),
             "--json",
         ])
         .assert()
         .success()
         .stdout(
-            contains("\"rtype\":1,")
+            contains("\"rtype\":160,")
                 .count(2)
                 .and(contains("\"rtype\":10,").count(2)),
         )
@@ -770,11 +778,11 @@ fn test_merge_mbp1_and_mbp10_diff_compression() {
 }
 
 #[test]
-fn test_merge_mbp1_and_mbp10_metadata() {
+fn test_merge_mbo_and_mbp10_metadata() {
     cmd()
         .args([
-            &format!("{TEST_DATA_PATH}/test_data.mbp-10.dbn.zst"),
-            &format!("{TEST_DATA_PATH}/test_data.mbp-1.dbn"),
+            &format!("{TEST_DATA_PATH}/test_data.mbp-10.v3.dbn.zst"),
+            &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn"),
             "--json",
             "--metadata",
         ])

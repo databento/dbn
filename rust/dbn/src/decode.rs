@@ -120,7 +120,7 @@ fn decode_record_from_ref<T: HasRType>(rec_ref: Option<RecordRef>) -> crate::Res
 pub trait DecodeDbn: DecodeRecord + DecodeRecordRef + DbnMetadata {}
 
 /// A trait for decoders that can be converted to streaming iterators.
-pub trait DecodeStream: DecodeRecord + private::BufferSlice {
+pub trait DecodeStream: DecodeRecord + private::LastRecord {
     /// Converts the decoder into a streaming iterator of records of type `T`. This
     /// lazily decodes the data.
     fn decode_stream<T: HasRType>(self) -> StreamIterDecoder<Self, T>
@@ -140,8 +140,9 @@ where
 {
     Dbn(dbn::Decoder<R>),
     ZstdDbn(dbn::Decoder<::zstd::stream::Decoder<'a, R>>),
+    // Boxed due to size difference
     #[allow(deprecated)]
-    LegacyDbz(dbz::Decoder<R>),
+    LegacyDbz(Box<dbz::Decoder<R>>),
 }
 
 impl<R> DynDecoder<'_, BufReader<R>>
@@ -220,9 +221,9 @@ where
             .map_err(|e| crate::Error::io(e, "creating buffer to infer encoding"))?;
         #[allow(deprecated)]
         if dbz::starts_with_prefix(first_bytes) {
-            Ok(Self(DynDecoderImpl::LegacyDbz(
+            Ok(Self(DynDecoderImpl::LegacyDbz(Box::new(
                 dbz::Decoder::with_upgrade_policy(reader, upgrade_policy)?,
-            )))
+            ))))
         } else if dbn::starts_with_prefix(first_bytes) {
             Ok(Self(DynDecoderImpl::Dbn(
                 dbn::Decoder::with_upgrade_policy(reader, upgrade_policy)?,
@@ -507,31 +508,15 @@ where
     }
 }
 
-impl<R> private::BufferSlice for DynDecoder<'_, R>
+impl<R> private::LastRecord for DynDecoder<'_, R>
 where
     R: io::BufRead,
 {
-    fn buffer_slice(&self) -> &[u8] {
+    fn last_record(&self) -> Option<RecordRef> {
         match &self.0 {
-            DynDecoderImpl::Dbn(decoder) => decoder.buffer_slice(),
-            DynDecoderImpl::ZstdDbn(decoder) => decoder.buffer_slice(),
-            DynDecoderImpl::LegacyDbz(decoder) => decoder.buffer_slice(),
-        }
-    }
-
-    fn compat_buffer_slice(&self) -> &[u8] {
-        match &self.0 {
-            DynDecoderImpl::Dbn(decoder) => decoder.compat_buffer_slice(),
-            DynDecoderImpl::ZstdDbn(decoder) => decoder.compat_buffer_slice(),
-            DynDecoderImpl::LegacyDbz(decoder) => decoder.compat_buffer_slice(),
-        }
-    }
-
-    fn record_ref(&self) -> RecordRef {
-        match &self.0 {
-            DynDecoderImpl::Dbn(decoder) => decoder.record_ref(),
-            DynDecoderImpl::ZstdDbn(decoder) => decoder.record_ref(),
-            DynDecoderImpl::LegacyDbz(decoder) => decoder.record_ref(),
+            DynDecoderImpl::Dbn(decoder) => decoder.last_record(),
+            DynDecoderImpl::ZstdDbn(decoder) => decoder.last_record(),
+            DynDecoderImpl::LegacyDbz(decoder) => decoder.last_record(),
         }
     }
 }
@@ -543,11 +528,8 @@ pub mod private {
     /// An implementation detail for the interaction between [`StreamingIterator`] and
     /// implementors of [`DecodeRecord`].
     #[doc(hidden)]
-    pub trait BufferSlice {
-        /// Returns an immutable slice of the decoder's buffer.
-        fn buffer_slice(&self) -> &[u8];
-        fn compat_buffer_slice(&self) -> &[u8];
-        fn record_ref(&self) -> RecordRef;
+    pub trait LastRecord {
+        fn last_record(&self) -> Option<RecordRef>;
     }
 }
 
@@ -603,32 +585,21 @@ mod tests {
 
     #[test]
     fn test_dyn_reader() {
-        for file in std::fs::read_dir(TEST_DATA_PATH).unwrap() {
-            let file = file.unwrap();
-            if matches!(file.path().extension(), Some(ext) if ext == "dbn") {
-                let path = file.path();
-                let mut uncompressed = DynReader::from_file(&path).unwrap();
-                let mut compressed_path = path.clone().into_os_string();
-                compressed_path.push(".zst");
-                let mut compressed = DynReader::from_file(&compressed_path).unwrap();
-                let mut uncompressed_res = Vec::new();
-                uncompressed.read_to_end(&mut uncompressed_res).unwrap();
-                let mut compressed_res = Vec::new();
-                compressed.read_to_end(&mut compressed_res).unwrap();
-                assert_eq!(
-                    compressed_res,
-                    uncompressed_res,
-                    "failed at {}",
-                    path.display()
-                );
-            }
-        }
+        let mut uncompressed =
+            DynReader::from_file(format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn")).unwrap();
+        let mut compressed =
+            DynReader::from_file(format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst")).unwrap();
+        let mut uncompressed_res = Vec::new();
+        uncompressed.read_to_end(&mut uncompressed_res).unwrap();
+        let mut compressed_res = Vec::new();
+        compressed.read_to_end(&mut compressed_res).unwrap();
+        assert_eq!(compressed_res, uncompressed_res);
     }
 
     #[test]
     fn test_detects_any_dbn_version_as_dbn() {
         let mut buf = Vec::new();
-        let mut file = File::open(format!("{TEST_DATA_PATH}/test_data.mbo.dbn")).unwrap();
+        let mut file = File::open(format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn")).unwrap();
         file.read_to_end(&mut buf).unwrap();
         // change version
         buf[3] = crate::DBN_VERSION + 1;

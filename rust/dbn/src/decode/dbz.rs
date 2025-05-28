@@ -8,25 +8,25 @@ use std::{
     str::Utf8Error,
 };
 
-use super::{
-    private::BufferSlice, zstd::ZSTD_SKIPPABLE_MAGIC_RANGE, DbnMetadata, DecodeRecord,
-    DecodeRecordRef, DecodeStream, StreamIterDecoder, VersionUpgradePolicy,
-};
 use crate::{
-    compat,
-    decode::{dbn::decode_iso8601, FromLittleEndianSlice},
-    error::silence_eof_error,
-    Compression, HasRType, MappingInterval, Metadata, RecordHeader, RecordRef, SType, Schema,
-    SymbolMapping,
+    decode::{
+        dbn::{
+            decode_iso8601,
+            fsm::{DbnFsm, ProcessResult},
+        },
+        private::LastRecord,
+        zstd::ZSTD_SKIPPABLE_MAGIC_RANGE,
+        DbnMetadata, DecodeRecord, DecodeRecordRef, DecodeStream, FromLittleEndianSlice,
+        StreamIterDecoder, VersionUpgradePolicy,
+    },
+    Compression, HasRType, MappingInterval, Metadata, RecordRef, SType, Schema, SymbolMapping,
 };
 
 /// Object for reading, parsing, and serializing a legacy Databento Binary Encoding (DBZ) file.
 pub struct Decoder<R: io::BufRead> {
-    upgrade_policy: VersionUpgradePolicy,
     reader: zstd::Decoder<'static, R>,
     metadata: Metadata,
-    read_buffer: Vec<u8>,
-    compat_buffer: [u8; crate::MAX_RECORD_LEN],
+    fsm: DbnFsm,
 }
 
 /// Returns `true` if `bytes` starts with valid DBZ.
@@ -84,48 +84,47 @@ impl<R: io::BufRead> Decoder<R> {
         upgrade_policy: VersionUpgradePolicy,
     ) -> crate::Result<Self> {
         let mut metadata = MetadataDecoder::read(&mut reader)?;
+        let fsm = DbnFsm::builder()
+            // DBN version 1 records are the same as DBZ
+            .input_dbn_version(Some(1))
+            .unwrap() // 1 is a valid DBN version
+            .ts_out(metadata.ts_out)
+            .upgrade_policy(upgrade_policy)
+            // decoded metadata separately
+            .skip_metadata(true)
+            .build()?;
         metadata.upgrade(upgrade_policy);
         let reader = zstd::Decoder::with_buffer(reader)
             .map_err(|e| crate::Error::io(e, "creating zstd decoder"))?;
         Ok(Self {
-            upgrade_policy,
             reader,
             metadata,
-            read_buffer: vec![0],
-            compat_buffer: [0; crate::MAX_RECORD_LEN],
+            fsm,
         })
     }
 }
 
 impl<R: io::BufRead> DecodeRecordRef for Decoder<R> {
     fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef>> {
-        let io_err = |e| crate::Error::io(e, "decoding record reference");
-        if let Err(err) = self.reader.read_exact(&mut self.read_buffer[..1]) {
-            return silence_eof_error(err).map_err(io_err);
+        loop {
+            match self.fsm.process() {
+                ProcessResult::ReadMore(_) => match self.reader.read(self.fsm.space()) {
+                    Ok(0) => return Ok(None),
+                    Ok(nbytes) => {
+                        self.fsm.fill(nbytes);
+                    }
+                    Err(err) if err.kind() == std::io::ErrorKind::UnexpectedEof => {
+                        return Ok(None);
+                    }
+                    Err(err) => {
+                        return Err(crate::Error::io(err, "decoding record reference"));
+                    }
+                },
+                ProcessResult::Record(_) => return Ok(self.fsm.last_record()),
+                ProcessResult::Err(error) => return Err(error),
+                ProcessResult::Metadata(_) => unreachable!("skipped metadata"),
+            }
         }
-        let length = self.read_buffer[0] as usize * RecordHeader::LENGTH_MULTIPLIER;
-        if length < mem::size_of::<RecordHeader>() {
-            return Err(crate::Error::decode(format!(
-                "invalid record with length {length} shorter than header"
-            )));
-        }
-        if length > self.read_buffer.len() {
-            self.read_buffer.resize(length, 0);
-        }
-        if let Err(err) = self.reader.read_exact(&mut self.read_buffer[1..length]) {
-            return silence_eof_error(err).map_err(io_err);
-        }
-        // Safety: `buffer` is resized to contain at least `length` bytes.
-        Ok(Some(unsafe {
-            // DBZ records are the same as DBN version 1
-            compat::decode_record_ref(
-                1,
-                self.upgrade_policy,
-                self.metadata.ts_out,
-                &mut self.compat_buffer,
-                &self.read_buffer,
-            )
-        }))
     }
 }
 
@@ -152,33 +151,17 @@ impl<R: io::BufRead> DecodeStream for Decoder<R> {
     /// # Errors
     /// This function will return an error if the zstd portion of the DBZ file
     /// was compressed in an unexpected manner.
-    fn decode_stream<T: HasRType>(mut self) -> super::StreamIterDecoder<Self, T>
+    fn decode_stream<T: HasRType>(self) -> super::StreamIterDecoder<Self, T>
     where
         Self: Sized,
     {
-        self.read_buffer = vec![0; mem::size_of::<T>()];
         StreamIterDecoder::new(self)
     }
 }
 
-impl<R: io::BufRead> BufferSlice for Decoder<R> {
-    fn buffer_slice(&self) -> &[u8] {
-        self.read_buffer.as_slice()
-    }
-
-    fn compat_buffer_slice(&self) -> &[u8] {
-        self.compat_buffer.as_slice()
-    }
-
-    fn record_ref(&self) -> RecordRef {
-        unsafe {
-            compat::choose_record_ref(
-                self.metadata.version,
-                self.upgrade_policy,
-                self.buffer_slice(),
-                self.compat_buffer_slice(),
-            )
-        }
+impl<R: io::BufRead> LastRecord for Decoder<R> {
+    fn last_record(&self) -> Option<RecordRef> {
+        self.fsm.last_record()
     }
 }
 

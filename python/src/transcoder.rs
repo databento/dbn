@@ -2,18 +2,18 @@
 
 use std::{
     collections::HashMap,
-    io::{self, BufWriter, Write},
+    io::{BufWriter, Write},
     sync::{Arc, Mutex},
 };
 
 use dbn::{
-    decode::{DbnMetadataDecoder, DbnRecordDecoder, DecodeRecordRef},
+    decode::dbn::fsm::{DbnFsm, ProcessResult},
     encode::{
         CsvEncoder, DbnMetadataEncoder, DbnRecordEncoder, DynWriter, EncodeRecordRef,
         EncodeRecordTextExt, JsonEncoder,
     },
     python::{py_to_time_date, to_py_err},
-    Compression, Encoding, PitSymbolMap, RType, Record, RecordRef, Schema, SymbolIndex,
+    Compression, Encoding, Metadata, PitSymbolMap, RType, Record, RecordRef, Schema, SymbolIndex,
     TsSymbolMap, VersionUpgradePolicy,
 };
 use pyo3::{
@@ -44,7 +44,7 @@ impl Transcoder {
         ts_out = false,
         symbol_interval_map = None,
         schema = None,
-        input_version = dbn::DBN_VERSION,
+        input_version = None,
         upgrade_policy = VersionUpgradePolicy::default(),
     ))]
     fn new(
@@ -58,7 +58,7 @@ impl Transcoder {
         ts_out: bool,
         symbol_interval_map: Option<PySymbolIntervalMap>,
         schema: Option<Schema>,
-        input_version: u8,
+        input_version: Option<u8>,
         upgrade_policy: VersionUpgradePolicy,
     ) -> PyResult<Self> {
         let symbol_map = if let Some(symbol_interval_map) = symbol_interval_map {
@@ -142,23 +142,19 @@ trait Transcode {
 }
 
 struct Inner<const E: u8> {
-    buffer: io::Cursor<Vec<u8>>,
+    fsm: DbnFsm,
     // wrap in buffered writer to minimize calls to Python
     output: DynWriter<'static, BufWriter<PyFileLike>>,
     use_pretty_px: bool,
     use_pretty_ts: bool,
     map_symbols: bool,
-    has_decoded_metadata: bool,
-    ts_out: bool,
     symbol_map: SymbolMap,
     schema: Option<Schema>,
-    input_version: u8,
-    upgrade_policy: VersionUpgradePolicy,
 }
 
 impl<const E: u8> Transcode for Inner<E> {
     fn write(&mut self, bytes: &[u8]) -> PyResult<()> {
-        self.buffer.write_all(bytes).map_err(to_py_err)?;
+        self.fsm.write_all(bytes);
         self.encode()
     }
 
@@ -169,7 +165,7 @@ impl<const E: u8> Transcode for Inner<E> {
     }
 
     fn buffer(&self) -> &[u8] {
-        self.buffer.get_ref().as_slice()
+        self.fsm.data()
     }
 }
 
@@ -184,7 +180,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
         ts_out: bool,
         symbol_map: Option<TsSymbolMap>,
         schema: Option<Schema>,
-        input_version: u8,
+        input_version: Option<u8>,
         upgrade_policy: VersionUpgradePolicy,
     ) -> PyResult<Self> {
         if OUTPUT_ENC == Encoding::Dbn as u8 && map_symbols.unwrap_or(false) {
@@ -192,226 +188,169 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
                 "map_symbols=True is incompatible with DBN encoding",
             ));
         }
+        let fsm = DbnFsm::builder()
+            .skip_metadata(!has_metadata)
+            .input_dbn_version(input_version)
+            .map_err(to_py_err)?
+            .upgrade_policy(upgrade_policy)
+            .ts_out(ts_out)
+            .build()
+            .map_err(to_py_err)?;
+
+        let mut output = DynWriter::new(BufWriter::new(file), compression)?;
+        let map_symbols = map_symbols.unwrap_or(true);
+        if !has_metadata {
+            let Some(input_version) = input_version else {
+                return Err(PyValueError::new_err(
+                    "must specify input_version when has_metadata=False",
+                ));
+            };
+            // if there's metadata, the header will be encoded when the metadata is processed
+            Self::encode_header_if_csv(
+                &mut output,
+                pretty_px,
+                pretty_ts,
+                ts_out,
+                map_symbols,
+                upgrade_policy.output_version(input_version),
+                schema,
+            )?;
+        }
+
         Ok(Self {
-            buffer: io::Cursor::default(),
-            output: DynWriter::new(BufWriter::new(file), compression)?,
+            fsm,
+            output,
             use_pretty_px: pretty_px,
             use_pretty_ts: pretty_ts,
-            map_symbols: map_symbols.unwrap_or(true),
-            has_decoded_metadata: !has_metadata,
-            ts_out,
+            map_symbols,
             symbol_map: symbol_map.map(SymbolMap::Historical).unwrap_or_default(),
             schema,
-            input_version,
-            upgrade_policy,
         })
     }
 
     fn encode(&mut self) -> PyResult<()> {
-        let orig_position = self.buffer.position();
-        self.buffer.set_position(0);
-        if !self.maybe_decode_metadata(orig_position)? {
-            // early return for partial metadata
-            return Ok(());
-        }
-        let read_position = if OUTPUT_ENC == Encoding::Dbn as u8 {
-            self.encode_dbn(orig_position)
-        } else if OUTPUT_ENC == Encoding::Csv as u8 {
-            self.encode_csv(orig_position)
-        } else {
-            self.encode_json(orig_position)
-        }?;
-        self.shift_buffer(read_position);
-        Ok(())
-    }
-
-    fn encode_dbn(&mut self, orig_position: u64) -> PyResult<usize> {
-        let mut read_position = self.buffer.position() as usize;
-        let mut decoder = DbnRecordDecoder::with_version(
-            &mut self.buffer,
-            self.input_version,
-            self.upgrade_policy,
-            self.ts_out,
-        )?;
-        let mut encoder = DbnRecordEncoder::new(&mut self.output);
         loop {
-            match decoder.decode_record_ref() {
-                Ok(Some(rec)) => {
-                    unsafe { encoder.encode_record_ref_ts_out(rec, self.ts_out) }?;
-                    // keep track of position after last _successful_ decoding to
-                    // ensure buffer is left in correct state in the case where one
-                    // or more successful decodings is followed by a partial one, i.e.
-                    // `decode_record_ref` returning `Ok(None)`
-                    read_position = decoder.get_ref().position() as usize;
-                }
-                Ok(None) => {
-                    break;
-                }
-                Err(err) => {
-                    self.buffer.set_position(orig_position);
-                    return Err(PyErr::from(err));
+            match self.fsm.process() {
+                ProcessResult::ReadMore(_) => return Ok(()),
+                ProcessResult::Err(e) => return Err(PyErr::from(e)),
+                ProcessResult::Metadata(metadata) => self.encode_metadata(metadata)?,
+                ProcessResult::Record(_) => {
+                    if OUTPUT_ENC == Encoding::Dbn as u8 {
+                        self.encode_dbn()
+                    } else if OUTPUT_ENC == Encoding::Csv as u8 {
+                        self.encode_csv()
+                    } else {
+                        self.encode_json()
+                    }
+                    .map_err(to_py_err)?;
                 }
             }
         }
-        Ok(read_position)
     }
 
-    fn encode_csv(&mut self, orig_position: u64) -> PyResult<usize> {
-        let mut read_position = self.buffer.position() as usize;
-        let mut decoder = DbnRecordDecoder::with_version(
-            &mut self.buffer,
-            self.input_version,
-            self.upgrade_policy,
-            self.ts_out,
-        )?;
+    fn encode_dbn(&mut self) -> dbn::Result<()> {
+        let mut encoder = DbnRecordEncoder::new(&mut self.output);
+        let rec = self.fsm.last_record().unwrap();
+        unsafe { encoder.encode_record_ref_ts_out(rec, self.fsm.ts_out()) }
+    }
 
+    fn encode_csv(&mut self) -> dbn::Result<()> {
         let mut encoder = CsvEncoder::builder(&mut self.output)
             .use_pretty_px(self.use_pretty_px)
             .use_pretty_ts(self.use_pretty_ts)
             .write_header(false)
             .build()?;
-        loop {
-            match decoder.decode_record_ref() {
-                Ok(Some(rec)) => {
-                    if self.map_symbols {
-                        self.symbol_map.update_live(rec);
-                    }
-                    // Filter by rtype based on metadata schema or schema parameter
-                    if rec
-                        .rtype()
-                        // Schema must be set for CSV. Checked in [`maybe_decode_metadata`]
-                        .map(|rtype| rtype == RType::from(self.schema.unwrap()))
-                        .unwrap_or(false)
-                    {
-                        if self.map_symbols {
-                            let symbol = self.symbol_map.get_for_rec(&rec).map(|s| s.as_str());
-                            unsafe { encoder.encode_ref_ts_out_with_sym(rec, self.ts_out, symbol) }
-                        } else {
-                            unsafe { encoder.encode_record_ref_ts_out(rec, self.ts_out) }
-                        }?;
-                    }
-                    // keep track of position after last _successful_ decoding to
-                    // ensure buffer is left in correct state in the case where one
-                    // or more successful decodings is followed by a partial one, i.e.
-                    // `decode_record_ref` returning `Ok(None)`
-                    read_position = decoder.get_ref().position() as usize;
-                }
-                Ok(None) => {
-                    break;
-                }
-                Err(err) => {
-                    self.buffer.set_position(orig_position);
-                    return Err(PyErr::from(err));
-                }
-            }
+        let rec = self.fsm.last_record().unwrap();
+        if self.map_symbols {
+            self.symbol_map.update_live(rec);
         }
-        Ok(read_position)
+        // Filter by rtype based on metadata schema or schema parameter
+        if rec
+            .rtype()
+            // Schema must be set for CSV. Checked in [`maybe_decode_metadata`]
+            .map(|rtype| rtype == RType::from(self.schema.unwrap()))
+            .unwrap_or(false)
+        {
+            if self.map_symbols {
+                let symbol = self.symbol_map.get_for_rec(&rec).map(|s| s.as_str());
+                unsafe { encoder.encode_ref_ts_out_with_sym(rec, self.fsm.ts_out(), symbol) }
+            } else {
+                unsafe { encoder.encode_record_ref_ts_out(rec, self.fsm.ts_out()) }
+            }?;
+        }
+        Ok(())
     }
 
-    fn encode_json(&mut self, orig_position: u64) -> PyResult<usize> {
-        let mut read_position = self.buffer.position() as usize;
-        let mut decoder = DbnRecordDecoder::with_version(
-            &mut self.buffer,
-            self.input_version,
-            self.upgrade_policy,
-            self.ts_out,
-        )?;
-
+    fn encode_json(&mut self) -> dbn::Result<()> {
         let mut encoder = JsonEncoder::builder(&mut self.output)
             .use_pretty_px(self.use_pretty_px)
             .use_pretty_ts(self.use_pretty_ts)
             .build();
-        loop {
-            match decoder.decode_record_ref() {
-                Ok(Some(rec)) => {
-                    if self.map_symbols {
-                        self.symbol_map.update_live(rec);
-                        let symbol = self.symbol_map.get_for_rec(&rec).map(|s| s.as_str());
-                        unsafe { encoder.encode_ref_ts_out_with_sym(rec, self.ts_out, symbol) }
-                    } else {
-                        unsafe { encoder.encode_record_ref_ts_out(rec, self.ts_out) }
-                    }?;
-                    // keep track of position after last _successful_ decoding to
-                    // ensure buffer is left in correct state in the case where one
-                    // or more successful decodings is followed by a partial one, i.e.
-                    // `decode_record_ref` returning `Ok(None)`
-                    read_position = decoder.get_ref().position() as usize;
-                }
-                Ok(None) => {
-                    break;
-                }
-                Err(err) => {
-                    self.buffer.set_position(orig_position);
-                    return Err(PyErr::from(err));
-                }
-            }
+        let rec = self.fsm.last_record().unwrap();
+        if self.map_symbols {
+            self.symbol_map.update_live(rec);
+            let symbol = self.symbol_map.get_for_rec(&rec).map(|s| s.as_str());
+            unsafe { encoder.encode_ref_ts_out_with_sym(rec, self.fsm.ts_out(), symbol) }
+        } else {
+            unsafe { encoder.encode_record_ref_ts_out(rec, self.fsm.ts_out()) }
         }
-        Ok(read_position)
     }
 
     // returns `false` if more data is required to decode the metadata
-    fn maybe_decode_metadata(&mut self, orig_position: u64) -> PyResult<bool> {
-        if !self.has_decoded_metadata {
-            match DbnMetadataDecoder::new(&mut self.buffer).decode() {
-                Ok(mut metadata) => {
-                    self.ts_out = metadata.ts_out;
-                    self.input_version = metadata.version;
-                    self.has_decoded_metadata = true;
-                    if self.schema.is_none() {
-                        self.schema = metadata.schema;
-                    }
-                    metadata.upgrade(self.upgrade_policy);
-                    // Setup live symbol mapping
-                    if OUTPUT_ENC == Encoding::Dbn as u8 {
-                        DbnMetadataEncoder::new(&mut self.output).encode(&metadata)?;
-                    // CSV or JSON
-                    } else if self.map_symbols {
-                        if metadata.schema.is_some() {
-                            // historical
-                            // only read from metadata mappings if symbol_map is unpopulated,
-                            // i.e. no `symbol_map` was passed in
-                            if self.symbol_map.is_empty() {
-                                self.symbol_map =
-                                    metadata.symbol_map().map(SymbolMap::Historical)?;
-                            }
-                        } else {
-                            // live
-                            self.symbol_map = SymbolMap::Live(Default::default());
-                        }
-                    }
+    fn encode_metadata(&mut self, metadata: Metadata) -> PyResult<()> {
+        if self.schema.is_none() {
+            self.schema = metadata.schema;
+        }
+        if OUTPUT_ENC == Encoding::Dbn as u8 {
+            DbnMetadataEncoder::new(&mut self.output).encode(&metadata)?;
+        // CSV or JSON
+        } else if self.map_symbols {
+            if metadata.schema.is_some() {
+                // historical
+                // only read from metadata mappings if symbol_map is unpopulated,
+                // i.e. no `symbol_map` was passed in
+                if self.symbol_map.is_empty() {
+                    self.symbol_map = metadata.symbol_map().map(SymbolMap::Historical)?;
                 }
-                Err(err) => {
-                    self.buffer.set_position(orig_position);
-                    // haven't read enough data for metadata
-                    if matches!(err, dbn::Error::Io { ref source, .. } if source.kind() == std::io::ErrorKind::UnexpectedEof)
-                    {
-                        return Ok(false);
-                    }
-                    return Err(PyErr::from(err));
-                }
-            }
-            // decoding metadata and the header are both done once at the beginning
-            if OUTPUT_ENC == Encoding::Csv as u8 {
-                let Some(schema) = self.schema else {
-                    return Err(PyValueError::new_err(
-                        "A schema must be transcoding mixed schema DBN to CSV",
-                    ));
-                };
-                let mut encoder =
-                    CsvEncoder::new(&mut self.output, self.use_pretty_px, self.use_pretty_ts);
-                encoder.encode_header_for_schema(schema, self.ts_out, self.map_symbols)?;
+            } else {
+                // live
+                self.symbol_map = SymbolMap::Live(Default::default());
             }
         }
-        Ok(true)
+        // decoding metadata and the header are both done once at the beginning
+        Self::encode_header_if_csv(
+            &mut self.output,
+            self.use_pretty_px,
+            self.use_pretty_ts,
+            self.fsm.ts_out(),
+            self.map_symbols,
+            self.fsm
+                .upgrade_policy()
+                // Input version will be populated after decoding metadata
+                .output_version(self.fsm.input_dbn_version().unwrap()),
+            self.schema,
+        )
     }
 
-    fn shift_buffer(&mut self, read_position: usize) {
-        let inner_buf = self.buffer.get_mut();
-        let length = inner_buf.len();
-        let new_length = length - read_position;
-        inner_buf.drain(..read_position);
-        debug_assert_eq!(inner_buf.len(), new_length);
-        self.buffer.set_position(new_length as u64);
+    fn encode_header_if_csv(
+        output: &mut DynWriter<BufWriter<PyFileLike>>,
+        use_pretty_px: bool,
+        use_pretty_ts: bool,
+        ts_out: bool,
+        map_symbols: bool,
+        output_version: u8,
+        schema: Option<Schema>,
+    ) -> PyResult<()> {
+        if OUTPUT_ENC == Encoding::Csv as u8 {
+            let Some(schema) = schema else {
+                return Err(PyValueError::new_err(
+                    "A schema must be specified when transcoding mixed schema DBN to CSV",
+                ));
+            };
+            let mut encoder = CsvEncoder::new(output, use_pretty_px, use_pretty_ts);
+            encoder.encode_header_for_schema(output_version, schema, ts_out, map_symbols)?;
+        }
+        Ok(())
     }
 }
 
@@ -472,15 +411,6 @@ mod tests {
 
     use super::*;
 
-    impl Transcoder {
-        fn downcast_unchecked<const E: u8>(&self) -> &Inner<E> {
-            unsafe {
-                let ptr = self.0.lock().unwrap().as_ref() as *const (dyn Transcode + Send);
-                ptr.cast::<Inner<E>>().as_ref().unwrap()
-            }
-        }
-    }
-
     #[test]
     fn test_partial_metadata_and_records() {
         setup();
@@ -498,16 +428,11 @@ mod tests {
                 false,
                 None,
                 None,
-                DBN_VERSION,
+                Some(DBN_VERSION),
                 VersionUpgradePolicy::default(),
             )
             .unwrap()
         });
-        assert!(
-            !target
-                .downcast_unchecked::<{ Encoding::Json as u8 }>()
-                .has_decoded_metadata
-        );
         let mut encoder = DbnEncoder::new(
             Vec::new(),
             &MetadataBuilder::new()
@@ -527,11 +452,6 @@ mod tests {
         target.write(&encoder.get_ref()[metadata_split..]).unwrap();
         // Metadata doesn't get transcoded for JSON
         assert!(output_buf.lock().unwrap().get_ref().is_empty());
-        assert!(
-            target
-                .downcast_unchecked::<{ Encoding::Json as u8 }>()
-                .has_decoded_metadata
-        );
         let metadata_pos = encoder.get_ref().len();
         let rec = ErrorMsg::new(1680708278000000000, None, "This is a test", true);
         encoder.encode_record(&rec).unwrap();
@@ -579,7 +499,7 @@ mod tests {
                 false,
                 None,
                 None,
-                DBN_VERSION,
+                Some(DBN_VERSION),
                 VersionUpgradePolicy::default(),
             )
             .unwrap()
@@ -598,11 +518,6 @@ mod tests {
         .unwrap();
         transcoder.write(encoder.get_ref().as_slice()).unwrap();
         let metadata_pos = encoder.get_ref().len();
-        assert!(
-            transcoder
-                .downcast_unchecked::<{ Encoding::Csv as u8 }>()
-                .has_decoded_metadata
-        );
         let rec1 = ErrorMsg::new(1680708278000000000, None, "This is a test", true);
         let rec2 = OhlcvMsg {
             hd: RecordHeader::new::<OhlcvMsg>(rtype::OHLCV_1S, 1, 1, 1681228173000000000),
@@ -655,7 +570,7 @@ mod tests {
                 true,
                 None,
                 None,
-                DBN_VERSION,
+                None,
                 VersionUpgradePolicy::default(),
             )
             .unwrap()
@@ -783,7 +698,7 @@ mod tests {
                 false,
                 None,
                 Some(Schema::Ohlcv1S),
-                DBN_VERSION,
+                None,
                 VersionUpgradePolicy::default(),
             )
             .unwrap()
@@ -898,12 +813,10 @@ mod tests {
     fn test_from_test_data_file(#[case] encoding: Encoding, #[case] schema: Schema) {
         setup();
 
-        let mut input = Vec::new();
-        let mut input_file =
-            std::fs::File::open(format!("{TEST_DATA_PATH}/test_data.{schema}.dbn"))
-                .map_err(|e| dbn::Error::io(e, "opening file"))
-                .unwrap();
-        input_file.read_to_end(&mut input).unwrap();
+        let input = zstd::stream::decode_all(
+            std::fs::File::open(format!("{TEST_DATA_PATH}/test_data.{schema}.v3.dbn.zst")).unwrap(),
+        )
+        .unwrap();
         let file = MockPyFile::new();
         let output_buf = file.inner();
         let mut transcoder = Python::with_gil(|py| {
@@ -918,7 +831,7 @@ mod tests {
                 false,
                 None,
                 Some(schema),
-                DBN_VERSION,
+                None,
                 VersionUpgradePolicy::default(),
             )
             .unwrap()
@@ -937,5 +850,46 @@ mod tests {
             assert!(!lines[1].ends_with(','));
             assert!(!lines[2].ends_with(','));
         }
+    }
+
+    #[rstest]
+    fn test_skip_metadata_csv_header_still_written() {
+        setup();
+
+        let mut input = Vec::new();
+        let mut input_file =
+            std::fs::File::open(format!("{TEST_DATA_PATH}/test_data.definition.v3.dbn.frag"))
+                .unwrap();
+        input_file.read_to_end(&mut input).unwrap();
+        let file = MockPyFile::new();
+        let output_buf = file.inner();
+        let mut transcoder = Python::with_gil(|py| {
+            Transcoder::new(
+                Py::new(py, file).unwrap().extract(py).unwrap(),
+                Encoding::Csv,
+                Compression::None,
+                true,
+                true,
+                None,
+                false,
+                false,
+                None,
+                Some(Schema::Definition),
+                Some(3),
+                VersionUpgradePolicy::default(),
+            )
+            .unwrap()
+        });
+        // Write first record and part of second
+        transcoder.write(&input).unwrap();
+        transcoder.flush().unwrap();
+        let output = output_buf.lock().unwrap();
+        let output = std::str::from_utf8(output.get_ref().as_slice()).unwrap();
+        let lines = output.lines().collect::<Vec<_>>();
+        assert_eq!(lines.len(), 3);
+        assert!(lines[0].ends_with(",symbol"));
+        // ends an empty field because there was no metadata and no symbol map was provided
+        assert!(lines[1].ends_with(','));
+        assert!(lines[2].ends_with(','));
     }
 }

@@ -53,7 +53,7 @@ impl<D> DbnMetadata for Decoder<D> {
 
 impl<D> DecodeRecordRef for Decoder<D>
 where
-    D: private::BufferSlice + DecodeRecordRef,
+    D: private::LastRecord + DecodeRecordRef,
 {
     fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef>> {
         self.decoder.decode_record_ref()
@@ -62,33 +62,25 @@ where
 
 impl<D> DecodeRecord for Decoder<D>
 where
-    D: private::BufferSlice + DecodeRecordRef,
+    D: private::LastRecord + DecodeRecordRef,
 {
     fn decode_record<T: HasRType>(&mut self) -> crate::Result<Option<&T>> {
         self.decoder.decode_record()
     }
 }
 
-impl<D> private::BufferSlice for Decoder<D>
+impl<D> private::LastRecord for Decoder<D>
 where
-    D: private::BufferSlice,
+    D: private::LastRecord,
 {
-    fn buffer_slice(&self) -> &[u8] {
-        self.decoder.buffer_slice()
-    }
-
-    fn compat_buffer_slice(&self) -> &[u8] {
-        self.decoder.compat_buffer_slice()
-    }
-
-    fn record_ref(&self) -> RecordRef {
-        self.decoder.record_ref()
+    fn last_record(&self) -> Option<RecordRef> {
+        self.decoder.last_record()
     }
 }
 
 impl<D> DecodeStream for Decoder<D>
 where
-    D: private::BufferSlice + DecodeRecordRef,
+    D: private::LastRecord + DecodeRecordRef,
 {
     fn decode_stream<T: HasRType>(self) -> StreamIterDecoder<Self, T>
     where
@@ -159,7 +151,7 @@ impl<D> RecordDecoder<D> {
 
 impl<D> DecodeRecordRef for RecordDecoder<D>
 where
-    D: private::BufferSlice + DecodeRecordRef,
+    D: private::LastRecord + DecodeRecordRef,
 {
     fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef>> {
         if self.is_first {
@@ -183,52 +175,34 @@ where
         let Some(decoder_idx) = self.peek_decoder_idx() else {
             return Ok(None);
         };
-        // SAFE: the particular decoder has already validated the buffer as containing
-        // a record
-        Ok(Some(unsafe {
-            RecordRef::new(self.decoders[decoder_idx].buffer_slice())
-        }))
+        Ok(self.decoders[decoder_idx].last_record())
     }
 }
 
 impl<D> DecodeRecord for RecordDecoder<D>
 where
-    D: private::BufferSlice + DecodeRecordRef,
+    D: private::LastRecord + DecodeRecordRef,
 {
     fn decode_record<T: HasRType>(&mut self) -> crate::Result<Option<&T>> {
         super::decode_record_from_ref(self.decode_record_ref()?)
     }
 }
 
-impl<D> private::BufferSlice for RecordDecoder<D>
+impl<D> private::LastRecord for RecordDecoder<D>
 where
-    D: private::BufferSlice,
+    D: private::LastRecord,
 {
-    fn buffer_slice(&self) -> &[u8] {
+    fn last_record(&self) -> Option<RecordRef> {
         let Some(decoder_idx) = self.peek_decoder_idx() else {
-            return &[];
+            return self.decoders[0].last_record();
         };
-        self.decoders[decoder_idx].buffer_slice()
-    }
-
-    fn compat_buffer_slice(&self) -> &[u8] {
-        let Some(decoder_idx) = self.peek_decoder_idx() else {
-            return &[];
-        };
-        self.decoders[decoder_idx].compat_buffer_slice()
-    }
-
-    fn record_ref(&self) -> RecordRef {
-        let Some(decoder_idx) = self.peek_decoder_idx() else {
-            return self.decoders[0].record_ref();
-        };
-        self.decoders[decoder_idx].record_ref()
+        self.decoders[decoder_idx].last_record()
     }
 }
 
 impl<D> DecodeStream for RecordDecoder<D>
 where
-    D: private::BufferSlice + DecodeRecordRef,
+    D: private::LastRecord + DecodeRecordRef,
 {
     fn decode_stream<T: HasRType>(self) -> super::StreamIterDecoder<Self, T>
     where

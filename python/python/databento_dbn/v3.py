@@ -4,12 +4,12 @@ from ._lib import CBBOMsg
 from ._lib import CMBP1Msg
 from ._lib import ErrorMsg
 from ._lib import ImbalanceMsg
-from ._lib import InstrumentDefMsgV3 as InstrumentDefMsg
+from ._lib import InstrumentDefMsg
 from ._lib import MBOMsg
 from ._lib import MBP1Msg
 from ._lib import MBP10Msg
 from ._lib import OHLCVMsg
-from ._lib import StatMsgV3 as StatMsg
+from ._lib import StatMsg
 from ._lib import StatusMsg
 from ._lib import SymbolMappingMsg
 from ._lib import SystemMsg

@@ -15,6 +15,7 @@ renaming_overrides_prefixing = true
 "FILE" = "FILE"
 # Workaround for cbindgen not understanding constants defined in terms of other constants
 "SYMBOL_CSTR_LEN_V2" = "DbnSYMBOL_CSTR_LEN"
+"ASSET_CSTR_LEN" = "DbnASSET_CSTR_LEN_V3"
 
 [enum]
 prefix_with_name = true

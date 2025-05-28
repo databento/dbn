@@ -19,4 +19,4 @@ syn = { version = "2.0", features = ["full"] }
 [dev-dependencies]
 csv = { workspace = true }
 dbn = { path = "../dbn" }
-trybuild = "1.0.104"
+trybuild = "1.0.105"

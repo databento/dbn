@@ -1,6 +1,6 @@
 //! The [`RecordRef`] struct for non-owning dynamically-typed references to DBN records.
 
-use std::{fmt::Debug, marker::PhantomData, mem, ptr::NonNull};
+use std::{fmt::Debug, io::IoSlice, marker::PhantomData, mem, ptr::NonNull};
 
 use crate::{
     record::{HasRType, Record, RecordHeader},
@@ -54,7 +54,11 @@ impl<'a> RecordRef<'a> {
     /// `buffer` should begin with a [`RecordHeader`] and contain a type implementing
     /// [`HasRType`].
     pub unsafe fn new(buffer: &'a [u8]) -> Self {
-        debug_assert!(buffer.len() >= mem::size_of::<RecordHeader>());
+        debug_assert!(
+            buffer.len() >= mem::size_of::<RecordHeader>(),
+            "buffer of length {} is too short",
+            buffer.len()
+        );
 
         // Safety: casting to `*mut` to use `NonNull`, but `ptr` is still treated internally
         // as an immutable reference
@@ -63,7 +67,8 @@ impl<'a> RecordRef<'a> {
         // Check if alignment of pointer matches that of header (and all records)
         debug_assert_eq!(
             raw_ptr.align_offset(std::mem::align_of::<RecordHeader>()),
-            0
+            0,
+            "unaligned buffer passed to `RecordRef::new`"
         );
         let ptr = NonNull::new_unchecked(raw_ptr.cast::<RecordHeader>());
         Self {
@@ -222,6 +227,15 @@ impl<'a> From<RecordRefEnum<'a>> for RecordRef<'a> {
     }
 }
 
+impl<'a> From<RecordRef<'a>> for IoSlice<'a> {
+    fn from(rec: RecordRef<'a>) -> Self {
+        // Safety: Assumes the encoded record length is correct.
+        Self::new(unsafe {
+            std::slice::from_raw_parts(rec.ptr.as_ptr() as *const u8, rec.record_size())
+        })
+    }
+}
+
 impl Debug for RecordRef<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("RecordRef")
@@ -302,5 +316,17 @@ mod tests {
         let target = RecordRef::from(&src);
         // panic due to unexpected length
         target.get::<MboMsg>();
+    }
+
+    #[test]
+    fn niche() {
+        assert_eq!(
+            std::mem::size_of::<RecordRef>(),
+            std::mem::size_of::<Option<RecordRef>>()
+        );
+        assert_eq!(
+            std::mem::size_of::<RecordRef>(),
+            std::mem::size_of::<usize>()
+        );
     }
 }

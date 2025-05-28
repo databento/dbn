@@ -1142,7 +1142,7 @@ pub enum StatusReason {
     /// The news has been fully disseminated and times are available for the resumption
     /// in quoting and trading.
     NewsAndResumptionTimes = 32,
-    /// The relevants news was not forthcoming.
+    /// The relevant news was not forthcoming.
     NewsNotForthcoming = 33,
     /// Halted for order imbalance.
     OrderImbalance = 40,
@@ -1169,7 +1169,7 @@ pub enum StatusReason {
     /// Halted due to the carryover of a market-wide circuit breaker from the previous
     /// trading day.
     MarketWideHaltCarryover = 123,
-    /// Resumption due to the end of the a market-wide circuit breaker halt.
+    /// Resumption due to the end of a market-wide circuit breaker halt.
     MarketWideHaltResumption = 124,
     /// Halted because quotation is not available.
     QuotationNotAvailable = 130,
@@ -1274,10 +1274,47 @@ pub enum VersionUpgradePolicy {
     /// [`DBN_VERSION`](crate::DBN_VERSION)) as-is.
     AsIs,
     /// Decode and convert data from DBN versions prior to version 2 to that version.
+    /// Attempting to decode data from newer versions will fail.
+    UpgradeToV2,
+    /// Decode and convert data from DBN versions prior to version 3 to that version.
     /// Attempting to decode data from newer versions (when they're introduced) will
     /// fail.
     #[default]
-    UpgradeToV2,
+    UpgradeToV3,
+}
+
+impl VersionUpgradePolicy {
+    /// Validates a given DBN `version` is compatible with the upgrade policy.
+    ///
+    /// # Errors
+    /// This function returns an error if the version and upgrade policy are
+    /// incompatible.
+    pub fn validate_compatibility(self, version: u8) -> crate::Result<()> {
+        if version > 2 && self == VersionUpgradePolicy::UpgradeToV2 {
+            Err(crate::Error::decode("Invalid combination of `VersionUpgradePolicy::UpgradeToV2` and input version 3. Choose either `AsIs` and `UpgradeToV3` as an upgrade policy"))
+        } else {
+            Ok(())
+        }
+    }
+
+    pub(crate) fn is_upgrade_situation(self, version: u8) -> bool {
+        match (self, version) {
+            (VersionUpgradePolicy::AsIs, _) => false,
+            (VersionUpgradePolicy::UpgradeToV2, v) if v < 2 => true,
+            (VersionUpgradePolicy::UpgradeToV2, _) => false,
+            (VersionUpgradePolicy::UpgradeToV3, v) if v < 3 => true,
+            (VersionUpgradePolicy::UpgradeToV3, _) => false,
+        }
+    }
+
+    /// Returns the output DBN version given the input version and upgrade policy.
+    pub fn output_version(self, input_version: u8) -> u8 {
+        match self {
+            VersionUpgradePolicy::AsIs => input_version,
+            VersionUpgradePolicy::UpgradeToV2 => 2,
+            VersionUpgradePolicy::UpgradeToV3 => 3,
+        }
+    }
 }
 
 /// An error code from the live subscription gateway.

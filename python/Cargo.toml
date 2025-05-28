@@ -14,11 +14,12 @@ name = "databento_dbn" # Python modules can't contain dashes
 
 [dependencies]
 dbn = { path = "../rust/dbn", features = ["python"] }
-pyo3 = { workspace = true }
-time = { workspace = true }
+pyo3.workspace = true
+time.workspace = true
 
 [build-dependencies]
-pyo3-build-config = { workspace = true }
+pyo3-build-config.workspace = true
 
 [dev-dependencies]
-rstest = { workspace = true }
+rstest.workspace = true
+zstd.workspace = true

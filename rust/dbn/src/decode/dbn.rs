@@ -1,6 +1,6 @@
 //! Decoding of DBN files.
-const DBN_PREFIX: &[u8] = b"DBN";
-const DBN_PREFIX_LEN: usize = DBN_PREFIX.len();
+pub(super) const DBN_PREFIX: &[u8] = b"DBN";
+pub(super) const DBN_PREFIX_LEN: usize = DBN_PREFIX.len();
 
 /// Returns `true` if `bytes` starts with valid uncompressed DBN.
 pub fn starts_with_prefix(bytes: &[u8]) -> bool {
@@ -10,6 +10,7 @@ pub fn starts_with_prefix(bytes: &[u8]) -> bool {
 mod sync;
 pub(crate) use sync::decode_iso8601;
 pub use sync::{Decoder, MetadataDecoder, RecordDecoder};
+pub mod fsm;
 
 #[cfg(feature = "async")]
 mod r#async;

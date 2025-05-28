@@ -1,11 +1,11 @@
-use std::os::raw::c_char;
+use std::ffi::c_char;
 
 use crate::{
-    rtype, MatchAlgorithm, RecordHeader, SecurityUpdateAction, Side, StatUpdateAction,
-    UserDefinedInstrument, UNDEF_PRICE, UNDEF_TIMESTAMP,
+    rtype, MatchAlgorithm, RecordHeader, SecurityUpdateAction, UserDefinedInstrument, UNDEF_PRICE,
+    UNDEF_TIMESTAMP,
 };
 
-use super::{InstrumentDefMsg, StatMsg, SYMBOL_CSTR_LEN, UNDEF_STAT_QUANTITY};
+use super::{InstrumentDefMsg, SYMBOL_CSTR_LEN};
 
 impl Default for InstrumentDefMsg {
     fn default() -> Self {
@@ -19,6 +19,7 @@ impl Default for InstrumentDefMsg {
             high_limit_price: UNDEF_PRICE,
             low_limit_price: UNDEF_PRICE,
             max_price_variation: UNDEF_PRICE,
+            trading_reference_price: UNDEF_PRICE,
             unit_of_measure_qty: UNDEF_PRICE,
             min_price_increment_amount: UNDEF_PRICE,
             price_ratio: UNDEF_PRICE,
@@ -36,6 +37,7 @@ impl Default for InstrumentDefMsg {
             contract_multiplier: i32::MAX,
             decay_quantity: i32::MAX,
             original_contract_size: i32::MAX,
+            trading_reference_date: u16::MAX,
             appl_id: i16::MAX,
             maturity_year: u16::MAX,
             decay_start_date: u16::MAX,
@@ -55,50 +57,20 @@ impl Default for InstrumentDefMsg {
             instrument_class: 0,
             strike_price: UNDEF_PRICE,
             match_algorithm: MatchAlgorithm::Undefined as c_char,
+            md_security_trading_status: u8::MAX,
             main_fraction: u8::MAX,
             price_display_format: u8::MAX,
+            settl_price_type: u8::MAX,
             sub_fraction: u8::MAX,
             underlying_product: u8::MAX,
             security_update_action: SecurityUpdateAction::Add as c_char,
             maturity_month: u8::MAX,
             maturity_day: u8::MAX,
             maturity_week: u8::MAX,
-            user_defined_instrument: UserDefinedInstrument::No as c_char,
+            user_defined_instrument: UserDefinedInstrument::No,
             contract_multiplier_unit: i8::MAX,
             flow_schedule_type: i8::MAX,
             tick_rule: u8::MAX,
-            leg_count: 0,
-            leg_index: 0,
-            leg_price: UNDEF_PRICE,
-            leg_delta: UNDEF_PRICE,
-            leg_instrument_id: 0,
-            leg_ratio_price_numerator: 0,
-            leg_ratio_price_denominator: 0,
-            leg_ratio_qty_numerator: 0,
-            leg_ratio_qty_denominator: 0,
-            leg_underlying_id: 0,
-            leg_raw_symbol: [0; SYMBOL_CSTR_LEN],
-            leg_instrument_class: 0,
-            leg_side: Side::None as c_char,
-            _reserved: Default::default(),
-        }
-    }
-}
-
-impl Default for StatMsg {
-    fn default() -> Self {
-        Self {
-            hd: RecordHeader::default::<Self>(rtype::STATISTICS),
-            ts_recv: UNDEF_TIMESTAMP,
-            ts_ref: UNDEF_TIMESTAMP,
-            price: UNDEF_PRICE,
-            quantity: UNDEF_STAT_QUANTITY,
-            sequence: 0,
-            ts_in_delta: 0,
-            stat_type: 0,
-            channel_id: 0,
-            update_action: StatUpdateAction::New as u8,
-            stat_flags: 0,
             _reserved: Default::default(),
         }
     }

@@ -2,19 +2,17 @@
 //! in the upcoming DBN version 3.
 
 pub use crate::compat::{
-    InstrumentDefMsgV3 as InstrumentDefMsg, StatMsgV3 as StatMsg,
     ASSET_CSTR_LEN_V3 as ASSET_CSTR_LEN, SYMBOL_CSTR_LEN_V3 as SYMBOL_CSTR_LEN,
     UNDEF_STAT_QUANTITY_V3 as UNDEF_STAT_QUANTITY,
 };
 pub use crate::record::{
     Bbo1MMsg, Bbo1SMsg, BboMsg, Cbbo1MMsg, Cbbo1SMsg, CbboMsg, Cmbp1Msg, ErrorMsg, ImbalanceMsg,
-    MboMsg, OhlcvMsg, StatusMsg, SymbolMappingMsg, SystemMsg, TbboMsg, TcbboMsg, TradeMsg,
-    WithTsOut,
+    InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatMsg, StatusMsg, SymbolMappingMsg,
+    SystemMsg, TbboMsg, TcbboMsg, TradeMsg, WithTsOut,
 };
 
 use crate::compat::{InstrumentDefRec, StatRec};
 
-mod impl_default;
 mod methods;
 
 /// The DBN version of this module.
@@ -77,28 +75,14 @@ mod tests {
     use rstest::*;
     use type_layout::{Field, TypeLayout};
 
-    use crate::{v1, v2};
-
     use super::*;
-
-    #[test]
-    fn test_default_equivalency() {
-        assert_eq!(
-            InstrumentDefMsg::from(&v1::InstrumentDefMsg::default()),
-            InstrumentDefMsg::default()
-        );
-        assert_eq!(
-            InstrumentDefMsg::from(&v2::InstrumentDefMsg::default()),
-            InstrumentDefMsg::default()
-        );
-    }
 
     #[cfg(feature = "python")]
     #[test]
     fn test_consistent_field_order_and_leg_fields_last() {
         use std::ops::Not;
 
-        use crate::python::PyFieldDesc;
+        use crate::{python::PyFieldDesc, v2};
 
         let v3_fields = InstrumentDefMsg::ordered_fields("");
         let mut v2_fields = v2::InstrumentDefMsg::ordered_fields("")

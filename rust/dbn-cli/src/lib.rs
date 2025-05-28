@@ -167,7 +167,7 @@ pub struct Args {
         long = "input-dbn-version",
         help = "Specify the DBN version of the fragment. By default the fragment is assumed to be of the current version",
         value_name = "DBN_VERSION",
-        value_parser = clap::value_parser!(u8).range(1..=2),
+        value_parser = clap::value_parser!(u8).range(1..=3),
         requires = "input_fragment"
     )]
     pub input_dbn_version_override: Option<u8>,
@@ -207,7 +207,7 @@ impl Args {
 
     pub fn upgrade_policy(&self) -> VersionUpgradePolicy {
         if self.should_upgrade {
-            VersionUpgradePolicy::UpgradeToV2
+            VersionUpgradePolicy::UpgradeToV3
         } else {
             VersionUpgradePolicy::AsIs
         }

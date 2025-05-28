@@ -4,21 +4,15 @@ use pyo3::{
     conversion::IntoPyObjectExt,
     intern,
     prelude::*,
-    types::{timezone_utc, PyDateTime, PyDict},
+    types::{PyDateTime, PyDict, PyTzInfo},
 };
 
 use crate::{
-    compat::{
-        ErrorMsgV1, InstrumentDefMsgV1, InstrumentDefMsgV3, StatMsgV3, SymbolMappingMsgV1,
-        SystemMsgV1,
-    },
-    pretty::px_to_f64,
-    record::str_to_c_chars,
-    rtype, BboMsg, BidAskPair, CbboMsg, Cmbp1Msg, ConsolidatedBidAskPair, ErrorCode, ErrorMsg,
-    FlagSet, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, Record,
-    RecordHeader, SType, SecurityUpdateAction, Side, StatMsg, StatUpdateAction, StatusAction,
-    StatusMsg, StatusReason, SymbolMappingMsg, SystemCode, SystemMsg, TradeMsg, TradingEvent,
-    TriState, UserDefinedInstrument, WithTsOut, UNDEF_ORDER_SIZE, UNDEF_PRICE, UNDEF_TIMESTAMP,
+    pretty::px_to_f64, record::str_to_c_chars, rtype, v1, v2, v3, BboMsg, BidAskPair, CbboMsg,
+    Cmbp1Msg, ConsolidatedBidAskPair, ErrorCode, FlagSet, HasRType, ImbalanceMsg, MboMsg, Mbp10Msg,
+    Mbp1Msg, OhlcvMsg, Record, RecordHeader, SType, SecurityUpdateAction, Side, StatUpdateAction,
+    StatusAction, StatusMsg, StatusReason, SystemCode, TradeMsg, TradingEvent, TriState,
+    UserDefinedInstrument, WithTsOut, UNDEF_ORDER_SIZE, UNDEF_PRICE, UNDEF_TIMESTAMP,
 };
 
 use super::{to_py_err, PyFieldDesc};
@@ -1460,7 +1454,7 @@ impl StatusMsg {
 }
 
 #[pymethods]
-impl InstrumentDefMsgV3 {
+impl v3::InstrumentDefMsg {
     #[new]
     #[pyo3(signature = (
         publisher_id,
@@ -1965,7 +1959,7 @@ impl InstrumentDefMsgV3 {
 }
 
 #[pymethods]
-impl InstrumentDefMsg {
+impl v2::InstrumentDefMsg {
     #[new]
     #[pyo3(signature = (
         publisher_id,
@@ -2398,7 +2392,7 @@ impl InstrumentDefMsg {
 }
 
 #[pymethods]
-impl InstrumentDefMsgV1 {
+impl v1::InstrumentDefMsg {
     #[pyo3(signature = (
         publisher_id,
         instrument_id,
@@ -3012,149 +3006,7 @@ impl ImbalanceMsg {
 }
 
 #[pymethods]
-impl StatMsg {
-    #[new]
-    #[pyo3(signature= (
-        publisher_id,
-        instrument_id,
-        ts_event,
-        ts_recv,
-        ts_ref,
-        price,
-        quantity,
-        stat_type,
-        sequence = None,
-        ts_in_delta = None,
-        channel_id = None,
-        update_action = None,
-        stat_flags = 0,
-    ))]
-    fn py_new(
-        publisher_id: u16,
-        instrument_id: u32,
-        ts_event: u64,
-        ts_recv: u64,
-        ts_ref: u64,
-        price: i64,
-        quantity: i32,
-        stat_type: u16,
-        sequence: Option<u32>,
-        ts_in_delta: Option<i32>,
-        channel_id: Option<u16>,
-        update_action: Option<u8>,
-        stat_flags: u8,
-    ) -> Self {
-        Self {
-            hd: RecordHeader::new::<Self>(rtype::STATISTICS, publisher_id, instrument_id, ts_event),
-            ts_recv,
-            ts_ref,
-            price,
-            quantity,
-            sequence: sequence.unwrap_or_default(),
-            ts_in_delta: ts_in_delta.unwrap_or_default(),
-            stat_type,
-            channel_id: channel_id.unwrap_or_default(),
-            update_action: update_action.unwrap_or(StatUpdateAction::New as u8),
-            stat_flags,
-            _reserved: Default::default(),
-        }
-    }
-
-    fn __bytes__(&self) -> &[u8] {
-        self.as_ref()
-    }
-
-    fn __repr__(&self) -> String {
-        format!("{self:?}")
-    }
-    #[getter]
-    fn rtype(&self) -> u8 {
-        self.hd.rtype
-    }
-
-    #[getter]
-    fn publisher_id(&self) -> u16 {
-        self.hd.publisher_id
-    }
-
-    #[getter]
-    fn instrument_id(&self) -> u32 {
-        self.hd.instrument_id
-    }
-
-    #[getter]
-    fn ts_event(&self) -> u64 {
-        self.hd.ts_event
-    }
-
-    #[setter]
-    fn set_ts_event(&mut self, ts_event: u64) {
-        self.hd.ts_event = ts_event;
-    }
-
-    #[getter]
-    fn get_pretty_price(&self) -> f64 {
-        self.price_f64()
-    }
-
-    #[getter]
-    fn get_pretty_ts_event<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
-        new_py_timestamp_or_datetime(py, self.ts_event())
-    }
-
-    #[getter]
-    fn get_pretty_ts_recv<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
-        new_py_timestamp_or_datetime(py, self.ts_recv)
-    }
-
-    #[getter]
-    fn get_pretty_ts_ref<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
-        new_py_timestamp_or_datetime(py, self.ts_ref)
-    }
-
-    #[pyo3(name = "record_size")]
-    fn py_record_size(&self) -> usize {
-        self.record_size()
-    }
-
-    #[classattr]
-    fn size_hint() -> PyResult<usize> {
-        Ok(mem::size_of::<Self>())
-    }
-
-    #[classattr]
-    #[pyo3(name = "_dtypes")]
-    fn py_dtypes() -> Vec<(String, String)> {
-        Self::field_dtypes("")
-    }
-
-    #[classattr]
-    #[pyo3(name = "_price_fields")]
-    fn py_price_fields() -> Vec<String> {
-        Self::price_fields("")
-    }
-
-    #[classattr]
-    #[pyo3(name = "_timestamp_fields")]
-    fn py_timestamp_fields() -> Vec<String> {
-        Self::timestamp_fields("")
-    }
-
-    #[classattr]
-    #[pyo3(name = "_hidden_fields")]
-    fn py_hidden_fields() -> Vec<String> {
-        Self::hidden_fields("")
-    }
-
-    #[classattr]
-    #[pyo3(name = "_ordered_fields")]
-    fn py_ordered_fields() -> Vec<String> {
-        Self::ordered_fields("")
-    }
-}
-
-#[pymethods]
-impl StatMsgV3 {
+impl v3::StatMsg {
     #[new]
     #[pyo3(signature= (
         publisher_id,
@@ -3296,11 +3148,153 @@ impl StatMsgV3 {
 }
 
 #[pymethods]
-impl ErrorMsg {
+impl v1::StatMsg {
+    #[new]
+    #[pyo3(signature= (
+        publisher_id,
+        instrument_id,
+        ts_event,
+        ts_recv,
+        ts_ref,
+        price,
+        quantity,
+        stat_type,
+        sequence = None,
+        ts_in_delta = None,
+        channel_id = None,
+        update_action = None,
+        stat_flags = 0,
+    ))]
+    fn py_new(
+        publisher_id: u16,
+        instrument_id: u32,
+        ts_event: u64,
+        ts_recv: u64,
+        ts_ref: u64,
+        price: i64,
+        quantity: i32,
+        stat_type: u16,
+        sequence: Option<u32>,
+        ts_in_delta: Option<i32>,
+        channel_id: Option<u16>,
+        update_action: Option<u8>,
+        stat_flags: u8,
+    ) -> Self {
+        Self {
+            hd: RecordHeader::new::<Self>(rtype::STATISTICS, publisher_id, instrument_id, ts_event),
+            ts_recv,
+            ts_ref,
+            price,
+            quantity,
+            sequence: sequence.unwrap_or_default(),
+            ts_in_delta: ts_in_delta.unwrap_or_default(),
+            stat_type,
+            channel_id: channel_id.unwrap_or_default(),
+            update_action: update_action.unwrap_or(StatUpdateAction::New as u8),
+            stat_flags,
+            _reserved: Default::default(),
+        }
+    }
+
+    fn __bytes__(&self) -> &[u8] {
+        self.as_ref()
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
+    }
+    #[getter]
+    fn rtype(&self) -> u8 {
+        self.hd.rtype
+    }
+
+    #[getter]
+    fn publisher_id(&self) -> u16 {
+        self.hd.publisher_id
+    }
+
+    #[getter]
+    fn instrument_id(&self) -> u32 {
+        self.hd.instrument_id
+    }
+
+    #[getter]
+    fn ts_event(&self) -> u64 {
+        self.hd.ts_event
+    }
+
+    #[setter]
+    fn set_ts_event(&mut self, ts_event: u64) {
+        self.hd.ts_event = ts_event;
+    }
+
+    #[getter]
+    fn get_pretty_price(&self) -> f64 {
+        self.price_f64()
+    }
+
+    #[getter]
+    fn get_pretty_ts_event<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+        new_py_timestamp_or_datetime(py, self.ts_event())
+    }
+
+    #[getter]
+    fn get_pretty_ts_recv<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+        new_py_timestamp_or_datetime(py, self.ts_recv)
+    }
+
+    #[getter]
+    fn get_pretty_ts_ref<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+        new_py_timestamp_or_datetime(py, self.ts_ref)
+    }
+
+    #[pyo3(name = "record_size")]
+    fn py_record_size(&self) -> usize {
+        self.record_size()
+    }
+
+    #[classattr]
+    fn size_hint() -> PyResult<usize> {
+        Ok(mem::size_of::<Self>())
+    }
+
+    #[classattr]
+    #[pyo3(name = "_dtypes")]
+    fn py_dtypes() -> Vec<(String, String)> {
+        Self::field_dtypes("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_price_fields")]
+    fn py_price_fields() -> Vec<String> {
+        Self::price_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_timestamp_fields")]
+    fn py_timestamp_fields() -> Vec<String> {
+        Self::timestamp_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_hidden_fields")]
+    fn py_hidden_fields() -> Vec<String> {
+        Self::hidden_fields("")
+    }
+
+    #[classattr]
+    #[pyo3(name = "_ordered_fields")]
+    fn py_ordered_fields() -> Vec<String> {
+        Self::ordered_fields("")
+    }
+}
+
+#[pymethods]
+impl v2::ErrorMsg {
     #[new]
     #[pyo3(signature = (ts_event, err, is_last = true, code = None))]
     fn py_new(ts_event: u64, err: &str, is_last: bool, code: Option<ErrorCode>) -> PyResult<Self> {
-        Ok(ErrorMsg::new(ts_event, code, err, is_last))
+        Ok(Self::new(ts_event, code, err, is_last))
     }
 
     fn __bytes__(&self) -> &[u8] {
@@ -3393,10 +3387,10 @@ impl ErrorMsg {
 }
 
 #[pymethods]
-impl ErrorMsgV1 {
+impl v1::ErrorMsg {
     #[new]
     fn py_new(ts_event: u64, err: &str) -> PyResult<Self> {
-        Ok(ErrorMsgV1::new(ts_event, err))
+        Ok(Self::new(ts_event, err))
     }
 
     fn __bytes__(&self) -> &[u8] {
@@ -3484,7 +3478,7 @@ impl ErrorMsgV1 {
 }
 
 #[pymethods]
-impl SymbolMappingMsg {
+impl v2::SymbolMappingMsg {
     #[new]
     fn py_new(
         publisher_id: u16,
@@ -3623,7 +3617,7 @@ impl SymbolMappingMsg {
 }
 
 #[pymethods]
-impl SymbolMappingMsgV1 {
+impl v1::SymbolMappingMsg {
     #[new]
     fn py_new(
         publisher_id: u16,
@@ -3749,11 +3743,11 @@ impl SymbolMappingMsgV1 {
 }
 
 #[pymethods]
-impl SystemMsg {
+impl v2::SystemMsg {
     #[new]
     #[pyo3(signature = (ts_event, msg, code = None))]
     fn py_new(ts_event: u64, msg: &str, code: Option<SystemCode>) -> PyResult<Self> {
-        Ok(SystemMsg::new(ts_event, code, msg)?)
+        Ok(Self::new(ts_event, code, msg)?)
     }
 
     fn __bytes__(&self) -> &[u8] {
@@ -3851,7 +3845,7 @@ impl SystemMsg {
 }
 
 #[pymethods]
-impl SystemMsgV1 {
+impl v1::SystemMsg {
     #[new]
     fn py_new(ts_event: u64, msg: &str) -> PyResult<Self> {
         Ok(Self::new(ts_event, msg)?)
@@ -4045,7 +4039,7 @@ fn new_py_timestamp_or_datetime(
                 .map(|o| Some(o.into_pyobject(py).unwrap()));
         }
     }
-    let utc_tz = timezone_utc(py);
+    let utc_tz = PyTzInfo::utc(py)?;
     let timestamp_ms = timestamp as f64 / 1_000_000.0;
     PyDateTime::from_timestamp(py, timestamp_ms, Some(&utc_tz))
         .map(|o| Some(o.into_pyobject(py).unwrap().into_any()))
