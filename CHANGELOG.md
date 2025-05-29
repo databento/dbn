@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.35.1 - TBD
+
+### Bug fixes
+- Changed `DbnFsm::data()` to exclude all processed data
+
 ## 0.35.0 - 2025-05-28
 This version marks the release of DBN version 3 (DBNv3), which is the new default.
 Decoders support decoding all versions of DBN and the DBN encoders default to

@@ -173,7 +173,10 @@ impl DbnFsm {
 
     /// Returns the unprocessed data in the buffer.
     pub fn data(&self) -> &[u8] {
-        self.buffer.data()
+        match self.state {
+            State::Consume { read, .. } => &self.buffer.data()[read..],
+            _ => self.buffer.data(),
+        }
     }
 
     /// Returns the mutable slice to all writable space in the buffer.
