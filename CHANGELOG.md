@@ -3,6 +3,7 @@
 ## 0.35.1 - TBD
 
 ### Bug fixes
+- Fixed behavior where encoding metadata could lower the `version`
 - Changed `DbnFsm::data()` to exclude all processed data
 
 ## 0.35.0 - 2025-05-28

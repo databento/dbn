@@ -122,14 +122,17 @@ where
     /// Encodes `metadata` into DBN.
     ///
     /// # Errors
-    /// This function returns an error if it fails to write to the underlying writer.
+    /// This function returns an error if it fails to write to the underlying writer or
+    /// `metadata` is from a newer DBN version than is supported.
     pub fn encode(&mut self, metadata: &Metadata) -> Result<()> {
         let metadata_err = |e| Error::io(e, "writing DBN metadata");
         self.writer.write_all(b"DBN").map_err(metadata_err)?;
+        if metadata.version > DBN_VERSION {
+            return Err(Error::encode(format!("can't encode Metadata with version {} which is greater than the maximum supported version {DBN_VERSION}", metadata.version)));
+        }
         self.writer
-            // Never write version=0, which denotes legacy DBZ files or a version
-            // greater than this version of the crate supports
-            .write_all(&[metadata.version.clamp(1, DBN_VERSION)])
+            // Never write version=0, which denotes legacy DBZ files
+            .write_all(&[metadata.version.max(1)])
             .map_err(metadata_err)?;
         let (length, end_padding) = Self::calc_length(metadata);
         self.writer
@@ -686,5 +689,22 @@ mod tests {
         } else {
             assert!((1..8).contains(&end_padding));
         }
+    }
+
+    #[rstest]
+    fn test_fails_to_encode_newer_metadata() {
+        let metadata = MetadataBuilder::new()
+            .dataset(Dataset::XeerEobi.to_string())
+            .schema(Some(Schema::Definition))
+            .start(0)
+            .stype_in(Some(SType::RawSymbol))
+            .stype_out(SType::InstrumentId)
+            .version(DBN_VERSION + 1)
+            .build();
+        let mut buffer = Vec::new();
+        let mut target = MetadataEncoder::new(&mut buffer);
+        assert!(
+            matches!(target.encode(&metadata), Err(Error::Encode(msg)) if msg.contains("can't encode Metadata with version"))
+        );
     }
 }
