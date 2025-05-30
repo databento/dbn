@@ -102,7 +102,7 @@ where
     /// incompatible.
     pub fn set_upgrade_policy(&mut self, upgrade_policy: VersionUpgradePolicy) -> Result<()> {
         self.decoder.set_upgrade_policy(upgrade_policy)?;
-        self.metadata.set_version(upgrade_policy);
+        self.metadata.upgrade(upgrade_policy);
         Ok(())
     }
 
@@ -770,7 +770,7 @@ mod tests {
             VersionUpgradePolicy::UpgradeToV2,
         )
         .await?;
-        assert_eq!(decoder.metadata().version, crate::DBN_VERSION);
+        assert_eq!(decoder.metadata().version, 2);
         assert_eq!(decoder.metadata().symbol_cstr_len, crate::SYMBOL_CSTR_LEN);
         let mut has_decoded = false;
         while let Some(_rec) = decoder.decode_record::<v2::InstrumentDefMsg>().await? {

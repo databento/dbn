@@ -15,9 +15,9 @@ pub fn starts_with_prefix(bytes: &[u8]) -> bool {
     ZSTD_MAGIC_NUMBER == magic
 }
 
-/// Helper to always set multiple members.
+/// Helper to create an async Zstandard decoder with multiple member support.
 #[cfg(feature = "async")]
-pub(crate) fn zstd_decoder<R>(reader: R) -> async_compression::tokio::bufread::ZstdDecoder<R>
+pub fn zstd_decoder<R>(reader: R) -> async_compression::tokio::bufread::ZstdDecoder<R>
 where
     R: tokio::io::AsyncBufReadExt + Unpin,
 {

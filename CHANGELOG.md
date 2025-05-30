@@ -5,6 +5,7 @@
 ### Bug fixes
 - Fixed behavior where encoding metadata could lower the `version`
 - Changed `DbnFsm::data()` to exclude all processed data
+- Fixed `Metadata::upgrade()` behavior with `UpgradeToV2`
 
 ## 0.35.0 - 2025-05-28
 This version marks the release of DBN version 3 (DBNv3), which is the new default.

@@ -125,16 +125,6 @@ impl Metadata {
 
     /// Upgrades the metadata according to `upgrade_policy` if necessary.
     pub fn upgrade(&mut self, upgrade_policy: VersionUpgradePolicy) {
-        if upgrade_policy.is_upgrade_situation(self.version) {
-            self.version = crate::DBN_VERSION;
-            self.symbol_cstr_len = crate::SYMBOL_CSTR_LEN;
-        }
-    }
-
-    /// Allows upgrade policy to be configured from decoders after Metadata decoding.
-    /// Using [`upgrade()`] would leave metadata with the wrong `version` and
-    /// `symbol_cstr_len`.
-    pub(crate) fn set_version(&mut self, upgrade_policy: VersionUpgradePolicy) {
         if self.version < 2 {
             match upgrade_policy {
                 VersionUpgradePolicy::AsIs => {
@@ -464,4 +454,34 @@ fn deserialize_date<'de, D: serde::Deserializer<'de>>(
 ) -> Result<time::Date, D::Error> {
     let date_str = String::deserialize(deserializer)?;
     time::Date::parse(&date_str, DATE_FORMAT).map_err(serde::de::Error::custom)
+}
+
+#[cfg(test)]
+mod tests {
+    use rstest::*;
+
+    use crate::Dataset;
+
+    use super::*;
+
+    #[rstest]
+    #[case(VersionUpgradePolicy::AsIs, 1)]
+    #[case(VersionUpgradePolicy::UpgradeToV2, 2)]
+    #[case(VersionUpgradePolicy::UpgradeToV3, 3)]
+    fn test_upgrade_metadata(
+        #[case] upgrade_policy: VersionUpgradePolicy,
+        #[case] exp_version: u8,
+    ) {
+        let mut target = Metadata::builder()
+            .version(1)
+            .dataset(Dataset::OpraPillar)
+            .schema(Some(Schema::Mbp1))
+            .start(0)
+            .stype_in(None)
+            .stype_out(SType::InstrumentId)
+            .build();
+        assert_eq!(target.version, 1);
+        target.upgrade(upgrade_policy);
+        assert_eq!(target.version, exp_version);
+    }
 }
