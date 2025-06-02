@@ -1,11 +1,14 @@
 use std::{
-    io::{self, SeekFrom},
-    mem,
+    io::{self, IoSlice, SeekFrom},
+    mem::{self, transmute, MaybeUninit},
     num::NonZeroU64,
 };
 
 use crate::{
-    encode::{zstd_encoder, DbnEncodable, EncodeDbn, EncodeRecord, EncodeRecordRef},
+    encode::{
+        io_utils::write_all_vectored, zstd_encoder, DbnEncodable, EncodeDbn, EncodeRecord,
+        EncodeRecordRef,
+    },
     Error, Metadata, RecordRef, Result, Schema, SymbolMapping, DBN_VERSION, NULL_LIMIT,
     NULL_RECORD_COUNT, NULL_SCHEMA, NULL_STYPE, UNDEF_TIMESTAMP,
 };
@@ -67,6 +70,10 @@ where
         self.record_encoder.encode_record(record)
     }
 
+    fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> Result<()> {
+        self.record_encoder.encode_records(records)
+    }
+
     fn flush(&mut self) -> Result<()> {
         self.record_encoder.flush()
     }
@@ -78,6 +85,10 @@ where
 {
     fn encode_record_ref(&mut self, record: RecordRef) -> Result<()> {
         self.record_encoder.encode_record_ref(record)
+    }
+
+    fn encode_record_refs(&mut self, records: &[RecordRef]) -> Result<()> {
+        self.record_encoder.encode_record_refs(records)
     }
 
     /// Encodes a single DBN record.
@@ -405,10 +416,19 @@ where
     W: io::Write,
 {
     fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<()> {
-        match self.writer.write_all(record.as_ref()) {
-            Ok(()) => Ok(()),
-            Err(e) => Err(Error::io(e, format!("serializing {record:?}"))),
-        }
+        self.writer
+            .write_all(record.as_ref())
+            .map_err(|e| Error::io(e, format!("serializing {record:?}")))
+    }
+
+    fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> Result<()> {
+        // SAFETY: DBN records have no implicit padding and are POD structs
+        let slice = unsafe {
+            std::slice::from_raw_parts::<u8>(records.as_ptr() as *const u8, size_of_val(records))
+        };
+        self.writer
+            .write_all(slice)
+            .map_err(|e| Error::io(e, format!("serializing {} records", records.len())))
     }
 
     fn flush(&mut self) -> Result<()> {
@@ -423,10 +443,26 @@ where
     W: io::Write,
 {
     fn encode_record_ref(&mut self, record: RecordRef) -> Result<()> {
-        match self.writer.write_all(record.as_ref()) {
-            Ok(()) => Ok(()),
-            Err(e) => Err(Error::io(e, format!("serializing {record:?}"))),
+        self.writer
+            .write_all(record.as_ref())
+            .map_err(|e| Error::io(e, format!("serializing {record:?}")))
+    }
+
+    fn encode_record_refs(&mut self, records: &[RecordRef]) -> Result<()> {
+        const BATCH_SIZE: usize = 128;
+        let mut slices = [const { MaybeUninit::uninit() }; BATCH_SIZE];
+        for record_chunk in records.chunks(BATCH_SIZE) {
+            for (elem, rec) in slices.iter_mut().zip(record_chunk.iter()) {
+                elem.write(IoSlice::from(*rec));
+            }
+            let slices =
+                // SAFETY: Every element up to `record_chunk.len()` has been initialized
+                unsafe { transmute::<&mut [MaybeUninit<IoSlice<'_>>], &mut [IoSlice<'_>]>(&mut slices[..record_chunk.len()]) };
+            write_all_vectored(&mut self.writer, slices).map_err(|e| {
+                Error::io(e, format!("failed to encode {} RecordRefs", records.len()))
+            })?;
         }
+        Ok(())
     }
 
     /// Encodes a single DBN record.
@@ -706,5 +742,210 @@ mod tests {
         assert!(
             matches!(target.encode(&metadata), Err(Error::Encode(msg)) if msg.contains("can't encode Metadata with version"))
         );
+    }
+
+    mod batch {
+        use rstest::rstest;
+
+        use crate::{
+            decode::{DecodeRecord, DecodeRecordRef},
+            encode::{dbn::RecordEncoder, EncodeRecord, EncodeRecordRef},
+            record::{MboMsg, RecordHeader, TradeMsg},
+            rtype, FlagSet, Record, RecordRef,
+        };
+
+        fn make_mbo_msg(instrument_id: u32, ts_event: u64) -> MboMsg {
+            MboMsg {
+                hd: RecordHeader::new::<MboMsg>(rtype::MBO, 1, instrument_id, ts_event),
+                order_id: 123456,
+                price: 100_000_000_000,
+                size: 10,
+                flags: FlagSet::default(),
+                channel_id: 0,
+                action: b'A' as i8,
+                side: b'B' as i8,
+                ts_recv: ts_event + 1000,
+                ts_in_delta: 500,
+                sequence: 1,
+            }
+        }
+
+        fn make_trade_msg(instrument_id: u32, ts_event: u64) -> TradeMsg {
+            TradeMsg {
+                hd: RecordHeader::new::<TradeMsg>(rtype::MBP_0, 1, instrument_id, ts_event),
+                price: 100_000_000_000,
+                size: 5,
+                action: b'T' as i8,
+                side: b'A' as i8,
+                flags: FlagSet::default(),
+                depth: 0,
+                ts_recv: ts_event + 1000,
+                ts_in_delta: 500,
+                sequence: 1,
+            }
+        }
+
+        #[test]
+        fn test_encode_records_typed_roundtrip() {
+            // Create test records
+            let records: Vec<MboMsg> = (0..10)
+                .map(|i| make_mbo_msg(100 + i, 1658441851000000000 + i as u64 * 1000))
+                .collect();
+
+            // Encode using batch method
+            let mut buffer = Vec::new();
+            let mut encoder = RecordEncoder::new(&mut buffer);
+            encoder.encode_records(&records).unwrap();
+
+            // Verify buffer size matches expected
+            assert_eq!(buffer.len(), records.len() * std::mem::size_of::<MboMsg>());
+
+            // Decode and verify roundtrip
+            let mut decoder = crate::decode::dbn::RecordDecoder::new(&buffer[..]);
+            for (i, original) in records.iter().enumerate() {
+                let decoded: Option<&MboMsg> = decoder.decode_record().unwrap();
+                assert!(decoded.is_some(), "Failed to decode record {i}");
+                assert_eq!(decoded.unwrap(), original, "Record {i} mismatch");
+            }
+            // Verify no more records
+            let extra: Option<&MboMsg> = decoder.decode_record().unwrap();
+            assert!(extra.is_none());
+        }
+
+        #[test]
+        fn test_encode_records_single_is_equivalent() {
+            let records: Vec<MboMsg> = (0..5)
+                .map(|i| make_mbo_msg(100 + i, 1658441851000000000 + i as u64 * 1000))
+                .collect();
+
+            // Encode one at a time
+            let mut buffer_single = Vec::new();
+            let mut encoder_single = RecordEncoder::new(&mut buffer_single);
+            for record in &records {
+                encoder_single.encode_record(record).unwrap();
+            }
+
+            // Encode as batch
+            let mut buffer_batch = Vec::new();
+            let mut encoder_batch = RecordEncoder::new(&mut buffer_batch);
+            encoder_batch.encode_records(&records).unwrap();
+
+            assert_eq!(buffer_single, buffer_batch);
+        }
+
+        #[test]
+        fn test_encode_records_empty_slice() {
+            let records: Vec<MboMsg> = vec![];
+
+            let mut buffer = Vec::new();
+            let mut encoder = RecordEncoder::new(&mut buffer);
+            encoder.encode_records(&records).unwrap();
+
+            assert!(buffer.is_empty());
+        }
+
+        #[test]
+        fn test_encode_record_refs_roundtrip() {
+            // Create mixed record types
+            let mbo1 = make_mbo_msg(100, 1658441851000000000);
+            let trade1 = make_trade_msg(101, 1658441851001000000);
+            let mbo2 = make_mbo_msg(102, 1658441851002000000);
+            let trade2 = make_trade_msg(103, 1658441851003000000);
+
+            let refs: Vec<RecordRef> = vec![
+                RecordRef::from(&mbo1),
+                RecordRef::from(&trade1),
+                RecordRef::from(&mbo2),
+                RecordRef::from(&trade2),
+            ];
+
+            // Encode using batch method
+            let mut buffer = Vec::new();
+            let mut encoder = RecordEncoder::new(&mut buffer);
+            encoder.encode_record_refs(&refs).unwrap();
+
+            // Verify sizes
+            let expected_size =
+                std::mem::size_of::<MboMsg>() * 2 + std::mem::size_of::<TradeMsg>() * 2;
+            assert_eq!(buffer.len(), expected_size);
+
+            // Decode and verify roundtrip
+            let mut decoder = crate::decode::dbn::RecordDecoder::new(&buffer[..]);
+
+            let decoded = decoder.decode_record_ref().unwrap().unwrap();
+            assert_eq!(decoded.header(), mbo1.header());
+
+            let decoded = decoder.decode_record_ref().unwrap().unwrap();
+            assert_eq!(decoded.header(), trade1.header());
+
+            let decoded = decoder.decode_record_ref().unwrap().unwrap();
+            assert_eq!(decoded.header(), mbo2.header());
+
+            let decoded = decoder.decode_record_ref().unwrap().unwrap();
+            assert_eq!(decoded.header(), trade2.header());
+
+            assert!(decoder.decode_record_ref().unwrap().is_none());
+        }
+
+        #[test]
+        fn test_encode_record_refs_single_is_equivalent() {
+            let mbo = make_mbo_msg(100, 1658441851000000000);
+            let trade = make_trade_msg(101, 1658441851001000000);
+
+            let refs: Vec<RecordRef> = vec![RecordRef::from(&mbo), RecordRef::from(&trade)];
+
+            // Encode one at a time
+            let mut buffer_single = Vec::new();
+            let mut encoder_single = RecordEncoder::new(&mut buffer_single);
+            for record_ref in &refs {
+                encoder_single.encode_record_ref(*record_ref).unwrap();
+            }
+
+            // Encode as batch
+            let mut buffer_batch = Vec::new();
+            let mut encoder_batch = RecordEncoder::new(&mut buffer_batch);
+            encoder_batch.encode_record_refs(&refs).unwrap();
+
+            assert_eq!(buffer_single, buffer_batch);
+        }
+
+        #[test]
+        fn test_encode_record_refs_empty_slice() {
+            let refs: Vec<RecordRef> = vec![];
+
+            let mut buffer = Vec::new();
+            let mut encoder = RecordEncoder::new(&mut buffer);
+            encoder.encode_record_refs(&refs).unwrap();
+
+            assert!(buffer.is_empty());
+        }
+
+        #[rstest]
+        #[case::partial_batch(127)]
+        #[case::exact_batch(128)]
+        #[case::batch_plus_one(129)]
+        #[case::multiple_batches(200)]
+        fn test_encode_record_refs_batch_sizes(#[case] count: usize) {
+            let records: Vec<MboMsg> = (0..count)
+                .map(|i| make_mbo_msg(100 + i as u32, 1658441851000000000 + i as u64 * 1000))
+                .collect();
+
+            let refs: Vec<RecordRef> = records.iter().map(RecordRef::from).collect();
+
+            let mut buffer = Vec::new();
+            let mut encoder = RecordEncoder::new(&mut buffer);
+            encoder.encode_record_refs(&refs).unwrap();
+
+            // Verify buffer size
+            assert_eq!(buffer.len(), records.len() * std::mem::size_of::<MboMsg>());
+
+            // Decode and count records
+            let mut decoder = crate::decode::dbn::RecordDecoder::new(&buffer[..]);
+            let mut decoded_count = 0;
+            while decoder.decode_record_ref().unwrap().is_some() {
+                decoded_count += 1;
+            }
+            assert_eq!(decoded_count, count);
+        }
     }
 }

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.49.0 - TBD
+
+### Enhancements
+- Added `encode_records` to `EncodeRecord` and `AsyncEncodeRecord` traits for more
+  efficient batch encoding
+- Added `encode_record_refs` to `EncodeRecordRef` and `AsyncEncodeRecordRef` traits with
+  more efficient vectored I/O implementation for DBN
+
+### Breaking changes
+- Moved `encode_records` method from the `EncodeDbn` trait to `EncodeRecord`
+
 ## 0.48.0 - 2026-01-27
 
 ### Enhancements

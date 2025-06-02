@@ -1,11 +1,11 @@
 use tokio::io::{self, AsyncWriteExt};
 
-use super::serialize::{to_json_in_buf, to_json_with_sym_in_buf};
 use crate::{
     encode::{AsyncEncodeRecord, AsyncEncodeRecordRef, AsyncEncodeRecordTextExt, DbnEncodable},
-    record_ref::RecordRef,
-    rtype_dispatch, Error, Metadata, Result,
+    rtype_dispatch, Error, Metadata, RecordRef, Result,
 };
+
+use super::serialize::{to_json_in_buf, to_json_with_sym_in_buf};
 
 /// Type for encoding files and streams of DBN records in JSON lines.
 pub struct Encoder<W>
@@ -13,8 +13,8 @@ where
     W: io::AsyncWriteExt + Unpin,
 {
     writer: W,
-    should_pretty_print: bool,
     buf: String,
+    should_pretty_print: bool,
     use_pretty_px: bool,
     use_pretty_ts: bool,
 }
@@ -34,10 +34,10 @@ where
     ) -> Self {
         Self {
             writer,
+            buf: String::new(),
             should_pretty_print,
             use_pretty_px,
             use_pretty_ts,
-            buf: String::new(),
         }
     }
 
@@ -110,6 +110,23 @@ where
         self.write_buf(|e| Error::io(e, "writing record")).await
     }
 
+    /// Encodes a slice of DBN records.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to write to the underlying writer.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If this method is used in a
+    /// `tokio::select!` statement and another branch completes first, then the
+    /// record may have been partially written, but future calls will begin writing the
+    /// encoded record from the beginning.
+    async fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> Result<()> {
+        for record in records {
+            self.encode_to_buf(record);
+        }
+        self.write_buf(|e| Error::io(e, format!("writing {} records", records.len())))
+            .await
+    }
     async fn flush(&mut self) -> Result<()> {
         self.writer
             .flush()
@@ -131,6 +148,14 @@ where
 {
     async fn encode_record_ref(&mut self, record_ref: RecordRef<'_>) -> Result<()> {
         rtype_dispatch!(record_ref, self.encode_record().await)?
+    }
+
+    async fn encode_record_refs(&mut self, record_refs: &[RecordRef<'_>]) -> Result<()> {
+        for record_ref in record_refs {
+            rtype_dispatch!(record_ref, self.encode_to_buf())?;
+        }
+        self.write_buf(|e| Error::io(e, format!("writing {} records", record_refs.len())))
+            .await
     }
 
     async unsafe fn encode_record_ref_ts_out(

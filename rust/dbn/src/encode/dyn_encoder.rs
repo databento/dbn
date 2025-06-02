@@ -240,6 +240,10 @@ where
         self.0.encode_record(record)
     }
 
+    fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> Result<()> {
+        self.0.encode_records(records)
+    }
+
     fn flush(&mut self) -> Result<()> {
         self.0.flush()
     }
@@ -262,10 +266,6 @@ impl<W> EncodeDbn for DynEncoder<'_, W>
 where
     W: io::Write,
 {
-    fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> Result<()> {
-        self.0.encode_records(records)
-    }
-
     fn encode_stream<R: DbnEncodable>(
         &mut self,
         stream: impl FallibleStreamingIterator<Item = R, Error = Error>,
@@ -303,6 +303,14 @@ where
         }
     }
 
+    fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> Result<()> {
+        match self {
+            DynEncoderImpl::Dbn(encoder) => encoder.encode_records(records),
+            DynEncoderImpl::Csv(encoder) => encoder.encode_records(records),
+            DynEncoderImpl::Json(encoder) => encoder.encode_records(records),
+        }
+    }
+
     fn flush(&mut self) -> Result<()> {
         match self {
             DynEncoderImpl::Dbn(enc) => enc.flush(),
@@ -337,14 +345,6 @@ impl<W> EncodeDbn for DynEncoderImpl<'_, W>
 where
     W: io::Write,
 {
-    fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> Result<()> {
-        match self {
-            DynEncoderImpl::Dbn(encoder) => encoder.encode_records(records),
-            DynEncoderImpl::Csv(encoder) => encoder.encode_records(records),
-            DynEncoderImpl::Json(encoder) => encoder.encode_records(records),
-        }
-    }
-
     fn encode_stream<R: DbnEncodable>(
         &mut self,
         stream: impl FallibleStreamingIterator<Item = R, Error = Error>,
