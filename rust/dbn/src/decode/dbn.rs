@@ -16,6 +16,7 @@ pub mod fsm;
 mod r#async;
 #[cfg(feature = "async")]
 pub use r#async::{
-    Decoder as AsyncDecoder, MetadataDecoder as AsyncMetadataDecoder,
-    RecordDecoder as AsyncRecordDecoder,
+    decode_metadata_with_fsm as async_decode_metadata_with_fsm,
+    decode_record_ref_with_fsm as async_decode_record_ref_with_fsm, Decoder as AsyncDecoder,
+    MetadataDecoder as AsyncMetadataDecoder, RecordDecoder as AsyncRecordDecoder,
 };

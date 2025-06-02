@@ -2,6 +2,13 @@
 
 ## 0.35.1 - TBD
 
+### Enhancements
+- Documented `AsyncMetadataDecoder::decode`, `AsyncDecoder::new`, and
+  `AsyncDecoder::with_upgrade_policy()` as now being cancellation safe
+- Added `DbnFsm::reset()` method that resets state to facilitate reuse
+- Added `DbnFsm::has_decoded_metadata()` method to check the internal
+  state
+
 ### Bug fixes
 - Fixed behavior where encoding metadata could lower the `version`
 - Changed `DbnFsm::data()` to exclude all processed data

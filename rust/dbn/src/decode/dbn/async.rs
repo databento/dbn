@@ -37,9 +37,8 @@ where
     /// `reader` or the input is encoded in a newer version of DBN.
     ///
     /// # Cancel safety
-    /// This method is not cancellation safe. If this method is used in a
-    /// `tokio::select!` statement and another branch completes first, the metadata
-    /// may have been partially read, corrupting the stream.
+    /// This method is cancel safe. It can be used within a `tokio::select!` statement
+    /// without the potential for corrupting the input stream.
     pub async fn new(reader: R) -> crate::Result<Self> {
         let mut metadata_decoder = MetadataDecoder::new(reader);
         let mut metadata = metadata_decoder.decode().await?;
@@ -58,9 +57,8 @@ where
     /// `reader` or the input is encoded in a newer version of DBN.
     ///
     /// # Cancel safety
-    /// This method is not cancellation safe. If this method is used in a
-    /// `tokio::select!` statement and another branch completes first, the metadata
-    /// may have been partially read, corrupting the stream.
+    /// This method is cancel safe. It can be used within a `tokio::select!` statement
+    /// without the potential for corrupting the input stream.
     pub async fn with_upgrade_policy(
         reader: R,
         upgrade_policy: VersionUpgradePolicy,
@@ -293,6 +291,12 @@ where
         Ok(Self { reader, fsm })
     }
 
+    /// Creates a new `RecordDecoder` that will decode from `reader` and use the state
+    /// and buffered data already in `fsm`.
+    pub fn with_fsm(reader: R, fsm: DbnFsm) -> Self {
+        Self { reader, fsm }
+    }
+
     /// Sets the DBN version to expect when decoding.
     ///
     /// # Errors
@@ -496,6 +500,12 @@ where
         Self { reader, fsm }
     }
 
+    /// Creates a new `MetadataDecoder` that will decode from `reader` and use the state
+    /// and buffered data already in `fsm`.
+    pub fn with_fsm(reader: R, fsm: DbnFsm) -> Self {
+        Self { reader, fsm }
+    }
+
     /// Decodes and returns a DBN [`Metadata`].
     ///
     /// # Errors
@@ -503,38 +513,10 @@ where
     /// input is encoded in a newere version of DBN.
     ///
     /// # Cancel safety
-    /// This method is not cancellation safe. If this method is used in a
-    /// `tokio::select!` statement and another branch completes first, the metadata
-    /// may have been partially read, corrupting the stream.
+    /// This method is cancel safe. It can be used within a `tokio::select!` statement
+    /// without the potential for corrupting the input stream.
     pub async fn decode(&mut self) -> Result<Metadata> {
-        let io_err = |err| crate::Error::io(err, "decoding metadata");
-        let nbytes = self.reader.read(self.fsm.space()).await.map_err(io_err)?;
-        self.fsm.fill(nbytes);
-        loop {
-            match self.fsm.process() {
-                ProcessResult::ReadMore(n) => {
-                    // asm guarantees there's at least `n` bytes available in `space()`
-                    let mut total_read = 0;
-                    loop {
-                        let read = self.reader.read(self.fsm.space()).await.map_err(io_err)?;
-                        if read == 0 {
-                            return Err(crate::Error::io(
-                                io::Error::from(io::ErrorKind::UnexpectedEof),
-                                "decoding metadata",
-                            ));
-                        }
-                        self.fsm.fill(read);
-                        total_read += read;
-                        if total_read >= n {
-                            break;
-                        }
-                    }
-                }
-                ProcessResult::Metadata(metadata) => return Ok(metadata),
-                ProcessResult::Record(_) => unreachable!("metadata precedes records"),
-                ProcessResult::Err(error) => return Err(error),
-            }
-        }
+        decode_metadata_with_fsm(&mut self.reader, &mut self.fsm).await
     }
 
     /// Returns a mutable reference to the inner reader.
@@ -565,6 +547,99 @@ where
     /// Creates a new async DBN [`MetadataDecoder`] from a Zstandard-compressed buffered `reader`.
     pub fn with_zstd_buffer(reader: R) -> Self {
         MetadataDecoder::new(zstd_decoder(reader))
+    }
+}
+
+/// A low-level function for decoding DBN [`Metadata`]. Generally, the [`Decoder`] or
+/// [`MetadataDecoder`] should be used instead of this function.
+///
+/// # Errors
+/// This function will return an error if it is unable to parse the metadata or the
+/// input is encoded in a newere version of DBN.
+///
+/// # Cancel safety
+/// This method is cancel safe. It can be used within a `tokio::select!` statement
+/// without the potential for corrupting the input stream.
+///
+/// # Panics
+/// This function will panic if it encounters DBN records. The caller the initial data
+/// from `reader` contains DBN metadata.
+pub async fn decode_metadata_with_fsm<R>(mut reader: R, fsm: &mut DbnFsm) -> crate::Result<Metadata>
+where
+    R: io::AsyncReadExt + Unpin,
+{
+    let io_err = |err| crate::Error::io(err, "decoding metadata");
+    let nbytes = reader.read(fsm.space()).await.map_err(io_err)?;
+    fsm.fill(nbytes);
+    loop {
+        match fsm.process() {
+            ProcessResult::ReadMore(n) => {
+                // asm guarantees there's at least `n` bytes available in `space()`
+                let mut total_read = 0;
+                loop {
+                    let read = reader.read(fsm.space()).await.map_err(io_err)?;
+                    if read == 0 {
+                        return Err(crate::Error::io(
+                            io::Error::from(io::ErrorKind::UnexpectedEof),
+                            "decoding metadata",
+                        ));
+                    }
+                    fsm.fill(read);
+                    total_read += read;
+                    if total_read >= n {
+                        break;
+                    }
+                }
+            }
+            ProcessResult::Metadata(metadata) => return Ok(metadata),
+            ProcessResult::Record(_) => panic!("DBN metadata should precede records"),
+            ProcessResult::Err(error) => return Err(error),
+        }
+    }
+}
+
+/// A low-level function for decoding the next [`RecordRef`]. Returns `None` if `reader`
+/// has been exhausted.
+///
+/// Generally [`Decoder`] and [`RecordDecoder`] should be used instead of this function.
+///
+/// # Errors
+/// This function returns an error if the underlying reader returns an
+/// error of a kind other than `io::ErrorKind::UnexpectedEof` upon reading.
+/// It will also return an error if it encounters an invalid record.
+///
+/// # Cancel safety
+/// This method is cancel safe. It can be used within a `tokio::select!` statement
+/// without the potential for corrupting the input stream.
+///
+/// # Panics
+/// This function will panic if it encounters DBN metadata. The caller must ensure
+/// the metadata has already been decoded.
+pub async fn decode_record_ref_with_fsm<'a, R>(
+    mut reader: R,
+    fsm: &'a mut DbnFsm,
+) -> Result<Option<RecordRef<'a>>>
+where
+    R: io::AsyncReadExt + Unpin,
+{
+    loop {
+        match fsm.process() {
+            ProcessResult::ReadMore(_) => match reader.read(fsm.space()).await {
+                Ok(0) => return Ok(None),
+                Ok(nbytes) => {
+                    fsm.fill(nbytes);
+                }
+                Err(err) if err.kind() == std::io::ErrorKind::UnexpectedEof => {
+                    return Ok(None);
+                }
+                Err(err) => {
+                    return Err(crate::Error::io(err, "decoding record reference"));
+                }
+            },
+            ProcessResult::Record(_) => return Ok(fsm.last_record()),
+            ProcessResult::Err(error) => return Err(error),
+            ProcessResult::Metadata(_) => panic!("found DBN metadata when expected records"),
+        }
     }
 }
 
