@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.35.1 - TBD
+## 0.35.1 - 2025-06-03
 
 ### Enhancements
 - Documented `AsyncMetadataDecoder::decode`, `AsyncDecoder::new`, and
