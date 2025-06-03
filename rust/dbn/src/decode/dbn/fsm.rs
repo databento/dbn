@@ -173,7 +173,10 @@ impl DbnFsm {
 
     /// Returns the unprocessed data in the buffer.
     pub fn data(&self) -> &[u8] {
-        self.buffer.data()
+        match self.state {
+            State::Consume { read, .. } => &self.buffer.data()[read..],
+            _ => self.buffer.data(),
+        }
     }
 
     /// Returns the mutable slice to all writable space in the buffer.
@@ -197,6 +200,21 @@ impl DbnFsm {
     /// Ensure the compatibility buffer has at least `size` bytes.
     pub fn grow_compat(&mut self, size: usize) {
         self.compat_buffer.grow(size);
+    }
+
+    /// Returns `true` if DBN metadata has been decoded or it was skipped.
+    pub fn has_decoded_metadata(&self) -> bool {
+        matches!(self.state, State::Record | State::Consume { .. })
+    }
+
+    /// Resets the state machine to expect DBN metadata.
+    ///
+    /// If decoding streams with no metadata, it's not necessary to reset the state.
+    pub fn reset(&mut self) {
+        self.state = State::Prelude;
+        self.buffer.reset();
+        self.compat_buffer.reset();
+        self.input_dbn_version = None;
     }
 
     /// Skips ahead `nbytes`. Returns the actual number of bytes skipped.
@@ -1211,6 +1229,132 @@ mod tests {
                 }
                 assert!(limit.is_none_or(|l| l.get() >= processed_count));
                 assert_eq!(processed_count, recs.len() as u64);
+                rec_count += recs.len();
+            } else {
+                panic!("unexpected result after writing all input");
+            }
+        }
+        assert_eq!(rec_count, 10_000);
+    }
+
+    #[rstest]
+    #[case::v1_asis(1, VersionUpgradePolicy::AsIs, true)]
+    #[case::v1_upgradev2(1, VersionUpgradePolicy::UpgradeToV2, true)]
+    #[case::v1_upgradev3(1, VersionUpgradePolicy::UpgradeToV3, true)]
+    #[case::v2_asis(2, VersionUpgradePolicy::AsIs, true)]
+    #[case::v2_upgradev2(2, VersionUpgradePolicy::UpgradeToV2, true)]
+    #[case::v2_upgradev3(2, VersionUpgradePolicy::UpgradeToV3, true)]
+    #[case::v3_asis(3, VersionUpgradePolicy::AsIs, true)]
+    #[case::v3_upgradev3(3, VersionUpgradePolicy::UpgradeToV3, true)]
+    #[case::no_metadata(DBN_VERSION, VersionUpgradePolicy::default(), false)]
+    fn test_process_many(
+        #[case] input_version: u8,
+        #[case] upgrade_policy: VersionUpgradePolicy,
+        #[case] has_metadata: bool,
+        #[values(7, 16_384, DbnFsm::DEFAULT_BUF_SIZE, 1 << 20)] chunk_size: usize,
+        #[values(MAX_RECORD_LEN, DbnFsm::DEFAULT_BUF_SIZE)] buffer_size: usize,
+        #[values(0, MAX_RECORD_LEN, DbnFsm::DEFAULT_BUF_SIZE)] compat_size: usize,
+    ) {
+        let mut data = Vec::new();
+        let start_date = date!(2025 - 05 - 15);
+        let end_date = date!(2025 - 05 - 17);
+        let mut metadata = Metadata::builder()
+            .version(input_version)
+            .dataset(Dataset::EqusMini)
+            .schema(Some(Schema::Trades))
+            .stype_in(Some(SType::RawSymbol))
+            .stype_out(SType::InstrumentId)
+            .start(datetime!(2025-05-15 00:00 UTC).unix_timestamp_nanos() as u64)
+            .symbols(vec![
+                "AAPL".to_owned(),
+                "META".to_owned(),
+                "MSFT".to_owned(),
+                "NVDA".to_owned(),
+            ])
+            .mappings(vec![
+                SymbolMapping {
+                    raw_symbol: "AAPL".to_owned(),
+                    intervals: vec![MappingInterval {
+                        start_date,
+                        end_date,
+                        symbol: 1.to_string(),
+                    }],
+                },
+                SymbolMapping {
+                    raw_symbol: "META".to_owned(),
+                    intervals: vec![MappingInterval {
+                        start_date,
+                        end_date,
+                        symbol: 2.to_string(),
+                    }],
+                },
+                SymbolMapping {
+                    raw_symbol: "MSFT".to_owned(),
+                    intervals: vec![MappingInterval {
+                        start_date,
+                        end_date,
+                        symbol: 1.to_string(),
+                    }],
+                },
+                SymbolMapping {
+                    raw_symbol: "NVDA".to_owned(),
+                    intervals: vec![MappingInterval {
+                        start_date,
+                        end_date,
+                        symbol: 1.to_string(),
+                    }],
+                },
+            ])
+            .build();
+        if has_metadata {
+            let mut encoder = DbnMetadataEncoder::new(&mut data);
+            encoder.encode(&metadata).unwrap();
+        }
+        let mut encoder = DbnRecordEncoder::new(&mut data);
+        for _ in 0..10_000 {
+            encoder.encode_record(&TradeMsg::default()).unwrap();
+        }
+        let mut target = DbnFsm::builder()
+            .buffer_size(buffer_size)
+            .compat_size(compat_size)
+            .skip_metadata(!has_metadata)
+            .input_dbn_version(Some(input_version))
+            .unwrap()
+            .upgrade_policy(upgrade_policy)
+            .build()
+            .unwrap();
+        let mut rec_count = 0;
+        for slice in data.chunks(chunk_size) {
+            target.write_all(slice);
+            let mut recs = [None; 64];
+            let res = target.process_many(&mut recs);
+            dbg!(&res, data.len(), slice.len());
+            assert!(!matches!(res, ProcessResult::Err(_)));
+            match res {
+                ProcessResult::ReadMore(_) => continue,
+                ProcessResult::Metadata(decoded_metadata) => {
+                    assert!(has_metadata);
+                    if upgrade_policy.is_upgrade_situation(input_version) {
+                        metadata.upgrade(upgrade_policy);
+                        assert_eq!(decoded_metadata, metadata);
+                    } else {
+                        assert_eq!(decoded_metadata, metadata);
+                    }
+                }
+                ProcessResult::Record(recs) => {
+                    rec_count += recs.len();
+                }
+                ProcessResult::Err(error) => panic!("unexpected error {error}"),
+            }
+        }
+        loop {
+            let mut recs = [None; 64];
+            let res = target.process_many(&mut recs);
+            dbg!(&res);
+            if let ProcessResult::Record(recs) = res {
+                if recs.is_empty() {
+                    break;
+                }
                 rec_count += recs.len();
             } else {
                 panic!("unexpected result after writing all input");

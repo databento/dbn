@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.35.1 - 2025-06-03
+
+### Enhancements
+- Documented `AsyncMetadataDecoder::decode`, `AsyncDecoder::new`, and
+  `AsyncDecoder::with_upgrade_policy()` as now being cancellation safe
+- Added `DbnFsm::reset()` method that resets state to facilitate reuse
+- Added `DbnFsm::has_decoded_metadata()` method to check the internal
+  state
+
+### Bug fixes
+- Fixed behavior where encoding metadata could lower the `version`
+- Changed `DbnFsm::data()` to exclude all processed data
+- Fixed `Metadata::upgrade()` behavior with `UpgradeToV2`
+
 ## 0.35.0 - 2025-05-28
 This version marks the release of DBN version 3 (DBNv3), which is the new default.
 Decoders support decoding all versions of DBN and the DBN encoders default to

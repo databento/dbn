@@ -25,7 +25,7 @@ serde = ["dep:serde", "time/parsing", "time/serde"]
 trivial_copy = []
 
 [dependencies]
-dbn-macros = { version = "=0.35.0", path = "../dbn-macros" }
+dbn-macros = { version = "=0.35.1", path = "../dbn-macros" }
 
 async-compression = { version = "0.4.23", features = ["tokio", "zstd"], optional = true }
 csv = { workspace = true }

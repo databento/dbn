@@ -82,7 +82,7 @@ where
         upgrade_policy: VersionUpgradePolicy,
     ) -> crate::Result<()> {
         self.decoder.set_upgrade_policy(upgrade_policy)?;
-        self.metadata.set_version(upgrade_policy);
+        self.metadata.upgrade(upgrade_policy);
         Ok(())
     }
 }
@@ -759,7 +759,7 @@ mod tests {
             .unwrap(),
             VersionUpgradePolicy::UpgradeToV2,
         )?;
-        assert_eq!(decoder.metadata().version, crate::DBN_VERSION);
+        assert_eq!(decoder.metadata().version, 2);
         assert_eq!(decoder.metadata().symbol_cstr_len, crate::SYMBOL_CSTR_LEN);
         decoder.decode_records::<v2::InstrumentDefMsg>()?;
         Ok(())
