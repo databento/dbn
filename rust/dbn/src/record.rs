@@ -51,7 +51,7 @@ pub struct RecordHeader {
     pub rtype: u8,
     /// The publisher ID assigned by Databento, which denotes the dataset and venue.
     ///
-    /// See [Publishers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    /// See [Publishers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues).
     #[pyo3(set)]
     pub publisher_id: u16,
     /// The numeric instrument ID. See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers).
@@ -60,7 +60,7 @@ pub struct RecordHeader {
     /// The matching-engine-received timestamp expressed as the number of nanoseconds
     /// since the UNIX epoch.
     ///
-    /// See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event).
+    /// See [ts_event](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event).
     #[dbn(encode_order(0), unix_nanos)]
     #[pyo3(set)]
     pub ts_event: u64,
@@ -202,7 +202,7 @@ pub struct ConsolidatedBidAskPair {
     pub ask_sz: u32,
     /// The publisher ID indicating the venue containing the best bid.
     ///
-    /// See [Publishers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    /// See [Publishers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues).
     #[dbn(fmt_method)]
     pub bid_pb: u16,
     // Reserved for later usage.
@@ -211,7 +211,7 @@ pub struct ConsolidatedBidAskPair {
     pub _reserved1: [c_char; 2],
     /// The publisher ID indicating the venue containing the best ask.
     ///
-    /// See [Publishers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    /// See [Publishers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues).
     #[dbn(fmt_method)]
     pub ask_pb: u16,
     // Reserved for later usage.

@@ -1130,7 +1130,7 @@ class RecordHeader:
         """
         The publisher ID assigned by Databento, which denotes the dataset and venue.
 
-        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
+        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
 
         Returns
         -------
@@ -1222,7 +1222,7 @@ class Record(SupportsBytes):
         """
         The publisher ID assigned by Databento, which denotes the dataset and venue.
 
-        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
+        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
 
         Returns
         -------
@@ -1699,7 +1699,7 @@ class ConsolidatedBidAskPair:
         """
         The publisher ID indicating the venue containing the best bid.
 
-        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
+        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
 
         Returns
         -------
@@ -1723,7 +1723,7 @@ class ConsolidatedBidAskPair:
         """
         The publisher ID indicating the venue containing the best ask.
 
-        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices.
+        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
 
         Returns
         -------
