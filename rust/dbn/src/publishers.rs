@@ -603,13 +603,13 @@ pub enum Publisher {
     EqusAllFiny = 69,
     /// Databento US Equities (All Feeds) - FINRA/Nasdaq TRF Chicago
     EqusAllFinc = 70,
-    /// Databento US Equities (All Feeds) - CBOE BZX
+    /// Databento US Equities (All Feeds) - Cboe BZX
     EqusAllBats = 71,
-    /// Databento US Equities (All Feeds) - CBOE BYX
+    /// Databento US Equities (All Feeds) - Cboe BYX
     EqusAllBaty = 72,
-    /// Databento US Equities (All Feeds) - CBOE EDGA
+    /// Databento US Equities (All Feeds) - Cboe EDGA
     EqusAllEdga = 73,
-    /// Databento US Equities (All Feeds) - CBOE EDGX
+    /// Databento US Equities (All Feeds) - Cboe EDGX
     EqusAllEdgx = 74,
     /// Databento US Equities (All Feeds) - Nasdaq BX
     EqusAllXbos = 75,
