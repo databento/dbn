@@ -1,7 +1,11 @@
-use tokio::io;
+use tokio::io::{self, AsyncWriteExt};
 
 use super::serialize::{to_json_string, to_json_string_with_sym};
-use crate::{encode::DbnEncodable, record_ref::RecordRef, rtype_dispatch, Error, Metadata, Result};
+use crate::{
+    encode::{AsyncEncodeRecord, AsyncEncodeRecordRef, AsyncEncodeRecordTextExt, DbnEncodable},
+    record_ref::RecordRef,
+    rtype_dispatch, Error, Metadata, Result,
+};
 
 /// Type for encoding files and streams of DBN records in JSON lines.
 pub struct Encoder<W>
@@ -70,19 +74,13 @@ where
     pub fn get_mut(&mut self) -> &mut W {
         &mut self.writer
     }
+}
 
-    /// Encode a single DBN record of type `R`.
-    ///
-    /// # Errors
-    /// This function returns an error if it's unable to write to the underlying
-    /// writer.
-    ///
-    /// # Cancel safety
-    /// This method is not cancellation safe. If this method is used in a
-    /// `tokio::select!` statement and another branch completes first, then the
-    /// record may have been partially written, but future calls will begin writing the
-    /// encoded record from the beginning.
-    pub async fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<()> {
+impl<W> AsyncEncodeRecord for Encoder<W>
+where
+    W: AsyncWriteExt + Unpin,
+{
+    async fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<()> {
         let json = to_json_string(
             record,
             self.should_pretty_print,
@@ -95,18 +93,43 @@ where
             .map_err(|e| Error::io(e, "writing record"))
     }
 
-    /// Encodes a single DBN record of type `R` along with the record's text symbol.
-    ///
-    /// # Errors
-    /// This function returns an error if it's unable to write to the underlying
-    /// writer.
-    ///
-    /// # Cancel safety
-    /// This method is not cancellation safe. If this method is used in a
-    /// `tokio::select!` statement and another branch completes first, then the
-    /// record may have been partially written, but future calls will begin writing the
-    /// encoded record from the beginning.
-    pub async fn encode_record_with_sym<R: DbnEncodable>(
+    async fn flush(&mut self) -> Result<()> {
+        self.writer
+            .flush()
+            .await
+            .map_err(|e| Error::io(e, "flushing output"))
+    }
+
+    async fn shutdown(&mut self) -> Result<()> {
+        self.writer
+            .shutdown()
+            .await
+            .map_err(|e| Error::io(e, "shutting down"))
+    }
+}
+
+impl<W> AsyncEncodeRecordRef for Encoder<W>
+where
+    W: AsyncWriteExt + Unpin,
+{
+    async fn encode_record_ref(&mut self, record_ref: RecordRef<'_>) -> Result<()> {
+        rtype_dispatch!(record_ref, self.encode_record().await)?
+    }
+
+    async unsafe fn encode_record_ref_ts_out(
+        &mut self,
+        record_ref: RecordRef<'_>,
+        ts_out: bool,
+    ) -> Result<()> {
+        rtype_dispatch!(record_ref, ts_out: ts_out, self.encode_record().await)?
+    }
+}
+
+impl<W> AsyncEncodeRecordTextExt for Encoder<W>
+where
+    W: AsyncWriteExt + Unpin,
+{
+    async fn encode_record_with_sym<R: DbnEncodable>(
         &mut self,
         record: &R,
         symbol: Option<&str>,
@@ -122,44 +145,6 @@ where
             .write_all(json.as_bytes())
             .await
             .map_err(|e| Error::io(e, "writing record"))
-    }
-
-    /// Encodes a single DBN record.
-    ///
-    /// # Safety
-    /// `ts_out` must be `false` if `record` does not have an appended `ts_out
-    ///
-    /// # Errors
-    /// This function returns an error if it's unable to write to the underlying writer
-    /// or there's a serialization error.
-    pub async unsafe fn encode_record_ref(
-        &mut self,
-        record_ref: RecordRef<'_>,
-        ts_out: bool,
-    ) -> Result<()> {
-        rtype_dispatch!(record_ref, ts_out: ts_out, self.encode_record().await)?
-    }
-
-    /// Flushes any buffered content to the true output.
-    ///
-    /// # Errors
-    /// This function returns an error if it's unable to flush the underlying writer.
-    pub async fn flush(&mut self) -> Result<()> {
-        self.writer
-            .flush()
-            .await
-            .map_err(|e| Error::io(e, "flushing output"))
-    }
-
-    /// Initiates or attempts to shut down the inner writer.
-    ///
-    /// # Errors
-    /// This function returns an error if the shut down did not complete successfully.
-    pub async fn shutdown(mut self) -> Result<()> {
-        self.writer
-            .shutdown()
-            .await
-            .map_err(|e| Error::io(e, "shutting down".to_owned()))
     }
 }
 
@@ -205,15 +190,13 @@ mod tests {
     ) -> String {
         let mut buffer = Vec::new();
         let mut writer = BufWriter::new(&mut buffer);
-        unsafe {
-            Encoder::new(
-                &mut writer,
-                should_pretty_print,
-                use_pretty_px,
-                use_pretty_ts,
-            )
-            .encode_record_ref(record, false)
-        }
+        Encoder::new(
+            &mut writer,
+            should_pretty_print,
+            use_pretty_px,
+            use_pretty_ts,
+        )
+        .encode_record_ref(record)
         .await
         .unwrap();
         writer.flush().await.unwrap();

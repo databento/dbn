@@ -4,7 +4,7 @@ use async_compression::tokio::write::ZstdEncoder;
 use tokio::io;
 
 use crate::{
-    encode::{async_zstd_encoder, DbnEncodable},
+    encode::{async_zstd_encoder, AsyncEncodeRecord, AsyncEncodeRecordRef, DbnEncodable},
     record_ref::RecordRef,
     Error, Metadata, Result, SymbolMapping, DBN_VERSION, NULL_LIMIT, NULL_RECORD_COUNT,
     NULL_SCHEMA, NULL_STYPE, UNDEF_TIMESTAMP,
@@ -48,52 +48,6 @@ where
     pub fn get_mut(&mut self) -> &mut W {
         self.record_encoder.get_mut()
     }
-
-    /// Encode a single DBN record of type `R`.
-    ///
-    /// # Errors
-    /// This function returns an error if it's unable to write to the underlying
-    /// writer.
-    ///
-    /// # Cancel safety
-    /// This method is not cancellation safe. If this method is used in a
-    /// `tokio::select!` statement and another branch completes first, then the
-    /// record may have been partially written, but future calls will begin writing the
-    /// encoded record from the beginning.
-    pub async fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<()> {
-        self.record_encoder.encode(record).await
-    }
-
-    /// Encodes a single DBN [`RecordRef`].
-    ///
-    /// # Errors
-    /// This function returns an error if it's unable to write to the underlying writer
-    /// or there's a serialization error.
-    ///
-    /// # Cancel safety
-    /// This method is not cancellation safe. If this method is used in a
-    /// `tokio::select!` statement and another branch completes first, then the
-    /// record may have been partially written, but future calls will begin writing the
-    /// encoded record from the beginning.
-    pub async fn encode_record_ref(&mut self, record_ref: RecordRef<'_>) -> Result<()> {
-        self.record_encoder.encode_ref(record_ref).await
-    }
-
-    /// Flushes any buffered content to the true output.
-    ///
-    /// # Errors
-    /// This function returns an error if it's unable to flush the underlying writer.
-    pub async fn flush(&mut self) -> Result<()> {
-        self.record_encoder.flush().await
-    }
-
-    /// Initiates or attempts to shut down the inner writer.
-    ///
-    /// # Errors
-    /// This function returns an error if the shut down did not complete successfully.
-    pub async fn shutdown(self) -> Result<()> {
-        self.record_encoder.shutdown().await
-    }
 }
 
 impl<W> Encoder<ZstdEncoder<W>>
@@ -114,6 +68,49 @@ where
     /// the encoded metadata from the beginning.
     pub async fn with_zstd(writer: W, metadata: &Metadata) -> Result<Self> {
         Self::new(async_zstd_encoder(writer), metadata).await
+    }
+}
+
+impl<W> AsyncEncodeRecord for Encoder<W>
+where
+    W: io::AsyncWriteExt + Unpin,
+{
+    async fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<()> {
+        self.record_encoder.encode_record(record).await
+    }
+
+    async fn flush(&mut self) -> Result<()> {
+        self.record_encoder.flush().await
+    }
+
+    async fn shutdown(&mut self) -> Result<()> {
+        self.record_encoder.shutdown().await
+    }
+}
+
+impl<W> AsyncEncodeRecordRef for Encoder<W>
+where
+    W: io::AsyncWriteExt + Unpin,
+{
+    async fn encode_record_ref(&mut self, record_ref: RecordRef<'_>) -> Result<()> {
+        self.record_encoder.encode_record_ref(record_ref).await
+    }
+
+    /// Encodes a single DBN record.
+    ///
+    /// # Safety
+    /// DBN encoding a [`RecordRef`] is safe because no dispatching based on type
+    /// is required.
+    ///
+    /// # Errors
+    /// This function will return an error if it fails to encode `record` to
+    /// `writer`.
+    async unsafe fn encode_record_ref_ts_out(
+        &mut self,
+        record_ref: RecordRef<'_>,
+        _ts_out: bool,
+    ) -> Result<()> {
+        self.record_encoder.encode_ref(record_ref).await
     }
 }
 
@@ -170,28 +167,6 @@ where
         }
     }
 
-    /// Flushes any buffered content to the true output.
-    ///
-    /// # Errors
-    /// This function returns an error if it's unable to flush the underlying writer.
-    pub async fn flush(&mut self) -> Result<()> {
-        self.writer
-            .flush()
-            .await
-            .map_err(|e| Error::io(e, "flushing output".to_owned()))
-    }
-
-    /// Initiates or attempts to shut down the inner writer.
-    ///
-    /// # Errors
-    /// This function returns an error if the shut down did not complete successfully.
-    pub async fn shutdown(mut self) -> Result<()> {
-        self.writer
-            .shutdown()
-            .await
-            .map_err(|e| Error::io(e, "shutting down".to_owned()))
-    }
-
     /// Returns a reference to the underlying writer.
     pub fn get_ref(&self) -> &W {
         &self.writer
@@ -205,6 +180,55 @@ where
     /// Consumes the encoder returning the original writer.
     pub fn into_inner(self) -> W {
         self.writer
+    }
+}
+
+impl<W> AsyncEncodeRecord for RecordEncoder<W>
+where
+    W: io::AsyncWriteExt + Unpin,
+{
+    async fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<()> {
+        self.encode(record).await
+    }
+
+    async fn flush(&mut self) -> Result<()> {
+        self.writer
+            .flush()
+            .await
+            .map_err(|e| Error::io(e, "flushing output"))
+    }
+
+    async fn shutdown(&mut self) -> Result<()> {
+        self.writer
+            .shutdown()
+            .await
+            .map_err(|e| Error::io(e, "shutting down"))
+    }
+}
+
+impl<W> AsyncEncodeRecordRef for RecordEncoder<W>
+where
+    W: io::AsyncWriteExt + Unpin,
+{
+    async fn encode_record_ref(&mut self, record_ref: RecordRef<'_>) -> Result<()> {
+        self.encode_ref(record_ref).await
+    }
+
+    /// Encodes a single DBN record.
+    ///
+    /// # Safety
+    /// DBN encoding a [`RecordRef`] is safe because no dispatching based on type
+    /// is required.
+    ///
+    /// # Errors
+    /// This function will return an error if it fails to encode `record` to
+    /// `writer`.
+    async unsafe fn encode_record_ref_ts_out(
+        &mut self,
+        record_ref: RecordRef<'_>,
+        _ts_out: bool,
+    ) -> Result<()> {
+        self.encode_ref(record_ref).await
     }
 }
 
