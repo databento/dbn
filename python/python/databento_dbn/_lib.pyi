@@ -3496,6 +3496,36 @@ class InstrumentDefMsg(Record):
         """
 
     @property
+    def leg_count(self) -> int:
+        """
+        The number of legs in the strategy or spread. Will be 0 for outrights.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        leg_index
+
+        """
+
+    @property
+    def leg_index(self) -> int:
+        """
+        The 0-based index of the leg.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        leg_count
+
+        """
+
+    @property
     def pretty_leg_price(self) -> float:
         """
         The leg price as a float.
@@ -3558,6 +3588,136 @@ class InstrumentDefMsg(Record):
         See Also
         --------
         leg_delta
+
+        """
+
+    @property
+    def leg_instrument_id(self) -> int:
+        """
+        The numeric ID assigned to the leg instrument.
+        See [Instrument identifiers] https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        leg_raw_symbol
+
+        """
+
+    @property
+    def leg_ratio_price_numerator(self) -> int:
+        """
+        The numerator of the price ratio of the leg within the spread.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        leg_ratio_price_denominator
+
+        """
+
+    @property
+    def leg_ratio_price_denominator(self) -> int:
+        """
+        The denominator of the price ratio of the leg within the spread.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        leg_ratio_price_numerator
+
+        """
+
+    @property
+    def leg_ratio_qty_numerator(self) -> int:
+        """
+        The numerator of the quantity ratio of the leg within the spread.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        leg_ratio_qty_denominator
+
+        """
+
+    @property
+    def leg_ratio_qty_denominator(self) -> int:
+        """
+        The denominator of the quantity ratio of the leg within the spread.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        leg_ratio_qty_numerator
+
+        """
+
+    @property
+    def leg_underlying_id(self) -> int:
+        """
+        The numeric ID of the leg instrument's underlying instrument.
+        See [Instrument identifiers] https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        instrument_id
+
+        """
+
+    @property
+    def leg_raw_symbol(self) -> str:
+        """
+        The leg instrument's raw symbol assigned by the publisher.
+
+        Returns
+        -------
+        str
+
+        See Also
+        --------
+        leg_instrument_id
+
+        """
+
+    @property
+    def leg_instrument_class(self) -> str | None:
+        """
+        The matching algorithm used for the instrument, typically **F**IFO.
+        See `Matching algorithm` https://databento.com/docs/schemas-and-data-formats/instrument-definitions#matching-algorithm.
+
+        Returns
+        -------
+        str | None
+
+        """
+
+    @property
+    def leg_side(self) -> str | None:
+        """
+        The side taken for the leg when purchasing the spread.
+
+        Returns
+        -------
+        str | None
 
         """
 

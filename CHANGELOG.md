@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.35.2 - TBD
+
+### Bug fixes
+- Added missing Python type stubs for several leg properties of `InstrumentDefMsg`
+
 ## 0.35.1 - 2025-06-03
 
 ### Enhancements
