@@ -2,6 +2,12 @@
 
 ## 0.35.2 - TBD
 
+### Enhancements
+- Added support for width, fill, and padding when formatting `pretty::Ts`
+- Added support for sign, precision, width, fill, and padding when formatting
+  `pretty::Px`
+- Optimized pretty formatting of prices and timestamps
+
 ### Bug fixes
 - Added missing Python type stubs for several leg properties of `InstrumentDefMsg`
 
