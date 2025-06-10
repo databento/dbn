@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.36.0 - TBD
+## 0.36.0 - 2025-06-10
 
 ### Enhancements
 - Added support for width, fill, and padding when formatting `pretty::Ts`
