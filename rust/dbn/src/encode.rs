@@ -233,6 +233,141 @@ fn async_zstd_encoder_with_clevel<W: tokio::io::AsyncWriteExt + Unpin>(
     )
 }
 
+/// Trait for async encoding of DBN records of a specific type.
+#[cfg(feature = "async")]
+#[allow(async_fn_in_trait)] // the futures can't be Send because self is borrowed mutably
+pub trait AsyncEncodeRecord {
+    /// Encodes a single DBN record of type `R`.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to write to the underlying writer
+    /// or there's a serialization error.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If this method is used in a
+    /// `tokio::select!` statement and another branch completes first, then the
+    /// record may have been partially written, but future calls will begin writing the
+    /// encoded record from the beginning.
+    async fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<()>;
+
+    /// Flushes any buffered content to the true output.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to flush the underlying writer.
+    async fn flush(&mut self) -> Result<()>;
+
+    /// Initiates or attempts to shut down the inner writer.
+    ///
+    /// # Errors
+    /// This function returns an error if the shut down did not complete successfully.
+    async fn shutdown(&mut self) -> Result<()>;
+}
+
+/// Trait for async encoding of DBN of [`RecordRef`] records.
+#[cfg(feature = "async")]
+#[allow(async_fn_in_trait)] // the futures can't be Send because self is borrowed mutably
+pub trait AsyncEncodeRecordRef {
+    /// Encodes a single [`RecordRef`].
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to write to the underlying writer
+    /// or there's a serialization error.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If this method is used in a
+    /// `tokio::select!` statement and another branch completes first, then the
+    /// record may have been partially written, but future calls will begin writing the
+    /// encoded record from the beginning.
+    async fn encode_record_ref(&mut self, record_ref: RecordRef) -> Result<()>;
+
+    /// Encodes a single DBN [`RecordRef`] with an optional `ts_out` (see
+    /// [`record::WithTsOut`](crate::record::WithTsOut)).
+    ///
+    /// # Safety
+    /// `ts_out` must be `false` if `record` does not have an appended `ts_out`.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to write to the underlying writer
+    /// or there's a serialization error.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If this method is used in a
+    /// `tokio::select!` statement and another branch completes first, then the
+    /// record may have been partially written, but future calls will begin writing the
+    /// encoded record from the beginning.
+    async unsafe fn encode_record_ref_ts_out(
+        &mut self,
+        record_ref: RecordRef,
+        ts_out: bool,
+    ) -> Result<()>;
+}
+
+/// Async extension trait for text encodings.
+#[cfg(feature = "async")]
+#[allow(async_fn_in_trait)] // the futures can't be Send because self is borrowed mutably
+pub trait AsyncEncodeRecordTextExt: AsyncEncodeRecord + AsyncEncodeRecordRef {
+    /// Encodes a single DBN record of type `R` along with the record's text symbol.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to write to the underlying writer
+    /// or there's a serialization error.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If this method is used in a
+    /// `tokio::select!` statement and another branch completes first, then the
+    /// record may have been partially written, but future calls will begin writing the
+    /// encoded record from the beginning.
+    async fn encode_record_with_sym<R: DbnEncodable>(
+        &mut self,
+        record: &R,
+        symbol: Option<&str>,
+    ) -> Result<()>;
+
+    /// Encodes a single DBN [`RecordRef`] along with the record's text symbol.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to write to the underlying writer
+    /// or there's a serialization error.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If this method is used in a
+    /// `tokio::select!` statement and another branch completes first, then the
+    /// record may have been partially written, but future calls will begin writing the
+    /// encoded record from the beginning.
+    async fn encode_ref_with_sym(
+        &mut self,
+        record: RecordRef<'_>,
+        symbol: Option<&str>,
+    ) -> Result<()> {
+        rtype_dispatch!(record, self.encode_record_with_sym(symbol).await)?
+    }
+
+    /// Encodes a single DBN [`RecordRef`] with an optional `ts_out` (see
+    /// [`record::WithTsOut`](crate::record::WithTsOut)) along with the record's text
+    /// symbol.
+    ///
+    /// # Safety
+    /// `ts_out` must be `false` if `record` does not have an appended `ts_out`.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to write to the underlying writer
+    /// or there's a serialization error.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If this method is used in a
+    /// `tokio::select!` statement and another branch completes first, then the
+    /// record may have been partially written, but future calls will begin writing the
+    /// encoded record from the beginning.
+    async unsafe fn encode_ref_ts_out_with_sym(
+        &mut self,
+        record: RecordRef<'_>,
+        ts_out: bool,
+        symbol: Option<&str>,
+    ) -> Result<()> {
+        rtype_dispatch!(record, ts_out: ts_out, self.encode_record_with_sym(symbol).await)?
+    }
+}
+
 #[cfg(test)]
 mod test_data {
     use crate::record::{BidAskPair, RecordHeader};

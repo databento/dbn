@@ -2,7 +2,7 @@ use std::ffi::c_char;
 
 use crate::{
     json_writer::{JsonObjectWriter, NULL},
-    pretty::{fmt_px, fmt_ts},
+    pretty::{fmt_px_into, fmt_ts},
     record::{c_chars_to_str, ConsolidatedBidAskPair},
     BidAskPair, FlagSet, HasRType, Metadata, RecordHeader, SecurityUpdateAction,
     UserDefinedInstrument, WithTsOut, UNDEF_PRICE, UNDEF_TIMESTAMP,
@@ -356,7 +356,10 @@ pub fn write_px_field<J: crate::json_writer::JsonWriter, const PRETTY_PX: bool>(
         if px == UNDEF_PRICE {
             writer.value(key, NULL);
         } else {
-            writer.value(key, &fmt_px(px));
+            let str_writer = writer.string_writer(key);
+            fmt_px_into(str_writer, px)
+                // Writing to a string is infallible
+                .unwrap();
         }
     } else {
         // Convert to string to avoid a loss of precision

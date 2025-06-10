@@ -9,9 +9,8 @@ use tokio::{
 use crate::{
     decode::{
         dbn::fsm::{DbnFsm, ProcessResult},
-        r#async::{AsyncSkipBytes, ZSTD_FILE_BUFFER_CAPACITY},
         zstd::zstd_decoder,
-        VersionUpgradePolicy,
+        AsyncSkipBytes, DbnMetadata, VersionUpgradePolicy, ZSTD_FILE_BUFFER_CAPACITY,
     },
     HasRType, Metadata, Record, RecordRef, Result, DBN_VERSION,
 };
@@ -86,11 +85,6 @@ where
     /// Consumes the decoder and returns the inner reader.
     pub fn into_inner(self) -> R {
         self.decoder.into_inner()
-    }
-
-    /// Returns a reference to the decoded metadata.
-    pub fn metadata(&self) -> &Metadata {
-        &self.metadata
     }
 
     /// Sets the behavior for decoding DBN data of previous versions.
@@ -230,6 +224,19 @@ impl Decoder<ZstdDecoder<BufReader<File>>> {
             )
         })?;
         Self::with_zstd_buffer(BufReader::with_capacity(ZSTD_FILE_BUFFER_CAPACITY, file)).await
+    }
+}
+
+impl<R> DbnMetadata for Decoder<R>
+where
+    R: io::AsyncReadExt + Unpin,
+{
+    fn metadata(&self) -> &Metadata {
+        &self.metadata
+    }
+
+    fn metadata_mut(&mut self) -> &mut Metadata {
+        &mut self.metadata
     }
 }
 
@@ -652,10 +659,10 @@ mod tests {
 
     use super::*;
     use crate::{
-        decode::tests::TEST_DATA_PATH,
+        decode::{tests::TEST_DATA_PATH, DbnMetadata},
         encode::{
             dbn::{AsyncEncoder, AsyncRecordEncoder},
-            DbnEncodable,
+            AsyncEncodeRecord, DbnEncodable,
         },
         rtype, v1, v2, Bbo1SMsg, CbboMsg, Cmbp1Msg, Error, ErrorMsg, ImbalanceMsg,
         InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader, Result, Schema,

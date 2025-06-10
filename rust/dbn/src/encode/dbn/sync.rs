@@ -432,7 +432,7 @@ where
     /// Encodes a single DBN record.
     ///
     /// # Safety
-    /// The DBN encoding a [`RecordRef`] is safe because no dispatching based on type
+    /// DBN encoding a [`RecordRef`] is safe because no dispatching based on type
     /// is required.
     ///
     /// # Errors

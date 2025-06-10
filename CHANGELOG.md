@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.36.0 - 2025-06-10
+
+### Enhancements
+- Added support for width, fill, and padding when formatting `pretty::Ts`
+- Added support for sign, precision, width, fill, and padding when formatting
+  `pretty::Px`
+- Optimized pretty formatting of prices and timestamps
+
+### Breaking changes
+- Moved core async decoding and encoding functionality to new traits to
+  match the sync interface and present a standardized interface
+  - Decoding: `AsyncDecodeRecordRef` and `AsyncDecodeRecord`
+  - Encoding: `AsyncEncodeRecord`, `AsyncEncodeRecordRef`, and
+    `AsyncEncodeRecordTextExt`
+
+### Bug fixes
+- Added missing Python type stubs for several leg properties of `InstrumentDefMsg`
+
 ## 0.35.1 - 2025-06-03
 
 ### Enhancements
