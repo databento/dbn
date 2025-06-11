@@ -10,7 +10,8 @@ use crate::{
     decode::{
         dbn::fsm::{DbnFsm, ProcessResult},
         zstd::zstd_decoder,
-        AsyncSkipBytes, DbnMetadata, VersionUpgradePolicy, ZSTD_FILE_BUFFER_CAPACITY,
+        AsyncDecodeRecord, AsyncDecodeRecordRef, AsyncSkipBytes, DbnMetadata, VersionUpgradePolicy,
+        ZSTD_FILE_BUFFER_CAPACITY,
     },
     HasRType, Metadata, Record, RecordRef, Result, DBN_VERSION,
 };
@@ -240,6 +241,24 @@ where
     }
 }
 
+impl<R> AsyncDecodeRecordRef for Decoder<R>
+where
+    R: io::AsyncReadExt + Unpin,
+{
+    async fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef>> {
+        self.decoder.decode_ref().await
+    }
+}
+
+impl<R> AsyncDecodeRecord for Decoder<R>
+where
+    R: io::AsyncReadExt + Unpin,
+{
+    async fn decode_record<'a, T: HasRType + 'a>(&'a mut self) -> crate::Result<Option<&'a T>> {
+        self.decoder.decode().await
+    }
+}
+
 /// An async decoder for files and streams of Databento Binary Encoding (DBN) records.
 pub struct RecordDecoder<R>
 where
@@ -425,6 +444,24 @@ where
     /// Consumes the decoder and returns the inner reader.
     pub fn into_inner(self) -> R {
         self.reader
+    }
+}
+
+impl<R> AsyncDecodeRecordRef for RecordDecoder<R>
+where
+    R: io::AsyncReadExt + Unpin,
+{
+    async fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef>> {
+        self.decode_ref().await
+    }
+}
+
+impl<R> AsyncDecodeRecord for RecordDecoder<R>
+where
+    R: io::AsyncReadExt + Unpin,
+{
+    async fn decode_record<'a, T: HasRType + 'a>(&'a mut self) -> crate::Result<Option<&'a T>> {
+        self.decode().await
     }
 }
 

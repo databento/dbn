@@ -199,7 +199,7 @@ pub trait AsyncDecodeRecord {
     /// # Cancel safety
     /// This method is not cancellation safe. If used within a `tokio::select!` statement
     /// partially decoded records will be lost and the stream may be corrupted.
-    async fn decode_records<T: HasRType + Clone>(mut self) -> crate::Result<Vec<T>>
+    async fn decode_records<T: HasRType + Clone>(&mut self) -> crate::Result<Vec<T>>
     where
         Self: Sized,
     {
