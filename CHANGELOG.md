@@ -202,8 +202,8 @@ upgrading the input to DBNv3.
 ## 0.29.0 - 2025-03-17
 
 ### Enhancements
-- Added new venues, datasets, and publishers for ICE Futures US, ICE Futures Europe
-  (Financial products), Eurex, and European Energy Exchange (EEX)
+- Added new venues, datasets, and publishers for ICE US, ICE Europe Financials
+  products, Eurex, and European Energy Exchange (EEX)
 - Added new `SkipBytes` and `AsyncSkipBytes` traits which are a subset of the `Seek`
   and `AsyncSeek` traits respectively, only supporting seeking forward from the current
   position
