@@ -137,9 +137,8 @@ impl<'a> TryFrom<RecordRef<'a>> for RecordRefEnum<'a> {
             match rec_ref.rtype()? {
                 RType::Mbo => RecordRefEnum::Mbo(rec_ref.get_unchecked()),
                 RType::Mbp0 => RecordRefEnum::Trade(rec_ref.get_unchecked()),
-                RType::Mbp1 | RType::Bbo1S | RType::Bbo1M => {
-                    RecordRefEnum::Mbp1(rec_ref.get_unchecked())
-                }
+                RType::Mbp1 => RecordRefEnum::Mbp1(rec_ref.get_unchecked()),
+                RType::Bbo1S | RType::Bbo1M => RecordRefEnum::Bbo(rec_ref.get_unchecked()),
                 RType::Mbp10 => RecordRefEnum::Mbp10(rec_ref.get_unchecked()),
                 RType::OhlcvDeprecated
                 | RType::Ohlcv1S
@@ -151,25 +150,48 @@ impl<'a> TryFrom<RecordRef<'a>> for RecordRefEnum<'a> {
                 RType::InstrumentDef => {
                     // can't convert V1 structs here because an immutable reference
                     if rec_ref.record_size() < std::mem::size_of::<InstrumentDefMsg>() {
-                        return Err(Error::conversion::<RecordRefEnum>(
-                            "InstrumentDefMsgV1 (must be current version)",
+                        return Err(Error::conversion::<Self>(
+                            "earlier version of InstrumentDefMsg (must be current version)",
                         ));
                     }
                     RecordRefEnum::InstrumentDef(rec_ref.get_unchecked())
                 }
                 RType::Imbalance => RecordRefEnum::Imbalance(rec_ref.get_unchecked()),
-                RType::Statistics => RecordRefEnum::Stat(rec_ref.get_unchecked()),
-                RType::Error => RecordRefEnum::Error(rec_ref.get_unchecked()),
+                RType::Statistics => {
+                    if rec_ref.record_size() < std::mem::size_of::<StatMsg>() {
+                        return Err(Error::conversion::<Self>(
+                            "earlier version of StatMsg (must be current version)",
+                        ));
+                    }
+                    RecordRefEnum::Stat(rec_ref.get_unchecked())
+                }
+                RType::Error => {
+                    // can't convert V1 structs here because an immutable reference
+                    if rec_ref.record_size() < std::mem::size_of::<ErrorMsg>() {
+                        return Err(Error::conversion::<Self>(
+                            "earlier version of ErrorMsg (must be current version)",
+                        ));
+                    }
+                    RecordRefEnum::Error(rec_ref.get_unchecked())
+                }
                 RType::SymbolMapping => {
                     // can't convert V1 structs here because an immutable reference
                     if rec_ref.record_size() < std::mem::size_of::<SymbolMappingMsg>() {
-                        return Err(Error::conversion::<RecordRefEnum>(
-                            "SymbolMappingMsgV1 (must be current version)",
+                        return Err(Error::conversion::<Self>(
+                            "earlier version of SymbolMappingMsg (must be current version)",
                         ));
                     }
                     RecordRefEnum::SymbolMapping(rec_ref.get_unchecked())
                 }
-                RType::System => RecordRefEnum::System(rec_ref.get_unchecked()),
+                RType::System => {
+                    // can't convert V1 structs here because an immutable reference
+                    if rec_ref.record_size() < std::mem::size_of::<SystemMsg>() {
+                        return Err(Error::conversion::<Self>(
+                            "earlier version of SystemMsg (must be current version)",
+                        ));
+                    }
+                    RecordRefEnum::System(rec_ref.get_unchecked())
+                }
                 RType::Cmbp1 | RType::Tcbbo => RecordRefEnum::Cmbp1(rec_ref.get_unchecked()),
                 RType::Cbbo1S | RType::Cbbo1M => RecordRefEnum::Cbbo(rec_ref.get_unchecked()),
             }
@@ -470,25 +492,51 @@ impl AsRef<[u8]> for RecordRefEnum<'_> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        compat::{InstrumentDefMsgV1, SymbolMappingMsgV1},
-        HasRType,
-    };
+    use crate::{record::*, v1, v2, HasRType};
 
     use super::*;
     use rstest::rstest;
 
     #[rstest]
+    #[case::mbo(MboMsg::default(), None)]
+    #[case::trade(TradeMsg::default(), None)]
+    #[case::mbp1(Mbp1Msg::default(), None)]
+    #[case::mbp10(Mbp10Msg::default(), None)]
+    #[case::bbo(BboMsg::default_for_schema(crate::Schema::Bbo1S), None)]
+    #[case::cmbp1(Cmbp1Msg::default_for_schema(crate::Schema::Cmbp1), None)]
+    #[case::cbbo(CbboMsg::default_for_schema(crate::Schema::Cbbo1S), None)]
+    #[case::ohlcv(OhlcvMsg::default_for_schema(crate::Schema::Ohlcv1S), None)]
+    #[case::status(StatusMsg::default(), None)]
+    #[case::imbalance(ImbalanceMsg::default(), None)]
     #[case::instrument_def_v1(
-        InstrumentDefMsgV1::default(),
-        Some("couldn't convert InstrumentDefMsgV1 (must be current version) to dbn::record_enum::RecordRefEnum")
+        v1::InstrumentDefMsg::default(),
+        Some("couldn't convert earlier version of InstrumentDefMsg (must be current version) to dbn::record_enum::RecordRefEnum")
     )]
-    #[case::instrument_def_v2(InstrumentDefMsg::default(), None)]
+    #[case::instrument_def_v2(
+        v2::InstrumentDefMsg::default(),
+        Some("couldn't convert earlier version of InstrumentDefMsg (must be current version) to dbn::record_enum::RecordRefEnum")
+    )]
+    #[case::instrument_def_current(InstrumentDefMsg::default(), None)]
     #[case::symbol_mapping_v1(
-        SymbolMappingMsgV1::default(),
-        Some("couldn't convert SymbolMappingMsgV1 (must be current version) to dbn::record_enum::RecordRefEnum")
+        v1::SymbolMappingMsg::default(),
+        Some("couldn't convert earlier version of SymbolMappingMsg (must be current version) to dbn::record_enum::RecordRefEnum")
     )]
-    #[case::symbol_mapping_v2(SymbolMappingMsg::default(), None)]
+    #[case::symbol_mapping_current(SymbolMappingMsg::default(), None)]
+    #[case::system_v1(
+        v1::SystemMsg::default(),
+        Some("couldn't convert earlier version of SystemMsg (must be current version) to dbn::record_enum::RecordRefEnum")
+    )]
+    #[case::system_current(SystemMsg::default(), None)]
+    #[case::error_v1(
+        v1::ErrorMsg::default(),
+        Some("couldn't convert earlier version of ErrorMsg (must be current version) to dbn::record_enum::RecordRefEnum")
+    )]
+    #[case::error_current(ErrorMsg::default(), None)]
+    #[case::stat_v1(
+        v1::StatMsg::default(),
+        Some("couldn't convert earlier version of StatMsg (must be current version) to dbn::record_enum::RecordRefEnum")
+    )]
+    #[case::stat_current(StatMsg::default(), None)]
     fn test_v1_v2_safety<R: HasRType>(#[case] rec: R, #[case] exp_err: Option<&str>) {
         let rec_ref = RecordRef::from(&rec);
         let res = rec_ref.as_enum();

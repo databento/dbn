@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.36.1 - TBD
+
+### Bug fixes
+- Updated conversion error messages in `TryFrom<RecordRef> for RecordRefEnum` for
+  release of DBN version 3
+- Updated `TryFrom<RecordRef> for RecordRefEnum` for versioning of `StatMsg`,
+  `SystemMsg`, and  `ErrorMsg`
+- Fixed conversion of `BboMsg` in `TryFrom<RecordRef> for RecordRefEnum`
+
 ## 0.36.0 - 2025-06-10
 
 ### Enhancements
