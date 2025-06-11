@@ -13,7 +13,7 @@ use crate::{
         AsyncDecodeRecord, AsyncDecodeRecordRef, AsyncSkipBytes, DbnMetadata, VersionUpgradePolicy,
         ZSTD_FILE_BUFFER_CAPACITY,
     },
-    HasRType, Metadata, Record, RecordRef, Result, DBN_VERSION,
+    HasRType, Metadata, RecordRef, Result, DBN_VERSION,
 };
 
 /// An async decoder for Databento Binary Encoding (DBN), both metadata and records.
@@ -362,20 +362,13 @@ where
     /// This method is cancel safe. It can be used within a `tokio::select!` statement
     /// without the potential for corrupting the input stream.
     pub async fn decode<'a, T: HasRType + 'a>(&'a mut self) -> Result<Option<&'a T>> {
-        let rec_ref = self.decode_ref().await?;
-        if let Some(rec_ref) = rec_ref {
-            rec_ref
-                .get::<T>()
-                .ok_or_else(|| {
-                    crate::Error::conversion::<T>(format!(
-                        "record with rtype {:#04X}",
-                        rec_ref.header().rtype
-                    ))
-                })
-                .map(Some)
-        } else {
-            Ok(None)
-        }
+        self.decode_ref().await.and_then(|rec| {
+            if let Some(rec) = rec {
+                rec.try_get().map(Some)
+            } else {
+                Ok(None)
+            }
+        })
     }
 
     /// Tries to decode all records into a `Vec`. This eagerly decodes the data.
@@ -702,8 +695,8 @@ mod tests {
             AsyncEncodeRecord, DbnEncodable,
         },
         rtype, v1, v2, Bbo1SMsg, CbboMsg, Cmbp1Msg, Error, ErrorMsg, ImbalanceMsg,
-        InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader, Result, Schema,
-        StatMsg, StatusMsg, TbboMsg, TradeMsg, WithTsOut,
+        InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, Record, RecordHeader, Result,
+        Schema, StatMsg, StatusMsg, TbboMsg, TradeMsg, WithTsOut,
     };
 
     #[rstest]

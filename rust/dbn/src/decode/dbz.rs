@@ -140,7 +140,13 @@ impl<R: io::BufRead> DbnMetadata for Decoder<R> {
 
 impl<R: io::BufRead> DecodeRecord for Decoder<R> {
     fn decode_record<T: HasRType>(&mut self) -> crate::Result<Option<&T>> {
-        super::decode_record_from_ref(self.decode_record_ref()?)
+        self.decode_record_ref().and_then(|rec| {
+            if let Some(rec) = rec {
+                rec.try_get().map(Some)
+            } else {
+                Ok(None)
+            }
+        })
     }
 }
 
