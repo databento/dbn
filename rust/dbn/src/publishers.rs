@@ -107,7 +107,7 @@ pub enum Venue {
     Aspi = 46,
     /// Databento US Equities - Consolidated
     Equs = 47,
-    /// ICE US
+    /// ICE Futures US
     Ifus = 48,
     /// ICE Europe Financials
     Ifll = 49,
@@ -331,7 +331,7 @@ pub enum Dataset {
     XnysTradesbbo = 34,
     /// Databento US Equities Mini
     EqusMini = 35,
-    /// ICE US iMpact
+    /// ICE Futures US iMpact
     IfusImpact = 36,
     /// ICE Europe Financials iMpact
     IfllImpact = 37,
@@ -655,9 +655,9 @@ pub enum Publisher {
     EqusMiniEqus = 95,
     /// NYSE Trades - Consolidated
     XnysTradesEqus = 96,
-    /// ICE US
+    /// ICE Futures US
     IfusImpactIfus = 97,
-    /// ICE US - Off-Market Trades
+    /// ICE Futures US - Off-Market Trades
     IfusImpactXoff = 98,
     /// ICE Europe Financials
     IfllImpactIfll = 99,
