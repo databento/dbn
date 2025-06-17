@@ -475,6 +475,7 @@ impl DbnFsm {
         let mut metadata =
             Self::decode_metadata_impl(self.input_dbn_version.unwrap(), self.buffer.data())?;
         metadata.upgrade(self.upgrade_policy);
+        self.ts_out = metadata.ts_out;
         self.buffer.consume(length as usize);
         // Need to shift to ensure record alignment
         self.buffer.shift();
@@ -1073,8 +1074,8 @@ mod tests {
     use std::ffi::c_char;
 
     use crate::{
-        encode::{DbnEncodable, DbnMetadataEncoder, DbnRecordEncoder, EncodeRecord},
-        Dataset, Mbp1Msg, SType, Schema, TradeMsg, MAX_RECORD_LEN, SYMBOL_CSTR_LEN,
+        encode::{DbnEncodable, DbnEncoder, DbnMetadataEncoder, DbnRecordEncoder, EncodeRecord},
+        Dataset, Mbp1Msg, SType, Schema, SystemMsg, TradeMsg, MAX_RECORD_LEN, SYMBOL_CSTR_LEN,
     };
     use rstest::*;
     use time::{
@@ -1361,6 +1362,41 @@ mod tests {
             }
         }
         assert_eq!(rec_count, 10_000);
+    }
+
+    #[rstest]
+    fn test_decode_ts_out_set_in_metadata() -> crate::Result<()> {
+        let metadata = Metadata::builder()
+            .schema(None)
+            .start(1)
+            .end(None)
+            .dataset(Dataset::IfusImpact)
+            .ts_out(true)
+            .stype_in(None)
+            .stype_out(SType::InstrumentId)
+            .build();
+        let mut buf = Vec::new();
+        let mut encoder = DbnEncoder::new(&mut buf, &metadata)?;
+        encoder.encode_record(&WithTsOut::new(SystemMsg::heartbeat(2), 2))?;
+
+        let mut target = DbnFsm::default();
+        // false by default
+        assert!(!target.ts_out);
+        target.write_all(&buf);
+        let metadata_res = target.process();
+        assert!(matches!(metadata_res, ProcessResult::Metadata(metadata) if metadata.ts_out));
+        assert!(target.ts_out);
+        let record_res = target.process();
+        assert!(matches!(record_res, ProcessResult::Record(())));
+        assert_eq!(
+            target
+                .last_record()
+                .unwrap()
+                .try_get::<WithTsOut<SystemMsg>>()?
+                .ts_out,
+            2
+        );
+        Ok(())
     }
 
     #[rstest]

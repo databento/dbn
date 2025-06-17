@@ -10,6 +10,9 @@
 - Fixed conversion of `BboMsg` in `TryFrom<RecordRef> for RecordRefEnum`
 - Implemented `AsyncDecodeRecordRef` and `AsyncDecodeRecord` for `AsyncDecoder` and
   `AsyncRecordDecoder`
+- Fixed setting of `ts_out` property of `DbnFsm` based on decoded metadata. This
+  was preventing `ts_out` from being correctly decoded in the Python `DBNDecoder`
+- Fixed decoding of `ts_out` with first records in `DBNDecoder`
 
 ## 0.36.0 - 2025-06-10
 

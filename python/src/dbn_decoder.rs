@@ -47,13 +47,14 @@ impl DbnDecoder {
     }
 
     fn decode(&mut self) -> PyResult<Vec<PyObject>> {
-        let ts_out = self.fsm.ts_out();
+        let mut ts_out = self.fsm.ts_out();
         let mut py_recs = Vec::new();
         loop {
             let mut rec_refs = Vec::new();
             match self.fsm.process_all(&mut rec_refs, None) {
                 ProcessResult::ReadMore(_) => return Ok(py_recs),
                 ProcessResult::Metadata(metadata) => {
+                    ts_out = self.fsm.ts_out();
                     py_recs.push(Python::with_gil(|py| metadata.into_py_any(py))?)
                 }
                 ProcessResult::Record(_) => {
@@ -252,6 +253,44 @@ except Exception:
                 None,
             )
         }).unwrap();
+    }
+
+    #[test]
+    fn test_dbn_decoder_ts_out() {
+        setup();
+        Python::with_gil(|py| {
+            Python::run(
+                py,
+                c_str!(
+                    r#"from _lib import DBNDecoder, DBNError, Metadata, Schema, SType
+
+metadata = Metadata(
+    version=3,
+    dataset="IFUS.IMPACT",
+    schema=Schema.MBO,
+    start=1,
+    stype_in=SType.RAW_SYMBOL,
+    stype_out=SType.INSTRUMENT_ID,
+    end=2,
+    ts_out=True,
+    symbols=[],
+    partial=[],
+    not_found=[],
+    mappings=[]
+)
+metadata_bytes = bytes(metadata)
+decoder = DBNDecoder()
+decoder.write(metadata_bytes)
+records = decoder.decode()
+for record in records:
+    assert record.ts_out is not None
+"#
+                ),
+                None,
+                None,
+            )
+        })
+        .unwrap();
     }
 
     #[test]
