@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.36.1 - TBD
+## 0.36.1 - 2025-06-17
 
 ### Bug fixes
 - Updated conversion error messages in `TryFrom<RecordRef> for RecordRefEnum` for
