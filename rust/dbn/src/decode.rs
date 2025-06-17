@@ -30,7 +30,7 @@ pub use stream::StreamIterDecoder;
 
 use std::{io::Seek, mem};
 
-use crate::{HasRType, Metadata, Record, RecordRef, VersionUpgradePolicy};
+use crate::{HasRType, Metadata, RecordRef, VersionUpgradePolicy};
 
 /// Trait for types that decode references to DBN records of a dynamic type.
 pub trait DecodeRecordRef {
@@ -91,22 +91,6 @@ pub trait DecodeRecord {
             res.push(rec.clone());
         }
         Ok(res)
-    }
-}
-
-fn decode_record_from_ref<T: HasRType>(rec_ref: Option<RecordRef>) -> crate::Result<Option<&T>> {
-    if let Some(rec_ref) = rec_ref {
-        rec_ref
-            .get::<T>()
-            .ok_or_else(|| {
-                crate::Error::conversion::<T>(format!(
-                    "record with rtype {:#04X}",
-                    rec_ref.header().rtype
-                ))
-            })
-            .map(Some)
-    } else {
-        Ok(None)
     }
 }
 
@@ -199,7 +183,7 @@ pub trait AsyncDecodeRecord {
     /// # Cancel safety
     /// This method is not cancellation safe. If used within a `tokio::select!` statement
     /// partially decoded records will be lost and the stream may be corrupted.
-    async fn decode_records<T: HasRType + Clone>(mut self) -> crate::Result<Vec<T>>
+    async fn decode_records<T: HasRType + Clone>(&mut self) -> crate::Result<Vec<T>>
     where
         Self: Sized,
     {
@@ -277,13 +261,13 @@ impl FromLittleEndianSlice for u16 {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    pub const TEST_DATA_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/data");
-}
-
 #[cfg(feature = "async")]
 pub use self::dbn::{
     AsyncDecoder as AsyncDbnDecoder, AsyncMetadataDecoder as AsyncDbnMetadataDecoder,
     AsyncRecordDecoder as AsyncDbnRecordDecoder,
 };
+
+#[cfg(test)]
+mod tests {
+    pub const TEST_DATA_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/data");
+}

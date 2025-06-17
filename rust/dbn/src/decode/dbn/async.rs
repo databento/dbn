@@ -10,9 +10,10 @@ use crate::{
     decode::{
         dbn::fsm::{DbnFsm, ProcessResult},
         zstd::zstd_decoder,
-        AsyncSkipBytes, DbnMetadata, VersionUpgradePolicy, ZSTD_FILE_BUFFER_CAPACITY,
+        AsyncDecodeRecord, AsyncDecodeRecordRef, AsyncSkipBytes, DbnMetadata, VersionUpgradePolicy,
+        ZSTD_FILE_BUFFER_CAPACITY,
     },
-    HasRType, Metadata, Record, RecordRef, Result, DBN_VERSION,
+    HasRType, Metadata, RecordRef, Result, DBN_VERSION,
 };
 
 /// An async decoder for Databento Binary Encoding (DBN), both metadata and records.
@@ -240,6 +241,24 @@ where
     }
 }
 
+impl<R> AsyncDecodeRecordRef for Decoder<R>
+where
+    R: io::AsyncReadExt + Unpin,
+{
+    async fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef>> {
+        self.decoder.decode_ref().await
+    }
+}
+
+impl<R> AsyncDecodeRecord for Decoder<R>
+where
+    R: io::AsyncReadExt + Unpin,
+{
+    async fn decode_record<'a, T: HasRType + 'a>(&'a mut self) -> crate::Result<Option<&'a T>> {
+        self.decoder.decode().await
+    }
+}
+
 /// An async decoder for files and streams of Databento Binary Encoding (DBN) records.
 pub struct RecordDecoder<R>
 where
@@ -343,20 +362,13 @@ where
     /// This method is cancel safe. It can be used within a `tokio::select!` statement
     /// without the potential for corrupting the input stream.
     pub async fn decode<'a, T: HasRType + 'a>(&'a mut self) -> Result<Option<&'a T>> {
-        let rec_ref = self.decode_ref().await?;
-        if let Some(rec_ref) = rec_ref {
-            rec_ref
-                .get::<T>()
-                .ok_or_else(|| {
-                    crate::Error::conversion::<T>(format!(
-                        "record with rtype {:#04X}",
-                        rec_ref.header().rtype
-                    ))
-                })
-                .map(Some)
-        } else {
-            Ok(None)
-        }
+        self.decode_ref().await.and_then(|rec| {
+            if let Some(rec) = rec {
+                rec.try_get().map(Some)
+            } else {
+                Ok(None)
+            }
+        })
     }
 
     /// Tries to decode all records into a `Vec`. This eagerly decodes the data.
@@ -425,6 +437,24 @@ where
     /// Consumes the decoder and returns the inner reader.
     pub fn into_inner(self) -> R {
         self.reader
+    }
+}
+
+impl<R> AsyncDecodeRecordRef for RecordDecoder<R>
+where
+    R: io::AsyncReadExt + Unpin,
+{
+    async fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef>> {
+        self.decode_ref().await
+    }
+}
+
+impl<R> AsyncDecodeRecord for RecordDecoder<R>
+where
+    R: io::AsyncReadExt + Unpin,
+{
+    async fn decode_record<'a, T: HasRType + 'a>(&'a mut self) -> crate::Result<Option<&'a T>> {
+        self.decode().await
     }
 }
 
@@ -665,8 +695,8 @@ mod tests {
             AsyncEncodeRecord, DbnEncodable,
         },
         rtype, v1, v2, Bbo1SMsg, CbboMsg, Cmbp1Msg, Error, ErrorMsg, ImbalanceMsg,
-        InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader, Result, Schema,
-        StatMsg, StatusMsg, TbboMsg, TradeMsg, WithTsOut,
+        InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, Record, RecordHeader, Result,
+        Schema, StatMsg, StatusMsg, TbboMsg, TradeMsg, WithTsOut,
     };
 
     #[rstest]

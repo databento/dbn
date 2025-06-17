@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.36.1 - 2025-06-17
+
+### Bug fixes
+- Updated conversion error messages in `TryFrom<RecordRef> for RecordRefEnum` for
+  release of DBN version 3
+- Updated `TryFrom<RecordRef> for RecordRefEnum` for versioning of `StatMsg`,
+  `SystemMsg`, and  `ErrorMsg`
+- Fixed conversion of `BboMsg` in `TryFrom<RecordRef> for RecordRefEnum`
+- Implemented `AsyncDecodeRecordRef` and `AsyncDecodeRecord` for `AsyncDecoder` and
+  `AsyncRecordDecoder`
+- Fixed setting of `ts_out` property of `DbnFsm` based on decoded metadata. This
+  was preventing `ts_out` from being correctly decoded in the Python `DBNDecoder`
+- Fixed decoding of `ts_out` with first records in `DBNDecoder`
+
 ## 0.36.0 - 2025-06-10
 
 ### Enhancements
@@ -191,8 +205,8 @@ upgrading the input to DBNv3.
 ## 0.29.0 - 2025-03-17
 
 ### Enhancements
-- Added new venues, datasets, and publishers for ICE Futures US, ICE Futures Europe
-  (Financial products), Eurex, and European Energy Exchange (EEX)
+- Added new venues, datasets, and publishers for ICE Futures US, ICE Europe Financials
+  products, Eurex, and European Energy Exchange (EEX)
 - Added new `SkipBytes` and `AsyncSkipBytes` traits which are a subset of the `Seek`
   and `AsyncSeek` traits respectively, only supporting seeking forward from the current
   position

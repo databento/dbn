@@ -121,6 +121,29 @@ impl<'a> RecordRef<'a> {
         }
     }
 
+    /// Like [`get()`](Self::get), but returns an error if the inner record is not a `T`
+    /// or has the correct `rtype` for `T`, but insufficient `length`. Never panics
+    ///
+    /// # Errors
+    /// This function returns an error if does not hold a `T` or if its `rtype` matches
+    /// `T`, but its `length` is too short.
+    pub fn try_get<T: HasRType>(&self) -> crate::Result<&'a T> {
+        if self.has::<T>() {
+            if self.record_size() >= mem::size_of::<T>() {
+                // Safety: checked `rtype` in call to `has()` and size
+                Ok(unsafe { self.ptr.cast::<T>().as_ref() })
+            } else {
+                Err(crate::Error::conversion::<T>(format!(
+                    "{self:?} has insufficient length, may be an earlier version of this record"
+                )))
+            }
+        } else {
+            Err(crate::Error::conversion::<T>(format!(
+                "{self:?} has incorrect rtype"
+            )))
+        }
+    }
+
     /// Returns a native Rust enum with a variant for each record type. This allows for
     /// pattern `match`ing.
     ///
@@ -252,8 +275,8 @@ mod tests {
     use std::ffi::c_char;
 
     use crate::{
-        enums::rtype, ErrorMsg, FlagSet, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
-        TradeMsg,
+        enums::rtype, v1, v3, ErrorMsg, FlagSet, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg,
+        OhlcvMsg, TradeMsg,
     };
 
     use super::*;
@@ -316,6 +339,24 @@ mod tests {
         let target = RecordRef::from(&src);
         // panic due to unexpected length
         target.get::<MboMsg>();
+    }
+
+    #[should_panic]
+    #[test]
+    fn test_get_previous_ver() {
+        let src = v1::InstrumentDefMsg::default();
+        let target = RecordRef::from(&src);
+        // panic due to `src` having shorter record length despite matching rtypes
+        target.get::<v3::InstrumentDefMsg>();
+    }
+
+    #[test]
+    fn test_try_get_previous_ver() {
+        let src = v1::InstrumentDefMsg::default();
+        let target = RecordRef::from(&src);
+        assert!(
+            matches!(target.try_get::<v3::InstrumentDefMsg>(), Err(e) if e.to_string().contains("has insufficient length"))
+        );
     }
 
     #[test]

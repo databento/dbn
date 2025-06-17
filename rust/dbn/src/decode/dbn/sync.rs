@@ -311,7 +311,13 @@ where
     /// If the next record is of a different type than `T`,
     /// this function returns an error of kind `io::ErrorKind::InvalidData`.
     pub fn decode<T: HasRType>(&mut self) -> crate::Result<Option<&T>> {
-        crate::decode::decode_record_from_ref(self.decode_ref()?)
+        self.decode_ref().and_then(|rec| {
+            if let Some(rec) = rec {
+                rec.try_get().map(Some)
+            } else {
+                Ok(None)
+            }
+        })
     }
 
     /// Tries to decode a generic reference a record. Returns `Ok(None)` if
