@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.36.2 - TBD
+
+### Bug fixes
+- Fixed change in behavior where Python `DBNDecoder.decode()` wouldn't always decode all
+  available data on the first call
+
 ## 0.36.1 - 2025-06-17
 
 ### Bug fixes

@@ -7,6 +7,7 @@ use dbn::{
 };
 
 #[pyclass(module = "databento_dbn", name = "DBNDecoder")]
+#[derive(Debug)]
 pub struct DbnDecoder {
     fsm: DbnFsm,
 }
@@ -32,9 +33,18 @@ impl DbnDecoder {
             .map_err(to_py_err)?
             .upgrade_policy(upgrade_policy)
             .skip_metadata(!has_metadata)
+            .compat_size(if upgrade_policy == VersionUpgradePolicy::AsIs {
+                0
+            } else {
+                DbnFsm::DEFAULT_BUF_SIZE
+            })
             .build()
             .map_err(to_py_err)?;
         Ok(Self { fsm })
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{self:?}")
     }
 
     fn write(&mut self, bytes: &[u8]) -> PyResult<()> {
@@ -308,6 +318,42 @@ decoder.write(bytes(record))
 records = decoder.decode()
 assert len(records) == 1
 assert records[0] == record
+"#
+                ),
+                None,
+                None,
+            )
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn test_decode_all_data_in_compat_situation() {
+        setup();
+        Python::with_gil(|py| {
+            Python::run(
+                py,
+                c_str!(
+                    r#"from _lib import DBNDecoder, ErrorMsg, ErrorMsgV1, Metadata, Schema, SType
+
+decoder = DBNDecoder()
+metadata = Metadata(
+    version=1,
+    dataset="GLBX.MDP3",
+    schema=Schema.MBO,
+    start=0,
+    stype_in=SType.RAW_SYMBOL,
+    stype_out=SType.INSTRUMENT_ID,
+)
+decoder.write(bytes(metadata))
+for _ in range(3):
+    error = ErrorMsgV1(0, "test")
+    decoder.write(bytes(error))
+records = decoder.decode()
+assert len(records) == 4
+assert isinstance(records[0], Metadata)
+for i in range(1, 4):
+    assert isinstance(records[i], ErrorMsg)
 "#
                 ),
                 None,

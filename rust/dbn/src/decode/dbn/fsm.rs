@@ -21,7 +21,6 @@ use crate::{
 };
 
 /// State machine for decoding DBN with bring your own I/O.
-#[derive(Debug)]
 pub struct DbnFsm {
     input_dbn_version: Option<u8>,
     upgrade_policy: VersionUpgradePolicy,
@@ -29,6 +28,23 @@ pub struct DbnFsm {
     state: State,
     buffer: oval::Buffer,
     compat_buffer: oval::Buffer,
+}
+
+impl std::fmt::Debug for DbnFsm {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let dbg_available_data = self.buffer.available_data().min(MAX_RECORD_LEN);
+        f.debug_struct("DbnFsm")
+            .field("input_dbn_version", &self.input_dbn_version)
+            .field("upgrade_policy", &self.upgrade_policy)
+            .field("ts_out", &self.ts_out)
+            .field("state", &self.state)
+            .field(
+                "buffer_available_data",
+                &&self.buffer.data()[..dbg_available_data],
+            )
+            .field("compat_buffer_capacity", &self.compat_buffer.capacity())
+            .finish_non_exhaustive()
+    }
 }
 
 #[derive(Debug, Default)]
@@ -386,10 +402,7 @@ impl DbnFsm {
         let mut compat_bytes = 0;
         let mut remaining_compat = self.compat_buffer.space();
         let mut expand_compat = false;
-        while rec_ref_buf.has_capacity(record_count) {
-            if read_bytes >= self.buffer.available_data() {
-                break;
-            }
+        while rec_ref_buf.has_capacity(record_count) && read_bytes < self.buffer.available_data() {
             let remaining_data = &self.buffer.data()[read_bytes..];
 
             let length = remaining_data[0] as usize * RecordHeader::LENGTH_MULTIPLIER;
@@ -462,6 +475,9 @@ impl DbnFsm {
             return Err(Error::decode(
                 "invalid DBN metadata. Metadata length shorter than fixed length.",
             ));
+        }
+        if self.upgrade_policy.is_upgrade_situation(version) && self.compat_buffer.capacity() == 0 {
+            self.double_compat_buffer();
         }
         self.state = State::Metadata { length };
         self.buffer.consume_noshift(Self::METADATA_PRELUDE_LEN);
