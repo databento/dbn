@@ -16,7 +16,7 @@ crate-type = ["staticlib"]
 [dependencies]
 anyhow = { workspace = true }
 dbn = { path = "../rust/dbn", features = [] }
-libc = "0.2.172"
+libc = "0.2.174"
 
 [build-dependencies]
 cbindgen = { version = "0.29.0", default-features = false }

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.36.2 - 2025-07-08
+
+### Enhancements
+- Upgraded `async-compression` version to 0.4.25
+- Upgraded `pyo3` version to 0.25.1
+
+### Bug fixes
+- Fixed change in behavior where Python `DBNDecoder.decode()` wouldn't always decode all
+  available data on the first call
+
 ## 0.36.1 - 2025-06-17
 
 ### Bug fixes
