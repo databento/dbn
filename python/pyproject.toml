@@ -23,7 +23,7 @@ authors = [
 ]
 description = "Python bindings for encoding and decoding Databento Binary Encoding (DBN)"
 readme = "README.md"
-license = { file = "../LICENSE" }
+license = "Apache-2.0"
 requires-python = ">=3.9"
 classifiers = [
     "Programming Language :: Rust",
