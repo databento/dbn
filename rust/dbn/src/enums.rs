@@ -501,7 +501,7 @@ pub mod rtype {
     /// Denotes a market-by-order record.
     pub const MBO: u8 = RType::Mbo as u8;
     /// Denotes a consolidated best bid and offer record.
-    pub const CMBP1: u8 = RType::Cmbp1 as u8;
+    pub const CMBP_1: u8 = RType::Cmbp1 as u8;
     /// Denotes a consolidated best bid and offer record subsampled on a one-second interval.
     pub const CBBO_1S: u8 = RType::Cbbo1S as u8;
     /// Denotes a consolidated best bid and offer record subsampled on a one-minute interval.
@@ -559,7 +559,7 @@ pub mod rtype {
             IMBALANCE => Some(Schema::Imbalance),
             STATISTICS => Some(Schema::Statistics),
             MBO => Some(Schema::Mbo),
-            CMBP1 => Some(Schema::Cmbp1),
+            CMBP_1 => Some(Schema::Cmbp1),
             CBBO_1S => Some(Schema::Cbbo1S),
             CBBO_1M => Some(Schema::Cbbo1M),
             TCBBO => Some(Schema::Tcbbo),
