@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.36.3 - TBD
+
+### Bug fixes
+- Fix buffer growth in `DbnFsm::write_all()`, which is used by Python
+  `DBNDecoder.write()`
+
 ## 0.36.2 - 2025-07-08
 
 ### Enhancements
