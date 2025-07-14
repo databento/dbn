@@ -1,10 +1,17 @@
 # Changelog
 
-## 0.36.3 - TBD
+## 0.37.0 - TBD
 
 ### Bug fixes
 - Fix buffer growth in `DbnFsm::write_all()`, which is used by Python
   `DBNDecoder.write()`
+
+### Breaking changes
+- Renamed the following Venue, Dataset, and Publishers:
+    - `XEER` to `XEEE`
+    - `XEER.EOBI` to `XEEE.EOBI`
+    - `XEER.EOBI.XEER` to `XEEE.EOBI.XEEE`
+    - `XEER.EOBI.XOFF` to `XEEE.EOBI.XOFF`
 
 ## 0.36.2 - 2025-07-08
 
