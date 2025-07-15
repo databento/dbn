@@ -694,7 +694,7 @@ mod tests {
     #[rstest]
     fn test_fails_to_encode_newer_metadata() {
         let metadata = MetadataBuilder::new()
-            .dataset(Dataset::XeerEobi.to_string())
+            .dataset(Dataset::XeeeEobi.to_string())
             .schema(Some(Schema::Definition))
             .start(0)
             .stype_in(Some(SType::RawSymbol))

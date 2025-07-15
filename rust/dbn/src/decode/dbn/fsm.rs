@@ -42,6 +42,9 @@ impl std::fmt::Debug for DbnFsm {
                 "buffer_available_data",
                 &&self.buffer.data()[..dbg_available_data],
             )
+            .field("buffer_available_space", &self.buffer.available_space())
+            .field("buffer_available_data", &self.buffer.available_data())
+            .field("buffer_capacity", &self.buffer.capacity())
             .field("compat_buffer_capacity", &self.compat_buffer.capacity())
             .finish_non_exhaustive()
     }
@@ -208,7 +211,22 @@ impl DbnFsm {
 
     /// Copies the given `bytes` to the internal buffer.
     pub fn write_all(&mut self, bytes: &[u8]) {
-        self.buffer.grow(self.buffer.capacity() + bytes.len());
+        if self.buffer.available_space() < bytes.len() {
+            if let State::Consume {
+                read,
+                compat,
+                compat_fill,
+                expand_compat,
+            } = self.state
+            {
+                self.consume(read, compat, compat_fill, expand_compat);
+            }
+            if self.buffer.available_space() < bytes.len() {
+                let new_size =
+                    (self.buffer.capacity() * 2).max(self.buffer.capacity() + bytes.len());
+                self.buffer.grow(new_size);
+            }
+        }
         self.space()[..bytes.len()].copy_from_slice(bytes);
         self.fill(bytes.len());
     }
