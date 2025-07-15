@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.37.1 - 2025-07-15
+
+### Bug fixes
+- Fixed issue where `RecordHeader` fields weren't accessible from Python
+
 ## 0.37.0 - 2025-07-15
 
 ### Breaking changes

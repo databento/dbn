@@ -38,7 +38,7 @@ pub use traits::{HasRType, Record, RecordMut};
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(dict, eq, module = "databento_dbn"),
+    pyo3::pyclass(dict, eq, get_all, module = "databento_dbn"),
     derive(crate::macros::PyFieldDesc)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
