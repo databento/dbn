@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.37.2 - TBD
+
+### Bug fixes
+- Relaxed requirement of `input_version` parameter to the Python `Transcoder` to only
+  be required when transcoding to CSV without `Metadata`, where previously it was always
+  required when transcoding data without `Metadata`
+
 ## 0.37.1 - 2025-07-15
 
 ### Bug fixes
