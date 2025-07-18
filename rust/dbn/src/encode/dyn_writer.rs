@@ -3,7 +3,7 @@ use std::io;
 use super::{zstd_encoder, zstd_encoder_with_clevel};
 use crate::{Compression, Result};
 
-/// Type for runtime polymorphism over whether encoding uncompressed or ZStd-compressed
+/// Type for runtime polymorphism over whether encoding uncompressed or Zstd-compressed
 /// DBN records. Implements [`std::io::Write`].
 pub struct DynWriter<'a, W>(DynWriterImpl<'a, W>)
 where
@@ -28,7 +28,7 @@ where
     pub fn new(writer: W, compression: Compression) -> Result<Self> {
         match compression {
             Compression::None => Ok(Self(DynWriterImpl::Uncompressed(writer))),
-            Compression::ZStd => zstd_encoder(writer).map(|enc| Self(DynWriterImpl::Zstd(enc))),
+            Compression::Zstd => zstd_encoder(writer).map(|enc| Self(DynWriterImpl::Zstd(enc))),
         }
     }
 
@@ -130,7 +130,7 @@ mod r#async {
             Self(match compression {
                 Compression::None => DynBufWriterImpl::Uncompressed(BufWriter::new(writer)),
                 // async zstd always wraps the writer in a BufWriter
-                Compression::ZStd => DynBufWriterImpl::Zstd(async_zstd_encoder(writer)),
+                Compression::Zstd => DynBufWriterImpl::Zstd(async_zstd_encoder(writer)),
             })
         }
 
@@ -200,7 +200,7 @@ mod r#async {
         pub fn new(writer: W, compression: Compression) -> Self {
             Self(match compression {
                 Compression::None => DynWriterImpl::Uncompressed(writer),
-                Compression::ZStd => DynWriterImpl::Zstd(async_zstd_encoder(writer)),
+                Compression::Zstd => DynWriterImpl::Zstd(async_zstd_encoder(writer)),
             })
         }
 

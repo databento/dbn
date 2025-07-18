@@ -595,7 +595,7 @@ mod tests {
         let mut buffer = Vec::new();
 
         Encoder::new(
-            DynWriter::new(&mut buffer, Compression::ZStd)?,
+            DynWriter::new(&mut buffer, Compression::Zstd)?,
             &file_metadata,
         )?
         .encode_records(decoded_records.as_slice())?;

@@ -15,64 +15,53 @@ macro_rules! rtype_dispatch_base {
         use $crate::enums::RType;
         use $crate::record::*;
         match $rec_ref.rtype() {
-            Ok(rtype) => Ok(match rtype {
-                RType::Mbp0 => $handler!(TradeMsg),
-                RType::Mbp1 => $handler!(Mbp1Msg),
-                RType::Mbp10 => $handler!(Mbp10Msg),
-                #[allow(deprecated)]
-                RType::OhlcvDeprecated
-                | RType::Ohlcv1S
-                | RType::Ohlcv1M
-                | RType::Ohlcv1H
-                | RType::Ohlcv1D
-                | RType::OhlcvEod => $handler!(OhlcvMsg),
-                RType::Imbalance => $handler!(ImbalanceMsg),
-                RType::Status => $handler!(StatusMsg),
-                RType::InstrumentDef => {
-                    if $rec_ref.record_size() < std::mem::size_of::<$crate::v2::InstrumentDefMsg>()
-                    {
-                        $handler!($crate::v1::InstrumentDefMsg)
-                    } else if $rec_ref.record_size()
-                        < std::mem::size_of::<$crate::v3::InstrumentDefMsg>()
-                    {
-                        $handler!($crate::v2::InstrumentDefMsg)
-                    } else {
-                        $handler!($crate::v3::InstrumentDefMsg)
-                    }
-                }
-                RType::SymbolMapping => {
-                    if $rec_ref.record_size() < std::mem::size_of::<SymbolMappingMsg>() {
-                        $handler!($crate::v1::SymbolMappingMsg)
-                    } else {
-                        $handler!(SymbolMappingMsg)
-                    }
-                }
-                RType::Error => {
-                    if $rec_ref.record_size() < std::mem::size_of::<ErrorMsg>() {
-                        $handler!($crate::v1::ErrorMsg)
-                    } else {
-                        $handler!(ErrorMsg)
-                    }
-                }
-                RType::System => {
-                    if $rec_ref.record_size() < std::mem::size_of::<SystemMsg>() {
-                        $handler!($crate::v1::SystemMsg)
-                    } else {
-                        $handler!(SystemMsg)
-                    }
-                }
-                RType::Statistics => {
-                    if $rec_ref.record_size() < std::mem::size_of::<$crate::v3::StatMsg>() {
-                        $handler!($crate::v1::StatMsg)
-                    } else {
-                        $handler!($crate::v3::StatMsg)
-                    }
-                }
-                RType::Mbo => $handler!(MboMsg),
-                RType::Cmbp1 | RType::Tcbbo => $handler!(Cmbp1Msg),
-                RType::Bbo1S | RType::Bbo1M => $handler!(BboMsg),
-                RType::Cbbo1S | RType::Cbbo1M => $handler!(CbboMsg),
-            }),
+            Ok(RType::Mbp0) => Ok($handler!(TradeMsg)),
+            Ok(RType::Mbp1) => Ok($handler!(Mbp1Msg)),
+            Ok(RType::Mbp10) => Ok($handler!(Mbp10Msg)),
+            #[allow(deprecated)]
+            Ok(RType::OhlcvDeprecated)
+            | Ok(RType::Ohlcv1S)
+            | Ok(RType::Ohlcv1M)
+            | Ok(RType::Ohlcv1H)
+            | Ok(RType::Ohlcv1D)
+            | Ok(RType::OhlcvEod) => Ok($handler!(OhlcvMsg)),
+            Ok(RType::Imbalance) => Ok($handler!(ImbalanceMsg)),
+            Ok(RType::Status) => Ok($handler!(StatusMsg)),
+            Ok(RType::InstrumentDef)
+                if $rec_ref.record_size() < std::mem::size_of::<$crate::v2::InstrumentDefMsg>() =>
+            {
+                Ok($handler!($crate::v1::InstrumentDefMsg))
+            }
+            Ok(RType::InstrumentDef)
+                if $rec_ref.record_size() < std::mem::size_of::<$crate::v3::InstrumentDefMsg>() =>
+            {
+                Ok($handler!($crate::v2::InstrumentDefMsg))
+            }
+            Ok(RType::InstrumentDef) => Ok($handler!($crate::v3::InstrumentDefMsg)),
+            Ok(RType::SymbolMapping)
+                if $rec_ref.record_size() < std::mem::size_of::<SymbolMappingMsg>() =>
+            {
+                Ok($handler!($crate::v1::SymbolMappingMsg))
+            }
+            Ok(RType::SymbolMapping) => Ok($handler!(SymbolMappingMsg)),
+            Ok(RType::Error) if $rec_ref.record_size() < std::mem::size_of::<ErrorMsg>() => {
+                Ok($handler!($crate::v1::ErrorMsg))
+            }
+            Ok(RType::Error) => Ok($handler!(ErrorMsg)),
+            Ok(RType::System) if $rec_ref.record_size() < std::mem::size_of::<SystemMsg>() => {
+                Ok($handler!($crate::v1::SystemMsg))
+            }
+            Ok(RType::System) => Ok($handler!(SystemMsg)),
+            Ok(RType::Statistics)
+                if $rec_ref.record_size() < std::mem::size_of::<$crate::v3::StatMsg>() =>
+            {
+                Ok($handler!($crate::v1::StatMsg))
+            }
+            Ok(RType::Statistics) => Ok($handler!($crate::v3::StatMsg)),
+            Ok(RType::Mbo) => Ok($handler!(MboMsg)),
+            Ok(RType::Cmbp1) | Ok(RType::Tcbbo) => Ok($handler!(Cmbp1Msg)),
+            Ok(RType::Bbo1S) | Ok(RType::Bbo1M) => Ok($handler!(BboMsg)),
+            Ok(RType::Cbbo1S) | Ok(RType::Cbbo1M) => Ok($handler!(CbboMsg)),
             Err(e) => Err(e),
         }
     }};

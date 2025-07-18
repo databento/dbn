@@ -102,7 +102,7 @@ pub struct MboMsg {
     #[pyo3(get, set)]
     pub size: u32,
     /// A bit field indicating event end, message characteristics, and data quality.
-    /// See [`enums::flags`](crate::enums::flags) for possible values.
+    /// See [`flags`](crate::flags) for possible values.
     #[pyo3(get, set)]
     pub flags: FlagSet,
     /// The channel ID assigned by Databento as an incrementing integer starting at zero.
@@ -269,7 +269,7 @@ pub struct TradeMsg {
     #[dbn(c_char, encode_order(3))]
     pub side: c_char,
     /// A bit field indicating event end, message characteristics, and data quality.
-    /// See [`enums::flags`](crate::enums::flags) for possible values.
+    /// See [`flags`](crate::flags) for possible values.
     #[pyo3(get, set)]
     pub flags: FlagSet,
     /// The book level where the update event occurred.
@@ -334,7 +334,7 @@ pub struct Mbp1Msg {
     #[dbn(c_char, encode_order(3))]
     pub side: c_char,
     /// A bit field indicating event end, message characteristics, and data quality.
-    /// See [`enums::flags`](crate::enums::flags) for possible values.
+    /// See [`flags`](crate::flags) for possible values.
     #[pyo3(get, set)]
     pub flags: FlagSet,
     /// The book level where the update event occurred.
@@ -402,7 +402,7 @@ pub struct Mbp10Msg {
     #[dbn(c_char, encode_order(3))]
     pub side: c_char,
     /// A bit field indicating event end, message characteristics, and data quality.
-    /// See [`enums::flags`](crate::enums::flags) for possible values.
+    /// See [`flags`](crate::flags) for possible values.
     #[pyo3(get, set)]
     pub flags: FlagSet,
     /// The book level where the update event occurred.
@@ -470,7 +470,7 @@ pub struct BboMsg {
     #[dbn(c_char, encode_order(2))]
     pub side: c_char,
     /// A bit field indicating event end, message characteristics, and data quality.
-    /// See [`enums::flags`](crate::enums::flags) for possible values.
+    /// See [`flags`](crate::flags) for possible values.
     #[pyo3(get, set)]
     pub flags: FlagSet,
     #[doc(hidden)]
@@ -534,7 +534,7 @@ pub struct Cmbp1Msg {
     #[dbn(c_char, encode_order(3))]
     pub side: c_char,
     /// A bit field indicating event end, message characteristics, and data quality.
-    /// See [`enums::flags`](crate::enums::flags) for possible values.
+    /// See [`flags`](crate::flags) for possible values.
     #[pyo3(get, set)]
     pub flags: FlagSet,
     #[doc(hidden)]
@@ -600,7 +600,7 @@ pub struct CbboMsg {
     #[dbn(c_char, encode_order(2))]
     pub side: c_char,
     /// A bit field indicating event end, message characteristics, and data quality.
-    /// See [`enums::flags`](crate::enums::flags) for possible values.
+    /// See [`flags`](crate::flags) for possible values.
     #[pyo3(get, set)]
     pub flags: FlagSet,
     #[doc(hidden)]

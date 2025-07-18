@@ -222,7 +222,7 @@ impl Args {
 /// aren't already explicitly set.
 pub fn infer_encoding(args: &Args) -> anyhow::Result<(Encoding, Compression, u8)> {
     let compression = if args.zstd {
-        Compression::ZStd
+        Compression::Zstd
     } else {
         Compression::None
     };
@@ -234,19 +234,19 @@ pub fn infer_encoding(args: &Args) -> anyhow::Result<(Encoding, Compression, u8)
         OutputEncoding::Infer => {
             if let Some(output) = args.output.as_ref().map(|o| o.to_string_lossy()) {
                 if output.ends_with(".dbn.zst") {
-                    Ok((Encoding::Dbn, Compression::ZStd, 0))
+                    Ok((Encoding::Dbn, Compression::Zstd, 0))
                 } else if output.ends_with(".dbn") {
                     Ok((Encoding::Dbn, Compression::None, 0))
                 } else if output.ends_with(".csv.zst") {
-                    Ok((Encoding::Csv, Compression::ZStd, b','))
+                    Ok((Encoding::Csv, Compression::Zstd, b','))
                 } else if output.ends_with(".csv") {
                     Ok((Encoding::Csv, Compression::None, b','))
                 } else if output.ends_with(".tsv.zst") || output.ends_with(".xls.zst") {
-                    Ok((Encoding::Csv, Compression::ZStd, b'\t'))
+                    Ok((Encoding::Csv, Compression::Zstd, b'\t'))
                 } else if output.ends_with(".tsv") || output.ends_with(".xls") {
                     Ok((Encoding::Csv, Compression::None, b'\t'))
                 } else if output.ends_with(".json.zst") {
-                    Ok((Encoding::Json, Compression::ZStd, 0))
+                    Ok((Encoding::Json, Compression::Zstd, 0))
                 } else if output.ends_with(".json") {
                     Ok((Encoding::Json, Compression::None, 0))
                 } else {
@@ -321,7 +321,7 @@ mod tests {
         b'\t'
     )]
     #[case(false, false, false, true, false, Encoding::Dbn, Compression::None, 0)]
-    #[case(true, false, false, false, true, Encoding::Json, Compression::ZStd, 0)]
+    #[case(true, false, false, false, true, Encoding::Json, Compression::Zstd, 0)]
     #[case(
         false,
         true,
@@ -329,7 +329,7 @@ mod tests {
         false,
         true,
         Encoding::Csv,
-        Compression::ZStd,
+        Compression::Zstd,
         b','
     )]
     #[case(
@@ -339,10 +339,10 @@ mod tests {
         false,
         true,
         Encoding::Csv,
-        Compression::ZStd,
+        Compression::Zstd,
         b'\t'
     )]
-    #[case(false, false, false, true, true, Encoding::Dbn, Compression::ZStd, 0)]
+    #[case(false, false, false, true, true, Encoding::Dbn, Compression::Zstd, 0)]
     fn test_infer_encoding_and_compression_explicit(
         #[case] json: bool,
         #[case] csv: bool,
@@ -370,11 +370,11 @@ mod tests {
     #[case("out.tsv", Encoding::Csv, Compression::None, b'\t')]
     #[case("out.xls", Encoding::Csv, Compression::None, b'\t')]
     #[case("out.dbn", Encoding::Dbn, Compression::None, 0)]
-    #[case("out.json.zst", Encoding::Json, Compression::ZStd, 0)]
-    #[case("out.csv.zst", Encoding::Csv, Compression::ZStd, b',')]
-    #[case("out.tsv.zst", Encoding::Csv, Compression::ZStd, b'\t')]
-    #[case("out.xls.zst", Encoding::Csv, Compression::ZStd, b'\t')]
-    #[case("out.dbn.zst", Encoding::Dbn, Compression::ZStd, 0)]
+    #[case("out.json.zst", Encoding::Json, Compression::Zstd, 0)]
+    #[case("out.csv.zst", Encoding::Csv, Compression::Zstd, b',')]
+    #[case("out.tsv.zst", Encoding::Csv, Compression::Zstd, b'\t')]
+    #[case("out.xls.zst", Encoding::Csv, Compression::Zstd, b'\t')]
+    #[case("out.dbn.zst", Encoding::Dbn, Compression::Zstd, 0)]
     fn test_infer_encoding_and_compression_inference(
         #[case] output: &str,
         #[case] exp_enc: Encoding,

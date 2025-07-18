@@ -991,7 +991,7 @@ mod tests {
         let header = RecordHeader::new::<MboMsg>(0xE, 1, 2, 3);
         assert_eq!(
             header.rtype().unwrap_err().to_string(),
-            "couldn't convert 0x0E to dbn::enums::rtype::RType"
+            "couldn't convert 0x0E to dbn::enums::RType"
         );
     }
 

@@ -1,11 +1,18 @@
 # Changelog
 
-## 0.37.2 - TBD
+## 0.38.0 - TBD
+
+### Breaking changes
+- Renamed `Compression::ZStd` to `Zstd` for consistency
+- Removed duplicated `flags` constants in `enums` module. Use the top-level `flags`
+  constants instead
+- Renamed to `SCHEMA_COUNT` to `Schema::COUNT`
 
 ### Bug fixes
 - Relaxed requirement of `input_version` parameter to the Python `Transcoder` to only
   be required when transcoding to CSV without `Metadata`, where previously it was always
   required when transcoding data without `Metadata`
+- Added missing methods to Python for `StatUpdateAction` enum
 
 ## 0.37.1 - 2025-07-15
 
