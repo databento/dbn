@@ -705,6 +705,32 @@ impl ImbalanceMsg {
         ts_to_dt(self.ts_recv)
     }
 
+    /// Parses the raw auction timestamp into a datetime. Returns `None` if
+    /// `auction_time` contains the sentinel for a null timestamp.
+    pub fn auction_time(&self) -> Option<time::OffsetDateTime> {
+        ts_to_dt(self.auction_time)
+    }
+
+    /// Tries to convert the raw side to an enum.
+    ///
+    /// # Errors
+    /// This function returns an error if the `side` field does not
+    /// contain a valid [`Side`].
+    pub fn side(&self) -> crate::Result<Side> {
+        Side::try_from(self.side as u8)
+            .map_err(|_| Error::conversion::<Side>(format!("{:#04X}", self.side as u8)))
+    }
+
+    /// Tries to convert the raw unpaired side to an enum.
+    ///
+    /// # Errors
+    /// This function returns an error if the `unpaired_side` field does not
+    /// contain a valid [`Side`].
+    pub fn unpaired_side(&self) -> crate::Result<Side> {
+        Side::try_from(self.unpaired_side as u8)
+            .map_err(|_| Error::conversion::<Side>(format!("{:#04X}", self.unpaired_side as u8)))
+    }
+
     /// Returns the reference price as a floating point.
     ///
     /// `UNDEF_PRICE` will be converted to NaN.
@@ -797,9 +823,12 @@ impl ErrorMsg {
         error
     }
 
-    /// Returns the error code enum variant if one was specified, otherwise `None`.
-    pub fn code(&self) -> Option<ErrorCode> {
-        ErrorCode::try_from(self.code).ok()
+    /// Returns the error code enum variant if one was specified.
+    ///
+    /// # Errors
+    /// Returns an error if the code field does not contain a valid `ErrorCode`.
+    pub fn code(&self) -> Result<ErrorCode> {
+        ErrorCode::try_from(self.code).map_err(|_| Error::conversion::<ErrorCode>(self.code))
     }
 
     /// Returns `err` as a `&str`.
@@ -900,9 +929,12 @@ impl SystemMsg {
         })
     }
 
-    /// Returns the system code enum variant if one was specified, otherwise `None`.
-    pub fn code(&self) -> Option<SystemCode> {
-        SystemCode::try_from(self.code).ok()
+    /// Returns the system code enum variant if one was specified.
+    ///
+    /// # Errors
+    /// Returns an error if the code field does not contain a valid `SystemCode`.
+    pub fn code(&self) -> Result<SystemCode> {
+        SystemCode::try_from(self.code).map_err(|_| Error::conversion::<SystemCode>(self.code))
     }
 
     /// Creates a new heartbeat `SystemMsg`.
@@ -916,7 +948,7 @@ impl SystemMsg {
 
     /// Checks whether the message is a heartbeat from the gateway.
     pub fn is_heartbeat(&self) -> bool {
-        if let Some(code) = self.code() {
+        if let Ok(code) = self.code() {
             code == SystemCode::Heartbeat
         } else {
             self.msg()
@@ -1056,7 +1088,7 @@ mod tests {
         assert_eq!(
             format!("{rec:?}"),
             "SystemMsg { hd: RecordHeader { length: 80, rtype: System, publisher_id: 0, \
-            instrument_id: 0, ts_event: 123 }, msg: \"Heartbeat\", code: 0 }"
+            instrument_id: 0, ts_event: 123 }, msg: \"Heartbeat\", code: Heartbeat }"
         );
     }
 

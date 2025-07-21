@@ -2929,6 +2929,11 @@ impl ImbalanceMsg {
         new_py_timestamp_or_datetime(py, self.ts_recv)
     }
 
+    #[getter]
+    fn get_pretty_auction_time<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+        new_py_timestamp_or_datetime(py, self.auction_time)
+    }
+
     #[classattr]
     fn size_hint() -> PyResult<usize> {
         Ok(mem::size_of::<Self>())
@@ -3347,7 +3352,7 @@ impl v2::ErrorMsg {
 
     #[getter]
     fn get_code(&self) -> Option<ErrorCode> {
-        self.code()
+        self.code().ok()
     }
 
     #[getter]
@@ -3800,7 +3805,7 @@ impl v2::SystemMsg {
 
     #[getter]
     fn get_code(&self) -> Option<SystemCode> {
-        self.code()
+        self.code().ok()
     }
 
     #[getter]

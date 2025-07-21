@@ -1097,6 +1097,7 @@ pub struct ImbalanceMsg {
     #[pyo3(get, set)]
     pub ref_price: i64,
     /// Reserved for future use.
+    #[dbn(unix_nanos)]
     #[pyo3(get, set)]
     pub auction_time: u64,
     /// The hypothetical auction-clearing price for both cross and continuous orders where every
@@ -1266,6 +1267,7 @@ pub struct ErrorMsg {
     pub err: [c_char; 302],
     /// The error code. See the [`ErrorCode`](crate::enums::ErrorCode) enum
     /// for possible values.
+    #[dbn(fmt_method)]
     #[pyo3(get, set)]
     pub code: u8,
     /// Sometimes multiple errors are sent together. This field will be non-zero for the
@@ -1344,6 +1346,7 @@ pub struct SystemMsg {
     pub msg: [c_char; 303],
     /// Type of system message. See the [`SystemCode`](crate::enums::SystemCode) enum
     /// for possible values.
+    #[dbn(fmt_method)]
     #[pyo3(get, set)]
     pub code: u8,
 }

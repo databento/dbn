@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.39.0 - TBD
+
+### Enhancements
+- Added `side()` and `unpaired_side()` methods to `ImbalanceMsg` that convert the fields
+  of the same name to the `Side` enum
+- Added `pretty_auction_time` property in Python for `ImbalanceMsg`
+
+### Breaking changes
+- Changed `SystemMsg::code()` and `ErrorMsg::code()` methods to return a `Result`
+  instead of an `Option` to be consistent with other enum conversion methods
+- Changed `auction_time` field in `ImbalanceMsg` to be formatted as a timestamp
+
 ## 0.38.0 - 2025-07-22
 
 ### Breaking changes
@@ -7,6 +19,9 @@
 - Removed duplicated `flags` constants in `enums` module. Use the top-level `flags`
   constants instead
 - Renamed to `SCHEMA_COUNT` to `Schema::COUNT`
+- Changed `SystemMsg::code()` and `ErrorMsg::code()` methods to return a `Result`
+  instead of an `Option` to be consistent with other enum conversion methods
+- Changed `auction_time` field in `ImbalanceMsg` to be formatted as a timestamp
 
 ### Bug fixes
 - Relaxed requirement of `input_version` parameter to the Python `Transcoder` to only
