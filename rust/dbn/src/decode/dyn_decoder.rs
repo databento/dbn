@@ -78,7 +78,7 @@ where
             Compression::None => Ok(Self(DynDecoderImpl::Dbn(
                 dbn::Decoder::with_upgrade_policy(reader, upgrade_policy)?,
             ))),
-            Compression::ZStd => Ok(Self(DynDecoderImpl::ZstdDbn(
+            Compression::Zstd => Ok(Self(DynDecoderImpl::ZstdDbn(
                 dbn::Decoder::with_upgrade_policy(
                     ::zstd::stream::Decoder::with_buffer(reader)
                         .map_err(|e| crate::Error::io(e, "creating zstd decoder"))?,

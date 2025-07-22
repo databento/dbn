@@ -200,11 +200,6 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
         let mut output = DynWriter::new(BufWriter::new(file), compression)?;
         let map_symbols = map_symbols.unwrap_or(true);
         if !has_metadata {
-            let Some(input_version) = input_version else {
-                return Err(PyValueError::new_err(
-                    "must specify input_version when has_metadata=False",
-                ));
-            };
             // if there's metadata, the header will be encoded when the metadata is processed
             Self::encode_header_if_csv(
                 &mut output,
@@ -212,7 +207,8 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
                 pretty_ts,
                 ts_out,
                 map_symbols,
-                upgrade_policy.output_version(input_version),
+                upgrade_policy,
+                input_version,
                 schema,
             )?;
         }
@@ -324,10 +320,8 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
             self.use_pretty_ts,
             self.fsm.ts_out(),
             self.map_symbols,
-            self.fsm
-                .upgrade_policy()
-                // Input version will be populated after decoding metadata
-                .output_version(self.fsm.input_dbn_version().unwrap()),
+            self.fsm.upgrade_policy(),
+            self.fsm.input_dbn_version(),
             self.schema,
         )
     }
@@ -338,10 +332,17 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
         use_pretty_ts: bool,
         ts_out: bool,
         map_symbols: bool,
-        output_version: u8,
+        upgrade_policy: VersionUpgradePolicy,
+        input_version: Option<u8>,
         schema: Option<Schema>,
     ) -> PyResult<()> {
         if OUTPUT_ENC == Encoding::Csv as u8 {
+            let Some(input_version) = input_version else {
+                return Err(PyValueError::new_err(
+                    "must specify input_version when has_metadata=False",
+                ));
+            };
+            let output_version = upgrade_policy.output_version(input_version);
             let Some(schema) = schema else {
                 return Err(PyValueError::new_err(
                     "A schema must be specified when transcoding mixed schema DBN to CSV",

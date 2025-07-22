@@ -8,7 +8,7 @@ use crate::Compression;
 
 use super::{zstd, SkipBytes};
 
-/// Type for runtime polymorphism over whether decoding uncompressed or ZStd-compressed
+/// Type for runtime polymorphism over whether decoding uncompressed or Zstd-compressed
 /// DBN records. Implements [`std::io::Write`].
 pub struct DynReader<'a, R>(DynReaderImpl<'a, R>)
 where
@@ -19,7 +19,7 @@ where
     R: io::BufRead,
 {
     Uncompressed(R),
-    ZStd(::zstd::stream::Decoder<'a, R>),
+    Zstd(::zstd::stream::Decoder<'a, R>),
 }
 
 impl<R> DynReader<'_, BufReader<R>>
@@ -60,7 +60,7 @@ where
     pub fn with_buffer(reader: R, compression: Compression) -> crate::Result<Self> {
         match compression {
             Compression::None => Ok(Self(DynReaderImpl::Uncompressed(reader))),
-            Compression::ZStd => Ok(Self(DynReaderImpl::ZStd(
+            Compression::Zstd => Ok(Self(DynReaderImpl::Zstd(
                 ::zstd::stream::Decoder::with_buffer(reader)
                     .map_err(|e| crate::Error::io(e, "creating zstd decoder"))?,
             ))),
@@ -77,7 +77,7 @@ where
             .fill_buf()
             .map_err(|e| crate::Error::io(e, "creating buffer to infer encoding"))?;
         if zstd::starts_with_prefix(first_bytes) {
-            Ok(Self(DynReaderImpl::ZStd(
+            Ok(Self(DynReaderImpl::Zstd(
                 ::zstd::stream::Decoder::with_buffer(reader)
                     .map_err(|e| crate::Error::io(e, "creating zstd decoder"))?,
             )))
@@ -90,7 +90,7 @@ where
     pub fn get_mut(&mut self) -> &mut R {
         match &mut self.0 {
             DynReaderImpl::Uncompressed(reader) => reader,
-            DynReaderImpl::ZStd(reader) => reader.get_mut(),
+            DynReaderImpl::Zstd(reader) => reader.get_mut(),
         }
     }
 
@@ -98,7 +98,7 @@ where
     pub fn get_ref(&self) -> &R {
         match &self.0 {
             DynReaderImpl::Uncompressed(reader) => reader,
-            DynReaderImpl::ZStd(reader) => reader.get_ref(),
+            DynReaderImpl::Zstd(reader) => reader.get_ref(),
         }
     }
 }
@@ -130,7 +130,7 @@ where
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         match &mut self.0 {
             DynReaderImpl::Uncompressed(r) => r.read(buf),
-            DynReaderImpl::ZStd(r) => r.read(buf),
+            DynReaderImpl::Zstd(r) => r.read(buf),
         }
     }
 }
@@ -145,7 +145,7 @@ where
             DynReaderImpl::Uncompressed(reader) => {
                 reader.seek_relative(n_bytes as i64).map_err(handle_err)
             }
-            DynReaderImpl::ZStd(reader) => {
+            DynReaderImpl::Zstd(reader) => {
                 let mut buf = [0; 1024];
                 let mut remaining = n_bytes;
                 while remaining > 0 {
@@ -231,7 +231,7 @@ mod r#async {
         R: io::AsyncBufReadExt + Unpin,
     {
         Uncompressed(R),
-        ZStd(ZstdDecoder<R>),
+        Zstd(ZstdDecoder<R>),
     }
 
     impl<R> DynReader<BufReader<R>>
@@ -265,7 +265,7 @@ mod r#async {
         pub fn with_buffer(reader: R, compression: Compression) -> Self {
             match compression {
                 Compression::None => Self(DynReaderImpl::Uncompressed(reader)),
-                Compression::ZStd => Self(DynReaderImpl::ZStd(ZstdDecoder::new(reader))),
+                Compression::Zstd => Self(DynReaderImpl::Zstd(ZstdDecoder::new(reader))),
             }
         }
 
@@ -279,7 +279,7 @@ mod r#async {
                 .await
                 .map_err(|e| crate::Error::io(e, "creating buffer to infer encoding"))?;
             Ok(if super::zstd::starts_with_prefix(first_bytes) {
-                Self(DynReaderImpl::ZStd(zstd_decoder(reader)))
+                Self(DynReaderImpl::Zstd(zstd_decoder(reader)))
             } else {
                 Self(DynReaderImpl::Uncompressed(reader))
             })
@@ -289,7 +289,7 @@ mod r#async {
         pub fn get_mut(&mut self) -> &mut R {
             match &mut self.0 {
                 DynReaderImpl::Uncompressed(reader) => reader,
-                DynReaderImpl::ZStd(reader) => reader.get_mut(),
+                DynReaderImpl::Zstd(reader) => reader.get_mut(),
             }
         }
 
@@ -297,7 +297,7 @@ mod r#async {
         pub fn get_ref(&self) -> &R {
             match &self.0 {
                 DynReaderImpl::Uncompressed(reader) => reader,
-                DynReaderImpl::ZStd(reader) => reader.get_ref(),
+                DynReaderImpl::Zstd(reader) => reader.get_ref(),
             }
         }
     }
@@ -339,7 +339,7 @@ mod r#async {
                 DynReaderImpl::Uncompressed(reader) => {
                     io::AsyncRead::poll_read(Pin::new(reader), cx, buf)
                 }
-                DynReaderImpl::ZStd(reader) => io::AsyncRead::poll_read(Pin::new(reader), cx, buf),
+                DynReaderImpl::Zstd(reader) => io::AsyncRead::poll_read(Pin::new(reader), cx, buf),
             }
         }
     }
@@ -360,7 +360,7 @@ mod r#async {
                     .await
                     .map(drop)
                     .map_err(handle_err),
-                DynReaderImpl::ZStd(reader) => {
+                DynReaderImpl::Zstd(reader) => {
                     let mut buf = [0; 1024];
                     let mut remaining = n_bytes;
                     while remaining > 0 {

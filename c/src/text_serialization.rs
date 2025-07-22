@@ -6,7 +6,7 @@ use std::{
 
 use dbn::{
     encode::{csv, json, DbnEncodable, EncodeRecordRef},
-    rtype, rtype_dispatch, RecordHeader, RecordRef, Schema,
+    rtype_dispatch, RType, RecordHeader, RecordRef, Schema,
 };
 
 use crate::cfile::CFileRef;
@@ -235,7 +235,7 @@ pub unsafe extern "C" fn schema_from_rtype(rtype: u8, res: *mut Schema) -> bool 
     if res.is_null() {
         return false;
     }
-    if let Some(schema) = rtype::try_into_schema(rtype) {
+    if let Some(schema) = RType::try_into_schema(rtype) {
         *res = schema;
         true
     } else {
