@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.38.0 - TBD
+## 0.38.0 - 2025-07-22
 
 ### Breaking changes
 - Renamed `Compression::ZStd` to `Zstd` for consistency
