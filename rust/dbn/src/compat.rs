@@ -501,7 +501,7 @@ pub struct SystemMsgV1 {
     /// The common header.
     #[pyo3(get)]
     pub hd: RecordHeader,
-    /// The message from the Databento Live Subscription Gateway (LSG).
+    /// The message from the Databento gateway.
     #[dbn(fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub msg: [c_char; 64],

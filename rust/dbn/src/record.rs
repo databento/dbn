@@ -5,7 +5,9 @@ pub(crate) mod conv;
 mod impl_default;
 mod layout_tests;
 mod methods;
+mod record_methods_tests;
 mod traits;
+mod with_ts_out_methods;
 
 use std::{ffi::CStr, mem, os::raw::c_char, ptr::NonNull, slice};
 
@@ -47,7 +49,7 @@ pub struct RecordHeader {
     /// The length of the record in 32-bit words.
     #[dbn(skip)]
     pub(crate) length: u8,
-    /// The record type; with `0xe0..0x0F` specifying MBP levels size. Record types
+    /// The record type; with `0x00..0x0F` specifying MBP levels size. Record types
     /// implement the trait [`HasRType`], and the [`has_rtype`][HasRType::has_rtype]
     /// function can be used to check if that type can be used to decode a message with
     /// a given rtype. The set of possible values is defined in [`rtype`].
@@ -1340,7 +1342,7 @@ pub struct SystemMsg {
     /// The common header.
     #[pyo3(get)]
     pub hd: RecordHeader,
-    /// The message from the Databento Live Subscription Gateway (LSG).
+    /// The message from the Databento gateway.
     #[dbn(fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub msg: [c_char; 303],

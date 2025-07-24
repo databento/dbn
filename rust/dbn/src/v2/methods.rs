@@ -4,42 +4,138 @@ use crate::{
     Error, InstrumentClass, MatchAlgorithm, Result, SecurityUpdateAction,
 };
 
-use super::InstrumentDefMsg;
+use super::*;
 
 impl InstrumentDefMsg {
-    /// Parses the raw capture-server-received timestamp into a datetime. Returns `None`
-    /// if `ts_recv` contains the sentinel for a null timestamp.
+    /// Parses the capture-server-received timestamp into a datetime.
+    /// Returns `None` if `ts_recv` contains the sentinel for a null timestamp.
     pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
         ts_to_dt(self.ts_recv)
     }
 
-    /// Returns the unit of measure quantity as a floating point.
+    /// Converts the minimum constant tick to a floating point.
     ///
     /// `UNDEF_PRICE` will be converted to NaN.
-    pub fn unit_of_measure_qty_f64(&self) -> f64 {
-        px_to_f64(self.unit_of_measure_qty)
+    ///
+    /// <div class="warning">
+    /// This may introduce floating-point error.
+    /// </div>
+    pub fn min_price_increment_f64(&self) -> f64 {
+        px_to_f64(self.min_price_increment)
     }
 
-    /// Returns the strike price as a floating point.
+    /// Converts the display factor to a floating point.
     ///
     /// `UNDEF_PRICE` will be converted to NaN.
-    pub fn strike_price_f64(&self) -> f64 {
-        px_to_f64(self.strike_price)
+    ///
+    /// <div class="warning">
+    /// This may introduce floating-point error.
+    /// </div>
+    pub fn display_factor_f64(&self) -> f64 {
+        px_to_f64(self.display_factor)
     }
 
-    /// Parses the raw last eligible trade time into a datetime. Returns `None` if
-    /// `expiration` contains the sentinel for a null timestamp.
+    /// Parses the last eligible trade time into a datetime.
+    /// Returns `None` if `expiration` contains the sentinel for a null timestamp.
     pub fn expiration(&self) -> Option<time::OffsetDateTime> {
         ts_to_dt(self.expiration)
     }
 
-    /// Parses the raw time of instrument action into a datetime. Returns `None` if
-    /// `activation` contains the sentinel for a null timestamp.
+    /// Parses the time of instrument activation into a datetime.
+    /// Returns `None` if `activation` contains the sentinel for a null timestamp.
     pub fn activation(&self) -> Option<time::OffsetDateTime> {
         ts_to_dt(self.activation)
     }
 
-    /// Returns currency used for price fields as a `&str`.
+    /// Converts the high limit price to a floating point.
+    ///
+    /// `UNDEF_PRICE` will be converted to NaN.
+    ///
+    /// <div class="warning">
+    /// This may introduce floating-point error.
+    /// </div>
+    pub fn high_limit_price_f64(&self) -> f64 {
+        px_to_f64(self.high_limit_price)
+    }
+
+    /// Converts the low limit price to a floating point.
+    ///
+    /// `UNDEF_PRICE` will be converted to NaN.
+    ///
+    /// <div class="warning">
+    /// This may introduce floating-point error.
+    /// </div>
+    pub fn low_limit_price_f64(&self) -> f64 {
+        px_to_f64(self.low_limit_price)
+    }
+
+    /// Converts the differential value for price banding to a floating point.
+    ///
+    /// `UNDEF_PRICE` will be converted to NaN.
+    ///
+    /// <div class="warning">
+    /// This may introduce floating-point error.
+    /// </div>
+    pub fn max_price_variation_f64(&self) -> f64 {
+        px_to_f64(self.max_price_variation)
+    }
+
+    /// Converts the trading session settlement price to a floating point.
+    ///
+    /// `UNDEF_PRICE` will be converted to NaN.
+    ///
+    /// <div class="warning">
+    /// This may introduce floating-point error.
+    /// </div>
+    pub fn trading_reference_price_f64(&self) -> f64 {
+        px_to_f64(self.trading_reference_price)
+    }
+
+    /// Converts the contract size for each instrument to a floating point.
+    ///
+    /// `UNDEF_PRICE` will be converted to NaN.
+    ///
+    /// <div class="warning">
+    /// This may introduce floating-point error.
+    /// </div>
+    pub fn unit_of_measure_qty_f64(&self) -> f64 {
+        px_to_f64(self.unit_of_measure_qty)
+    }
+
+    /// Converts the min price increment amount to a floating point.
+    ///
+    /// `UNDEF_PRICE` will be converted to NaN.
+    ///
+    /// <div class="warning">
+    /// This may introduce floating-point error.
+    /// </div>
+    pub fn min_price_increment_amount_f64(&self) -> f64 {
+        px_to_f64(self.min_price_increment_amount)
+    }
+
+    /// Converts the price ratio to a floating point.
+    ///
+    /// `UNDEF_PRICE` will be converted to NaN.
+    ///
+    /// <div class="warning">
+    /// This may introduce floating-point error.
+    /// </div>
+    pub fn price_ratio_f64(&self) -> f64 {
+        px_to_f64(self.price_ratio)
+    }
+
+    /// Converts the strike price to a floating point.
+    ///
+    /// `UNDEF_PRICE` will be converted to NaN.
+    ///
+    /// <div class="warning">
+    /// This may introduce floating-point error.
+    /// </div>
+    pub fn strike_price_f64(&self) -> f64 {
+        px_to_f64(self.strike_price)
+    }
+
+    /// Parses the currency into a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `currency` contains invalid UTF-8.
@@ -47,7 +143,7 @@ impl InstrumentDefMsg {
         c_chars_to_str(&self.currency)
     }
 
-    /// Returns currency used for settlement as a `&str`.
+    /// Parses the currency used for settlement into a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `settl_currency` contains invalid UTF-8.
@@ -55,7 +151,7 @@ impl InstrumentDefMsg {
         c_chars_to_str(&self.settl_currency)
     }
 
-    /// Returns the strategy type of the spread as a `&str`.
+    /// Parses the strategy type of the spread into a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `secsubtype` contains invalid UTF-8.
@@ -63,7 +159,7 @@ impl InstrumentDefMsg {
         c_chars_to_str(&self.secsubtype)
     }
 
-    /// Returns the instrument raw symbol assigned by the publisher as a `&str`.
+    /// Parses the raw symbol into a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `raw_symbol` contains invalid UTF-8.
@@ -71,65 +167,7 @@ impl InstrumentDefMsg {
         c_chars_to_str(&self.raw_symbol)
     }
 
-    /// Returns exchange used to identify the instrument as a `&str`.
-    ///
-    /// # Errors
-    /// This function returns an error if `exchange` contains invalid UTF-8.
-    pub fn exchange(&self) -> Result<&str> {
-        c_chars_to_str(&self.exchange)
-    }
-
-    /// Returns the underlying asset code (product code) of the instrument as a `&str`.
-    ///
-    /// # Errors
-    /// This function returns an error if `asset` contains invalid UTF-8.
-    pub fn asset(&self) -> Result<&str> {
-        c_chars_to_str(&self.asset)
-    }
-
-    /// Returns the ISO standard instrument categorization code as a `&str`.
-    ///
-    /// # Errors
-    /// This function returns an error if `cfi` contains invalid UTF-8.
-    pub fn cfi(&self) -> Result<&str> {
-        c_chars_to_str(&self.cfi)
-    }
-
-    /// Returns the [Security type](https://databento.com/docs/schemas-and-data-formats/instrument-definitions#security-type)
-    /// of the instrument, e.g. FUT for future or future spread as a `&str`.
-    ///
-    /// # Errors
-    /// This function returns an error if `security_type` contains invalid UTF-8.
-    pub fn security_type(&self) -> Result<&str> {
-        c_chars_to_str(&self.security_type)
-    }
-
-    /// Returns the unit of measure for the instrument's original contract size, e.g.
-    /// USD or LBS, as a `&str`.
-    ///
-    /// # Errors
-    /// This function returns an error if `unit_of_measure` contains invalid UTF-8.
-    pub fn unit_of_measure(&self) -> Result<&str> {
-        c_chars_to_str(&self.unit_of_measure)
-    }
-
-    /// Returns the symbol of the first underlying instrument as a `&str`.
-    ///
-    /// # Errors
-    /// This function returns an error if `underlying` contains invalid UTF-8.
-    pub fn underlying(&self) -> Result<&str> {
-        c_chars_to_str(&self.underlying)
-    }
-
-    /// Returns the currency of [`strike_price`](Self::strike_price) as a `&str`.
-    ///
-    /// # Errors
-    /// This function returns an error if `strike_price_currency` contains invalid UTF-8.
-    pub fn strike_price_currency(&self) -> Result<&str> {
-        c_chars_to_str(&self.strike_price_currency)
-    }
-
-    /// Returns the security group code of the instrumnet as a `&str`.
+    /// Parses the security group code into a `&str`.
     ///
     /// # Errors
     /// This function returns an error if `group` contains invalid UTF-8.
@@ -137,35 +175,90 @@ impl InstrumentDefMsg {
         c_chars_to_str(&self.group)
     }
 
-    /// Tries to convert the raw classification of the instrument to an enum.
+    /// Parses the exchange into a `&str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `exchange` contains invalid UTF-8.
+    pub fn exchange(&self) -> Result<&str> {
+        c_chars_to_str(&self.exchange)
+    }
+
+    /// Parses the asset into a `&str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `asset` contains invalid UTF-8.
+    pub fn asset(&self) -> Result<&str> {
+        c_chars_to_str(&self.asset)
+    }
+
+    /// Parses the CFI code into a `&str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `cfi` contains invalid UTF-8.
+    pub fn cfi(&self) -> Result<&str> {
+        c_chars_to_str(&self.cfi)
+    }
+
+    /// Parses the security type into a `&str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `security_type` contains invalid UTF-8.
+    pub fn security_type(&self) -> Result<&str> {
+        c_chars_to_str(&self.security_type)
+    }
+
+    /// Parses the unit of measure into a `&str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `unit_of_measure` contains invalid UTF-8.
+    pub fn unit_of_measure(&self) -> Result<&str> {
+        c_chars_to_str(&self.unit_of_measure)
+    }
+
+    /// Parses the underlying into a `&str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `underlying` contains invalid UTF-8.
+    pub fn underlying(&self) -> Result<&str> {
+        c_chars_to_str(&self.underlying)
+    }
+
+    /// Parses the strike price currency into a `&str`.
+    ///
+    /// # Errors
+    /// This function returns an error if `strike_price_currency` contains invalid UTF-8.
+    pub fn strike_price_currency(&self) -> Result<&str> {
+        c_chars_to_str(&self.strike_price_currency)
+    }
+
+    /// Parses the instrument class into an enum.
     ///
     /// # Errors
     /// This function returns an error if the `instrument_class` field does not
     /// contain a valid [`InstrumentClass`].
-    pub fn instrument_class(&self) -> Result<InstrumentClass> {
+    pub fn instrument_class(&self) -> crate::Result<InstrumentClass> {
         InstrumentClass::try_from(self.instrument_class as u8).map_err(|_| {
             Error::conversion::<InstrumentClass>(format!("{:#04X}", self.instrument_class as u8))
         })
     }
 
-    /// Tries to convert the raw matching algorithm used for the instrument to an enum.
+    /// Parses the match algorithm into an enum.
     ///
     /// # Errors
     /// This function returns an error if the `match_algorithm` field does not
     /// contain a valid [`MatchAlgorithm`].
-    pub fn match_algorithm(&self) -> Result<MatchAlgorithm> {
+    pub fn match_algorithm(&self) -> crate::Result<MatchAlgorithm> {
         MatchAlgorithm::try_from(self.match_algorithm as u8).map_err(|_| {
             Error::conversion::<MatchAlgorithm>(format!("{:#04X}", self.match_algorithm as u8))
         })
     }
 
-    /// Returns the action indicating whether the instrument definition has been added,
-    /// modified, or deleted.
+    /// Parses the security update action into an enum.
     ///
     /// # Errors
     /// This function returns an error if the `security_update_action` field does not
     /// contain a valid [`SecurityUpdateAction`].
-    pub fn security_update_action(&self) -> Result<SecurityUpdateAction> {
+    pub fn security_update_action(&self) -> crate::Result<SecurityUpdateAction> {
         SecurityUpdateAction::try_from(self.security_update_action as u8).map_err(|_| {
             Error::conversion::<SecurityUpdateAction>(format!(
                 "{:#04X}",

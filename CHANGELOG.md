@@ -1,22 +1,32 @@
 # Changelog
 
-## 0.39.1 - TBD
-
-### Bug fixes
-- Fixed a regression where some enum constructors no longer raised a `DBNError` in
-  Python
-
 ## 0.39.0 - TBD
 
 ### Enhancements
 - Added `side()` and `unpaired_side()` methods to `ImbalanceMsg` that convert the fields
   of the same name to the `Side` enum
 - Added `pretty_auction_time` property in Python for `ImbalanceMsg`
+- Added `Default` implementation for `StatUpdateAction`
+- Added warnings to the floating-point getter methods' docstrings
+- Added `action` and `ts_in_delta` getters to `BboMsg`
+- Added `ts_recv` getter to `StatusMsg`
+- Added missing floating-point price getters to `InstrumentDefMsg` record types from all
+  DBN versions
+- Added more floating-point price getters to `ImbalanceMsg`
+- Added floating-point price getter to `StatMsg` and `v1::StatMsg`
+- Standardize Python `__init__` type signatures
 
 ### Breaking changes
 - Changed `SystemMsg::code()` and `ErrorMsg::code()` methods to return a `Result`
   instead of an `Option` to be consistent with other enum conversion methods
 - Changed `auction_time` field in `ImbalanceMsg` to be formatted as a timestamp
+
+### Bug fixes
+- Fixed a regression where some enum constructors no longer raised a `DBNError` in
+  Python
+- Fixed typo in `RecordHeader`'s `rtype` docstring
+- Removed error documentation from `ErrorMsg::new` because the function never returns an
+  error
 
 ## 0.38.0 - 2025-07-22
 

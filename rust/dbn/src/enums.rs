@@ -278,7 +278,6 @@ pub enum Side {
     #[pyo3(name = "BID")]
     Bid = b'B',
     /// No side specified by the original source.
-
     #[default]
     #[pyo3(name = "NONE")]
     None = b'N',
@@ -336,7 +335,6 @@ pub enum Action {
     #[pyo3(name = "CLEAR")]
     Clear = b'R',
     /// Has no effect on the book, but may carry `flags` or other information.
-
     #[default]
     #[pyo3(name = "NONE")]
     None = b'N',
@@ -427,7 +425,6 @@ impl From<InstrumentClass> for char {
 #[repr(u8)]
 pub enum MatchAlgorithm {
     /// No matching algorithm was specified.
-
     #[default]
     #[pyo3(name = "UNDEFINED")]
     Undefined = b' ',
@@ -502,7 +499,6 @@ impl From<MatchAlgorithm> for char {
 #[repr(u8)]
 pub enum UserDefinedInstrument {
     /// The instrument is not user-defined.
-
     #[default]
     #[pyo3(name = "NO")]
     No = b'N',
@@ -1023,7 +1019,17 @@ pub enum StatType {
 
 /// The type of [`StatMsg`](crate::record::StatMsg) update.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, TryFromPrimitive, IntoPrimitive,
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    TryFromPrimitive,
+    IntoPrimitive,
 )]
 #[cfg_attr(
     feature = "python",
@@ -1035,6 +1041,7 @@ pub enum StatType {
 #[repr(u8)]
 pub enum StatUpdateAction {
     /// A new statistic.
+    #[default]
     #[pyo3(name = "NEW")]
     New = 1,
     /// A removal of a statistic.
@@ -1066,7 +1073,6 @@ pub enum StatUpdateAction {
 #[repr(u16)]
 pub enum StatusAction {
     /// No change.
-
     #[default]
     #[pyo3(name = "NONE")]
     None = 0,
@@ -1142,7 +1148,6 @@ pub enum StatusAction {
 #[repr(u16)]
 pub enum StatusReason {
     /// No reason is given.
-
     #[default]
     #[pyo3(name = "NONE")]
     None = 0,
@@ -1274,7 +1279,6 @@ pub enum StatusReason {
 #[repr(u16)]
 pub enum TradingEvent {
     /// No additional information given.
-
     #[default]
     #[pyo3(name = "NONE")]
     None = 0,
@@ -1317,7 +1321,6 @@ pub enum TradingEvent {
 #[repr(u8)]
 pub enum TriState {
     /// The value is not applicable or not known.
-
     #[default]
     #[pyo3(name = "NOT_AVAILABLE")]
     NotAvailable = b'~',
@@ -1355,7 +1358,6 @@ pub enum VersionUpgradePolicy {
     /// Decode and convert data from DBN versions prior to version 3 to that version.
     /// Attempting to decode data from newer versions (when they're introduced) will
     /// fail.
-
     #[default]
     #[pyo3(name = "UPGRADE_TO_V3")]
     UpgradeToV3,
