@@ -15,6 +15,7 @@ use strum::IntoEnumIterator;
 
 use crate::{Error, FlagSet};
 
+mod conversions;
 mod enums;
 mod metadata;
 mod record;
