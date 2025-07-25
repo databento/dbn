@@ -103,13 +103,13 @@ mod tests {
         Dataset, MetadataBuilder,
     };
     use pyo3::{ffi::c_str, py_run, types::PyString};
+    use rstest::*;
 
     use super::*;
-    use crate::tests::setup;
+    use crate::tests::python;
 
-    #[test]
-    fn test_partial_metadata_and_records() {
-        setup();
+    #[rstest]
+    fn test_partial_metadata_and_records(_python: ()) {
         let mut target =
             DbnDecoder::new(true, false, None, VersionUpgradePolicy::default()).unwrap();
         let buffer = Vec::new();
@@ -149,9 +149,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_full_with_partial_record() {
-        setup();
+    #[rstest]
+    fn test_full_with_partial_record(_python: ()) {
         let mut decoder =
             DbnDecoder::new(true, false, None, VersionUpgradePolicy::default()).unwrap();
         let buffer = Vec::new();
@@ -198,9 +197,8 @@ mod tests {
         assert!(matches!(res2, Ok(recs) if recs.len() == 1));
     }
 
-    #[test]
-    fn test_dbn_decoder() {
-        setup();
+    #[rstest]
+    fn test_dbn_decoder(_python: ()) {
         Python::with_gil(|py| {
             let path = PyString::new(
                 py,
@@ -226,9 +224,8 @@ for record in records[1:]:
         });
     }
 
-    #[test]
-    fn test_dbn_decoder_decoding_error() {
-        setup();
+    #[rstest]
+    fn test_dbn_decoder_decoding_error(_python: ()) {
         Python::with_gil(|py| {
             Python::run(py,
                 c_str!(r#"from _lib import DBNDecoder, DBNError, Metadata, Schema, SType
@@ -265,9 +262,8 @@ except Exception:
         }).unwrap();
     }
 
-    #[test]
-    fn test_dbn_decoder_ts_out() {
-        setup();
+    #[rstest]
+    fn test_dbn_decoder_ts_out(_python: ()) {
         Python::with_gil(|py| {
             Python::run(
                 py,
@@ -303,9 +299,8 @@ for record in records:
         .unwrap();
     }
 
-    #[test]
-    fn test_dbn_decoder_no_metadata() {
-        setup();
+    #[rstest]
+    fn test_dbn_decoder_no_metadata(_python: ()) {
         Python::with_gil(|py| {
             Python::run(
                 py,
@@ -327,9 +322,8 @@ assert records[0] == record
         .unwrap();
     }
 
-    #[test]
-    fn test_decode_all_data_in_compat_situation() {
-        setup();
+    #[rstest]
+    fn test_decode_all_data_in_compat_situation(_python: ()) {
         Python::with_gil(|py| {
             Python::run(
                 py,

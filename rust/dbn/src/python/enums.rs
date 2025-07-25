@@ -79,17 +79,17 @@ impl RType {
     #[classmethod]
     #[pyo3(name = "from_str")]
     fn py_from_str(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
-        let value_str: String = value.str().and_then(|s| s.extract())?;
+        let value_str: String = value.str().and_then(|s| s.extract()).map_err(to_py_err)?;
 
         let tokenized = value_str.replace('_', "-").to_lowercase();
 
-        Ok(Self::from_str(&tokenized)?)
+        Self::from_str(&tokenized).map_err(to_py_err)
     }
 
     #[classmethod]
     #[pyo3(name = "from_int")]
     fn py_from_int(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
-        let value: u8 = value.extract()?;
+        let value: u8 = value.extract().map_err(to_py_err)?;
         Self::try_from(value).map_err(to_py_err)
     }
     #[classmethod]
@@ -540,17 +540,17 @@ impl SType {
     #[classmethod]
     #[pyo3(name = "from_str")]
     fn py_from_str(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
-        let value_str: String = value.str().and_then(|s| s.extract())?;
+        let value_str: String = value.str().and_then(|s| s.extract()).map_err(to_py_err)?;
 
         let tokenized = value_str.replace('-', "_").to_lowercase();
 
-        Ok(Self::from_str(&tokenized)?)
+        Self::from_str(&tokenized).map_err(to_py_err)
     }
 
     #[classmethod]
     #[pyo3(name = "from_int")]
     fn py_from_int(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
-        let value: u8 = value.extract()?;
+        let value: u8 = value.extract().map_err(to_py_err)?;
         Self::try_from(value).map_err(to_py_err)
     }
 }
@@ -620,17 +620,17 @@ impl Schema {
     #[classmethod]
     #[pyo3(name = "from_str")]
     fn py_from_str(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
-        let value_str: String = value.str().and_then(|s| s.extract())?;
+        let value_str: String = value.str().and_then(|s| s.extract()).map_err(to_py_err)?;
 
         let tokenized = value_str.replace('_', "-").to_lowercase();
 
-        Ok(Self::from_str(&tokenized)?)
+        Self::from_str(&tokenized).map_err(to_py_err)
     }
 
     #[classmethod]
     #[pyo3(name = "from_int")]
     fn py_from_int(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
-        let value: u16 = value.extract()?;
+        let value: u16 = value.extract().map_err(to_py_err)?;
         Self::try_from(value).map_err(to_py_err)
     }
 }
@@ -683,17 +683,17 @@ impl Encoding {
     #[classmethod]
     #[pyo3(name = "from_str")]
     fn py_from_str(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
-        let value_str: String = value.str().and_then(|s| s.extract())?;
+        let value_str: String = value.str().and_then(|s| s.extract()).map_err(to_py_err)?;
 
         let tokenized = value_str.replace('-', "_").to_lowercase();
 
-        Ok(Self::from_str(&tokenized)?)
+        Self::from_str(&tokenized).map_err(to_py_err)
     }
 
     #[classmethod]
     #[pyo3(name = "from_int")]
     fn py_from_int(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
-        let value: u8 = value.extract()?;
+        let value: u8 = value.extract().map_err(to_py_err)?;
         Self::try_from(value).map_err(to_py_err)
     }
 }
@@ -745,17 +745,17 @@ impl Compression {
     #[classmethod]
     #[pyo3(name = "from_str")]
     fn py_from_str(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
-        let value_str: String = value.str().and_then(|s| s.extract())?;
+        let value_str: String = value.str().and_then(|s| s.extract()).map_err(to_py_err)?;
 
         let tokenized = value_str.replace('-', "_").to_lowercase();
 
-        Ok(Self::from_str(&tokenized)?)
+        Self::from_str(&tokenized).map_err(to_py_err)
     }
 
     #[classmethod]
     #[pyo3(name = "from_int")]
     fn py_from_int(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
-        let value: u8 = value.extract()?;
+        let value: u8 = value.extract().map_err(to_py_err)?;
         Self::try_from(value).map_err(to_py_err)
     }
 }
@@ -817,7 +817,7 @@ impl StatType {
     #[classmethod]
     #[pyo3(name = "from_int")]
     fn py_from_int(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
-        let value: u16 = value.extract()?;
+        let value: u16 = value.extract().map_err(to_py_err)?;
         Self::try_from(value).map_err(to_py_err)
     }
 }
@@ -865,7 +865,7 @@ impl StatUpdateAction {
     #[classmethod]
     #[pyo3(name = "from_int")]
     fn py_from_int(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
-        let value: u8 = value.extract()?;
+        let value: u8 = value.extract().map_err(to_py_err)?;
         Self::try_from(value).map_err(to_py_err)
     }
 }
@@ -927,7 +927,7 @@ impl StatusAction {
     #[classmethod]
     #[pyo3(name = "from_int")]
     fn py_from_int(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
-        let value: u16 = value.extract()?;
+        let value: u16 = value.extract().map_err(to_py_err)?;
         Self::try_from(value).map_err(to_py_err)
     }
 }
@@ -1007,7 +1007,7 @@ impl StatusReason {
     #[classmethod]
     #[pyo3(name = "from_int")]
     fn py_from_int(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
-        let value: u16 = value.extract()?;
+        let value: u16 = value.extract().map_err(to_py_err)?;
         Self::try_from(value).map_err(to_py_err)
     }
 }
@@ -1058,7 +1058,7 @@ impl TradingEvent {
     #[classmethod]
     #[pyo3(name = "from_int")]
     fn py_from_int(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
-        let value: u16 = value.extract()?;
+        let value: u16 = value.extract().map_err(to_py_err)?;
         Self::try_from(value).map_err(to_py_err)
     }
 }
@@ -1207,17 +1207,17 @@ impl ErrorCode {
     #[classmethod]
     #[pyo3(name = "from_str")]
     fn py_from_str(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
-        let value_str: String = value.str().and_then(|s| s.extract())?;
+        let value_str: String = value.str().and_then(|s| s.extract()).map_err(to_py_err)?;
 
         let tokenized = value_str.replace('-', "_").to_lowercase();
 
-        Ok(Self::from_str(&tokenized)?)
+        Self::from_str(&tokenized).map_err(to_py_err)
     }
 
     #[classmethod]
     #[pyo3(name = "from_int")]
     fn py_from_int(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
-        let value: u8 = value.extract()?;
+        let value: u8 = value.extract().map_err(to_py_err)?;
         Self::try_from(value).map_err(to_py_err)
     }
 }
@@ -1271,17 +1271,17 @@ impl SystemCode {
     #[classmethod]
     #[pyo3(name = "from_str")]
     fn py_from_str(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
-        let value_str: String = value.str().and_then(|s| s.extract())?;
+        let value_str: String = value.str().and_then(|s| s.extract()).map_err(to_py_err)?;
 
         let tokenized = value_str.replace('-', "_").to_lowercase();
 
-        Ok(Self::from_str(&tokenized)?)
+        Self::from_str(&tokenized).map_err(to_py_err)
     }
 
     #[classmethod]
     #[pyo3(name = "from_int")]
     fn py_from_int(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
-        let value: u8 = value.extract()?;
+        let value: u8 = value.extract().map_err(to_py_err)?;
         Self::try_from(value).map_err(to_py_err)
     }
 }

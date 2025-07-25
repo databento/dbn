@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.39.1 - TBD
+
+### Bug fixes
+- Fixed a regression where some enum constructors no longer raised a `DBNError` in
+  Python
+
 ## 0.39.0 - TBD
 
 ### Enhancements
