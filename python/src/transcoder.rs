@@ -402,19 +402,18 @@ mod tests {
         rtype, Dataset, ErrorMsg, MappingInterval, MetadataBuilder, OhlcvMsg, RecordHeader, SType,
         Schema, SymbolMapping, SymbolMappingMsg, WithTsOut, DBN_VERSION, UNDEF_TIMESTAMP,
     };
-    use rstest::rstest;
+    use rstest::*;
     use time::macros::{date, datetime};
 
     use crate::{
         encode::tests::MockPyFile,
-        tests::{setup, TEST_DATA_PATH},
+        tests::{python, TEST_DATA_PATH},
     };
 
     use super::*;
 
-    #[test]
-    fn test_partial_metadata_and_records() {
-        setup();
+    #[rstest]
+    fn test_partial_metadata_and_records(_python: ()) {
         let file = MockPyFile::new();
         let output_buf = file.inner();
         let mut target = Python::with_gil(|py| {
@@ -483,9 +482,8 @@ mod tests {
         assert_eq!(output.chars().filter(|c| *c == '\n').count(), 1);
     }
 
-    #[test]
-    fn test_full_with_partial_record() {
-        setup();
+    #[rstest]
+    fn test_full_with_partial_record(_python: ()) {
         let file = MockPyFile::new();
         let output_buf = file.inner();
         let mut transcoder = Python::with_gil(|py| {
@@ -555,8 +553,11 @@ mod tests {
     #[case::csv_map_symbols(Encoding::Csv, true)]
     #[case::json(Encoding::Json, false)]
     #[case::json_map_symbols(Encoding::Json, true)]
-    fn test_map_symbols_historical(#[case] encoding: Encoding, #[case] map_symbols: bool) {
-        setup();
+    fn test_map_symbols_historical(
+        _python: (),
+        #[case] encoding: Encoding,
+        #[case] map_symbols: bool,
+    ) {
         let file = MockPyFile::new();
         let output_buf = file.inner();
         let mut transcoder = Python::with_gil(|py| {
@@ -683,8 +684,7 @@ mod tests {
     #[case::csv_map_symbols(Encoding::Csv, true)]
     #[case::json(Encoding::Json, false)]
     #[case::json_map_symbols(Encoding::Json, true)]
-    fn test_map_symbols_live(#[case] encoding: Encoding, #[case] map_symbols: bool) {
-        setup();
+    fn test_map_symbols_live(_python: (), #[case] encoding: Encoding, #[case] map_symbols: bool) {
         let file = MockPyFile::new();
         let output_buf = file.inner();
         let mut transcoder = Python::with_gil(|py| {
@@ -811,9 +811,7 @@ mod tests {
     #[case::csv_mbo(Encoding::Csv, Schema::Mbo)]
     #[case::csv_definition(Encoding::Csv, Schema::Definition)]
     #[case::csv_trades(Encoding::Csv, Schema::Trades)]
-    fn test_from_test_data_file(#[case] encoding: Encoding, #[case] schema: Schema) {
-        setup();
-
+    fn test_from_test_data_file(_python: (), #[case] encoding: Encoding, #[case] schema: Schema) {
         let input = zstd::stream::decode_all(
             std::fs::File::open(format!("{TEST_DATA_PATH}/test_data.{schema}.v3.dbn.zst")).unwrap(),
         )
@@ -854,9 +852,7 @@ mod tests {
     }
 
     #[rstest]
-    fn test_skip_metadata_csv_header_still_written() {
-        setup();
-
+    fn test_skip_metadata_csv_header_still_written(_python: ()) {
         let mut input = Vec::new();
         let mut input_file =
             std::fs::File::open(format!("{TEST_DATA_PATH}/test_data.definition.v3.dbn.frag"))

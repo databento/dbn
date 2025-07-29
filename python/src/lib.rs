@@ -20,6 +20,7 @@ use dbn::{
 
 mod dbn_decoder;
 mod encode;
+mod enums;
 mod transcoder;
 
 /// A Python module wrapping dbn functions
@@ -106,14 +107,16 @@ mod tests {
 
     use dbn::enums::SType;
     use pyo3::ffi::c_str;
+    use rstest::*;
 
     use super::*;
 
     pub const TEST_DATA_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../tests/data");
 
-    pub static INIT: Once = Once::new();
+    static INIT: Once = Once::new();
 
-    pub fn setup() {
+    #[fixture]
+    pub fn python() {
         INIT.call_once(|| {
             // add to available modules
             pyo3::append_to_inittab!(databento_dbn);
@@ -122,10 +125,8 @@ mod tests {
         });
     }
 
-    #[test]
-    fn test_metadata_identity() {
-        // initialize interpreter
-        setup();
+    #[rstest]
+    fn test_metadata_identity(_python: ()) {
         let stype_in = SType::RawSymbol as u8;
         let stype_out = SType::InstrumentId as u8;
         Python::with_gil(|py| {
@@ -160,9 +161,8 @@ assert metadata.ts_out is False"#
         });
     }
 
-    #[test]
-    fn test_dbn_decoder_metadata_error() {
-        setup();
+    #[rstest]
+    fn test_dbn_decoder_metadata_error(_python: ()) {
         Python::with_gil(|py| {
             py.run(
                 c_str!(

@@ -1,12 +1,44 @@
 # Changelog
 
-## 0.38.0 - TBD
+## 0.39.0 - 2025-07-29
+
+### Enhancements
+- Added `side()` and `unpaired_side()` methods to `ImbalanceMsg` that convert the fields
+  of the same name to the `Side` enum
+- Added `pretty_auction_time` property in Python for `ImbalanceMsg`
+- Added `Default` implementation for `StatUpdateAction`
+- Added warnings to the floating-point getter methods' docstrings
+- Added `action` and `ts_in_delta` getters to `BboMsg`
+- Added `ts_recv` getter to `StatusMsg`
+- Added missing floating-point price getters to `InstrumentDefMsg` record types from all
+  DBN versions
+- Added more floating-point price getters to `ImbalanceMsg`
+- Added floating-point price getter to `StatMsg` and `v1::StatMsg`
+- Standardize Python `__init__` type signatures
+- Upgraded `async-compression` dependency version to 0.4.27
+
+### Breaking changes
+- Changed `SystemMsg::code()` and `ErrorMsg::code()` methods to return a `Result`
+  instead of an `Option` to be consistent with other enum conversion methods
+- Changed `auction_time` field in `ImbalanceMsg` to be formatted as a timestamp
+
+### Bug fixes
+- Fixed a regression where some enum constructors no longer raised a `DBNError` in
+  Python
+- Fixed typo in `RecordHeader`'s `rtype` docstring
+- Removed error documentation from `ErrorMsg::new` because the function never returns an
+  error
+
+## 0.38.0 - 2025-07-22
 
 ### Breaking changes
 - Renamed `Compression::ZStd` to `Zstd` for consistency
 - Removed duplicated `flags` constants in `enums` module. Use the top-level `flags`
   constants instead
 - Renamed to `SCHEMA_COUNT` to `Schema::COUNT`
+- Changed `SystemMsg::code()` and `ErrorMsg::code()` methods to return a `Result`
+  instead of an `Option` to be consistent with other enum conversion methods
+- Changed `auction_time` field in `ImbalanceMsg` to be formatted as a timestamp
 
 ### Bug fixes
 - Relaxed requirement of `input_version` parameter to the Python `Transcoder` to only
