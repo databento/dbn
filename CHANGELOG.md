@@ -15,6 +15,7 @@
 - Added more floating-point price getters to `ImbalanceMsg`
 - Added floating-point price getter to `StatMsg` and `v1::StatMsg`
 - Standardize Python `__init__` type signatures
+- Upgraded `async-compression` dependency version to 0.4.27
 
 ### Breaking changes
 - Changed `SystemMsg::code()` and `ErrorMsg::code()` methods to return a `Result`
