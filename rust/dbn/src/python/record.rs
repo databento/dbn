@@ -2646,6 +2646,11 @@ impl SystemMsg {
         Ok(mem::size_of::<Self>())
     }
 
+    #[pyo3(name = "is_heartbeat")]
+    fn py_is_heartbeat(&self) -> bool {
+        self.is_heartbeat()
+    }
+
     #[getter]
     fn get_msg(&self) -> PyResult<&str> {
         Ok(self.msg()?)
@@ -3551,6 +3556,11 @@ impl v1::SystemMsg {
     #[classattr]
     fn size_hint() -> PyResult<usize> {
         Ok(mem::size_of::<Self>())
+    }
+
+    #[pyo3(name = "is_heartbeat")]
+    fn py_is_heartbeat(&self) -> bool {
+        self.is_heartbeat()
     }
 
     #[getter]

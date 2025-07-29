@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.39.0 - TBD
+## 0.39.0 - 2025-07-29
 
 ### Enhancements
 - Added `side()` and `unpaired_side()` methods to `ImbalanceMsg` that convert the fields

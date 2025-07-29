@@ -4945,6 +4945,17 @@ class SystemMsg(Record):
         msg,
         code,
     ) -> None: ...
+    def is_heartbeat(self) -> bool:
+        """
+        Return `true` if this message is a heartbeat, used to indicate the connection
+        with the gateway is still open.
+
+        Returns
+        -------
+        bool
+
+        """
+
     @property
     def msg(self) -> str:
         """
@@ -6284,6 +6295,17 @@ class SystemMsgV1(Record):
         ts_event,
         msg,
     ) -> None: ...
+    def is_heartbeat(self) -> bool:
+        """
+        Return `true` if this message is a heartbeat, used to indicate the connection
+        with the gateway is still open.
+
+        Returns
+        -------
+        bool
+
+        """
+
     @property
     def msg(self) -> str:
         """
