@@ -347,7 +347,7 @@ records = decoder.decode()
 assert len(records) == 4
 assert isinstance(records[0], Metadata)
 for i in range(1, 4):
-    assert isinstance(records[i], ErrorMsg)
+    assert isinstance(records[i], ErrorMsg), f"{records[i]}"
 "#
                 ),
                 None,

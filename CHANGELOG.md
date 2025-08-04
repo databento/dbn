@@ -4,6 +4,7 @@
 
 ### Enhancements
 - Added `instrument_id` and `publisher_id` setters to all records in Python
+- Added `DbnVersion` new type
 
 ### Breaking changes
 - Removed `hd` property from records in Python. Header fields are accessible

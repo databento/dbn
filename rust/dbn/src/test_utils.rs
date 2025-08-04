@@ -37,7 +37,7 @@ impl<T> DecodeRecordRef for VecStream<T>
 where
     T: HasRType,
 {
-    fn decode_record_ref(&mut self) -> crate::Result<Option<crate::RecordRef>> {
+    fn decode_record_ref(&mut self) -> crate::Result<Option<crate::RecordRef<'_>>> {
         self.idx += 1;
         let Some(rec) = self.vec.get(self.idx as usize) else {
             return Ok(None);
@@ -50,7 +50,7 @@ impl<T> LastRecord for VecStream<T>
 where
     T: HasRType + AsRef<[u8]>,
 {
-    fn last_record(&self) -> Option<RecordRef> {
+    fn last_record(&self) -> Option<RecordRef<'_>> {
         if self.vec.is_empty() {
             None
         } else {

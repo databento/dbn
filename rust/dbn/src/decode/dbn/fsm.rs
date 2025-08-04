@@ -14,15 +14,14 @@ use crate::{
         dbn::{decode_iso8601, DBN_PREFIX, DBN_PREFIX_LEN},
         FromLittleEndianSlice,
     },
-    record::transmute_record_bytes,
-    v1, v2, v3, Error, HasRType, MappingInterval, Metadata, Record, RecordHeader, RecordRef,
-    Result, SType, Schema, SymbolMapping, VersionUpgradePolicy, WithTsOut, DBN_VERSION,
+    v1, v2, v3, DbnVersion, Error, HasRType, MappingInterval, Metadata, Record, RecordHeader,
+    RecordRef, Result, SType, Schema, SymbolMapping, VersionUpgradePolicy, WithTsOut, DBN_VERSION,
     MAX_RECORD_LEN, METADATA_FIXED_LEN, NULL_SCHEMA, NULL_STYPE, UNDEF_TIMESTAMP,
 };
 
 /// State machine for decoding DBN with bring your own I/O.
 pub struct DbnFsm {
-    input_dbn_version: Option<u8>,
+    input_dbn_version: Option<DbnVersion>,
     upgrade_policy: VersionUpgradePolicy,
     ts_out: bool,
     state: State,
@@ -91,7 +90,7 @@ pub enum ProcessResult<R> {
 
 /// Helper for configuring the state machine.
 pub struct DbnFsmBuilder {
-    input_dbn_version: Option<u8>,
+    input_dbn_version: Option<DbnVersion>,
     upgrade_policy: VersionUpgradePolicy,
     ts_out: bool,
     skip_metadata: bool,
@@ -106,7 +105,8 @@ impl DbnFsm {
     const HEADER_LEN: usize = size_of::<RecordHeader>();
     const U32_SIZE: usize = size_of::<u32>();
 
-    /// Creates a new decoder with the specified buffer sizes.
+    /// Creates a new decoder with the specified buffer sizes. Assumes the
+    /// data being decoded is packed.
     pub fn new(buffer_size: usize, compat_size: usize) -> Self {
         Self {
             input_dbn_version: None,
@@ -125,7 +125,7 @@ impl DbnFsm {
 
     /// Returns the input DBN version.
     pub fn input_dbn_version(&self) -> Option<u8> {
-        self.input_dbn_version
+        self.input_dbn_version.map(|v| v.0)
     }
 
     /// Sets the DBN version to expect when decoding.
@@ -134,13 +134,8 @@ impl DbnFsm {
     /// This function will return an error if the `version` exceeds the highest
     /// supported version or the `version` and `upgrade_policy` are incompatible.
     pub fn set_input_dbn_version(&mut self, version: u8) -> Result<()> {
-        if version == 0 || version > DBN_VERSION {
-            return Err(Error::BadArgument {
-                param_name: "version".to_owned(),
-                desc: format!("invalid, must be between 1 and {DBN_VERSION}, inclusive"),
-            });
-        }
-        self.upgrade_policy.validate_compatibility(version)?;
+        let version = DbnVersion::try_from(version)?;
+        self.upgrade_policy.validate_compatibility(version.0)?;
         self.input_dbn_version = Some(version);
         Ok(())
     }
@@ -166,7 +161,7 @@ impl DbnFsm {
     /// This function will return an error if the `version` and `upgrade_policy` are
     /// incompatible.
     pub fn set_upgrade_policy(&mut self, upgrade_policy: VersionUpgradePolicy) -> Result<()> {
-        if let Some(input_dbn_version) = self.input_dbn_version {
+        if let Some(DbnVersion(input_dbn_version)) = self.input_dbn_version {
             self.upgrade_policy
                 .validate_compatibility(input_dbn_version)?;
         }
@@ -174,7 +169,8 @@ impl DbnFsm {
         Ok(())
     }
 
-    /// Returns the most recently returned record if exists.
+    /// Returns a reference to the most recently decoded record if exists, otherwise
+    /// `None`.
     pub fn last_record(&self) -> Option<RecordRef<'_>> {
         match self.state {
             State::Prelude | State::Metadata { .. } | State::Record => None,
@@ -483,7 +479,7 @@ impl DbnFsm {
             return Err(Error::decode("invalid DBN header"));
         }
         let version = data[DBN_PREFIX_LEN];
-        self.input_dbn_version = Some(version);
+        self.input_dbn_version = Some(DbnVersion(version));
         if version > DBN_VERSION {
             return Err(Error::decode(format!("can't decode newer version of DBN. Decoder version is {DBN_VERSION}, input version is {version}")));
         }
@@ -507,7 +503,7 @@ impl DbnFsm {
     fn decode_metadata(&mut self, length: u32) -> Result<Metadata> {
         // Okay to unwrap because decoding the prelude always sets `input_dbn_version`
         let mut metadata =
-            Self::decode_metadata_impl(self.input_dbn_version.unwrap(), self.buffer.data())?;
+            Self::decode_metadata_impl(self.input_dbn_version.unwrap().0, self.buffer.data())?;
         metadata.upgrade(self.upgrade_policy);
         self.ts_out = metadata.ts_out;
         self.buffer.consume(length as usize);
@@ -734,7 +730,7 @@ impl DbnFsm {
     /// `read_buffer` must start with a complete, valid DBN record.
     #[doc(hidden)]
     pub unsafe fn upgrade_record<'a>(
-        input_dbn_version: &mut Option<u8>,
+        input_dbn_version: &mut Option<DbnVersion>,
         upgrade_policy: VersionUpgradePolicy,
         ts_out: bool,
         read_buffer: &'a [u8],
@@ -742,7 +738,7 @@ impl DbnFsm {
     ) -> (&'a mut [u8], Option<RecordRef<'a>>) {
         if let Some(input_dbn_version) = input_dbn_version {
             Self::upgrade_record_with_version(
-                *input_dbn_version,
+                input_dbn_version.0,
                 upgrade_policy,
                 ts_out,
                 read_buffer,
@@ -774,49 +770,37 @@ impl DbnFsm {
                 return upgrade_record::<v1::InstrumentDefMsg, v2::InstrumentDefMsg>(
                     ts_out,
                     compat_buffer,
-                    read_buffer,
+                    rec,
                 );
             }
             (1, UpgradeToV3, INSTRUMENT_DEF) => {
                 return upgrade_record::<v1::InstrumentDefMsg, v3::InstrumentDefMsg>(
                     ts_out,
                     compat_buffer,
-                    read_buffer,
+                    rec,
                 );
             }
             (1 | 2, UpgradeToV3, STATISTICS) => {
-                return upgrade_record::<v1::StatMsg, v3::StatMsg>(
-                    ts_out,
-                    compat_buffer,
-                    read_buffer,
-                );
+                return upgrade_record::<v1::StatMsg, v3::StatMsg>(ts_out, compat_buffer, rec);
             }
             (1, UpgradeToV2 | UpgradeToV3, SYMBOL_MAPPING) => {
                 return upgrade_record::<v1::SymbolMappingMsg, v2::SymbolMappingMsg>(
                     ts_out,
                     compat_buffer,
-                    read_buffer,
+                    rec,
                 );
             }
             (1, UpgradeToV2 | UpgradeToV3, ERROR) => {
-                return upgrade_record::<v1::ErrorMsg, v2::ErrorMsg>(
-                    ts_out,
-                    compat_buffer,
-                    read_buffer,
-                );
+                return upgrade_record::<v1::ErrorMsg, v2::ErrorMsg>(ts_out, compat_buffer, rec);
             }
             (1, UpgradeToV2 | UpgradeToV3, SYSTEM) => {
-                return upgrade_record::<v1::SystemMsg, v2::SystemMsg>(
-                    ts_out,
-                    compat_buffer,
-                    read_buffer,
-                );
+                return upgrade_record::<v1::SystemMsg, v2::SystemMsg>(ts_out, compat_buffer, rec);
             }
             (2, UpgradeToV3, INSTRUMENT_DEF) => {
                 return upgrade_record::<v2::InstrumentDefMsg, v3::InstrumentDefMsg>(
                     ts_out,
                     compat_buffer,
-                    read_buffer,
+                    rec,
                 );
             }
             (v, _, _) if v > DBN_VERSION => panic!("Unsupported version {version}"),
@@ -829,7 +813,7 @@ impl DbnFsm {
     /// when reading DBN fragments (no metadata) and an input version wasn't specified.
     /// If the DBN version can be inferred, `input_dbn_version` will be set.
     unsafe fn upgrade_record_detect_version<'a>(
-        input_dbn_version: &mut Option<u8>,
+        input_dbn_version: &mut Option<DbnVersion>,
         upgrade_policy: VersionUpgradePolicy,
         ts_out: bool,
         read_buffer: &'a [u8],
@@ -841,64 +825,52 @@ impl DbnFsm {
         let rec_size = rec.record_size();
         match (rec.header().rtype, upgrade_policy) {
             (INSTRUMENT_DEF, UpgradeToV2) if rec_size < size_of::<v2::InstrumentDefMsg>() => {
-                *input_dbn_version = Some(1);
+                *input_dbn_version = Some(DbnVersion(1));
                 return upgrade_record::<v1::InstrumentDefMsg, v2::InstrumentDefMsg>(
                     ts_out,
                     compat_buffer,
-                    read_buffer,
+                    rec,
                 );
             }
             (INSTRUMENT_DEF, UpgradeToV3) if rec_size < size_of::<v2::InstrumentDefMsg>() => {
-                *input_dbn_version = Some(1);
+                *input_dbn_version = Some(DbnVersion(1));
                 return upgrade_record::<v1::InstrumentDefMsg, v3::InstrumentDefMsg>(
                     ts_out,
                     compat_buffer,
-                    read_buffer,
+                    rec,
                 );
             }
             (INSTRUMENT_DEF, UpgradeToV3) if rec_size < size_of::<v3::InstrumentDefMsg>() => {
-                *input_dbn_version = Some(2);
+                *input_dbn_version = Some(DbnVersion(2));
                 return upgrade_record::<v2::InstrumentDefMsg, v3::InstrumentDefMsg>(
                     ts_out,
                     compat_buffer,
-                    read_buffer,
+                    rec,
                 );
             }
             (STATISTICS, UpgradeToV3) if rec_size < size_of::<v3::StatMsg>() => {
                 // Input version could be either 1 or 2. The difference doesn't matter
                 // for `StatMsg` but does matter for `InstrumentDefMsg` so it's safer to not
                 // set the version
-                return upgrade_record::<v2::StatMsg, v3::StatMsg>(
-                    ts_out,
-                    compat_buffer,
-                    read_buffer,
-                );
+                return upgrade_record::<v2::StatMsg, v3::StatMsg>(ts_out, compat_buffer, rec);
             }
             (SYMBOL_MAPPING, UpgradeToV2 | UpgradeToV3)
                 if rec_size < size_of::<v2::SymbolMappingMsg>() =>
             {
-                *input_dbn_version = Some(1);
+                *input_dbn_version = Some(DbnVersion(1));
                 return upgrade_record::<v1::SymbolMappingMsg, v2::SymbolMappingMsg>(
                     ts_out,
                     compat_buffer,
-                    read_buffer,
+                    rec,
                 );
             }
             (ERROR, UpgradeToV2 | UpgradeToV3) if rec_size < size_of::<v2::ErrorMsg>() => {
-                *input_dbn_version = Some(1);
-                return upgrade_record::<v1::ErrorMsg, v2::ErrorMsg>(
-                    ts_out,
-                    compat_buffer,
-                    read_buffer,
-                );
+                *input_dbn_version = Some(DbnVersion(1));
+                return upgrade_record::<v1::ErrorMsg, v2::ErrorMsg>(ts_out, compat_buffer, rec);
             }
             (SYSTEM, UpgradeToV2 | UpgradeToV3) if rec_size < size_of::<v2::SystemMsg>() => {
-                *input_dbn_version = Some(1);
-                return upgrade_record::<v1::SystemMsg, v2::SystemMsg>(
-                    ts_out,
-                    compat_buffer,
-                    read_buffer,
-                );
+                *input_dbn_version = Some(DbnVersion(1));
+                return upgrade_record::<v1::SystemMsg, v2::SystemMsg>(ts_out, compat_buffer, rec);
             }
             _ => (),
         }
@@ -938,7 +910,7 @@ impl DbnFsmBuilder {
         };
         if let Some(input_dbn_version) = self.input_dbn_version {
             self.upgrade_policy
-                .validate_compatibility(input_dbn_version)?;
+                .validate_compatibility(input_dbn_version.0)?;
         }
         Ok(DbnFsm {
             input_dbn_version: self.input_dbn_version,
@@ -950,7 +922,7 @@ impl DbnFsmBuilder {
                 if self.skip_metadata
                     && self
                         .input_dbn_version
-                        .is_none_or(|v| self.upgrade_policy.is_upgrade_situation(v))
+                        .is_none_or(|DbnVersion(v)| self.upgrade_policy.is_upgrade_situation(v))
                 {
                     DbnFsm::DEFAULT_BUF_SIZE
                 } else {
@@ -970,15 +942,7 @@ impl DbnFsmBuilder {
     /// This function will return an error if the `version` exceeds the highest
     /// supported version.
     pub fn input_dbn_version(mut self, version: Option<u8>) -> Result<Self> {
-        if let Some(version) = version {
-            if !(1..=DBN_VERSION).contains(&version) {
-                return Err(Error::BadArgument {
-                    param_name: "version".to_owned(),
-                    desc: format!("invalid, must be between 1 and {DBN_VERSION}, inclusive"),
-                });
-            }
-        }
-        self.input_dbn_version = version;
+        self.input_dbn_version = version.map(DbnVersion::try_from).transpose()?;
         Ok(self)
     }
 
@@ -1062,14 +1026,14 @@ impl<'a> RecRefBuf<'a> for &'a mut [Option<RecordRef<'a>>] {
 unsafe fn upgrade_record<'a, T, U>(
     ts_out: bool,
     compat_buffer: &'a mut [u8],
-    input: &'a [u8],
+    input: RecordRef<'a>,
 ) -> (&'a mut [u8], Option<RecordRef<'a>>)
 where
     T: HasRType,
     U: AsRef<[u8]> + HasRType + for<'t> From<&'t T>,
 {
     if ts_out {
-        let rec = transmute_record_bytes::<WithTsOut<T>>(input).unwrap();
+        let rec = input.get::<WithTsOut<T>>().unwrap();
         let upgraded = WithTsOut::new(U::from(&rec.rec), rec.ts_out);
         if size_of_val(&upgraded) >= compat_buffer.len() {
             return (compat_buffer, None);
@@ -1080,7 +1044,7 @@ where
         record_compat.copy_from_slice(upgraded.as_ref());
         (rem_compat, Some(RecordRef::new(record_compat)))
     } else {
-        let upgraded = U::from(transmute_record_bytes::<T>(input).unwrap());
+        let upgraded = U::from(input.get::<T>().unwrap());
         if size_of_val(&upgraded) >= compat_buffer.len() {
             return (compat_buffer, None);
         };
@@ -1154,7 +1118,7 @@ mod tests {
         #[case] input_version: u8,
         #[case] upgrade_policy: VersionUpgradePolicy,
         #[case] has_metadata: bool,
-        #[values(7, 16_384, DbnFsm::DEFAULT_BUF_SIZE, 1 << 20)] chunk_size: usize,
+        #[values(7, 16_384, DbnFsm::DEFAULT_BUF_SIZE)] chunk_size: usize,
         #[values(MAX_RECORD_LEN, DbnFsm::DEFAULT_BUF_SIZE)] buffer_size: usize,
         #[values(0, MAX_RECORD_LEN, DbnFsm::DEFAULT_BUF_SIZE)] compat_size: usize,
         #[values(None, NonZeroU64::new(16))] limit: Option<NonZeroU64>,
@@ -1286,7 +1250,7 @@ mod tests {
         #[case] input_version: u8,
         #[case] upgrade_policy: VersionUpgradePolicy,
         #[case] has_metadata: bool,
-        #[values(7, 16_384, DbnFsm::DEFAULT_BUF_SIZE, 1 << 20)] chunk_size: usize,
+        #[values(7, 16_384, DbnFsm::DEFAULT_BUF_SIZE)] chunk_size: usize,
         #[values(MAX_RECORD_LEN, DbnFsm::DEFAULT_BUF_SIZE)] buffer_size: usize,
         #[values(0, MAX_RECORD_LEN, DbnFsm::DEFAULT_BUF_SIZE)] compat_size: usize,
     ) {
@@ -1361,7 +1325,7 @@ mod tests {
         let mut rec_count = 0;
         for slice in data.chunks(chunk_size) {
             target.write_all(slice);
-            let mut recs = [None; 64];
+            let mut recs = [const { None }; 64];
             let res = target.process_many(&mut recs);
             dbg!(&res, data.len(), slice.len());
             assert!(!matches!(res, ProcessResult::Err(_)));
@@ -1383,7 +1347,7 @@ mod tests {
             }
         }
         loop {
-            let mut recs = [None; 64];
+            let mut recs = [const { None }; 64];
             let res = target.process_many(&mut recs);
             dbg!(&res);
             if let ProcessResult::Record(recs) = res {
@@ -1435,7 +1399,7 @@ mod tests {
 
     #[rstest]
     fn test_upgrade_symbol_mapping_ts_out(
-        #[values(None, Some(1))] mut input_dbn_version: Option<u8>,
+        #[values(None, Some(DbnVersion(1)))] mut input_dbn_version: Option<DbnVersion>,
     ) -> crate::Result<()> {
         let orig = WithTsOut::new(
             v1::SymbolMappingMsg::new(1, 2, "ES.c.0", "ESH4", 0, 0)?,
@@ -1451,7 +1415,7 @@ mod tests {
                 &mut compat_buffer,
             )
         };
-        assert_eq!(input_dbn_version, Some(1));
+        assert_eq!(input_dbn_version, Some(DbnVersion(1)));
         let res = res.unwrap();
         assert_eq!(
             rem_compat.len(),
@@ -1480,7 +1444,7 @@ mod tests {
         };
         let orig = WithTsOut::new(rec, OffsetDateTime::now_utc().unix_timestamp_nanos() as u64);
         let mut compat_buffer = [0; MAX_RECORD_LEN];
-        let mut input_dbn_version = Some(1);
+        let mut input_dbn_version = Some(DbnVersion(1));
         let (rem_compat, res) = unsafe {
             DbnFsm::upgrade_record(
                 &mut input_dbn_version,
@@ -1490,7 +1454,7 @@ mod tests {
                 &mut compat_buffer,
             )
         };
-        assert_eq!(input_dbn_version, Some(1));
+        assert_eq!(input_dbn_version, Some(DbnVersion(1)));
         let res = res.unwrap();
         // Unchanged
         assert_eq!(rem_compat.len(), MAX_RECORD_LEN);
@@ -1503,25 +1467,33 @@ mod tests {
     #[rstest]
     #[case::v1_def(
         v1::InstrumentDefMsg::default(),
-        Some(1),
+        Some(DbnVersion(1)),
         VersionUpgradePolicy::UpgradeToV3
     )]
     #[case::v1_def(
         v1::InstrumentDefMsg::default(),
-        Some(1),
+        Some(DbnVersion(1)),
         VersionUpgradePolicy::UpgradeToV2
     )]
     #[case::v2_def(
         v2::InstrumentDefMsg::default(),
-        Some(2),
+        Some(DbnVersion(2)),
         VersionUpgradePolicy::UpgradeToV3
     )]
     #[case::stat(v2::StatMsg::default(), None, VersionUpgradePolicy::UpgradeToV3)]
-    #[case::error(v1::ErrorMsg::default(), Some(1), VersionUpgradePolicy::UpgradeToV2)]
-    #[case::error(v1::ErrorMsg::default(), Some(1), VersionUpgradePolicy::UpgradeToV3)]
+    #[case::error(
+        v1::ErrorMsg::default(),
+        Some(DbnVersion(1)),
+        VersionUpgradePolicy::UpgradeToV2
+    )]
+    #[case::error(
+        v1::ErrorMsg::default(),
+        Some(DbnVersion(1)),
+        VersionUpgradePolicy::UpgradeToV3
+    )]
     fn test_upgrade_record_detect_version<R: DbnEncodable>(
         #[case] rec: R,
-        #[case] exp_ver: Option<u8>,
+        #[case] exp_ver: Option<DbnVersion>,
         #[case] upgrade_policy: VersionUpgradePolicy,
     ) {
         let mut buf = Vec::new();
