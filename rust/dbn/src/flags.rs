@@ -19,6 +19,8 @@ pub const MBP: u8 = 1 << 4;
 pub const BAD_TS_RECV: u8 = 1 << 3;
 /// Indicates an unrecoverable gap was detected in the channel.
 pub const MAYBE_BAD_BOOK: u8 = 1 << 2;
+/// Used to indicate a publisher-specific event.
+pub const PUBLISHER_SPECIFIC: u8 = 1 << 1;
 
 /// A transparent wrapper around the bit field used in several DBN record types,
 /// namely [`MboMsg`](crate::MboMsg) and record types derived from it.
@@ -44,6 +46,7 @@ impl fmt::Debug for FlagSet {
             (MBP, stringify!(MBP)),
             (BAD_TS_RECV, stringify!(BAD_TS_RECV)),
             (MAYBE_BAD_BOOK, stringify!(MAYBE_BAD_BOOK)),
+            (PUBLISHER_SPECIFIC, stringify!(PUBLISHER_SPECIFIC)),
         ] {
             if (self.raw() & flag) > 0 {
                 if has_written_flag {
@@ -180,6 +183,17 @@ impl FlagSet {
         self.raw |= MAYBE_BAD_BOOK;
         *self
     }
+
+    /// Returns `true` if this record has the publisher-specific flag set.
+    pub const fn is_publisher_specific(&self) -> bool {
+        (self.raw & PUBLISHER_SPECIFIC) > 0
+    }
+
+    /// Sets the `PUBLISHER_SPECIFIC` bit flag to `true`.
+    pub fn set_publisher_specific(&mut self) -> Self {
+        self.raw |= PUBLISHER_SPECIFIC;
+        *self
+    }
 }
 
 #[cfg(test)]
@@ -194,7 +208,7 @@ mod tests {
     #[case::three_set(FlagSet::empty().set_tob().set_snapshot().set_maybe_bad_book(), "TOB | SNAPSHOT | MAYBE_BAD_BOOK (100)")]
     #[case::reserved_set(
         FlagSet::new(255),
-        "LAST | TOB | SNAPSHOT | MBP | BAD_TS_RECV | MAYBE_BAD_BOOK (255)"
+        "LAST | TOB | SNAPSHOT | MBP | BAD_TS_RECV | MAYBE_BAD_BOOK | PUBLISHER_SPECIFIC (255)"
     )]
     fn dbg(#[case] target: FlagSet, #[case] exp: &str) {
         assert_eq!(format!("{target:?}"), exp);

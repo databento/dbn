@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.39.1 - TBD
+
+### Enhancements
+- Added `PUBLISHER_SPECIFIC` flag
+
 ## 0.39.0 - 2025-07-29
 
 ### Enhancements
