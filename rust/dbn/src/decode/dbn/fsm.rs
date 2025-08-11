@@ -175,7 +175,7 @@ impl DbnFsm {
     }
 
     /// Returns the most recently returned record if exists.
-    pub fn last_record(&self) -> Option<RecordRef> {
+    pub fn last_record(&self) -> Option<RecordRef<'_>> {
         match self.state {
             State::Prelude | State::Metadata { .. } | State::Record => None,
             // `process_records` is incompatible with this method as there

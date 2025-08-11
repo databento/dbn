@@ -5,7 +5,7 @@ use num_enum::TryFromPrimitive;
 use crate::{
     enums::{ErrorCode, StatusAction, StatusReason, SystemCode},
     pretty::px_to_f64,
-    SType, TradingEvent, TriState,
+    SType, StatType, TradingEvent, TriState,
 };
 
 use super::*;

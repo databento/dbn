@@ -150,7 +150,7 @@ impl<'a> RecordRef<'a> {
     /// # Errors
     /// This function returns a conversion error if the rtype does not correspond with
     /// any known DBN record type.
-    pub fn as_enum(&self) -> crate::Result<RecordRefEnum> {
+    pub fn as_enum(&self) -> crate::Result<RecordRefEnum<'_>> {
         RecordRefEnum::try_from(*self)
     }
 

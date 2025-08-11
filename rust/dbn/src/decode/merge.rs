@@ -55,7 +55,7 @@ impl<D> DecodeRecordRef for Decoder<D>
 where
     D: private::LastRecord + DecodeRecordRef,
 {
-    fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef>> {
+    fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef<'_>>> {
         self.decoder.decode_record_ref()
     }
 }
@@ -73,7 +73,7 @@ impl<D> private::LastRecord for Decoder<D>
 where
     D: private::LastRecord,
 {
-    fn last_record(&self) -> Option<RecordRef> {
+    fn last_record(&self) -> Option<RecordRef<'_>> {
         self.decoder.last_record()
     }
 }
@@ -153,7 +153,7 @@ impl<D> DecodeRecordRef for RecordDecoder<D>
 where
     D: private::LastRecord + DecodeRecordRef,
 {
-    fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef>> {
+    fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef<'_>>> {
         if self.is_first {
             self.is_first = false;
         } else {
@@ -198,7 +198,7 @@ impl<D> private::LastRecord for RecordDecoder<D>
 where
     D: private::LastRecord,
 {
-    fn last_record(&self) -> Option<RecordRef> {
+    fn last_record(&self) -> Option<RecordRef<'_>> {
         let Some(decoder_idx) = self.peek_decoder_idx() else {
             return self.decoders[0].last_record();
         };
