@@ -1,6 +1,6 @@
 use tokio::io::{self, AsyncWriteExt};
 
-use super::serialize::{to_json_string, to_json_string_with_sym};
+use super::serialize::{to_json_in_buf, to_json_with_sym_in_buf};
 use crate::{
     encode::{AsyncEncodeRecord, AsyncEncodeRecordRef, AsyncEncodeRecordTextExt, DbnEncodable},
     record_ref::RecordRef,
@@ -14,6 +14,7 @@ where
 {
     writer: W,
     should_pretty_print: bool,
+    buf: String,
     use_pretty_px: bool,
     use_pretty_ts: bool,
 }
@@ -36,6 +37,7 @@ where
             should_pretty_print,
             use_pretty_px,
             use_pretty_ts,
+            buf: String::new(),
         }
     }
 
@@ -50,17 +52,15 @@ where
     /// metadata JSON may have been partially written, but future calls will begin writing
     /// the metadata JSON from the beginning.
     pub async fn encode_metadata(&mut self, metadata: &Metadata) -> Result<()> {
-        let json = to_json_string(
+        to_json_in_buf(
+            &mut self.buf,
             metadata,
             self.should_pretty_print,
             self.use_pretty_px,
             self.use_pretty_ts,
         );
         let io_err = |e| Error::io(e, "writing metadata");
-        self.writer
-            .write_all(json.as_bytes())
-            .await
-            .map_err(io_err)?;
+        self.write_buf(io_err).await?;
         self.writer.flush().await.map_err(io_err)?;
         Ok(())
     }
@@ -74,6 +74,31 @@ where
     pub fn get_mut(&mut self) -> &mut W {
         &mut self.writer
     }
+
+    /// Writes to `self.buf`, but not the writer.
+    fn encode_to_buf<R: DbnEncodable>(&mut self, record: &R) {
+        to_json_in_buf(
+            &mut self.buf,
+            record,
+            self.should_pretty_print,
+            self.use_pretty_px,
+            self.use_pretty_ts,
+        );
+    }
+
+    async fn write_buf<F>(&mut self, handle_err: F) -> crate::Result<()>
+    where
+        F: FnOnce(io::Error) -> Error,
+    {
+        let res = self
+            .writer
+            .write_all(self.buf.as_bytes())
+            .await
+            .map_err(handle_err);
+        // Always clear `buf`
+        self.buf.clear();
+        res
+    }
 }
 
 impl<W> AsyncEncodeRecord for Encoder<W>
@@ -81,16 +106,8 @@ where
     W: AsyncWriteExt + Unpin,
 {
     async fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<()> {
-        let json = to_json_string(
-            record,
-            self.should_pretty_print,
-            self.use_pretty_px,
-            self.use_pretty_ts,
-        );
-        self.writer
-            .write_all(json.as_bytes())
-            .await
-            .map_err(|e| Error::io(e, "writing record"))
+        self.encode_to_buf(record);
+        self.write_buf(|e| Error::io(e, "writing record")).await
     }
 
     async fn flush(&mut self) -> Result<()> {
@@ -134,17 +151,15 @@ where
         record: &R,
         symbol: Option<&str>,
     ) -> Result<()> {
-        let json = to_json_string_with_sym(
+        to_json_with_sym_in_buf(
+            &mut self.buf,
             record,
             self.should_pretty_print,
             self.use_pretty_px,
             self.use_pretty_ts,
             symbol,
         );
-        self.writer
-            .write_all(json.as_bytes())
-            .await
-            .map_err(|e| Error::io(e, "writing record"))
+        self.write_buf(|e| Error::io(e, "writing record")).await
     }
 }
 

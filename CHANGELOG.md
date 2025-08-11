@@ -4,6 +4,7 @@
 
 ### Enhancements
 - Added `PUBLISHER_SPECIFIC` flag
+- Improved JSON encoding performance
 
 ## 0.39.0 - 2025-07-29
 
