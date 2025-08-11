@@ -515,7 +515,17 @@ impl From<UserDefinedInstrument> for char {
 
 /// The type of [`InstrumentDefMsg`](crate::record::InstrumentDefMsg) update.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, TryFromPrimitive, IntoPrimitive,
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    TryFromPrimitive,
+    IntoPrimitive,
 )]
 #[cfg_attr(
     feature = "python",
@@ -527,6 +537,7 @@ impl From<UserDefinedInstrument> for char {
 #[repr(u8)]
 pub enum SecurityUpdateAction {
     /// A new instrument definition.
+    #[default]
     #[pyo3(name = "ADD")]
     Add = b'A',
     /// A modified instrument definition of an existing one.
