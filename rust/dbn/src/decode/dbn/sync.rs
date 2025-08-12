@@ -160,7 +160,7 @@ impl<R> DecodeRecordRef for Decoder<R>
 where
     R: io::Read,
 {
-    fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef>> {
+    fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef<'_>>> {
         self.decoder.decode_record_ref()
     }
 }
@@ -197,7 +197,7 @@ impl<R> LastRecord for Decoder<R>
 where
     R: io::Read,
 {
-    fn last_record(&self) -> Option<RecordRef> {
+    fn last_record(&self) -> Option<RecordRef<'_>> {
         self.decoder.last_record()
     }
 }
@@ -327,7 +327,7 @@ where
     /// This function returns an error if the underlying reader returns an
     /// error of a kind other than `io::ErrorKind::UnexpectedEof` upon reading.
     /// It will also return an error if it encounters an invalid record.
-    pub fn decode_ref(&mut self) -> crate::Result<Option<RecordRef>> {
+    pub fn decode_ref(&mut self) -> crate::Result<Option<RecordRef<'_>>> {
         loop {
             match self.fsm.process() {
                 ProcessResult::ReadMore(_) => match self.reader.read(self.fsm.space()) {
@@ -363,7 +363,7 @@ impl<R> DecodeRecordRef for RecordDecoder<R>
 where
     R: io::Read,
 {
-    fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef>> {
+    fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef<'_>>> {
         self.decode_ref()
     }
 }
@@ -372,7 +372,7 @@ impl<R> LastRecord for RecordDecoder<R>
 where
     R: io::Read,
 {
-    fn last_record(&self) -> Option<RecordRef> {
+    fn last_record(&self) -> Option<RecordRef<'_>> {
         self.fsm.last_record()
     }
 }

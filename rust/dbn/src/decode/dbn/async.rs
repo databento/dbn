@@ -140,7 +140,7 @@ where
     /// # Cancel safety
     /// This method is cancel safe. It can be used within a `tokio::select!` statement
     /// without the potential for corrupting the input stream.
-    pub async fn decode_record_ref(&mut self) -> Result<Option<RecordRef>> {
+    pub async fn decode_record_ref(&mut self) -> Result<Option<RecordRef<'_>>> {
         self.decoder.decode_ref().await
     }
 }
@@ -245,7 +245,7 @@ impl<R> AsyncDecodeRecordRef for Decoder<R>
 where
     R: io::AsyncReadExt + Unpin,
 {
-    async fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef>> {
+    async fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef<'_>>> {
         self.decoder.decode_ref().await
     }
 }
@@ -401,7 +401,7 @@ where
     /// # Cancel safety
     /// This method is cancel safe. It can be used within a `tokio::select!` statement
     /// without the potential for corrupting the input stream.
-    pub async fn decode_ref(&mut self) -> Result<Option<RecordRef>> {
+    pub async fn decode_ref(&mut self) -> Result<Option<RecordRef<'_>>> {
         loop {
             match self.fsm.process() {
                 ProcessResult::ReadMore(_) => match self.reader.read(self.fsm.space()).await {
@@ -444,7 +444,7 @@ impl<R> AsyncDecodeRecordRef for RecordDecoder<R>
 where
     R: io::AsyncReadExt + Unpin,
 {
-    async fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef>> {
+    async fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef<'_>>> {
         self.decode_ref().await
     }
 }

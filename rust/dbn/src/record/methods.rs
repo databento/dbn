@@ -5,7 +5,7 @@ use num_enum::TryFromPrimitive;
 use crate::{
     enums::{ErrorCode, StatusAction, StatusReason, SystemCode},
     pretty::px_to_f64,
-    SType, TradingEvent, TriState,
+    SType, StatType, TradingEvent, TriState,
 };
 
 use super::*;
@@ -686,7 +686,7 @@ impl InstrumentDefMsg {
     ///
     /// # Errors
     /// This function returns an error if `currency` contains invalid UTF-8.
-    pub fn currency(&self) -> Result<&str> {
+    pub fn currency(&self) -> crate::Result<&str> {
         c_chars_to_str(&self.currency)
     }
 
@@ -694,7 +694,7 @@ impl InstrumentDefMsg {
     ///
     /// # Errors
     /// This function returns an error if `settl_currency` contains invalid UTF-8.
-    pub fn settl_currency(&self) -> Result<&str> {
+    pub fn settl_currency(&self) -> crate::Result<&str> {
         c_chars_to_str(&self.settl_currency)
     }
 
@@ -702,7 +702,7 @@ impl InstrumentDefMsg {
     ///
     /// # Errors
     /// This function returns an error if `secsubtype` contains invalid UTF-8.
-    pub fn secsubtype(&self) -> Result<&str> {
+    pub fn secsubtype(&self) -> crate::Result<&str> {
         c_chars_to_str(&self.secsubtype)
     }
 
@@ -710,7 +710,7 @@ impl InstrumentDefMsg {
     ///
     /// # Errors
     /// This function returns an error if `raw_symbol` contains invalid UTF-8.
-    pub fn raw_symbol(&self) -> Result<&str> {
+    pub fn raw_symbol(&self) -> crate::Result<&str> {
         c_chars_to_str(&self.raw_symbol)
     }
 
@@ -718,7 +718,7 @@ impl InstrumentDefMsg {
     ///
     /// # Errors
     /// This function returns an error if `group` contains invalid UTF-8.
-    pub fn group(&self) -> Result<&str> {
+    pub fn group(&self) -> crate::Result<&str> {
         c_chars_to_str(&self.group)
     }
 
@@ -726,7 +726,7 @@ impl InstrumentDefMsg {
     ///
     /// # Errors
     /// This function returns an error if `exchange` contains invalid UTF-8.
-    pub fn exchange(&self) -> Result<&str> {
+    pub fn exchange(&self) -> crate::Result<&str> {
         c_chars_to_str(&self.exchange)
     }
 
@@ -734,7 +734,7 @@ impl InstrumentDefMsg {
     ///
     /// # Errors
     /// This function returns an error if `asset` contains invalid UTF-8.
-    pub fn asset(&self) -> Result<&str> {
+    pub fn asset(&self) -> crate::Result<&str> {
         c_chars_to_str(&self.asset)
     }
 
@@ -742,7 +742,7 @@ impl InstrumentDefMsg {
     ///
     /// # Errors
     /// This function returns an error if `cfi` contains invalid UTF-8.
-    pub fn cfi(&self) -> Result<&str> {
+    pub fn cfi(&self) -> crate::Result<&str> {
         c_chars_to_str(&self.cfi)
     }
 
@@ -750,7 +750,7 @@ impl InstrumentDefMsg {
     ///
     /// # Errors
     /// This function returns an error if `security_type` contains invalid UTF-8.
-    pub fn security_type(&self) -> Result<&str> {
+    pub fn security_type(&self) -> crate::Result<&str> {
         c_chars_to_str(&self.security_type)
     }
 
@@ -758,7 +758,7 @@ impl InstrumentDefMsg {
     ///
     /// # Errors
     /// This function returns an error if `unit_of_measure` contains invalid UTF-8.
-    pub fn unit_of_measure(&self) -> Result<&str> {
+    pub fn unit_of_measure(&self) -> crate::Result<&str> {
         c_chars_to_str(&self.unit_of_measure)
     }
 
@@ -766,7 +766,7 @@ impl InstrumentDefMsg {
     ///
     /// # Errors
     /// This function returns an error if `underlying` contains invalid UTF-8.
-    pub fn underlying(&self) -> Result<&str> {
+    pub fn underlying(&self) -> crate::Result<&str> {
         c_chars_to_str(&self.underlying)
     }
 
@@ -774,7 +774,7 @@ impl InstrumentDefMsg {
     ///
     /// # Errors
     /// This function returns an error if `strike_price_currency` contains invalid UTF-8.
-    pub fn strike_price_currency(&self) -> Result<&str> {
+    pub fn strike_price_currency(&self) -> crate::Result<&str> {
         c_chars_to_str(&self.strike_price_currency)
     }
 
@@ -782,7 +782,7 @@ impl InstrumentDefMsg {
     ///
     /// # Errors
     /// This function returns an error if `leg_raw_symbol` contains invalid UTF-8.
-    pub fn leg_raw_symbol(&self) -> Result<&str> {
+    pub fn leg_raw_symbol(&self) -> crate::Result<&str> {
         c_chars_to_str(&self.leg_raw_symbol)
     }
 
@@ -1045,7 +1045,7 @@ impl ErrorMsg {
     ///
     /// # Errors
     /// This function returns an error if `err` contains invalid UTF-8.
-    pub fn err(&self) -> Result<&str> {
+    pub fn err(&self) -> crate::Result<&str> {
         c_chars_to_str(&self.err)
     }
 
@@ -1103,7 +1103,7 @@ impl SymbolMappingMsg {
     ///
     /// # Errors
     /// This function returns an error if `stype_in_symbol` contains invalid UTF-8.
-    pub fn stype_in_symbol(&self) -> Result<&str> {
+    pub fn stype_in_symbol(&self) -> crate::Result<&str> {
         c_chars_to_str(&self.stype_in_symbol)
     }
 
@@ -1121,7 +1121,7 @@ impl SymbolMappingMsg {
     ///
     /// # Errors
     /// This function returns an error if `stype_out_symbol` contains invalid UTF-8.
-    pub fn stype_out_symbol(&self) -> Result<&str> {
+    pub fn stype_out_symbol(&self) -> crate::Result<&str> {
         c_chars_to_str(&self.stype_out_symbol)
     }
 
@@ -1177,7 +1177,7 @@ impl SystemMsg {
     ///
     /// # Errors
     /// This function returns an error if `msg` contains invalid UTF-8.
-    pub fn msg(&self) -> Result<&str> {
+    pub fn msg(&self) -> crate::Result<&str> {
         c_chars_to_str(&self.msg)
     }
 

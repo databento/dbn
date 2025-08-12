@@ -1,6 +1,6 @@
 use std::io;
 
-use super::serialize::{to_json_string, to_json_string_with_sym};
+use super::serialize::{to_json_in_buf, to_json_with_sym_in_buf};
 use crate::{
     encode::{DbnEncodable, EncodeDbn, EncodeRecord, EncodeRecordRef, EncodeRecordTextExt},
     rtype_dispatch, Error, Metadata, Result,
@@ -12,6 +12,7 @@ where
     W: io::Write,
 {
     writer: W,
+    buf: String,
     should_pretty_print: bool,
     use_pretty_px: bool,
     use_pretty_ts: bool,
@@ -96,6 +97,7 @@ where
             should_pretty_print,
             use_pretty_px,
             use_pretty_ts,
+            buf: String::new(),
         }
     }
 
@@ -109,14 +111,15 @@ where
     /// # Errors
     /// This function returns an error if there's an error writing to `writer`.
     pub fn encode_metadata(&mut self, metadata: &Metadata) -> Result<()> {
-        let json = to_json_string(
+        to_json_in_buf(
+            &mut self.buf,
             metadata,
             self.should_pretty_print,
             self.use_pretty_px,
             self.use_pretty_ts,
         );
         let io_err = |e| Error::io(e, "writing metadata");
-        self.writer.write_all(json.as_bytes()).map_err(io_err)?;
+        self.write_buf(io_err)?;
         self.writer.flush().map_err(io_err)?;
         Ok(())
     }
@@ -130,6 +133,30 @@ where
     pub fn get_mut(&mut self) -> &mut W {
         &mut self.writer
     }
+
+    /// Writes to `self.buf`, but not the writer.
+    fn encode_to_buf<R: DbnEncodable>(&mut self, record: &R) {
+        to_json_in_buf(
+            &mut self.buf,
+            record,
+            self.should_pretty_print,
+            self.use_pretty_px,
+            self.use_pretty_ts,
+        );
+    }
+
+    fn write_buf<F>(&mut self, handle_err: F) -> crate::Result<()>
+    where
+        F: FnOnce(io::Error) -> Error,
+    {
+        let res = self
+            .writer
+            .write_all(self.buf.as_bytes())
+            .map_err(handle_err);
+        // Always clear `buf`
+        self.buf.clear();
+        res
+    }
 }
 
 impl<W> EncodeRecord for Encoder<W>
@@ -137,16 +164,8 @@ where
     W: io::Write,
 {
     fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<()> {
-        let json = to_json_string(
-            record,
-            self.should_pretty_print,
-            self.use_pretty_px,
-            self.use_pretty_ts,
-        );
-        match self.writer.write_all(json.as_bytes()) {
-            Ok(()) => Ok(()),
-            Err(e) => Err(Error::io(e, "writing record")),
-        }
+        self.encode_to_buf(record);
+        self.write_buf(|e| Error::io(e, format!("writing record {record:?}")))
     }
 
     fn flush(&mut self) -> Result<()> {
@@ -184,17 +203,20 @@ where
         record: &R,
         symbol: Option<&str>,
     ) -> Result<()> {
-        let json = to_json_string_with_sym(
+        to_json_with_sym_in_buf(
+            &mut self.buf,
             record,
             self.should_pretty_print,
             self.use_pretty_px,
             self.use_pretty_ts,
             symbol,
         );
-        match self.writer.write_all(json.as_bytes()) {
-            Ok(()) => Ok(()),
-            Err(e) => Err(Error::io(e, "writing record")),
-        }
+        self.write_buf(|e| {
+            Error::io(
+                e,
+                format!("writing record {record:?} with symbol {symbol:?}"),
+            )
+        })
     }
 }
 

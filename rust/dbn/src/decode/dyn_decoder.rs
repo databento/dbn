@@ -152,7 +152,7 @@ impl<R> DecodeRecordRef for DynDecoder<'_, R>
 where
     R: io::BufRead,
 {
-    fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef>> {
+    fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef<'_>>> {
         match &mut self.0 {
             DynDecoderImpl::Dbn(decoder) => decoder.decode_record_ref(),
             DynDecoderImpl::ZstdDbn(decoder) => decoder.decode_record_ref(),
@@ -211,7 +211,7 @@ impl<R> private::LastRecord for DynDecoder<'_, R>
 where
     R: io::BufRead,
 {
-    fn last_record(&self) -> Option<RecordRef> {
+    fn last_record(&self) -> Option<RecordRef<'_>> {
         match &self.0 {
             DynDecoderImpl::Dbn(decoder) => decoder.last_record(),
             DynDecoderImpl::ZstdDbn(decoder) => decoder.last_record(),

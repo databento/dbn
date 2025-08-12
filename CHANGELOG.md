@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.39.1 - 2025-08-12
+
+### Enhancements
+- Added `PUBLISHER_SPECIFIC` flag
+- Improved JSON encoding performance
+- Added a `Default` implementation for `SecurityUpdateAction`
+
 ## 0.39.0 - 2025-07-29
 
 ### Enhancements

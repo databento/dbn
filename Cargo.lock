@@ -261,7 +261,7 @@ dependencies = [
 
 [[package]]
 name = "databento-dbn"
-version = "0.39.0"
+version = "0.39.1"
 dependencies = [
  "dbn",
  "pyo3",
@@ -273,7 +273,7 @@ dependencies = [
 
 [[package]]
 name = "dbn"
-version = "0.39.0"
+version = "0.39.1"
 dependencies = [
  "async-compression",
  "csv",
@@ -296,7 +296,7 @@ dependencies = [
 
 [[package]]
 name = "dbn-c"
-version = "0.39.0"
+version = "0.39.1"
 dependencies = [
  "anyhow",
  "cbindgen",
@@ -306,7 +306,7 @@ dependencies = [
 
 [[package]]
 name = "dbn-cli"
-version = "0.39.0"
+version = "0.39.1"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -321,7 +321,7 @@ dependencies = [
 
 [[package]]
 name = "dbn-macros"
-version = "0.39.0"
+version = "0.39.1"
 dependencies = [
  "csv",
  "dbn",
@@ -520,9 +520,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.174"
+version = "0.2.175"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1171693293099992e19cddea4e8b849964e9846f4acee11b3948bcc337be8776"
+checksum = "6a82ae493e598baaea5209805c49bbf2ea7de956d50d7da0da1164f9c6d28543"
 
 [[package]]
 name = "linux-raw-sys"
@@ -703,9 +703,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.95"
+version = "1.0.97"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "02b3e5e68a3a1a02aad3ec490a98007cbc13c37cbe84a3cd7b8e406d76e7f778"
+checksum = "d61789d7719defeb74ea5fe81f2fdfdbd28a803847077cecce2ff14e1472f6f1"
 dependencies = [
  "unicode-ident",
 ]
@@ -1211,9 +1211,9 @@ checksum = "fcc842091f2def52017664b53082ecbbeb5c7731092bad69d2c63050401dfd64"
 
 [[package]]
 name = "trybuild"
-version = "1.0.106"
+version = "1.0.110"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "65af40ad689f2527aebbd37a0a816aea88ff5f774ceabe99de5be02f2f91dae2"
+checksum = "32e257d7246e7a9fd015fb0b28b330a8d4142151a33f03e6a497754f4b1f6a8e"
 dependencies = [
  "glob",
  "serde",

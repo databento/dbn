@@ -20,7 +20,7 @@ use crate::{
     enums::rtype,
     macros::{dbn_record, CsvSerialize, JsonSerialize, RecordDebug},
     Action, Error, FlagSet, InstrumentClass, MatchAlgorithm, Publisher, RType, Result,
-    SecurityUpdateAction, Side, StatType, StatUpdateAction, UserDefinedInstrument, ASSET_CSTR_LEN,
+    SecurityUpdateAction, Side, StatUpdateAction, UserDefinedInstrument, ASSET_CSTR_LEN,
     SYMBOL_CSTR_LEN,
 };
 pub(crate) use conv::as_u8_slice;

@@ -8,47 +8,45 @@ use crate::{
     UserDefinedInstrument, WithTsOut, UNDEF_PRICE, UNDEF_TIMESTAMP,
 };
 
-/// Serializes `obj` to a JSON string.
-pub fn to_json_string<T: JsonSerialize>(
+/// Serializes `obj` to JSON in the provided string.
+pub(crate) fn to_json_in_buf<T: JsonSerialize>(
+    buf: &mut String,
     obj: &T,
     should_pretty_print: bool,
     use_pretty_px: bool,
     use_pretty_ts: bool,
-) -> String {
-    let mut res = String::new();
+) {
     if should_pretty_print {
-        let mut pretty = pretty_writer(&mut res);
+        let mut pretty = pretty_writer(buf);
         let mut writer = JsonObjectWriter::new(&mut pretty);
         to_json_with_writer(obj, &mut writer, use_pretty_px, use_pretty_ts);
     } else {
-        let mut writer = JsonObjectWriter::new(&mut res);
+        let mut writer = JsonObjectWriter::new(buf);
         to_json_with_writer(obj, &mut writer, use_pretty_px, use_pretty_ts);
     }
-    res.push('\n');
-    res
+    buf.push('\n');
 }
 
-/// Serializes `obj` to a JSON string with an optional `symbol`.
-pub fn to_json_string_with_sym<T: JsonSerialize>(
+/// Serializes `obj` to JSON with an optional `symbol` in the provided string.
+pub(crate) fn to_json_with_sym_in_buf<T: JsonSerialize>(
+    buf: &mut String,
     obj: &T,
     should_pretty_print: bool,
     use_pretty_px: bool,
     use_pretty_ts: bool,
     symbol: Option<&str>,
-) -> String {
-    let mut res = String::new();
+) {
     if should_pretty_print {
-        let mut pretty = pretty_writer(&mut res);
+        let mut pretty = pretty_writer(buf);
         let mut writer = JsonObjectWriter::new(&mut pretty);
         to_json_with_writer(obj, &mut writer, use_pretty_px, use_pretty_ts);
         writer.value("symbol", symbol);
     } else {
-        let mut writer = JsonObjectWriter::new(&mut res);
+        let mut writer = JsonObjectWriter::new(buf);
         to_json_with_writer(obj, &mut writer, use_pretty_px, use_pretty_ts);
         writer.value("symbol", symbol);
     }
-    res.push('\n');
-    res
+    buf.push('\n');
 }
 
 fn to_json_with_writer<T: JsonSerialize, J: crate::json_writer::JsonWriter>(

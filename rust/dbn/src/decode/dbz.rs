@@ -105,7 +105,7 @@ impl<R: io::BufRead> Decoder<R> {
 }
 
 impl<R: io::BufRead> DecodeRecordRef for Decoder<R> {
-    fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef>> {
+    fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef<'_>>> {
         loop {
             match self.fsm.process() {
                 ProcessResult::ReadMore(_) => match self.reader.read(self.fsm.space()) {
@@ -166,7 +166,7 @@ impl<R: io::BufRead> DecodeStream for Decoder<R> {
 }
 
 impl<R: io::BufRead> LastRecord for Decoder<R> {
-    fn last_record(&self) -> Option<RecordRef> {
+    fn last_record(&self) -> Option<RecordRef<'_>> {
         self.fsm.last_record()
     }
 }

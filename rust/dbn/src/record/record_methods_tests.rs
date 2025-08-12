@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use crate::SType;
+use crate::{SType, StatType};
 
 use super::*;
 

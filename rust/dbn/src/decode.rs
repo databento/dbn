@@ -43,7 +43,7 @@ pub trait DecodeRecordRef {
     ///
     /// If the `length` property of the record is invalid, an
     /// [`Error::Decode`](crate::Error::Decode) will be returned.
-    fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef>>;
+    fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef<'_>>>;
 }
 
 /// Trait for decoders with metadata about what's being decoded.
@@ -143,7 +143,7 @@ pub trait AsyncDecodeRecordRef {
     /// # Cancel safety
     /// This method is cancel safe. It can be used within a `tokio::select!` statement
     /// without the potential for corrupting the input stream.
-    async fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef>>;
+    async fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef<'_>>>;
 }
 
 /// Async trait for types that decode DBN records of a particular type.
@@ -217,7 +217,7 @@ pub mod private {
     /// implementors of [`DecodeRecord`].
     #[doc(hidden)]
     pub trait LastRecord {
-        fn last_record(&self) -> Option<RecordRef>;
+        fn last_record(&self) -> Option<RecordRef<'_>>;
     }
 }
 

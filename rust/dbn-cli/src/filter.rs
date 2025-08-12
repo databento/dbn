@@ -43,7 +43,7 @@ impl<D: DbnMetadata> DbnMetadata for SchemaFilter<D> {
 }
 
 impl<D: DecodeRecordRef> DecodeRecordRef for SchemaFilter<D> {
-    fn decode_record_ref(&mut self) -> dbn::Result<Option<dbn::RecordRef>> {
+    fn decode_record_ref(&mut self) -> dbn::Result<Option<dbn::RecordRef<'_>>> {
         while let Some(record) = self.decoder.decode_record_ref()? {
             if self
                 .rtype
@@ -106,7 +106,7 @@ impl<D: DbnMetadata> DbnMetadata for LimitFilter<D> {
 }
 
 impl<D: DecodeRecordRef> DecodeRecordRef for LimitFilter<D> {
-    fn decode_record_ref(&mut self) -> dbn::Result<Option<RecordRef>> {
+    fn decode_record_ref(&mut self) -> dbn::Result<Option<RecordRef<'_>>> {
         if self
             .limit
             .map(|limit| self.record_count >= limit.get())
