@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.39.1 - TBD
+## 0.39.1 - 2025-08-12
 
 ### Enhancements
 - Added `PUBLISHER_SPECIFIC` flag
