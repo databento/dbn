@@ -448,6 +448,7 @@ class RType(Enum):
     BBO_1S: int
     BBO_1M: int
 
+    def __init__(self, value: int) -> RType: ...
     @classmethod
     def from_str(cls, value: str) -> RType: ...
     @classmethod
@@ -476,8 +477,11 @@ class Side(Enum):
     BID: str
     NONE: str
 
+    def __init__(self, value: str) -> Side: ...
     @classmethod
     def from_str(cls, value: str) -> Side: ...
+    @classmethod
+    def from_int(cls, value: int) -> Side: ...
     @classmethod
     def variants(cls) -> Iterable[Side]: ...
 
@@ -514,8 +518,11 @@ class Action(Enum):
     CLEAR: str
     NONE: str
 
+    def __init__(self, value: str) -> Action: ...
     @classmethod
     def from_str(cls, value: str) -> Action: ...
+    @classmethod
+    def from_int(cls, value: int) -> Action: ...
     @classmethod
     def variants(cls) -> Iterable[Action]: ...
 
@@ -560,8 +567,11 @@ class InstrumentClass(Enum):
     FX_SPOT: str
     COMMODITY_SPOT: str
 
+    def __init__(self, value: str) -> InstrumentClass: ...
     @classmethod
     def from_str(cls, value: str) -> InstrumentClass: ...
+    @classmethod
+    def from_int(cls, value: int) -> InstrumentClass: ...
     @classmethod
     def variants(cls) -> Iterable[InstrumentClass]: ...
 
@@ -612,8 +622,11 @@ class MatchAlgorithm(Enum):
     TIME_PRO_RATA: str
     INSTITUTIONAL_PRIORITIZATION: str
 
+    def __init__(self, value: str) -> MatchAlgorithm: ...
     @classmethod
     def from_str(cls, value: str) -> MatchAlgorithm: ...
+    @classmethod
+    def from_int(cls, value: int) -> MatchAlgorithm: ...
     @classmethod
     def variants(cls) -> Iterable[MatchAlgorithm]: ...
 
@@ -634,8 +647,11 @@ class UserDefinedInstrument(Enum):
     NO: str
     YES: str
 
+    def __init__(self, value: str) -> UserDefinedInstrument: ...
     @classmethod
     def from_str(cls, value: str) -> UserDefinedInstrument: ...
+    @classmethod
+    def from_int(cls, value: int) -> UserDefinedInstrument: ...
     @classmethod
     def variants(cls) -> Iterable[UserDefinedInstrument]: ...
 
@@ -659,8 +675,11 @@ class SecurityUpdateAction(Enum):
     DELETE: str
     INVALID: str
 
+    def __init__(self, value: str) -> SecurityUpdateAction: ...
     @classmethod
     def from_str(cls, value: str) -> SecurityUpdateAction: ...
+    @classmethod
+    def from_int(cls, value: int) -> SecurityUpdateAction: ...
     @classmethod
     def variants(cls) -> Iterable[SecurityUpdateAction]: ...
 
@@ -716,6 +735,7 @@ class SType(Enum):
     FIGI: str
     FIGI_TICKER: str
 
+    def __init__(self, value: str) -> SType: ...
     @classmethod
     def from_str(cls, value: str) -> SType: ...
     @classmethod
@@ -801,6 +821,7 @@ class Schema(Enum):
     BBO_1S: str
     BBO_1M: str
 
+    def __init__(self, value: str) -> Schema: ...
     @classmethod
     def from_str(cls, value: str) -> Schema: ...
     @classmethod
@@ -825,6 +846,7 @@ class Encoding(Enum):
     CSV: str
     JSON: str
 
+    def __init__(self, value: str) -> Encoding: ...
     @classmethod
     def from_str(cls, value: str) -> Encoding: ...
     @classmethod
@@ -846,6 +868,7 @@ class Compression(Enum):
     NONE: str
     ZSTD: str
 
+    def __init__(self, value: str) -> Compression: ...
     @classmethod
     def from_str(cls, value: str) -> Compression: ...
     @classmethod
@@ -929,6 +952,7 @@ class StatType(Enum):
     DELTA: int
     UNCROSSING_PRICE: int
 
+    def __init__(self, value: int) -> StatType: ...
     @classmethod
     def from_int(cls, value: int) -> StatType: ...
     @classmethod
@@ -948,6 +972,7 @@ class StatUpdateAction(Enum):
     NEW: int
     DELETE: int
 
+    def __init__(self, value: int) -> StatUpdateAction: ...
     @classmethod
     def from_int(cls, value: int) -> StatUpdateAction: ...
     @classmethod
@@ -1009,6 +1034,7 @@ class StatusAction(Enum):
     SSR_CHANGE: int
     NOT_AVAILABLE_FOR_TRADING: int
 
+    def __init__(self, value: int) -> StatusAction: ...
     @classmethod
     def from_int(cls, value: int) -> StatusAction: ...
     @classmethod
@@ -1128,6 +1154,7 @@ class StatusReason(Enum):
     MARKET_WIDE_HALT_RESUMPTION: int
     QUOTATION_NOT_AVAILABLE: int
 
+    def __init__(self, value: int) -> StatusReason: ...
     @classmethod
     def from_int(cls, value: int) -> StatusReason: ...
     @classmethod
@@ -1156,6 +1183,7 @@ class TradingEvent(Enum):
     IMPLIED_MATCHING_ON: int
     IMPLIED_MATCHING_OFF: int
 
+    def __init__(self, value: int) -> TradingEvent: ...
     @classmethod
     def from_int(cls, value: int) -> TradingEvent: ...
     @classmethod
@@ -1178,8 +1206,11 @@ class TriState(Enum):
     NO: str
     YES: str
 
+    def __init__(self, value: str) -> TriState: ...
     @classmethod
     def from_str(cls, value: str) -> TriState: ...
+    @classmethod
+    def from_int(cls, value: int) -> TriState: ...
     @classmethod
     def variants(cls) -> Iterable[TriState]: ...
 
@@ -1204,6 +1235,7 @@ class VersionUpgradePolicy(Enum):
     UPGRADE_TO_V2: int
     UPGRADE_TO_V3: int
 
+    def __init__(self, value: int) -> VersionUpgradePolicy: ...
     @classmethod
     def variants(cls) -> Iterable[VersionUpgradePolicy]: ...
 
@@ -1226,13 +1258,14 @@ class ErrorCode(Enum):
 
     """
 
-    AUTH_FAILED: str
-    API_KEY_DEACTIVATED: str
-    CONNECTION_LIMIT_EXCEEDED: str
-    SYMBOL_RESOLUTION_FAILED: str
-    INVALID_SUBSCRIPTION: str
-    INTERNAL_ERROR: str
+    AUTH_FAILED: int
+    API_KEY_DEACTIVATED: int
+    CONNECTION_LIMIT_EXCEEDED: int
+    SYMBOL_RESOLUTION_FAILED: int
+    INVALID_SUBSCRIPTION: int
+    INTERNAL_ERROR: int
 
+    def __init__(self, value: int) -> ErrorCode: ...
     @classmethod
     def from_str(cls, value: str) -> ErrorCode: ...
     @classmethod
@@ -1259,12 +1292,13 @@ class SystemCode(Enum):
 
     """
 
-    HEARTBEAT: str
-    SUBSCRIPTION_ACK: str
-    SLOW_READER_WARNING: str
-    REPLAY_COMPLETED: str
-    END_OF_INTERVAL: str
+    HEARTBEAT: int
+    SUBSCRIPTION_ACK: int
+    SLOW_READER_WARNING: int
+    REPLAY_COMPLETED: int
+    END_OF_INTERVAL: int
 
+    def __init__(self, value: int) -> SystemCode: ...
     @classmethod
     def from_str(cls, value: str) -> SystemCode: ...
     @classmethod
