@@ -1384,6 +1384,7 @@ pub enum VersionUpgradePolicy {
     pyo3::pyclass(module = "databento_dbn")
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
+#[non_exhaustive]
 #[repr(u8)]
 pub enum ErrorCode {
     /// The authentication step failed.
@@ -1459,6 +1460,7 @@ impl Display for ErrorCode {
     pyo3::pyclass(module = "databento_dbn")
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
+#[non_exhaustive]
 #[repr(u8)]
 pub enum SystemCode {
     /// A message sent in the absence of other records to indicate the connection
@@ -1474,6 +1476,9 @@ pub enum SystemCode {
     /// Indicates a replay subscription has caught up with real-time data.
     #[pyo3(name = "REPLAY_COMPLETED")]
     ReplayCompleted = 3,
+    /// Signals that all records for interval-based schemas have been published for the given timestamp.
+    #[pyo3(name = "END_OF_INTERVAL")]
+    EndOfInterval = 4,
 }
 
 impl std::str::FromStr for SystemCode {
@@ -1485,6 +1490,7 @@ impl std::str::FromStr for SystemCode {
             "subscription_ack" => Ok(Self::SubscriptionAck),
             "slow_reader_warning" => Ok(Self::SlowReaderWarning),
             "replay_completed" => Ok(Self::ReplayCompleted),
+            "end_of_interval" => Ok(Self::EndOfInterval),
             _ => Err(crate::Error::conversion::<Self>(s.to_owned())),
         }
     }
@@ -1504,6 +1510,7 @@ impl SystemCode {
             Self::SubscriptionAck => "subscription_ack",
             Self::SlowReaderWarning => "slow_reader_warning",
             Self::ReplayCompleted => "replay_completed",
+            Self::EndOfInterval => "end_of_interval",
         }
     }
 }

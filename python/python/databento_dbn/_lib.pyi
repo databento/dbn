@@ -1254,6 +1254,8 @@ class SystemCode(Enum):
         The gateway has detected this session is falling behind real-time.
     REPLAY_COMPLETED
         Indicates a replay subscription has caught up with real-time data.
+    END_OF_INTERVAL
+        Signals that all records for interval-based schemas have been published for the given timestamp.
 
     """
 
@@ -1261,6 +1263,7 @@ class SystemCode(Enum):
     SUBSCRIPTION_ACK: str
     SLOW_READER_WARNING: str
     REPLAY_COMPLETED: str
+    END_OF_INTERVAL: str
 
     @classmethod
     def from_str(cls, value: str) -> SystemCode: ...

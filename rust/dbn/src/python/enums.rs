@@ -1249,6 +1249,7 @@ impl SystemCode {
             Self::SubscriptionAck => "SUBSCRIPTION_ACK",
             Self::SlowReaderWarning => "SLOW_READER_WARNING",
             Self::ReplayCompleted => "REPLAY_COMPLETED",
+            Self::EndOfInterval => "END_OF_INTERVAL",
         }
     }
 

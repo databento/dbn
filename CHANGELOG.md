@@ -14,6 +14,12 @@
 - Fixed `__init__` type signatures for `ErrorMsg` and `SystemMsg` in Python
 - Added missing types to record `__init__` type signatures in Python
 
+### Breaking changes
+- Marked `ErrorCode` and `SystemCode` non-exhaustive to allow adding future variants
+  without a breaking change
+- Added `EndOfInterval` variant to `SystemCode` to notify when all OHLCV bars and
+  subsampled BBO records have been published for a time interval
+
 ## 0.39.1 - 2025-08-12
 
 ### Enhancements
