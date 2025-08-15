@@ -261,73 +261,6 @@ class Metadata(SupportsBytes):
 
         """
 
-class RecordHeader:
-    """
-    DBN record header.
-    """
-
-    @property
-    def length(self) -> int:
-        """
-        The length of the record.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def rtype(self) -> int:
-        """
-        The record type.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def publisher_id(self) -> int:
-        """
-        The publisher ID assigned by Databento, which denotes the dataset and venue.
-
-        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def instrument_id(self) -> int:
-        """
-        The numeric instrument ID.
-
-        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def ts_event(self) -> int:
-        """
-        The matching-engine-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
-
-        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
-
-        Returns
-        -------
-        int
-
-        """
-
 class Record(SupportsBytes):
     """
     Base class for DBN records.
@@ -341,17 +274,6 @@ class Record(SupportsBytes):
     _timestamp_fields: ClassVar[list[str]]
 
     def __bytes__(self) -> bytes: ...
-    @property
-    def hd(self) -> RecordHeader:
-        """
-        The common header.
-
-        Returns
-        -------
-        RecordHeader
-
-        """
-
     @property
     def record_size(self) -> int:
         """
@@ -368,13 +290,13 @@ class Record(SupportsBytes):
         """
 
     @property
-    def rtype(self) -> int:
+    def rtype(self) -> RType:
         """
         The record type.
 
         Returns
         -------
-        int
+        RType
 
         """
 

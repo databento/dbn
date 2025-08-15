@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.40.0 - TBD
+
+### Enhancements
+- Added `instrument_id` and `publisher_id` setters to all records in Python
+
+### Breaking changes
+- Removed `hd` property from records in Python. Header fields are accessible
+  directly from the record
+
 ## 0.39.1 - 2025-08-12
 
 ### Enhancements

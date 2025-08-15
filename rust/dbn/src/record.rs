@@ -38,12 +38,7 @@ pub use traits::{HasRType, Record, RecordMut};
 #[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(dict, eq, get_all, module = "databento_dbn"),
-    derive(crate::macros::PyFieldDesc)
-)]
-#[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
+#[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
 #[cfg_attr(test, derive(type_layout::TypeLayout))]
 pub struct RecordHeader {
     /// The length of the record in 32-bit words.
@@ -57,17 +52,14 @@ pub struct RecordHeader {
     /// The publisher ID assigned by Databento, which denotes the dataset and venue.
     ///
     /// See [Publishers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues).
-    #[pyo3(set)]
     pub publisher_id: u16,
     /// The numeric instrument ID. See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers).
-    #[pyo3(set)]
     pub instrument_id: u32,
     /// The matching-engine-received timestamp expressed as the number of nanoseconds
     /// since the UNIX epoch.
     ///
     /// See [ts_event](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event).
     #[dbn(encode_order(0), unix_nanos)]
-    #[pyo3(set)]
     pub ts_event: u64,
 }
 
@@ -87,7 +79,6 @@ pub struct RecordHeader {
 #[dbn_record(rtype::MBO)]
 pub struct MboMsg {
     /// The common header.
-    #[pyo3(get)]
     pub hd: RecordHeader,
     /// The order ID assigned at the venue.
     #[pyo3(get, set)]
@@ -249,7 +240,6 @@ pub struct ConsolidatedBidAskPair {
 #[dbn_record(rtype::MBP_0)]
 pub struct TradeMsg {
     /// The common header.
-    #[pyo3(get)]
     pub hd: RecordHeader,
     /// The trade price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
     ///
@@ -312,7 +302,6 @@ pub struct TradeMsg {
 #[dbn_record(rtype::MBP_1)]
 pub struct Mbp1Msg {
     /// The common header.
-    #[pyo3(get)]
     pub hd: RecordHeader,
     /// The order price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
     /// 0.000000001.
@@ -380,7 +369,6 @@ pub struct Mbp1Msg {
 #[dbn_record(rtype::MBP_10)]
 pub struct Mbp10Msg {
     /// The common header.
-    #[pyo3(get)]
     pub hd: RecordHeader,
     /// The order price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
     /// 0.000000001.
@@ -448,7 +436,6 @@ pub struct Mbp10Msg {
 #[dbn_record(rtype::BBO_1S, rtype::BBO_1M)]
 pub struct BboMsg {
     /// The common header.
-    #[pyo3(get)]
     pub hd: RecordHeader,
     /// The last trade price price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000
     /// or 0.000000001. Will be [`UNDEF_PRICE`](crate::UNDEF_PRICE) if there was no last trade
@@ -512,7 +499,6 @@ pub struct BboMsg {
 #[dbn_record(rtype::CMBP_1, rtype::TCBBO)]
 pub struct Cmbp1Msg {
     /// The common header.
-    #[pyo3(get)]
     pub hd: RecordHeader,
     /// The order price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
     /// 0.000000001.
@@ -578,7 +564,6 @@ pub struct Cmbp1Msg {
 #[dbn_record(rtype::CBBO_1S, rtype::CBBO_1M)]
 pub struct CbboMsg {
     /// The common header.
-    #[pyo3(get)]
     pub hd: RecordHeader,
     /// The last trade price price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000
     /// or 0.000000001. Will be [`UNDEF_PRICE`](crate::UNDEF_PRICE) if there was no last trade
@@ -668,7 +653,6 @@ pub type Cbbo1MMsg = CbboMsg;
 )]
 pub struct OhlcvMsg {
     /// The common header.
-    #[pyo3(get)]
     pub hd: RecordHeader,
     /// The open price for the bar where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000
     /// or 0.000000001.
@@ -718,7 +702,6 @@ pub struct OhlcvMsg {
 #[dbn_record(rtype::STATUS)]
 pub struct StatusMsg {
     /// The common header.
-    #[pyo3(get)]
     pub hd: RecordHeader,
     /// The capture-server-received timestamp expressed as the number of nanoseconds
     /// since the UNIX epoch.
@@ -769,7 +752,6 @@ pub struct StatusMsg {
 #[dbn_record(rtype::INSTRUMENT_DEF)]
 pub struct InstrumentDefMsg {
     /// The common header.
-    #[pyo3(get)]
     pub hd: RecordHeader,
     /// The capture-server-received timestamp expressed as the number of nanoseconds
     /// since the UNIX epoch.
@@ -1082,7 +1064,6 @@ pub struct InstrumentDefMsg {
 #[dbn_record(rtype::IMBALANCE)]
 pub struct ImbalanceMsg {
     /// The common header.
-    #[pyo3(get)]
     pub hd: RecordHeader,
     /// The capture-server-received timestamp expressed as the number of nanoseconds
     /// since the UNIX epoch.
@@ -1188,7 +1169,6 @@ pub struct ImbalanceMsg {
 #[dbn_record(rtype::STATISTICS)]
 pub struct StatMsg {
     /// The common header.
-    #[pyo3(get)]
     pub hd: RecordHeader,
     /// The capture-server-received timestamp expressed as the number of nanoseconds
     /// since the UNIX epoch.
@@ -1261,7 +1241,6 @@ pub struct StatMsg {
 #[dbn_record(rtype::ERROR)]
 pub struct ErrorMsg {
     /// The common header.
-    #[pyo3(get)]
     pub hd: RecordHeader,
     /// The error message.
     #[dbn(fmt_method)]
@@ -1294,7 +1273,6 @@ pub struct ErrorMsg {
 #[dbn_record(rtype::SYMBOL_MAPPING)]
 pub struct SymbolMappingMsg {
     /// The common header.
-    #[pyo3(get)]
     pub hd: RecordHeader,
     /// The input symbology type of `stype_in_symbol`.
     #[dbn(fmt_method)]
@@ -1340,7 +1318,6 @@ pub struct SymbolMappingMsg {
 #[dbn_record(rtype::SYSTEM)]
 pub struct SystemMsg {
     /// The common header.
-    #[pyo3(get)]
     pub hd: RecordHeader,
     /// The message from the Databento gateway.
     #[dbn(fmt_method)]

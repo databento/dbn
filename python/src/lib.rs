@@ -11,11 +11,11 @@ use dbn::{
     python::{DBNError, EnumIterator},
     Action, BboMsg, BidAskPair, CbboMsg, Cmbp1Msg, Compression, ConsolidatedBidAskPair, Encoding,
     ErrorCode, ErrorMsg, ImbalanceMsg, InstrumentClass, InstrumentDefMsg, MatchAlgorithm, MboMsg,
-    Mbp10Msg, Mbp1Msg, Metadata, OhlcvMsg, RType, RecordHeader, SType, Schema,
-    SecurityUpdateAction, Side, StatMsg, StatType, StatUpdateAction, StatusAction, StatusMsg,
-    StatusReason, SymbolMappingMsg, SystemCode, SystemMsg, TradeMsg, TradingEvent, TriState,
-    UserDefinedInstrument, VersionUpgradePolicy, DBN_VERSION, FIXED_PRICE_SCALE, UNDEF_ORDER_SIZE,
-    UNDEF_PRICE, UNDEF_STAT_QUANTITY, UNDEF_TIMESTAMP,
+    Mbp10Msg, Mbp1Msg, Metadata, OhlcvMsg, RType, SType, Schema, SecurityUpdateAction, Side,
+    StatMsg, StatType, StatUpdateAction, StatusAction, StatusMsg, StatusReason, SymbolMappingMsg,
+    SystemCode, SystemMsg, TradeMsg, TradingEvent, TriState, UserDefinedInstrument,
+    VersionUpgradePolicy, DBN_VERSION, FIXED_PRICE_SCALE, UNDEF_ORDER_SIZE, UNDEF_PRICE,
+    UNDEF_STAT_QUANTITY, UNDEF_TIMESTAMP,
 };
 
 mod dbn_decoder;
@@ -40,7 +40,6 @@ fn databento_dbn(_py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     checked_add_class::<dbn_decoder::DbnDecoder>(m)?;
     checked_add_class::<transcoder::Transcoder>(m)?;
     // Records
-    checked_add_class::<RecordHeader>(m)?;
     checked_add_class::<MboMsg>(m)?;
     checked_add_class::<BidAskPair>(m)?;
     checked_add_class::<ConsolidatedBidAskPair>(m)?;

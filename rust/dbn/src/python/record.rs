@@ -5,10 +5,10 @@ use pyo3::prelude::*;
 use crate::{
     record::str_to_c_chars, rtype, v1, v2, Action, BboMsg, BidAskPair, CbboMsg, Cmbp1Msg,
     ConsolidatedBidAskPair, ErrorCode, ErrorMsg, FlagSet, ImbalanceMsg, InstrumentClass,
-    InstrumentDefMsg, MatchAlgorithm, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, Record, RecordHeader,
-    SType, SecurityUpdateAction, Side, StatMsg, StatType, StatUpdateAction, StatusAction,
-    StatusMsg, StatusReason, SymbolMappingMsg, SystemCode, SystemMsg, TradeMsg, TradingEvent,
-    TriState, UserDefinedInstrument, UNDEF_ORDER_SIZE, UNDEF_PRICE, UNDEF_TIMESTAMP,
+    InstrumentDefMsg, MatchAlgorithm, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, RType, Record,
+    RecordHeader, SType, SecurityUpdateAction, Side, StatMsg, StatType, StatUpdateAction,
+    StatusAction, StatusMsg, StatusReason, SymbolMappingMsg, SystemCode, SystemMsg, TradeMsg,
+    TradingEvent, TriState, UserDefinedInstrument, UNDEF_ORDER_SIZE, UNDEF_PRICE, UNDEF_TIMESTAMP,
 };
 
 use super::{
@@ -73,18 +73,26 @@ impl MboMsg {
     }
 
     #[getter]
-    fn rtype(&self) -> u8 {
-        self.hd.rtype
+    fn rtype(&self) -> PyResult<RType> {
+        self.hd.rtype().map_err(to_py_err)
     }
 
     #[getter]
-    fn publisher_id(&self) -> u16 {
+    fn get_publisher_id(&self) -> u16 {
         self.hd.publisher_id
     }
+    #[setter]
+    fn set_publisher_id(&mut self, publisher_id: u16) {
+        self.hd.publisher_id = publisher_id;
+    }
 
     #[getter]
-    fn instrument_id(&self) -> u32 {
+    fn get_instrument_id(&self) -> u32 {
         self.hd.instrument_id
+    }
+    #[setter]
+    fn set_instrument_id(&mut self, instrument_id: u32) {
+        self.hd.instrument_id = instrument_id;
     }
 
     #[getter]
@@ -313,18 +321,26 @@ impl TradeMsg {
     }
 
     #[getter]
-    fn rtype(&self) -> u8 {
-        self.hd.rtype
+    fn rtype(&self) -> PyResult<RType> {
+        self.hd.rtype().map_err(to_py_err)
     }
 
     #[getter]
-    fn publisher_id(&self) -> u16 {
+    fn get_publisher_id(&self) -> u16 {
         self.hd.publisher_id
     }
+    #[setter]
+    fn set_publisher_id(&mut self, publisher_id: u16) {
+        self.hd.publisher_id = publisher_id;
+    }
 
     #[getter]
-    fn instrument_id(&self) -> u32 {
+    fn get_instrument_id(&self) -> u32 {
         self.hd.instrument_id
+    }
+    #[setter]
+    fn set_instrument_id(&mut self, instrument_id: u32) {
+        self.hd.instrument_id = instrument_id;
     }
 
     #[getter]
@@ -466,18 +482,26 @@ impl Mbp1Msg {
     }
 
     #[getter]
-    fn rtype(&self) -> u8 {
-        self.hd.rtype
+    fn rtype(&self) -> PyResult<RType> {
+        self.hd.rtype().map_err(to_py_err)
     }
 
     #[getter]
-    fn publisher_id(&self) -> u16 {
+    fn get_publisher_id(&self) -> u16 {
         self.hd.publisher_id
     }
+    #[setter]
+    fn set_publisher_id(&mut self, publisher_id: u16) {
+        self.hd.publisher_id = publisher_id;
+    }
 
     #[getter]
-    fn instrument_id(&self) -> u32 {
+    fn get_instrument_id(&self) -> u32 {
         self.hd.instrument_id
+    }
+    #[setter]
+    fn set_instrument_id(&mut self, instrument_id: u32) {
+        self.hd.instrument_id = instrument_id;
     }
 
     #[getter]
@@ -619,18 +643,26 @@ impl Mbp10Msg {
     }
 
     #[getter]
-    fn rtype(&self) -> u8 {
-        self.hd.rtype
+    fn rtype(&self) -> PyResult<RType> {
+        self.hd.rtype().map_err(to_py_err)
     }
 
     #[getter]
-    fn publisher_id(&self) -> u16 {
+    fn get_publisher_id(&self) -> u16 {
         self.hd.publisher_id
     }
+    #[setter]
+    fn set_publisher_id(&mut self, publisher_id: u16) {
+        self.hd.publisher_id = publisher_id;
+    }
 
     #[getter]
-    fn instrument_id(&self) -> u32 {
+    fn get_instrument_id(&self) -> u32 {
         self.hd.instrument_id
+    }
+    #[setter]
+    fn set_instrument_id(&mut self, instrument_id: u32) {
+        self.hd.instrument_id = instrument_id;
     }
 
     #[getter]
@@ -768,18 +800,26 @@ impl BboMsg {
     }
 
     #[getter]
-    fn rtype(&self) -> u8 {
-        self.hd.rtype
+    fn rtype(&self) -> PyResult<RType> {
+        self.hd.rtype().map_err(to_py_err)
     }
 
     #[getter]
-    fn publisher_id(&self) -> u16 {
+    fn get_publisher_id(&self) -> u16 {
         self.hd.publisher_id
     }
+    #[setter]
+    fn set_publisher_id(&mut self, publisher_id: u16) {
+        self.hd.publisher_id = publisher_id;
+    }
 
     #[getter]
-    fn instrument_id(&self) -> u32 {
+    fn get_instrument_id(&self) -> u32 {
         self.hd.instrument_id
+    }
+    #[setter]
+    fn set_instrument_id(&mut self, instrument_id: u32) {
+        self.hd.instrument_id = instrument_id;
     }
 
     #[getter]
@@ -910,18 +950,26 @@ impl Cmbp1Msg {
     }
 
     #[getter]
-    fn rtype(&self) -> u8 {
-        self.hd.rtype
+    fn rtype(&self) -> PyResult<RType> {
+        self.hd.rtype().map_err(to_py_err)
     }
 
     #[getter]
-    fn publisher_id(&self) -> u16 {
+    fn get_publisher_id(&self) -> u16 {
         self.hd.publisher_id
     }
+    #[setter]
+    fn set_publisher_id(&mut self, publisher_id: u16) {
+        self.hd.publisher_id = publisher_id;
+    }
 
     #[getter]
-    fn instrument_id(&self) -> u32 {
+    fn get_instrument_id(&self) -> u32 {
         self.hd.instrument_id
+    }
+    #[setter]
+    fn set_instrument_id(&mut self, instrument_id: u32) {
+        self.hd.instrument_id = instrument_id;
     }
 
     #[getter]
@@ -1056,18 +1104,26 @@ impl CbboMsg {
     }
 
     #[getter]
-    fn rtype(&self) -> u8 {
-        self.hd.rtype
+    fn rtype(&self) -> PyResult<RType> {
+        self.hd.rtype().map_err(to_py_err)
     }
 
     #[getter]
-    fn publisher_id(&self) -> u16 {
+    fn get_publisher_id(&self) -> u16 {
         self.hd.publisher_id
     }
+    #[setter]
+    fn set_publisher_id(&mut self, publisher_id: u16) {
+        self.hd.publisher_id = publisher_id;
+    }
 
     #[getter]
-    fn instrument_id(&self) -> u32 {
+    fn get_instrument_id(&self) -> u32 {
         self.hd.instrument_id
+    }
+    #[setter]
+    fn set_instrument_id(&mut self, instrument_id: u32) {
+        self.hd.instrument_id = instrument_id;
     }
 
     #[getter]
@@ -1187,18 +1243,26 @@ impl OhlcvMsg {
     }
 
     #[getter]
-    fn rtype(&self) -> u8 {
-        self.hd.rtype
+    fn rtype(&self) -> PyResult<RType> {
+        self.hd.rtype().map_err(to_py_err)
     }
 
     #[getter]
-    fn publisher_id(&self) -> u16 {
+    fn get_publisher_id(&self) -> u16 {
         self.hd.publisher_id
     }
+    #[setter]
+    fn set_publisher_id(&mut self, publisher_id: u16) {
+        self.hd.publisher_id = publisher_id;
+    }
 
     #[getter]
-    fn instrument_id(&self) -> u32 {
+    fn get_instrument_id(&self) -> u32 {
         self.hd.instrument_id
+    }
+    #[setter]
+    fn set_instrument_id(&mut self, instrument_id: u32) {
+        self.hd.instrument_id = instrument_id;
     }
 
     #[getter]
@@ -1324,18 +1388,26 @@ impl StatusMsg {
     }
 
     #[getter]
-    fn rtype(&self) -> u8 {
-        self.hd.rtype
+    fn rtype(&self) -> PyResult<RType> {
+        self.hd.rtype().map_err(to_py_err)
     }
 
     #[getter]
-    fn publisher_id(&self) -> u16 {
+    fn get_publisher_id(&self) -> u16 {
         self.hd.publisher_id
     }
+    #[setter]
+    fn set_publisher_id(&mut self, publisher_id: u16) {
+        self.hd.publisher_id = publisher_id;
+    }
 
     #[getter]
-    fn instrument_id(&self) -> u32 {
+    fn get_instrument_id(&self) -> u32 {
         self.hd.instrument_id
+    }
+    #[setter]
+    fn set_instrument_id(&mut self, instrument_id: u32) {
+        self.hd.instrument_id = instrument_id;
     }
 
     #[getter]
@@ -1681,18 +1753,26 @@ impl InstrumentDefMsg {
     }
 
     #[getter]
-    fn rtype(&self) -> u8 {
-        self.hd.rtype
+    fn rtype(&self) -> PyResult<RType> {
+        self.hd.rtype().map_err(to_py_err)
     }
 
     #[getter]
-    fn publisher_id(&self) -> u16 {
+    fn get_publisher_id(&self) -> u16 {
         self.hd.publisher_id
     }
+    #[setter]
+    fn set_publisher_id(&mut self, publisher_id: u16) {
+        self.hd.publisher_id = publisher_id;
+    }
 
     #[getter]
-    fn instrument_id(&self) -> u32 {
+    fn get_instrument_id(&self) -> u32 {
         self.hd.instrument_id
+    }
+    #[setter]
+    fn set_instrument_id(&mut self, instrument_id: u32) {
+        self.hd.instrument_id = instrument_id;
     }
 
     #[getter]
@@ -2027,18 +2107,26 @@ impl ImbalanceMsg {
     }
 
     #[getter]
-    fn rtype(&self) -> u8 {
-        self.hd.rtype
+    fn rtype(&self) -> PyResult<RType> {
+        self.hd.rtype().map_err(to_py_err)
     }
 
     #[getter]
-    fn publisher_id(&self) -> u16 {
+    fn get_publisher_id(&self) -> u16 {
         self.hd.publisher_id
     }
+    #[setter]
+    fn set_publisher_id(&mut self, publisher_id: u16) {
+        self.hd.publisher_id = publisher_id;
+    }
 
     #[getter]
-    fn instrument_id(&self) -> u32 {
+    fn get_instrument_id(&self) -> u32 {
         self.hd.instrument_id
+    }
+    #[setter]
+    fn set_instrument_id(&mut self, instrument_id: u32) {
+        self.hd.instrument_id = instrument_id;
     }
 
     #[getter]
@@ -2236,18 +2324,26 @@ impl StatMsg {
     }
 
     #[getter]
-    fn rtype(&self) -> u8 {
-        self.hd.rtype
+    fn rtype(&self) -> PyResult<RType> {
+        self.hd.rtype().map_err(to_py_err)
     }
 
     #[getter]
-    fn publisher_id(&self) -> u16 {
+    fn get_publisher_id(&self) -> u16 {
         self.hd.publisher_id
     }
+    #[setter]
+    fn set_publisher_id(&mut self, publisher_id: u16) {
+        self.hd.publisher_id = publisher_id;
+    }
 
     #[getter]
-    fn instrument_id(&self) -> u32 {
+    fn get_instrument_id(&self) -> u32 {
         self.hd.instrument_id
+    }
+    #[setter]
+    fn set_instrument_id(&mut self, instrument_id: u32) {
+        self.hd.instrument_id = instrument_id;
     }
 
     #[getter]
@@ -2354,18 +2450,26 @@ impl ErrorMsg {
     }
 
     #[getter]
-    fn rtype(&self) -> u8 {
-        self.hd.rtype
+    fn rtype(&self) -> PyResult<RType> {
+        self.hd.rtype().map_err(to_py_err)
     }
 
     #[getter]
-    fn publisher_id(&self) -> u16 {
+    fn get_publisher_id(&self) -> u16 {
         self.hd.publisher_id
     }
+    #[setter]
+    fn set_publisher_id(&mut self, publisher_id: u16) {
+        self.hd.publisher_id = publisher_id;
+    }
 
     #[getter]
-    fn instrument_id(&self) -> u32 {
+    fn get_instrument_id(&self) -> u32 {
         self.hd.instrument_id
+    }
+    #[setter]
+    fn set_instrument_id(&mut self, instrument_id: u32) {
+        self.hd.instrument_id = instrument_id;
     }
 
     #[getter]
@@ -2486,18 +2590,26 @@ impl SymbolMappingMsg {
     }
 
     #[getter]
-    fn rtype(&self) -> u8 {
-        self.hd.rtype
+    fn rtype(&self) -> PyResult<RType> {
+        self.hd.rtype().map_err(to_py_err)
     }
 
     #[getter]
-    fn publisher_id(&self) -> u16 {
+    fn get_publisher_id(&self) -> u16 {
         self.hd.publisher_id
     }
+    #[setter]
+    fn set_publisher_id(&mut self, publisher_id: u16) {
+        self.hd.publisher_id = publisher_id;
+    }
 
     #[getter]
-    fn instrument_id(&self) -> u32 {
+    fn get_instrument_id(&self) -> u32 {
         self.hd.instrument_id
+    }
+    #[setter]
+    fn set_instrument_id(&mut self, instrument_id: u32) {
+        self.hd.instrument_id = instrument_id;
     }
 
     #[getter]
@@ -2609,18 +2721,26 @@ impl SystemMsg {
     }
 
     #[getter]
-    fn rtype(&self) -> u8 {
-        self.hd.rtype
+    fn rtype(&self) -> PyResult<RType> {
+        self.hd.rtype().map_err(to_py_err)
     }
 
     #[getter]
-    fn publisher_id(&self) -> u16 {
+    fn get_publisher_id(&self) -> u16 {
         self.hd.publisher_id
     }
+    #[setter]
+    fn set_publisher_id(&mut self, publisher_id: u16) {
+        self.hd.publisher_id = publisher_id;
+    }
 
     #[getter]
-    fn instrument_id(&self) -> u32 {
+    fn get_instrument_id(&self) -> u32 {
         self.hd.instrument_id
+    }
+    #[setter]
+    fn set_instrument_id(&mut self, instrument_id: u32) {
+        self.hd.instrument_id = instrument_id;
     }
 
     #[getter]
@@ -2712,18 +2832,26 @@ impl v1::ErrorMsg {
     }
 
     #[getter]
-    fn rtype(&self) -> u8 {
-        self.hd.rtype
+    fn rtype(&self) -> PyResult<RType> {
+        self.hd.rtype().map_err(to_py_err)
     }
 
     #[getter]
-    fn publisher_id(&self) -> u16 {
+    fn get_publisher_id(&self) -> u16 {
         self.hd.publisher_id
     }
+    #[setter]
+    fn set_publisher_id(&mut self, publisher_id: u16) {
+        self.hd.publisher_id = publisher_id;
+    }
 
     #[getter]
-    fn instrument_id(&self) -> u32 {
+    fn get_instrument_id(&self) -> u32 {
         self.hd.instrument_id
+    }
+    #[setter]
+    fn set_instrument_id(&mut self, instrument_id: u32) {
+        self.hd.instrument_id = instrument_id;
     }
 
     #[getter]
@@ -3002,18 +3130,26 @@ impl v1::InstrumentDefMsg {
     }
 
     #[getter]
-    fn rtype(&self) -> u8 {
-        self.hd.rtype
+    fn rtype(&self) -> PyResult<RType> {
+        self.hd.rtype().map_err(to_py_err)
     }
 
     #[getter]
-    fn publisher_id(&self) -> u16 {
+    fn get_publisher_id(&self) -> u16 {
         self.hd.publisher_id
     }
+    #[setter]
+    fn set_publisher_id(&mut self, publisher_id: u16) {
+        self.hd.publisher_id = publisher_id;
+    }
 
     #[getter]
-    fn instrument_id(&self) -> u32 {
+    fn get_instrument_id(&self) -> u32 {
         self.hd.instrument_id
+    }
+    #[setter]
+    fn set_instrument_id(&mut self, instrument_id: u32) {
+        self.hd.instrument_id = instrument_id;
     }
 
     #[getter]
@@ -3271,18 +3407,26 @@ impl v1::StatMsg {
     }
 
     #[getter]
-    fn rtype(&self) -> u8 {
-        self.hd.rtype
+    fn rtype(&self) -> PyResult<RType> {
+        self.hd.rtype().map_err(to_py_err)
     }
 
     #[getter]
-    fn publisher_id(&self) -> u16 {
+    fn get_publisher_id(&self) -> u16 {
         self.hd.publisher_id
     }
+    #[setter]
+    fn set_publisher_id(&mut self, publisher_id: u16) {
+        self.hd.publisher_id = publisher_id;
+    }
 
     #[getter]
-    fn instrument_id(&self) -> u32 {
+    fn get_instrument_id(&self) -> u32 {
         self.hd.instrument_id
+    }
+    #[setter]
+    fn set_instrument_id(&mut self, instrument_id: u32) {
+        self.hd.instrument_id = instrument_id;
     }
 
     #[getter]
@@ -3417,18 +3561,26 @@ impl v1::SymbolMappingMsg {
     }
 
     #[getter]
-    fn rtype(&self) -> u8 {
-        self.hd.rtype
+    fn rtype(&self) -> PyResult<RType> {
+        self.hd.rtype().map_err(to_py_err)
     }
 
     #[getter]
-    fn publisher_id(&self) -> u16 {
+    fn get_publisher_id(&self) -> u16 {
         self.hd.publisher_id
     }
+    #[setter]
+    fn set_publisher_id(&mut self, publisher_id: u16) {
+        self.hd.publisher_id = publisher_id;
+    }
 
     #[getter]
-    fn instrument_id(&self) -> u32 {
+    fn get_instrument_id(&self) -> u32 {
         self.hd.instrument_id
+    }
+    #[setter]
+    fn set_instrument_id(&mut self, instrument_id: u32) {
+        self.hd.instrument_id = instrument_id;
     }
 
     #[getter]
@@ -3521,18 +3673,26 @@ impl v1::SystemMsg {
     }
 
     #[getter]
-    fn rtype(&self) -> u8 {
-        self.hd.rtype
+    fn rtype(&self) -> PyResult<RType> {
+        self.hd.rtype().map_err(to_py_err)
     }
 
     #[getter]
-    fn publisher_id(&self) -> u16 {
+    fn get_publisher_id(&self) -> u16 {
         self.hd.publisher_id
     }
+    #[setter]
+    fn set_publisher_id(&mut self, publisher_id: u16) {
+        self.hd.publisher_id = publisher_id;
+    }
 
     #[getter]
-    fn instrument_id(&self) -> u32 {
+    fn get_instrument_id(&self) -> u32 {
         self.hd.instrument_id
+    }
+    #[setter]
+    fn set_instrument_id(&mut self, instrument_id: u32) {
+        self.hd.instrument_id = instrument_id;
     }
 
     #[getter]
@@ -3812,18 +3972,26 @@ impl v2::InstrumentDefMsg {
     }
 
     #[getter]
-    fn rtype(&self) -> u8 {
-        self.hd.rtype
+    fn rtype(&self) -> PyResult<RType> {
+        self.hd.rtype().map_err(to_py_err)
     }
 
     #[getter]
-    fn publisher_id(&self) -> u16 {
+    fn get_publisher_id(&self) -> u16 {
         self.hd.publisher_id
     }
+    #[setter]
+    fn set_publisher_id(&mut self, publisher_id: u16) {
+        self.hd.publisher_id = publisher_id;
+    }
 
     #[getter]
-    fn instrument_id(&self) -> u32 {
+    fn get_instrument_id(&self) -> u32 {
         self.hd.instrument_id
+    }
+    #[setter]
+    fn set_instrument_id(&mut self, instrument_id: u32) {
+        self.hd.instrument_id = instrument_id;
     }
 
     #[getter]
