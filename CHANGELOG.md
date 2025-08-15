@@ -9,6 +9,10 @@
 - Removed `hd` property from records in Python. Header fields are accessible
   directly from the record
 
+### Bug fixes
+- Fixed `__init__` type signatures for `ErrorMsg` and `SystemMsg` in Python
+- Added missing types to record `__init__` type signatures in Python
+
 ## 0.39.1 - 2025-08-12
 
 ### Enhancements
