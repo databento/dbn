@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.40.0 - TBD
+## 0.40.0 - 2025-08-19
 
 ### Enhancements
 - Added `instrument_id` and `publisher_id` setters to all records in Python
