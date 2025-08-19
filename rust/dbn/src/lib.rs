@@ -111,3 +111,42 @@ pub const UNDEF_STAT_QUANTITY: i64 = v3::UNDEF_STAT_QUANTITY;
 pub const UNDEF_TIMESTAMP: u64 = u64::MAX;
 /// The length in bytes of the largest record type.
 pub const MAX_RECORD_LEN: usize = std::mem::size_of::<WithTsOut<v3::InstrumentDefMsg>>();
+
+/// New type for validating DBN versions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(transparent)]
+pub struct DbnVersion(u8);
+
+impl TryFrom<u8> for DbnVersion {
+    type Error = crate::Error;
+
+    fn try_from(version: u8) -> crate::Result<Self> {
+        if (1..=DBN_VERSION).contains(&version) {
+            Ok(Self(version))
+        } else {
+            Err(Error::BadArgument {
+                param_name: "version".to_owned(),
+                desc: format!("invalid, must be between 1 and {DBN_VERSION}, inclusive"),
+            })
+        }
+    }
+}
+
+impl DbnVersion {
+    /// Returns the version value.
+    pub fn get(self) -> u8 {
+        self.0
+    }
+}
+
+impl PartialEq<u8> for DbnVersion {
+    fn eq(&self, other: &u8) -> bool {
+        self.0 == *other
+    }
+}
+
+impl PartialOrd<u8> for DbnVersion {
+    fn partial_cmp(&self, other: &u8) -> Option<std::cmp::Ordering> {
+        self.0.partial_cmp(other)
+    }
+}

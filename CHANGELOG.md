@@ -1,5 +1,47 @@
 # Changelog
 
+## 0.40.0 - 2025-08-19
+
+### Enhancements
+- Added `instrument_id` and `publisher_id` setters to all records in Python
+- Added `DbnVersion` new type
+
+### Breaking changes
+- Removed `hd` property from records in Python. Header fields are accessible
+  directly from the record
+- Removed ability to directly instantiate most enums from an `int` in Python and coercion
+  from `int` in `__eq__`. They can still be instantitated with the `from_int` class method.
+  Write `Side.from_int(66)` instead of `Side(66)` and `Side.BID == Side.from_int(66)`
+  instead of `Side.BID == 66`. Affected enums:
+  - `Side`
+  - `Action`
+  - `InstrumentClass`
+  - `MatchAlgorithm`
+  - `UserDefinedInstrument`
+  - `SecurityUpdateAction`
+  - `SType`
+  - `Schema`
+  - `Encoding`
+  - `Compression`
+  - `TriState`
+- Removed string coercion in `__init__` and `__eq__` for `RType`, `SystemCode`, and
+  `ErrorCode` enums in Python. It can still be instantiated from a `str` with the
+  `from_str` class method. Write `RType.from_str("mbo")`  instead of `RType("mbo")`
+  and `RType.TRADES == RType.from_str("trades")` instead of `RType.TRADES == "trades"`
+
+### Bug fixes
+- Fixed `__init__` type signatures for `ErrorMsg` and `SystemMsg` in Python
+- Added missing types to record `__init__` type signatures in Python
+- Added `__init__` type stub for enums in Python
+- Fixed `__hash__` implementation for Python enums to match that of their `char` or `int`
+  representation
+
+### Breaking changes
+- Marked `ErrorCode` and `SystemCode` non-exhaustive to allow adding future variants
+  without a breaking change
+- Added `EndOfInterval` variant to `SystemCode` to notify when all OHLCV bars and
+  subsampled BBO records have been published for a time interval
+
 ## 0.39.1 - 2025-08-12
 
 ### Enhancements

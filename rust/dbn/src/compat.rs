@@ -73,7 +73,6 @@ use crate::{
 #[dbn_record(rtype::ERROR)]
 pub struct ErrorMsgV1 {
     /// The common header.
-    #[pyo3(get)]
     pub hd: RecordHeader,
     /// The error message.
     #[dbn(fmt_method)]
@@ -97,7 +96,6 @@ pub struct ErrorMsgV1 {
 #[dbn_record(rtype::INSTRUMENT_DEF)]
 pub struct InstrumentDefMsgV1 {
     /// The common header.
-    #[pyo3(get)]
     pub hd: RecordHeader,
     /// The capture-server-received timestamp expressed as the number of nanoseconds
     /// since the UNIX epoch.
@@ -385,7 +383,6 @@ pub struct InstrumentDefMsgV1 {
 #[dbn_record(rtype::STATISTICS)]
 pub struct StatMsgV1 {
     /// The common header.
-    #[pyo3(get)]
     pub hd: RecordHeader,
     /// The capture-server-received timestamp expressed as the number of nanoseconds
     /// since the UNIX epoch.
@@ -458,7 +455,6 @@ pub struct StatMsgV1 {
 #[dbn_record(rtype::SYMBOL_MAPPING)]
 pub struct SymbolMappingMsgV1 {
     /// The common header.
-    #[pyo3(get)]
     pub hd: RecordHeader,
     /// The input symbol.
     #[dbn(fmt_method)]
@@ -499,7 +495,6 @@ pub struct SymbolMappingMsgV1 {
 #[dbn_record(rtype::SYSTEM)]
 pub struct SystemMsgV1 {
     /// The common header.
-    #[pyo3(get)]
     pub hd: RecordHeader,
     /// The message from the Databento gateway.
     #[dbn(fmt_method)]
@@ -523,7 +518,6 @@ pub struct SystemMsgV1 {
 #[dbn_record(rtype::INSTRUMENT_DEF)]
 pub struct InstrumentDefMsgV2 {
     /// The common header.
-    #[pyo3(get)]
     pub hd: RecordHeader,
     /// The capture-server-received timestamp expressed as the number of nanoseconds
     /// since the UNIX epoch.

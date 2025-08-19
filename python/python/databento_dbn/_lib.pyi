@@ -261,73 +261,6 @@ class Metadata(SupportsBytes):
 
         """
 
-class RecordHeader:
-    """
-    DBN record header.
-    """
-
-    @property
-    def length(self) -> int:
-        """
-        The length of the record.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def rtype(self) -> int:
-        """
-        The record type.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def publisher_id(self) -> int:
-        """
-        The publisher ID assigned by Databento, which denotes the dataset and venue.
-
-        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def instrument_id(self) -> int:
-        """
-        The numeric instrument ID.
-
-        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def ts_event(self) -> int:
-        """
-        The matching-engine-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
-
-        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
-
-        Returns
-        -------
-        int
-
-        """
-
 class Record(SupportsBytes):
     """
     Base class for DBN records.
@@ -341,17 +274,6 @@ class Record(SupportsBytes):
     _timestamp_fields: ClassVar[list[str]]
 
     def __bytes__(self) -> bytes: ...
-    @property
-    def hd(self) -> RecordHeader:
-        """
-        The common header.
-
-        Returns
-        -------
-        RecordHeader
-
-        """
-
     @property
     def record_size(self) -> int:
         """
@@ -368,13 +290,13 @@ class Record(SupportsBytes):
         """
 
     @property
-    def rtype(self) -> int:
+    def rtype(self) -> RType:
         """
         The record type.
 
         Returns
         -------
-        int
+        RType
 
         """
 
@@ -526,6 +448,7 @@ class RType(Enum):
     BBO_1S: int
     BBO_1M: int
 
+    def __init__(self, value: int) -> None: ...
     @classmethod
     def from_str(cls, value: str) -> RType: ...
     @classmethod
@@ -554,8 +477,11 @@ class Side(Enum):
     BID: str
     NONE: str
 
+    def __init__(self, value: str) -> None: ...
     @classmethod
     def from_str(cls, value: str) -> Side: ...
+    @classmethod
+    def from_int(cls, value: int) -> Side: ...
     @classmethod
     def variants(cls) -> Iterable[Side]: ...
 
@@ -592,8 +518,11 @@ class Action(Enum):
     CLEAR: str
     NONE: str
 
+    def __init__(self, value: str) -> None: ...
     @classmethod
     def from_str(cls, value: str) -> Action: ...
+    @classmethod
+    def from_int(cls, value: int) -> Action: ...
     @classmethod
     def variants(cls) -> Iterable[Action]: ...
 
@@ -638,8 +567,11 @@ class InstrumentClass(Enum):
     FX_SPOT: str
     COMMODITY_SPOT: str
 
+    def __init__(self, value: str) -> None: ...
     @classmethod
     def from_str(cls, value: str) -> InstrumentClass: ...
+    @classmethod
+    def from_int(cls, value: int) -> InstrumentClass: ...
     @classmethod
     def variants(cls) -> Iterable[InstrumentClass]: ...
 
@@ -690,8 +622,11 @@ class MatchAlgorithm(Enum):
     TIME_PRO_RATA: str
     INSTITUTIONAL_PRIORITIZATION: str
 
+    def __init__(self, value: str) -> None: ...
     @classmethod
     def from_str(cls, value: str) -> MatchAlgorithm: ...
+    @classmethod
+    def from_int(cls, value: int) -> MatchAlgorithm: ...
     @classmethod
     def variants(cls) -> Iterable[MatchAlgorithm]: ...
 
@@ -712,8 +647,11 @@ class UserDefinedInstrument(Enum):
     NO: str
     YES: str
 
+    def __init__(self, value: str) -> None: ...
     @classmethod
     def from_str(cls, value: str) -> UserDefinedInstrument: ...
+    @classmethod
+    def from_int(cls, value: int) -> UserDefinedInstrument: ...
     @classmethod
     def variants(cls) -> Iterable[UserDefinedInstrument]: ...
 
@@ -737,8 +675,11 @@ class SecurityUpdateAction(Enum):
     DELETE: str
     INVALID: str
 
+    def __init__(self, value: str) -> None: ...
     @classmethod
     def from_str(cls, value: str) -> SecurityUpdateAction: ...
+    @classmethod
+    def from_int(cls, value: int) -> SecurityUpdateAction: ...
     @classmethod
     def variants(cls) -> Iterable[SecurityUpdateAction]: ...
 
@@ -794,6 +735,7 @@ class SType(Enum):
     FIGI: str
     FIGI_TICKER: str
 
+    def __init__(self, value: str) -> None: ...
     @classmethod
     def from_str(cls, value: str) -> SType: ...
     @classmethod
@@ -879,6 +821,7 @@ class Schema(Enum):
     BBO_1S: str
     BBO_1M: str
 
+    def __init__(self, value: str) -> None: ...
     @classmethod
     def from_str(cls, value: str) -> Schema: ...
     @classmethod
@@ -903,6 +846,7 @@ class Encoding(Enum):
     CSV: str
     JSON: str
 
+    def __init__(self, value: str) -> None: ...
     @classmethod
     def from_str(cls, value: str) -> Encoding: ...
     @classmethod
@@ -924,6 +868,7 @@ class Compression(Enum):
     NONE: str
     ZSTD: str
 
+    def __init__(self, value: str) -> None: ...
     @classmethod
     def from_str(cls, value: str) -> Compression: ...
     @classmethod
@@ -1007,6 +952,7 @@ class StatType(Enum):
     DELTA: int
     UNCROSSING_PRICE: int
 
+    def __init__(self, value: int) -> None: ...
     @classmethod
     def from_int(cls, value: int) -> StatType: ...
     @classmethod
@@ -1026,6 +972,7 @@ class StatUpdateAction(Enum):
     NEW: int
     DELETE: int
 
+    def __init__(self, value: int) -> None: ...
     @classmethod
     def from_int(cls, value: int) -> StatUpdateAction: ...
     @classmethod
@@ -1087,6 +1034,7 @@ class StatusAction(Enum):
     SSR_CHANGE: int
     NOT_AVAILABLE_FOR_TRADING: int
 
+    def __init__(self, value: int) -> None: ...
     @classmethod
     def from_int(cls, value: int) -> StatusAction: ...
     @classmethod
@@ -1206,6 +1154,7 @@ class StatusReason(Enum):
     MARKET_WIDE_HALT_RESUMPTION: int
     QUOTATION_NOT_AVAILABLE: int
 
+    def __init__(self, value: int) -> None: ...
     @classmethod
     def from_int(cls, value: int) -> StatusReason: ...
     @classmethod
@@ -1234,6 +1183,7 @@ class TradingEvent(Enum):
     IMPLIED_MATCHING_ON: int
     IMPLIED_MATCHING_OFF: int
 
+    def __init__(self, value: int) -> None: ...
     @classmethod
     def from_int(cls, value: int) -> TradingEvent: ...
     @classmethod
@@ -1256,8 +1206,11 @@ class TriState(Enum):
     NO: str
     YES: str
 
+    def __init__(self, value: str) -> None: ...
     @classmethod
     def from_str(cls, value: str) -> TriState: ...
+    @classmethod
+    def from_int(cls, value: int) -> TriState: ...
     @classmethod
     def variants(cls) -> Iterable[TriState]: ...
 
@@ -1282,6 +1235,7 @@ class VersionUpgradePolicy(Enum):
     UPGRADE_TO_V2: int
     UPGRADE_TO_V3: int
 
+    def __init__(self, value: int) -> None: ...
     @classmethod
     def variants(cls) -> Iterable[VersionUpgradePolicy]: ...
 
@@ -1304,13 +1258,14 @@ class ErrorCode(Enum):
 
     """
 
-    AUTH_FAILED: str
-    API_KEY_DEACTIVATED: str
-    CONNECTION_LIMIT_EXCEEDED: str
-    SYMBOL_RESOLUTION_FAILED: str
-    INVALID_SUBSCRIPTION: str
-    INTERNAL_ERROR: str
+    AUTH_FAILED: int
+    API_KEY_DEACTIVATED: int
+    CONNECTION_LIMIT_EXCEEDED: int
+    SYMBOL_RESOLUTION_FAILED: int
+    INVALID_SUBSCRIPTION: int
+    INTERNAL_ERROR: int
 
+    def __init__(self, value: int) -> None: ...
     @classmethod
     def from_str(cls, value: str) -> ErrorCode: ...
     @classmethod
@@ -1332,14 +1287,18 @@ class SystemCode(Enum):
         The gateway has detected this session is falling behind real-time.
     REPLAY_COMPLETED
         Indicates a replay subscription has caught up with real-time data.
+    END_OF_INTERVAL
+        Signals that all records for interval-based schemas have been published for the given timestamp.
 
     """
 
-    HEARTBEAT: str
-    SUBSCRIPTION_ACK: str
-    SLOW_READER_WARNING: str
-    REPLAY_COMPLETED: str
+    HEARTBEAT: int
+    SUBSCRIPTION_ACK: int
+    SLOW_READER_WARNING: int
+    REPLAY_COMPLETED: int
+    END_OF_INTERVAL: int
 
+    def __init__(self, value: int) -> None: ...
     @classmethod
     def from_str(cls, value: str) -> SystemCode: ...
     @classmethod
@@ -1355,19 +1314,19 @@ class MBOMsg(Record):
 
     def __init__(
         self,
-        publisher_id,
-        instrument_id,
-        ts_event,
-        order_id,
-        price,
-        size,
-        action,
-        side,
-        ts_recv,
-        flags=None,
-        channel_id=0,
-        ts_in_delta=0,
-        sequence=0,
+        publisher_id: int,
+        instrument_id: int,
+        ts_event: int,
+        order_id: int,
+        price: int,
+        size: int,
+        action: Action,
+        side: Side,
+        ts_recv: int,
+        flags: int | None = None,
+        channel_id: int = 0,
+        ts_in_delta: int = 0,
+        sequence: int = 0,
     ) -> None: ...
     @property
     def order_id(self) -> int:
@@ -1532,12 +1491,12 @@ class BidAskPair(Record):
 
     def __init__(
         self,
-        bid_px=UNDEF_PRICE,
-        ask_px=UNDEF_PRICE,
-        bid_sz=0,
-        ask_sz=0,
-        bid_ct=0,
-        ask_ct=0,
+        bid_px: int = UNDEF_PRICE,
+        ask_px: int = UNDEF_PRICE,
+        bid_sz: int = 0,
+        ask_sz: int = 0,
+        bid_ct: int = 0,
+        ask_ct: int = 0,
     ) -> None: ...
     @property
     def pretty_bid_px(self) -> float:
@@ -1657,12 +1616,12 @@ class ConsolidatedBidAskPair(Record):
 
     def __init__(
         self,
-        bid_px=UNDEF_PRICE,
-        ask_px=UNDEF_PRICE,
-        bid_sz=0,
-        ask_sz=0,
-        bid_pb=0,
-        ask_pb=0,
+        bid_px: int = UNDEF_PRICE,
+        ask_px: int = UNDEF_PRICE,
+        bid_sz: int = 0,
+        ask_sz: int = 0,
+        bid_pb: int = 0,
+        ask_pb: int = 0,
     ) -> None: ...
     @property
     def pretty_bid_px(self) -> float:
@@ -1786,18 +1745,18 @@ class TradeMsg(Record):
 
     def __init__(
         self,
-        publisher_id,
-        instrument_id,
-        ts_event,
-        price,
-        size,
-        action,
-        side,
-        depth,
-        ts_recv,
-        flags=None,
-        ts_in_delta=0,
-        sequence=0,
+        publisher_id: int,
+        instrument_id: int,
+        ts_event: int,
+        price: int,
+        size: int,
+        action: Action,
+        side: Side,
+        depth: int,
+        ts_recv: int,
+        flags: int | None = None,
+        ts_in_delta: int = 0,
+        sequence: int = 0,
     ) -> None: ...
     @property
     def pretty_price(self) -> float:
@@ -1950,19 +1909,19 @@ class MBP1Msg(Record):
 
     def __init__(
         self,
-        publisher_id,
-        instrument_id,
-        ts_event,
-        price,
-        size,
-        action,
-        side,
-        depth,
-        ts_recv,
-        flags=None,
-        ts_in_delta=0,
-        sequence=0,
-        levels=None,
+        publisher_id: int,
+        instrument_id: int,
+        ts_event: int,
+        price: int,
+        size: int,
+        action: Action,
+        side: Side,
+        depth: int,
+        ts_recv: int,
+        flags: int | None = None,
+        ts_in_delta: int = 0,
+        sequence: int = 0,
+        levels: list[BidAskPair] | None = None,
     ) -> None: ...
     @property
     def pretty_price(self) -> float:
@@ -2132,19 +2091,19 @@ class MBP10Msg(Record):
 
     def __init__(
         self,
-        publisher_id,
-        instrument_id,
-        ts_event,
-        price,
-        size,
-        action,
-        side,
-        depth,
-        ts_recv,
-        flags=None,
-        ts_in_delta=0,
-        sequence=0,
-        levels=None,
+        publisher_id: int,
+        instrument_id: int,
+        ts_event: int,
+        price: int,
+        size: int,
+        action: Action,
+        side: Side,
+        depth: int,
+        ts_recv: int,
+        flags: int | None = None,
+        ts_in_delta: int = 0,
+        sequence: int = 0,
+        levels: list[BidAskPair] | None = None,
     ) -> None: ...
     @property
     def pretty_price(self) -> float:
@@ -2314,17 +2273,17 @@ class BBOMsg(Record):
 
     def __init__(
         self,
-        rtype,
-        publisher_id,
-        instrument_id,
-        ts_event,
-        price,
-        size,
-        side,
-        ts_recv,
-        flags=None,
-        sequence=0,
-        levels=None,
+        rtype: int,
+        publisher_id: int,
+        instrument_id: int,
+        ts_event: int,
+        price: int,
+        size: int,
+        side: Side,
+        ts_recv: int,
+        flags: int | None = None,
+        sequence: int = 0,
+        levels: list[BidAskPair] | None = None,
     ) -> None: ...
     @property
     def pretty_price(self) -> float:
@@ -2457,18 +2416,18 @@ class CMBP1Msg(Record):
 
     def __init__(
         self,
-        rtype,
-        publisher_id,
-        instrument_id,
-        ts_event,
-        price,
-        size,
-        action,
-        side,
-        ts_recv,
-        flags=None,
-        ts_in_delta=0,
-        levels=None,
+        rtype: int,
+        publisher_id: int,
+        instrument_id: int,
+        ts_event: int,
+        price: int,
+        size: int,
+        action: Action,
+        side: Side,
+        ts_recv: int,
+        flags: int | None = None,
+        ts_in_delta: int = 0,
+        levels: list[ConsolidatedBidAskPair] | None = None,
     ) -> None: ...
     @property
     def pretty_price(self) -> float:
@@ -2615,16 +2574,16 @@ class CBBOMsg(Record):
 
     def __init__(
         self,
-        rtype,
-        publisher_id,
-        instrument_id,
-        ts_event,
-        price,
-        size,
-        side,
-        ts_recv,
-        flags=None,
-        levels=None,
+        rtype: int,
+        publisher_id: int,
+        instrument_id: int,
+        ts_event: int,
+        price: int,
+        size: int,
+        side: Side,
+        ts_recv: int,
+        flags: int | None = None,
+        levels: list[ConsolidatedBidAskPair] | None = None,
     ) -> None: ...
     @property
     def pretty_price(self) -> float:
@@ -2762,15 +2721,15 @@ class OHLCVMsg(Record):
 
     def __init__(
         self,
-        rtype,
-        publisher_id,
-        instrument_id,
-        ts_event,
-        open,
-        high,
-        low,
-        close,
-        volume,
+        rtype: int,
+        publisher_id: int,
+        instrument_id: int,
+        ts_event: int,
+        open: int,
+        high: int,
+        low: int,
+        close: int,
+        volume: int,
     ) -> None: ...
     @property
     def pretty_open(self) -> float:
@@ -2923,16 +2882,16 @@ class StatusMsg(Record):
 
     def __init__(
         self,
-        publisher_id,
-        instrument_id,
-        ts_event,
-        ts_recv,
-        action=None,
-        reason=None,
-        trading_event=None,
-        is_trading=None,
-        is_quoting=None,
-        is_short_sell_restricted=None,
+        publisher_id: int,
+        instrument_id: int,
+        ts_event: int,
+        ts_recv: int,
+        action: StatusAction | None = None,
+        reason: StatusReason | None = None,
+        trading_event: TradingEvent | None = None,
+        is_trading: TriState | None = None,
+        is_quoting: TriState | None = None,
+        is_short_sell_restricted: TriState | None = None,
     ) -> None: ...
     @property
     def pretty_ts_recv(self) -> dt.datetime | None:
@@ -3034,78 +2993,78 @@ class InstrumentDefMsg(Record):
 
     def __init__(
         self,
-        publisher_id,
-        instrument_id,
-        ts_event,
-        ts_recv,
-        min_price_increment,
-        display_factor,
-        raw_symbol,
-        asset,
-        security_type,
-        instrument_class,
-        security_update_action,
-        expiration=UNDEF_TIMESTAMP,
-        activation=UNDEF_TIMESTAMP,
-        high_limit_price=UNDEF_PRICE,
-        low_limit_price=UNDEF_PRICE,
-        max_price_variation=UNDEF_PRICE,
-        unit_of_measure_qty=UNDEF_PRICE,
-        min_price_increment_amount=UNDEF_PRICE,
-        price_ratio=UNDEF_PRICE,
-        strike_price=UNDEF_PRICE,
-        raw_instrument_id=0,
-        leg_price=UNDEF_PRICE,
-        leg_delta=UNDEF_PRICE,
-        inst_attrib_value=0,
-        underlying_id=0,
-        market_depth_implied=None,
-        market_depth=None,
-        market_segment_id=None,
-        max_trade_vol=None,
-        min_lot_size=None,
-        min_lot_size_block=None,
-        min_lot_size_round_lot=None,
-        min_trade_vol=None,
-        contract_multiplier=None,
-        decay_quantity=None,
-        original_contract_size=None,
-        leg_instrument_id=0,
-        leg_ratio_price_numerator=0,
-        leg_ratio_price_denominator=0,
-        leg_ratio_qty_numerator=0,
-        leg_ratio_qty_denominator=0,
-        leg_underlying_id=0,
-        appl_id=None,
-        maturity_year=None,
-        decay_start_date=None,
-        channel_id=0,
-        leg_count=0,
-        leg_index=0,
-        currency="",
-        settl_currency="",
-        secsubtype="",
-        group="",
-        exchange="",
-        cfi="",
-        unit_of_measure="",
-        underlying="",
-        strike_price_currency="",
-        leg_raw_symbol="",
-        match_algorithm=None,
-        main_fraction=None,
-        price_display_format=None,
-        sub_fraction=None,
-        underlying_product=None,
-        maturity_month=None,
-        maturity_day=None,
-        maturity_week=None,
-        user_defined_instrument=None,
-        contract_multiplier_unit=None,
-        flow_schedule_type=None,
-        tick_rule=None,
-        leg_instrument_class=None,
-        leg_side=None,
+        publisher_id: int,
+        instrument_id: int,
+        ts_event: int,
+        ts_recv: int,
+        min_price_increment: int,
+        display_factor: int,
+        raw_symbol: str,
+        asset: str,
+        security_type: str,
+        instrument_class: InstrumentClass,
+        security_update_action: SecurityUpdateAction,
+        expiration: int = UNDEF_TIMESTAMP,
+        activation: int = UNDEF_TIMESTAMP,
+        high_limit_price: int = UNDEF_PRICE,
+        low_limit_price: int = UNDEF_PRICE,
+        max_price_variation: int = UNDEF_PRICE,
+        unit_of_measure_qty: int = UNDEF_PRICE,
+        min_price_increment_amount: int = UNDEF_PRICE,
+        price_ratio: int = UNDEF_PRICE,
+        strike_price: int = UNDEF_PRICE,
+        raw_instrument_id: int = 0,
+        leg_price: int = UNDEF_PRICE,
+        leg_delta: int = UNDEF_PRICE,
+        inst_attrib_value: int = 0,
+        underlying_id: int = 0,
+        market_depth_implied: int | None = None,
+        market_depth: int | None = None,
+        market_segment_id: int | None = None,
+        max_trade_vol: int | None = None,
+        min_lot_size: int | None = None,
+        min_lot_size_block: int | None = None,
+        min_lot_size_round_lot: int | None = None,
+        min_trade_vol: int | None = None,
+        contract_multiplier: int | None = None,
+        decay_quantity: int | None = None,
+        original_contract_size: int | None = None,
+        leg_instrument_id: int = 0,
+        leg_ratio_price_numerator: int = 0,
+        leg_ratio_price_denominator: int = 0,
+        leg_ratio_qty_numerator: int = 0,
+        leg_ratio_qty_denominator: int = 0,
+        leg_underlying_id: int = 0,
+        appl_id: int | None = None,
+        maturity_year: int | None = None,
+        decay_start_date: int | None = None,
+        channel_id: int = 0,
+        leg_count: int = 0,
+        leg_index: int = 0,
+        currency: str = "",
+        settl_currency: str = "",
+        secsubtype: str = "",
+        group: str = "",
+        exchange: str = "",
+        cfi: str = "",
+        unit_of_measure: str = "",
+        underlying: str = "",
+        strike_price_currency: str = "",
+        leg_raw_symbol: str = "",
+        match_algorithm: MatchAlgorithm | None = None,
+        main_fraction: int | None = None,
+        price_display_format: int | None = None,
+        sub_fraction: int | None = None,
+        underlying_product: int | None = None,
+        maturity_month: int | None = None,
+        maturity_day: int | None = None,
+        maturity_week: int | None = None,
+        user_defined_instrument: UserDefinedInstrument | None = None,
+        contract_multiplier_unit: int | None = None,
+        flow_schedule_type: int | None = None,
+        tick_rule: int | None = None,
+        leg_instrument_class: InstrumentClass | None = None,
+        leg_side: Side | None = None,
     ) -> None: ...
     @property
     def pretty_ts_recv(self) -> dt.datetime | None:
@@ -4166,29 +4125,29 @@ class ImbalanceMsg(Record):
 
     def __init__(
         self,
-        publisher_id,
-        instrument_id,
-        ts_event,
-        ts_recv,
-        ref_price,
-        auction_time,
-        cont_book_clr_price,
-        auct_interest_clr_price,
-        paired_qty,
-        total_imbalance_qty,
-        auction_type,
-        side,
-        significant_imbalance,
-        ssr_filling_price=UNDEF_PRICE,
-        ind_match_price=UNDEF_PRICE,
-        upper_collar=UNDEF_PRICE,
-        lower_collar=UNDEF_PRICE,
-        market_imbalance_qty=UNDEF_ORDER_SIZE,
-        unpaired_qty=UNDEF_ORDER_SIZE,
-        auction_status=0,
-        freeze_status=0,
-        num_extensions=0,
-        unpaired_side=None,
+        publisher_id: int,
+        instrument_id: int,
+        ts_event: int,
+        ts_recv: int,
+        ref_price: int,
+        auction_time: int,
+        cont_book_clr_price: int,
+        auct_interest_clr_price: int,
+        paired_qty: int,
+        total_imbalance_qty: int,
+        auction_type: str,
+        side: Side,
+        significant_imbalance: str,
+        ssr_filling_price: int = UNDEF_PRICE,
+        ind_match_price: int = UNDEF_PRICE,
+        upper_collar: int = UNDEF_PRICE,
+        lower_collar: int = UNDEF_PRICE,
+        market_imbalance_qty: int = UNDEF_ORDER_SIZE,
+        unpaired_qty: int = UNDEF_ORDER_SIZE,
+        auction_status: int = 0,
+        freeze_status: int = 0,
+        num_extensions: int = 0,
+        unpaired_side: Side | None = None,
     ) -> None: ...
     @property
     def pretty_ts_recv(self) -> dt.datetime | None:
@@ -4590,19 +4549,19 @@ class StatMsg(Record):
 
     def __init__(
         self,
-        publisher_id,
-        instrument_id,
-        ts_event,
-        ts_recv,
-        ts_ref,
-        price,
-        quantity,
-        stat_type,
-        sequence=0,
-        ts_in_delta=0,
-        channel_id=0,
-        update_action=None,
-        stat_flags=0,
+        publisher_id: int,
+        instrument_id: int,
+        ts_event: int,
+        ts_recv: int,
+        ts_ref: int,
+        price: int,
+        quantity: int,
+        stat_type: StatType,
+        sequence: int = 0,
+        ts_in_delta: int = 0,
+        channel_id: int = 0,
+        update_action: StatUpdateAction | None = None,
+        stat_flags: int = 0,
     ) -> None: ...
     @property
     def pretty_ts_recv(self) -> dt.datetime | None:
@@ -4777,13 +4736,7 @@ class ErrorMsg(Record):
     """
 
     def __init__(
-        self,
-        publisher_id,
-        instrument_id,
-        ts_event,
-        err,
-        code,
-        is_last,
+        self, ts_event: int, err: str, is_last: bool = True, code: ErrorCode | None = None
     ) -> None: ...
     @property
     def err(self) -> str:
@@ -4828,15 +4781,15 @@ class SymbolMappingMsg(Record):
 
     def __init__(
         self,
-        publisher_id,
-        instrument_id,
-        ts_event,
-        stype_in,
-        stype_in_symbol,
-        stype_out,
-        stype_out_symbol,
-        start_ts,
-        end_ts,
+        publisher_id: int,
+        instrument_id: int,
+        ts_event: int,
+        stype_in: SType,
+        stype_in_symbol: str,
+        stype_out: SType,
+        stype_out_symbol: str,
+        start_ts: int,
+        end_ts: int,
     ) -> None: ...
     @property
     def stype_in(self) -> SType:
@@ -4937,14 +4890,7 @@ class SystemMsg(Record):
 
     """
 
-    def __init__(
-        self,
-        publisher_id,
-        instrument_id,
-        ts_event,
-        msg,
-        code,
-    ) -> None: ...
+    def __init__(self, ts_event: int, msg: str, code: SystemCode | None = None) -> None: ...
     def is_heartbeat(self) -> bool:
         """
         Return `true` if this message is a heartbeat, used to indicate the connection
@@ -4984,13 +4930,7 @@ class ErrorMsgV1(Record):
 
     """
 
-    def __init__(
-        self,
-        publisher_id,
-        instrument_id,
-        ts_event,
-        err,
-    ) -> None: ...
+    def __init__(self, ts_event: int, err: str) -> None: ...
     @property
     def err(self) -> str:
         """
@@ -5010,69 +4950,69 @@ class InstrumentDefMsgV1(Record):
 
     def __init__(
         self,
-        publisher_id,
-        instrument_id,
-        ts_event,
-        ts_recv,
-        min_price_increment,
-        display_factor,
-        expiration,
-        activation,
-        high_limit_price,
-        low_limit_price,
-        max_price_variation,
-        trading_reference_price,
-        unit_of_measure_qty,
-        min_price_increment_amount,
-        price_ratio,
-        inst_attrib_value,
-        underlying_id,
-        raw_instrument_id,
-        market_depth_implied,
-        market_depth,
-        market_segment_id,
-        max_trade_vol,
-        min_lot_size,
-        min_lot_size_block,
-        min_lot_size_round_lot,
-        min_trade_vol,
-        contract_multiplier,
-        decay_quantity,
-        original_contract_size,
-        trading_reference_date,
-        appl_id,
-        maturity_year,
-        decay_start_date,
-        channel_id,
-        currency,
-        settl_currency,
-        secsubtype,
-        raw_symbol,
-        group,
-        exchange,
-        asset,
-        cfi,
-        security_type,
-        unit_of_measure,
-        underlying,
-        strike_price_currency,
-        instrument_class,
-        strike_price,
-        match_algorithm,
-        md_security_trading_status,
-        main_fraction,
-        price_display_format,
-        settl_price_type,
-        sub_fraction,
-        underlying_product,
-        security_update_action,
-        maturity_month,
-        maturity_day,
-        maturity_week,
-        user_defined_instrument,
-        contract_multiplier_unit,
-        flow_schedule_type,
-        tick_rule,
+        publisher_id: int,
+        instrument_id: int,
+        ts_event: int,
+        ts_recv: int,
+        min_price_increment: int,
+        display_factor: int,
+        expiration: int,
+        activation: int,
+        high_limit_price: int,
+        low_limit_price: int,
+        max_price_variation: int,
+        trading_reference_price: int,
+        unit_of_measure_qty: int,
+        min_price_increment_amount: int,
+        price_ratio: int,
+        inst_attrib_value: int,
+        underlying_id: int,
+        raw_instrument_id: int,
+        market_depth_implied: int,
+        market_depth: int,
+        market_segment_id: int,
+        max_trade_vol: int,
+        min_lot_size: int,
+        min_lot_size_block: int,
+        min_lot_size_round_lot: int,
+        min_trade_vol: int,
+        contract_multiplier: int,
+        decay_quantity: int,
+        original_contract_size: int,
+        trading_reference_date: int,
+        appl_id: int,
+        maturity_year: int,
+        decay_start_date: int,
+        channel_id: int,
+        currency: str,
+        settl_currency: str,
+        secsubtype: str,
+        raw_symbol: str,
+        group: str,
+        exchange: str,
+        asset: str,
+        cfi: str,
+        security_type: str,
+        unit_of_measure: str,
+        underlying: str,
+        strike_price_currency: str,
+        instrument_class: InstrumentClass,
+        strike_price: int,
+        match_algorithm: MatchAlgorithm,
+        md_security_trading_status: int,
+        main_fraction: int,
+        price_display_format: int,
+        settl_price_type: int,
+        sub_fraction: int,
+        underlying_product: int,
+        security_update_action: SecurityUpdateAction,
+        maturity_month: int,
+        maturity_day: int,
+        maturity_week: int,
+        user_defined_instrument: UserDefinedInstrument,
+        contract_multiplier_unit: int,
+        flow_schedule_type: int,
+        tick_rule: int,
     ) -> None: ...
     @property
     def pretty_ts_recv(self) -> dt.datetime | None:
@@ -6015,19 +5955,19 @@ class StatMsgV1(Record):
 
     def __init__(
         self,
-        publisher_id,
-        instrument_id,
-        ts_event,
-        ts_recv,
-        ts_ref,
-        price,
-        quantity,
-        stat_type,
-        sequence=0,
-        ts_in_delta=0,
-        channel_id=0,
-        update_action=None,
-        stat_flags=0,
+        publisher_id: int,
+        instrument_id: int,
+        ts_event: int,
+        ts_recv: int,
+        ts_ref: int,
+        price: int,
+        quantity: int,
+        stat_type: StatType,
+        sequence: int = 0,
+        ts_in_delta: int = 0,
+        channel_id: int = 0,
+        update_action: StatUpdateAction | None = None,
+        stat_flags: int = 0,
     ) -> None: ...
     @property
     def pretty_ts_recv(self) -> dt.datetime | None:
@@ -6203,13 +6143,13 @@ class SymbolMappingMsgV1(Record):
 
     def __init__(
         self,
-        publisher_id,
-        instrument_id,
-        ts_event,
-        stype_in_symbol,
-        stype_out_symbol,
-        start_ts,
-        end_ts,
+        publisher_id: int,
+        instrument_id: int,
+        ts_event: int,
+        stype_in_symbol: str,
+        stype_out_symbol: str,
+        start_ts: int,
+        end_ts: int,
     ) -> None: ...
     @property
     def stype_in_symbol(self) -> str:
@@ -6288,13 +6228,7 @@ class SystemMsgV1(Record):
 
     """
 
-    def __init__(
-        self,
-        publisher_id,
-        instrument_id,
-        ts_event,
-        msg,
-    ) -> None: ...
+    def __init__(self, ts_event: int, msg: str) -> None: ...
     def is_heartbeat(self) -> bool:
         """
         Return `true` if this message is a heartbeat, used to indicate the connection
@@ -6325,69 +6259,69 @@ class InstrumentDefMsgV2(Record):
 
     def __init__(
         self,
-        publisher_id,
-        instrument_id,
-        ts_event,
-        ts_recv,
-        min_price_increment,
-        display_factor,
-        expiration,
-        activation,
-        high_limit_price,
-        low_limit_price,
-        max_price_variation,
-        trading_reference_price,
-        unit_of_measure_qty,
-        min_price_increment_amount,
-        price_ratio,
-        strike_price,
-        inst_attrib_value,
-        underlying_id,
-        raw_instrument_id,
-        market_depth_implied,
-        market_depth,
-        market_segment_id,
-        max_trade_vol,
-        min_lot_size,
-        min_lot_size_block,
-        min_lot_size_round_lot,
-        min_trade_vol,
-        contract_multiplier,
-        decay_quantity,
-        original_contract_size,
-        trading_reference_date,
-        appl_id,
-        maturity_year,
-        decay_start_date,
-        channel_id,
-        currency,
-        settl_currency,
-        secsubtype,
-        raw_symbol,
-        group,
-        exchange,
-        asset,
-        cfi,
-        security_type,
-        unit_of_measure,
-        underlying,
-        strike_price_currency,
-        instrument_class,
-        match_algorithm,
-        md_security_trading_status,
-        main_fraction,
-        price_display_format,
-        settl_price_type,
-        sub_fraction,
-        underlying_product,
-        security_update_action,
-        maturity_month,
-        maturity_day,
-        maturity_week,
-        user_defined_instrument,
-        contract_multiplier_unit,
-        flow_schedule_type,
-        tick_rule,
+        publisher_id: int,
+        instrument_id: int,
+        ts_event: int,
+        ts_recv: int,
+        min_price_increment: int,
+        display_factor: int,
+        expiration: int,
+        activation: int,
+        high_limit_price: int,
+        low_limit_price: int,
+        max_price_variation: int,
+        trading_reference_price: int,
+        unit_of_measure_qty: int,
+        min_price_increment_amount: int,
+        price_ratio: int,
+        strike_price: int,
+        inst_attrib_value: int,
+        underlying_id: int,
+        raw_instrument_id: int,
+        market_depth_implied: int,
+        market_depth: int,
+        market_segment_id: int,
+        max_trade_vol: int,
+        min_lot_size: int,
+        min_lot_size_block: int,
+        min_lot_size_round_lot: int,
+        min_trade_vol: int,
+        contract_multiplier: int,
+        decay_quantity: int,
+        original_contract_size: int,
+        trading_reference_date: int,
+        appl_id: int,
+        maturity_year: int,
+        decay_start_date: int,
+        channel_id: int,
+        currency: str,
+        settl_currency: str,
+        secsubtype: str,
+        raw_symbol: str,
+        group: str,
+        exchange: str,
+        asset: str,
+        cfi: str,
+        security_type: str,
+        unit_of_measure: str,
+        underlying: str,
+        strike_price_currency: str,
+        instrument_class: InstrumentClass,
+        match_algorithm: MatchAlgorithm,
+        md_security_trading_status: int,
+        main_fraction: int,
+        price_display_format: int,
+        settl_price_type: int,
+        sub_fraction: int,
+        underlying_product: int,
+        security_update_action: SecurityUpdateAction,
+        maturity_month: int,
+        maturity_day: int,
+        maturity_week: int,
+        user_defined_instrument: UserDefinedInstrument,
+        contract_multiplier_unit: int,
+        flow_schedule_type: int,
+        tick_rule: int,
     ) -> None: ...
     @property
     def pretty_ts_recv(self) -> dt.datetime | None:

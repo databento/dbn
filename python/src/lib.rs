@@ -11,11 +11,11 @@ use dbn::{
     python::{DBNError, EnumIterator},
     Action, BboMsg, BidAskPair, CbboMsg, Cmbp1Msg, Compression, ConsolidatedBidAskPair, Encoding,
     ErrorCode, ErrorMsg, ImbalanceMsg, InstrumentClass, InstrumentDefMsg, MatchAlgorithm, MboMsg,
-    Mbp10Msg, Mbp1Msg, Metadata, OhlcvMsg, RType, RecordHeader, SType, Schema,
-    SecurityUpdateAction, Side, StatMsg, StatType, StatUpdateAction, StatusAction, StatusMsg,
-    StatusReason, SymbolMappingMsg, SystemCode, SystemMsg, TradeMsg, TradingEvent, TriState,
-    UserDefinedInstrument, VersionUpgradePolicy, DBN_VERSION, FIXED_PRICE_SCALE, UNDEF_ORDER_SIZE,
-    UNDEF_PRICE, UNDEF_STAT_QUANTITY, UNDEF_TIMESTAMP,
+    Mbp10Msg, Mbp1Msg, Metadata, OhlcvMsg, RType, SType, Schema, SecurityUpdateAction, Side,
+    StatMsg, StatType, StatUpdateAction, StatusAction, StatusMsg, StatusReason, SymbolMappingMsg,
+    SystemCode, SystemMsg, TradeMsg, TradingEvent, TriState, UserDefinedInstrument,
+    VersionUpgradePolicy, DBN_VERSION, FIXED_PRICE_SCALE, UNDEF_ORDER_SIZE, UNDEF_PRICE,
+    UNDEF_STAT_QUANTITY, UNDEF_TIMESTAMP,
 };
 
 mod dbn_decoder;
@@ -40,7 +40,6 @@ fn databento_dbn(_py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     checked_add_class::<dbn_decoder::DbnDecoder>(m)?;
     checked_add_class::<transcoder::Transcoder>(m)?;
     // Records
-    checked_add_class::<RecordHeader>(m)?;
     checked_add_class::<MboMsg>(m)?;
     checked_add_class::<BidAskPair>(m)?;
     checked_add_class::<ConsolidatedBidAskPair>(m)?;
@@ -182,5 +181,59 @@ except Exception:
             )
         })
         .unwrap();
+    }
+
+    #[rstest]
+    #[case("InstrumentClass", "CALL", "C")]
+    #[case("SType", "CONTINUOUS", "continuous")]
+    #[case("Action", "CLEAR", "R")]
+    #[case("Schema", "MBO", "mbo")]
+    fn test_enum_str_hash(
+        _python: (),
+        #[case] enum_name: &str,
+        #[case] variant: &str,
+        #[case] val: &str,
+    ) {
+        Python::with_gil(|py| {
+            pyo3::py_run!(
+                  py,
+                  enum_name variant val,
+                  r#"import _lib as db
+
+enum_type = getattr(db, enum_name)
+variant = getattr(enum_type, variant)
+assert variant == enum_type(val)
+assert variant == val
+assert val == variant
+assert hash(val) == hash(variant), f"{val = }, {variant = } {hash(val) = }, {hash(variant) = }""#
+            );
+        });
+    }
+
+    #[rstest]
+    #[case("RType", "MBO", RType::Mbo as u32)]
+    #[case("StatType", "OPEN_INTEREST", StatType::OpenInterest as u32)]
+    #[case("ErrorCode", "INTERNAL_ERROR", ErrorCode::InternalError as u32)]
+    #[case("StatusReason", "NEWS_PENDING", StatusReason::NewsPending as u32)]
+    fn test_enum_int_hash(
+        _python: (),
+        #[case] enum_name: &str,
+        #[case] variant: &str,
+        #[case] val: u32,
+    ) {
+        Python::with_gil(|py| {
+            pyo3::py_run!(
+                  py,
+                  enum_name variant val,
+                  r#"import _lib as db
+
+enum_type = getattr(db, enum_name)
+variant = getattr(enum_type, variant)
+assert variant == enum_type(val)
+assert variant == val
+assert val == variant
+assert hash(val) == hash(variant), f"{val = }, {variant = } {hash(val) = }, {hash(variant) = }""#
+            );
+        });
     }
 }
