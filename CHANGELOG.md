@@ -2,6 +2,10 @@
 
 ## 0.41.0 - TBD
 
+### Enhancements
+- Added `interval` method `RType` and `Schema` to get the duration for subsample schemas
+  like `Ohlcv1H` and `Cbbo1S`
+
 ### Breaking changes
 - Changed the default value for `channel_id` to be `u8::MAX` in `MboMsg` and `u16::MAX`
   elsewhere since 0 is a valid channel ID

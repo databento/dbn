@@ -82,6 +82,26 @@ impl RType {
             _ => None,
         }
     }
+
+    /// Returns the interval associated with the `RType` if it's a subsampled
+    /// record type, otherwise `None`.
+    pub const fn interval(self) -> Option<time::Duration> {
+        match self {
+            RType::Ohlcv1S | RType::Cbbo1S | RType::Bbo1S => Some(time::Duration::SECOND),
+            RType::Ohlcv1M | RType::Cbbo1M | RType::Bbo1M => Some(time::Duration::MINUTE),
+            RType::Ohlcv1H => Some(time::Duration::HOUR),
+            RType::Ohlcv1D | RType::OhlcvEod => Some(time::Duration::DAY),
+            _ => None,
+        }
+    }
+}
+
+impl Schema {
+    /// Returns the interval associated with the `Schema` if it's a subsampled
+    /// schema, otherwise `None`.
+    pub fn interval(self) -> Option<time::Duration> {
+        RType::from(self).interval()
+    }
 }
 
 impl From<TriState> for Option<bool> {
