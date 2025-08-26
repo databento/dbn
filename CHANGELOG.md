@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.41.0 - TBD
+## 0.41.0 - 2025-08-26
 
 ### Enhancements
 - Added `interval` method `RType` and `Schema` to get the duration for subsample schemas
