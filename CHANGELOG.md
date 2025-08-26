@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.41.0 - 2025-08-26
+
+### Enhancements
+- Added `interval` method `RType` and `Schema` to get the duration for subsample schemas
+  like `Ohlcv1H` and `Cbbo1S`
+
+### Breaking changes
+- Changed the default value for `channel_id` to be `u8::MAX` in `MboMsg` and `u16::MAX`
+  elsewhere since 0 is a valid channel ID
+
+### Bug fixes
+- Changed default `inst_attrib_value` value from 0 to `i32::MAX` to match Rust
+
 ## 0.40.0 - 2025-08-19
 
 ### Enhancements
