@@ -327,6 +327,44 @@ class Record(SupportsBytes):
         """
 
     @property
+    def ts_index(self) -> int:
+        """
+        The raw primary timestamp for the record as the number of nanoseconds since the
+        UNIX epoch. For records that define a `ts_recv` and `ts_event`, this method will
+        return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_ts_index(self) -> dt.datetime | None:
+        """
+        The primary timestamp for the record as the expressed as a datetime or a
+        `pandas.Timestamp`, if available. For records that define a `ts_recv` and `ts_event`,
+        this method will return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
     def pretty_ts_event(self) -> dt.datetime | None:
         """
         The matching-engine-received timestamp expressed as a
@@ -1324,7 +1362,7 @@ class MBOMsg(Record):
         side: Side,
         ts_recv: int,
         flags: int | None = None,
-        channel_id: int = 0,
+        channel_id: int | None = None,
         ts_in_delta: int = 0,
         sequence: int = 0,
     ) -> None: ...
@@ -3016,7 +3054,7 @@ class InstrumentDefMsg(Record):
         raw_instrument_id: int = 0,
         leg_price: int = UNDEF_PRICE,
         leg_delta: int = UNDEF_PRICE,
-        inst_attrib_value: int = 0,
+        inst_attrib_value: int | None = None,
         underlying_id: int = 0,
         market_depth_implied: int | None = None,
         market_depth: int | None = None,
@@ -3038,7 +3076,7 @@ class InstrumentDefMsg(Record):
         appl_id: int | None = None,
         maturity_year: int | None = None,
         decay_start_date: int | None = None,
-        channel_id: int = 0,
+        channel_id: int | None = None,
         leg_count: int = 0,
         leg_index: int = 0,
         currency: str = "",
@@ -4559,7 +4597,7 @@ class StatMsg(Record):
         stat_type: StatType,
         sequence: int = 0,
         ts_in_delta: int = 0,
-        channel_id: int = 0,
+        channel_id: int | None = None,
         update_action: StatUpdateAction | None = None,
         stat_flags: int = 0,
     ) -> None: ...
@@ -5965,7 +6003,7 @@ class StatMsgV1(Record):
         stat_type: StatType,
         sequence: int = 0,
         ts_in_delta: int = 0,
-        channel_id: int = 0,
+        channel_id: int | None = None,
         update_action: StatUpdateAction | None = None,
         stat_flags: int = 0,
     ) -> None: ...

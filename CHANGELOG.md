@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.42.0 - TBD
+
+### Enhancements
+- Added `ts_index` and `pretty_ts_index` property for records in Python which provides
+  the timestamp that is most appropriate for indexing
+
+### Bug fixes
+- Fixed type stub for `channel_id` in Python to allow `None`
+
 ## 0.41.0 - 2025-08-26
 
 ### Enhancements
