@@ -1,4 +1,4 @@
-# ruff: noqa: UP007 PYI021 PYI011 PYI014
+# ruff: noqa: UP007, PYI021, PYI011
 from __future__ import annotations
 
 import datetime as dt
