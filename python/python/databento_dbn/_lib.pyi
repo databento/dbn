@@ -7384,7 +7384,7 @@ class Transcoder:
     pretty_px : bool, default True
         Whether to serialize fixed-precision prices as decimal strings. Only applicable
         to CSV and JSON.
-    pretty_ts : bool, default Tru | Nonee
+    pretty_ts : bool, default True | None
         Whether to serialize nanosecond UNIX timestamps as ISO8601 datetime strings.
         Only applicable to CSV and JSON.
     map_symbols : bool, default None
