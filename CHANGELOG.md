@@ -8,6 +8,7 @@
 
 ### Bug fixes
 - Fixed type stub for `channel_id` in Python to allow `None`
+- Fixed missing re-export for `record::TcbboMsg`
 
 ## 0.41.0 - 2025-08-26
 

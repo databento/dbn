@@ -75,7 +75,7 @@ pub use crate::{
         Bbo1MMsg, Bbo1SMsg, BboMsg, BidAskPair, Cbbo1MMsg, Cbbo1SMsg, CbboMsg, Cmbp1Msg,
         ConsolidatedBidAskPair, ErrorMsg, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg,
         Mbp10Msg, Mbp1Msg, OhlcvMsg, Record, RecordHeader, RecordMut, StatMsg, StatusMsg,
-        SymbolMappingMsg, SystemMsg, TbboMsg, TradeMsg, WithTsOut,
+        SymbolMappingMsg, SystemMsg, TbboMsg, TcbboMsg, TradeMsg, WithTsOut,
     },
     record_enum::{RecordEnum, RecordRefEnum},
     record_ref::RecordRef,
