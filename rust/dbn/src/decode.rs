@@ -214,7 +214,7 @@ pub mod private {
     use crate::RecordRef;
 
     /// An implementation detail for the interaction between [`StreamingIterator`] and
-    /// implementors of [`DecodeRecord`].
+    /// implementers of [`DecodeRecord`].
     #[doc(hidden)]
     pub trait LastRecord {
         fn last_record(&self) -> Option<RecordRef<'_>>;

@@ -101,7 +101,7 @@ impl Metadata {
     ///
     /// This method is useful when working with a historical request over a single day
     /// or in other situations where you're sure the mappings don't change during the
-    /// time range of the request. Otherwise, [`Self::symbol_map()`] is recommmended.
+    /// time range of the request. Otherwise, [`Self::symbol_map()`] is recommended.
     ///
     /// # Errors
     /// This function returns an error if `stype_out` is not [`SType::InstrumentId`] or

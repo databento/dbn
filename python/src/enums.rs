@@ -11,7 +11,7 @@ mod tests {
     #[case("Schema")]
     #[case("SType")]
     fn test_enum_name_coercion(_python: (), #[case] enum_name: &str) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             pyo3::py_run!(
                 py,
                 enum_name,
@@ -34,7 +34,7 @@ mod tests {
 
     #[rstest]
     fn test_compression_none_coercible(_python: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             py.run(
                 c_str!(
                     r#"import _lib as db
@@ -54,7 +54,7 @@ assert db.Compression(None) == db.Compression.NONE
     #[case("Schema")]
     #[case("SType")]
     fn test_enum_none_not_coercible(_python: (), #[case] enum_name: &str) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             pyo3::py_run!(
                 py,
                 enum_name,

@@ -1,4 +1,4 @@
-# ruff: noqa: F401, F811
+# ruff: noqa: F401
 from ._lib import BBOMsg
 from ._lib import CBBOMsg
 from ._lib import CMBP1Msg

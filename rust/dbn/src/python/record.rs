@@ -119,6 +119,15 @@ impl MboMsg {
     }
 
     #[getter]
+    fn ts_index(&self) -> u64 {
+        self.raw_index_ts()
+    }
+    #[getter]
+    fn get_pretty_ts_index<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+        new_py_timestamp_or_datetime(py, self.raw_index_ts())
+    }
+
+    #[getter]
     fn get_pretty_price(&self) -> f64 {
         self.price_f64()
     }
@@ -367,6 +376,15 @@ impl TradeMsg {
     }
 
     #[getter]
+    fn ts_index(&self) -> u64 {
+        self.raw_index_ts()
+    }
+    #[getter]
+    fn get_pretty_ts_index<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+        new_py_timestamp_or_datetime(py, self.raw_index_ts())
+    }
+
+    #[getter]
     fn get_pretty_price(&self) -> f64 {
         self.price_f64()
     }
@@ -525,6 +543,15 @@ impl Mbp1Msg {
     #[classattr]
     fn size_hint() -> PyResult<usize> {
         Ok(mem::size_of::<Self>())
+    }
+
+    #[getter]
+    fn ts_index(&self) -> u64 {
+        self.raw_index_ts()
+    }
+    #[getter]
+    fn get_pretty_ts_index<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+        new_py_timestamp_or_datetime(py, self.raw_index_ts())
     }
 
     #[getter]
@@ -689,6 +716,15 @@ impl Mbp10Msg {
     }
 
     #[getter]
+    fn ts_index(&self) -> u64 {
+        self.raw_index_ts()
+    }
+    #[getter]
+    fn get_pretty_ts_index<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+        new_py_timestamp_or_datetime(py, self.raw_index_ts())
+    }
+
+    #[getter]
     fn get_pretty_price(&self) -> f64 {
         self.price_f64()
     }
@@ -846,6 +882,15 @@ impl BboMsg {
     }
 
     #[getter]
+    fn ts_index(&self) -> u64 {
+        self.raw_index_ts()
+    }
+    #[getter]
+    fn get_pretty_ts_index<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+        new_py_timestamp_or_datetime(py, self.raw_index_ts())
+    }
+
+    #[getter]
     fn get_pretty_price(&self) -> f64 {
         self.price_f64()
     }
@@ -993,6 +1038,15 @@ impl Cmbp1Msg {
     #[classattr]
     fn size_hint() -> PyResult<usize> {
         Ok(mem::size_of::<Self>())
+    }
+
+    #[getter]
+    fn ts_index(&self) -> u64 {
+        self.raw_index_ts()
+    }
+    #[getter]
+    fn get_pretty_ts_index<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+        new_py_timestamp_or_datetime(py, self.raw_index_ts())
     }
 
     #[getter]
@@ -1150,6 +1204,15 @@ impl CbboMsg {
     }
 
     #[getter]
+    fn ts_index(&self) -> u64 {
+        self.raw_index_ts()
+    }
+    #[getter]
+    fn get_pretty_ts_index<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+        new_py_timestamp_or_datetime(py, self.raw_index_ts())
+    }
+
+    #[getter]
     fn get_pretty_price(&self) -> f64 {
         self.price_f64()
     }
@@ -1286,6 +1349,15 @@ impl OhlcvMsg {
     #[classattr]
     fn size_hint() -> PyResult<usize> {
         Ok(mem::size_of::<Self>())
+    }
+
+    #[getter]
+    fn ts_index(&self) -> u64 {
+        self.raw_index_ts()
+    }
+    #[getter]
+    fn get_pretty_ts_index<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+        new_py_timestamp_or_datetime(py, self.raw_index_ts())
     }
 
     #[getter]
@@ -1431,6 +1503,15 @@ impl StatusMsg {
     #[classattr]
     fn size_hint() -> PyResult<usize> {
         Ok(mem::size_of::<Self>())
+    }
+
+    #[getter]
+    fn ts_index(&self) -> u64 {
+        self.raw_index_ts()
+    }
+    #[getter]
+    fn get_pretty_ts_index<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+        new_py_timestamp_or_datetime(py, self.raw_index_ts())
     }
 
     #[getter]
@@ -1799,6 +1880,15 @@ impl InstrumentDefMsg {
     }
 
     #[getter]
+    fn ts_index(&self) -> u64 {
+        self.raw_index_ts()
+    }
+    #[getter]
+    fn get_pretty_ts_index<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+        new_py_timestamp_or_datetime(py, self.raw_index_ts())
+    }
+
+    #[getter]
     fn get_pretty_ts_recv<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_recv)
     }
@@ -2153,6 +2243,15 @@ impl ImbalanceMsg {
     }
 
     #[getter]
+    fn ts_index(&self) -> u64 {
+        self.raw_index_ts()
+    }
+    #[getter]
+    fn get_pretty_ts_index<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+        new_py_timestamp_or_datetime(py, self.raw_index_ts())
+    }
+
+    #[getter]
     fn get_pretty_ts_recv<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_recv)
     }
@@ -2370,6 +2469,15 @@ impl StatMsg {
     }
 
     #[getter]
+    fn ts_index(&self) -> u64 {
+        self.raw_index_ts()
+    }
+    #[getter]
+    fn get_pretty_ts_index<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+        new_py_timestamp_or_datetime(py, self.raw_index_ts())
+    }
+
+    #[getter]
     fn get_pretty_ts_recv<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_recv)
     }
@@ -2493,6 +2601,15 @@ impl ErrorMsg {
     #[classattr]
     fn size_hint() -> PyResult<usize> {
         Ok(mem::size_of::<Self>())
+    }
+
+    #[getter]
+    fn ts_index(&self) -> u64 {
+        self.raw_index_ts()
+    }
+    #[getter]
+    fn get_pretty_ts_index<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+        new_py_timestamp_or_datetime(py, self.raw_index_ts())
     }
 
     #[getter]
@@ -2636,6 +2753,15 @@ impl SymbolMappingMsg {
     }
 
     #[getter]
+    fn ts_index(&self) -> u64 {
+        self.raw_index_ts()
+    }
+    #[getter]
+    fn get_pretty_ts_index<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+        new_py_timestamp_or_datetime(py, self.raw_index_ts())
+    }
+
+    #[getter]
     fn get_stype_in(&self) -> PyResult<SType> {
         self.stype_in().map_err(to_py_err)
     }
@@ -2766,6 +2892,15 @@ impl SystemMsg {
         Ok(mem::size_of::<Self>())
     }
 
+    #[getter]
+    fn ts_index(&self) -> u64 {
+        self.raw_index_ts()
+    }
+    #[getter]
+    fn get_pretty_ts_index<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+        new_py_timestamp_or_datetime(py, self.raw_index_ts())
+    }
+
     #[pyo3(name = "is_heartbeat")]
     fn py_is_heartbeat(&self) -> bool {
         self.is_heartbeat()
@@ -2875,6 +3010,15 @@ impl v1::ErrorMsg {
     #[classattr]
     fn size_hint() -> PyResult<usize> {
         Ok(mem::size_of::<Self>())
+    }
+
+    #[getter]
+    fn ts_index(&self) -> u64 {
+        self.raw_index_ts()
+    }
+    #[getter]
+    fn get_pretty_ts_index<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+        new_py_timestamp_or_datetime(py, self.raw_index_ts())
     }
 
     #[getter]
@@ -3176,6 +3320,15 @@ impl v1::InstrumentDefMsg {
     }
 
     #[getter]
+    fn ts_index(&self) -> u64 {
+        self.raw_index_ts()
+    }
+    #[getter]
+    fn get_pretty_ts_index<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+        new_py_timestamp_or_datetime(py, self.raw_index_ts())
+    }
+
+    #[getter]
     fn get_pretty_ts_recv<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_recv)
     }
@@ -3453,6 +3606,15 @@ impl v1::StatMsg {
     }
 
     #[getter]
+    fn ts_index(&self) -> u64 {
+        self.raw_index_ts()
+    }
+    #[getter]
+    fn get_pretty_ts_index<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+        new_py_timestamp_or_datetime(py, self.raw_index_ts())
+    }
+
+    #[getter]
     fn get_pretty_ts_recv<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
         new_py_timestamp_or_datetime(py, self.ts_recv)
     }
@@ -3607,6 +3769,15 @@ impl v1::SymbolMappingMsg {
     }
 
     #[getter]
+    fn ts_index(&self) -> u64 {
+        self.raw_index_ts()
+    }
+    #[getter]
+    fn get_pretty_ts_index<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+        new_py_timestamp_or_datetime(py, self.raw_index_ts())
+    }
+
+    #[getter]
     fn get_stype_in_symbol(&self) -> PyResult<&str> {
         Ok(self.stype_in_symbol()?)
     }
@@ -3716,6 +3887,15 @@ impl v1::SystemMsg {
     #[classattr]
     fn size_hint() -> PyResult<usize> {
         Ok(mem::size_of::<Self>())
+    }
+
+    #[getter]
+    fn ts_index(&self) -> u64 {
+        self.raw_index_ts()
+    }
+    #[getter]
+    fn get_pretty_ts_index<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+        new_py_timestamp_or_datetime(py, self.raw_index_ts())
     }
 
     #[pyo3(name = "is_heartbeat")]
@@ -4015,6 +4195,15 @@ impl v2::InstrumentDefMsg {
     #[classattr]
     fn size_hint() -> PyResult<usize> {
         Ok(mem::size_of::<Self>())
+    }
+
+    #[getter]
+    fn ts_index(&self) -> u64 {
+        self.raw_index_ts()
+    }
+    #[getter]
+    fn get_pretty_ts_index<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+        new_py_timestamp_or_datetime(py, self.raw_index_ts())
     }
 
     #[getter]

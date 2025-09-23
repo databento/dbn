@@ -416,7 +416,7 @@ mod tests {
     fn test_partial_metadata_and_records(_python: ()) {
         let file = MockPyFile::new();
         let output_buf = file.inner();
-        let mut target = Python::with_gil(|py| {
+        let mut target = Python::attach(|py| {
             Transcoder::new(
                 Py::new(py, file).unwrap().extract(py).unwrap(),
                 Encoding::Json,
@@ -455,7 +455,7 @@ mod tests {
         let metadata_pos = encoder.get_ref().len();
         let rec = ErrorMsg::new(1680708278000000000, None, "This is a test", true);
         encoder.encode_record(&rec).unwrap();
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(target.buffer(py).is_empty().unwrap());
         });
         let record_pos = encoder.get_ref().len();
@@ -466,13 +466,13 @@ mod tests {
             if i == record_pos - 1 {
                 break;
             }
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 assert_eq!(target.buffer(py).len().unwrap(), i + 1 - metadata_pos);
             });
         }
         // writing the remainder of the record should have the transcoder
         // transcode the record to the output file
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(target.buffer(py).is_empty().unwrap());
         });
         assert_eq!(record_pos - metadata_pos, std::mem::size_of_val(&rec));
@@ -486,7 +486,7 @@ mod tests {
     fn test_full_with_partial_record(_python: ()) {
         let file = MockPyFile::new();
         let output_buf = file.inner();
-        let mut transcoder = Python::with_gil(|py| {
+        let mut transcoder = Python::attach(|py| {
             Transcoder::new(
                 Py::new(py, file).unwrap().extract(py).unwrap(),
                 Encoding::Csv,
@@ -529,7 +529,7 @@ mod tests {
         encoder.encode_record(&rec1).unwrap();
         let rec1_pos = encoder.get_ref().len();
         encoder.encode_record(&rec2).unwrap();
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(transcoder.buffer(py).is_empty().unwrap());
         });
         // Write first record and part of second
@@ -560,7 +560,7 @@ mod tests {
     ) {
         let file = MockPyFile::new();
         let output_buf = file.inner();
-        let mut transcoder = Python::with_gil(|py| {
+        let mut transcoder = Python::attach(|py| {
             Transcoder::new(
                 Py::new(py, file).unwrap().extract(py).unwrap(),
                 encoding,
@@ -649,7 +649,7 @@ mod tests {
         );
         encoder.encode_record(&rec1).unwrap();
         encoder.encode_record(&rec2).unwrap();
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(transcoder.buffer(py).is_empty().unwrap());
         });
         // Write first record and part of second
@@ -687,7 +687,7 @@ mod tests {
     fn test_map_symbols_live(_python: (), #[case] encoding: Encoding, #[case] map_symbols: bool) {
         let file = MockPyFile::new();
         let output_buf = file.inner();
-        let mut transcoder = Python::with_gil(|py| {
+        let mut transcoder = Python::attach(|py| {
             Transcoder::new(
                 Py::new(py, file).unwrap().extract(py).unwrap(),
                 encoding,
@@ -779,7 +779,7 @@ mod tests {
             .unwrap();
         encoder.encode_record(&rec1).unwrap();
         encoder.encode_record(&rec2).unwrap();
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(transcoder.buffer(py).is_empty().unwrap());
         });
         // Write first record and part of second
@@ -818,7 +818,7 @@ mod tests {
         .unwrap();
         let file = MockPyFile::new();
         let output_buf = file.inner();
-        let mut transcoder = Python::with_gil(|py| {
+        let mut transcoder = Python::attach(|py| {
             Transcoder::new(
                 Py::new(py, file).unwrap().extract(py).unwrap(),
                 encoding,
@@ -860,7 +860,7 @@ mod tests {
         input_file.read_to_end(&mut input).unwrap();
         let file = MockPyFile::new();
         let output_buf = file.inner();
-        let mut transcoder = Python::with_gil(|py| {
+        let mut transcoder = Python::attach(|py| {
             Transcoder::new(
                 Py::new(py, file).unwrap().extract(py).unwrap(),
                 Encoding::Csv,
