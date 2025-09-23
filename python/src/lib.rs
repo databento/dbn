@@ -128,7 +128,7 @@ mod tests {
     fn test_metadata_identity(_python: ()) {
         let stype_in = SType::RawSymbol as u8;
         let stype_out = SType::InstrumentId as u8;
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             pyo3::py_run!(
                   py,
                   stype_in stype_out,
@@ -162,7 +162,7 @@ assert metadata.ts_out is False"#
 
     #[rstest]
     fn test_dbn_decoder_metadata_error(_python: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             py.run(
                 c_str!(
                     r#"from _lib import DBNDecoder
@@ -194,7 +194,7 @@ except Exception:
         #[case] variant: &str,
         #[case] val: &str,
     ) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             pyo3::py_run!(
                   py,
                   enum_name variant val,
@@ -221,7 +221,7 @@ assert hash(val) == hash(variant), f"{val = }, {variant = } {hash(val) = }, {has
         #[case] variant: &str,
         #[case] val: u32,
     ) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             pyo3::py_run!(
                   py,
                   enum_name variant val,

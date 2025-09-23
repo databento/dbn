@@ -1,10 +1,11 @@
 # Changelog
 
-## 0.42.0 - TBD
+## 0.42.0 - 2025-09-23
 
 ### Enhancements
-- Added `ts_index` and `pretty_ts_index` property for records in Python which provides
+- Added `ts_index` and `pretty_ts_index` properties for records in Python which provides
   the timestamp that is most appropriate for indexing
+- Upgraded `pyo3` version to 0.26.0
 
 ### Bug fixes
 - Fixed type stub for `channel_id` in Python to allow `None`

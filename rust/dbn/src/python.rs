@@ -43,7 +43,7 @@ impl From<Error> for PyErr {
 #[pyclass(module = "databento_dbn")]
 pub struct EnumIterator {
     // Type erasure for code reuse. Generic types can't be exposed to Python.
-    iter: Box<dyn Iterator<Item = PyObject> + Send + Sync>,
+    iter: Box<dyn Iterator<Item = Py<PyAny>> + Send + Sync>,
 }
 
 #[pymethods]
@@ -52,7 +52,7 @@ impl EnumIterator {
         slf
     }
 
-    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<PyObject> {
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<Py<PyAny>> {
         slf.iter.next()
     }
 }

@@ -56,7 +56,7 @@ impl DbnDecoder {
         self.fsm.data()
     }
 
-    fn decode(&mut self) -> PyResult<Vec<PyObject>> {
+    fn decode(&mut self) -> PyResult<Vec<Py<PyAny>>> {
         let mut ts_out = self.fsm.ts_out();
         let mut py_recs = Vec::new();
         loop {
@@ -65,19 +65,19 @@ impl DbnDecoder {
                 ProcessResult::ReadMore(_) => return Ok(py_recs),
                 ProcessResult::Metadata(metadata) => {
                     ts_out = self.fsm.ts_out();
-                    py_recs.push(Python::with_gil(|py| metadata.into_py_any(py))?)
+                    py_recs.push(Python::attach(|py| metadata.into_py_any(py))?)
                 }
                 ProcessResult::Record(_) => {
                     // Bug in clippy generates an error here. trivial_copy feature isn't enabled,
                     // but clippy thinks these records are `Copy`
-                    fn push_rec<'py, R>(rec: &R, py: Python<'py>, py_recs: &mut Vec<PyObject>)
+                    fn push_rec<'py, R>(rec: &R, py: Python<'py>, py_recs: &mut Vec<Py<PyAny>>)
                     where
                         R: Clone + HasRType + IntoPyObject<'py>,
                     {
                         py_recs.push(rec.clone().into_py_any(py).unwrap());
                     }
 
-                    Python::with_gil(|py| -> PyResult<()> {
+                    Python::attach(|py| -> PyResult<()> {
                         for rec in rec_refs {
                             // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
                             // from the metadata header.
@@ -199,7 +199,7 @@ mod tests {
 
     #[rstest]
     fn test_dbn_decoder(_python: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let path = PyString::new(
                 py,
                 concat!(
@@ -226,7 +226,7 @@ for record in records[1:]:
 
     #[rstest]
     fn test_dbn_decoder_decoding_error(_python: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             Python::run(py,
                 c_str!(r#"from _lib import DBNDecoder, DBNError, Metadata, Schema, SType
 
@@ -264,7 +264,7 @@ except Exception:
 
     #[rstest]
     fn test_dbn_decoder_ts_out(_python: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             Python::run(
                 py,
                 c_str!(
@@ -301,7 +301,7 @@ for record in records:
 
     #[rstest]
     fn test_dbn_decoder_no_metadata(_python: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             Python::run(
                 py,
                 c_str!(
@@ -324,7 +324,7 @@ assert records[0] == record
 
     #[rstest]
     fn test_decode_all_data_in_compat_situation(_python: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             Python::run(
                 py,
                 c_str!(

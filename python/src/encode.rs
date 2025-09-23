@@ -31,13 +31,13 @@ pub fn update_encoded_metadata(
 
 /// A Python object that implements the Python file interface.
 pub struct PyFileLike {
-    inner: Mutex<PyObject>,
+    inner: Mutex<Py<PyAny>>,
 }
 
 impl<'py> FromPyObject<'py> for PyFileLike {
     fn extract_bound(any: &Bound<'py, pyo3::PyAny>) -> PyResult<Self> {
-        Python::with_gil(|py| {
-            let obj: PyObject = any.extract()?;
+        Python::attach(|py| {
+            let obj: Py<PyAny> = any.extract()?;
             if obj.getattr(py, intern!(py, "read")).is_err() {
                 return Err(PyTypeError::new_err(
                     "object is missing a `read()` method".to_owned(),
@@ -62,7 +62,7 @@ impl<'py> FromPyObject<'py> for PyFileLike {
 
 impl io::Read for PyFileLike {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let bytes: Vec<u8> = self
                 .inner
                 .lock()
@@ -78,7 +78,7 @@ impl io::Read for PyFileLike {
 
 impl io::Write for PyFileLike {
     fn write(&mut self, buf: &[u8]) -> Result<usize, io::Error> {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let bytes = PyBytes::new(py, buf);
             let number_bytes_written = self
                 .inner
@@ -92,7 +92,7 @@ impl io::Write for PyFileLike {
     }
 
     fn flush(&mut self) -> Result<(), io::Error> {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             self.inner
                 .lock()
                 .unwrap()
@@ -106,7 +106,7 @@ impl io::Write for PyFileLike {
 
 impl io::Seek for PyFileLike {
     fn seek(&mut self, pos: io::SeekFrom) -> Result<u64, io::Error> {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let (whence, offset) = match pos {
                 io::SeekFrom::Start(i) => (0, i as i64),
                 io::SeekFrom::Current(i) => (1, i),
@@ -126,7 +126,7 @@ impl io::Seek for PyFileLike {
 }
 
 fn py_to_rs_io_err(e: PyErr) -> io::Error {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let e_as_object = e.into_bound_py_any(py).unwrap();
 
         match e_as_object.call_method(intern!(py, "__str__"), (), None) {
