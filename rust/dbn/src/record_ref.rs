@@ -10,9 +10,15 @@ use crate::{
 /// A wrapper around a non-owning immutable reference to a DBN record. This wrapper
 /// allows for mixing of record types and schemas and runtime record polymorphism.
 ///
+/// Can hold any type implementing [`HasRType`] and acts similar to a `&dyn HasRType`
+/// or `&dyn Record` but due to the design of DBN records, only a few methods require a
+/// dynamic dispatch.
+///
 /// It has the [`has()`](Self::has) method for testing if the contained value is of a
 /// particular type, and the inner value can be downcasted to specific record types via
 /// the [`get()`](Self::get) method.
+///
+/// # Examples
 /// ```
 /// use dbn::{MboMsg, RecordRef, TradeMsg};
 ///
@@ -90,6 +96,29 @@ impl<'a> RecordRef<'a> {
     }
 
     /// Returns `true` if the object points to a record of type `T`.
+    ///
+    /// Usually paired with [`get()`](Self::get) or [`get_unchecked()`](Self::get_unchecked).
+    ///
+    /// <div class="warning">
+    /// Only checks the <code>rtype</code> matches that of the type <code>T</code>. It does not check
+    /// the length.
+    /// </div>
+    ///
+    /// Use [`try_get()`](Self::try_get) when working with different versions of a DBN
+    /// struct.
+    ///
+    /// # Examples
+    /// ```
+    /// use dbn::{OhlcvMsg, RecordRef, Schema, TradeMsg};
+    ///
+    /// let bar = OhlcvMsg::default_for_schema(Schema::Ohlcv1M);
+    /// let rec = RecordRef::from(&bar);
+    ///
+    /// // This is a bar
+    /// assert!(rec.has::<OhlcvMsg>());
+    /// // It's not a trade
+    /// assert!(!rec.has::<TradeMsg>());
+    /// ```
     pub fn has<T: HasRType>(&self) -> bool {
         T::has_rtype(self.header().rtype)
     }
@@ -102,7 +131,31 @@ impl<'a> RecordRef<'a> {
     ///
     /// # Panics
     /// This function will panic if the rtype indicates it's of type `T` but the encoded
-    ///  length of the record is less than the size of `T`.
+    ///  length of the record is less than the size of `T`. Use [`try_get()`](Self::try_get)
+    /// to more gracefully handle versioned structs and the optional presence of [`crate::WithTsOut`].
+    ///
+    /// # Examples
+    /// ```
+    /// use dbn::{BboMsg, RecordRef, Schema};
+    ///
+    /// let bbo = BboMsg::default_for_schema(Schema::Bbo1S);
+    /// let rec = RecordRef::from(&bbo);
+    ///
+    /// if let Some(bbo) = rec.get::<BboMsg>() {
+    ///     println!("{bbo:?}");
+    /// }
+    /// ```
+    ///
+    /// With versioned DBN structs
+    /// ```should_panic
+    /// use dbn::{v1, v2, RecordRef};
+    ///
+    /// // Initialize with version 1 definition
+    /// let def = v1::InstrumentDefMsg::default();
+    /// let rec = RecordRef::from(&def);
+    /// // Try to extract a version 2 definition
+    /// let _def = rec.get::<v2::InstrumentDefMsg>();
+    /// ```
     pub fn get<T: HasRType>(&self) -> Option<&'a T> {
         if self.has::<T>() {
             assert!(
@@ -127,6 +180,23 @@ impl<'a> RecordRef<'a> {
     /// # Errors
     /// This function returns an error if does not hold a `T` or if its `rtype` matches
     /// `T`, but its `length` is too short.
+    ///
+    /// # Examples
+    /// ```
+    /// use dbn::{v1, v2, v3, RecordRef, WithTsOut};
+    ///
+    /// // Initialize with version 1 definition
+    /// let def = v1::InstrumentDefMsg::default();
+    /// let rec = RecordRef::from(&def);
+    /// // Try to extract new versions of definitions
+    /// assert!(rec.try_get::<v2::InstrumentDefMsg>().is_err());
+    /// assert!(rec.try_get::<v3::InstrumentDefMsg>().is_err());
+    ///
+    /// rec.try_get::<v1::InstrumentDefMsg>().unwrap();
+    ///
+    /// // Also works with data that might have ts_out
+    /// assert!(rec.try_get::<WithTsOut<v1::InstrumentDefMsg>>().is_err());
+    /// ```
     pub fn try_get<T: HasRType>(&self) -> crate::Result<&'a T> {
         if self.has::<T>() {
             if self.record_size() >= mem::size_of::<T>() {
@@ -161,6 +231,19 @@ impl<'a> RecordRef<'a> {
     ///
     /// # Safety
     /// The caller needs to validate this object points to a `T`.
+    ///
+    /// # Examples
+    /// ```
+    /// use dbn::{BboMsg, RecordRef, Schema};
+    ///
+    /// let bbo = BboMsg::default_for_schema(Schema::Bbo1S);
+    /// let rec = RecordRef::from(&bbo);
+    ///
+    /// if rec.has::<BboMsg>() {
+    ///     // SAFETY: checked rtype
+    ///     println!("{:?}", unsafe { rec.get_unchecked::<BboMsg>() });
+    /// }
+    /// ```
     pub unsafe fn get_unchecked<T: HasRType>(&self) -> &'a T {
         debug_assert!(self.record_size() >= mem::size_of::<T>());
         self.ptr.cast::<T>().as_ref()

@@ -1331,6 +1331,16 @@ pub struct SystemMsg {
 }
 
 /// Wrapper object for records that include the live gateway send timestamp (`ts_out`).
+///
+/// # Examples
+/// ```
+/// use dbn::{MboMsg, WithTsOut};
+/// use std::time::SystemTime;
+///
+/// let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos() as u64;
+/// let rec = WithTsOut::new(MboMsg::default(), now);
+/// assert_eq!(rec.ts_out, now);
+/// ```
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]

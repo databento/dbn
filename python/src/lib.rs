@@ -120,7 +120,7 @@ mod tests {
             // add to available modules
             pyo3::append_to_inittab!(databento_dbn);
             // initialize interpreter
-            pyo3::prepare_freethreaded_python();
+            Python::initialize();
         });
     }
 
