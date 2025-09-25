@@ -17,8 +17,6 @@ pub use self::{
         Encoder as DbnEncoder, MetadataEncoder as DbnMetadataEncoder,
         RecordEncoder as DbnRecordEncoder,
     },
-    dyn_encoder::{DynEncoder, DynEncoderBuilder},
-    dyn_writer::DynWriter,
     json::Encoder as JsonEncoder,
 };
 #[cfg(feature = "async")]
@@ -27,9 +25,17 @@ pub use self::{
         AsyncEncoder as AsyncDbnEncoder, AsyncMetadataEncoder as AsyncDbnMetadataEncoder,
         AsyncRecordEncoder as AsyncDbnRecordEncoder,
     },
-    dyn_writer::{DynAsyncBufWriter, DynAsyncWriter},
     json::AsyncEncoder as AsyncJsonEncoder,
 };
+#[doc(inline)]
+pub use self::{
+    dyn_encoder::{DynEncoder, DynEncoderBuilder},
+    dyn_writer::DynWriter,
+};
+
+#[cfg(feature = "async")]
+#[doc(inline)]
+pub use self::dyn_writer::{DynAsyncBufWriter, DynAsyncWriter};
 
 use crate::{
     decode::{DbnMetadata, DecodeRecordRef},
