@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.42.1 - TBD
+
+### Enhancements
+- Added export of `F_PUBLISHER_SPECIFIC` constant to Python
+
+### Bug fixes
+- Added missing Python type stubs for other flag constants
+
 ## 0.42.0 - 2025-09-23
 
 ### Enhancements

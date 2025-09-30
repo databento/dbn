@@ -1,4 +1,4 @@
-# ruff: noqa: UP007, PYI021, PYI011
+# ruff: noqa: UP007 PYI021 PYI011 PYI014
 from __future__ import annotations
 
 import datetime as dt
@@ -20,6 +20,13 @@ UNDEF_PRICE: int
 UNDEF_ORDER_SIZE: int
 UNDEF_STAT_QUANTITY: int
 UNDEF_TIMESTAMP: int
+F_LAST: int
+F_TOB: int
+F_SNAPSHOT: int
+F_MBP: int
+F_BAD_TS_RECV: int
+F_MAYBE_BAD_BOOK: int
+F_PUBLISHER_SPECIFIC: int
 
 _DBNRecord = Union[
     Metadata,

@@ -97,6 +97,7 @@ fn databento_dbn(_py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     m.add("F_MBP", flags::MBP)?;
     m.add("F_BAD_TS_RECV", flags::BAD_TS_RECV)?;
     m.add("F_MAYBE_BAD_BOOK", flags::MAYBE_BAD_BOOK)?;
+    m.add("F_PUBLISHER_SPECIFIC", flags::PUBLISHER_SPECIFIC)?;
     Ok(())
 }
 
