@@ -1,4 +1,4 @@
-use pyo3::{prelude::*, IntoPyObjectExt};
+use pyo3::{exceptions::PyRuntimeError, prelude::*, IntoPyObjectExt};
 
 use dbn::{
     decode::dbn::fsm::{DbnFsm, ProcessResult},
@@ -56,16 +56,15 @@ impl DbnDecoder {
         self.fsm.data()
     }
 
-    fn decode(&mut self) -> PyResult<Vec<Py<PyAny>>> {
+    fn decode(&mut self, py: Python<'_>) -> PyResult<Vec<Py<PyAny>>> {
         let mut ts_out = self.fsm.ts_out();
         let mut py_recs = Vec::new();
         loop {
-            let mut rec_refs = Vec::new();
-            match self.fsm.process_all(&mut rec_refs, None) {
+            match self.fsm.process() {
                 ProcessResult::ReadMore(_) => return Ok(py_recs),
                 ProcessResult::Metadata(metadata) => {
                     ts_out = self.fsm.ts_out();
-                    py_recs.push(Python::attach(|py| metadata.into_py_any(py))?)
+                    py_recs.push(metadata.into_py_any(py)?)
                 }
                 ProcessResult::Record(_) => {
                     // Bug in clippy generates an error here. trivial_copy feature isn't enabled,
@@ -77,16 +76,14 @@ impl DbnDecoder {
                         py_recs.push(rec.clone().into_py_any(py).unwrap());
                     }
 
-                    Python::attach(|py| -> PyResult<()> {
-                        for rec in rec_refs {
-                            // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
-                            // from the metadata header.
-                            rtype_dispatch!(rec, ts_out: ts_out, push_rec(py, &mut py_recs))
-                                .map_err(PyErr::from)?;
-                        }
-                        Ok(())
+                    let rec = self.fsm.last_record().ok_or_else(|| {
+                        PyRuntimeError::new_err("Error while decoding DBN stream")
                     })?;
-                    return Ok(py_recs);
+
+                    // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
+                    // from the metadata header.
+                    rtype_dispatch!(rec, ts_out: ts_out, push_rec(py, &mut py_recs))
+                        .map_err(PyErr::from)?;
                 }
                 ProcessResult::Err(error) => return Err(PyErr::from(error)),
             }
@@ -110,43 +107,45 @@ mod tests {
 
     #[rstest]
     fn test_partial_metadata_and_records(_python: ()) {
-        let mut target =
-            DbnDecoder::new(true, false, None, VersionUpgradePolicy::default()).unwrap();
-        let buffer = Vec::new();
-        let mut encoder = Encoder::new(
-            buffer,
-            &MetadataBuilder::new()
-                .dataset(Dataset::XnasItch.to_string())
-                .schema(Some(Schema::Trades))
-                .stype_in(Some(SType::RawSymbol))
-                .stype_out(SType::InstrumentId)
-                .start(0)
-                .build(),
-        )
-        .unwrap();
-        let metadata_split = encoder.get_ref().len() / 2;
-        target.write(&encoder.get_ref()[..metadata_split]).unwrap();
-        assert!(target.decode().unwrap().is_empty());
-        target.write(&encoder.get_ref()[metadata_split..]).unwrap();
-        let metadata_pos = encoder.get_ref().len();
-        assert!(matches!(target.decode(), Ok(recs) if recs.len() == 1));
-        let rec = ErrorMsg::new(1680708278000000000, None, "Python", true);
-        encoder.encode_record(&rec).unwrap();
-        assert!(target.buffer().is_empty());
-        let record_pos = encoder.get_ref().len();
-        for i in metadata_pos..record_pos {
-            target.write(&encoder.get_ref()[i..i + 1]).unwrap();
-            assert_eq!(target.buffer().len(), i + 1 - metadata_pos);
-            // wrote last byte
-            if i == record_pos - 1 {
-                let res = target.decode();
-                assert_eq!(record_pos - metadata_pos, std::mem::size_of_val(&rec));
-                assert!(matches!(res, Ok(recs) if recs.len() == 1));
-            } else {
-                let res = target.decode();
-                assert!(matches!(res, Ok(recs) if recs.is_empty()));
+        Python::attach(|py| {
+            let mut target =
+                DbnDecoder::new(true, false, None, VersionUpgradePolicy::default()).unwrap();
+            let buffer = Vec::new();
+            let mut encoder = Encoder::new(
+                buffer,
+                &MetadataBuilder::new()
+                    .dataset(Dataset::XnasItch.to_string())
+                    .schema(Some(Schema::Trades))
+                    .stype_in(Some(SType::RawSymbol))
+                    .stype_out(SType::InstrumentId)
+                    .start(0)
+                    .build(),
+            )
+            .unwrap();
+            let metadata_split = encoder.get_ref().len() / 2;
+            target.write(&encoder.get_ref()[..metadata_split]).unwrap();
+            assert!(target.decode(py).unwrap().is_empty());
+            target.write(&encoder.get_ref()[metadata_split..]).unwrap();
+            let metadata_pos = encoder.get_ref().len();
+            assert!(matches!(target.decode(py), Ok(recs) if recs.len() == 1));
+            let rec = ErrorMsg::new(1680708278000000000, None, "Python", true);
+            encoder.encode_record(&rec).unwrap();
+            assert!(target.buffer().is_empty());
+            let record_pos = encoder.get_ref().len();
+            for i in metadata_pos..record_pos {
+                target.write(&encoder.get_ref()[i..i + 1]).unwrap();
+                assert_eq!(target.buffer().len(), i + 1 - metadata_pos);
+                // wrote last byte
+                if i == record_pos - 1 {
+                    let res = target.decode(py);
+                    assert_eq!(record_pos - metadata_pos, std::mem::size_of_val(&rec));
+                    assert!(matches!(res, Ok(recs) if recs.len() == 1));
+                } else {
+                    let res = target.decode(py);
+                    assert!(matches!(res, Ok(recs) if recs.is_empty()));
+                }
             }
-        }
+        });
     }
 
     #[rstest]
@@ -167,7 +166,7 @@ mod tests {
         .unwrap();
         decoder.write(encoder.get_ref().as_slice()).unwrap();
         let metadata_pos = encoder.get_ref().len();
-        let res = decoder.decode();
+        let res = Python::attach(|py| decoder.decode(py));
         dbg!(&res);
         assert!(matches!(res, Ok(recs) if recs.len() == 1));
         // assert!(decoder.has_decoded_metadata);
@@ -189,11 +188,11 @@ mod tests {
             .write(&encoder.get_ref()[metadata_pos..rec1_pos + 4])
             .unwrap();
         // Read first record
-        let res1 = decoder.decode();
+        let res1 = Python::attach(|py| decoder.decode(py));
         assert!(matches!(res1, Ok(recs) if recs.len() == 1));
         // Write rest of second record
         decoder.write(&encoder.get_ref()[rec1_pos + 4..]).unwrap();
-        let res2 = decoder.decode();
+        let res2 = Python::attach(|py| decoder.decode(py));
         assert!(matches!(res2, Ok(recs) if recs.len() == 1));
     }
 
