@@ -4,6 +4,7 @@
 
 ### Enhancements
 - Added export of `F_PUBLISHER_SPECIFIC` constant to Python
+- Removed support for Python 3.9 in `databento-dbn` due to end of life
 
 ### Bug fixes
 - Added missing Python type stubs for other flag constants
