@@ -107,6 +107,7 @@ mod tests {
 
     use dbn::enums::SType;
     use pyo3::ffi::c_str;
+    use pyo3::types::PyDict;
     use rstest::*;
 
     use super::*;
@@ -130,10 +131,13 @@ mod tests {
         let stype_in = SType::RawSymbol as u8;
         let stype_out = SType::InstrumentId as u8;
         Python::attach(|py| {
-            pyo3::py_run!(
-                  py,
-                  stype_in stype_out,
-                  r#"from _lib import Metadata, Schema, SType
+            let globals = PyDict::new(py);
+            globals.set_item("stype_in", stype_in).unwrap();
+            globals.set_item("stype_out", stype_out).unwrap();
+            Python::run(
+                py,
+                c_str!(
+                    r#"from _lib import Metadata, Schema, SType
 
 metadata = Metadata(
     dataset="GLBX.MDP3",
@@ -157,7 +161,11 @@ assert metadata.limit is None
 assert metadata.stype_in == SType.RAW_SYMBOL
 assert metadata.stype_out == SType.INSTRUMENT_ID
 assert metadata.ts_out is False"#
-            );
+                ),
+                Some(&globals),
+                None,
+            )
+            .unwrap();
         });
     }
 
@@ -177,7 +185,8 @@ except Exception:
     pass
 "#
                 ),
-                None,
+                // Create an empty `globals` dict to keep tests hermetic
+                Some(&PyDict::new(py)),
                 None,
             )
         })
@@ -196,10 +205,14 @@ except Exception:
         #[case] val: &str,
     ) {
         Python::attach(|py| {
-            pyo3::py_run!(
-                  py,
-                  enum_name variant val,
-                  r#"import _lib as db
+            let globals = PyDict::new(py);
+            globals.set_item("enum_name", enum_name).unwrap();
+            globals.set_item("variant", variant).unwrap();
+            globals.set_item("val", val).unwrap();
+            Python::run(
+                py,
+                c_str!(
+                    r#"import _lib as db
 
 enum_type = getattr(db, enum_name)
 variant = getattr(enum_type, variant)
@@ -207,7 +220,11 @@ assert variant == enum_type(val)
 assert variant == val
 assert val == variant
 assert hash(val) == hash(variant), f"{val = }, {variant = } {hash(val) = }, {hash(variant) = }""#
-            );
+                ),
+                Some(&globals),
+                None,
+            )
+            .unwrap();
         });
     }
 
@@ -223,10 +240,14 @@ assert hash(val) == hash(variant), f"{val = }, {variant = } {hash(val) = }, {has
         #[case] val: u32,
     ) {
         Python::attach(|py| {
-            pyo3::py_run!(
-                  py,
-                  enum_name variant val,
-                  r#"import _lib as db
+            let globals = PyDict::new(py);
+            globals.set_item("enum_name", enum_name).unwrap();
+            globals.set_item("variant", variant).unwrap();
+            globals.set_item("val", val).unwrap();
+            Python::run(
+                py,
+                c_str!(
+                    r#"import _lib as db
 
 enum_type = getattr(db, enum_name)
 variant = getattr(enum_type, variant)
@@ -234,7 +255,11 @@ assert variant == enum_type(val)
 assert variant == val
 assert val == variant
 assert hash(val) == hash(variant), f"{val = }, {variant = } {hash(val) = }, {hash(variant) = }""#
-            );
+                ),
+                Some(&globals),
+                None,
+            )
+            .unwrap();
         });
     }
 }

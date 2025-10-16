@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use pyo3::{ffi::c_str, Python};
+    use pyo3::{ffi::c_str, prelude::*, types::PyDict, Python};
     use rstest::*;
 
     use crate::tests::python;
@@ -12,23 +12,29 @@ mod tests {
     #[case("SType")]
     fn test_enum_name_coercion(_python: (), #[case] enum_name: &str) {
         Python::attach(|py| {
-            pyo3::py_run!(
+            let globals = PyDict::new(py);
+            globals.set_item("enum_name", enum_name).unwrap();
+            Python::run(
                 py,
-                enum_name,
-                r#"import _lib as db
+                c_str!(
+                    r#"import _lib as db
 
-    enum_type = getattr(db, enum_name)
-    for variant in enum_type.variants():
-        assert variant == enum_type(variant.name)
-        assert variant == enum_type(variant.name.replace('_', '-'))
-        assert variant == enum_type(variant.name.lower())
-        assert variant == enum_type(variant.name.upper())
-        try:
-            enum_type("bar")     # sanity check
-            assert False, "did not raise an exception"
-        except db.DBNError:
-            pass"#
+enum_type = getattr(db, enum_name)
+for variant in enum_type.variants():
+    assert variant == enum_type(variant.name)
+    assert variant == enum_type(variant.name.replace('_', '-'))
+    assert variant == enum_type(variant.name.lower())
+    assert variant == enum_type(variant.name.upper())
+    try:
+        enum_type("bar")     # sanity check
+        assert False, "did not raise an exception"
+    except db.DBNError:
+        pass"#
+                ),
+                Some(&globals),
+                None,
             )
+            .unwrap();
         });
     }
 
@@ -42,7 +48,8 @@ mod tests {
 assert db.Compression(None) == db.Compression.NONE
                 "#
                 ),
-                None,
+                // Create an empty `globals` dict to keep tests hermetic
+                Some(&PyDict::new(py)),
                 None,
             )
             .unwrap()
@@ -55,10 +62,12 @@ assert db.Compression(None) == db.Compression.NONE
     #[case("SType")]
     fn test_enum_none_not_coercible(_python: (), #[case] enum_name: &str) {
         Python::attach(|py| {
-            pyo3::py_run!(
+            let globals = PyDict::new(py);
+            globals.set_item("enum_name", enum_name).unwrap();
+            Python::run(
                 py,
-                enum_name,
-                r#"import _lib as db
+                c_str!(
+                    r#"import _lib as db
 
 enum_type = getattr(db, enum_name)
 try:
@@ -66,7 +75,11 @@ try:
     assert False, "did not raise an exception"
 except db.DBNError:
     pass"#
+                ),
+                Some(&globals),
+                None,
             )
+            .unwrap();
         });
     }
 }

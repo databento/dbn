@@ -99,7 +99,7 @@ mod tests {
         record::{ErrorMsg, OhlcvMsg, RecordHeader},
         Dataset, MetadataBuilder,
     };
-    use pyo3::{ffi::c_str, py_run, types::PyString};
+    use pyo3::{ffi::c_str, types::PyDict, types::PyString};
     use rstest::*;
 
     use super::*;
@@ -206,10 +206,12 @@ mod tests {
                     "/../tests/data/test_data.mbo.v3.dbn"
                 ),
             );
-            py_run!(
+            let globals = PyDict::new(py);
+            globals.set_item("path", path).unwrap();
+            Python::run(
                 py,
-                path,
-                r#"from _lib import DBNDecoder
+                c_str!(
+                    r#"from _lib import DBNDecoder
 
 decoder = DBNDecoder()
 with open(path, 'rb') as fin:
@@ -219,7 +221,11 @@ assert len(records) == 3
 metadata = records[0]
 for record in records[1:]:
     assert hasattr(record, "ts_out") == metadata.ts_out"#
+                ),
+                Some(&globals),
+                None,
             )
+            .unwrap();
         });
     }
 
@@ -255,7 +261,8 @@ except DBNError as ex:
 except Exception:
     assert False
 "#),
-                None,
+                // Create an empty `globals` dict to keep tests hermetic
+                Some(&PyDict::new(py)),
                 None,
             )
         }).unwrap();
@@ -291,7 +298,8 @@ for record in records:
     assert record.ts_out is not None
 "#
                 ),
-                None,
+                // Create an empty `globals` dict to keep tests hermetic
+                Some(&PyDict::new(py)),
                 None,
             )
         })
@@ -314,7 +322,8 @@ assert len(records) == 1
 assert records[0] == record
 "#
                 ),
-                None,
+                // Create an empty `globals` dict to keep tests hermetic
+                Some(&PyDict::new(py)),
                 None,
             )
         })
@@ -339,17 +348,19 @@ metadata = Metadata(
     stype_out=SType.INSTRUMENT_ID,
 )
 decoder.write(bytes(metadata))
-for _ in range(3):
+n = 100_000
+for _ in range(n):
     error = ErrorMsgV1(0, "test")
     decoder.write(bytes(error))
 records = decoder.decode()
-assert len(records) == 4
-assert isinstance(records[0], Metadata)
-for i in range(1, 4):
-    assert isinstance(records[i], ErrorMsg), f"{records[i]}"
+assert len(records) == 1 + n, f"{len(records)=} {1+n=}"
+assert isinstance(records[0], Metadata), f"{records[0].__class__.__name__}"
+for r in records[1:]:
+    assert isinstance(r, ErrorMsg), f"{r}"
 "#
                 ),
-                None,
+                // Create an empty `globals` dict to keep tests hermetic
+                Some(&PyDict::new(py)),
                 None,
             )
         })
