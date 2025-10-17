@@ -22,7 +22,7 @@ Repository = "https://github.com/databento/dbn"
 requires-poetry = ">=2.0"
 
 [tool.poetry.dependencies]
-requires-python = ">=3.9,<3.14"
+python = ">=3.10,<3.14"
 
 [tool.poetry.group.dev.dependencies]
 maturin = ">=1.0"
