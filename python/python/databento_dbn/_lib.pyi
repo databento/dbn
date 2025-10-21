@@ -1300,6 +1300,8 @@ class ErrorCode(Enum):
         There was an issue with a subscription request (other than symbol resolution).
     INTERNAL_ERROR
         An error occurred in the gateway.
+    UNSET
+        No error code was specified or this record was upgraded from a version 1 struct where the code field didn't exist.
 
     """
 
@@ -1309,6 +1311,7 @@ class ErrorCode(Enum):
     SYMBOL_RESOLUTION_FAILED: int
     INVALID_SUBSCRIPTION: int
     INTERNAL_ERROR: int
+    UNSET: int
 
     def __init__(self, value: int) -> None: ...
     @classmethod
@@ -1334,6 +1337,9 @@ class SystemCode(Enum):
         Indicates a replay subscription has caught up with real-time data.
     END_OF_INTERVAL
         Signals that all records for interval-based schemas have been published for the given timestamp.
+    UNSET
+        No system code was specified or this record was upgraded from a version 1 struct where
+        the code field didn't exist.
 
     """
 
@@ -1342,6 +1348,7 @@ class SystemCode(Enum):
     SLOW_READER_WARNING: int
     REPLAY_COMPLETED: int
     END_OF_INTERVAL: int
+    UNSET: int
 
     def __init__(self, value: int) -> None: ...
     @classmethod
@@ -1451,7 +1458,7 @@ class MBOMsg(Record):
         """
 
     @property
-    def action(self) -> Action:
+    def action(self) -> Action | str:
         """
         The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R** book, **T**rade, **F**ill, or **N**one.
 
@@ -1459,12 +1466,12 @@ class MBOMsg(Record):
 
         Returns
         -------
-        Action
+        Action | str
 
         """
 
     @property
-    def side(self) -> Side:
+    def side(self) -> Side | str:
         """
         The side that initiates the event. Can be **A**sk for a sell order (or sell aggressor in
         a trade), **B**id for a buy order (or buy aggressor in a trade), or **N**one where no side is specified.
@@ -1473,7 +1480,7 @@ class MBOMsg(Record):
 
         Returns
         -------
-        Side
+        Side | str
 
         """
 
@@ -1847,7 +1854,7 @@ class TradeMsg(Record):
         """
 
     @property
-    def action(self) -> Action:
+    def action(self) -> Action | str:
         """
         The event action. Always **T**rade in the trades schema.
 
@@ -1855,12 +1862,12 @@ class TradeMsg(Record):
 
         Returns
         -------
-        Action
+        Action | str
 
         """
 
     @property
-    def side(self) -> Side:
+    def side(self) -> Side | str:
         """
         The side that initiates the trade. Can be **A**sk for a sell aggressor in a trade, **B**id for a buy aggressor in a trade, or **N**one where no side is specified.
 
@@ -1868,7 +1875,7 @@ class TradeMsg(Record):
 
         Returns
         -------
-        Side
+        Side | str
 
         """
 
@@ -2013,7 +2020,7 @@ class MBP1Msg(Record):
         """
 
     @property
-    def action(self) -> Action:
+    def action(self) -> Action | str:
         """
         The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R** book, or **T**rade.
 
@@ -2021,12 +2028,12 @@ class MBP1Msg(Record):
 
         Returns
         -------
-        Action
+        Action | str
 
         """
 
     @property
-    def side(self) -> Side:
+    def side(self) -> Side | str:
         """
         The side that initiates the event. Can be **A**sk for a sell order (or sell aggressor in
         a trade), **B**id for a buy order (or buy aggressor in a trade), or **N**one where no side is specified.
@@ -2035,7 +2042,7 @@ class MBP1Msg(Record):
 
         Returns
         -------
-        Side
+        Side | str
 
         """
 
@@ -2195,7 +2202,7 @@ class MBP10Msg(Record):
         """
 
     @property
-    def action(self) -> Action:
+    def action(self) -> Action | str:
         """
         The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R** book, or **T**rade.
 
@@ -2203,12 +2210,12 @@ class MBP10Msg(Record):
 
         Returns
         -------
-        Action
+        Action | str
 
         """
 
     @property
-    def side(self) -> Side:
+    def side(self) -> Side | str:
         """
         The side that initiates the event. Can be **A**sk for a sell order (or sell aggressor in
         a trade), **B**id for a buy order (or buy aggressor in a trade), or **N**one where no side is specified.
@@ -2217,7 +2224,7 @@ class MBP10Msg(Record):
 
         Returns
         -------
-        Side
+        Side | str
 
         """
 
@@ -2375,7 +2382,7 @@ class BBOMsg(Record):
         """
 
     @property
-    def side(self) -> Side:
+    def side(self) -> Side | str:
         """
         The side that initiated the last trade. Can be **A**sk for a sell order (or sell
         aggressor in a trade), **B**id for a buy order (or buy aggressor in a trade), or
@@ -2385,7 +2392,7 @@ class BBOMsg(Record):
 
         Returns
         -------
-        Side
+        Side | str
 
         """
 
@@ -2519,7 +2526,7 @@ class CMBP1Msg(Record):
         """
 
     @property
-    def action(self) -> Action:
+    def action(self) -> Action | str:
         """
         The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R** book, or **T**rade.
 
@@ -2527,12 +2534,12 @@ class CMBP1Msg(Record):
 
         Returns
         -------
-        Action
+        Action | str
 
         """
 
     @property
-    def side(self) -> Side:
+    def side(self) -> Side | str:
         """
         The side that initiates the event. Can be **A**sk for a sell order (or sell aggressor in
         a trade), **B**id for a buy order (or buy aggressor in a trade), or **N**one where no side is specified.
@@ -2541,7 +2548,7 @@ class CMBP1Msg(Record):
 
         Returns
         -------
-        Side
+        Side | str
 
         """
 
@@ -2675,7 +2682,7 @@ class CBBOMsg(Record):
         """
 
     @property
-    def side(self) -> Side:
+    def side(self) -> Side | str:
         """
         The side that initiated the last trade. Can be **A**sk for a sell order (or sell
         aggressor in a trade), **B**id for a buy order (or buy aggressor in a trade), or
@@ -2685,7 +2692,7 @@ class CBBOMsg(Record):
 
         Returns
         -------
-        Side
+        Side | str
 
         """
 
@@ -2965,35 +2972,35 @@ class StatusMsg(Record):
         """
 
     @property
-    def action(self) -> StatusAction:
+    def action(self) -> StatusAction | int:
         """
         The type of status change.
 
         Returns
         -------
-        StatusAction
+        StatusAction | int
 
         """
 
     @property
-    def reason(self) -> StatusReason:
+    def reason(self) -> StatusReason | int:
         """
         Additional details about the cause of the status change.
 
         Returns
         -------
-        StatusReason
+        StatusReason | int
 
         """
 
     @property
-    def trading_event(self) -> TradingEvent:
+    def trading_event(self) -> TradingEvent | int:
         """
         Further information about the status change and its effect on trading.
 
         Returns
         -------
-        TradingEvent
+        TradingEvent | int
 
         """
 
@@ -3983,7 +3990,7 @@ class InstrumentDefMsg(Record):
         """
 
     @property
-    def instrument_class(self) -> InstrumentClass:
+    def instrument_class(self) -> InstrumentClass | str:
         """
         The classification of the instrument.
 
@@ -3991,12 +3998,12 @@ class InstrumentDefMsg(Record):
 
         Returns
         -------
-        InstrumentClass
+        InstrumentClass | str
 
         """
 
     @property
-    def match_algorithm(self) -> MatchAlgorithm:
+    def match_algorithm(self) -> MatchAlgorithm | str:
         """
         The matching algorithm used for the instrument, typically **F**IFO.
 
@@ -4004,7 +4011,7 @@ class InstrumentDefMsg(Record):
 
         Returns
         -------
-        MatchAlgorithm
+        MatchAlgorithm | str
 
         """
 
@@ -4053,13 +4060,13 @@ class InstrumentDefMsg(Record):
         """
 
     @property
-    def security_update_action(self) -> SecurityUpdateAction:
+    def security_update_action(self) -> SecurityUpdateAction | str:
         """
         Indicates if the instrument definition has been added, modified, or deleted.
 
         Returns
         -------
-        SecurityUpdateAction
+        SecurityUpdateAction | str
 
         """
 
@@ -4097,13 +4104,13 @@ class InstrumentDefMsg(Record):
         """
 
     @property
-    def user_defined_instrument(self) -> UserDefinedInstrument:
+    def user_defined_instrument(self) -> UserDefinedInstrument | str:
         """
         Indicates if the instrument is user defined: **Y**es or **N**o.
 
         Returns
         -------
-        UserDefinedInstrument
+        UserDefinedInstrument | str
 
         """
 
@@ -4141,24 +4148,24 @@ class InstrumentDefMsg(Record):
         """
 
     @property
-    def leg_instrument_class(self) -> InstrumentClass:
+    def leg_instrument_class(self) -> InstrumentClass | str:
         """
         The classification of the leg instrument.
 
         Returns
         -------
-        InstrumentClass
+        InstrumentClass | str
 
         """
 
     @property
-    def leg_side(self) -> Side:
+    def leg_side(self) -> Side | str:
         """
         The side taken for the leg when purchasing the spread.
 
         Returns
         -------
-        Side
+        Side | str
 
         """
 
@@ -4518,7 +4525,7 @@ class ImbalanceMsg(Record):
         """
 
     @property
-    def side(self) -> Side:
+    def side(self) -> Side | str:
         """
         The market side of the `total_imbalance_qty`. Can be **A**sk, **B**id, or **N**one.
 
@@ -4526,7 +4533,7 @@ class ImbalanceMsg(Record):
 
         Returns
         -------
-        Side
+        Side | str
 
         """
 
@@ -4564,13 +4571,13 @@ class ImbalanceMsg(Record):
         """
 
     @property
-    def unpaired_side(self) -> Side:
+    def unpaired_side(self) -> Side | str:
         """
         Reserved for future use.
 
         Returns
         -------
-        Side
+        Side | str
 
         """
 
@@ -4729,14 +4736,14 @@ class StatMsg(Record):
         """
 
     @property
-    def stat_type(self) -> StatType:
+    def stat_type(self) -> StatType | int:
         """
         The type of statistic value contained in the message. Refer to the
         `StatType` enum for possible variants.
 
         Returns
         -------
-        StatType
+        StatType | int
 
         """
 
@@ -4752,14 +4759,14 @@ class StatMsg(Record):
         """
 
     @property
-    def update_action(self) -> StatUpdateAction:
+    def update_action(self) -> StatUpdateAction | int:
         """
         Indicates if the statistic is newly added (1) or deleted (2). (Deleted is only
         used with some stat types).
 
         Returns
         -------
-        StatUpdateAction
+        StatUpdateAction | int
 
         """
 
@@ -4795,13 +4802,13 @@ class ErrorMsg(Record):
         """
 
     @property
-    def code(self) -> ErrorCode:
+    def code(self) -> ErrorCode | int:
         """
         The error code. See the `ErrorCode` enum for possible values.
 
         Returns
         -------
-        ErrorCode
+        ErrorCode | int
 
         """
 
@@ -4837,13 +4844,13 @@ class SymbolMappingMsg(Record):
         end_ts: int,
     ) -> None: ...
     @property
-    def stype_in(self) -> SType:
+    def stype_in(self) -> SType | int:
         """
         The input symbology type of `stype_in_symbol`.
 
         Returns
         -------
-        SType
+        SType | int
 
         """
 
@@ -4859,13 +4866,13 @@ class SymbolMappingMsg(Record):
         """
 
     @property
-    def stype_out(self) -> SType:
+    def stype_out(self) -> SType | int:
         """
         The output symbology type of `stype_out_symbol`.
 
         Returns
         -------
-        SType
+        SType | int
 
         """
 
@@ -4959,13 +4966,13 @@ class SystemMsg(Record):
         """
 
     @property
-    def code(self) -> SystemCode:
+    def code(self) -> SystemCode | int:
         """
         Type of system message. See the `SystemCode` enum for possible values.
 
         Returns
         -------
-        SystemCode
+        SystemCode | int
 
         """
 
@@ -5779,7 +5786,7 @@ class InstrumentDefMsgV1(Record):
         """
 
     @property
-    def instrument_class(self) -> InstrumentClass:
+    def instrument_class(self) -> InstrumentClass | str:
         """
         The classification of the instrument.
 
@@ -5787,7 +5794,7 @@ class InstrumentDefMsgV1(Record):
 
         Returns
         -------
-        InstrumentClass
+        InstrumentClass | str
 
         """
 
@@ -5825,7 +5832,7 @@ class InstrumentDefMsgV1(Record):
         """
 
     @property
-    def match_algorithm(self) -> MatchAlgorithm:
+    def match_algorithm(self) -> MatchAlgorithm | str:
         """
         The matching algorithm used for the instrument, typically **F**IFO.
 
@@ -5833,7 +5840,7 @@ class InstrumentDefMsgV1(Record):
 
         Returns
         -------
-        MatchAlgorithm
+        MatchAlgorithm | str
 
         """
 
@@ -6135,14 +6142,14 @@ class StatMsgV1(Record):
         """
 
     @property
-    def stat_type(self) -> StatType:
+    def stat_type(self) -> StatType | int:
         """
         The type of statistic value contained in the message. Refer to the
         `StatType` enum for possible variants.
 
         Returns
         -------
-        StatType
+        StatType | int
 
         """
 
@@ -6158,14 +6165,14 @@ class StatMsgV1(Record):
         """
 
     @property
-    def update_action(self) -> StatUpdateAction:
+    def update_action(self) -> StatUpdateAction | int:
         """
         Indicates if the statistic is newly added (1) or deleted (2). (Deleted is only
         used with some stat types).
 
         Returns
         -------
-        StatUpdateAction
+        StatUpdateAction | int
 
         """
 
@@ -7121,7 +7128,7 @@ class InstrumentDefMsgV2(Record):
         """
 
     @property
-    def instrument_class(self) -> InstrumentClass:
+    def instrument_class(self) -> InstrumentClass | str:
         """
         The classification of the instrument.
 
@@ -7129,12 +7136,12 @@ class InstrumentDefMsgV2(Record):
 
         Returns
         -------
-        InstrumentClass
+        InstrumentClass | str
 
         """
 
     @property
-    def match_algorithm(self) -> MatchAlgorithm:
+    def match_algorithm(self) -> MatchAlgorithm | str:
         """
         The matching algorithm used for the instrument, typically **F**IFO.
 
@@ -7142,7 +7149,7 @@ class InstrumentDefMsgV2(Record):
 
         Returns
         -------
-        MatchAlgorithm
+        MatchAlgorithm | str
 
         """
 
@@ -7213,13 +7220,13 @@ class InstrumentDefMsgV2(Record):
         """
 
     @property
-    def security_update_action(self) -> SecurityUpdateAction:
+    def security_update_action(self) -> SecurityUpdateAction | str:
         """
         Indicates if the instrument definition has been added, modified, or deleted.
 
         Returns
         -------
-        SecurityUpdateAction
+        SecurityUpdateAction | str
 
         """
 

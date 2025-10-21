@@ -1222,6 +1222,7 @@ impl ErrorCode {
             Self::SymbolResolutionFailed => "SYMBOL_RESOLUTION_FAILED",
             Self::InvalidSubscription => "INVALID_SUBSCRIPTION",
             Self::InternalError => "INTERNAL_ERROR",
+            Self::Unset => "UNSET",
         }
     }
 
@@ -1287,6 +1288,7 @@ impl SystemCode {
             Self::SlowReaderWarning => "SLOW_READER_WARNING",
             Self::ReplayCompleted => "REPLAY_COMPLETED",
             Self::EndOfInterval => "END_OF_INTERVAL",
+            Self::Unset => "UNSET",
         }
     }
 
