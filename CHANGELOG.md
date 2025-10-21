@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.43.0 - 2025-10-22
+
+### Enhancements
+- Added export of `F_PUBLISHER_SPECIFIC` constant to Python
+- Removed support for Python 3.9 in `databento-dbn` due to end of life
+- Added explicit `Unset` variant for `SystemCode` and `ErrorCode`
+- Changed Python getters for enum fields to return the underlying type when no known
+  variant can be found. As a result, these getters no longer raise an exception
+- Added `Default` implementation for `SystemCode` and `ErrorCode`
+
+### Bug fixes
+- Added missing Python type stubs for other flag constants
+
 ## 0.42.0 - 2025-09-23
 
 ### Enhancements

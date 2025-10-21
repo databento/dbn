@@ -23,9 +23,13 @@ pub mod zstd;
 pub use self::dbn::{
     Decoder as DbnDecoder, MetadataDecoder as DbnMetadataDecoder, RecordDecoder as DbnRecordDecoder,
 };
+#[doc(inline)]
 pub use dyn_decoder::DynDecoder;
+#[doc(inline)]
 pub use dyn_reader::*;
+#[doc(inline)]
 pub use merge::{Decoder as MergeDecoder, RecordDecoder as MergeRecordDecoder};
+#[doc(inline)]
 pub use stream::StreamIterDecoder;
 
 use std::{io::Seek, mem};

@@ -1,6 +1,6 @@
 use std::{ffi::c_char, mem};
 
-use pyo3::prelude::*;
+use pyo3::{conversion::IntoPyObjectExt, prelude::*};
 
 use crate::{
     record::str_to_c_chars, rtype, v1, v2, Action, BboMsg, BidAskPair, CbboMsg, Cmbp1Msg,
@@ -133,8 +133,10 @@ impl MboMsg {
     }
 
     #[getter]
-    fn get_action(&self) -> PyResult<Action> {
-        self.action().map_err(to_py_err)
+    fn get_action<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.action()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| (self.action as u8 as char).into_bound_py_any(py))
     }
     #[setter]
     fn set_action(&mut self, action: Action) {
@@ -142,8 +144,10 @@ impl MboMsg {
     }
 
     #[getter]
-    fn get_side(&self) -> PyResult<Side> {
-        self.side().map_err(to_py_err)
+    fn get_side<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.side()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| (self.side as u8 as char).into_bound_py_any(py))
     }
     #[setter]
     fn set_side(&mut self, side: Side) {
@@ -390,8 +394,10 @@ impl TradeMsg {
     }
 
     #[getter]
-    fn get_action(&self) -> PyResult<Action> {
-        self.action().map_err(to_py_err)
+    fn get_action<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.action()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| (self.action as u8 as char).into_bound_py_any(py))
     }
     #[setter]
     fn set_action(&mut self, action: Action) {
@@ -399,8 +405,10 @@ impl TradeMsg {
     }
 
     #[getter]
-    fn get_side(&self) -> PyResult<Side> {
-        self.side().map_err(to_py_err)
+    fn get_side<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.side()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| (self.side as u8 as char).into_bound_py_any(py))
     }
     #[setter]
     fn set_side(&mut self, side: Side) {
@@ -560,8 +568,10 @@ impl Mbp1Msg {
     }
 
     #[getter]
-    fn get_action(&self) -> PyResult<Action> {
-        self.action().map_err(to_py_err)
+    fn get_action<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.action()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| (self.action as u8 as char).into_bound_py_any(py))
     }
     #[setter]
     fn set_action(&mut self, action: Action) {
@@ -569,8 +579,10 @@ impl Mbp1Msg {
     }
 
     #[getter]
-    fn get_side(&self) -> PyResult<Side> {
-        self.side().map_err(to_py_err)
+    fn get_side<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.side()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| (self.side as u8 as char).into_bound_py_any(py))
     }
     #[setter]
     fn set_side(&mut self, side: Side) {
@@ -730,8 +742,10 @@ impl Mbp10Msg {
     }
 
     #[getter]
-    fn get_action(&self) -> PyResult<Action> {
-        self.action().map_err(to_py_err)
+    fn get_action<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.action()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| (self.action as u8 as char).into_bound_py_any(py))
     }
     #[setter]
     fn set_action(&mut self, action: Action) {
@@ -739,8 +753,10 @@ impl Mbp10Msg {
     }
 
     #[getter]
-    fn get_side(&self) -> PyResult<Side> {
-        self.side().map_err(to_py_err)
+    fn get_side<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.side()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| (self.side as u8 as char).into_bound_py_any(py))
     }
     #[setter]
     fn set_side(&mut self, side: Side) {
@@ -896,8 +912,10 @@ impl BboMsg {
     }
 
     #[getter]
-    fn get_side(&self) -> PyResult<Side> {
-        self.side().map_err(to_py_err)
+    fn get_side<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.side()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| (self.side as u8 as char).into_bound_py_any(py))
     }
     #[setter]
     fn set_side(&mut self, side: Side) {
@@ -1055,8 +1073,10 @@ impl Cmbp1Msg {
     }
 
     #[getter]
-    fn get_action(&self) -> PyResult<Action> {
-        self.action().map_err(to_py_err)
+    fn get_action<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.action()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| (self.action as u8 as char).into_bound_py_any(py))
     }
     #[setter]
     fn set_action(&mut self, action: Action) {
@@ -1064,8 +1084,10 @@ impl Cmbp1Msg {
     }
 
     #[getter]
-    fn get_side(&self) -> PyResult<Side> {
-        self.side().map_err(to_py_err)
+    fn get_side<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.side()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| (self.side as u8 as char).into_bound_py_any(py))
     }
     #[setter]
     fn set_side(&mut self, side: Side) {
@@ -1218,8 +1240,10 @@ impl CbboMsg {
     }
 
     #[getter]
-    fn get_side(&self) -> PyResult<Side> {
-        self.side().map_err(to_py_err)
+    fn get_side<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.side()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| (self.side as u8 as char).into_bound_py_any(py))
     }
     #[setter]
     fn set_side(&mut self, side: Side) {
@@ -1520,8 +1544,10 @@ impl StatusMsg {
     }
 
     #[getter]
-    fn get_action(&self) -> PyResult<StatusAction> {
-        self.action().map_err(to_py_err)
+    fn get_action<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.action()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| self.action.into_bound_py_any(py))
     }
     #[setter]
     fn set_action(&mut self, action: StatusAction) {
@@ -1529,8 +1555,10 @@ impl StatusMsg {
     }
 
     #[getter]
-    fn get_reason(&self) -> PyResult<StatusReason> {
-        self.reason().map_err(to_py_err)
+    fn get_reason<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.reason()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| self.reason.into_bound_py_any(py))
     }
     #[setter]
     fn set_reason(&mut self, reason: StatusReason) {
@@ -1538,8 +1566,10 @@ impl StatusMsg {
     }
 
     #[getter]
-    fn get_trading_event(&self) -> PyResult<TradingEvent> {
-        self.trading_event().map_err(to_py_err)
+    fn get_trading_event<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.trading_event()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| self.trading_event.into_bound_py_any(py))
     }
     #[setter]
     fn set_trading_event(&mut self, trading_event: TradingEvent) {
@@ -2024,8 +2054,10 @@ impl InstrumentDefMsg {
     }
 
     #[getter]
-    fn get_instrument_class(&self) -> PyResult<InstrumentClass> {
-        self.instrument_class().map_err(to_py_err)
+    fn get_instrument_class<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.instrument_class()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| (self.instrument_class as u8 as char).into_bound_py_any(py))
     }
     #[setter]
     fn set_instrument_class(&mut self, instrument_class: InstrumentClass) {
@@ -2033,8 +2065,10 @@ impl InstrumentDefMsg {
     }
 
     #[getter]
-    fn get_match_algorithm(&self) -> PyResult<MatchAlgorithm> {
-        self.match_algorithm().map_err(to_py_err)
+    fn get_match_algorithm<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.match_algorithm()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| (self.match_algorithm as u8 as char).into_bound_py_any(py))
     }
     #[setter]
     fn set_match_algorithm(&mut self, match_algorithm: MatchAlgorithm) {
@@ -2042,8 +2076,10 @@ impl InstrumentDefMsg {
     }
 
     #[getter]
-    fn get_security_update_action(&self) -> PyResult<SecurityUpdateAction> {
-        self.security_update_action().map_err(to_py_err)
+    fn get_security_update_action<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.security_update_action()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| (self.security_update_action as u8 as char).into_bound_py_any(py))
     }
     #[setter]
     fn set_security_update_action(&mut self, security_update_action: SecurityUpdateAction) {
@@ -2051,8 +2087,10 @@ impl InstrumentDefMsg {
     }
 
     #[getter]
-    fn get_user_defined_instrument(&self) -> PyResult<UserDefinedInstrument> {
-        self.user_defined_instrument().map_err(to_py_err)
+    fn get_user_defined_instrument<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.user_defined_instrument()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| (self.user_defined_instrument as u8 as char).into_bound_py_any(py))
     }
     #[setter]
     fn set_user_defined_instrument(&mut self, user_defined_instrument: UserDefinedInstrument) {
@@ -2060,8 +2098,10 @@ impl InstrumentDefMsg {
     }
 
     #[getter]
-    fn get_leg_instrument_class(&self) -> PyResult<InstrumentClass> {
-        self.leg_instrument_class().map_err(to_py_err)
+    fn get_leg_instrument_class<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.leg_instrument_class()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| (self.leg_instrument_class as u8 as char).into_bound_py_any(py))
     }
     #[setter]
     fn set_leg_instrument_class(&mut self, leg_instrument_class: InstrumentClass) {
@@ -2069,8 +2109,10 @@ impl InstrumentDefMsg {
     }
 
     #[getter]
-    fn get_leg_side(&self) -> PyResult<Side> {
-        self.leg_side().map_err(to_py_err)
+    fn get_leg_side<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.leg_side()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| (self.leg_side as u8 as char).into_bound_py_any(py))
     }
     #[setter]
     fn set_leg_side(&mut self, leg_side: Side) {
@@ -2307,8 +2349,10 @@ impl ImbalanceMsg {
     }
 
     #[getter]
-    fn get_side(&self) -> PyResult<Side> {
-        self.side().map_err(to_py_err)
+    fn get_side<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.side()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| (self.side as u8 as char).into_bound_py_any(py))
     }
     #[setter]
     fn set_side(&mut self, side: Side) {
@@ -2316,8 +2360,10 @@ impl ImbalanceMsg {
     }
 
     #[getter]
-    fn get_unpaired_side(&self) -> PyResult<Side> {
-        self.unpaired_side().map_err(to_py_err)
+    fn get_unpaired_side<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.unpaired_side()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| (self.unpaired_side as u8 as char).into_bound_py_any(py))
     }
     #[setter]
     fn set_unpaired_side(&mut self, unpaired_side: Side) {
@@ -2493,8 +2539,10 @@ impl StatMsg {
     }
 
     #[getter]
-    fn get_stat_type(&self) -> PyResult<StatType> {
-        self.stat_type().map_err(to_py_err)
+    fn get_stat_type<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.stat_type()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| self.stat_type.into_bound_py_any(py))
     }
     #[setter]
     fn set_stat_type(&mut self, stat_type: StatType) {
@@ -2502,8 +2550,10 @@ impl StatMsg {
     }
 
     #[getter]
-    fn get_update_action(&self) -> PyResult<StatUpdateAction> {
-        self.update_action().map_err(to_py_err)
+    fn get_update_action<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.update_action()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| self.update_action.into_bound_py_any(py))
     }
     #[setter]
     fn set_update_action(&mut self, update_action: StatUpdateAction) {
@@ -2618,8 +2668,10 @@ impl ErrorMsg {
     }
 
     #[getter]
-    fn get_code(&self) -> PyResult<ErrorCode> {
-        self.code().map_err(to_py_err)
+    fn get_code<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.code()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| self.code.into_bound_py_any(py))
     }
     #[setter]
     fn set_code(&mut self, code: ErrorCode) {
@@ -2762,8 +2814,10 @@ impl SymbolMappingMsg {
     }
 
     #[getter]
-    fn get_stype_in(&self) -> PyResult<SType> {
-        self.stype_in().map_err(to_py_err)
+    fn get_stype_in<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.stype_in()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| self.stype_in.into_bound_py_any(py))
     }
     #[setter]
     fn set_stype_in(&mut self, stype_in: SType) {
@@ -2776,8 +2830,10 @@ impl SymbolMappingMsg {
     }
 
     #[getter]
-    fn get_stype_out(&self) -> PyResult<SType> {
-        self.stype_out().map_err(to_py_err)
+    fn get_stype_out<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.stype_out()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| self.stype_out.into_bound_py_any(py))
     }
     #[setter]
     fn set_stype_out(&mut self, stype_out: SType) {
@@ -2912,8 +2968,10 @@ impl SystemMsg {
     }
 
     #[getter]
-    fn get_code(&self) -> PyResult<SystemCode> {
-        self.code().map_err(to_py_err)
+    fn get_code<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.code()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| self.code.into_bound_py_any(py))
     }
     #[setter]
     fn set_code(&mut self, code: SystemCode) {
@@ -3449,8 +3507,10 @@ impl v1::InstrumentDefMsg {
     }
 
     #[getter]
-    fn get_instrument_class(&self) -> PyResult<InstrumentClass> {
-        self.instrument_class().map_err(to_py_err)
+    fn get_instrument_class<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.instrument_class()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| (self.instrument_class as u8 as char).into_bound_py_any(py))
     }
     #[setter]
     fn set_instrument_class(&mut self, instrument_class: InstrumentClass) {
@@ -3463,8 +3523,10 @@ impl v1::InstrumentDefMsg {
     }
 
     #[getter]
-    fn get_match_algorithm(&self) -> PyResult<MatchAlgorithm> {
-        self.match_algorithm().map_err(to_py_err)
+    fn get_match_algorithm<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.match_algorithm()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| (self.match_algorithm as u8 as char).into_bound_py_any(py))
     }
     #[setter]
     fn set_match_algorithm(&mut self, match_algorithm: MatchAlgorithm) {
@@ -3630,8 +3692,10 @@ impl v1::StatMsg {
     }
 
     #[getter]
-    fn get_stat_type(&self) -> PyResult<StatType> {
-        self.stat_type().map_err(to_py_err)
+    fn get_stat_type<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.stat_type()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| self.stat_type.into_bound_py_any(py))
     }
     #[setter]
     fn set_stat_type(&mut self, stat_type: StatType) {
@@ -3639,8 +3703,10 @@ impl v1::StatMsg {
     }
 
     #[getter]
-    fn get_update_action(&self) -> PyResult<StatUpdateAction> {
-        self.update_action().map_err(to_py_err)
+    fn get_update_action<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.update_action()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| self.update_action.into_bound_py_any(py))
     }
     #[setter]
     fn set_update_action(&mut self, update_action: StatUpdateAction) {
@@ -4332,8 +4398,10 @@ impl v2::InstrumentDefMsg {
     }
 
     #[getter]
-    fn get_instrument_class(&self) -> PyResult<InstrumentClass> {
-        self.instrument_class().map_err(to_py_err)
+    fn get_instrument_class<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.instrument_class()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| (self.instrument_class as u8 as char).into_bound_py_any(py))
     }
     #[setter]
     fn set_instrument_class(&mut self, instrument_class: InstrumentClass) {
@@ -4341,8 +4409,10 @@ impl v2::InstrumentDefMsg {
     }
 
     #[getter]
-    fn get_match_algorithm(&self) -> PyResult<MatchAlgorithm> {
-        self.match_algorithm().map_err(to_py_err)
+    fn get_match_algorithm<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.match_algorithm()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| (self.match_algorithm as u8 as char).into_bound_py_any(py))
     }
     #[setter]
     fn set_match_algorithm(&mut self, match_algorithm: MatchAlgorithm) {
@@ -4350,8 +4420,10 @@ impl v2::InstrumentDefMsg {
     }
 
     #[getter]
-    fn get_security_update_action(&self) -> PyResult<SecurityUpdateAction> {
-        self.security_update_action().map_err(to_py_err)
+    fn get_security_update_action<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.security_update_action()
+            .map(|c| c.into_bound_py_any(py))
+            .unwrap_or_else(|_| (self.security_update_action as u8 as char).into_bound_py_any(py))
     }
     #[setter]
     fn set_security_update_action(&mut self, security_update_action: SecurityUpdateAction) {

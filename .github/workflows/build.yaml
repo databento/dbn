@@ -12,13 +12,13 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
     name: build - Python ${{ matrix.python-version }} (x86_64 ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Rust
         run: rustup toolchain add --profile minimal stable --component clippy,rustfmt
@@ -63,13 +63,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
     name: build - Python ${{ matrix.python-version }} (aarch64 linux)
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Rust
         run: rustup toolchain add --profile minimal stable --component clippy,rustfmt
@@ -110,13 +110,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
     name: build - Python ${{ matrix.python-version }} (macOS)
     runs-on: macos-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Rust
         run: rustup toolchain add --profile minimal stable --component clippy,rustfmt

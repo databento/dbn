@@ -1,34 +1,35 @@
-[tool.poetry]
+[project]
 name = "databento-dbn"
-version = "0.42.0"
+version = "0.43.0"
 description = "Python bindings for encoding and decoding Databento Binary Encoding (DBN)"
-authors = ["Databento <support@databento.com>"]
+readme = "README.md"
+requires-python = ">=3.10"
 license = "Apache-2.0"
+authors = [{ name = "Databento", email = "support@databento.com" }]
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://databento.com"
+Documentation = "https://databento.com/docs"
+Repository = "https://github.com/databento/dbn"
+"Bug Tracker" = "https://github.com/databento/dbn/issues"
+
+[tool.poetry]
+requires-poetry = ">=2.0"
 
 [tool.poetry.dependencies]
-python = ">=3.9"
+python = ">=3.10,<3.14"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 maturin = ">=1.0"
 
 [build-system]
 requires = ["maturin>=1.0"]
 build-backend = "maturin"
-
-[project]
-name = "databento-dbn"
-version = "0.42.0"
-authors = [
-    { name = "Databento", email = "support@databento.com" }
-]
-description = "Python bindings for encoding and decoding Databento Binary Encoding (DBN)"
-readme = "README.md"
-license = "Apache-2.0"
-requires-python = ">=3.9"
-classifiers = [
-    "Programming Language :: Rust",
-    "Programming Language :: Python :: Implementation :: CPython",
-]
 
 [tool.maturin]
 features = ["pyo3/extension-module"]

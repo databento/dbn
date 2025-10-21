@@ -1376,7 +1376,17 @@ pub enum VersionUpgradePolicy {
 
 /// An error code from the live subscription gateway.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, TryFromPrimitive, IntoPrimitive,
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    TryFromPrimitive,
+    IntoPrimitive,
 )]
 #[cfg_attr(
     feature = "python",
@@ -1405,6 +1415,10 @@ pub enum ErrorCode {
     /// An error occurred in the gateway.
     #[pyo3(name = "INTERNAL_ERROR")]
     InternalError = 6,
+    /// No error code was specified or this record was upgraded from a version 1 struct where the code field didn't exist.
+    #[default]
+    #[pyo3(name = "UNSET")]
+    Unset = 255,
 }
 
 impl std::str::FromStr for ErrorCode {
@@ -1418,6 +1432,7 @@ impl std::str::FromStr for ErrorCode {
             "symbol_resolution_failed" => Ok(Self::SymbolResolutionFailed),
             "invalid_subscription" => Ok(Self::InvalidSubscription),
             "internal_error" => Ok(Self::InternalError),
+            "unset" => Ok(Self::Unset),
             _ => Err(crate::Error::conversion::<Self>(s.to_owned())),
         }
     }
@@ -1439,6 +1454,7 @@ impl ErrorCode {
             Self::SymbolResolutionFailed => "symbol_resolution_failed",
             Self::InvalidSubscription => "invalid_subscription",
             Self::InternalError => "internal_error",
+            Self::Unset => "unset",
         }
     }
 }
@@ -1452,7 +1468,17 @@ impl Display for ErrorCode {
 /// A [`SystemMsg`](crate::SystemMsg) code indicating the type of message from the live
 /// subscription gateway.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, TryFromPrimitive, IntoPrimitive,
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    TryFromPrimitive,
+    IntoPrimitive,
 )]
 #[cfg_attr(
     feature = "python",
@@ -1479,6 +1505,11 @@ pub enum SystemCode {
     /// Signals that all records for interval-based schemas have been published for the given timestamp.
     #[pyo3(name = "END_OF_INTERVAL")]
     EndOfInterval = 4,
+    /// No system code was specified or this record was upgraded from a version 1 struct where
+    /// the code field didn't exist.
+    #[default]
+    #[pyo3(name = "UNSET")]
+    Unset = 255,
 }
 
 impl std::str::FromStr for SystemCode {
@@ -1491,6 +1522,7 @@ impl std::str::FromStr for SystemCode {
             "slow_reader_warning" => Ok(Self::SlowReaderWarning),
             "replay_completed" => Ok(Self::ReplayCompleted),
             "end_of_interval" => Ok(Self::EndOfInterval),
+            "unset" => Ok(Self::Unset),
             _ => Err(crate::Error::conversion::<Self>(s.to_owned())),
         }
     }
@@ -1511,6 +1543,7 @@ impl SystemCode {
             Self::SlowReaderWarning => "slow_reader_warning",
             Self::ReplayCompleted => "replay_completed",
             Self::EndOfInterval => "end_of_interval",
+            Self::Unset => "unset",
         }
     }
 }

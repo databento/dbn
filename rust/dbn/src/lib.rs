@@ -60,6 +60,7 @@ pub mod v1;
 pub mod v2;
 pub mod v3;
 
+#[doc(inline)]
 pub use crate::{
     enums::{
         rtype, Action, Compression, Encoding, ErrorCode, InstrumentClass, MatchAlgorithm, RType,

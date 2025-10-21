@@ -1,8 +1,8 @@
 use std::ffi::c_char;
 
 use crate::{
-    Schema, StatusAction, StatusReason, TradingEvent, TriState, UNDEF_ORDER_SIZE, UNDEF_PRICE,
-    UNDEF_STAT_QUANTITY, UNDEF_TIMESTAMP,
+    ErrorCode, Schema, StatusAction, StatusReason, SystemCode, TradingEvent, TriState,
+    UNDEF_ORDER_SIZE, UNDEF_PRICE, UNDEF_STAT_QUANTITY, UNDEF_TIMESTAMP,
 };
 
 use super::*;
@@ -331,7 +331,7 @@ impl Default for ErrorMsg {
         Self {
             hd: RecordHeader::default::<Self>(rtype::ERROR),
             err: [0; 302],
-            code: u8::MAX,
+            code: ErrorCode::default() as u8,
             is_last: u8::MAX,
         }
     }
@@ -356,7 +356,7 @@ impl Default for SystemMsg {
         Self {
             hd: RecordHeader::default::<Self>(rtype::SYSTEM),
             msg: [0; 303],
-            code: u8::MAX,
+            code: SystemCode::default() as u8,
         }
     }
 }

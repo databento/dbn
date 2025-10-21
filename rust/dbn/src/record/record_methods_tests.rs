@@ -64,7 +64,7 @@ fn debug_instrument_err() {
     assert_eq!(
             format!("{rec:?}"),
             "ErrorMsg { hd: RecordHeader { length: 80, rtype: Error, publisher_id: 0, \
-            instrument_id: 0, ts_event: 18446744073709551615 }, err: \"Missing stype_in\", code: 255, is_last: 255 }"
+            instrument_id: 0, ts_event: 18446744073709551615 }, err: \"Missing stype_in\", code: Unset, is_last: 255 }"
         );
 }
 

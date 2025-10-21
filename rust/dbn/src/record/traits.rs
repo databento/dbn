@@ -3,6 +3,11 @@ use crate::{Publisher, RType, RecordHeader};
 
 /// Used for polymorphism around types all beginning with a [`RecordHeader`] where
 /// `rtype` is the discriminant used for indicating the type of record.
+///
+/// All record types are plain old data held in sequential memory, and therefore
+/// implement `AsRef<[u8]>` for simple serialization to bytes.
+///
+/// [`RecordRef`](crate::RecordRef) acts similar to a `&dyn Record`.
 pub trait Record: AsRef<[u8]> {
     /// Returns a reference to the `RecordHeader` that comes at the beginning of all
     /// record types.
@@ -67,6 +72,12 @@ pub trait RecordMut {
 
 /// An extension of the [`Record`] trait for types with a static [`RType`]. Used for
 /// determining if a rtype matches a type.
+///
+/// Because of the static function requirement, this trait is implemented by all concrete record
+/// types like [`MboMsg`](crate::MboMsg), but not by [`RecordRef`](crate::RecordRef), which can reference a record of
+/// dynamic type.
+///
+/// While not _dyn compatible_, [`RecordRef`](crate::RecordRef) acts like a `&dyn HasRType`.
 pub trait HasRType: Record + RecordMut {
     /// Returns `true` if `rtype` matches the value associated with the implementing type.
     fn has_rtype(rtype: u8) -> bool;
