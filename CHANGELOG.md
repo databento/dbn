@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.43.0 - TBD
+## 0.43.0 - 2025-10-22
 
 ### Enhancements
 - Added export of `F_PUBLISHER_SPECIFIC` constant to Python
