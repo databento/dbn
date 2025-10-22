@@ -1212,7 +1212,7 @@ class TradingEvent(Enum):
     NONE
         No additional information given.
     NO_CANCEL
-        Order entry and modification are not allowed.
+        Order entry is allowed. Modification and cancellation are not allowed.
     CHANGE_TRADING_SESSION
         A change of trading session occurred. Daily statistics are reset.
     IMPLIED_MATCHING_ON
