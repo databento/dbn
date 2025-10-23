@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.43.1 - TBD
+
+### Enhancements
+- Added `MergeRecordDecoder::with_hints` that allows hinting the minimum timestamp from
+  each decoder
+
 ## 0.43.0 - 2025-10-22
 
 ### Enhancements
