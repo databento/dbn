@@ -6,6 +6,9 @@
 - Added `MergeRecordDecoder::with_hints` that allows hinting the minimum timestamp from
   each decoder
 
+### Bug fixes
+- Fixed bug in `DbnFsm::consume`, though it should have no impact
+
 ## 0.43.0 - 2025-10-22
 
 ### Enhancements
