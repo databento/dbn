@@ -4246,7 +4246,7 @@ class ImbalanceMsg(Record):
     def ref_price(self) -> int:
         """
         The price at which the imbalance shares are calculated, where every 1 unit corresponds
-        to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+        to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be `UNDEF_PRICE` when unused.
 
         See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
@@ -4275,7 +4275,8 @@ class ImbalanceMsg(Record):
     @property
     def auction_time(self) -> int:
         """
-        Reserved for future use.
+        Projected auction timestamp expressed as the number of nanoseconds since the UNIX epoch.
+        Will be `UNDEF_TIMESTAMP` when unused.
 
         Returns
         -------
@@ -4302,7 +4303,7 @@ class ImbalanceMsg(Record):
     def cont_book_clr_price(self) -> int:
         """
         The hypothetical auction-clearing price for both cross and continuous orders where every
-        1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+        1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be `UNDEF_PRICE` when unused.
 
         See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
@@ -4335,7 +4336,7 @@ class ImbalanceMsg(Record):
     def auct_interest_clr_price(self) -> int:
         """
         The hypothetical auction-clearing price for cross orders only where every 1 unit corresponds
-        to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+        to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be `UNDEF_PRICE` when unused.
 
         See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
@@ -4367,7 +4368,11 @@ class ImbalanceMsg(Record):
     @property
     def ssr_filling_price(self) -> int:
         """
-        Reserved for future use.
+        The price at which sell short interest will be filed if a sell short restriction is
+        in effect, where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+        Will be `UNDEF_PRICE` when unused.
+
+        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
         Returns
         -------
@@ -4397,7 +4402,11 @@ class ImbalanceMsg(Record):
     @property
     def ind_match_price(self) -> int:
         """
-        Reserved for future use.
+        The price at which the highest number of shares would trade, subject to auction collars,
+        where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+        Will be `UNDEF_PRICE` when unused.
+
+        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
         Returns
         -------
@@ -4427,7 +4436,10 @@ class ImbalanceMsg(Record):
     @property
     def upper_collar(self) -> int:
         """
-        Reserved for future use.
+        Upper limit of the auction collar, where every 1 unit corresponds
+        to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be `UNDEF_PRICE` when unused.
+
+        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
         Returns
         -------
@@ -4457,7 +4469,10 @@ class ImbalanceMsg(Record):
     @property
     def lower_collar(self) -> int:
         """
-        Reserved for future use.
+        Upper limit of the auction collar, where every 1 unit corresponds
+        to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be `UNDEF_PRICE` when unused.
+
+        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
         Returns
         -------
@@ -4473,6 +4488,7 @@ class ImbalanceMsg(Record):
     def paired_qty(self) -> int:
         """
         The quantity of shares that are eligible to be matched at `ref_price`.
+        Will be `UNDEF_ORDER_SIZE` when unused.
 
         Returns
         -------
@@ -4484,6 +4500,7 @@ class ImbalanceMsg(Record):
     def total_imbalance_qty(self) -> int:
         """
         The quantity of shares that are not paired at `ref_price`.
+        Will be `UNDEF_ORDER_SIZE` when not used.
 
         Returns
         -------
@@ -4494,7 +4511,8 @@ class ImbalanceMsg(Record):
     @property
     def market_imbalance_qty(self) -> int:
         """
-        Reserved for future use.
+        The total market order imbalance quantity at the `ref_price`.
+        Will be `UNDEF_ORDER_SIZE` when unused.
 
         Returns
         -------
@@ -4505,7 +4523,8 @@ class ImbalanceMsg(Record):
     @property
     def unpaired_qty(self) -> int:
         """
-        Reserved for future use.
+        During the Closing Auction, the number of unpaired shares priced at or better than the `ref_price`.
+        Will be `UNDEF_ORDER_SIZE` when unused.
 
         Returns
         -------
@@ -4516,7 +4535,9 @@ class ImbalanceMsg(Record):
     @property
     def auction_type(self) -> str:
         """
-        Venue-specific character code indicating the auction type.
+        Venue-specific character code indicating the auction type. Will be `~` when unused.
+
+        Refer to the [venue-specific documentation](https://databento.com/docs/venues-and-datasets).
 
         Returns
         -------
@@ -4528,6 +4549,7 @@ class ImbalanceMsg(Record):
     def side(self) -> Side | str:
         """
         The market side of the `total_imbalance_qty`. Can be **A**sk, **B**id, or **N**one.
+        Will be **N**one when unused or not applicable.
 
         See [Side](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#side).
 
@@ -4540,7 +4562,9 @@ class ImbalanceMsg(Record):
     @property
     def auction_status(self) -> int:
         """
-        Reserved for future use.
+        Venue-specific status code.
+
+        Refer to the [venue-specific documentation](https://databento.com/docs/venues-and-datasets).
 
         Returns
         -------
@@ -4551,7 +4575,9 @@ class ImbalanceMsg(Record):
     @property
     def freeze_status(self) -> int:
         """
-        Reserved for future use.
+        Venue-specific status code.
+
+        Refer to the [venue-specific documentation](https://databento.com/docs/venues-and-datasets).
 
         Returns
         -------
@@ -4562,7 +4588,7 @@ class ImbalanceMsg(Record):
     @property
     def num_extensions(self) -> int:
         """
-        Reserved for future use.
+        The number of times the halt period has been extended.
 
         Returns
         -------
@@ -4573,7 +4599,9 @@ class ImbalanceMsg(Record):
     @property
     def unpaired_side(self) -> Side | str:
         """
-        Reserved for future use.
+        The side of the `unpaired_qty`. Will be **N**one when unused or not applicable.
+
+        See [Side](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#side).
 
         Returns
         -------
@@ -4585,6 +4613,8 @@ class ImbalanceMsg(Record):
     def significant_imbalance(self) -> str:
         """
         Venue-specific character code. For Nasdaq, contains the raw Price Variation Indicator.
+
+        Refer to the [venue-specific documentation](https://databento.com/docs/venues-and-datasets).
 
         Returns
         -------
