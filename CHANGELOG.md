@@ -1,8 +1,10 @@
 # Changelog
 
-## 0.43.1 - TBD
+
+## 0.44.0 - TBD
 
 ### Enhancements
+- Added logic to set `code` when upgrading version 1 `SystemMsg` to newer versions
 - Added `MergeRecordDecoder::with_hints` that allows hinting the minimum timestamp from
   each decoder
 

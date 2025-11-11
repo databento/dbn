@@ -150,6 +150,16 @@ impl From<&v1::SystemMsg> for SystemMsg {
         };
         if old.is_heartbeat() {
             new.code = SystemCode::Heartbeat as u8;
+        } else if let Ok(msg) = old.msg() {
+            if msg.starts_with("End of interval for ") {
+                new.code = SystemCode::EndOfInterval as u8;
+            } else if msg.starts_with("Subscription request ") && msg.ends_with(" succeeded") {
+                new.code = SystemCode::SubscriptionAck as u8;
+            } else if msg.starts_with("Warning: slow reading") {
+                new.code = SystemCode::SlowReaderWarning as u8;
+            } else if msg.starts_with("Finished ") && msg.ends_with(" replay") {
+                new.code = SystemCode::ReplayCompleted as u8;
+            }
         }
         new.msg[..old.msg.len()].copy_from_slice(old.msg.as_slice());
         new
