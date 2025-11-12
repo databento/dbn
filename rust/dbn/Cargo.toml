@@ -27,7 +27,7 @@ trivial_copy = []
 [dependencies]
 dbn-macros = { version = "=0.43.0", path = "../dbn-macros" }
 
-async-compression = { version = "0.4.27", features = ["tokio", "zstd"], optional = true }
+async-compression = { version = "0.4.33", features = ["tokio", "zstd"], optional = true }
 csv = { workspace = true }
 fallible-streaming-iterator = { version = "0.1.9", features = ["std"] }
 # Fast integer to string conversion
@@ -41,7 +41,7 @@ serde = { workspace = true, features = ["derive"], optional = true }
 strum = { version = "0.27", features = ["derive"], optional = true }
 thiserror = "2.0"
 time = { workspace = true, features = ["formatting", "macros"] }
-tokio = { version = ">=1.38", features = ["fs", "io-util"], optional = true }
+tokio = { version = ">=1.41", features = ["fs", "io-util"], optional = true }
 zstd = { workspace = true }
 
 [dev-dependencies]

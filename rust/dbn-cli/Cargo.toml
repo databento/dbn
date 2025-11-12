@@ -24,7 +24,7 @@ serde = { workspace = true, features = ["derive"] }
 zstd = { workspace = true }
 
 [dev-dependencies]
-assert_cmd = "2.0"
+assert_cmd = "2.1"
 predicates = "3.1"
 rstest = { workspace = true }
 tempfile = "3.23"

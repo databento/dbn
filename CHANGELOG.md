@@ -1,12 +1,14 @@
 # Changelog
 
-
 ## 0.44.0 - TBD
 
 ### Enhancements
 - Added logic to set `code` when upgrading version 1 `SystemMsg` to newer versions
 - Added `MergeRecordDecoder::with_hints` that allows hinting the minimum timestamp from
   each decoder
+
+### Breaking changes
+- Updated the minimum supported `tokio` version to 1.41, which was released one year ago
 
 ### Bug fixes
 - Fixed bug in `DbnFsm::consume`, though it should have no impact
