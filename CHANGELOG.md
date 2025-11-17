@@ -6,6 +6,7 @@
 - Added logic to set `code` when upgrading version 1 `SystemMsg` to newer versions
 - Added `MergeRecordDecoder::with_hints` that allows hinting the minimum timestamp from
   each decoder
+- Added `Dataset::publishes()` method to retrieve all `Publisher` values for a dataset
 
 ### Breaking changes
 - Updated the minimum supported `tokio` version to 1.41, which was released one year ago
