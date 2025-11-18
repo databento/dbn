@@ -286,7 +286,6 @@ jobs:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
   build-cli-artifacts:
-    name: build-release
     needs: [tag-release]
     runs-on: ${{ matrix.os }}
     env:
@@ -312,9 +311,7 @@ jobs:
         - os: windows-latest
           target: aarch64-pc-windows-msvc
         - os: windows-latest
-          target: x86_64-pc-windows-gnu
-        - os: windows-latest
-          target: x86_64-pc-windows-gnu
+          target: x86_64-pc-windows-msvc
 
     steps:
     - name: Checkout repository
@@ -323,43 +320,44 @@ jobs:
     - name: Set up Rust
       run: rustup toolchain add --profile minimal --target ${{ matrix.target }} stable
 
+    - name: Install cross
+      run: cargo install cross
+
     - name: Set target variables
       shell: bash
       run: |
         echo "TARGET_FLAGS=--target ${{ matrix.target }}" >> $GITHUB_ENV
         echo "TARGET_DIR=./target/${{ matrix.target }}" >> $GITHUB_ENV
 
-    - name: Show command used for Cargo
-      shell: bash
-      run: |
-        echo "cargo command is: ${{ env.CARGO }}"
-        echo "target flag is: ${{ env.TARGET_FLAGS }}"
-        echo "target dir is: ${{ env.TARGET_DIR }}"
-
     - name: Build release binary
       shell: bash
+      # cd ensures we only pull in CLI dependencies
       run: |
-        cargo build --verbose --release --bin dbn ${{ env.TARGET_FLAGS }}
+        cd rust/dbn-cli
+        cross build --release --bin dbn ${{ env.TARGET_FLAGS }}
         if [ "${{ matrix.os }}" = "windows-latest" ]; then
           bin="target/${{ matrix.target }}/release/dbn.exe"
         else
           bin="target/${{ matrix.target }}/release/dbn"
         fi
+        cd -
+        stat $bin
         echo "BIN=$bin" >> $GITHUB_ENV
 
     - name: Determine archive name
       shell: bash
       run: |
-        version="${{ needs.create-release.outputs.version }}"
-        echo "ARCHIVE=ripgrep-$version-${{ matrix.target }}" >> $GITHUB_ENV
+        version="$(scripts/get_version.sh)"
+        echo "ARCHIVE=dbn-$version-${{ matrix.target }}" >> $GITHUB_ENV
+        echo "VERSION=$version" >> $GITHUB_ENV
 
     - name: Creating directory for archive
       shell: bash
       run: |
-        mkdir -p "$ARCHIVE"/{complete,doc}
+        mkdir -p "$ARCHIVE"/doc
         cp "$BIN" "$ARCHIVE"/
-        cp {rust/src/dbn-cli/README.md,LICENSE} "$ARCHIVE"/
-        cp {CHANGELOG.md} "$ARCHIVE"/doc/
+        cp {rust/dbn-cli/README.md,LICENSE} "$ARCHIVE"/
+        cp CHANGELOG.md "$ARCHIVE"/doc/
 
     - name: Build archive (Windows)
       shell: bash
@@ -383,6 +381,6 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       shell: bash
+      # clobber to overwrite if we have to rerun the release
       run: |
-        version="$(scripts/get_version.sh)"
-        gh release upload "$version" ${{ env.ASSET }} ${{ env.ASSET_SUM }}
+        gh release upload v${{ env.VERSION }} ${{ env.ASSET }} ${{ env.ASSET_SUM }} --clobber

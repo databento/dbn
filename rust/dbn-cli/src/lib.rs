@@ -29,7 +29,7 @@ pub enum OutputEncoding {
 }
 
 #[derive(Debug, Parser)]
-#[clap(version, about)]
+#[clap(name = "dbn", version, about)]
 #[cfg_attr(test, derive(Default))]
 pub struct Args {
     #[clap(

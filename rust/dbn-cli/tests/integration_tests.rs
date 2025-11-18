@@ -4,7 +4,7 @@ use std::{
     process,
 };
 
-use assert_cmd::Command;
+use assert_cmd::{cargo::cargo_bin_cmd, Command};
 use dbn::Schema;
 use predicates::{
     boolean::PredicateBooleanExt,
@@ -15,7 +15,7 @@ use rstest::*;
 use tempfile::{tempdir, NamedTempFile, TempDir};
 
 fn cmd() -> Command {
-    Command::cargo_bin("dbn").unwrap()
+    cargo_bin_cmd!("dbn")
 }
 
 const TEST_DATA_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/data");
@@ -577,7 +577,7 @@ fn broken_pipe_is_silent(
     #[case] output_flag: &str,
     #[case] fragment_flag: &str,
 ) {
-    let mut dbn_cmd = process::Command::new(assert_cmd::cargo::cargo_bin("dbn"));
+    let mut dbn_cmd = process::Command::new(assert_cmd::cargo::cargo_bin!("dbn"));
     dbn_cmd.args([&format!("{TEST_DATA_PATH}/{file_name}"), output_flag]);
     if !fragment_flag.is_empty() {
         dbn_cmd.arg(fragment_flag);
