@@ -117,11 +117,11 @@ pub enum Venue {
     Xeee = 51,
 }
 
-/// The number of Venue variants.
+/// The number of [`Venue`] variants.
 pub const VENUE_COUNT: usize = 51;
 
 impl Venue {
-    /// Convert a Venue to its `str` representation.
+    /// Converts the venue to its `str` representation.
     pub const fn as_str(&self) -> &'static str {
         match self {
             Self::Glbx => "GLBX",
@@ -341,11 +341,11 @@ pub enum Dataset {
     XeeeEobi = 39,
 }
 
-/// The number of Dataset variants.
+/// The number of [`Dataset`] variants.
 pub const DATASET_COUNT: usize = 39;
 
 impl Dataset {
-    /// Convert a Dataset to its `str` representation.
+    /// Converts the dataset to its `str` representation.
     pub const fn as_str(&self) -> &'static str {
         match self {
             Self::GlbxMdp3 => "GLBX.MDP3",
@@ -389,6 +389,128 @@ impl Dataset {
             Self::IfllImpact => "IFLL.IMPACT",
             Self::XeurEobi => "XEUR.EOBI",
             Self::XeeeEobi => "XEEE.EOBI",
+        }
+    }
+
+    /// Returns all [`Publisher`] values associated with a dataset.
+    pub const fn publishers(&self) -> &'static [Publisher] {
+        match self {
+            Self::GlbxMdp3 => &[Publisher::GlbxMdp3Glbx],
+            Self::XnasItch => &[Publisher::XnasItchXnas],
+            Self::XbosItch => &[Publisher::XbosItchXbos],
+            Self::XpsxItch => &[Publisher::XpsxItchXpsx],
+            Self::BatsPitch => &[Publisher::BatsPitchBats],
+            Self::BatyPitch => &[Publisher::BatyPitchBaty],
+            Self::EdgaPitch => &[Publisher::EdgaPitchEdga],
+            Self::EdgxPitch => &[Publisher::EdgxPitchEdgx],
+            Self::XnysPillar => &[Publisher::XnysPillarXnys],
+            Self::XcisPillar => &[Publisher::XcisPillarXcis],
+            Self::XasePillar => &[Publisher::XasePillarXase],
+            Self::XchiPillar => &[Publisher::XchiPillarXchi],
+            Self::XcisBbo => &[Publisher::XcisBboXcis],
+            Self::XcisTrades => &[Publisher::XcisTradesXcis],
+            Self::MemxMemoir => &[Publisher::MemxMemoirMemx],
+            Self::EprlDom => &[Publisher::EprlDomEprl],
+            #[allow(deprecated)]
+            Self::FinnNls => &[],
+            #[allow(deprecated)]
+            Self::FinyTrades => &[],
+            Self::OpraPillar => &[
+                Publisher::OpraPillarAmxo,
+                Publisher::OpraPillarXbox,
+                Publisher::OpraPillarXcbo,
+                Publisher::OpraPillarEmld,
+                Publisher::OpraPillarEdgo,
+                Publisher::OpraPillarGmni,
+                Publisher::OpraPillarXisx,
+                Publisher::OpraPillarMcry,
+                Publisher::OpraPillarXmio,
+                Publisher::OpraPillarArco,
+                Publisher::OpraPillarOpra,
+                Publisher::OpraPillarMprl,
+                Publisher::OpraPillarXndq,
+                Publisher::OpraPillarXbxo,
+                Publisher::OpraPillarC2Ox,
+                Publisher::OpraPillarXphl,
+                Publisher::OpraPillarBato,
+                Publisher::OpraPillarMxop,
+                Publisher::OpraPillarSphr,
+            ],
+            Self::DbeqBasic => &[
+                Publisher::DbeqBasicXchi,
+                Publisher::DbeqBasicXcis,
+                Publisher::DbeqBasicIexg,
+                Publisher::DbeqBasicEprl,
+                Publisher::DbeqBasicDbeq,
+            ],
+            Self::ArcxPillar => &[Publisher::ArcxPillarArcx],
+            Self::IexgTops => &[Publisher::IexgTopsIexg],
+            Self::EqusPlus => &[
+                Publisher::EqusPlusXchi,
+                Publisher::EqusPlusXcis,
+                Publisher::EqusPlusIexg,
+                Publisher::EqusPlusEprl,
+                Publisher::EqusPlusXnas,
+                Publisher::EqusPlusXnys,
+                Publisher::EqusPlusFinn,
+                Publisher::EqusPlusFiny,
+                Publisher::EqusPlusFinc,
+                Publisher::EqusPlusEqus,
+            ],
+            Self::XnysBbo => &[Publisher::XnysBboXnys],
+            Self::XnysTrades => &[
+                Publisher::XnysTradesFiny,
+                Publisher::XnysTradesXnys,
+                Publisher::XnysTradesEqus,
+            ],
+            Self::XnasQbbo => &[Publisher::XnasQbboXnas],
+            Self::XnasNls => &[
+                Publisher::XnasNlsFinn,
+                Publisher::XnasNlsFinc,
+                Publisher::XnasNlsXnas,
+                Publisher::XnasNlsXbos,
+                Publisher::XnasNlsXpsx,
+            ],
+            Self::IfeuImpact => &[Publisher::IfeuImpactIfeu, Publisher::IfeuImpactXoff],
+            Self::NdexImpact => &[Publisher::NdexImpactNdex, Publisher::NdexImpactXoff],
+            Self::EqusAll => &[
+                Publisher::EqusAllXchi,
+                Publisher::EqusAllXcis,
+                Publisher::EqusAllIexg,
+                Publisher::EqusAllEprl,
+                Publisher::EqusAllXnas,
+                Publisher::EqusAllXnys,
+                Publisher::EqusAllFinn,
+                Publisher::EqusAllFiny,
+                Publisher::EqusAllFinc,
+                Publisher::EqusAllBats,
+                Publisher::EqusAllBaty,
+                Publisher::EqusAllEdga,
+                Publisher::EqusAllEdgx,
+                Publisher::EqusAllXbos,
+                Publisher::EqusAllXpsx,
+                Publisher::EqusAllMemx,
+                Publisher::EqusAllXase,
+                Publisher::EqusAllArcx,
+                Publisher::EqusAllLtse,
+                Publisher::EqusAllEqus,
+            ],
+            Self::XnasBasic => &[
+                Publisher::XnasBasicXnas,
+                Publisher::XnasBasicFinn,
+                Publisher::XnasBasicFinc,
+                Publisher::XnasBasicXbos,
+                Publisher::XnasBasicXpsx,
+                Publisher::XnasBasicEqus,
+            ],
+            Self::EqusSummary => &[Publisher::EqusSummaryEqus],
+            Self::XcisTradesbbo => &[Publisher::XcisTradesbboXcis],
+            Self::XnysTradesbbo => &[Publisher::XnysTradesbboXnys],
+            Self::EqusMini => &[Publisher::EqusMiniEqus],
+            Self::IfusImpact => &[Publisher::IfusImpactIfus, Publisher::IfusImpactXoff],
+            Self::IfllImpact => &[Publisher::IfllImpactIfll, Publisher::IfllImpactXoff],
+            Self::XeurEobi => &[Publisher::XeurEobiXeur, Publisher::XeurEobiXoff],
+            Self::XeeeEobi => &[Publisher::XeeeEobiXeee, Publisher::XeeeEobiXoff],
         }
     }
 }
@@ -673,11 +795,11 @@ pub enum Publisher {
     XeeeEobiXoff = 104,
 }
 
-/// The number of Publisher variants.
+/// The number of [`Publisher`] variants.
 pub const PUBLISHER_COUNT: usize = 104;
 
 impl Publisher {
-    /// Convert a Publisher to its `str` representation.
+    /// Converts the publisher to its `str` representation.
     pub const fn as_str(&self) -> &'static str {
         match self {
             Self::GlbxMdp3Glbx => "GLBX.MDP3.GLBX",
@@ -787,7 +909,7 @@ impl Publisher {
         }
     }
 
-    /// Get a Publisher's Venue.
+    /// Returns the publisher's [`Venue`].
     pub const fn venue(&self) -> Venue {
         match self {
             Self::GlbxMdp3Glbx => Venue::Glbx,
@@ -897,7 +1019,7 @@ impl Publisher {
         }
     }
 
-    /// Get a Publisher's Dataset.
+    /// Returns the publisher's [`Dataset`].
     pub const fn dataset(&self) -> Dataset {
         match self {
             Self::GlbxMdp3Glbx => Dataset::GlbxMdp3,
@@ -1007,9 +1129,10 @@ impl Publisher {
         }
     }
 
-    /// Construct a Publisher from its components.
+    /// Construct a [`Publisher`] from its components.
+    ///
     /// # Errors
-    /// Returns an error if there's no `Publisher` with the corresponding `Dataset`/`Venue` combination.
+    /// Returns an error if there's no [`Publisher`] with the corresponding [`Dataset`] and [`Venue`] combination.
     pub fn from_dataset_venue(dataset: Dataset, venue: Venue) -> Result<Self> {
         match (dataset, venue) {
             (Dataset::GlbxMdp3, Venue::Glbx) => Ok(Self::GlbxMdp3Glbx),

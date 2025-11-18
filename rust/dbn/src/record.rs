@@ -775,7 +775,7 @@ pub struct InstrumentDefMsg {
     /// The last eligible trade time expressed as the number of nanoseconds since the
     /// UNIX epoch.
     ///
-    /// Will be [`crate::UNDEF_TIMESTAMP`] when null, such as for equities. Some publishers
+    /// Will be [`UNDEF_TIMESTAMP`](crate::UNDEF_TIMESTAMP) when null, such as for equities. Some publishers
     /// only provide date-level granularity.
     #[dbn(unix_nanos)]
     #[pyo3(get, set)]
@@ -783,7 +783,7 @@ pub struct InstrumentDefMsg {
     /// The time of instrument activation expressed as the number of nanoseconds since the
     /// UNIX epoch.
     ///
-    /// Will be [`crate::UNDEF_TIMESTAMP`] when null, such as for equities. Some publishers
+    /// Will be [`UNDEF_TIMESTAMP`](crate::UNDEF_TIMESTAMP) when null, such as for equities. Some publishers
     /// only provide date-level granularity.
     #[dbn(unix_nanos)]
     #[pyo3(get, set)]
@@ -1073,79 +1073,112 @@ pub struct ImbalanceMsg {
     #[pyo3(get, set)]
     pub ts_recv: u64,
     /// The price at which the imbalance shares are calculated, where every 1 unit corresponds
-    /// to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    /// to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be [`UNDEF_PRICE`](crate::UNDEF_PRICE)
+    /// when unused.
     ///
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub ref_price: i64,
-    /// Reserved for future use.
+    /// Projected auction timestamp expressed as the number of nanoseconds since the UNIX epoch.
+    /// Will be [`UNDEF_TIMESTAMP`](crate::UNDEF_TIMESTAMP) when unused.
     #[dbn(unix_nanos)]
     #[pyo3(get, set)]
     pub auction_time: u64,
     /// The hypothetical auction-clearing price for both cross and continuous orders where every
     /// 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    /// Will be [`UNDEF_PRICE`](crate::UNDEF_PRICE) when unused.
     ///
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub cont_book_clr_price: i64,
     /// The hypothetical auction-clearing price for cross orders only where every 1 unit corresponds
-    /// to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    /// to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be [`UNDEF_PRICE`](crate::UNDEF_PRICE) when unused.
     ///
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub auct_interest_clr_price: i64,
-    /// Reserved for future use.
+    /// The price at which sell short interest will be filed if a sell short restriction is
+    /// in effect, where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    /// Will be [`UNDEF_PRICE`](crate::UNDEF_PRICE) when unused.
+    ///
+    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub ssr_filling_price: i64,
-    /// Reserved for future use.
+    /// The price at which the highest number of shares would trade, subject to auction collars,
+    /// where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    /// Will be [`UNDEF_PRICE`](crate::UNDEF_PRICE) when unused.
+    ///
+    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub ind_match_price: i64,
-    /// Reserved for future use.
+    /// Upper limit of the auction collar, where every 1 unit corresponds
+    /// to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be [`UNDEF_PRICE`](crate::UNDEF_PRICE) when unused.
+    ///
+    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub upper_collar: i64,
-    /// Reserved for future use.
+    /// Lower limit of the auction collar, where every 1 unit corresponds
+    /// to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be [`UNDEF_PRICE`](crate::UNDEF_PRICE) when unused.
+    ///
+    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub lower_collar: i64,
-    /// The quantity of shares that are eligible to be matched at `ref_price`.
+    /// The quantity of shares that are eligible to be matched at [`ref_price`](Self::ref_price).
+    /// Will be [`UNDEF_ORDER_SIZE`](crate::UNDEF_ORDER_SIZE) when unused.
     #[pyo3(get, set)]
     pub paired_qty: u32,
-    /// The quantity of shares that are not paired at `ref_price`.
+    /// The quantity of shares that are not paired at [`ref_price`](Self::ref_price).
+    /// Will be [`UNDEF_ORDER_SIZE`](crate::UNDEF_ORDER_SIZE) when not used.
     #[pyo3(get, set)]
     pub total_imbalance_qty: u32,
-    /// Reserved for future use.
+    /// The total market order imbalance quantity at the [`ref_price`](Self::ref_price).
+    /// Will be [`UNDEF_ORDER_SIZE`](crate::UNDEF_ORDER_SIZE) when unused.
     #[pyo3(get, set)]
     pub market_imbalance_qty: u32,
-    /// Reserved for future use.
+    /// During the Closing Auction, the number of unpaired shares priced at or better than the
+    /// [`ref_price`](Self::ref_price). Will be `UNDEF_ORDER_SIZE` when unused.
     #[pyo3(get, set)]
     pub unpaired_qty: u32,
-    /// Venue-specific character code indicating the auction type.
+    /// Venue-specific character code indicating the auction type. Will be `~` when unused.
+    ///
+    /// Refer to the [venue-specific documentation](https://databento.com/docs/venues-and-datasets).
     #[dbn(c_char)]
     pub auction_type: c_char,
-    /// The market side of the `total_imbalance_qty`. Can be **A**sk, **B**id, or **N**one.
+    /// The market side of the [`total_imbalance_qty`](Self::total_imbalance_qty).
+    /// Can be **A**sk, **B**id, or **N**one.
     ///
     /// See [Side](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#side).
     #[dbn(c_char)]
     pub side: c_char,
-    /// Reserved for future use.
+    /// Venue-specific status code.
+    ///
+    /// Refer to the [venue-specific documentation](https://databento.com/docs/venues-and-datasets).
     #[pyo3(get, set)]
     pub auction_status: u8,
-    /// Reserved for future use.
+    /// Venue-specific status code.
+    ///
+    /// Refer to the [venue-specific documentation](https://databento.com/docs/venues-and-datasets).
     #[pyo3(get, set)]
     pub freeze_status: u8,
-    /// Reserved for future use.
+    /// The number of times the halt period has been extended.
     #[pyo3(get, set)]
     pub num_extensions: u8,
-    /// Reserved for future use.
+    /// The side of the [`unpaired_qty`](Self::unpaired_qty).
+    /// Can be **A**sk, **B**id, or **N**one. Will be **N**one when unused or not applicable.
+    ///
+    /// See [Side](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#side).
     #[dbn(c_char)]
     pub unpaired_side: c_char,
     /// Venue-specific character code. For Nasdaq, contains the raw Price Variation Indicator.
+    ///
+    /// Refer to the [venue-specific documentation](https://databento.com/docs/venues-and-datasets).
     #[dbn(c_char)]
     pub significant_imbalance: c_char,
     #[doc(hidden)]
@@ -1178,7 +1211,7 @@ pub struct StatMsg {
     #[pyo3(get, set)]
     pub ts_recv: u64,
     /// The reference timestamp of the statistic value expressed as the number of
-    /// nanoseconds since the UNIX epoch. Will be [`crate::UNDEF_TIMESTAMP`] when
+    /// nanoseconds since the UNIX epoch. Will be [`UNDEF_TIMESTAMP`](crate::UNDEF_TIMESTAMP) when
     /// unused.
     #[dbn(unix_nanos)]
     #[pyo3(get, set)]
@@ -1191,8 +1224,8 @@ pub struct StatMsg {
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub price: i64,
-    /// The value for non-price statistics. Will be [`crate::UNDEF_STAT_QUANTITY`] when
-    /// unused.
+    /// The value for non-price statistics. Will be [`UNDEF_STAT_QUANTITY`](crate::UNDEF_STAT_QUANTITY)
+    /// when unused.
     #[pyo3(get, set)]
     pub quantity: i64,
     /// The message sequence number assigned at the venue.

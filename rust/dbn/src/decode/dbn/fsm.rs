@@ -462,7 +462,7 @@ impl DbnFsm {
     fn consume(&mut self, read: usize, compat: usize, compat_fill: usize, expand_compat: bool) {
         self.buffer.consume(read);
         if compat_fill > 0 {
-            self.compat_buffer.fill(compat);
+            self.compat_buffer.fill(compat_fill);
         }
         if compat > 0 {
             self.compat_buffer.consume(compat);

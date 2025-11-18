@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.44.0 - 2025-11-18
+
+### Enhancements
+- Added logic to set `code` when upgrading version 1 `SystemMsg` to newer versions
+- Added `MergeRecordDecoder::with_hints` that allows hinting the minimum timestamp from
+  each decoder
+- Added `Dataset::publishers()` method to retrieve all `Publisher` values for a dataset
+
+### Breaking changes
+- Updated the minimum supported `tokio` version to 1.41, which was released one year ago
+
+### Bug fixes
+- Fixed bug in `DbnFsm::consume`, though it should have no impact
+
 ## 0.43.0 - 2025-10-22
 
 ### Enhancements

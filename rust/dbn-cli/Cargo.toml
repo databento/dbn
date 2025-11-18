@@ -16,7 +16,7 @@ name = "dbn"
 path = "src/main.rs"
 
 [dependencies]
-dbn = { path = "../dbn", version = "=0.43.0", default-features = false }
+dbn = { path = "../dbn", version = "=0.44.0", default-features = false }
 
 anyhow = { workspace = true }
 clap = { version = "4.5", features = ["derive", "wrap_help"] }
@@ -24,7 +24,7 @@ serde = { workspace = true, features = ["derive"] }
 zstd = { workspace = true }
 
 [dev-dependencies]
-assert_cmd = "2.0"
+assert_cmd = "2.1"
 predicates = "3.1"
 rstest = { workspace = true }
 tempfile = "3.23"

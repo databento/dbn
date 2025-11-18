@@ -252,10 +252,6 @@ jobs:
     needs:
       [
         tag-release,
-        macos-python-release,
-        windows-python-release,
-        linux-python-release,
-        linux-musl-python-release,
       ]
     steps:
       - name: Checkout repository
@@ -343,7 +339,7 @@ jobs:
     - name: Build release binary
       shell: bash
       run: |
-        cargo build --verbose --release --bin dbn-cli ${{ env.TARGET_FLAGS }}
+        cargo build --verbose --release --bin dbn ${{ env.TARGET_FLAGS }}
         if [ "${{ matrix.os }}" = "windows-latest" ]; then
           bin="target/${{ matrix.target }}/release/dbn.exe"
         else

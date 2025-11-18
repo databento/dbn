@@ -119,7 +119,7 @@ pub struct InstrumentDefMsgV1 {
     /// The last eligible trade time expressed as the number of nanoseconds since the
     /// UNIX epoch.
     ///
-    /// Will be [`crate::UNDEF_TIMESTAMP`] when null, such as for equities. Some publishers
+    /// Will be [`UNDEF_TIMESTAMP`](crate::UNDEF_TIMESTAMP) when null, such as for equities. Some publishers
     /// only provide date-level granularity.
     #[dbn(unix_nanos)]
     #[pyo3(get, set)]
@@ -127,7 +127,7 @@ pub struct InstrumentDefMsgV1 {
     /// The time of instrument activation expressed as the number of nanoseconds since the
     /// UNIX epoch.
     ///
-    /// Will be [`crate::UNDEF_TIMESTAMP`] when null, such as for equities. Some publishers
+    /// Will be [`UNDEF_TIMESTAMP`](crate::UNDEF_TIMESTAMP) when null, such as for equities. Some publishers
     /// only provide date-level granularity.
     #[dbn(unix_nanos)]
     #[pyo3(get, set)]
@@ -392,7 +392,7 @@ pub struct StatMsgV1 {
     #[pyo3(get, set)]
     pub ts_recv: u64,
     /// The reference timestamp of the statistic value expressed as the number of
-    /// nanoseconds since the UNIX epoch. Will be [`crate::UNDEF_TIMESTAMP`] when
+    /// nanoseconds since the UNIX epoch. Will be [`UNDEF_TIMESTAMP`](crate::UNDEF_TIMESTAMP) when
     /// unused.
     #[dbn(unix_nanos)]
     #[pyo3(get, set)]
@@ -405,8 +405,8 @@ pub struct StatMsgV1 {
     #[dbn(fixed_price)]
     #[pyo3(get, set)]
     pub price: i64,
-    /// The value for non-price statistics. Will be [`crate::UNDEF_STAT_QUANTITY`] when
-    /// unused.
+    /// The value for non-price statistics. Will be [`UNDEF_STAT_QUANTITY`](crate::UNDEF_STAT_QUANTITY)
+    /// when unused.
     #[pyo3(get, set)]
     pub quantity: i32,
     /// The message sequence number assigned at the venue.
@@ -541,7 +541,7 @@ pub struct InstrumentDefMsgV2 {
     /// The last eligible trade time expressed as the number of nanoseconds since the
     /// UNIX epoch.
     ///
-    /// Will be [`crate::UNDEF_TIMESTAMP`] when null, such as for equities. Some publishers
+    /// Will be [`UNDEF_TIMESTAMP`](crate::UNDEF_TIMESTAMP) when null, such as for equities. Some publishers
     /// only provide date-level granularity.
     #[dbn(unix_nanos)]
     #[pyo3(get, set)]
@@ -549,7 +549,7 @@ pub struct InstrumentDefMsgV2 {
     /// The time of instrument activation expressed as the number of nanoseconds since the
     /// UNIX epoch.
     ///
-    /// Will be [`crate::UNDEF_TIMESTAMP`] when null, such as for equities. Some publishers
+    /// Will be [`UNDEF_TIMESTAMP`](crate::UNDEF_TIMESTAMP) when null, such as for equities. Some publishers
     /// only provide date-level granularity.
     #[dbn(unix_nanos)]
     #[pyo3(get, set)]

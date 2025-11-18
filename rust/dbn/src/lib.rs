@@ -31,8 +31,7 @@
 //! - `serde`: enables deriving `serde` traits for types
 //! - `trivial_copy`: enables deriving the `Copy` trait for records
 
-// Experimental feature to allow docs.rs to display features
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![deny(missing_docs)]
 #![deny(rustdoc::broken_intra_doc_links)]
 #![deny(clippy::missing_errors_doc)]

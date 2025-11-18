@@ -24,6 +24,7 @@ where
     /// inner decoders returns an error while decoding the first record. A decoder
     /// returning `Ok(None)` does not result in a failure.
     pub fn new(decoders: Vec<D>) -> crate::Result<Self> {
+        let hints = decoders.iter().map(|d| d.metadata().start).collect();
         let Some((first, rest)) = decoders.split_first() else {
             return Err(Error::BadArgument {
                 param_name: "decoders".to_owned(),
@@ -36,7 +37,7 @@ where
             .merge(rest.iter().map(|d| d.metadata().clone()))?;
         Ok(Self {
             metadata,
-            decoder: RecordDecoder::new(decoders)?,
+            decoder: RecordDecoder::with_hints(decoders, hints)?,
         })
     }
 }
@@ -102,8 +103,35 @@ pub struct RecordDecoder<D> {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct StreamHead {
-    raw_index_ts: u64,
+    index_ts: IndexTs,
     decoder_idx: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum IndexTs {
+    Real(u64),
+    Hint(u64),
+}
+
+impl IndexTs {
+    fn ts(&self) -> u64 {
+        match self {
+            IndexTs::Real(t) => *t,
+            IndexTs::Hint(t) => *t,
+        }
+    }
+}
+
+impl PartialOrd for IndexTs {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for IndexTs {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.ts().cmp(&other.ts())
+    }
 }
 
 impl<D> RecordDecoder<D>
@@ -123,12 +151,12 @@ where
                 desc: "none provided".to_owned(),
             });
         };
-        let mut min_heap = BinaryHeap::new();
+        let mut min_heap = BinaryHeap::with_capacity(decoders.len());
         // Populate heap for first time or all streams fully processed
         for (decoder_idx, decoder) in decoders.iter_mut().enumerate() {
             if let Some(rec) = decoder.decode_record_ref()? {
                 min_heap.push(Reverse(StreamHead {
-                    raw_index_ts: rec.raw_index_ts(),
+                    index_ts: IndexTs::Real(rec.raw_index_ts()),
                     decoder_idx,
                 }));
             };
@@ -139,13 +167,86 @@ where
             is_first: true,
         })
     }
+
+    /// Creates a new record-stream merging decoder with a hint for the start time
+    /// for each decoder. This can assist the merger to avoid reading from a decoder
+    /// before necessary.
+    ///
+    /// The hint timestamp must be <= raw_index_ts() of the first record in the file.
+    /// [`Metadata::start`] is an example source of for hint.
+    ///
+    /// # Errors
+    /// This function returns an error if `decoders` is empty or `decoders` and
+    /// `start_ts_hints` are of different lengths. It will also return an error if
+    /// one of the inner decoders returns an error while decoding the first record. A
+    /// decoder returning `Ok(None)` does not result in a failure.
+    pub fn with_hints(decoders: Vec<D>, start_ts_hints: Vec<u64>) -> crate::Result<Self> {
+        if decoders.is_empty() {
+            return Err(Error::BadArgument {
+                param_name: "decoders".to_owned(),
+                desc: "none provided".to_owned(),
+            });
+        };
+        if decoders.len() != start_ts_hints.len() {
+            return Err(Error::BadArgument {
+                param_name: "hints".to_owned(),
+                desc: "must have the same length as `decoders`".to_owned(),
+            });
+        }
+        let min_heap = start_ts_hints
+            .into_iter()
+            .enumerate()
+            .map(|(decoder_idx, hint)| {
+                Reverse(StreamHead {
+                    index_ts: IndexTs::Hint(hint),
+                    decoder_idx,
+                })
+            })
+            .collect();
+        Ok(Self {
+            decoders,
+            min_heap,
+            is_first: true,
+        })
+    }
 }
 
 impl<D> RecordDecoder<D> {
+    // does not handle hints. Should only be called after `decode_record_ref`
     fn peek_decoder_idx(&self) -> Option<usize> {
         self.min_heap
             .peek()
             .map(|Reverse(StreamHead { decoder_idx, .. })| *decoder_idx)
+    }
+}
+
+impl<D> RecordDecoder<D>
+where
+    D: DecodeRecordRef,
+{
+    // handles hints
+    fn next_decoder_idx(&mut self) -> crate::Result<Option<usize>> {
+        loop {
+            let Some(Reverse(StreamHead {
+                index_ts,
+                decoder_idx,
+            })) = self.min_heap.peek().cloned()
+            else {
+                return Ok(None);
+            };
+            match index_ts {
+                IndexTs::Real(_) => return Ok(Some(decoder_idx)),
+                IndexTs::Hint(_) => {
+                    self.min_heap.pop();
+                    if let Some(rec) = self.decoders[decoder_idx].decode_record_ref()? {
+                        self.min_heap.push(Reverse(StreamHead {
+                            index_ts: IndexTs::Real(rec.raw_index_ts()),
+                            decoder_idx,
+                        }));
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -159,7 +260,7 @@ where
         } else {
             // Pop last record
             let Some(Reverse(StreamHead {
-                raw_index_ts: _,
+                index_ts: _,
                 decoder_idx,
             })) = self.min_heap.pop()
             else {
@@ -167,12 +268,12 @@ where
             };
             if let Some(rec) = self.decoders[decoder_idx].decode_record_ref()? {
                 self.min_heap.push(Reverse(StreamHead {
-                    raw_index_ts: rec.raw_index_ts(),
+                    index_ts: IndexTs::Real(rec.raw_index_ts()),
                     decoder_idx,
                 }));
             }
         }
-        let Some(decoder_idx) = self.peek_decoder_idx() else {
+        let Some(decoder_idx) = self.next_decoder_idx()? else {
             return Ok(None);
         };
         Ok(self.decoders[decoder_idx].last_record())
@@ -221,6 +322,7 @@ where
 #[cfg(test)]
 mod tests {
     use fallible_streaming_iterator::FallibleStreamingIterator;
+    use rstest::*;
 
     use crate::{rtype, test_utils::VecStream, Mbp1Msg, Record, RecordHeader};
 
@@ -234,9 +336,9 @@ mod tests {
         }
     }
 
-    #[test]
-    fn stream_merging() {
-        let target = RecordDecoder::new(vec![
+    #[rstest]
+    fn stream_merging(#[values(None, Some(vec![5, 1, 50]))] hints: Option<Vec<u64>>) {
+        let decoders = vec![
             VecStream::new(vec![new_mbp1(10), new_mbp1(100), new_mbp1(1000)]),
             VecStream::new(vec![
                 new_mbp1(11),
@@ -256,7 +358,12 @@ mod tests {
                 new_mbp1(500),
                 new_mbp1(5000),
             ]),
-        ])
+        ];
+        let target = if let Some(hints) = hints {
+            RecordDecoder::with_hints(decoders, hints)
+        } else {
+            RecordDecoder::new(decoders)
+        }
         .unwrap()
         .decode_stream::<Mbp1Msg>();
         let mut timestamps = Vec::new();
@@ -273,9 +380,11 @@ mod tests {
         assert!(iter.next().unwrap().is_none());
     }
 
-    #[test]
-    fn stream_merging_w_empty() {
-        let target = RecordDecoder::new(vec![
+    #[rstest]
+    fn stream_merging_w_empty(
+        #[values(None, Some(vec![0, 10, 11, 1, 1, 50]))] hints: Option<Vec<u64>>,
+    ) {
+        let decoders = vec![
             VecStream::new(Vec::new()),
             VecStream::new(vec![new_mbp1(10), new_mbp1(100)]),
             VecStream::new(Vec::new()),
@@ -288,7 +397,12 @@ mod tests {
             ]),
             VecStream::new(vec![new_mbp1(1), new_mbp1(50)]),
             VecStream::new(Vec::new()),
-        ])
+        ];
+        let target = if let Some(hints) = hints {
+            RecordDecoder::with_hints(decoders, hints)
+        } else {
+            RecordDecoder::new(decoders)
+        }
         .unwrap()
         .decode_stream::<Mbp1Msg>();
         let mut timestamps = Vec::new();
