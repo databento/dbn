@@ -4,6 +4,7 @@
 
 #### Enhancements
 - Added new venue, dataset, and publisher for Cboe Futures Exchange (`XCBF.PITCH`)
+- Added support for Python 3.14 to `databento_dbn`
 
 ## 0.44.0 - 2025-11-18
 
