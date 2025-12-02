@@ -115,10 +115,12 @@ pub enum Venue {
     Xeur = 50,
     /// European Energy Exchange
     Xeee = 51,
+    /// Cboe Futures Exchange
+    Xcbf = 52,
 }
 
 /// The number of [`Venue`] variants.
-pub const VENUE_COUNT: usize = 51;
+pub const VENUE_COUNT: usize = 52;
 
 impl Venue {
     /// Converts the venue to its `str` representation.
@@ -175,6 +177,7 @@ impl Venue {
             Self::Ifll => "IFLL",
             Self::Xeur => "XEUR",
             Self::Xeee => "XEEE",
+            Self::Xcbf => "XCBF",
         }
     }
 }
@@ -247,6 +250,7 @@ impl std::str::FromStr for Venue {
             "IFLL" => Ok(Self::Ifll),
             "XEUR" => Ok(Self::Xeur),
             "XEEE" => Ok(Self::Xeee),
+            "XCBF" => Ok(Self::Xcbf),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
@@ -339,10 +343,12 @@ pub enum Dataset {
     XeurEobi = 38,
     /// European Energy Exchange EOBI
     XeeeEobi = 39,
+    /// Cboe Futures Exchange PITCH
+    XcbfPitch = 40,
 }
 
 /// The number of [`Dataset`] variants.
-pub const DATASET_COUNT: usize = 39;
+pub const DATASET_COUNT: usize = 40;
 
 impl Dataset {
     /// Converts the dataset to its `str` representation.
@@ -389,6 +395,7 @@ impl Dataset {
             Self::IfllImpact => "IFLL.IMPACT",
             Self::XeurEobi => "XEUR.EOBI",
             Self::XeeeEobi => "XEEE.EOBI",
+            Self::XcbfPitch => "XCBF.PITCH",
         }
     }
 
@@ -511,6 +518,7 @@ impl Dataset {
             Self::IfllImpact => &[Publisher::IfllImpactIfll, Publisher::IfllImpactXoff],
             Self::XeurEobi => &[Publisher::XeurEobiXeur, Publisher::XeurEobiXoff],
             Self::XeeeEobi => &[Publisher::XeeeEobiXeee, Publisher::XeeeEobiXoff],
+            Self::XcbfPitch => &[Publisher::XcbfPitchXcbf],
         }
     }
 }
@@ -573,6 +581,7 @@ impl std::str::FromStr for Dataset {
             "IFLL.IMPACT" => Ok(Self::IfllImpact),
             "XEUR.EOBI" => Ok(Self::XeurEobi),
             "XEEE.EOBI" => Ok(Self::XeeeEobi),
+            "XCBF.PITCH" => Ok(Self::XcbfPitch),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
@@ -793,10 +802,12 @@ pub enum Publisher {
     XeurEobiXoff = 103,
     /// European Energy Exchange EOBI - Off-Market Trades
     XeeeEobiXoff = 104,
+    /// Cboe Futures Exchange
+    XcbfPitchXcbf = 105,
 }
 
 /// The number of [`Publisher`] variants.
-pub const PUBLISHER_COUNT: usize = 104;
+pub const PUBLISHER_COUNT: usize = 105;
 
 impl Publisher {
     /// Converts the publisher to its `str` representation.
@@ -906,6 +917,7 @@ impl Publisher {
             Self::XeeeEobiXeee => "XEEE.EOBI.XEEE",
             Self::XeurEobiXoff => "XEUR.EOBI.XOFF",
             Self::XeeeEobiXoff => "XEEE.EOBI.XOFF",
+            Self::XcbfPitchXcbf => "XCBF.PITCH.XCBF",
         }
     }
 
@@ -1016,6 +1028,7 @@ impl Publisher {
             Self::XeeeEobiXeee => Venue::Xeee,
             Self::XeurEobiXoff => Venue::Xoff,
             Self::XeeeEobiXoff => Venue::Xoff,
+            Self::XcbfPitchXcbf => Venue::Xcbf,
         }
     }
 
@@ -1126,6 +1139,7 @@ impl Publisher {
             Self::XeeeEobiXeee => Dataset::XeeeEobi,
             Self::XeurEobiXoff => Dataset::XeurEobi,
             Self::XeeeEobiXoff => Dataset::XeeeEobi,
+            Self::XcbfPitchXcbf => Dataset::XcbfPitch,
         }
     }
 
@@ -1239,6 +1253,7 @@ impl Publisher {
             (Dataset::XeeeEobi, Venue::Xeee) => Ok(Self::XeeeEobiXeee),
             (Dataset::XeurEobi, Venue::Xoff) => Ok(Self::XeurEobiXoff),
             (Dataset::XeeeEobi, Venue::Xoff) => Ok(Self::XeeeEobiXoff),
+            (Dataset::XcbfPitch, Venue::Xcbf) => Ok(Self::XcbfPitchXcbf),
             _ => Err(Error::conversion::<Self>(format!("({dataset}, {venue})"))),
         }
     }
@@ -1365,6 +1380,7 @@ impl std::str::FromStr for Publisher {
             "XEEE.EOBI.XEEE" => Ok(Self::XeeeEobiXeee),
             "XEUR.EOBI.XOFF" => Ok(Self::XeurEobiXoff),
             "XEEE.EOBI.XOFF" => Ok(Self::XeeeEobiXoff),
+            "XCBF.PITCH.XCBF" => Ok(Self::XcbfPitchXcbf),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
