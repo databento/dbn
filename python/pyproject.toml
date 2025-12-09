@@ -1,6 +1,6 @@
 [project]
 name = "databento-dbn"
-version = "0.44.0"
+version = "0.45.0"
 description = "Python bindings for encoding and decoding Databento Binary Encoding (DBN)"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -22,7 +22,7 @@ Repository = "https://github.com/databento/dbn"
 requires-poetry = ">=2.0"
 
 [tool.poetry.dependencies]
-python = ">=3.10,<3.14"
+python = ">=3.10,<3.15"
 
 [tool.poetry.group.dev.dependencies]
 maturin = ">=1.0"
