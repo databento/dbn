@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.45.0 - TBD
+## 0.45.0 - 2025-12-09
 
 #### Enhancements
 - Added new venue, dataset, and publisher for Cboe Futures Exchange (`XCBF.PITCH`)
