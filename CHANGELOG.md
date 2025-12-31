@@ -1,8 +1,17 @@
 # Changelog
 
+## 0.46.0 - TBD
+
+### Breaking changes
+- Added `DBNRecord` union type to Python which includes all record types
+- Removed `Record` class from Python type stubs to match code: the record classes don't
+  share a base class. Use `DBNRecord` instead.
+- Removed `_DBNRecord` union type alias which only existed in typestub and wasn't
+  importable. Use `DBNRecord | Metadata` instead
+
 ## 0.45.0 - 2025-12-09
 
-#### Enhancements
+### Enhancements
 - Added new venue, dataset, and publisher for Cboe Futures Exchange (`XCBF.PITCH`)
 - Added support for Python 3.14 to `databento_dbn`
 
