@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.46.0 - TBD
+## 0.46.0 - 2026-01-06
 
 ### Breaking changes
 - Added `DBNRecord` union type to Python which includes all record types
