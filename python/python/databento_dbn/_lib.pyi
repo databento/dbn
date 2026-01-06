@@ -1,4 +1,4 @@
-# ruff: noqa: UP007, PYI021, PYI011
+# ruff: noqa: PYI021, PYI011
 from __future__ import annotations
 
 import datetime as dt
@@ -7,12 +7,11 @@ from collections.abc import Sequence
 from enum import Enum
 from typing import BinaryIO
 from typing import ClassVar
-from typing import SupportsBytes
 from typing import TextIO
-from typing import Union
 
-from databento_dbn import MappingIntervalDict
-from databento_dbn import SymbolMapping
+from databento_dbn import DBNRecord
+from databento_dbn.metadata import MappingIntervalDict
+from databento_dbn.metadata import SymbolMapping
 
 DBN_VERSION: int
 FIXED_PRICE_SCALE: int
@@ -28,37 +27,12 @@ F_BAD_TS_RECV: int
 F_MAYBE_BAD_BOOK: int
 F_PUBLISHER_SPECIFIC: int
 
-_DBNRecord = Union[
-    Metadata,
-    MBOMsg,
-    TradeMsg,
-    MBP1Msg,
-    MBP10Msg,
-    BBOMsg,
-    CMBP1Msg,
-    CBBOMsg,
-    OHLCVMsg,
-    StatusMsg,
-    InstrumentDefMsg,
-    ImbalanceMsg,
-    StatMsg,
-    ErrorMsg,
-    SymbolMappingMsg,
-    SystemMsg,
-    ErrorMsgV1,
-    InstrumentDefMsgV1,
-    StatMsgV1,
-    SymbolMappingMsgV1,
-    SystemMsgV1,
-    InstrumentDefMsgV2,
-]
-
 class DBNError(Exception):
     """
     An exception from databento_dbn Rust code.
     """
 
-class Metadata(SupportsBytes):
+class Metadata:
     """
     Information about the data contained in a DBN file or stream. DBN requires
     the Metadata to be included at the start of the encoded data.
@@ -265,149 +239,6 @@ class Metadata(SupportsBytes):
         ------
         DBNError
             When the Metadata object cannot be encoded.
-
-        """
-
-class Record(SupportsBytes):
-    """
-    Base class for DBN records.
-    """
-
-    size_hint: ClassVar[int]
-    _dtypes: ClassVar[list[tuple[str, str]]]
-    _hidden_fields: ClassVar[list[str]]
-    _price_fields: ClassVar[list[str]]
-    _ordered_fields: ClassVar[list[str]]
-    _timestamp_fields: ClassVar[list[str]]
-
-    def __bytes__(self) -> bytes: ...
-    @property
-    def record_size(self) -> int:
-        """
-        Return the size of the record in bytes.
-
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        size_hint
-
-        """
-
-    @property
-    def rtype(self) -> RType:
-        """
-        The record type.
-
-        Returns
-        -------
-        RType
-
-        """
-
-    @property
-    def publisher_id(self) -> int:
-        """
-        The publisher ID assigned by Databento, which denotes the dataset and venue.
-
-        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def instrument_id(self) -> int:
-        """
-        The numeric instrument ID.
-
-        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def ts_index(self) -> int:
-        """
-        The raw primary timestamp for the record as the number of nanoseconds since the
-        UNIX epoch. For records that define a `ts_recv` and `ts_event`, this method will
-        return the appropriate timestamp for indexing based on the record's type.
-
-        This timestamp should be used for sorting records as well as indexing into any
-        symbology data structure.
-
-        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
-        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def pretty_ts_index(self) -> dt.datetime | None:
-        """
-        The primary timestamp for the record as the expressed as a datetime or a
-        `pandas.Timestamp`, if available. For records that define a `ts_recv` and `ts_event`,
-        this method will return the appropriate timestamp for indexing based on the record's type.
-
-        This timestamp should be used for sorting records as well as indexing into any
-        symbology data structure.
-
-        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
-        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
-
-        Returns
-        -------
-        datetime.datetime
-
-        """
-
-    @property
-    def pretty_ts_event(self) -> dt.datetime | None:
-        """
-        The matching-engine-received timestamp expressed as a
-        datetime or a `pandas.Timestamp`, if available.
-
-        Returns
-        -------
-        datetime.datetime
-
-        """
-
-    @property
-    def ts_event(self) -> int:
-        """
-        The matching-engine-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
-
-        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def ts_out(self) -> int | None:
-        """
-        The live gateway send timestamp expressed as the number of nanoseconds since the
-        UNIX epoch.
-
-        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
-
-        Returns
-        -------
-        int | None
 
         """
 
@@ -1358,11 +1189,18 @@ class SystemCode(Enum):
     @classmethod
     def variants(cls) -> Iterable[SystemCode]: ...
 
-class MBOMsg(Record):
+class MBOMsg:
     """
     A market-by-order (MBO) tick message. The record of the MBO schema.
 
     """
+
+    size_hint: ClassVar[int]
+    _dtypes: ClassVar[list[tuple[str, str]]]
+    _hidden_fields: ClassVar[list[str]]
+    _price_fields: ClassVar[list[str]]
+    _ordered_fields: ClassVar[list[str]]
+    _timestamp_fields: ClassVar[list[str]]
 
     def __init__(
         self,
@@ -1380,6 +1218,137 @@ class MBOMsg(Record):
         ts_in_delta: int = 0,
         sequence: int = 0,
     ) -> None: ...
+    def __bytes__(self) -> bytes: ...
+    @property
+    def record_size(self) -> int:
+        """
+        Return the size of the record in bytes.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        size_hint
+
+        """
+
+    @property
+    def rtype(self) -> RType:
+        """
+        The record type.
+
+        Returns
+        -------
+        RType
+
+        """
+
+    @property
+    def publisher_id(self) -> int:
+        """
+        The publisher ID assigned by Databento, which denotes the dataset and venue.
+
+        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def instrument_id(self) -> int:
+        """
+        The numeric instrument ID.
+
+        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_index(self) -> int:
+        """
+        The raw primary timestamp for the record as the number of nanoseconds since the
+        UNIX epoch. For records that define a `ts_recv` and `ts_event`, this method will
+        return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_ts_index(self) -> dt.datetime | None:
+        """
+        The primary timestamp for the record as the expressed as a datetime or a
+        `pandas.Timestamp`, if available. For records that define a `ts_recv` and `ts_event`,
+        this method will return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def pretty_ts_event(self) -> dt.datetime | None:
+        """
+        The matching-engine-received timestamp expressed as a
+        datetime or a `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def ts_event(self) -> int:
+        """
+        The matching-engine-received timestamp expressed as the number of nanoseconds
+        since the UNIX epoch.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_out(self) -> int | None:
+        """
+        The live gateway send timestamp expressed as the number of nanoseconds since the
+        UNIX epoch.
+
+        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+        Returns
+        -------
+        int | None
+
+        """
+
     @property
     def order_id(self) -> int:
         """
@@ -1535,11 +1504,18 @@ class MBOMsg(Record):
 
         """
 
-class BidAskPair(Record):
+class BidAskPair:
     """
     A price level.
 
     """
+
+    size_hint: ClassVar[int]
+    _dtypes: ClassVar[list[tuple[str, str]]]
+    _hidden_fields: ClassVar[list[str]]
+    _price_fields: ClassVar[list[str]]
+    _ordered_fields: ClassVar[list[str]]
+    _timestamp_fields: ClassVar[list[str]]
 
     def __init__(
         self,
@@ -1550,6 +1526,137 @@ class BidAskPair(Record):
         bid_ct: int = 0,
         ask_ct: int = 0,
     ) -> None: ...
+    def __bytes__(self) -> bytes: ...
+    @property
+    def record_size(self) -> int:
+        """
+        Return the size of the record in bytes.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        size_hint
+
+        """
+
+    @property
+    def rtype(self) -> RType:
+        """
+        The record type.
+
+        Returns
+        -------
+        RType
+
+        """
+
+    @property
+    def publisher_id(self) -> int:
+        """
+        The publisher ID assigned by Databento, which denotes the dataset and venue.
+
+        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def instrument_id(self) -> int:
+        """
+        The numeric instrument ID.
+
+        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_index(self) -> int:
+        """
+        The raw primary timestamp for the record as the number of nanoseconds since the
+        UNIX epoch. For records that define a `ts_recv` and `ts_event`, this method will
+        return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_ts_index(self) -> dt.datetime | None:
+        """
+        The primary timestamp for the record as the expressed as a datetime or a
+        `pandas.Timestamp`, if available. For records that define a `ts_recv` and `ts_event`,
+        this method will return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def pretty_ts_event(self) -> dt.datetime | None:
+        """
+        The matching-engine-received timestamp expressed as a
+        datetime or a `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def ts_event(self) -> int:
+        """
+        The matching-engine-received timestamp expressed as the number of nanoseconds
+        since the UNIX epoch.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_out(self) -> int | None:
+        """
+        The live gateway send timestamp expressed as the number of nanoseconds since the
+        UNIX epoch.
+
+        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+        Returns
+        -------
+        int | None
+
+        """
+
     @property
     def pretty_bid_px(self) -> float:
         """
@@ -1660,11 +1767,18 @@ class BidAskPair(Record):
 
         """
 
-class ConsolidatedBidAskPair(Record):
+class ConsolidatedBidAskPair:
     """
     A price level consolidated from multiple venues.
 
     """
+
+    size_hint: ClassVar[int]
+    _dtypes: ClassVar[list[tuple[str, str]]]
+    _hidden_fields: ClassVar[list[str]]
+    _price_fields: ClassVar[list[str]]
+    _ordered_fields: ClassVar[list[str]]
+    _timestamp_fields: ClassVar[list[str]]
 
     def __init__(
         self,
@@ -1675,6 +1789,137 @@ class ConsolidatedBidAskPair(Record):
         bid_pb: int = 0,
         ask_pb: int = 0,
     ) -> None: ...
+    def __bytes__(self) -> bytes: ...
+    @property
+    def record_size(self) -> int:
+        """
+        Return the size of the record in bytes.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        size_hint
+
+        """
+
+    @property
+    def rtype(self) -> RType:
+        """
+        The record type.
+
+        Returns
+        -------
+        RType
+
+        """
+
+    @property
+    def publisher_id(self) -> int:
+        """
+        The publisher ID assigned by Databento, which denotes the dataset and venue.
+
+        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def instrument_id(self) -> int:
+        """
+        The numeric instrument ID.
+
+        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_index(self) -> int:
+        """
+        The raw primary timestamp for the record as the number of nanoseconds since the
+        UNIX epoch. For records that define a `ts_recv` and `ts_event`, this method will
+        return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_ts_index(self) -> dt.datetime | None:
+        """
+        The primary timestamp for the record as the expressed as a datetime or a
+        `pandas.Timestamp`, if available. For records that define a `ts_recv` and `ts_event`,
+        this method will return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def pretty_ts_event(self) -> dt.datetime | None:
+        """
+        The matching-engine-received timestamp expressed as a
+        datetime or a `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def ts_event(self) -> int:
+        """
+        The matching-engine-received timestamp expressed as the number of nanoseconds
+        since the UNIX epoch.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_out(self) -> int | None:
+        """
+        The live gateway send timestamp expressed as the number of nanoseconds since the
+        UNIX epoch.
+
+        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+        Returns
+        -------
+        int | None
+
+        """
+
     @property
     def pretty_bid_px(self) -> float:
         """
@@ -1789,11 +2034,18 @@ class ConsolidatedBidAskPair(Record):
 
         """
 
-class TradeMsg(Record):
+class TradeMsg:
     """
     Market-by-price implementation with a book depth of 0. Equivalent to MBP-0. The record of the Trades schema.
 
     """
+
+    size_hint: ClassVar[int]
+    _dtypes: ClassVar[list[tuple[str, str]]]
+    _hidden_fields: ClassVar[list[str]]
+    _price_fields: ClassVar[list[str]]
+    _ordered_fields: ClassVar[list[str]]
+    _timestamp_fields: ClassVar[list[str]]
 
     def __init__(
         self,
@@ -1810,6 +2062,137 @@ class TradeMsg(Record):
         ts_in_delta: int = 0,
         sequence: int = 0,
     ) -> None: ...
+    def __bytes__(self) -> bytes: ...
+    @property
+    def record_size(self) -> int:
+        """
+        Return the size of the record in bytes.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        size_hint
+
+        """
+
+    @property
+    def rtype(self) -> RType:
+        """
+        The record type.
+
+        Returns
+        -------
+        RType
+
+        """
+
+    @property
+    def publisher_id(self) -> int:
+        """
+        The publisher ID assigned by Databento, which denotes the dataset and venue.
+
+        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def instrument_id(self) -> int:
+        """
+        The numeric instrument ID.
+
+        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_index(self) -> int:
+        """
+        The raw primary timestamp for the record as the number of nanoseconds since the
+        UNIX epoch. For records that define a `ts_recv` and `ts_event`, this method will
+        return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_ts_index(self) -> dt.datetime | None:
+        """
+        The primary timestamp for the record as the expressed as a datetime or a
+        `pandas.Timestamp`, if available. For records that define a `ts_recv` and `ts_event`,
+        this method will return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def pretty_ts_event(self) -> dt.datetime | None:
+        """
+        The matching-engine-received timestamp expressed as a
+        datetime or a `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def ts_event(self) -> int:
+        """
+        The matching-engine-received timestamp expressed as the number of nanoseconds
+        since the UNIX epoch.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_out(self) -> int | None:
+        """
+        The live gateway send timestamp expressed as the number of nanoseconds since the
+        UNIX epoch.
+
+        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+        Returns
+        -------
+        int | None
+
+        """
+
     @property
     def pretty_price(self) -> float:
         """
@@ -1952,12 +2335,19 @@ class TradeMsg(Record):
 
         """
 
-class MBP1Msg(Record):
+class MBP1Msg:
     """
     Market-by-price implementation with a known book depth of 1. The record of the MBP-1
     schema.
 
     """
+
+    size_hint: ClassVar[int]
+    _dtypes: ClassVar[list[tuple[str, str]]]
+    _hidden_fields: ClassVar[list[str]]
+    _price_fields: ClassVar[list[str]]
+    _ordered_fields: ClassVar[list[str]]
+    _timestamp_fields: ClassVar[list[str]]
 
     def __init__(
         self,
@@ -1975,6 +2365,137 @@ class MBP1Msg(Record):
         sequence: int = 0,
         levels: list[BidAskPair] | None = None,
     ) -> None: ...
+    def __bytes__(self) -> bytes: ...
+    @property
+    def record_size(self) -> int:
+        """
+        Return the size of the record in bytes.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        size_hint
+
+        """
+
+    @property
+    def rtype(self) -> RType:
+        """
+        The record type.
+
+        Returns
+        -------
+        RType
+
+        """
+
+    @property
+    def publisher_id(self) -> int:
+        """
+        The publisher ID assigned by Databento, which denotes the dataset and venue.
+
+        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def instrument_id(self) -> int:
+        """
+        The numeric instrument ID.
+
+        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_index(self) -> int:
+        """
+        The raw primary timestamp for the record as the number of nanoseconds since the
+        UNIX epoch. For records that define a `ts_recv` and `ts_event`, this method will
+        return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_ts_index(self) -> dt.datetime | None:
+        """
+        The primary timestamp for the record as the expressed as a datetime or a
+        `pandas.Timestamp`, if available. For records that define a `ts_recv` and `ts_event`,
+        this method will return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def pretty_ts_event(self) -> dt.datetime | None:
+        """
+        The matching-engine-received timestamp expressed as a
+        datetime or a `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def ts_event(self) -> int:
+        """
+        The matching-engine-received timestamp expressed as the number of nanoseconds
+        since the UNIX epoch.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_out(self) -> int | None:
+        """
+        The live gateway send timestamp expressed as the number of nanoseconds since the
+        UNIX epoch.
+
+        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+        Returns
+        -------
+        int | None
+
+        """
+
     @property
     def pretty_price(self) -> float:
         """
@@ -2134,12 +2655,19 @@ class MBP1Msg(Record):
 
         """
 
-class MBP10Msg(Record):
+class MBP10Msg:
     """
     Market-by-price implementation with a known book depth of 10. The record of the MBP-10
     schema.
 
     """
+
+    size_hint: ClassVar[int]
+    _dtypes: ClassVar[list[tuple[str, str]]]
+    _hidden_fields: ClassVar[list[str]]
+    _price_fields: ClassVar[list[str]]
+    _ordered_fields: ClassVar[list[str]]
+    _timestamp_fields: ClassVar[list[str]]
 
     def __init__(
         self,
@@ -2157,6 +2685,137 @@ class MBP10Msg(Record):
         sequence: int = 0,
         levels: list[BidAskPair] | None = None,
     ) -> None: ...
+    def __bytes__(self) -> bytes: ...
+    @property
+    def record_size(self) -> int:
+        """
+        Return the size of the record in bytes.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        size_hint
+
+        """
+
+    @property
+    def rtype(self) -> RType:
+        """
+        The record type.
+
+        Returns
+        -------
+        RType
+
+        """
+
+    @property
+    def publisher_id(self) -> int:
+        """
+        The publisher ID assigned by Databento, which denotes the dataset and venue.
+
+        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def instrument_id(self) -> int:
+        """
+        The numeric instrument ID.
+
+        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_index(self) -> int:
+        """
+        The raw primary timestamp for the record as the number of nanoseconds since the
+        UNIX epoch. For records that define a `ts_recv` and `ts_event`, this method will
+        return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_ts_index(self) -> dt.datetime | None:
+        """
+        The primary timestamp for the record as the expressed as a datetime or a
+        `pandas.Timestamp`, if available. For records that define a `ts_recv` and `ts_event`,
+        this method will return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def pretty_ts_event(self) -> dt.datetime | None:
+        """
+        The matching-engine-received timestamp expressed as a
+        datetime or a `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def ts_event(self) -> int:
+        """
+        The matching-engine-received timestamp expressed as the number of nanoseconds
+        since the UNIX epoch.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_out(self) -> int | None:
+        """
+        The live gateway send timestamp expressed as the number of nanoseconds since the
+        UNIX epoch.
+
+        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+        Returns
+        -------
+        int | None
+
+        """
+
     @property
     def pretty_price(self) -> float:
         """
@@ -2316,12 +2975,19 @@ class MBP10Msg(Record):
 
         """
 
-class BBOMsg(Record):
+class BBOMsg:
     """
     Subsampled market by price with a known book depth of 1. The record of the BBO-1s and
     BBO-1m schemas.
 
     """
+
+    size_hint: ClassVar[int]
+    _dtypes: ClassVar[list[tuple[str, str]]]
+    _hidden_fields: ClassVar[list[str]]
+    _price_fields: ClassVar[list[str]]
+    _ordered_fields: ClassVar[list[str]]
+    _timestamp_fields: ClassVar[list[str]]
 
     def __init__(
         self,
@@ -2337,6 +3003,137 @@ class BBOMsg(Record):
         sequence: int = 0,
         levels: list[BidAskPair] | None = None,
     ) -> None: ...
+    def __bytes__(self) -> bytes: ...
+    @property
+    def record_size(self) -> int:
+        """
+        Return the size of the record in bytes.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        size_hint
+
+        """
+
+    @property
+    def rtype(self) -> RType:
+        """
+        The record type.
+
+        Returns
+        -------
+        RType
+
+        """
+
+    @property
+    def publisher_id(self) -> int:
+        """
+        The publisher ID assigned by Databento, which denotes the dataset and venue.
+
+        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def instrument_id(self) -> int:
+        """
+        The numeric instrument ID.
+
+        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_index(self) -> int:
+        """
+        The raw primary timestamp for the record as the number of nanoseconds since the
+        UNIX epoch. For records that define a `ts_recv` and `ts_event`, this method will
+        return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_ts_index(self) -> dt.datetime | None:
+        """
+        The primary timestamp for the record as the expressed as a datetime or a
+        `pandas.Timestamp`, if available. For records that define a `ts_recv` and `ts_event`,
+        this method will return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def pretty_ts_event(self) -> dt.datetime | None:
+        """
+        The matching-engine-received timestamp expressed as a
+        datetime or a `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def ts_event(self) -> int:
+        """
+        The matching-engine-received timestamp expressed as the number of nanoseconds
+        since the UNIX epoch.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_out(self) -> int | None:
+        """
+        The live gateway send timestamp expressed as the number of nanoseconds since the
+        UNIX epoch.
+
+        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+        Returns
+        -------
+        int | None
+
+        """
+
     @property
     def pretty_price(self) -> float:
         """
@@ -2459,12 +3256,19 @@ class BBOMsg(Record):
 
         """
 
-class CMBP1Msg(Record):
+class CMBP1Msg:
     """
     Consolidated market-by-price implementation with a known book depth of 1. The record of
     the CMBP-1 schema.
 
     """
+
+    size_hint: ClassVar[int]
+    _dtypes: ClassVar[list[tuple[str, str]]]
+    _hidden_fields: ClassVar[list[str]]
+    _price_fields: ClassVar[list[str]]
+    _ordered_fields: ClassVar[list[str]]
+    _timestamp_fields: ClassVar[list[str]]
 
     def __init__(
         self,
@@ -2481,6 +3285,137 @@ class CMBP1Msg(Record):
         ts_in_delta: int = 0,
         levels: list[ConsolidatedBidAskPair] | None = None,
     ) -> None: ...
+    def __bytes__(self) -> bytes: ...
+    @property
+    def record_size(self) -> int:
+        """
+        Return the size of the record in bytes.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        size_hint
+
+        """
+
+    @property
+    def rtype(self) -> RType:
+        """
+        The record type.
+
+        Returns
+        -------
+        RType
+
+        """
+
+    @property
+    def publisher_id(self) -> int:
+        """
+        The publisher ID assigned by Databento, which denotes the dataset and venue.
+
+        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def instrument_id(self) -> int:
+        """
+        The numeric instrument ID.
+
+        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_index(self) -> int:
+        """
+        The raw primary timestamp for the record as the number of nanoseconds since the
+        UNIX epoch. For records that define a `ts_recv` and `ts_event`, this method will
+        return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_ts_index(self) -> dt.datetime | None:
+        """
+        The primary timestamp for the record as the expressed as a datetime or a
+        `pandas.Timestamp`, if available. For records that define a `ts_recv` and `ts_event`,
+        this method will return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def pretty_ts_event(self) -> dt.datetime | None:
+        """
+        The matching-engine-received timestamp expressed as a
+        datetime or a `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def ts_event(self) -> int:
+        """
+        The matching-engine-received timestamp expressed as the number of nanoseconds
+        since the UNIX epoch.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_out(self) -> int | None:
+        """
+        The live gateway send timestamp expressed as the number of nanoseconds since the
+        UNIX epoch.
+
+        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+        Returns
+        -------
+        int | None
+
+        """
+
     @property
     def pretty_price(self) -> float:
         """
@@ -2618,11 +3553,18 @@ class CMBP1Msg(Record):
 
         """
 
-class CBBOMsg(Record):
+class CBBOMsg:
     """
     Subsampled consolidated market by price with a known book depth of 1. The record of the CBBO-1s and CBBO-1m schemas.
 
     """
+
+    size_hint: ClassVar[int]
+    _dtypes: ClassVar[list[tuple[str, str]]]
+    _hidden_fields: ClassVar[list[str]]
+    _price_fields: ClassVar[list[str]]
+    _ordered_fields: ClassVar[list[str]]
+    _timestamp_fields: ClassVar[list[str]]
 
     def __init__(
         self,
@@ -2637,6 +3579,137 @@ class CBBOMsg(Record):
         flags: int | None = None,
         levels: list[ConsolidatedBidAskPair] | None = None,
     ) -> None: ...
+    def __bytes__(self) -> bytes: ...
+    @property
+    def record_size(self) -> int:
+        """
+        Return the size of the record in bytes.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        size_hint
+
+        """
+
+    @property
+    def rtype(self) -> RType:
+        """
+        The record type.
+
+        Returns
+        -------
+        RType
+
+        """
+
+    @property
+    def publisher_id(self) -> int:
+        """
+        The publisher ID assigned by Databento, which denotes the dataset and venue.
+
+        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def instrument_id(self) -> int:
+        """
+        The numeric instrument ID.
+
+        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_index(self) -> int:
+        """
+        The raw primary timestamp for the record as the number of nanoseconds since the
+        UNIX epoch. For records that define a `ts_recv` and `ts_event`, this method will
+        return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_ts_index(self) -> dt.datetime | None:
+        """
+        The primary timestamp for the record as the expressed as a datetime or a
+        `pandas.Timestamp`, if available. For records that define a `ts_recv` and `ts_event`,
+        this method will return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def pretty_ts_event(self) -> dt.datetime | None:
+        """
+        The matching-engine-received timestamp expressed as a
+        datetime or a `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def ts_event(self) -> int:
+        """
+        The matching-engine-received timestamp expressed as the number of nanoseconds
+        since the UNIX epoch.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_out(self) -> int | None:
+        """
+        The live gateway send timestamp expressed as the number of nanoseconds since the
+        UNIX epoch.
+
+        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+        Returns
+        -------
+        int | None
+
+        """
+
     @property
     def pretty_price(self) -> float:
         """
@@ -2760,7 +3833,7 @@ CBBO1SMsg = CBBOMsg
 
 CBBO1MMsg = CBBOMsg
 
-class OHLCVMsg(Record):
+class OHLCVMsg:
     """
     Open, high, low, close, and volume. The record of the following schemas:
     - OHLCV-1s
@@ -2770,6 +3843,13 @@ class OHLCVMsg(Record):
     - OHLCV-eod
 
     """
+
+    size_hint: ClassVar[int]
+    _dtypes: ClassVar[list[tuple[str, str]]]
+    _hidden_fields: ClassVar[list[str]]
+    _price_fields: ClassVar[list[str]]
+    _ordered_fields: ClassVar[list[str]]
+    _timestamp_fields: ClassVar[list[str]]
 
     def __init__(
         self,
@@ -2783,6 +3863,137 @@ class OHLCVMsg(Record):
         close: int,
         volume: int,
     ) -> None: ...
+    def __bytes__(self) -> bytes: ...
+    @property
+    def record_size(self) -> int:
+        """
+        Return the size of the record in bytes.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        size_hint
+
+        """
+
+    @property
+    def rtype(self) -> RType:
+        """
+        The record type.
+
+        Returns
+        -------
+        RType
+
+        """
+
+    @property
+    def publisher_id(self) -> int:
+        """
+        The publisher ID assigned by Databento, which denotes the dataset and venue.
+
+        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def instrument_id(self) -> int:
+        """
+        The numeric instrument ID.
+
+        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_index(self) -> int:
+        """
+        The raw primary timestamp for the record as the number of nanoseconds since the
+        UNIX epoch. For records that define a `ts_recv` and `ts_event`, this method will
+        return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_ts_index(self) -> dt.datetime | None:
+        """
+        The primary timestamp for the record as the expressed as a datetime or a
+        `pandas.Timestamp`, if available. For records that define a `ts_recv` and `ts_event`,
+        this method will return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def pretty_ts_event(self) -> dt.datetime | None:
+        """
+        The matching-engine-received timestamp expressed as a
+        datetime or a `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def ts_event(self) -> int:
+        """
+        The matching-engine-received timestamp expressed as the number of nanoseconds
+        since the UNIX epoch.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_out(self) -> int | None:
+        """
+        The live gateway send timestamp expressed as the number of nanoseconds since the
+        UNIX epoch.
+
+        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+        Returns
+        -------
+        int | None
+
+        """
+
     @property
     def pretty_open(self) -> float:
         """
@@ -2926,11 +4137,18 @@ class OHLCVMsg(Record):
 
         """
 
-class StatusMsg(Record):
+class StatusMsg:
     """
     A trading status update message. The record of the status schema.
 
     """
+
+    size_hint: ClassVar[int]
+    _dtypes: ClassVar[list[tuple[str, str]]]
+    _hidden_fields: ClassVar[list[str]]
+    _price_fields: ClassVar[list[str]]
+    _ordered_fields: ClassVar[list[str]]
+    _timestamp_fields: ClassVar[list[str]]
 
     def __init__(
         self,
@@ -2945,6 +4163,137 @@ class StatusMsg(Record):
         is_quoting: TriState | None = None,
         is_short_sell_restricted: TriState | None = None,
     ) -> None: ...
+    def __bytes__(self) -> bytes: ...
+    @property
+    def record_size(self) -> int:
+        """
+        Return the size of the record in bytes.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        size_hint
+
+        """
+
+    @property
+    def rtype(self) -> RType:
+        """
+        The record type.
+
+        Returns
+        -------
+        RType
+
+        """
+
+    @property
+    def publisher_id(self) -> int:
+        """
+        The publisher ID assigned by Databento, which denotes the dataset and venue.
+
+        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def instrument_id(self) -> int:
+        """
+        The numeric instrument ID.
+
+        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_index(self) -> int:
+        """
+        The raw primary timestamp for the record as the number of nanoseconds since the
+        UNIX epoch. For records that define a `ts_recv` and `ts_event`, this method will
+        return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_ts_index(self) -> dt.datetime | None:
+        """
+        The primary timestamp for the record as the expressed as a datetime or a
+        `pandas.Timestamp`, if available. For records that define a `ts_recv` and `ts_event`,
+        this method will return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def pretty_ts_event(self) -> dt.datetime | None:
+        """
+        The matching-engine-received timestamp expressed as a
+        datetime or a `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def ts_event(self) -> int:
+        """
+        The matching-engine-received timestamp expressed as the number of nanoseconds
+        since the UNIX epoch.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_out(self) -> int | None:
+        """
+        The live gateway send timestamp expressed as the number of nanoseconds since the
+        UNIX epoch.
+
+        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+        Returns
+        -------
+        int | None
+
+        """
+
     @property
     def pretty_ts_recv(self) -> dt.datetime | None:
         """
@@ -3037,11 +4386,18 @@ class StatusMsg(Record):
 
         """
 
-class InstrumentDefMsg(Record):
+class InstrumentDefMsg:
     """
     A definition of an instrument. The record of the definition schema.
 
     """
+
+    size_hint: ClassVar[int]
+    _dtypes: ClassVar[list[tuple[str, str]]]
+    _hidden_fields: ClassVar[list[str]]
+    _price_fields: ClassVar[list[str]]
+    _ordered_fields: ClassVar[list[str]]
+    _timestamp_fields: ClassVar[list[str]]
 
     def __init__(
         self,
@@ -3118,6 +4474,137 @@ class InstrumentDefMsg(Record):
         leg_instrument_class: InstrumentClass | None = None,
         leg_side: Side | None = None,
     ) -> None: ...
+    def __bytes__(self) -> bytes: ...
+    @property
+    def record_size(self) -> int:
+        """
+        Return the size of the record in bytes.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        size_hint
+
+        """
+
+    @property
+    def rtype(self) -> RType:
+        """
+        The record type.
+
+        Returns
+        -------
+        RType
+
+        """
+
+    @property
+    def publisher_id(self) -> int:
+        """
+        The publisher ID assigned by Databento, which denotes the dataset and venue.
+
+        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def instrument_id(self) -> int:
+        """
+        The numeric instrument ID.
+
+        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_index(self) -> int:
+        """
+        The raw primary timestamp for the record as the number of nanoseconds since the
+        UNIX epoch. For records that define a `ts_recv` and `ts_event`, this method will
+        return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_ts_index(self) -> dt.datetime | None:
+        """
+        The primary timestamp for the record as the expressed as a datetime or a
+        `pandas.Timestamp`, if available. For records that define a `ts_recv` and `ts_event`,
+        this method will return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def pretty_ts_event(self) -> dt.datetime | None:
+        """
+        The matching-engine-received timestamp expressed as a
+        datetime or a `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def ts_event(self) -> int:
+        """
+        The matching-engine-received timestamp expressed as the number of nanoseconds
+        since the UNIX epoch.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_out(self) -> int | None:
+        """
+        The live gateway send timestamp expressed as the number of nanoseconds since the
+        UNIX epoch.
+
+        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+        Returns
+        -------
+        int | None
+
+        """
+
     @property
     def pretty_ts_recv(self) -> dt.datetime | None:
         """
@@ -4169,11 +5656,18 @@ class InstrumentDefMsg(Record):
 
         """
 
-class ImbalanceMsg(Record):
+class ImbalanceMsg:
     """
     An auction imbalance message.
 
     """
+
+    size_hint: ClassVar[int]
+    _dtypes: ClassVar[list[tuple[str, str]]]
+    _hidden_fields: ClassVar[list[str]]
+    _price_fields: ClassVar[list[str]]
+    _ordered_fields: ClassVar[list[str]]
+    _timestamp_fields: ClassVar[list[str]]
 
     def __init__(
         self,
@@ -4201,6 +5695,137 @@ class ImbalanceMsg(Record):
         num_extensions: int = 0,
         unpaired_side: Side | None = None,
     ) -> None: ...
+    def __bytes__(self) -> bytes: ...
+    @property
+    def record_size(self) -> int:
+        """
+        Return the size of the record in bytes.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        size_hint
+
+        """
+
+    @property
+    def rtype(self) -> RType:
+        """
+        The record type.
+
+        Returns
+        -------
+        RType
+
+        """
+
+    @property
+    def publisher_id(self) -> int:
+        """
+        The publisher ID assigned by Databento, which denotes the dataset and venue.
+
+        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def instrument_id(self) -> int:
+        """
+        The numeric instrument ID.
+
+        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_index(self) -> int:
+        """
+        The raw primary timestamp for the record as the number of nanoseconds since the
+        UNIX epoch. For records that define a `ts_recv` and `ts_event`, this method will
+        return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_ts_index(self) -> dt.datetime | None:
+        """
+        The primary timestamp for the record as the expressed as a datetime or a
+        `pandas.Timestamp`, if available. For records that define a `ts_recv` and `ts_event`,
+        this method will return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def pretty_ts_event(self) -> dt.datetime | None:
+        """
+        The matching-engine-received timestamp expressed as a
+        datetime or a `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def ts_event(self) -> int:
+        """
+        The matching-engine-received timestamp expressed as the number of nanoseconds
+        since the UNIX epoch.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_out(self) -> int | None:
+        """
+        The live gateway send timestamp expressed as the number of nanoseconds since the
+        UNIX epoch.
+
+        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+        Returns
+        -------
+        int | None
+
+        """
+
     @property
     def pretty_ts_recv(self) -> dt.datetime | None:
         """
@@ -4622,12 +6247,19 @@ class ImbalanceMsg(Record):
 
         """
 
-class StatMsg(Record):
+class StatMsg:
     """
     A statistics message. A catchall for various data disseminated by publishers. The
     `stat_type` indicates the statistic contained in the message.
 
     """
+
+    size_hint: ClassVar[int]
+    _dtypes: ClassVar[list[tuple[str, str]]]
+    _hidden_fields: ClassVar[list[str]]
+    _price_fields: ClassVar[list[str]]
+    _ordered_fields: ClassVar[list[str]]
+    _timestamp_fields: ClassVar[list[str]]
 
     def __init__(
         self,
@@ -4645,6 +6277,137 @@ class StatMsg(Record):
         update_action: StatUpdateAction | None = None,
         stat_flags: int = 0,
     ) -> None: ...
+    def __bytes__(self) -> bytes: ...
+    @property
+    def record_size(self) -> int:
+        """
+        Return the size of the record in bytes.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        size_hint
+
+        """
+
+    @property
+    def rtype(self) -> RType:
+        """
+        The record type.
+
+        Returns
+        -------
+        RType
+
+        """
+
+    @property
+    def publisher_id(self) -> int:
+        """
+        The publisher ID assigned by Databento, which denotes the dataset and venue.
+
+        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def instrument_id(self) -> int:
+        """
+        The numeric instrument ID.
+
+        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_index(self) -> int:
+        """
+        The raw primary timestamp for the record as the number of nanoseconds since the
+        UNIX epoch. For records that define a `ts_recv` and `ts_event`, this method will
+        return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_ts_index(self) -> dt.datetime | None:
+        """
+        The primary timestamp for the record as the expressed as a datetime or a
+        `pandas.Timestamp`, if available. For records that define a `ts_recv` and `ts_event`,
+        this method will return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def pretty_ts_event(self) -> dt.datetime | None:
+        """
+        The matching-engine-received timestamp expressed as a
+        datetime or a `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def ts_event(self) -> int:
+        """
+        The matching-engine-received timestamp expressed as the number of nanoseconds
+        since the UNIX epoch.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_out(self) -> int | None:
+        """
+        The live gateway send timestamp expressed as the number of nanoseconds since the
+        UNIX epoch.
+
+        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+        Returns
+        -------
+        int | None
+
+        """
+
     @property
     def pretty_ts_recv(self) -> dt.datetime | None:
         """
@@ -4811,15 +6574,153 @@ class StatMsg(Record):
 
         """
 
-class ErrorMsg(Record):
+class ErrorMsg:
     """
     An error message from the Databento Live Subscription Gateway (LSG).
 
     """
 
+    size_hint: ClassVar[int]
+    _dtypes: ClassVar[list[tuple[str, str]]]
+    _hidden_fields: ClassVar[list[str]]
+    _price_fields: ClassVar[list[str]]
+    _ordered_fields: ClassVar[list[str]]
+    _timestamp_fields: ClassVar[list[str]]
+
     def __init__(
         self, ts_event: int, err: str, is_last: bool = True, code: ErrorCode | None = None
     ) -> None: ...
+    def __bytes__(self) -> bytes: ...
+    @property
+    def record_size(self) -> int:
+        """
+        Return the size of the record in bytes.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        size_hint
+
+        """
+
+    @property
+    def rtype(self) -> RType:
+        """
+        The record type.
+
+        Returns
+        -------
+        RType
+
+        """
+
+    @property
+    def publisher_id(self) -> int:
+        """
+        The publisher ID assigned by Databento, which denotes the dataset and venue.
+
+        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def instrument_id(self) -> int:
+        """
+        The numeric instrument ID.
+
+        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_index(self) -> int:
+        """
+        The raw primary timestamp for the record as the number of nanoseconds since the
+        UNIX epoch. For records that define a `ts_recv` and `ts_event`, this method will
+        return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_ts_index(self) -> dt.datetime | None:
+        """
+        The primary timestamp for the record as the expressed as a datetime or a
+        `pandas.Timestamp`, if available. For records that define a `ts_recv` and `ts_event`,
+        this method will return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def pretty_ts_event(self) -> dt.datetime | None:
+        """
+        The matching-engine-received timestamp expressed as a
+        datetime or a `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def ts_event(self) -> int:
+        """
+        The matching-engine-received timestamp expressed as the number of nanoseconds
+        since the UNIX epoch.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_out(self) -> int | None:
+        """
+        The live gateway send timestamp expressed as the number of nanoseconds since the
+        UNIX epoch.
+
+        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+        Returns
+        -------
+        int | None
+
+        """
+
     @property
     def err(self) -> str:
         """
@@ -4854,12 +6755,19 @@ class ErrorMsg(Record):
 
         """
 
-class SymbolMappingMsg(Record):
+class SymbolMappingMsg:
     """
     A symbol mapping message from the live API which maps a symbol from one `SType` to
     another.
 
     """
+
+    size_hint: ClassVar[int]
+    _dtypes: ClassVar[list[tuple[str, str]]]
+    _hidden_fields: ClassVar[list[str]]
+    _price_fields: ClassVar[list[str]]
+    _ordered_fields: ClassVar[list[str]]
+    _timestamp_fields: ClassVar[list[str]]
 
     def __init__(
         self,
@@ -4873,6 +6781,137 @@ class SymbolMappingMsg(Record):
         start_ts: int,
         end_ts: int,
     ) -> None: ...
+    def __bytes__(self) -> bytes: ...
+    @property
+    def record_size(self) -> int:
+        """
+        Return the size of the record in bytes.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        size_hint
+
+        """
+
+    @property
+    def rtype(self) -> RType:
+        """
+        The record type.
+
+        Returns
+        -------
+        RType
+
+        """
+
+    @property
+    def publisher_id(self) -> int:
+        """
+        The publisher ID assigned by Databento, which denotes the dataset and venue.
+
+        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def instrument_id(self) -> int:
+        """
+        The numeric instrument ID.
+
+        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_index(self) -> int:
+        """
+        The raw primary timestamp for the record as the number of nanoseconds since the
+        UNIX epoch. For records that define a `ts_recv` and `ts_event`, this method will
+        return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_ts_index(self) -> dt.datetime | None:
+        """
+        The primary timestamp for the record as the expressed as a datetime or a
+        `pandas.Timestamp`, if available. For records that define a `ts_recv` and `ts_event`,
+        this method will return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def pretty_ts_event(self) -> dt.datetime | None:
+        """
+        The matching-engine-received timestamp expressed as a
+        datetime or a `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def ts_event(self) -> int:
+        """
+        The matching-engine-received timestamp expressed as the number of nanoseconds
+        since the UNIX epoch.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_out(self) -> int | None:
+        """
+        The live gateway send timestamp expressed as the number of nanoseconds since the
+        UNIX epoch.
+
+        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+        Returns
+        -------
+        int | None
+
+        """
+
     @property
     def stype_in(self) -> SType | int:
         """
@@ -4965,14 +7004,152 @@ class SymbolMappingMsg(Record):
 
         """
 
-class SystemMsg(Record):
+class SystemMsg:
     """
     A non-error message from the Databento Live Subscription Gateway (LSG). Also used
     for heartbeating.
 
     """
 
+    size_hint: ClassVar[int]
+    _dtypes: ClassVar[list[tuple[str, str]]]
+    _hidden_fields: ClassVar[list[str]]
+    _price_fields: ClassVar[list[str]]
+    _ordered_fields: ClassVar[list[str]]
+    _timestamp_fields: ClassVar[list[str]]
+
     def __init__(self, ts_event: int, msg: str, code: SystemCode | None = None) -> None: ...
+    def __bytes__(self) -> bytes: ...
+    @property
+    def record_size(self) -> int:
+        """
+        Return the size of the record in bytes.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        size_hint
+
+        """
+
+    @property
+    def rtype(self) -> RType:
+        """
+        The record type.
+
+        Returns
+        -------
+        RType
+
+        """
+
+    @property
+    def publisher_id(self) -> int:
+        """
+        The publisher ID assigned by Databento, which denotes the dataset and venue.
+
+        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def instrument_id(self) -> int:
+        """
+        The numeric instrument ID.
+
+        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_index(self) -> int:
+        """
+        The raw primary timestamp for the record as the number of nanoseconds since the
+        UNIX epoch. For records that define a `ts_recv` and `ts_event`, this method will
+        return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_ts_index(self) -> dt.datetime | None:
+        """
+        The primary timestamp for the record as the expressed as a datetime or a
+        `pandas.Timestamp`, if available. For records that define a `ts_recv` and `ts_event`,
+        this method will return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def pretty_ts_event(self) -> dt.datetime | None:
+        """
+        The matching-engine-received timestamp expressed as a
+        datetime or a `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def ts_event(self) -> int:
+        """
+        The matching-engine-received timestamp expressed as the number of nanoseconds
+        since the UNIX epoch.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_out(self) -> int | None:
+        """
+        The live gateway send timestamp expressed as the number of nanoseconds since the
+        UNIX epoch.
+
+        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+        Returns
+        -------
+        int | None
+
+        """
+
     def is_heartbeat(self) -> bool:
         """
         Return `true` if this message is a heartbeat, used to indicate the connection
@@ -5006,13 +7183,151 @@ class SystemMsg(Record):
 
         """
 
-class ErrorMsgV1(Record):
+class ErrorMsgV1:
     """
     An error message from the Databento Live Subscription Gateway (LSG) in DBN version 1.
 
     """
 
+    size_hint: ClassVar[int]
+    _dtypes: ClassVar[list[tuple[str, str]]]
+    _hidden_fields: ClassVar[list[str]]
+    _price_fields: ClassVar[list[str]]
+    _ordered_fields: ClassVar[list[str]]
+    _timestamp_fields: ClassVar[list[str]]
+
     def __init__(self, ts_event: int, err: str) -> None: ...
+    def __bytes__(self) -> bytes: ...
+    @property
+    def record_size(self) -> int:
+        """
+        Return the size of the record in bytes.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        size_hint
+
+        """
+
+    @property
+    def rtype(self) -> RType:
+        """
+        The record type.
+
+        Returns
+        -------
+        RType
+
+        """
+
+    @property
+    def publisher_id(self) -> int:
+        """
+        The publisher ID assigned by Databento, which denotes the dataset and venue.
+
+        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def instrument_id(self) -> int:
+        """
+        The numeric instrument ID.
+
+        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_index(self) -> int:
+        """
+        The raw primary timestamp for the record as the number of nanoseconds since the
+        UNIX epoch. For records that define a `ts_recv` and `ts_event`, this method will
+        return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_ts_index(self) -> dt.datetime | None:
+        """
+        The primary timestamp for the record as the expressed as a datetime or a
+        `pandas.Timestamp`, if available. For records that define a `ts_recv` and `ts_event`,
+        this method will return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def pretty_ts_event(self) -> dt.datetime | None:
+        """
+        The matching-engine-received timestamp expressed as a
+        datetime or a `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def ts_event(self) -> int:
+        """
+        The matching-engine-received timestamp expressed as the number of nanoseconds
+        since the UNIX epoch.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_out(self) -> int | None:
+        """
+        The live gateway send timestamp expressed as the number of nanoseconds since the
+        UNIX epoch.
+
+        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+        Returns
+        -------
+        int | None
+
+        """
+
     @property
     def err(self) -> str:
         """
@@ -5024,11 +7339,18 @@ class ErrorMsgV1(Record):
 
         """
 
-class InstrumentDefMsgV1(Record):
+class InstrumentDefMsgV1:
     """
     A definition of an instrument in DBN version 1. The record of the definition schema.
 
     """
+
+    size_hint: ClassVar[int]
+    _dtypes: ClassVar[list[tuple[str, str]]]
+    _hidden_fields: ClassVar[list[str]]
+    _price_fields: ClassVar[list[str]]
+    _ordered_fields: ClassVar[list[str]]
+    _timestamp_fields: ClassVar[list[str]]
 
     def __init__(
         self,
@@ -5096,6 +7418,137 @@ class InstrumentDefMsgV1(Record):
         flow_schedule_type: int,
         tick_rule: int,
     ) -> None: ...
+    def __bytes__(self) -> bytes: ...
+    @property
+    def record_size(self) -> int:
+        """
+        Return the size of the record in bytes.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        size_hint
+
+        """
+
+    @property
+    def rtype(self) -> RType:
+        """
+        The record type.
+
+        Returns
+        -------
+        RType
+
+        """
+
+    @property
+    def publisher_id(self) -> int:
+        """
+        The publisher ID assigned by Databento, which denotes the dataset and venue.
+
+        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def instrument_id(self) -> int:
+        """
+        The numeric instrument ID.
+
+        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_index(self) -> int:
+        """
+        The raw primary timestamp for the record as the number of nanoseconds since the
+        UNIX epoch. For records that define a `ts_recv` and `ts_event`, this method will
+        return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_ts_index(self) -> dt.datetime | None:
+        """
+        The primary timestamp for the record as the expressed as a datetime or a
+        `pandas.Timestamp`, if available. For records that define a `ts_recv` and `ts_event`,
+        this method will return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def pretty_ts_event(self) -> dt.datetime | None:
+        """
+        The matching-engine-received timestamp expressed as a
+        datetime or a `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def ts_event(self) -> int:
+        """
+        The matching-engine-received timestamp expressed as the number of nanoseconds
+        since the UNIX epoch.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_out(self) -> int | None:
+        """
+        The live gateway send timestamp expressed as the number of nanoseconds since the
+        UNIX epoch.
+
+        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+        Returns
+        -------
+        int | None
+
+        """
+
     @property
     def pretty_ts_recv(self) -> dt.datetime | None:
         """
@@ -6028,12 +8481,19 @@ class InstrumentDefMsgV1(Record):
 
         """
 
-class StatMsgV1(Record):
+class StatMsgV1:
     """
     A statistics message in DBN versions 1 and 2. A catchall for various data disseminated
     by publishers. The `stat_type` indicates the statistic contained in the message.
 
     """
+
+    size_hint: ClassVar[int]
+    _dtypes: ClassVar[list[tuple[str, str]]]
+    _hidden_fields: ClassVar[list[str]]
+    _price_fields: ClassVar[list[str]]
+    _ordered_fields: ClassVar[list[str]]
+    _timestamp_fields: ClassVar[list[str]]
 
     def __init__(
         self,
@@ -6051,6 +8511,137 @@ class StatMsgV1(Record):
         update_action: StatUpdateAction | None = None,
         stat_flags: int = 0,
     ) -> None: ...
+    def __bytes__(self) -> bytes: ...
+    @property
+    def record_size(self) -> int:
+        """
+        Return the size of the record in bytes.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        size_hint
+
+        """
+
+    @property
+    def rtype(self) -> RType:
+        """
+        The record type.
+
+        Returns
+        -------
+        RType
+
+        """
+
+    @property
+    def publisher_id(self) -> int:
+        """
+        The publisher ID assigned by Databento, which denotes the dataset and venue.
+
+        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def instrument_id(self) -> int:
+        """
+        The numeric instrument ID.
+
+        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_index(self) -> int:
+        """
+        The raw primary timestamp for the record as the number of nanoseconds since the
+        UNIX epoch. For records that define a `ts_recv` and `ts_event`, this method will
+        return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_ts_index(self) -> dt.datetime | None:
+        """
+        The primary timestamp for the record as the expressed as a datetime or a
+        `pandas.Timestamp`, if available. For records that define a `ts_recv` and `ts_event`,
+        this method will return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def pretty_ts_event(self) -> dt.datetime | None:
+        """
+        The matching-engine-received timestamp expressed as a
+        datetime or a `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def ts_event(self) -> int:
+        """
+        The matching-engine-received timestamp expressed as the number of nanoseconds
+        since the UNIX epoch.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_out(self) -> int | None:
+        """
+        The live gateway send timestamp expressed as the number of nanoseconds since the
+        UNIX epoch.
+
+        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+        Returns
+        -------
+        int | None
+
+        """
+
     @property
     def pretty_ts_recv(self) -> dt.datetime | None:
         """
@@ -6217,11 +8808,18 @@ class StatMsgV1(Record):
 
         """
 
-class SymbolMappingMsgV1(Record):
+class SymbolMappingMsgV1:
     """
     A symbol mapping message from the live API in DBN version 1.
 
     """
+
+    size_hint: ClassVar[int]
+    _dtypes: ClassVar[list[tuple[str, str]]]
+    _hidden_fields: ClassVar[list[str]]
+    _price_fields: ClassVar[list[str]]
+    _ordered_fields: ClassVar[list[str]]
+    _timestamp_fields: ClassVar[list[str]]
 
     def __init__(
         self,
@@ -6233,6 +8831,137 @@ class SymbolMappingMsgV1(Record):
         start_ts: int,
         end_ts: int,
     ) -> None: ...
+    def __bytes__(self) -> bytes: ...
+    @property
+    def record_size(self) -> int:
+        """
+        Return the size of the record in bytes.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        size_hint
+
+        """
+
+    @property
+    def rtype(self) -> RType:
+        """
+        The record type.
+
+        Returns
+        -------
+        RType
+
+        """
+
+    @property
+    def publisher_id(self) -> int:
+        """
+        The publisher ID assigned by Databento, which denotes the dataset and venue.
+
+        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def instrument_id(self) -> int:
+        """
+        The numeric instrument ID.
+
+        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_index(self) -> int:
+        """
+        The raw primary timestamp for the record as the number of nanoseconds since the
+        UNIX epoch. For records that define a `ts_recv` and `ts_event`, this method will
+        return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_ts_index(self) -> dt.datetime | None:
+        """
+        The primary timestamp for the record as the expressed as a datetime or a
+        `pandas.Timestamp`, if available. For records that define a `ts_recv` and `ts_event`,
+        this method will return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def pretty_ts_event(self) -> dt.datetime | None:
+        """
+        The matching-engine-received timestamp expressed as a
+        datetime or a `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def ts_event(self) -> int:
+        """
+        The matching-engine-received timestamp expressed as the number of nanoseconds
+        since the UNIX epoch.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_out(self) -> int | None:
+        """
+        The live gateway send timestamp expressed as the number of nanoseconds since the
+        UNIX epoch.
+
+        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+        Returns
+        -------
+        int | None
+
+        """
+
     @property
     def stype_in_symbol(self) -> str:
         """
@@ -6303,14 +9032,152 @@ class SymbolMappingMsgV1(Record):
 
         """
 
-class SystemMsgV1(Record):
+class SystemMsgV1:
     """
     A non-error message from the Databento Live Subscription Gateway (LSG) in DBN version 1.
     Also used for heartbeating.
 
     """
 
+    size_hint: ClassVar[int]
+    _dtypes: ClassVar[list[tuple[str, str]]]
+    _hidden_fields: ClassVar[list[str]]
+    _price_fields: ClassVar[list[str]]
+    _ordered_fields: ClassVar[list[str]]
+    _timestamp_fields: ClassVar[list[str]]
+
     def __init__(self, ts_event: int, msg: str) -> None: ...
+    def __bytes__(self) -> bytes: ...
+    @property
+    def record_size(self) -> int:
+        """
+        Return the size of the record in bytes.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        size_hint
+
+        """
+
+    @property
+    def rtype(self) -> RType:
+        """
+        The record type.
+
+        Returns
+        -------
+        RType
+
+        """
+
+    @property
+    def publisher_id(self) -> int:
+        """
+        The publisher ID assigned by Databento, which denotes the dataset and venue.
+
+        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def instrument_id(self) -> int:
+        """
+        The numeric instrument ID.
+
+        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_index(self) -> int:
+        """
+        The raw primary timestamp for the record as the number of nanoseconds since the
+        UNIX epoch. For records that define a `ts_recv` and `ts_event`, this method will
+        return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_ts_index(self) -> dt.datetime | None:
+        """
+        The primary timestamp for the record as the expressed as a datetime or a
+        `pandas.Timestamp`, if available. For records that define a `ts_recv` and `ts_event`,
+        this method will return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def pretty_ts_event(self) -> dt.datetime | None:
+        """
+        The matching-engine-received timestamp expressed as a
+        datetime or a `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def ts_event(self) -> int:
+        """
+        The matching-engine-received timestamp expressed as the number of nanoseconds
+        since the UNIX epoch.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_out(self) -> int | None:
+        """
+        The live gateway send timestamp expressed as the number of nanoseconds since the
+        UNIX epoch.
+
+        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+        Returns
+        -------
+        int | None
+
+        """
+
     def is_heartbeat(self) -> bool:
         """
         Return `true` if this message is a heartbeat, used to indicate the connection
@@ -6333,11 +9200,18 @@ class SystemMsgV1(Record):
 
         """
 
-class InstrumentDefMsgV2(Record):
+class InstrumentDefMsgV2:
     """
     A definition of an instrument in DBN version 2. The record of the definition schema.
 
     """
+
+    size_hint: ClassVar[int]
+    _dtypes: ClassVar[list[tuple[str, str]]]
+    _hidden_fields: ClassVar[list[str]]
+    _price_fields: ClassVar[list[str]]
+    _ordered_fields: ClassVar[list[str]]
+    _timestamp_fields: ClassVar[list[str]]
 
     def __init__(
         self,
@@ -6405,6 +9279,137 @@ class InstrumentDefMsgV2(Record):
         flow_schedule_type: int,
         tick_rule: int,
     ) -> None: ...
+    def __bytes__(self) -> bytes: ...
+    @property
+    def record_size(self) -> int:
+        """
+        Return the size of the record in bytes.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        size_hint
+
+        """
+
+    @property
+    def rtype(self) -> RType:
+        """
+        The record type.
+
+        Returns
+        -------
+        RType
+
+        """
+
+    @property
+    def publisher_id(self) -> int:
+        """
+        The publisher ID assigned by Databento, which denotes the dataset and venue.
+
+        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def instrument_id(self) -> int:
+        """
+        The numeric instrument ID.
+
+        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_index(self) -> int:
+        """
+        The raw primary timestamp for the record as the number of nanoseconds since the
+        UNIX epoch. For records that define a `ts_recv` and `ts_event`, this method will
+        return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_ts_index(self) -> dt.datetime | None:
+        """
+        The primary timestamp for the record as the expressed as a datetime or a
+        `pandas.Timestamp`, if available. For records that define a `ts_recv` and `ts_event`,
+        this method will return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def pretty_ts_event(self) -> dt.datetime | None:
+        """
+        The matching-engine-received timestamp expressed as a
+        datetime or a `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def ts_event(self) -> int:
+        """
+        The matching-engine-received timestamp expressed as the number of nanoseconds
+        since the UNIX epoch.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def ts_out(self) -> int | None:
+        """
+        The live gateway send timestamp expressed as the number of nanoseconds since the
+        UNIX epoch.
+
+        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+        Returns
+        -------
+        int | None
+
+        """
+
     @property
     def pretty_ts_recv(self) -> dt.datetime | None:
         """
@@ -7375,7 +10380,7 @@ class DBNDecoder:
 
     def decode(
         self,
-    ) -> list[_DBNRecord]:
+    ) -> list[DBNRecord | Metadata]:
         """
         Decode the buffered data into DBN records.
 
