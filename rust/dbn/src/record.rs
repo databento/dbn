@@ -1315,7 +1315,7 @@ pub struct SymbolMappingMsg {
     #[dbn(fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub stype_in_symbol: [c_char; SYMBOL_CSTR_LEN],
-    /// The output symbology type of `stype_out_symbol`.
+    /// The output symbology type of `stype_out_symbol`. Will always be [`RawSymbol`](crate::SType::RawSymbol).
     #[dbn(fmt_method)]
     #[pyo3(get, set)]
     pub stype_out: u8,

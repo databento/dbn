@@ -6937,7 +6937,7 @@ class SymbolMappingMsg:
     @property
     def stype_out(self) -> SType | int:
         """
-        The output symbology type of `stype_out_symbol`.
+        The output symbology type of `stype_out_symbol`. Will always be `RAW_SYMBOL`.
 
         Returns
         -------
