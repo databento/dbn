@@ -6,14 +6,17 @@ use time::{macros::time, PrimitiveDateTime};
 
 use crate::{compat, v1, Error, HasRType, Metadata, Record, RecordRef, SymbolMappingMsg};
 
-/// A timeseries symbol map. Generally useful for working with historical data
-/// and is commonly built from a [`Metadata`] object via [`Self::from_metadata()`].
+/// A timeseries symbol map. Useful for working with historical requests over multiple days.
+///
+/// Commonly built with [`Metadata::symbol_map()`].
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TsSymbolMap(HashMap<(time::Date, u32), Arc<String>>);
 
 /// A point-in-time symbol map. Useful for working with live symbology or a
 /// historical request over a single day or other situations where the symbol
 /// mappings are known not to change.
+///
+/// Commonly built with [`Metadata::symbol_map_for_date()`].
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct PitSymbolMap(HashMap<u32, String>);
 
