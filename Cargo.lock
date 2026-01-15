@@ -301,6 +301,7 @@ dependencies = [
  "rstest",
  "serde",
  "tempfile",
+ "time",
  "zstd",
 ]
 

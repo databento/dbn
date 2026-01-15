@@ -4,9 +4,7 @@ use std::{cmp::Ordering, collections::HashMap, ops::Deref, sync::Arc};
 
 use time::{macros::time, PrimitiveDateTime};
 
-use crate::{
-    compat, v1, Error, HasRType, Metadata, RType, Record, RecordRef, SType, SymbolMappingMsg,
-};
+use crate::{compat, v1, Error, HasRType, Metadata, Record, RecordRef, SymbolMappingMsg};
 
 /// A timeseries symbol map. Generally useful for working with historical data
 /// and is commonly built from a [`Metadata`] object via [`Self::from_metadata()`].
@@ -46,8 +44,8 @@ impl TsSymbolMap {
     ///
     /// # Errors
     /// This function returns an error if neither stype_in or stype_out are
-    /// [`SType::InstrumentId`]. It will also return an error if it can't
-    /// parse a symbol into `u32` instrument ID.
+    /// [`SType::InstrumentId`](crate::SType::InstrumentId). It will also return an
+    /// error if it can't parse a symbol into `u32` instrument ID.
     pub fn from_metadata(metadata: &Metadata) -> crate::Result<Self> {
         Self::try_from(metadata)
     }
@@ -118,7 +116,7 @@ impl TryFrom<&Metadata> for TsSymbolMap {
 
     fn try_from(metadata: &Metadata) -> Result<Self, Error> {
         let mut res = Self::new();
-        if is_inverse(metadata)? {
+        if metadata.is_inverse()? {
             for mapping in metadata.mappings.iter() {
                 let iid = mapping
                     .raw_symbol
@@ -174,11 +172,11 @@ impl PitSymbolMap {
     ///
     /// # Errors
     /// This function returns an error if neither stype_in or stype_out are
-    /// [`SType::InstrumentId`]. It will also return an error if it can't
-    /// parse a symbol into `u32` instrument ID or if `date` is outside the query range
-    /// of the metadata.
+    /// [`SType::InstrumentId`](crate::SType::InstrumentId). It will also return an
+    /// error if it can't parse a symbol into `u32` instrument ID or if `date` is
+    /// outside the query range of the metadata.
     pub fn from_metadata(metadata: &Metadata, date: time::Date) -> crate::Result<Self> {
-        let is_inverse = is_inverse(metadata)?;
+        let is_inverse = metadata.is_inverse()?;
         let datetime = PrimitiveDateTime::new(date, time!(0:00)).assume_utc();
         // need to compare with `end` as a datetime to handle midnight case
         if date < metadata.start().date() || metadata.end().is_some_and(|end| datetime >= end) {
@@ -221,19 +219,12 @@ impl PitSymbolMap {
     /// This function returns an error when `record` contains a symbol mapping
     /// with invalid UTF-8.
     pub fn on_record(&mut self, record: RecordRef) -> crate::Result<()> {
-        match record.rtype() {
-            // >= to allow WithTsOut
-            Ok(RType::SymbolMapping)
-                if record.record_size() >= std::mem::size_of::<SymbolMappingMsg>() =>
-            {
-                // Safety: checked rtype and length
-                self.on_symbol_mapping(unsafe { record.get_unchecked::<SymbolMappingMsg>() })
-            }
-            Ok(RType::SymbolMapping) => {
-                // Use `get` here to get still perform length checks
-                self.on_symbol_mapping(record.get::<v1::SymbolMappingMsg>().unwrap())
-            }
-            _ => Ok(()),
+        if let Ok(symbol_mapping) = record.try_get::<SymbolMappingMsg>() {
+            self.on_symbol_mapping(symbol_mapping)
+        } else if let Ok(symbol_mapping) = record.try_get::<v1::SymbolMappingMsg>() {
+            self.on_symbol_mapping(symbol_mapping)
+        } else {
+            Ok(())
         }
     }
 
@@ -323,19 +314,6 @@ impl std::ops::Index<u32> for PitSymbolMap {
     }
 }
 
-fn is_inverse(metadata: &Metadata) -> crate::Result<bool> {
-    match (metadata.stype_in, metadata.stype_out) {
-        (_, SType::InstrumentId) => Ok(false),
-        (Some(SType::InstrumentId), _) => Ok(true),
-        _ => {
-            Err(Error::BadArgument {
-                param_name: "metadata".to_owned(),
-                desc: "Can only create symbol maps from metadata where either stype_out or stype_in is instrument ID".to_owned(),
-            })
-        }
-    }
-}
-
 #[cfg(test)]
 pub(crate) mod tests {
     use std::num::NonZeroU64;
@@ -346,7 +324,7 @@ pub(crate) mod tests {
     use crate::{
         compat::{SymbolMappingMsgV1, SymbolMappingRec},
         publishers::Dataset,
-        MappingInterval, Metadata, Schema, SymbolMapping, UNDEF_TIMESTAMP,
+        MappingInterval, Metadata, SType, Schema, SymbolMapping, UNDEF_TIMESTAMP,
     };
 
     use super::*;

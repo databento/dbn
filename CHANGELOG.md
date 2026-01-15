@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.48.0 - TBD
+
+### Enhancements
+- Added initial support for splitting DBN files:
+  - Added new `SplitEncoder` that supports synchronous and asynchronous encoding
+  - Added new `Splitter` trait that allows for extensible splitting of files while
+    reusing the `SplitEncoder` boilerplate.
+  - Added `SchemaSplitter`, `SymbolSplitter`, and `TimeSplitter` which allow for
+    different methods of splitting DBN files
+  - Added split support to the CLI. For example:
+    `dbn mbo.dbn --split-by week --output-pattern '{date}.json'` --json
+
 ## 0.47.0 - 2026-01-20
 
 ### Enhancements

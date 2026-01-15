@@ -169,6 +169,25 @@ impl Metadata {
         }
         Ok(merger.finalize())
     }
+
+    /// Returns `true` if the metadata is for inverse mappings, where `stype_in` is
+    /// [`SType::InstrumentId`].
+    ///
+    /// # Errors
+    /// This function returns an error if neither `stype_in` and `stype_out` are
+    /// [`SType::InstrumentId`].
+    pub fn is_inverse(&self) -> crate::Result<bool> {
+        match (self.stype_in, self.stype_out) {
+        (_, SType::InstrumentId) => Ok(false),
+        (Some(SType::InstrumentId), _) => Ok(true),
+        _ => {
+            Err(crate::Error::BadArgument {
+                param_name: "self".to_owned(),
+                desc: "Can only create symbol maps from metadata where either stype_out or stype_in is instrument ID".to_owned(),
+            })
+        }
+    }
+    }
 }
 
 /// Helper for constructing [`Metadata`] structs with defaults.

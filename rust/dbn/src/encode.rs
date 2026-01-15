@@ -5,6 +5,7 @@ pub mod dbn;
 mod dyn_encoder;
 mod dyn_writer;
 pub mod json;
+mod split;
 
 use std::{fmt, io, num::NonZeroU64};
 
@@ -18,6 +19,10 @@ pub use self::{
         RecordEncoder as DbnRecordEncoder,
     },
     json::Encoder as JsonEncoder,
+    split::{
+        NoSchemaBehavior, SchemaSplitter, SplitDuration, SplitEncoder, Splitter, SymbolSplitter,
+        TimeSplitter,
+    },
 };
 #[cfg(feature = "async")]
 pub use self::{

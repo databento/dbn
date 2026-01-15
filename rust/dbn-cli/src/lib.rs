@@ -2,13 +2,14 @@ use std::{
     fs::File,
     io::{self, BufWriter},
     num::NonZeroU64,
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 use anyhow::{anyhow, Context};
 use clap::{ArgAction, Parser, ValueEnum};
 
 use dbn::{
+    encode::SplitDuration,
     enums::{Compression, Encoding},
     Schema, VersionUpgradePolicy,
 };
@@ -26,6 +27,35 @@ pub enum OutputEncoding {
     Tsv,
     Json,
     DbnFragment,
+}
+
+/// How to split a DBN file
+#[derive(Clone, Copy, Debug, ValueEnum)]
+pub enum SplitBy {
+    Symbol,
+    Schema,
+    Day,
+    Week,
+    Month,
+}
+
+impl SplitBy {
+    pub fn duration(self) -> Option<SplitDuration> {
+        match self {
+            SplitBy::Day => Some(SplitDuration::Day),
+            SplitBy::Week => Some(SplitDuration::Week),
+            SplitBy::Month => Some(SplitDuration::Month),
+            SplitBy::Symbol | SplitBy::Schema => None,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct InferredEncoding {
+    pub encoding: Encoding,
+    pub compression: Compression,
+    pub delimiter: u8,
+    pub is_fragment: bool,
 }
 
 #[derive(Debug, Parser)]
@@ -47,6 +77,23 @@ pub struct Args {
         value_name = "FILE"
     )]
     pub output: Option<PathBuf>,
+    #[clap(
+        short = 'O',
+        long,
+        help = "Saves the result of file splitting to paths according to PATTERN",
+        requires = "split_by",
+        conflicts_with = "output",
+        value_name = "PATTERN"
+    )]
+    pub output_pattern: Option<String>,
+    #[clap(
+        short = 'S',
+        long,
+        help = "How to optionally split the output across files",
+        requires = "output_pattern",
+        value_name = "SPLIT_BY"
+    )]
+    pub split_by: Option<SplitBy>,
     #[clap(
         short = 'J',
         long,
@@ -218,37 +265,120 @@ impl Args {
     }
 }
 
-/// Infer the [`Encoding`], [`Compression`], and delimiter (CSV/TSV) from `args` if they
-/// aren't already explicitly set.
-pub fn infer_encoding(args: &Args) -> anyhow::Result<(Encoding, Compression, u8)> {
+pub fn infer_encoding(args: &Args) -> anyhow::Result<InferredEncoding> {
     let compression = if args.zstd {
         Compression::Zstd
     } else {
         Compression::None
     };
     match args.output_encoding() {
-        OutputEncoding::DbnFragment | OutputEncoding::Dbn => Ok((Encoding::Dbn, compression, 0)),
-        OutputEncoding::Csv => Ok((Encoding::Csv, compression, b',')),
-        OutputEncoding::Tsv => Ok((Encoding::Csv, compression, b'\t')),
-        OutputEncoding::Json => Ok((Encoding::Json, compression, 0)),
+        OutputEncoding::DbnFragment => Ok(InferredEncoding {
+            encoding: Encoding::Dbn,
+            compression,
+            delimiter: 0,
+            is_fragment: true,
+        }),
+        OutputEncoding::Dbn => Ok(InferredEncoding {
+            encoding: Encoding::Dbn,
+            compression,
+            delimiter: 0,
+            is_fragment: false,
+        }),
+        OutputEncoding::Csv => Ok(InferredEncoding {
+            encoding: Encoding::Csv,
+            compression,
+            delimiter: b',',
+            is_fragment: false,
+        }),
+        OutputEncoding::Tsv => Ok(InferredEncoding {
+            encoding: Encoding::Csv,
+            compression,
+            delimiter: b'\t',
+            is_fragment: false,
+        }),
+        OutputEncoding::Json => Ok(InferredEncoding {
+            encoding: Encoding::Json,
+            compression,
+            delimiter: 0,
+            is_fragment: false,
+        }),
         OutputEncoding::Infer => {
-            if let Some(output) = args.output.as_ref().map(|o| o.to_string_lossy()) {
-                if output.ends_with(".dbn.zst") {
-                    Ok((Encoding::Dbn, Compression::Zstd, 0))
+            let output = args
+                .output
+                .as_ref()
+                .map(|p| p.to_string_lossy().into_owned())
+                .or_else(|| args.output_pattern.clone());
+            if let Some(output) = output {
+                if output.ends_with(".dbn.frag.zst") {
+                    Ok(InferredEncoding {
+                        encoding: Encoding::Dbn,
+                        compression: Compression::Zstd,
+                        delimiter: 0,
+                        is_fragment: true,
+                    })
+                } else if output.ends_with(".dbn.frag") {
+                    Ok(InferredEncoding {
+                        encoding: Encoding::Dbn,
+                        compression: Compression::None,
+                        delimiter: 0,
+                        is_fragment: true,
+                    })
+                } else if output.ends_with(".dbn.zst") {
+                    Ok(InferredEncoding {
+                        encoding: Encoding::Dbn,
+                        compression: Compression::Zstd,
+                        delimiter: 0,
+                        is_fragment: false,
+                    })
                 } else if output.ends_with(".dbn") {
-                    Ok((Encoding::Dbn, Compression::None, 0))
+                    Ok(InferredEncoding {
+                        encoding: Encoding::Dbn,
+                        compression: Compression::None,
+                        delimiter: 0,
+                        is_fragment: false,
+                    })
                 } else if output.ends_with(".csv.zst") {
-                    Ok((Encoding::Csv, Compression::Zstd, b','))
+                    Ok(InferredEncoding {
+                        encoding: Encoding::Csv,
+                        compression: Compression::Zstd,
+                        delimiter: b',',
+                        is_fragment: false,
+                    })
                 } else if output.ends_with(".csv") {
-                    Ok((Encoding::Csv, Compression::None, b','))
+                    Ok(InferredEncoding {
+                        encoding: Encoding::Csv,
+                        compression: Compression::None,
+                        delimiter: b',',
+                        is_fragment: false,
+                    })
                 } else if output.ends_with(".tsv.zst") || output.ends_with(".xls.zst") {
-                    Ok((Encoding::Csv, Compression::Zstd, b'\t'))
+                    Ok(InferredEncoding {
+                        encoding: Encoding::Csv,
+                        compression: Compression::Zstd,
+                        delimiter: b'\t',
+                        is_fragment: false,
+                    })
                 } else if output.ends_with(".tsv") || output.ends_with(".xls") {
-                    Ok((Encoding::Csv, Compression::None, b'\t'))
+                    Ok(InferredEncoding {
+                        encoding: Encoding::Csv,
+                        compression: Compression::None,
+                        delimiter: b'\t',
+                        is_fragment: false,
+                    })
                 } else if output.ends_with(".json.zst") {
-                    Ok((Encoding::Json, Compression::Zstd, 0))
+                    Ok(InferredEncoding {
+                        encoding: Encoding::Json,
+                        compression: Compression::Zstd,
+                        delimiter: 0,
+                        is_fragment: false,
+                    })
                 } else if output.ends_with(".json") {
-                    Ok((Encoding::Json, Compression::None, 0))
+                    Ok(InferredEncoding {
+                        encoding: Encoding::Json,
+                        compression: Compression::None,
+                        delimiter: 0,
+                        is_fragment: false,
+                    })
                 } else {
                     Err(anyhow!(
                         "Unable to infer output encoding from output path '{output}'",
@@ -265,15 +395,19 @@ pub fn infer_encoding(args: &Args) -> anyhow::Result<(Encoding, Compression, u8)
 
 /// Returns a writeable object where the `dbn` output will be directed.
 pub fn output_from_args(args: &Args) -> anyhow::Result<Box<dyn io::Write>> {
-    if let Some(output) = &args.output {
-        let output_file = open_output_file(output, args.force)?;
+    output(args.output.as_deref(), args.force)
+}
+
+pub fn output(output: Option<&Path>, force: bool) -> anyhow::Result<Box<dyn io::Write>> {
+    if let Some(output) = output {
+        let output_file = open_output_file(output, force)?;
         Ok(Box::new(BufWriter::new(output_file)))
     } else {
         Ok(Box::new(io::stdout().lock()))
     }
 }
 
-fn open_output_file(path: &PathBuf, force: bool) -> anyhow::Result<File> {
+fn open_output_file(path: &Path, force: bool) -> anyhow::Result<File> {
     let mut options = File::options();
     options.write(true).truncate(true);
     if force {
@@ -361,7 +495,15 @@ mod tests {
             zstd,
             ..Default::default()
         };
-        assert_eq!(infer_encoding(&args).unwrap(), (exp_enc, exp_comp, exp_sep));
+        assert_eq!(
+            infer_encoding(&args).unwrap(),
+            InferredEncoding {
+                encoding: exp_enc,
+                compression: exp_comp,
+                delimiter: exp_sep,
+                is_fragment: false,
+            }
+        );
     }
 
     #[rstest]
@@ -385,7 +527,15 @@ mod tests {
             output: Some(PathBuf::from(output)),
             ..Default::default()
         };
-        assert_eq!(infer_encoding(&args).unwrap(), (exp_enc, exp_comp, exp_sep));
+        assert_eq!(
+            infer_encoding(&args).unwrap(),
+            InferredEncoding {
+                encoding: exp_enc,
+                compression: exp_comp,
+                delimiter: exp_sep,
+                is_fragment: false,
+            }
+        );
     }
 
     #[test]

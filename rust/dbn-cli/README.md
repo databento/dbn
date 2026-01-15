@@ -62,6 +62,18 @@ dbn equs-mini-20250331.dbn equs-mini-20250401.dbn equs-mini-20250402.dbn -o equs
 ```
 The only limitation is they must be from the same dataset.
 
+### Splitting DBN files
+You can also split one DBN file into several by passing `--split-by`/`-S` with a split method and
+`--output-pattern`/`-O` with a pattern for the output file names.
+```sh
+# By schema, such as from a live data capture
+dbn opra-pillar-20260114.dbn.zst --split-by schema --output-pattern 'opra-pillar-2026114.{schema}.dbn.zst'
+# By time
+dbn opra-pillar-202512.ohlcv-1s.dbn.zst --split-by day --output-pattern 'opra-pillar-{date}.ohlcv-1s.dbn.zst'
+# By symbol, with the short argument forms
+dbn equs-mini-20260114.dbn.zst -S symbol -O 'equs-mini-2026014-{symbol}.dbn.zst'
+```
+
 ### Compressing the output
 In addition to reading Zstandard-compressed files, `dbn` can also write compressed JSON and CSV.
 

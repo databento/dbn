@@ -792,6 +792,233 @@ fn test_merge_mbo_and_mbp10_metadata() {
         .stderr(is_empty());
 }
 
+#[rstest]
+fn split_by_day(output_dir: TempDir) {
+    let output_pattern = format!("{}/{{date}}.json", output_dir.path().to_str().unwrap());
+    cmd()
+        .args([
+            &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst"),
+            "--split-by",
+            "day",
+            "--output-pattern",
+            &output_pattern,
+            "--json",
+        ])
+        .assert()
+        .success()
+        .stdout(is_empty())
+        .stderr(is_empty());
+    let output_path = format!("{}/2020-12-28.json", output_dir.path().to_str().unwrap());
+    let contents = fs::read_to_string(&output_path).unwrap();
+    assert!(contents.contains("\"rtype\":160"));
+    assert_eq!(contents.lines().count(), 2);
+}
+
+#[rstest]
+fn split_by_week(output_dir: TempDir) {
+    let output_pattern = format!("{}/{{date}}.json", output_dir.path().to_str().unwrap());
+    cmd()
+        .args([
+            &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst"),
+            "--split-by",
+            "week",
+            "--output-pattern",
+            &output_pattern,
+            "--json",
+        ])
+        .assert()
+        .success()
+        .stdout(is_empty())
+        .stderr(is_empty());
+    // 2020-12-28 is a Monday, week starts on Sunday 2020-12-27
+    let output_path = format!("{}/2020-12-27.json", output_dir.path().to_str().unwrap());
+    let contents = fs::read_to_string(&output_path).unwrap();
+    assert!(contents.contains("\"rtype\":160"));
+}
+
+#[rstest]
+fn split_by_month(output_dir: TempDir) {
+    let output_pattern = format!("{}/{{date}}.json", output_dir.path().to_str().unwrap());
+    cmd()
+        .args([
+            &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst"),
+            "--split-by",
+            "month",
+            "--output-pattern",
+            &output_pattern,
+            "--json",
+        ])
+        .assert()
+        .success()
+        .stdout(is_empty())
+        .stderr(is_empty());
+    let output_path = format!("{}/2020-12-01.json", output_dir.path().to_str().unwrap());
+    let contents = fs::read_to_string(&output_path).unwrap();
+    assert!(contents.contains("\"rtype\":160"));
+}
+
+#[rstest]
+fn split_by_symbol(output_dir: TempDir) {
+    let output_pattern = format!("{}/{{symbol}}.json", output_dir.path().to_str().unwrap());
+    cmd()
+        .args([
+            &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst"),
+            "--split-by",
+            "symbol",
+            "--output-pattern",
+            &output_pattern,
+            "--json",
+        ])
+        .assert()
+        .success()
+        .stdout(is_empty())
+        .stderr(is_empty());
+    let output_path = format!("{}/ESH1.json", output_dir.path().to_str().unwrap());
+    let contents = fs::read_to_string(&output_path).unwrap();
+    assert!(contents.contains("\"rtype\":160"));
+}
+
+#[test]
+fn output_pattern_requires_split_by() {
+    cmd()
+        .args([
+            &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst"),
+            "--output-pattern",
+            "{date}.json",
+            "--json",
+        ])
+        .assert()
+        .failure()
+        .stderr(contains("split-by"));
+}
+
+#[test]
+fn split_by_requires_output_pattern() {
+    cmd()
+        .args([
+            &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst"),
+            "--split-by",
+            "day",
+            "--json",
+        ])
+        .assert()
+        .failure()
+        .stderr(contains("output-pattern"));
+}
+
+#[test]
+fn output_pattern_conflicts_with_output() {
+    cmd()
+        .args([
+            &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst"),
+            "--split-by",
+            "day",
+            "--output",
+            "out.json",
+            "--output-pattern",
+            "{date}.json",
+            "--json",
+        ])
+        .assert()
+        .failure()
+        .stderr(contains("cannot be used with"));
+}
+
+#[rstest]
+fn split_by_day_fragment(output_dir: TempDir) {
+    let output_pattern = format!("{}/{{date}}.dbn", output_dir.path().to_str().unwrap());
+    cmd()
+        .args([
+            &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst"),
+            "--split-by",
+            "day",
+            "--output-pattern",
+            &output_pattern,
+            "--fragment",
+        ])
+        .assert()
+        .success()
+        .stdout(is_empty())
+        .stderr(is_empty());
+    // Verify the fragment file exists and can be decoded
+    let output_path = format!("{}/2020-12-28.dbn", output_dir.path().to_str().unwrap());
+    let contents = std::fs::read(&output_path).unwrap();
+    assert_ne!(
+        &contents[..3],
+        b"DBN",
+        "Fragment should not have metadata header"
+    );
+    assert!(!contents.is_empty());
+}
+
+#[rstest]
+fn split_input_fragment_by_day_to_json(output_dir: TempDir) {
+    let output_pattern = format!("{}/{{date}}.json", output_dir.path().to_str().unwrap());
+    cmd()
+        .args([
+            &format!("{TEST_DATA_PATH}/test_data.definition.v3.dbn.frag"),
+            "--input-fragment",
+            "--split-by",
+            "day",
+            "--output-pattern",
+            &output_pattern,
+        ])
+        .assert()
+        .success()
+        .stdout(is_empty())
+        .stderr(is_empty());
+    let output_path = format!("{}/2020-12-27.json", output_dir.path().to_str().unwrap());
+    let contents = std::fs::read_to_string(&output_path).unwrap();
+    assert!(contents.contains("\"rtype\""), "Output should be JSON");
+    assert!(!contents.is_empty());
+}
+
+#[rstest]
+fn split_input_fragment_by_day_to_fragment(output_dir: TempDir) {
+    let output_pattern = format!("{}/{{date}}.dbn.frag", output_dir.path().to_str().unwrap());
+    cmd()
+        .args([
+            &format!("{TEST_DATA_PATH}/test_data.definition.v3.dbn.frag"),
+            "--input-fragment",
+            "--split-by",
+            "day",
+            "--output-pattern",
+            &output_pattern,
+        ])
+        .assert()
+        .success()
+        .stdout(is_empty())
+        .stderr(is_empty());
+    let output_path = format!(
+        "{}/2020-12-27.dbn.frag",
+        output_dir.path().to_str().unwrap()
+    );
+    // Verify file exists and is a fragment: no DBN header
+    let contents = std::fs::read(&output_path).unwrap();
+    assert_ne!(
+        &contents[..3],
+        b"DBN",
+        "Fragment should not have metadata header"
+    );
+    assert!(!contents.is_empty());
+}
+
+#[test]
+fn split_input_fragment_by_symbol_fails() {
+    cmd()
+        .args([
+            &format!("{TEST_DATA_PATH}/test_data.definition.v3.dbn.frag"),
+            "--input-fragment",
+            "--split-by",
+            "symbol",
+            "--output-pattern",
+            "{symbol}.dbn.frag",
+        ])
+        .assert()
+        .failure()
+        .stderr(contains("Cannot split by symbol when input is a fragment"));
+}
+
 #[test]
 fn help() {
     cmd()
