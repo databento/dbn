@@ -518,7 +518,7 @@ impl Dataset {
             Self::IfllImpact => &[Publisher::IfllImpactIfll, Publisher::IfllImpactXoff],
             Self::XeurEobi => &[Publisher::XeurEobiXeur, Publisher::XeurEobiXoff],
             Self::XeeeEobi => &[Publisher::XeeeEobiXeee, Publisher::XeeeEobiXoff],
-            Self::XcbfPitch => &[Publisher::XcbfPitchXcbf],
+            Self::XcbfPitch => &[Publisher::XcbfPitchXcbf, Publisher::XcbfPitchXoff],
         }
     }
 }
@@ -804,10 +804,12 @@ pub enum Publisher {
     XeeeEobiXoff = 104,
     /// Cboe Futures Exchange
     XcbfPitchXcbf = 105,
+    /// Cboe Futures Exchange - Off-Market Trades
+    XcbfPitchXoff = 106,
 }
 
 /// The number of [`Publisher`] variants.
-pub const PUBLISHER_COUNT: usize = 105;
+pub const PUBLISHER_COUNT: usize = 106;
 
 impl Publisher {
     /// Converts the publisher to its `str` representation.
@@ -918,6 +920,7 @@ impl Publisher {
             Self::XeurEobiXoff => "XEUR.EOBI.XOFF",
             Self::XeeeEobiXoff => "XEEE.EOBI.XOFF",
             Self::XcbfPitchXcbf => "XCBF.PITCH.XCBF",
+            Self::XcbfPitchXoff => "XCBF.PITCH.XOFF",
         }
     }
 
@@ -1029,6 +1032,7 @@ impl Publisher {
             Self::XeurEobiXoff => Venue::Xoff,
             Self::XeeeEobiXoff => Venue::Xoff,
             Self::XcbfPitchXcbf => Venue::Xcbf,
+            Self::XcbfPitchXoff => Venue::Xoff,
         }
     }
 
@@ -1140,6 +1144,7 @@ impl Publisher {
             Self::XeurEobiXoff => Dataset::XeurEobi,
             Self::XeeeEobiXoff => Dataset::XeeeEobi,
             Self::XcbfPitchXcbf => Dataset::XcbfPitch,
+            Self::XcbfPitchXoff => Dataset::XcbfPitch,
         }
     }
 
@@ -1254,6 +1259,7 @@ impl Publisher {
             (Dataset::XeurEobi, Venue::Xoff) => Ok(Self::XeurEobiXoff),
             (Dataset::XeeeEobi, Venue::Xoff) => Ok(Self::XeeeEobiXoff),
             (Dataset::XcbfPitch, Venue::Xcbf) => Ok(Self::XcbfPitchXcbf),
+            (Dataset::XcbfPitch, Venue::Xoff) => Ok(Self::XcbfPitchXoff),
             _ => Err(Error::conversion::<Self>(format!("({dataset}, {venue})"))),
         }
     }
@@ -1381,6 +1387,7 @@ impl std::str::FromStr for Publisher {
             "XEUR.EOBI.XOFF" => Ok(Self::XeurEobiXoff),
             "XEEE.EOBI.XOFF" => Ok(Self::XeeeEobiXoff),
             "XCBF.PITCH.XCBF" => Ok(Self::XcbfPitchXcbf),
+            "XCBF.PITCH.XOFF" => Ok(Self::XcbfPitchXoff),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }

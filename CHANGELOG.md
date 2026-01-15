@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.47.0 - TBD
+
+### Enhancements
+- Added new off-market publisher for Cboe Futures Exchange (`XCBF_PITCH_XOFF`)
+
 ## 0.46.0 - 2026-01-06
 
 ### Breaking changes
