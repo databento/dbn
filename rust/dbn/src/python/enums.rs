@@ -924,6 +924,10 @@ impl StatType {
             Self::Volatility => "VOLATILITY",
             Self::Delta => "DELTA",
             Self::UncrossingPrice => "UNCROSSING_PRICE",
+            Self::UpperPriceLimit => "UPPER_PRICE_LIMIT",
+            Self::LowerPriceLimit => "LOWER_PRICE_LIMIT",
+            Self::BlockVolume => "BLOCK_VOLUME",
+            Self::VenueSpecificVolume1 => "VENUE_SPECIFIC_VOLUME_1",
         }
     }
 

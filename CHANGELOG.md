@@ -5,6 +5,11 @@
 ### Enhancements
 - Changed the `__repr__` implementation of all records in Python to be more Pythonic
 - Added new off-market publisher for Cboe Futures Exchange (`XCBF_PITCH_XOFF`)
+- Added new `StatType` variants to be used by `XCBF.PITCH` dataset:
+  - `UpperPriceLimit`
+  - `LowerPriceLimit`
+  - `BlockVolume`
+  - `VenueSpecificVolume1`
 
 ## 0.46.0 - 2026-01-06
 

@@ -1026,6 +1026,20 @@ pub enum StatType {
     /// `quantity` will be set when provided by the venue.
     #[pyo3(name = "UNCROSSING_PRICE")]
     UncrossingPrice = 16,
+    /// The exchange defined upper price limit. `price` will be set with the standard precision.
+    #[pyo3(name = "UPPER_PRICE_LIMIT")]
+    UpperPriceLimit = 17,
+    /// The exchange defined lower price limit. `price` will be set with the standard precision.
+    #[pyo3(name = "LOWER_PRICE_LIMIT")]
+    LowerPriceLimit = 18,
+    /// The number of Block contracts cleared for an instrument on the previous trading date.
+    /// `quantity` will be set. `ts_ref` will indicate the trading date of the volume.
+    #[pyo3(name = "BLOCK_VOLUME")]
+    BlockVolume = 19,
+    /// A venue specific volume statistic. Refer to the venue documentation for more information.
+    /// `quantity` will be set.
+    #[pyo3(name = "VENUE_SPECIFIC_VOLUME_1")]
+    VenueSpecificVolume1 = 10001,
 }
 
 /// The type of [`StatMsg`](crate::record::StatMsg) update.
