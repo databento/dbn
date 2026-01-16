@@ -1,7 +1,9 @@
 //! Helper macros for working with multiple RTypes, Schemas, and types of records.
 
 // Re-export
-pub use dbn_macros::{dbn_record, CsvSerialize, DbnAttr, JsonSerialize, PyFieldDesc, RecordDebug};
+pub use dbn_macros::{
+    dbn_record, CsvSerialize, DbnAttr, JsonSerialize, PyFieldDesc, RecordDebug, WritePyRepr,
+};
 
 /// Base macro for type dispatch based on rtype.
 ///
@@ -531,7 +533,7 @@ macro_rules! schema_async_method_dispatch {
 
 #[cfg(test)]
 mod tests {
-    use crate::{record::HasRType, rtype, schema_dispatch};
+    use crate::{record::HasRType, rtype};
 
     struct Dummy {}
 

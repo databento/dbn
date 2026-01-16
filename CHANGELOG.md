@@ -3,6 +3,7 @@
 ## 0.47.0 - TBD
 
 ### Enhancements
+- Changed the `__repr__` implementation of all records in Python to be more Pythonic
 - Added new off-market publisher for Cboe Futures Exchange (`XCBF_PITCH_XOFF`)
 
 ## 0.46.0 - 2026-01-06

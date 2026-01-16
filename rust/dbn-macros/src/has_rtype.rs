@@ -8,7 +8,7 @@ use syn::{
     ExprPath, ItemStruct, Token,
 };
 
-use crate::dbn_attr::{find_dbn_attr_args, INDEX_TS_ATTR};
+use crate::dbn_attr::{find_dbn_attr_args, get_sorted_fields, INDEX_TS_ATTR};
 
 pub fn attribute_macro_impl(
     attr: proc_macro::TokenStream,
@@ -29,6 +29,7 @@ pub fn attribute_macro_impl(
     let rtypes = args.args.iter();
     let crate_name = crate::utils::crate_name();
     let impl_debug = crate::debug::record_debug_impl(&input_struct);
+    let impl_py_repr = get_py_repr_impl(&input_struct);
     quote! (
         #input_struct
 
@@ -70,8 +71,25 @@ pub fn attribute_macro_impl(
         }
 
         #impl_debug
+
+        #impl_py_repr
     )
     .into()
+}
+
+fn get_py_repr_impl(input_struct: &ItemStruct) -> TokenStream {
+    let syn::Fields::Named(fields) = &input_struct.fields else {
+        return quote!();
+    };
+    let sorted_fields = match get_sorted_fields(fields.clone()) {
+        Ok(fields) => fields,
+        Err(e) => return e.into_compile_error(),
+    };
+    let impl_body = crate::py_repr::py_repr_impl(&input_struct.ident, &sorted_fields);
+    quote! {
+        #[cfg(feature = "python")]
+        #impl_body
+    }
 }
 
 pub(crate) struct Args {

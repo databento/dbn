@@ -2,6 +2,12 @@
 //! to be able to implement [`pyo3`] traits for DBN types.
 #![allow(clippy::too_many_arguments)]
 
+mod conversions;
+mod enums;
+mod metadata;
+mod record;
+pub mod repr;
+
 use std::{convert::Infallible, fmt};
 
 use pyo3::{
@@ -15,10 +21,7 @@ use strum::IntoEnumIterator;
 
 use crate::{Error, FlagSet};
 
-mod conversions;
-mod enums;
-mod metadata;
-mod record;
+pub use self::repr::WritePyRepr;
 
 create_exception!(
     databento_dbn,

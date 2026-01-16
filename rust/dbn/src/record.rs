@@ -139,7 +139,7 @@ pub struct MboMsg {
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(dict, eq, module = "databento_dbn"),
-    derive(crate::macros::PyFieldDesc)
+    derive(crate::macros::PyFieldDesc, crate::macros::WritePyRepr)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[cfg_attr(test, derive(type_layout::TypeLayout))]
@@ -180,7 +180,7 @@ pub struct BidAskPair {
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(dict, eq, module = "databento_dbn"),
-    derive(crate::macros::PyFieldDesc)
+    derive(crate::macros::PyFieldDesc, crate::macros::WritePyRepr)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[cfg_attr(test, derive(type_layout::TypeLayout))]

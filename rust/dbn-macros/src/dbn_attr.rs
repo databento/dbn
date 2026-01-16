@@ -131,7 +131,11 @@ pub fn find_dbn_debug_attr(field: &Field) -> syn::Result<Option<Ident>> {
     let mut args: Vec<_> = find_dbn_attr_args(field)?
         .into_iter()
         .filter(|id| {
-            id == C_CHAR_ATTR || id == FIXED_PRICE_ATTR || id == FMT_BINARY || id == FMT_METHOD
+            id == C_CHAR_ATTR
+                || id == FIXED_PRICE_ATTR
+                || id == FMT_BINARY
+                || id == FMT_METHOD
+                || id == UNIX_NANOS_ATTR
         })
         .collect();
     match args.len() {

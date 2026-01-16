@@ -1455,3 +1455,18 @@ mod deserialize {
         }
     }
 }
+
+#[cfg(feature = "python")]
+mod python {
+    use std::fmt::{self, Write};
+
+    use crate::python::WritePyRepr;
+
+    use super::*;
+
+    impl WritePyRepr for Publisher {
+        fn write_py_repr(&self, s: &mut String) -> fmt::Result {
+            write!(s, "{} ({:?})", self.as_str(), *self as u16)
+        }
+    }
+}
