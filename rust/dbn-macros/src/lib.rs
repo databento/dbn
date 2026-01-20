@@ -4,6 +4,7 @@ mod dbn_attr;
 mod debug;
 mod has_rtype;
 mod py_field_desc;
+mod py_repr;
 mod serialize;
 mod utils;
 
@@ -111,6 +112,15 @@ pub fn dbn_record(attr: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_derive(RecordDebug, attributes(dbn))]
 pub fn derive_record_debug(input: TokenStream) -> TokenStream {
     debug::derive_impl(input)
+}
+
+/// Derive macro for Python-specific `__repr__` output.
+///
+/// Generates an implementation of `WritePyRepr` for the type.
+/// Uses the `dbn` attributes.
+#[proc_macro_derive(WritePyRepr, attributes(dbn))]
+pub fn derive_write_py_repr(input: TokenStream) -> TokenStream {
+    py_repr::derive_impl(input)
 }
 
 #[cfg(test)]

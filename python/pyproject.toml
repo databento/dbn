@@ -1,6 +1,6 @@
 [project]
 name = "databento-dbn"
-version = "0.46.0"
+version = "0.47.0"
 description = "Python bindings for encoding and decoding Databento Binary Encoding (DBN)"
 readme = "README.md"
 requires-python = ">=3.10"

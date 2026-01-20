@@ -3,10 +3,10 @@ use std::{ffi::c_char, mem};
 use pyo3::{conversion::IntoPyObjectExt, prelude::*};
 
 use crate::{
-    record::str_to_c_chars, rtype, v1, v2, Action, BboMsg, BidAskPair, CbboMsg, Cmbp1Msg,
-    ConsolidatedBidAskPair, ErrorCode, ErrorMsg, FlagSet, ImbalanceMsg, InstrumentClass,
-    InstrumentDefMsg, MatchAlgorithm, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, RType, Record,
-    RecordHeader, SType, SecurityUpdateAction, Side, StatMsg, StatType, StatUpdateAction,
+    python::WritePyRepr, record::str_to_c_chars, rtype, v1, v2, Action, BboMsg, BidAskPair,
+    CbboMsg, Cmbp1Msg, ConsolidatedBidAskPair, ErrorCode, ErrorMsg, FlagSet, ImbalanceMsg,
+    InstrumentClass, InstrumentDefMsg, MatchAlgorithm, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, RType,
+    Record, RecordHeader, SType, SecurityUpdateAction, Side, StatMsg, StatType, StatUpdateAction,
     StatusAction, StatusMsg, StatusReason, SymbolMappingMsg, SystemCode, SystemMsg, TradeMsg,
     TradingEvent, TriState, UserDefinedInstrument, UNDEF_ORDER_SIZE, UNDEF_PRICE, UNDEF_TIMESTAMP,
 };
@@ -69,7 +69,9 @@ impl MboMsg {
     }
 
     fn __repr__(&self) -> String {
-        format!("{self:?}")
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -220,7 +222,9 @@ impl BidAskPair {
     }
 
     fn __repr__(&self) -> String {
-        format!("{self:?}")
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -266,7 +270,9 @@ impl ConsolidatedBidAskPair {
     }
 
     fn __repr__(&self) -> String {
-        format!("{self:?}")
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -330,7 +336,9 @@ impl TradeMsg {
     }
 
     fn __repr__(&self) -> String {
-        format!("{self:?}")
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -504,7 +512,9 @@ impl Mbp1Msg {
     }
 
     fn __repr__(&self) -> String {
-        format!("{self:?}")
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -678,7 +688,9 @@ impl Mbp10Msg {
     }
 
     fn __repr__(&self) -> String {
-        format!("{self:?}")
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -848,7 +860,9 @@ impl BboMsg {
     }
 
     fn __repr__(&self) -> String {
-        format!("{self:?}")
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -1009,7 +1023,9 @@ impl Cmbp1Msg {
     }
 
     fn __repr__(&self) -> String {
-        format!("{self:?}")
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -1176,7 +1192,9 @@ impl CbboMsg {
     }
 
     fn __repr__(&self) -> String {
-        format!("{self:?}")
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -1326,7 +1344,9 @@ impl OhlcvMsg {
     }
 
     fn __repr__(&self) -> String {
-        format!("{self:?}")
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -1480,7 +1500,9 @@ impl StatusMsg {
     }
 
     fn __repr__(&self) -> String {
-        format!("{self:?}")
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -1860,7 +1882,9 @@ impl InstrumentDefMsg {
     }
 
     fn __repr__(&self) -> String {
-        format!("{self:?}")
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -2235,7 +2259,9 @@ impl ImbalanceMsg {
     }
 
     fn __repr__(&self) -> String {
-        format!("{self:?}")
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -2465,7 +2491,9 @@ impl StatMsg {
     }
 
     fn __repr__(&self) -> String {
-        format!("{self:?}")
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -2604,7 +2632,9 @@ impl ErrorMsg {
     }
 
     fn __repr__(&self) -> String {
-        format!("{self:?}")
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -2755,7 +2785,9 @@ impl SymbolMappingMsg {
     }
 
     fn __repr__(&self) -> String {
-        format!("{self:?}")
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -2899,7 +2931,9 @@ impl SystemMsg {
     }
 
     fn __repr__(&self) -> String {
-        format!("{self:?}")
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -3021,7 +3055,9 @@ impl v1::ErrorMsg {
     }
 
     fn __repr__(&self) -> String {
-        format!("{self:?}")
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -3328,7 +3364,9 @@ impl v1::InstrumentDefMsg {
     }
 
     fn __repr__(&self) -> String {
-        format!("{self:?}")
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -3618,7 +3656,9 @@ impl v1::StatMsg {
     }
 
     fn __repr__(&self) -> String {
-        format!("{self:?}")
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -3785,7 +3825,9 @@ impl v1::SymbolMappingMsg {
     }
 
     fn __repr__(&self) -> String {
-        format!("{self:?}")
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -3906,7 +3948,9 @@ impl v1::SystemMsg {
     }
 
     fn __repr__(&self) -> String {
-        format!("{self:?}")
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -4214,7 +4258,9 @@ impl v2::InstrumentDefMsg {
     }
 
     fn __repr__(&self) -> String {
-        format!("{self:?}")
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]

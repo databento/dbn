@@ -1,4 +1,5 @@
 use std::{
+    fmt::{self, Write},
     hash::{DefaultHasher, Hash, Hasher},
     str::FromStr,
 };
@@ -16,7 +17,7 @@ use crate::{
     StatusAction, StatusReason, SystemCode, TradingEvent, TriState, VersionUpgradePolicy,
 };
 
-use super::{to_py_err, EnumIterator, PyFieldDesc};
+use super::{to_py_err, EnumIterator, PyFieldDesc, WritePyRepr};
 
 #[pymethods]
 impl RType {
@@ -35,7 +36,9 @@ impl RType {
     }
 
     fn __repr__(&self) -> String {
-        format!("<RType.{}: {}>", self.name(), self.value())
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -111,6 +114,12 @@ impl RType {
     }
 }
 
+impl WritePyRepr for RType {
+    fn write_py_repr(&self, s: &mut String) -> fmt::Result {
+        write!(s, "<RType.{}: {}>", self.name(), self.value())
+    }
+}
+
 #[pymethods]
 impl Side {
     #[new]
@@ -129,7 +138,9 @@ impl Side {
     }
 
     fn __repr__(&self) -> String {
-        format!("<Side.{}: '{}'>", self.name(), self.value())
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -172,6 +183,12 @@ impl Side {
     }
 }
 
+impl WritePyRepr for Side {
+    fn write_py_repr(&self, s: &mut String) -> fmt::Result {
+        write!(s, "<Side.{}: '{}'>", self.name(), self.value())
+    }
+}
+
 #[pymethods]
 impl Action {
     #[new]
@@ -190,7 +207,9 @@ impl Action {
     }
 
     fn __repr__(&self) -> String {
-        format!("<Action.{}: '{}'>", self.name(), self.value())
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -237,6 +256,12 @@ impl Action {
     }
 }
 
+impl WritePyRepr for Action {
+    fn write_py_repr(&self, s: &mut String) -> fmt::Result {
+        write!(s, "<Action.{}: '{}'>", self.name(), self.value())
+    }
+}
+
 #[pymethods]
 impl InstrumentClass {
     #[new]
@@ -255,7 +280,9 @@ impl InstrumentClass {
     }
 
     fn __repr__(&self) -> String {
-        format!("<InstrumentClass.{}: '{}'>", self.name(), self.value())
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -305,6 +332,12 @@ impl InstrumentClass {
     }
 }
 
+impl WritePyRepr for InstrumentClass {
+    fn write_py_repr(&self, s: &mut String) -> fmt::Result {
+        write!(s, "<InstrumentClass.{}: '{}'>", self.name(), self.value())
+    }
+}
+
 #[pymethods]
 impl MatchAlgorithm {
     #[new]
@@ -323,7 +356,9 @@ impl MatchAlgorithm {
     }
 
     fn __repr__(&self) -> String {
-        format!("<MatchAlgorithm.{}: '{}'>", self.name(), self.value())
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -374,6 +409,12 @@ impl MatchAlgorithm {
     }
 }
 
+impl WritePyRepr for MatchAlgorithm {
+    fn write_py_repr(&self, s: &mut String) -> fmt::Result {
+        write!(s, "<MatchAlgorithm.{}: '{}'>", self.name(), self.value())
+    }
+}
+
 #[pymethods]
 impl UserDefinedInstrument {
     #[new]
@@ -392,11 +433,9 @@ impl UserDefinedInstrument {
     }
 
     fn __repr__(&self) -> String {
-        format!(
-            "<UserDefinedInstrument.{}: '{}'>",
-            self.name(),
-            self.value()
-        )
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -438,6 +477,17 @@ impl UserDefinedInstrument {
     }
 }
 
+impl WritePyRepr for UserDefinedInstrument {
+    fn write_py_repr(&self, s: &mut String) -> fmt::Result {
+        write!(
+            s,
+            "<UserDefinedInstrument.{}: '{}'>",
+            self.name(),
+            self.value()
+        )
+    }
+}
+
 impl PyFieldDesc for UserDefinedInstrument {
     fn field_dtypes(field_name: &str) -> Vec<(String, String)> {
         vec![(field_name.to_owned(), "S1".to_owned())]
@@ -462,7 +512,9 @@ impl SecurityUpdateAction {
     }
 
     fn __repr__(&self) -> String {
-        format!("<SecurityUpdateAction.{}: '{}'>", self.name(), self.value())
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -507,6 +559,17 @@ impl SecurityUpdateAction {
     }
 }
 
+impl WritePyRepr for SecurityUpdateAction {
+    fn write_py_repr(&self, s: &mut String) -> fmt::Result {
+        write!(
+            s,
+            "<SecurityUpdateAction.{}: '{}'>",
+            self.name(),
+            self.value()
+        )
+    }
+}
+
 impl PyFieldDesc for SecurityUpdateAction {
     fn field_dtypes(field_name: &str) -> Vec<(String, String)> {
         vec![(field_name.to_owned(), "S1".to_owned())]
@@ -530,7 +593,9 @@ impl SType {
     }
 
     fn __repr__(&self) -> String {
-        format!("<SType.{}: '{}'>", self.name(), self.value())
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -587,6 +652,12 @@ impl SType {
     }
 }
 
+impl WritePyRepr for SType {
+    fn write_py_repr(&self, s: &mut String) -> fmt::Result {
+        write!(s, "<SType.{}: '{}'>", self.name(), self.value())
+    }
+}
+
 #[pymethods]
 impl Schema {
     #[new]
@@ -604,7 +675,9 @@ impl Schema {
     }
 
     fn __repr__(&self) -> String {
-        format!("<Schema.{}: '{}'>", self.name(), self.value())
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -667,6 +740,12 @@ impl Schema {
     }
 }
 
+impl WritePyRepr for Schema {
+    fn write_py_repr(&self, s: &mut String) -> fmt::Result {
+        write!(s, "<Schema.{}: '{}'>", self.name(), self.value())
+    }
+}
+
 #[pymethods]
 impl Encoding {
     #[new]
@@ -684,7 +763,9 @@ impl Encoding {
     }
 
     fn __repr__(&self) -> String {
-        format!("<Encoding.{}: '{}'>", self.name(), self.value())
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -730,6 +811,12 @@ impl Encoding {
     }
 }
 
+impl WritePyRepr for Encoding {
+    fn write_py_repr(&self, s: &mut String) -> fmt::Result {
+        write!(s, "<Encoding.{}: '{}'>", self.name(), self.value())
+    }
+}
+
 #[pymethods]
 impl Compression {
     #[new]
@@ -747,7 +834,9 @@ impl Compression {
     }
 
     fn __repr__(&self) -> String {
-        format!("<Compression.{}: '{}'>", self.name(), self.value())
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -792,6 +881,12 @@ impl Compression {
     }
 }
 
+impl WritePyRepr for Compression {
+    fn write_py_repr(&self, s: &mut String) -> fmt::Result {
+        write!(s, "<Compression.{}: '{}'>", self.name(), self.value())
+    }
+}
+
 #[pymethods]
 impl StatType {
     #[new]
@@ -805,7 +900,9 @@ impl StatType {
     }
 
     fn __repr__(&self) -> String {
-        format!("<StatType.{}: {}>", self.name(), self.value())
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -827,6 +924,10 @@ impl StatType {
             Self::Volatility => "VOLATILITY",
             Self::Delta => "DELTA",
             Self::UncrossingPrice => "UNCROSSING_PRICE",
+            Self::UpperPriceLimit => "UPPER_PRICE_LIMIT",
+            Self::LowerPriceLimit => "LOWER_PRICE_LIMIT",
+            Self::BlockVolume => "BLOCK_VOLUME",
+            Self::VenueSpecificVolume1 => "VENUE_SPECIFIC_VOLUME_1",
         }
     }
 
@@ -854,6 +955,12 @@ impl StatType {
     }
 }
 
+impl WritePyRepr for StatType {
+    fn write_py_repr(&self, s: &mut String) -> fmt::Result {
+        write!(s, "<StatType.{}: {}>", self.name(), self.value())
+    }
+}
+
 #[pymethods]
 impl StatUpdateAction {
     #[new]
@@ -867,7 +974,9 @@ impl StatUpdateAction {
     }
 
     fn __repr__(&self) -> String {
-        format!("<StatUpdateAction.{}: {}>", self.name(), self.value())
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -902,6 +1011,12 @@ impl StatUpdateAction {
     }
 }
 
+impl WritePyRepr for StatUpdateAction {
+    fn write_py_repr(&self, s: &mut String) -> fmt::Result {
+        write!(s, "<StatUpdateAction.{}: {}>", self.name(), self.value())
+    }
+}
+
 #[pymethods]
 impl StatusAction {
     #[new]
@@ -915,7 +1030,9 @@ impl StatusAction {
     }
 
     fn __repr__(&self) -> String {
-        format!("<StatusAction.{}: {}>", self.name(), self.value())
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -964,6 +1081,12 @@ impl StatusAction {
     }
 }
 
+impl WritePyRepr for StatusAction {
+    fn write_py_repr(&self, s: &mut String) -> fmt::Result {
+        write!(s, "<StatusAction.{}: {}>", self.name(), self.value())
+    }
+}
+
 #[pymethods]
 impl StatusReason {
     #[new]
@@ -977,7 +1100,9 @@ impl StatusReason {
     }
 
     fn __repr__(&self) -> String {
-        format!("<StatusReason.{}: {}>", self.name(), self.value())
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -1044,6 +1169,12 @@ impl StatusReason {
     }
 }
 
+impl WritePyRepr for StatusReason {
+    fn write_py_repr(&self, s: &mut String) -> fmt::Result {
+        write!(s, "<StatusReason.{}: {}>", self.name(), self.value())
+    }
+}
+
 #[pymethods]
 impl TradingEvent {
     #[new]
@@ -1057,7 +1188,9 @@ impl TradingEvent {
     }
 
     fn __repr__(&self) -> String {
-        format!("<TradingEvent.{}: {}>", self.name(), self.value())
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -1095,6 +1228,12 @@ impl TradingEvent {
     }
 }
 
+impl WritePyRepr for TradingEvent {
+    fn write_py_repr(&self, s: &mut String) -> fmt::Result {
+        write!(s, "<TradingEvent.{}: {}>", self.name(), self.value())
+    }
+}
+
 #[pymethods]
 impl TriState {
     #[new]
@@ -1113,7 +1252,9 @@ impl TriState {
     }
 
     fn __repr__(&self) -> String {
-        format!("<TriState.{}: '{}'>", self.name(), self.value())
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -1159,6 +1300,12 @@ impl TriState {
     }
 }
 
+impl WritePyRepr for TriState {
+    fn write_py_repr(&self, s: &mut String) -> fmt::Result {
+        write!(s, "<TriState.{}: '{}'>", self.name(), self.value())
+    }
+}
+
 #[pymethods]
 impl VersionUpgradePolicy {
     fn __hash__(&self) -> isize {
@@ -1168,7 +1315,9 @@ impl VersionUpgradePolicy {
     }
 
     fn __repr__(&self) -> String {
-        format!("<VersionUpgradePolicy.{}>", self.name())
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -1193,6 +1342,12 @@ impl VersionUpgradePolicy {
     }
 }
 
+impl WritePyRepr for VersionUpgradePolicy {
+    fn write_py_repr(&self, s: &mut String) -> fmt::Result {
+        write!(s, "<VersionUpgradePolicy.{}>", self.name())
+    }
+}
+
 #[pymethods]
 impl ErrorCode {
     #[new]
@@ -1210,7 +1365,9 @@ impl ErrorCode {
     }
 
     fn __repr__(&self) -> String {
-        format!("<ErrorCode.{}: {}>", self.name(), self.value())
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -1260,6 +1417,12 @@ impl ErrorCode {
     }
 }
 
+impl WritePyRepr for ErrorCode {
+    fn write_py_repr(&self, s: &mut String) -> fmt::Result {
+        write!(s, "<ErrorCode.{}: {}>", self.name(), self.value())
+    }
+}
+
 #[pymethods]
 impl SystemCode {
     #[new]
@@ -1277,7 +1440,9 @@ impl SystemCode {
     }
 
     fn __repr__(&self) -> String {
-        format!("<SystemCode.{}: {}>", self.name(), self.value())
+        let mut s = String::new();
+        self.write_py_repr(&mut s).unwrap();
+        s
     }
 
     #[getter]
@@ -1323,5 +1488,11 @@ impl SystemCode {
     fn py_from_int(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
         let value: u8 = value.extract().map_err(to_py_err)?;
         Self::try_from(value).map_err(to_py_err)
+    }
+}
+
+impl WritePyRepr for SystemCode {
+    fn write_py_repr(&self, s: &mut String) -> fmt::Result {
+        write!(s, "<SystemCode.{}: {}>", self.name(), self.value())
     }
 }

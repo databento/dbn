@@ -34,8 +34,10 @@ pub struct PyFileLike {
     inner: Mutex<Py<PyAny>>,
 }
 
-impl<'py> FromPyObject<'py> for PyFileLike {
-    fn extract_bound(any: &Bound<'py, pyo3::PyAny>) -> PyResult<Self> {
+impl<'a, 'py> FromPyObject<'a, 'py> for PyFileLike {
+    type Error = PyErr;
+
+    fn extract(any: Borrowed<'a, 'py, pyo3::PyAny>) -> PyResult<Self> {
         Python::attach(|py| {
             let obj: Py<PyAny> = any.extract()?;
             if obj.getattr(py, intern!(py, "read")).is_err() {

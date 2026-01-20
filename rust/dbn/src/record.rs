@@ -139,7 +139,7 @@ pub struct MboMsg {
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(dict, eq, module = "databento_dbn"),
-    derive(crate::macros::PyFieldDesc)
+    derive(crate::macros::PyFieldDesc, crate::macros::WritePyRepr)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[cfg_attr(test, derive(type_layout::TypeLayout))]
@@ -180,7 +180,7 @@ pub struct BidAskPair {
 #[cfg_attr(
     feature = "python",
     pyo3::pyclass(dict, eq, module = "databento_dbn"),
-    derive(crate::macros::PyFieldDesc)
+    derive(crate::macros::PyFieldDesc, crate::macros::WritePyRepr)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[cfg_attr(test, derive(type_layout::TypeLayout))]
@@ -1315,7 +1315,7 @@ pub struct SymbolMappingMsg {
     #[dbn(fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub stype_in_symbol: [c_char; SYMBOL_CSTR_LEN],
-    /// The output symbology type of `stype_out_symbol`.
+    /// The output symbology type of `stype_out_symbol`. Will always be [`RawSymbol`](crate::SType::RawSymbol).
     #[dbn(fmt_method)]
     #[pyo3(get, set)]
     pub stype_out: u8,

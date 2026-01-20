@@ -808,6 +808,16 @@ class StatType(Enum):
         The auction uncrossing price. This is used for auctions that are neither the
         official opening auction nor the official closing auction. `price` will be set.
         `quantity` will be set when provided by the venue.
+    UPPER_PRICE_LIMIT
+        The exchange defined upper price limit. `price` will be set with the standard precision.
+    LOWER_PRICE_LIMIT
+        The exchange defined lower price limit. `price` will be set with the standard precision.
+    BLOCK_VOLUME
+        The number of Block contracts cleared for an instrument on the previous trading date.
+        `quantity` will be set. `ts_ref` will indicate the trading date of the volume.
+    VENUE_SPECIFIC_VOLUME_1
+        A venue specific volume statistic. Refer to the venue documentation for more information.
+        `quantity` will be set.
 
     """
 
@@ -827,6 +837,10 @@ class StatType(Enum):
     VOLATILITY: int
     DELTA: int
     UNCROSSING_PRICE: int
+    UPPER_PRICE_LIMIT: int
+    LOWER_PRICE_LIMIT: int
+    BLOCK_VOLUME: int
+    VENUE_SPECIFIC_VOLUME_1: int
 
     def __init__(self, value: int) -> None: ...
     @classmethod
@@ -6937,7 +6951,7 @@ class SymbolMappingMsg:
     @property
     def stype_out(self) -> SType | int:
         """
-        The output symbology type of `stype_out_symbol`.
+        The output symbology type of `stype_out_symbol`. Will always be `RAW_SYMBOL`.
 
         Returns
         -------
