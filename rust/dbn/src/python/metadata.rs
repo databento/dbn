@@ -124,8 +124,10 @@ impl<'py> IntoPyObject<'py> for SymbolMapping {
     }
 }
 
-impl<'py> FromPyObject<'py> for MappingInterval {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+impl<'a, 'py> FromPyObject<'a, 'py> for MappingInterval {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
         let start_date = ob
             .getattr(intern!(ob.py(), "start_date"))
             .map_err(|_| to_py_err("Missing start_date".to_owned()))
@@ -177,6 +179,6 @@ impl<'py> IntoPyObject<'py> for &MappingInterval {
 }
 
 fn extract_date(any: Bound<'_, PyAny>) -> PyResult<time::Date> {
-    let py_date = any.downcast::<PyDate>().map_err(PyErr::from)?;
+    let py_date = any.cast::<PyDate>().map_err(PyErr::from)?;
     py_to_time_date(py_date)
 }
