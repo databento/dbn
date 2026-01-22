@@ -265,7 +265,7 @@ mod r#async {
         pub fn with_buffer(reader: R, compression: Compression) -> Self {
             match compression {
                 Compression::None => Self(DynReaderImpl::Uncompressed(reader)),
-                Compression::Zstd => Self(DynReaderImpl::Zstd(ZstdDecoder::new(reader))),
+                Compression::Zstd => Self(DynReaderImpl::Zstd(zstd_decoder(reader))),
             }
         }
 
