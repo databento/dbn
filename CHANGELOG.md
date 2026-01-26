@@ -11,6 +11,7 @@
     different methods of splitting DBN files
   - Added split support to the CLI. For example:
     `dbn mbo.dbn --split-by week --output-pattern '{date}.json'` --json
+- Added new publisher for Blue Ocean ATS (`OCEA_MEMOIR_OCEA`)
 
 ## 0.47.0 - 2026-01-20
 
