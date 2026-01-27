@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.48.0 - TBD
+## 0.48.0 - 2026-01-27
 
 ### Enhancements
 - Added initial support for splitting DBN files:
@@ -12,6 +12,10 @@
   - Added split support to the CLI. For example:
     `dbn mbo.dbn --split-by week --output-pattern '{date}.json'` --json
 - Added new publisher for Blue Ocean ATS (`OCEA_MEMOIR_OCEA`)
+
+### Bug fixes
+- Fixed issue where `AsyncDynReader` instances created from `with_buffer()` would only
+  decode the first frame of multi-frame Zstandard files
 
 ## 0.47.0 - 2026-01-20
 
