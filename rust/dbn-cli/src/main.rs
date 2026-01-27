@@ -4,13 +4,16 @@ use std::{
     path::Path,
 };
 
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use clap::Parser;
 use dbn::decode::{
     DbnMetadata, DbnRecordDecoder, DecodeRecordRef, DynDecoder, MergeDecoder, MergeRecordDecoder,
 };
 use dbn_cli::{
-    encode::{encode_from_dbn, encode_from_frag, silence_broken_pipe},
+    encode::{
+        encode_from_dbn, encode_from_frag, silence_broken_pipe, split_encode_from_dbn,
+        split_encode_from_frag,
+    },
     filter::{LimitFilter, SchemaFilter},
     Args,
 };
@@ -90,7 +93,26 @@ fn with_inputs(args: Args) -> anyhow::Result<()> {
 }
 
 fn with_input(args: Args, reader: impl BufRead) -> anyhow::Result<()> {
-    if args.is_input_fragment {
+    if let Some(split_by) = args.split_by {
+        let Some(output_pattern) = &args.output_pattern else {
+            return Err(anyhow!(
+                "Must specify an output pattern when splitting files"
+            ));
+        };
+        if args.is_input_fragment {
+            split_encode_from_frag(&args, split_by, output_pattern, decode_frag(&args, reader)?)
+        } else if args.is_input_zstd_fragment {
+            split_encode_from_frag(
+                &args,
+                split_by,
+                output_pattern,
+                decode_frag(&args, zstd::stream::Decoder::with_buffer(reader)?)?,
+            )
+        } else {
+            let decoder = DynDecoder::inferred_with_buffer(reader, args.upgrade_policy())?;
+            split_encode_from_dbn(&args, split_by, output_pattern, wrap(&args, decoder))
+        }
+    } else if args.is_input_fragment {
         encode_from_frag(&args, decode_frag(&args, reader)?)
     } else if args.is_input_zstd_fragment {
         encode_from_frag(
@@ -111,6 +133,9 @@ fn with_input(args: Args, reader: impl BufRead) -> anyhow::Result<()> {
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     if args.input.len() > 1 {
+        if args.split_by.is_some() {
+            return Err(anyhow!("Can't split by files while merging files"));
+        }
         with_inputs(args)
     } else if args.input[0].as_os_str() == STDIN_SENTINEL {
         with_input(args, io::stdin().lock())

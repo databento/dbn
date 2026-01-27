@@ -16,15 +16,16 @@ name = "dbn"
 path = "src/main.rs"
 
 [dependencies]
-dbn = { path = "../dbn", version = "=0.47.0", default-features = false }
+dbn = { path = "../dbn", version = "=0.48.0", default-features = false }
 
-anyhow = { workspace = true }
+anyhow.workspace = true
 clap = { version = "4.5", features = ["derive", "wrap_help"] }
 serde = { workspace = true, features = ["derive"] }
-zstd = { workspace = true }
+time.workspace = true
+zstd.workspace = true
 
 [dev-dependencies]
 assert_cmd = "2.1"
 predicates = "3.1"
-rstest = { workspace = true }
 tempfile = "3.24"
+rstest.workspace = true
