@@ -10373,6 +10373,8 @@ class DBNDecoder:
         metadata.
     upgrade_policy : VersionUpgradePolicy, default UPGRADE
         How to decode data from prior DBN versions. Defaults to upgrade decoding.
+    compression : Compression, default NONE
+        The compression format of the input data. Use ZSTD for zstd-compressed data.
     """
 
     def __init__(
@@ -10381,6 +10383,7 @@ class DBNDecoder:
         ts_out: bool = False,
         input_version: int | None = None,
         upgrade_policy: VersionUpgradePolicy | None = None,
+        compression: Compression = Compression.NONE,
     ): ...
     def buffer(self) -> bytes:
         """

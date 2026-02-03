@@ -16,10 +16,10 @@ name = "databento_dbn" # Python modules can't contain dashes
 dbn = { path = "../rust/dbn", features = ["python"] }
 pyo3.workspace = true
 time.workspace = true
+zstd.workspace = true
 
 [build-dependencies]
 pyo3-build-config.workspace = true
 
 [dev-dependencies]
 rstest.workspace = true
-zstd.workspace = true

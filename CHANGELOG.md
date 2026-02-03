@@ -7,6 +7,8 @@
   efficient batch encoding
 - Added `encode_record_refs` to `EncodeRecordRef` and `AsyncEncodeRecordRef` traits with
   more efficient vectored I/O implementation for DBN
+- Added support for decompressing Zstd in the Python `DBNDecoder` and new optional
+  `compression` parameter
 
 ### Breaking changes
 - Moved `encode_records` method from the `EncodeDbn` trait to `EncodeRecord`
