@@ -149,6 +149,28 @@ pub trait EncodeRecordRef {
     /// This function returns an error if it's unable to write to the underlying writer
     /// or there's a serialization error.
     unsafe fn encode_record_ref_ts_out(&mut self, record: RecordRef, ts_out: bool) -> Result<()>;
+
+    /// Encodes a single DBN [`RecordRef`] with an appended `ts_out` timestamp.
+    ///
+    /// This writes the record with the header length modified to account for the
+    /// additional 8 bytes of `ts_out`.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to write to the underlying writer
+    /// or there's a serialization error.
+    fn encode_record_ref_with_ts_out(&mut self, record: RecordRef, ts_out: u64) -> Result<()>;
+
+    /// Encodes a slice of [`RecordRef`]s, each with the same appended `ts_out` timestamp.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to write to the underlying writer
+    /// or there's a serialization error.
+    fn encode_record_refs_with_ts_out(&mut self, records: &[RecordRef], ts_out: u64) -> Result<()> {
+        for record in records {
+            self.encode_record_ref_with_ts_out(*record, ts_out)?;
+        }
+        Ok(())
+    }
 }
 
 /// Trait for types that encode DBN records with a specific record type.
@@ -395,6 +417,49 @@ pub trait AsyncEncodeRecordRef {
         record_ref: RecordRef,
         ts_out: bool,
     ) -> Result<()>;
+
+    /// Encodes a single DBN [`RecordRef`] with an appended `ts_out` timestamp.
+    ///
+    /// This writes the record with the header length modified to account for the
+    /// additional 8 bytes of `ts_out`.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to write to the underlying writer
+    /// or there's a serialization error.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If this method is used in a
+    /// `tokio::select!` statement and another branch completes first, then the
+    /// record may have been partially written, but future calls will begin writing the
+    /// encoded record from the beginning.
+    async fn encode_record_ref_with_ts_out(
+        &mut self,
+        record_ref: RecordRef,
+        ts_out: u64,
+    ) -> Result<()>;
+
+    /// Encodes a slice of [`RecordRef`]s, each with the same appended `ts_out` timestamp.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to write to the underlying writer
+    /// or there's a serialization error.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If this method is used in a
+    /// `tokio::select!` statement and another branch completes first, then the
+    /// record may have been partially written, but future calls will begin writing the
+    /// encoded record from the beginning.
+    async fn encode_record_refs_with_ts_out(
+        &mut self,
+        record_refs: &[RecordRef<'_>],
+        ts_out: u64,
+    ) -> Result<()> {
+        for record_ref in record_refs {
+            self.encode_record_ref_with_ts_out(*record_ref, ts_out)
+                .await?;
+        }
+        Ok(())
+    }
 }
 
 /// Async extension trait for text encodings.

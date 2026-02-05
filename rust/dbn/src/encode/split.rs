@@ -113,6 +113,17 @@ where
         }
         Ok(())
     }
+
+    fn encode_record_ref_with_ts_out(
+        &mut self,
+        record: RecordRef,
+        ts_out: u64,
+    ) -> crate::Result<()> {
+        if let Some(encoder) = self.splitter.sub_encoder(self.metadata.as_ref(), &record)? {
+            encoder.encode_record_ref_with_ts_out(record, ts_out)?;
+        }
+        Ok(())
+    }
 }
 
 impl<S, E> EncodeRecordTextExt for SplitEncoder<S, E>
@@ -193,6 +204,22 @@ where
             .sub_encoder(self.metadata.as_ref(), &record_ref)?
         {
             encoder.encode_record_ref_ts_out(record_ref, ts_out).await?;
+        }
+        Ok(())
+    }
+
+    async fn encode_record_ref_with_ts_out(
+        &mut self,
+        record_ref: RecordRef<'_>,
+        ts_out: u64,
+    ) -> crate::Result<()> {
+        if let Some(encoder) = self
+            .splitter
+            .sub_encoder(self.metadata.as_ref(), &record_ref)?
+        {
+            encoder
+                .encode_record_ref_with_ts_out(record_ref, ts_out)
+                .await?;
         }
         Ok(())
     }
@@ -609,6 +636,14 @@ mod tests {
             &mut self,
             record: RecordRef,
             _ts_out: bool,
+        ) -> crate::Result<()> {
+            self.encode_record_ref(record)
+        }
+
+        fn encode_record_ref_with_ts_out(
+            &mut self,
+            record: RecordRef,
+            _ts_out: u64, // mock ignores ts_out
         ) -> crate::Result<()> {
             self.encode_record_ref(record)
         }
