@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.49.0 - TBD
+## 0.49.0 - 2026-02-17
 
 ### Enhancements
 - Added `encode_records` to `EncodeRecord` and `AsyncEncodeRecord` traits for more
@@ -19,7 +19,7 @@
 - Added initial support for splitting DBN files:
   - Added new `SplitEncoder` that supports synchronous and asynchronous encoding
   - Added new `Splitter` trait that allows for extensible splitting of files while
-    reusing the `SplitEncoder` boilerplate.
+    reusing the `SplitEncoder` boilerplate
   - Added `SchemaSplitter`, `SymbolSplitter`, and `TimeSplitter` which allow for
     different methods of splitting DBN files
   - Added split support to the CLI. For example:
