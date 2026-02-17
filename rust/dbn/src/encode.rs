@@ -4,6 +4,7 @@ pub mod csv;
 pub mod dbn;
 mod dyn_encoder;
 mod dyn_writer;
+mod io_utils;
 pub mod json;
 mod split;
 
@@ -62,6 +63,18 @@ pub trait EncodeRecord {
     /// or there's a serialization error.
     fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<()>;
 
+    /// Encodes a slice of DBN records.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to write to the underlying writer
+    /// or there's a serialization error.
+    fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> Result<()> {
+        for record in records {
+            self.encode_record(record)?;
+        }
+        Ok(())
+    }
+
     /// Flushes any buffered content to the true output.
     ///
     /// # Errors
@@ -78,6 +91,18 @@ pub trait EncodeRecordRef {
     /// or there's a serialization error.
     fn encode_record_ref(&mut self, record: RecordRef) -> Result<()>;
 
+    /// Encodes a slice of [`RecordRef`]s.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to write to the underlying writer
+    /// or there's a serialization error.
+    fn encode_record_refs(&mut self, records: &[RecordRef]) -> Result<()> {
+        for record in records {
+            self.encode_record_ref(*record)?;
+        }
+        Ok(())
+    }
+
     /// Encodes a single DBN [`RecordRef`] with an optional `ts_out` (see
     /// [`record::WithTsOut`](crate::record::WithTsOut)).
     ///
@@ -92,19 +117,6 @@ pub trait EncodeRecordRef {
 
 /// Trait for types that encode DBN records with a specific record type.
 pub trait EncodeDbn: EncodeRecord + EncodeRecordRef {
-    /// Encodes a slice of DBN records.
-    ///
-    /// # Errors
-    /// This function returns an error if it's unable to write to the underlying writer
-    /// or there's a serialization error.
-    fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> Result<()> {
-        for record in records {
-            self.encode_record(record)?;
-        }
-        self.flush()?;
-        Ok(())
-    }
-
     /// Encodes a stream of DBN records.
     ///
     /// # Errors
@@ -261,6 +273,24 @@ pub trait AsyncEncodeRecord {
     /// encoded record from the beginning.
     async fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<()>;
 
+    /// Encodes a slice of DBN records.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to write to the underlying writer
+    /// or there's a serialization error.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If this method is used in a
+    /// `tokio::select!` statement and another branch completes first, then the
+    /// record may have been partially written, but future calls will begin writing the
+    /// encoded record from the beginning.
+    async fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> Result<()> {
+        for record in records {
+            self.encode_record(record).await?;
+        }
+        Ok(())
+    }
+
     /// Flushes any buffered content to the true output.
     ///
     /// # Errors
@@ -290,6 +320,24 @@ pub trait AsyncEncodeRecordRef {
     /// record may have been partially written, but future calls will begin writing the
     /// encoded record from the beginning.
     async fn encode_record_ref(&mut self, record_ref: RecordRef) -> Result<()>;
+
+    /// Encodes a slice of [`RecordRef`]s.
+    ///
+    /// # Errors
+    /// This function returns an error if it's unable to write to the underlying writer
+    /// or there's a serialization error.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If this method is used in a
+    /// `tokio::select!` statement and another branch completes first, then the
+    /// record may have been partially written, but future calls will begin writing the
+    /// encoded record from the beginning.
+    async fn encode_record_refs(&mut self, record_refs: &[RecordRef<'_>]) -> Result<()> {
+        for record_ref in record_refs {
+            self.encode_record_ref(*record_ref).await?;
+        }
+        Ok(())
+    }
 
     /// Encodes a single DBN [`RecordRef`] with an optional `ts_out` (see
     /// [`record::WithTsOut`](crate::record::WithTsOut)).

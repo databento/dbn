@@ -1,12 +1,25 @@
 # Changelog
 
+## 0.49.0 - 2026-02-17
+
+### Enhancements
+- Added `encode_records` to `EncodeRecord` and `AsyncEncodeRecord` traits for more
+  efficient batch encoding
+- Added `encode_record_refs` to `EncodeRecordRef` and `AsyncEncodeRecordRef` traits with
+  more efficient vectored I/O implementation for DBN
+- Added support for decompressing Zstd in the Python `DBNDecoder` and new optional
+  `compression` parameter
+
+### Breaking changes
+- Moved `encode_records` method from the `EncodeDbn` trait to `EncodeRecord`
+
 ## 0.48.0 - 2026-01-27
 
 ### Enhancements
 - Added initial support for splitting DBN files:
   - Added new `SplitEncoder` that supports synchronous and asynchronous encoding
   - Added new `Splitter` trait that allows for extensible splitting of files while
-    reusing the `SplitEncoder` boilerplate.
+    reusing the `SplitEncoder` boilerplate
   - Added `SchemaSplitter`, `SymbolSplitter`, and `TimeSplitter` which allow for
     different methods of splitting DBN files
   - Added split support to the CLI. For example:

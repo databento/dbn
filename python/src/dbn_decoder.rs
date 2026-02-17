@@ -1,15 +1,17 @@
+use std::io::Write;
+
 use pyo3::{exceptions::PyRuntimeError, prelude::*, IntoPyObjectExt};
 
 use dbn::{
     decode::dbn::fsm::{DbnFsm, ProcessResult},
     python::to_py_err,
-    rtype_dispatch, HasRType, VersionUpgradePolicy,
+    rtype_dispatch, Compression, HasRType, VersionUpgradePolicy,
 };
 
 #[pyclass(module = "databento_dbn", name = "DBNDecoder")]
-#[derive(Debug)]
 pub struct DbnDecoder {
     fsm: DbnFsm,
+    zstd_decoder: Option<zstd::stream::write::Decoder<'static, Vec<u8>>>,
 }
 
 #[pymethods]
@@ -19,13 +21,15 @@ impl DbnDecoder {
         has_metadata = true,
         ts_out = false,
         input_version = None,
-        upgrade_policy = VersionUpgradePolicy::default()
+        upgrade_policy = VersionUpgradePolicy::default(),
+        compression = Compression::None,
     ))]
     fn new(
         has_metadata: bool,
         ts_out: bool,
         input_version: Option<u8>,
         upgrade_policy: VersionUpgradePolicy,
+        compression: Compression,
     ) -> PyResult<Self> {
         let fsm = DbnFsm::builder()
             .ts_out(ts_out)
@@ -40,15 +44,25 @@ impl DbnDecoder {
             })
             .build()
             .map_err(to_py_err)?;
-        Ok(Self { fsm })
-    }
-
-    fn __repr__(&self) -> String {
-        format!("{self:?}")
+        let zstd_decoder = match compression {
+            Compression::None => None,
+            Compression::Zstd => Some(
+                zstd::stream::write::Decoder::new(Vec::new())
+                    .map_err(|e| PyErr::new::<PyRuntimeError, _>(e.to_string()))?,
+            ),
+        };
+        Ok(Self { fsm, zstd_decoder })
     }
 
     fn write(&mut self, bytes: &[u8]) -> PyResult<()> {
-        self.fsm.write_all(bytes);
+        if let Some(zstd_decoder) = &mut self.zstd_decoder {
+            zstd_decoder
+                .write_all(bytes)
+                .map_err(|e| PyErr::new::<PyRuntimeError, _>(e.to_string()))?;
+        } else {
+            self.fsm.write_all(bytes)
+        }
+
         Ok(())
     }
 
@@ -57,6 +71,18 @@ impl DbnDecoder {
     }
 
     fn decode(&mut self, py: Python<'_>) -> PyResult<Vec<Py<PyAny>>> {
+        // Flush all decompressed data to FSM
+        if let Some(zstd_decoder) = &mut self.zstd_decoder {
+            zstd_decoder
+                .flush()
+                .map_err(|e| PyErr::new::<PyRuntimeError, _>(e.to_string()))?;
+            let decompressed = zstd_decoder.get_mut();
+            if !decompressed.is_empty() {
+                self.fsm.write_all(decompressed);
+                decompressed.clear();
+            }
+        }
+
         let mut ts_out = self.fsm.ts_out();
         let mut py_recs = Vec::new();
         loop {
@@ -96,7 +122,7 @@ mod tests {
     use dbn::{
         encode::{dbn::Encoder, EncodeRecord},
         enums::{rtype, SType, Schema},
-        record::{ErrorMsg, OhlcvMsg, RecordHeader},
+        record::{ErrorMsg, OhlcvMsg, RecordHeader, SystemMsg},
         Dataset, MetadataBuilder,
     };
     use pyo3::{ffi::c_str, types::PyDict, types::PyString};
@@ -108,8 +134,14 @@ mod tests {
     #[rstest]
     fn test_partial_metadata_and_records(_python: ()) {
         Python::attach(|py| {
-            let mut target =
-                DbnDecoder::new(true, false, None, VersionUpgradePolicy::default()).unwrap();
+            let mut target = DbnDecoder::new(
+                true,
+                false,
+                None,
+                VersionUpgradePolicy::default(),
+                Compression::None,
+            )
+            .unwrap();
             let buffer = Vec::new();
             let mut encoder = Encoder::new(
                 buffer,
@@ -150,8 +182,14 @@ mod tests {
 
     #[rstest]
     fn test_full_with_partial_record(_python: ()) {
-        let mut decoder =
-            DbnDecoder::new(true, false, None, VersionUpgradePolicy::default()).unwrap();
+        let mut decoder = DbnDecoder::new(
+            true,
+            false,
+            None,
+            VersionUpgradePolicy::default(),
+            Compression::None,
+        )
+        .unwrap();
         let buffer = Vec::new();
         let mut encoder = Encoder::new(
             buffer,
@@ -365,5 +403,78 @@ for r in records[1:]:
             )
         })
         .unwrap();
+    }
+
+    #[rstest]
+    fn test_dbn_decoder_with_zstd_compression(_python: ()) {
+        Python::attach(|py| {
+            let path = PyString::new(
+                py,
+                concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/../tests/data/test_data.mbo.v3.dbn.zst"
+                ),
+            );
+            let globals = PyDict::new(py);
+            globals.set_item("path", path).unwrap();
+            Python::run(
+                py,
+                c_str!(
+                    r#"from _lib import DBNDecoder, Compression
+
+decoder = DBNDecoder(compression=Compression.ZSTD)
+with open(path, 'rb') as f:
+    decoder.write(f.read())
+records = decoder.decode()
+assert len(records) == 3  # metadata + 2 records
+"#
+                ),
+                Some(&globals),
+                None,
+            )
+            .unwrap();
+        });
+    }
+
+    #[rstest]
+    fn test_dbn_decoder_with_two_zstd_frames(_python: ()) {
+        Python::attach(|py| {
+            let buffer = Vec::new();
+            let mut encoder = Encoder::new(
+                buffer,
+                &MetadataBuilder::new()
+                    .dataset(Dataset::XnasItch.to_string())
+                    .schema(Some(Schema::Trades))
+                    .stype_in(Some(SType::RawSymbol))
+                    .stype_out(SType::InstrumentId)
+                    .start(0)
+                    .build(),
+            )
+            .unwrap();
+            let rec1 = SystemMsg::new(1680708278000000000, None, "first").unwrap();
+            let rec2 = SystemMsg::new(1680708279000000000, None, "second").unwrap();
+            encoder.encode_record(&rec1).unwrap();
+            let split = encoder.get_ref().len();
+            encoder.encode_record(&rec2).unwrap();
+            let dbn_bytes = encoder.get_ref();
+
+            // Compress as two separate zstd frames
+            let frame1 = zstd::encode_all(std::io::Cursor::new(&dbn_bytes[..split]), 0).unwrap();
+            let frame2 = zstd::encode_all(std::io::Cursor::new(&dbn_bytes[split..]), 0).unwrap();
+
+            let mut target = DbnDecoder::new(
+                true,
+                false,
+                None,
+                VersionUpgradePolicy::default(),
+                Compression::Zstd,
+            )
+            .unwrap();
+            target.write(&frame1).unwrap();
+            target.write(&frame2).unwrap();
+            let records = target.decode(py).unwrap();
+            // metadata + 2 records
+            assert_eq!(records.len(), 3);
+        });
     }
 }

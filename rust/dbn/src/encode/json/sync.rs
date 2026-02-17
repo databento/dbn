@@ -3,7 +3,7 @@ use std::io;
 use super::serialize::{to_json_in_buf, to_json_with_sym_in_buf};
 use crate::{
     encode::{DbnEncodable, EncodeDbn, EncodeRecord, EncodeRecordRef, EncodeRecordTextExt},
-    rtype_dispatch, Error, Metadata, Result,
+    rtype_dispatch, Error, Metadata, RecordRef, Result,
 };
 
 /// Type for encoding files and streams of DBN records in JSON lines.
@@ -94,10 +94,10 @@ where
     ) -> Self {
         Self {
             writer,
+            buf: String::new(),
             should_pretty_print,
             use_pretty_px,
             use_pretty_ts,
-            buf: String::new(),
         }
     }
 
@@ -145,6 +145,11 @@ where
         );
     }
 
+    /// Writes to `self.buf`, but not the writer.
+    fn encode_ref_to_buf(&mut self, record: RecordRef<'_>) -> crate::Result<()> {
+        rtype_dispatch!(record, self.encode_to_buf())
+    }
+
     fn write_buf<F>(&mut self, handle_err: F) -> crate::Result<()>
     where
         F: FnOnce(io::Error) -> Error,
@@ -168,6 +173,13 @@ where
         self.write_buf(|e| Error::io(e, format!("writing record {record:?}")))
     }
 
+    fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> Result<()> {
+        for record in records {
+            self.encode_to_buf(record);
+        }
+        self.write_buf(|e| Error::io(e, format!("writing {} records", records.len())))
+    }
+
     fn flush(&mut self) -> Result<()> {
         self.writer
             .flush()
@@ -179,15 +191,18 @@ impl<W> EncodeRecordRef for Encoder<W>
 where
     W: io::Write,
 {
-    fn encode_record_ref(&mut self, record: crate::RecordRef) -> Result<()> {
+    fn encode_record_ref(&mut self, record: RecordRef) -> Result<()> {
         rtype_dispatch!(record, self.encode_record())?
     }
 
-    unsafe fn encode_record_ref_ts_out(
-        &mut self,
-        record: crate::RecordRef,
-        ts_out: bool,
-    ) -> Result<()> {
+    fn encode_record_refs(&mut self, records: &[RecordRef]) -> Result<()> {
+        for record in records {
+            self.encode_ref_to_buf(*record)?;
+        }
+        self.write_buf(|e| Error::io(e, format!("writing {} records", records.len())))
+    }
+
+    unsafe fn encode_record_ref_ts_out(&mut self, record: RecordRef, ts_out: bool) -> Result<()> {
         rtype_dispatch!(record, ts_out: ts_out, self.encode_record())?
     }
 }

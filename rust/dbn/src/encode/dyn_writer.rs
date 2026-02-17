@@ -173,6 +173,28 @@ mod r#async {
                 DynBufWriterImpl::Zstd(enc) => io::AsyncWrite::poll_shutdown(Pin::new(enc), cx),
             }
         }
+
+        fn poll_write_vectored(
+            mut self: Pin<&mut Self>,
+            cx: &mut Context<'_>,
+            bufs: &[std::io::IoSlice<'_>],
+        ) -> Poll<io::Result<usize>> {
+            match &mut self.0 {
+                DynBufWriterImpl::Uncompressed(w) => {
+                    io::AsyncWrite::poll_write_vectored(Pin::new(w), cx, bufs)
+                }
+                DynBufWriterImpl::Zstd(enc) => {
+                    io::AsyncWrite::poll_write_vectored(Pin::new(enc), cx, bufs)
+                }
+            }
+        }
+
+        fn is_write_vectored(&self) -> bool {
+            match &self.0 {
+                DynBufWriterImpl::Uncompressed(w) => w.is_write_vectored(),
+                DynBufWriterImpl::Zstd(enc) => enc.is_write_vectored(),
+            }
+        }
     }
 
     /// An object that allows for abstracting over compressed and uncompressed output.
@@ -246,6 +268,28 @@ mod r#async {
             match &mut self.0 {
                 DynWriterImpl::Uncompressed(w) => io::AsyncWrite::poll_shutdown(Pin::new(w), cx),
                 DynWriterImpl::Zstd(enc) => io::AsyncWrite::poll_shutdown(Pin::new(enc), cx),
+            }
+        }
+
+        fn poll_write_vectored(
+            mut self: Pin<&mut Self>,
+            cx: &mut Context<'_>,
+            bufs: &[std::io::IoSlice<'_>],
+        ) -> Poll<io::Result<usize>> {
+            match &mut self.0 {
+                DynWriterImpl::Uncompressed(w) => {
+                    io::AsyncWrite::poll_write_vectored(Pin::new(w), cx, bufs)
+                }
+                DynWriterImpl::Zstd(enc) => {
+                    io::AsyncWrite::poll_write_vectored(Pin::new(enc), cx, bufs)
+                }
+            }
+        }
+
+        fn is_write_vectored(&self) -> bool {
+            match &self.0 {
+                DynWriterImpl::Uncompressed(w) => w.is_write_vectored(),
+                DynWriterImpl::Zstd(enc) => enc.is_write_vectored(),
             }
         }
     }

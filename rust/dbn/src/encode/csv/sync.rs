@@ -273,6 +273,14 @@ where
         }
     }
 
+    fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> Result<()> {
+        for record in records {
+            self.encode_record(record)?;
+        }
+        self.flush()?;
+        Ok(())
+    }
+
     fn flush(&mut self) -> Result<()> {
         self.writer
             .flush()
@@ -301,14 +309,6 @@ impl<W> EncodeDbn for Encoder<W>
 where
     W: io::Write,
 {
-    fn encode_records<R: DbnEncodable>(&mut self, records: &[R]) -> Result<()> {
-        for record in records {
-            self.encode_record(record)?;
-        }
-        self.flush()?;
-        Ok(())
-    }
-
     /// Encodes a stream of DBN records.
     ///
     /// # Errors

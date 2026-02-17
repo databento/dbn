@@ -47,8 +47,7 @@ impl<D: DecodeRecordRef> DecodeRecordRef for SchemaFilter<D> {
         while let Some(record) = self.decoder.decode_record_ref()? {
             if self
                 .rtype
-                .map(|rtype| rtype as u8 == record.header().rtype)
-                .unwrap_or(true)
+                .is_none_or(|rtype| rtype as u8 == record.header().rtype)
             {
                 // Safe: casting reference to pointer so the pointer will always be valid.
                 // Getting around borrow checker limitation.
@@ -109,8 +108,7 @@ impl<D: DecodeRecordRef> DecodeRecordRef for LimitFilter<D> {
     fn decode_record_ref(&mut self) -> dbn::Result<Option<RecordRef<'_>>> {
         if self
             .limit
-            .map(|limit| self.record_count >= limit.get())
-            .unwrap_or(false)
+            .is_some_and(|limit| self.record_count >= limit.get())
         {
             return Ok(None);
         }

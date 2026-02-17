@@ -503,9 +503,7 @@ mod tests {
     use super::*;
     use crate::{
         decode::{tests::TEST_DATA_PATH, DynReader},
-        encode::{
-            dbn::Encoder, DbnEncodable, DbnRecordEncoder, DynWriter, EncodeDbn, EncodeRecord,
-        },
+        encode::{dbn::Encoder, DbnEncodable, DbnRecordEncoder, DynWriter, EncodeRecord},
         rtype, v1, v2, v3, Compression, Dataset, Error, ErrorMsg, MboMsg, MetadataBuilder,
         OhlcvMsg, Record, RecordHeader, Result, SType, Schema, WithTsOut,
     };
