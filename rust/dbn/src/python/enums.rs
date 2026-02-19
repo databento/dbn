@@ -1379,6 +1379,7 @@ impl ErrorCode {
             Self::SymbolResolutionFailed => "SYMBOL_RESOLUTION_FAILED",
             Self::InvalidSubscription => "INVALID_SUBSCRIPTION",
             Self::InternalError => "INTERNAL_ERROR",
+            Self::SkippedRecordsAfterSlowReading => "SKIPPED_RECORDS_AFTER_SLOW_READING",
             Self::Unset => "UNSET",
         }
     }
