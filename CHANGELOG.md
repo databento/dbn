@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.51.0 - TBD
+
+### Enhancements
+- Added logic to set `code` when upgrading version 1 `ErrorMsg` to newer versions
+
 ## 0.50.0 - 2026-02-24
 
 ### Enhancements
