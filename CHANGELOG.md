@@ -5,6 +5,9 @@
 ### Enhancements
 - Added logic to set `code` when upgrading version 1 `ErrorMsg` to newer versions
 
+### Bug fixes
+- Fixed miri issue with potential for unaligned data when decoding DBN through `DbnFsm`
+
 ## 0.50.0 - 2026-02-24
 
 ### Enhancements

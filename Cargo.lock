@@ -267,7 +267,6 @@ dependencies = [
  "itoa",
  "json-writer",
  "num_enum",
- "oval",
  "pyo3",
  "rstest",
  "serde",
@@ -638,12 +637,6 @@ name = "once_cell_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
-
-[[package]]
-name = "oval"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "135cef32720c6746450d910890b0b69bcba2bbf6f85c9f4583df13fe415de828"
 
 [[package]]
 name = "pin-project-lite"
