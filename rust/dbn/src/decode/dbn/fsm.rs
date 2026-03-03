@@ -7,7 +7,7 @@ use std::{
     str::Utf8Error,
 };
 
-use oval::Buffer;
+use super::aligned_buffer::AlignedBuffer;
 
 use crate::{
     decode::{
@@ -25,8 +25,8 @@ pub struct DbnFsm {
     upgrade_policy: VersionUpgradePolicy,
     ts_out: bool,
     state: State,
-    buffer: oval::Buffer,
-    compat_buffer: oval::Buffer,
+    buffer: AlignedBuffer,
+    compat_buffer: AlignedBuffer,
 }
 
 impl std::fmt::Debug for DbnFsm {
@@ -113,8 +113,8 @@ impl DbnFsm {
             ts_out: false,
             upgrade_policy: VersionUpgradePolicy::default(),
             state: State::default(),
-            buffer: Buffer::with_capacity(buffer_size),
-            compat_buffer: Buffer::with_capacity(compat_size),
+            buffer: AlignedBuffer::with_capacity(buffer_size),
+            compat_buffer: AlignedBuffer::with_capacity(compat_size),
         }
     }
 
@@ -917,8 +917,8 @@ impl DbnFsmBuilder {
             upgrade_policy: self.upgrade_policy,
             ts_out: self.ts_out,
             state,
-            buffer: Buffer::with_capacity(self.buffer_size),
-            compat_buffer: Buffer::with_capacity(self.compat_size.unwrap_or_else(|| {
+            buffer: AlignedBuffer::with_capacity(self.buffer_size),
+            compat_buffer: AlignedBuffer::with_capacity(self.compat_size.unwrap_or_else(|| {
                 if self.skip_metadata
                     && self
                         .input_dbn_version
@@ -1061,8 +1061,8 @@ impl Default for DbnFsm {
             ts_out: false,
             upgrade_policy: VersionUpgradePolicy::default(),
             state: State::default(),
-            buffer: Buffer::with_capacity(Self::DEFAULT_BUF_SIZE),
-            compat_buffer: Buffer::with_capacity(0),
+            buffer: AlignedBuffer::with_capacity(Self::DEFAULT_BUF_SIZE),
+            compat_buffer: AlignedBuffer::with_capacity(0),
         }
     }
 }
@@ -1496,19 +1496,24 @@ mod tests {
         #[case] exp_ver: Option<DbnVersion>,
         #[case] upgrade_policy: VersionUpgradePolicy,
     ) {
-        let mut buf = Vec::new();
-        let mut encoder = DbnRecordEncoder::new(&mut buf);
+        // Use u64 arrays to guarantee 8-byte alignment for RecordRef
+        let mut buf_storage = [0u64; MAX_RECORD_LEN / 8];
+        let buf_bytes: &mut [u8] = unsafe {
+            std::slice::from_raw_parts_mut(buf_storage.as_mut_ptr().cast::<u8>(), MAX_RECORD_LEN)
+        };
+        let mut cursor = std::io::Cursor::new(&mut *buf_bytes);
+        let mut encoder = DbnRecordEncoder::new(&mut cursor);
         encoder.encode_record(&rec).unwrap();
+        let written = cursor.position() as usize;
+        let buf = &buf_bytes[..written];
+
+        let mut compat_storage = [0u64; MAX_RECORD_LEN / 8];
+        let compat_buf: &mut [u8] = unsafe {
+            std::slice::from_raw_parts_mut(compat_storage.as_mut_ptr().cast::<u8>(), MAX_RECORD_LEN)
+        };
         let mut ver = None;
-        let mut compat_buf = vec![0; MAX_RECORD_LEN];
         let (rem_compat, rec) = unsafe {
-            DbnFsm::upgrade_record_detect_version(
-                &mut ver,
-                upgrade_policy,
-                false,
-                &buf,
-                &mut compat_buf,
-            )
+            DbnFsm::upgrade_record_detect_version(&mut ver, upgrade_policy, false, buf, compat_buf)
         };
         assert!(rem_compat.len() < MAX_RECORD_LEN - size_of::<R>());
         assert!(rec.is_some());

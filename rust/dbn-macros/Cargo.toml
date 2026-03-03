@@ -12,11 +12,11 @@ proc-macro = true
 
 [dependencies]
 proc-macro-crate = "3.4.0"
-proc-macro2 = "1.0.105"
-quote = "1.0.43"
+proc-macro2 = "1.0.106"
+quote = "1.0.44"
 syn = { version = "2.0", features = ["full"] }
 
 [dev-dependencies]
 csv = { workspace = true }
 dbn = { path = "../dbn" }
-trybuild = "1.0.114"
+trybuild = "1.0.116"

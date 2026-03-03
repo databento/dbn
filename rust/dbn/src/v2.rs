@@ -19,7 +19,7 @@ use std::os::raw::c_char;
 
 use crate::{
     compat::{InstrumentDefRec, SymbolMappingRec},
-    rtype, v1, RecordHeader, SystemCode,
+    rtype, v1, ErrorCode, RecordHeader, SystemCode,
 };
 
 /// The DBN version of this module.
@@ -112,6 +112,19 @@ impl From<&v1::ErrorMsg> for ErrorMsg {
             ),
             ..Default::default()
         };
+        if let Ok(err) = old.err() {
+            if err == "User or API key deactivated" {
+                new.code = ErrorCode::ApiKeyDeactivated as u8;
+            } else if err == "User has reached their open connection limit" {
+                new.code = ErrorCode::ConnectionLimitExceeded as u8;
+            } else if err.starts_with("Failed to resolve symbol") {
+                new.code = ErrorCode::SymbolResolutionFailed as u8;
+            } else if err == "Internal error" {
+                new.code = ErrorCode::InternalError as u8;
+            } else if err.starts_with("Slow client detected for ") {
+                new.code = ErrorCode::SkippedRecordsAfterSlowReading as u8;
+            }
+        }
         new.err[..old.err.len()].copy_from_slice(old.err.as_slice());
         new
     }
