@@ -26,6 +26,10 @@ F_MBP: int
 F_BAD_TS_RECV: int
 F_MAYBE_BAD_BOOK: int
 F_PUBLISHER_SPECIFIC: int
+SYMBOL_CSTR_LEN: int
+SYMBOL_CSTR_LEN_V1: int
+SYMBOL_CSTR_LEN_V2: int
+SYMBOL_CSTR_LEN_V3: int
 
 class DBNError(Exception):
     """

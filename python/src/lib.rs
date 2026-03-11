@@ -14,8 +14,8 @@ use dbn::{
     Mbp10Msg, Mbp1Msg, Metadata, OhlcvMsg, RType, SType, Schema, SecurityUpdateAction, Side,
     StatMsg, StatType, StatUpdateAction, StatusAction, StatusMsg, StatusReason, SymbolMappingMsg,
     SystemCode, SystemMsg, TradeMsg, TradingEvent, TriState, UserDefinedInstrument,
-    VersionUpgradePolicy, DBN_VERSION, FIXED_PRICE_SCALE, UNDEF_ORDER_SIZE, UNDEF_PRICE,
-    UNDEF_STAT_QUANTITY, UNDEF_TIMESTAMP,
+    VersionUpgradePolicy, DBN_VERSION, FIXED_PRICE_SCALE, SYMBOL_CSTR_LEN, UNDEF_ORDER_SIZE,
+    UNDEF_PRICE, UNDEF_STAT_QUANTITY, UNDEF_TIMESTAMP,
 };
 
 mod dbn_decoder;
@@ -87,6 +87,10 @@ fn databento_dbn(_py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     // constants
     m.add("DBN_VERSION", DBN_VERSION)?;
     m.add("FIXED_PRICE_SCALE", FIXED_PRICE_SCALE)?;
+    m.add("SYMBOL_CSTR_LEN", SYMBOL_CSTR_LEN)?;
+    m.add("SYMBOL_CSTR_LEN_V1", dbn::compat::SYMBOL_CSTR_LEN_V1)?;
+    m.add("SYMBOL_CSTR_LEN_V2", dbn::compat::SYMBOL_CSTR_LEN_V2)?;
+    m.add("SYMBOL_CSTR_LEN_V3", dbn::compat::SYMBOL_CSTR_LEN_V3)?;
     m.add("UNDEF_PRICE", UNDEF_PRICE)?;
     m.add("UNDEF_ORDER_SIZE", UNDEF_ORDER_SIZE)?;
     m.add("UNDEF_STAT_QUANTITY", UNDEF_STAT_QUANTITY)?;
