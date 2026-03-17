@@ -8,6 +8,7 @@
   module (`v1`, `v2`, `v3`) as `SYMBOL_CSTR_LEN`
 - Added `v1`, `v2`, and `v3` submodule imports to `databento_dbn.__init__` so they are
   accessible as attributes (e.g. `databento_dbn.v1`)
+- Upgraded `pyo3` version to 0.28.2
 
 ## 0.51.0 - 2026-03-03
 

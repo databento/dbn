@@ -43,7 +43,7 @@ impl From<Error> for PyErr {
 }
 
 /// Python iterator over the variants of an enum.
-#[pyclass(module = "databento_dbn")]
+#[pyclass(skip_from_py_object, module = "databento_dbn")]
 pub struct EnumIterator {
     // Type erasure for code reuse. Generic types can't be exposed to Python.
     iter: Box<dyn Iterator<Item = Py<PyAny>> + Send + Sync>,
