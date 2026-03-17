@@ -1,4 +1,5 @@
 # ruff: noqa: F401
+from ._lib import SYMBOL_CSTR_LEN_V1 as SYMBOL_CSTR_LEN
 from ._lib import BBOMsg
 from ._lib import CBBOMsg
 from ._lib import CMBP1Msg

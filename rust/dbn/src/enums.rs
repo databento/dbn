@@ -23,7 +23,7 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
-    pyo3::pyclass(module = "databento_dbn")
+    pyo3::pyclass(from_py_object, module = "databento_dbn")
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
 #[repr(u8)]
@@ -265,7 +265,7 @@ impl Display for RType {
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
-    pyo3::pyclass(module = "databento_dbn")
+    pyo3::pyclass(from_py_object, module = "databento_dbn")
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -310,7 +310,7 @@ impl From<Side> for char {
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
-    pyo3::pyclass(module = "databento_dbn")
+    pyo3::pyclass(from_py_object, module = "databento_dbn")
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -356,7 +356,7 @@ impl From<Action> for char {
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
-    pyo3::pyclass(module = "databento_dbn")
+    pyo3::pyclass(from_py_object, module = "databento_dbn")
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -418,7 +418,7 @@ impl From<InstrumentClass> for char {
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
-    pyo3::pyclass(module = "databento_dbn")
+    pyo3::pyclass(from_py_object, module = "databento_dbn")
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -492,7 +492,7 @@ impl From<MatchAlgorithm> for char {
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
-    pyo3::pyclass(module = "databento_dbn")
+    pyo3::pyclass(from_py_object, module = "databento_dbn")
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -530,7 +530,7 @@ impl From<UserDefinedInstrument> for char {
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
-    pyo3::pyclass(module = "databento_dbn")
+    pyo3::pyclass(from_py_object, module = "databento_dbn")
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -567,7 +567,7 @@ impl From<SecurityUpdateAction> for char {
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
-    pyo3::pyclass(module = "databento_dbn")
+    pyo3::pyclass(from_py_object, module = "databento_dbn")
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
 #[repr(u8)]
@@ -687,7 +687,7 @@ impl Display for SType {
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
-    pyo3::pyclass(module = "databento_dbn")
+    pyo3::pyclass(from_py_object, module = "databento_dbn")
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
 #[repr(u16)]
@@ -839,7 +839,7 @@ impl Display for Schema {
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
-    pyo3::pyclass(module = "databento_dbn")
+    pyo3::pyclass(from_py_object, module = "databento_dbn")
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
 #[repr(u8)]
@@ -898,7 +898,7 @@ impl Display for Encoding {
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
-    pyo3::pyclass(module = "databento_dbn")
+    pyo3::pyclass(from_py_object, module = "databento_dbn")
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
 #[repr(u8)]
@@ -952,7 +952,7 @@ impl Display for Compression {
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
-    pyo3::pyclass(module = "databento_dbn")
+    pyo3::pyclass(from_py_object, module = "databento_dbn")
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
 #[non_exhaustive]
@@ -1059,7 +1059,7 @@ pub enum StatType {
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
-    pyo3::pyclass(module = "databento_dbn")
+    pyo3::pyclass(from_py_object, module = "databento_dbn")
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
 #[non_exhaustive]
@@ -1091,7 +1091,7 @@ pub enum StatUpdateAction {
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
-    pyo3::pyclass(module = "databento_dbn")
+    pyo3::pyclass(from_py_object, module = "databento_dbn")
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
 #[non_exhaustive]
@@ -1166,7 +1166,7 @@ pub enum StatusAction {
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
-    pyo3::pyclass(module = "databento_dbn")
+    pyo3::pyclass(from_py_object, module = "databento_dbn")
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
 #[non_exhaustive]
@@ -1297,7 +1297,7 @@ pub enum StatusReason {
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
-    pyo3::pyclass(module = "databento_dbn")
+    pyo3::pyclass(from_py_object, module = "databento_dbn")
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
 #[non_exhaustive]
@@ -1339,7 +1339,7 @@ pub enum TradingEvent {
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
-    pyo3::pyclass(module = "databento_dbn")
+    pyo3::pyclass(from_py_object, module = "databento_dbn")
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -1368,7 +1368,7 @@ impl From<TriState> for char {
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
-    pyo3::pyclass(module = "databento_dbn")
+    pyo3::pyclass(from_py_object, module = "databento_dbn")
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
 pub enum VersionUpgradePolicy {
@@ -1405,7 +1405,7 @@ pub enum VersionUpgradePolicy {
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
-    pyo3::pyclass(module = "databento_dbn")
+    pyo3::pyclass(from_py_object, module = "databento_dbn")
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
 #[non_exhaustive]
@@ -1502,7 +1502,7 @@ impl Display for ErrorCode {
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
-    pyo3::pyclass(module = "databento_dbn")
+    pyo3::pyclass(from_py_object, module = "databento_dbn")
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
 #[non_exhaustive]
