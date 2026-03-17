@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.52.0 - TBD
+## 0.52.0 - 2026-03-17
 
 ### Enhancements
 - Added `SYMBOL_CSTR_LEN` constant and versioned variants (`SYMBOL_CSTR_LEN_V1`,
