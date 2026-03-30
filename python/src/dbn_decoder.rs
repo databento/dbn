@@ -525,4 +525,71 @@ assert len(records) == 3  # metadata + 2 records
             assert_eq!(records.len(), 3);
         });
     }
+
+    /// Mirrors test_full_with_partial_record but uses decode_raw().
+    /// Verifies: control records → Python objects, data records → bytes,
+    /// and ts_out is correctly applied to control records after metadata.
+    #[rstest]
+    fn test_decode_raw(_python: ()) {
+        let mut decoder = DbnDecoder::new(
+            true,
+            false,
+            None,
+            VersionUpgradePolicy::default(),
+            Compression::None,
+        )
+        .unwrap();
+        let mut encoder = Encoder::new(
+            Vec::new(),
+            &MetadataBuilder::new()
+                .dataset(Dataset::XnasItch.to_string())
+                .schema(Some(Schema::Ohlcv1S))
+                .stype_in(Some(SType::RawSymbol))
+                .stype_out(SType::InstrumentId)
+                .start(0)
+                .ts_out(true)
+                .build(),
+        )
+        .unwrap();
+        // ErrorMsg (control) + OhlcvMsg (data), both wrapped with ts_out.
+        let error = dbn::record::WithTsOut::new(
+            ErrorMsg::new(1680708278000000000, None, "Python", true),
+            42,
+        );
+        let data = dbn::record::WithTsOut::new(
+            OhlcvMsg {
+                hd: RecordHeader::new::<OhlcvMsg>(rtype::OHLCV_1S, 1, 1, 1681228173000000000),
+                open: 100,
+                high: 200,
+                low: 50,
+                close: 150,
+                volume: 1000,
+            },
+            99,
+        );
+        encoder.encode_record(&error).unwrap();
+        encoder.encode_record(&data).unwrap();
+
+        decoder.write(encoder.get_ref()).unwrap();
+
+        Python::attach(|py| {
+            let records = decoder.decode_raw(py).unwrap();
+            assert_eq!(records.len(), 3, "expected Metadata + ErrorMsg + OhlcvMsg");
+
+            // [0] Metadata
+            assert!(records[0].bind(py).is_instance_of::<dbn::Metadata>());
+
+            // [1] ErrorMsg — control record, decoded as Python object with ts_out
+            let error_obj = records[1].bind(py);
+            assert!(error_obj.is_instance_of::<ErrorMsg>());
+            assert!(error_obj.hasattr("ts_out").unwrap(), "ts_out missing after metadata");
+
+            // [2] OhlcvMsg — data record, returned as raw bytes
+            let data_obj = records[2].bind(py);
+            assert!(data_obj.is_instance_of::<pyo3::types::PyBytes>());
+            let raw: &[u8] = data_obj.extract().unwrap();
+            // Raw bytes include ts_out suffix: OhlcvMsg size + 8
+            assert_eq!(raw.len(), std::mem::size_of::<OhlcvMsg>() + 8);
+        });
+    }
 }
