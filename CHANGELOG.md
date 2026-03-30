@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.52.1 - TBD
+## 0.52.1 - 2026-03-31
 
 ### Enhancements
 - Added `__index__` to all int-representable and char-backed Python enums, enabling
