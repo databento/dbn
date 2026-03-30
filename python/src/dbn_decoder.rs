@@ -5,7 +5,7 @@ use pyo3::{exceptions::PyRuntimeError, prelude::*, IntoPyObjectExt};
 use dbn::{
     decode::dbn::fsm::{DbnFsm, ProcessResult},
     python::to_py_err,
-    rtype_dispatch, Compression, HasRType, VersionUpgradePolicy,
+    rtype_dispatch, Compression, HasRType, Record, VersionUpgradePolicy,
 };
 
 #[pyclass(module = "databento_dbn", name = "DBNDecoder")]
@@ -71,17 +71,7 @@ impl DbnDecoder {
     }
 
     fn decode(&mut self, py: Python<'_>) -> PyResult<Vec<Py<PyAny>>> {
-        // Flush all decompressed data to FSM
-        if let Some(zstd_decoder) = &mut self.zstd_decoder {
-            zstd_decoder
-                .flush()
-                .map_err(|e| PyErr::new::<PyRuntimeError, _>(e.to_string()))?;
-            let decompressed = zstd_decoder.get_mut();
-            if !decompressed.is_empty() {
-                self.fsm.write_all(decompressed);
-                decompressed.clear();
-            }
-        }
+        self.flush_to_fsm()?;
 
         let mut ts_out = self.fsm.ts_out();
         let mut py_recs = Vec::new();
@@ -114,6 +104,64 @@ impl DbnDecoder {
                 ProcessResult::Err(error) => return Err(PyErr::from(error)),
             }
         }
+    }
+
+    fn decode_raw(&mut self, py: Python<'_>) -> PyResult<Vec<Py<PyAny>>> {
+        self.flush_to_fsm()?;
+
+        let mut ts_out = self.fsm.ts_out();
+        let mut py_recs = Vec::new();
+        loop {
+            match self.fsm.process() {
+                ProcessResult::ReadMore(_) => return Ok(py_recs),
+                ProcessResult::Metadata(metadata) => {
+                    ts_out = self.fsm.ts_out();
+                    py_recs.push(metadata.into_py_any(py)?)
+                }
+                ProcessResult::Record(_) => {
+                    let rec = self.fsm.last_record().ok_or_else(|| {
+                        PyRuntimeError::new_err("Error while decoding DBN stream")
+                    })?;
+                    let is_control = rec.rtype().ok().map_or(false, |r| matches!(
+                        r,
+                        dbn::RType::Error | dbn::RType::SymbolMapping | dbn::RType::System
+                    ));
+                    if is_control {
+                        // Control records: still decoded as Python objects.
+                        fn push_rec<'py, R>(rec: &R, py: Python<'py>, py_recs: &mut Vec<Py<PyAny>>)
+                        where
+                            R: Clone + HasRType + IntoPyObject<'py>,
+                        {
+                            py_recs.push(rec.clone().into_py_any(py).unwrap());
+                        }
+                        rtype_dispatch!(rec, ts_out: ts_out, push_rec(py, &mut py_recs))
+                            .map_err(PyErr::from)?;
+                    } else {
+                        // Data records: return raw bytes, no Python object overhead.
+                        let raw: &[u8] = rec.as_ref();
+                        py_recs.push(pyo3::types::PyBytes::new(py, raw).into_py_any(py)?);
+                    }
+                }
+                ProcessResult::Err(error) => return Err(PyErr::from(error)),
+            }
+        }
+    }
+}
+
+impl DbnDecoder {
+    /// Flush any buffered zstd-decompressed data into the FSM.
+    fn flush_to_fsm(&mut self) -> PyResult<()> {
+        if let Some(zstd_decoder) = &mut self.zstd_decoder {
+            zstd_decoder
+                .flush()
+                .map_err(|e| PyErr::new::<PyRuntimeError, _>(e.to_string()))?;
+            let decompressed = zstd_decoder.get_mut();
+            if !decompressed.is_empty() {
+                self.fsm.write_all(decompressed);
+                decompressed.clear();
+            }
+        }
+        Ok(())
     }
 }
 

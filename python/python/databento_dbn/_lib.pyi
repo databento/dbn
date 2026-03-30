@@ -10423,6 +10423,28 @@ class DBNDecoder:
 
         """
 
+    def decode_raw(
+        self,
+    ) -> list[Metadata | bytes | DBNRecord]:
+        """
+        Decode the buffered data. Only control records are decoded, data
+        records are returned as raw bytes.
+
+        Returns
+        -------
+        list[Metadata | bytes | DBNRecord]
+
+        Raises
+        ------
+        DBNError
+            When the decoding fails.
+
+        See Also
+        --------
+        decode
+
+        """
+
     def write(
         self,
         bytes: bytes,
