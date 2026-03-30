@@ -29,15 +29,11 @@ mod transcoder;
 fn databento_dbn(_py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     fn checked_add_class<T: PyClass>(m: &Bound<PyModule>) -> PyResult<()> {
         // ensure a module was specified, otherwise it defaults to builtins
-        let module = T::type_object(m.py())
-            .getattr("__module__")
-            .and_then(|m| m.extract::<String>())
-            .unwrap_or_default();
-        assert_eq!(module, "databento_dbn");
+        assert_eq!(T::MODULE.unwrap(), "databento_dbn");
         m.add_class::<T>()
     }
     // all functions exposed to Python need to be added here
-    m.add_function(wrap_pyfunction!(encode::update_encoded_metadata, m)?)?;
+    m.add_wrapped(wrap_pyfunction!(encode::update_encoded_metadata))?;
     m.add("DBNError", m.py().get_type::<DBNError>())?;
     checked_add_class::<EnumIterator>(m)?;
     checked_add_class::<Metadata>(m)?;

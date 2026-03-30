@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.52.1 - TBD
+
+### Bug fixes
+- Fixed memory leak in Python bindings where every record object leaked ~64 bytes
+  due to a `pyo3` 0.28 regression in `#[pyclass(dict)]` deallocation. Downgraded
+  `pyo3` to 0.27.2
+- Removed unnecessary `dict` from `BidAskPair` and `ConsolidatedBidAskPair` Python
+  classes
+
 ## 0.52.0 - 2026-03-17
 
 ### Enhancements

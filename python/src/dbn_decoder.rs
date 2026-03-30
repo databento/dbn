@@ -436,6 +436,56 @@ assert len(records) == 3  # metadata + 2 records
         });
     }
 
+    /// Regression test for per-object memory leak when creating and destroying records.
+    /// Uses tracemalloc to measure allocated memory, which
+    /// is reliable even when co-running with other tests in the same process.
+    #[rstest]
+    fn test_record_no_memory_leak(_python: ()) {
+        Python::attach(|py| {
+            Python::run(
+                py,
+                c_str!(
+                    r#"import gc
+import tracemalloc
+from _lib import MBOMsg, Action, Side
+
+n = 500_000
+
+# Warmup
+for _ in range(10_000):
+    rec = MBOMsg(1, 1, 0, 1, 100, 10, Action.ADD, Side.BID, 0)
+    del rec
+gc.collect()
+
+tracemalloc.start()
+baseline = tracemalloc.get_traced_memory()[0]
+
+for _ in range(n):
+    rec = MBOMsg(1, 1, 0, 1, 100, 10, Action.ADD, Side.BID, 0)
+    del rec
+
+gc.collect()
+current = tracemalloc.get_traced_memory()[0]
+tracemalloc.stop()
+
+growth = current - baseline
+
+# Without leaks, current memory should stay near baseline since
+# only one record exists at a time. Allow 1 MB for noise.
+assert growth < 1_000_000, (
+    f"Possible memory leak: traced memory grew by {growth / 1_000_000:.1f} MB "
+    f"after {n:_} create/delete cycles "
+    f"({growth / n:.1f} bytes/record)"
+)
+"#
+                ),
+                Some(&PyDict::new(py)),
+                None,
+            )
+            .unwrap();
+        });
+    }
+
     #[rstest]
     fn test_dbn_decoder_with_two_zstd_frames(_python: ()) {
         Python::attach(|py| {
