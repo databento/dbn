@@ -29,15 +29,11 @@ mod transcoder;
 fn databento_dbn(_py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     fn checked_add_class<T: PyClass>(m: &Bound<PyModule>) -> PyResult<()> {
         // ensure a module was specified, otherwise it defaults to builtins
-        let module = T::type_object(m.py())
-            .getattr("__module__")
-            .and_then(|m| m.extract::<String>())
-            .unwrap_or_default();
-        assert_eq!(module, "databento_dbn");
+        assert_eq!(T::MODULE.unwrap(), "databento_dbn");
         m.add_class::<T>()
     }
     // all functions exposed to Python need to be added here
-    m.add_function(wrap_pyfunction!(encode::update_encoded_metadata, m)?)?;
+    m.add_wrapped(wrap_pyfunction!(encode::update_encoded_metadata))?;
     m.add("DBNError", m.py().get_type::<DBNError>())?;
     checked_add_class::<EnumIterator>(m)?;
     checked_add_class::<Metadata>(m)?;
@@ -265,6 +261,121 @@ assert val == variant
 assert hash(val) == hash(variant), f"{val = }, {variant = } {hash(val) = }, {hash(variant) = }""#
                 ),
                 Some(&globals),
+                None,
+            )
+            .unwrap();
+        });
+    }
+
+    #[rstest]
+    #[case("RType", "MBO", RType::Mbo as u32)]
+    #[case("Schema", "MBO", Schema::Mbo as u32)]
+    #[case("Action", "TRADE", b'T' as u32)]
+    #[case("Side", "BID", b'B' as u32)]
+    #[case("InstrumentClass", "CALL", b'C' as u32)]
+    fn test_enum_index(
+        _python: (),
+        #[case] enum_name: &str,
+        #[case] variant: &str,
+        #[case] expected: u32,
+    ) {
+        Python::attach(|py| {
+            let globals = PyDict::new(py);
+            globals.set_item("enum_name", enum_name).unwrap();
+            globals.set_item("variant", variant).unwrap();
+            globals.set_item("expected", expected).unwrap();
+            Python::run(
+                py,
+                c_str!(
+                    r#"import _lib as db
+import operator
+
+enum_type = getattr(db, enum_name)
+variant = getattr(enum_type, variant)
+assert operator.index(variant) == expected, f"{operator.index(variant)} != {expected}"
+assert hex(variant) == hex(expected)
+"#
+                ),
+                Some(&globals),
+                None,
+            )
+            .unwrap();
+        });
+    }
+
+    #[rstest]
+    fn test_record_size_is_method(_python: ()) {
+        Python::attach(|py| {
+            Python::run(
+                py,
+                c_str!(
+                    r#"from _lib import MBOMsg, Action, Side
+
+msg = MBOMsg(
+    publisher_id=1,
+    instrument_id=2,
+    ts_event=3,
+    order_id=4,
+    price=5,
+    size=6,
+    action=Action.ADD,
+    side=Side.BID,
+    ts_recv=7,
+)
+# record_size is a method, not a property
+assert callable(msg.record_size)
+assert msg.record_size() > 0
+assert msg.record_size() == msg.size_hint
+"#
+                ),
+                Some(&PyDict::new(py)),
+                None,
+            )
+            .unwrap();
+        });
+    }
+
+    #[rstest]
+    fn test_record_field_setters(_python: ()) {
+        Python::attach(|py| {
+            Python::run(
+                py,
+                c_str!(
+                    r#"from _lib import MBOMsg, Action, Side
+
+msg = MBOMsg(
+    publisher_id=1,
+    instrument_id=2,
+    ts_event=3,
+    order_id=4,
+    price=5,
+    size=6,
+    action=Action.ADD,
+    side=Side.BID,
+    ts_recv=7,
+)
+# Test header field setters
+msg.publisher_id = 10
+assert msg.publisher_id == 10
+msg.instrument_id = 20
+assert msg.instrument_id == 20
+msg.ts_event = 30
+assert msg.ts_event == 30
+
+# Test plain int field setter
+msg.price = 100
+assert msg.price == 100
+msg.size = 200
+assert msg.size == 200
+
+# Test try_into field setter
+msg.action = Action.CANCEL
+assert msg.action == Action.CANCEL
+msg.side = Side.ASK
+assert msg.side == Side.ASK
+"#
+                ),
+                Some(&PyDict::new(py)),
                 None,
             )
             .unwrap();

@@ -35,6 +35,10 @@ impl RType {
         self.as_str()
     }
 
+    fn __index__(&self) -> u8 {
+        *self as u8
+    }
+
     fn __repr__(&self) -> String {
         let mut s = String::new();
         self.write_py_repr(&mut s).unwrap();
@@ -137,6 +141,10 @@ impl Side {
         format!("{}", *self as u8 as char)
     }
 
+    fn __index__(&self) -> u8 {
+        *self as u8
+    }
+
     fn __repr__(&self) -> String {
         let mut s = String::new();
         self.write_py_repr(&mut s).unwrap();
@@ -204,6 +212,10 @@ impl Action {
 
     fn __str__(&self) -> String {
         format!("{}", *self as u8 as char)
+    }
+
+    fn __index__(&self) -> u8 {
+        *self as u8
     }
 
     fn __repr__(&self) -> String {
@@ -277,6 +289,10 @@ impl InstrumentClass {
 
     fn __str__(&self) -> String {
         format!("{}", *self as u8 as char)
+    }
+
+    fn __index__(&self) -> u8 {
+        *self as u8
     }
 
     fn __repr__(&self) -> String {
@@ -353,6 +369,10 @@ impl MatchAlgorithm {
 
     fn __str__(&self) -> String {
         format!("{}", *self as u8 as char)
+    }
+
+    fn __index__(&self) -> u8 {
+        *self as u8
     }
 
     fn __repr__(&self) -> String {
@@ -432,6 +452,10 @@ impl UserDefinedInstrument {
         format!("{}", *self as u8 as char)
     }
 
+    fn __index__(&self) -> u8 {
+        *self as u8
+    }
+
     fn __repr__(&self) -> String {
         let mut s = String::new();
         self.write_py_repr(&mut s).unwrap();
@@ -509,6 +533,10 @@ impl SecurityUpdateAction {
 
     fn __str__(&self) -> String {
         format!("{}", *self as u8 as char)
+    }
+
+    fn __index__(&self) -> u8 {
+        *self as u8
     }
 
     fn __repr__(&self) -> String {
@@ -592,6 +620,10 @@ impl SType {
         self.as_str()
     }
 
+    fn __index__(&self) -> u8 {
+        *self as u8
+    }
+
     fn __repr__(&self) -> String {
         let mut s = String::new();
         self.write_py_repr(&mut s).unwrap();
@@ -672,6 +704,10 @@ impl Schema {
 
     fn __str__(&self) -> &'static str {
         self.as_str()
+    }
+
+    fn __index__(&self) -> u16 {
+        *self as u16
     }
 
     fn __repr__(&self) -> String {
@@ -762,6 +798,10 @@ impl Encoding {
         self.as_str()
     }
 
+    fn __index__(&self) -> u8 {
+        *self as u8
+    }
+
     fn __repr__(&self) -> String {
         let mut s = String::new();
         self.write_py_repr(&mut s).unwrap();
@@ -833,6 +873,10 @@ impl Compression {
         self.as_str()
     }
 
+    fn __index__(&self) -> u8 {
+        *self as u8
+    }
+
     fn __repr__(&self) -> String {
         let mut s = String::new();
         self.write_py_repr(&mut s).unwrap();
@@ -897,6 +941,10 @@ impl StatType {
 
     fn __hash__(&self, py: Python<'_>) -> PyResult<isize> {
         PyInt::new(py, self.value()).hash()
+    }
+
+    fn __index__(&self) -> u16 {
+        *self as u16
     }
 
     fn __repr__(&self) -> String {
@@ -973,6 +1021,10 @@ impl StatUpdateAction {
         PyInt::new(py, self.value()).hash()
     }
 
+    fn __index__(&self) -> u8 {
+        *self as u8
+    }
+
     fn __repr__(&self) -> String {
         let mut s = String::new();
         self.write_py_repr(&mut s).unwrap();
@@ -1027,6 +1079,10 @@ impl StatusAction {
 
     fn __hash__(&self, py: Python<'_>) -> PyResult<isize> {
         PyInt::new(py, self.value()).hash()
+    }
+
+    fn __index__(&self) -> u16 {
+        *self as u16
     }
 
     fn __repr__(&self) -> String {
@@ -1097,6 +1153,10 @@ impl StatusReason {
 
     fn __hash__(&self, py: Python<'_>) -> PyResult<isize> {
         PyInt::new(py, self.value()).hash()
+    }
+
+    fn __index__(&self) -> u16 {
+        *self as u16
     }
 
     fn __repr__(&self) -> String {
@@ -1187,6 +1247,10 @@ impl TradingEvent {
         PyInt::new(py, self.value()).hash()
     }
 
+    fn __index__(&self) -> u16 {
+        *self as u16
+    }
+
     fn __repr__(&self) -> String {
         let mut s = String::new();
         self.write_py_repr(&mut s).unwrap();
@@ -1249,6 +1313,10 @@ impl TriState {
 
     fn __str__(&self) -> String {
         format!("{}", *self as u8 as char)
+    }
+
+    fn __index__(&self) -> u8 {
+        *self as u8
     }
 
     fn __repr__(&self) -> String {
@@ -1364,6 +1432,10 @@ impl ErrorCode {
         self.as_str()
     }
 
+    fn __index__(&self) -> u8 {
+        *self as u8
+    }
+
     fn __repr__(&self) -> String {
         let mut s = String::new();
         self.write_py_repr(&mut s).unwrap();
@@ -1438,6 +1510,10 @@ impl SystemCode {
 
     fn __str__(&self) -> &'static str {
         self.as_str()
+    }
+
+    fn __index__(&self) -> u8 {
+        *self as u8
     }
 
     fn __repr__(&self) -> String {

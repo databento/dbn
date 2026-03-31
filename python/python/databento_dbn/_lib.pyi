@@ -329,6 +329,7 @@ class RType(Enum):
     BBO_1M: int
 
     def __init__(self, value: int) -> None: ...
+    def __index__(self) -> int: ...
     @classmethod
     def from_str(cls, value: str) -> RType: ...
     @classmethod
@@ -358,6 +359,7 @@ class Side(Enum):
     NONE: str
 
     def __init__(self, value: str) -> None: ...
+    def __index__(self) -> int: ...
     @classmethod
     def from_str(cls, value: str) -> Side: ...
     @classmethod
@@ -399,6 +401,7 @@ class Action(Enum):
     NONE: str
 
     def __init__(self, value: str) -> None: ...
+    def __index__(self) -> int: ...
     @classmethod
     def from_str(cls, value: str) -> Action: ...
     @classmethod
@@ -448,6 +451,7 @@ class InstrumentClass(Enum):
     COMMODITY_SPOT: str
 
     def __init__(self, value: str) -> None: ...
+    def __index__(self) -> int: ...
     @classmethod
     def from_str(cls, value: str) -> InstrumentClass: ...
     @classmethod
@@ -503,6 +507,7 @@ class MatchAlgorithm(Enum):
     INSTITUTIONAL_PRIORITIZATION: str
 
     def __init__(self, value: str) -> None: ...
+    def __index__(self) -> int: ...
     @classmethod
     def from_str(cls, value: str) -> MatchAlgorithm: ...
     @classmethod
@@ -528,6 +533,7 @@ class UserDefinedInstrument(Enum):
     YES: str
 
     def __init__(self, value: str) -> None: ...
+    def __index__(self) -> int: ...
     @classmethod
     def from_str(cls, value: str) -> UserDefinedInstrument: ...
     @classmethod
@@ -556,6 +562,7 @@ class SecurityUpdateAction(Enum):
     INVALID: str
 
     def __init__(self, value: str) -> None: ...
+    def __index__(self) -> int: ...
     @classmethod
     def from_str(cls, value: str) -> SecurityUpdateAction: ...
     @classmethod
@@ -616,6 +623,7 @@ class SType(Enum):
     FIGI_TICKER: str
 
     def __init__(self, value: str) -> None: ...
+    def __index__(self) -> int: ...
     @classmethod
     def from_str(cls, value: str) -> SType: ...
     @classmethod
@@ -702,6 +710,7 @@ class Schema(Enum):
     BBO_1M: str
 
     def __init__(self, value: str) -> None: ...
+    def __index__(self) -> int: ...
     @classmethod
     def from_str(cls, value: str) -> Schema: ...
     @classmethod
@@ -727,6 +736,7 @@ class Encoding(Enum):
     JSON: str
 
     def __init__(self, value: str) -> None: ...
+    def __index__(self) -> int: ...
     @classmethod
     def from_str(cls, value: str) -> Encoding: ...
     @classmethod
@@ -749,6 +759,7 @@ class Compression(Enum):
     ZSTD: str
 
     def __init__(self, value: str) -> None: ...
+    def __index__(self) -> int: ...
     @classmethod
     def from_str(cls, value: str) -> Compression: ...
     @classmethod
@@ -847,6 +858,7 @@ class StatType(Enum):
     VENUE_SPECIFIC_VOLUME_1: int
 
     def __init__(self, value: int) -> None: ...
+    def __index__(self) -> int: ...
     @classmethod
     def from_int(cls, value: int) -> StatType: ...
     @classmethod
@@ -867,6 +879,7 @@ class StatUpdateAction(Enum):
     DELETE: int
 
     def __init__(self, value: int) -> None: ...
+    def __index__(self) -> int: ...
     @classmethod
     def from_int(cls, value: int) -> StatUpdateAction: ...
     @classmethod
@@ -929,6 +942,7 @@ class StatusAction(Enum):
     NOT_AVAILABLE_FOR_TRADING: int
 
     def __init__(self, value: int) -> None: ...
+    def __index__(self) -> int: ...
     @classmethod
     def from_int(cls, value: int) -> StatusAction: ...
     @classmethod
@@ -1049,6 +1063,7 @@ class StatusReason(Enum):
     QUOTATION_NOT_AVAILABLE: int
 
     def __init__(self, value: int) -> None: ...
+    def __index__(self) -> int: ...
     @classmethod
     def from_int(cls, value: int) -> StatusReason: ...
     @classmethod
@@ -1078,6 +1093,7 @@ class TradingEvent(Enum):
     IMPLIED_MATCHING_OFF: int
 
     def __init__(self, value: int) -> None: ...
+    def __index__(self) -> int: ...
     @classmethod
     def from_int(cls, value: int) -> TradingEvent: ...
     @classmethod
@@ -1101,6 +1117,7 @@ class TriState(Enum):
     YES: str
 
     def __init__(self, value: str) -> None: ...
+    def __index__(self) -> int: ...
     @classmethod
     def from_str(cls, value: str) -> TriState: ...
     @classmethod
@@ -1166,6 +1183,7 @@ class ErrorCode(Enum):
     UNSET: int
 
     def __init__(self, value: int) -> None: ...
+    def __index__(self) -> int: ...
     @classmethod
     def from_str(cls, value: str) -> ErrorCode: ...
     @classmethod
@@ -1203,6 +1221,7 @@ class SystemCode(Enum):
     UNSET: int
 
     def __init__(self, value: int) -> None: ...
+    def __index__(self) -> int: ...
     @classmethod
     def from_str(cls, value: str) -> SystemCode: ...
     @classmethod
@@ -1240,7 +1259,6 @@ class MBOMsg:
         sequence: int = 0,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
-    @property
     def record_size(self) -> int:
         """
         Return the size of the record in bytes.
@@ -1265,32 +1283,21 @@ class MBOMsg:
         RType
 
         """
+    publisher_id: int
+    """
+    The publisher ID assigned by Databento, which denotes the dataset and venue.
 
-    @property
-    def publisher_id(self) -> int:
-        """
-        The publisher ID assigned by Databento, which denotes the dataset and venue.
+    See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
 
-        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+    """
 
-        Returns
-        -------
-        int
+    instrument_id: int
+    """
+    The numeric instrument ID.
 
-        """
+    See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
 
-    @property
-    def instrument_id(self) -> int:
-        """
-        The numeric instrument ID.
-
-        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_index(self) -> int:
@@ -1341,20 +1348,14 @@ class MBOMsg:
         datetime.datetime
 
         """
+    ts_event: int
+    """
+    The matching-engine-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_event(self) -> int:
-        """
-        The matching-engine-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
 
-        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_out(self) -> int | None:
@@ -1369,17 +1370,11 @@ class MBOMsg:
         int | None
 
         """
+    order_id: int
+    """
+    The order ID assigned at the venue.
 
-    @property
-    def order_id(self) -> int:
-        """
-        The order ID assigned at the venue.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def pretty_price(self) -> float:
@@ -1395,57 +1390,34 @@ class MBOMsg:
         price
 
         """
+    price: int
+    """
+    The order price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
+    0.000000001.
 
-    @property
-    def price(self) -> int:
-        """
-        The order price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
-        0.000000001.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_price
 
-        Returns
-        -------
-        int
+    """
 
-        See Also
-        --------
-        pretty_price
+    size: int
+    """
+    The order quantity.
 
-        """
+    """
 
-    @property
-    def size(self) -> int:
-        """
-        The order quantity.
+    flags: int
+    """
+    A bit field indicating event end, message characteristics, and data quality.
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    channel_id: int
+    """
+    The channel ID assigned by Databento as an incrementing integer starting at zero.
 
-    @property
-    def flags(self) -> int:
-        """
-        A bit field indicating event end, message characteristics, and data quality.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def channel_id(self) -> int:
-        """
-        The channel ID assigned by Databento as an incrementing integer starting at zero.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def action(self) -> Action | str:
@@ -1460,6 +1432,8 @@ class MBOMsg:
 
         """
 
+    @action.setter
+    def action(self, value: Action) -> None: ...
     @property
     def side(self) -> Side | str:
         """
@@ -1474,6 +1448,8 @@ class MBOMsg:
 
         """
 
+    @side.setter
+    def side(self, value: Side) -> None: ...
     @property
     def pretty_ts_recv(self) -> dt.datetime | None:
         """
@@ -1485,45 +1461,29 @@ class MBOMsg:
         datetime.datetime
 
         """
+    ts_recv: int
+    """
+    The capture-server-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_recv(self) -> int:
-        """
-        The capture-server-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
 
-        See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
+    """
 
-        Returns
-        -------
-        int
+    ts_in_delta: int
+    """
+    The matching-engine-sending timestamp expressed as the number of nanoseconds before
+    `ts_recv`.
 
-        """
+    See [ts_in_delta](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-in-delta).
 
-    @property
-    def ts_in_delta(self) -> int:
-        """
-        The matching-engine-sending timestamp expressed as the number of nanoseconds before
-        `ts_recv`.
+    """
 
-        See [ts_in_delta](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-in-delta).
+    sequence: int
+    """
+    The message sequence number assigned at the venue.
 
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def sequence(self) -> int:
-        """
-        The message sequence number assigned at the venue.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
 class BidAskPair:
     """
@@ -1548,7 +1508,6 @@ class BidAskPair:
         ask_ct: int = 0,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
-    @property
     def record_size(self) -> int:
         """
         Return the size of the record in bytes.
@@ -1573,32 +1532,21 @@ class BidAskPair:
         RType
 
         """
+    publisher_id: int
+    """
+    The publisher ID assigned by Databento, which denotes the dataset and venue.
 
-    @property
-    def publisher_id(self) -> int:
-        """
-        The publisher ID assigned by Databento, which denotes the dataset and venue.
+    See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
 
-        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+    """
 
-        Returns
-        -------
-        int
+    instrument_id: int
+    """
+    The numeric instrument ID.
 
-        """
+    See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
 
-    @property
-    def instrument_id(self) -> int:
-        """
-        The numeric instrument ID.
-
-        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_index(self) -> int:
@@ -1649,20 +1597,14 @@ class BidAskPair:
         datetime.datetime
 
         """
+    ts_event: int
+    """
+    The matching-engine-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_event(self) -> int:
-        """
-        The matching-engine-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
 
-        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_out(self) -> int | None:
@@ -1692,24 +1634,16 @@ class BidAskPair:
         bid_px
 
         """
+    bid_px: int
+    """
+    The bid price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
+    0.000000001.
 
-    @property
-    def bid_px(self) -> int:
-        """
-        The bid price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
-        0.000000001.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_bid_px
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_bid_px
-
-        """
+    """
 
     @property
     def pretty_ask_px(self) -> float:
@@ -1725,68 +1659,40 @@ class BidAskPair:
         ask_px
 
         """
+    ask_px: int
+    """
+    The ask price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
+    0.000000001.
 
-    @property
-    def ask_px(self) -> int:
-        """
-        The ask price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
-        0.000000001.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_ask_px
 
-        Returns
-        -------
-        int
+    """
 
-        See Also
-        --------
-        pretty_ask_px
+    bid_sz: int
+    """
+    The bid size.
 
-        """
+    """
 
-    @property
-    def bid_sz(self) -> int:
-        """
-        The bid size.
+    ask_sz: int
+    """
+    The ask size.
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    bid_ct: int
+    """
+    The bid order count.
 
-    @property
-    def ask_sz(self) -> int:
-        """
-        The ask size.
+    """
 
-        Returns
-        -------
-        int
+    ask_ct: int
+    """
+    The ask order count.
 
-        """
-
-    @property
-    def bid_ct(self) -> int:
-        """
-        The bid order count.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def ask_ct(self) -> int:
-        """
-        The ask order count.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
 class ConsolidatedBidAskPair:
     """
@@ -1811,7 +1717,6 @@ class ConsolidatedBidAskPair:
         ask_pb: int = 0,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
-    @property
     def record_size(self) -> int:
         """
         Return the size of the record in bytes.
@@ -1836,32 +1741,21 @@ class ConsolidatedBidAskPair:
         RType
 
         """
+    publisher_id: int
+    """
+    The publisher ID assigned by Databento, which denotes the dataset and venue.
 
-    @property
-    def publisher_id(self) -> int:
-        """
-        The publisher ID assigned by Databento, which denotes the dataset and venue.
+    See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
 
-        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+    """
 
-        Returns
-        -------
-        int
+    instrument_id: int
+    """
+    The numeric instrument ID.
 
-        """
+    See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
 
-    @property
-    def instrument_id(self) -> int:
-        """
-        The numeric instrument ID.
-
-        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_index(self) -> int:
@@ -1912,20 +1806,14 @@ class ConsolidatedBidAskPair:
         datetime.datetime
 
         """
+    ts_event: int
+    """
+    The matching-engine-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_event(self) -> int:
-        """
-        The matching-engine-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
 
-        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_out(self) -> int | None:
@@ -1955,24 +1843,16 @@ class ConsolidatedBidAskPair:
         bid_px
 
         """
+    bid_px: int
+    """
+    The bid price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
+    0.000000001.
 
-    @property
-    def bid_px(self) -> int:
-        """
-        The bid price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
-        0.000000001.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_bid_px
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_bid_px
-
-        """
+    """
 
     @property
     def pretty_ask_px(self) -> float:
@@ -1988,72 +1868,44 @@ class ConsolidatedBidAskPair:
         ask_px
 
         """
+    ask_px: int
+    """
+    The ask price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
+    0.000000001.
 
-    @property
-    def ask_px(self) -> int:
-        """
-        The ask price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
-        0.000000001.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_ask_px
 
-        Returns
-        -------
-        int
+    """
 
-        See Also
-        --------
-        pretty_ask_px
+    bid_sz: int
+    """
+    The bid size.
 
-        """
+    """
 
-    @property
-    def bid_sz(self) -> int:
-        """
-        The bid size.
+    ask_sz: int
+    """
+    The ask size.
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    bid_pb: int
+    """
+    The publisher ID indicating the venue containing the best bid.
 
-    @property
-    def ask_sz(self) -> int:
-        """
-        The ask size.
+    See [Publishers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues).
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    ask_pb: int
+    """
+    The publisher ID indicating the venue containing the best ask.
 
-    @property
-    def bid_pb(self) -> int:
-        """
-        The publisher ID indicating the venue containing the best bid.
+    See [Publishers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues).
 
-        See [Publishers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues).
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def ask_pb(self) -> int:
-        """
-        The publisher ID indicating the venue containing the best ask.
-
-        See [Publishers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues).
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
 class TradeMsg:
     """
@@ -2084,7 +1936,6 @@ class TradeMsg:
         sequence: int = 0,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
-    @property
     def record_size(self) -> int:
         """
         Return the size of the record in bytes.
@@ -2109,32 +1960,21 @@ class TradeMsg:
         RType
 
         """
+    publisher_id: int
+    """
+    The publisher ID assigned by Databento, which denotes the dataset and venue.
 
-    @property
-    def publisher_id(self) -> int:
-        """
-        The publisher ID assigned by Databento, which denotes the dataset and venue.
+    See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
 
-        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+    """
 
-        Returns
-        -------
-        int
+    instrument_id: int
+    """
+    The numeric instrument ID.
 
-        """
+    See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
 
-    @property
-    def instrument_id(self) -> int:
-        """
-        The numeric instrument ID.
-
-        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_index(self) -> int:
@@ -2185,20 +2025,14 @@ class TradeMsg:
         datetime.datetime
 
         """
+    ts_event: int
+    """
+    The matching-engine-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_event(self) -> int:
-        """
-        The matching-engine-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
 
-        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_out(self) -> int | None:
@@ -2228,34 +2062,21 @@ class TradeMsg:
         price
 
         """
+    price: int
+    """
+    The trade price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 
-    @property
-    def price(self) -> int:
-        """
-        The trade price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_price
 
-        Returns
-        -------
-        int
+    """
 
-        See Also
-        --------
-        pretty_price
+    size: int
+    """
+    The order quantity.
 
-        """
-
-    @property
-    def size(self) -> int:
-        """
-        The order quantity.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def action(self) -> Action | str:
@@ -2270,6 +2091,8 @@ class TradeMsg:
 
         """
 
+    @action.setter
+    def action(self, value: Action) -> None: ...
     @property
     def side(self) -> Side | str:
         """
@@ -2283,27 +2106,20 @@ class TradeMsg:
 
         """
 
-    @property
-    def flags(self) -> int:
-        """
-        A bit field indicating event end, message characteristics, and data quality.
+    @side.setter
+    def side(self, value: Side) -> None: ...
 
-        Returns
-        -------
-        int
+    flags: int
+    """
+    A bit field indicating event end, message characteristics, and data quality.
 
-        """
+    """
 
-    @property
-    def depth(self) -> int:
-        """
-        The book level where the update event occurred.
+    depth: int
+    """
+    The book level where the update event occurred.
 
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def pretty_ts_recv(self) -> dt.datetime | None:
@@ -2316,45 +2132,29 @@ class TradeMsg:
         datetime.datetime
 
         """
+    ts_recv: int
+    """
+    The capture-server-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_recv(self) -> int:
-        """
-        The capture-server-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
 
-        See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
+    """
 
-        Returns
-        -------
-        int
+    ts_in_delta: int
+    """
+    The matching-engine-sending timestamp expressed as the number of nanoseconds before
+    `ts_recv`.
 
-        """
+    See [ts_in_delta](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-in-delta).
 
-    @property
-    def ts_in_delta(self) -> int:
-        """
-        The matching-engine-sending timestamp expressed as the number of nanoseconds before
-        `ts_recv`.
+    """
 
-        See [ts_in_delta](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-in-delta).
+    sequence: int
+    """
+    The message sequence number assigned at the venue.
 
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def sequence(self) -> int:
-        """
-        The message sequence number assigned at the venue.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
 class MBP1Msg:
     """
@@ -2387,7 +2187,6 @@ class MBP1Msg:
         levels: list[BidAskPair] | None = None,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
-    @property
     def record_size(self) -> int:
         """
         Return the size of the record in bytes.
@@ -2412,32 +2211,21 @@ class MBP1Msg:
         RType
 
         """
+    publisher_id: int
+    """
+    The publisher ID assigned by Databento, which denotes the dataset and venue.
 
-    @property
-    def publisher_id(self) -> int:
-        """
-        The publisher ID assigned by Databento, which denotes the dataset and venue.
+    See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
 
-        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+    """
 
-        Returns
-        -------
-        int
+    instrument_id: int
+    """
+    The numeric instrument ID.
 
-        """
+    See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
 
-    @property
-    def instrument_id(self) -> int:
-        """
-        The numeric instrument ID.
-
-        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_index(self) -> int:
@@ -2488,20 +2276,14 @@ class MBP1Msg:
         datetime.datetime
 
         """
+    ts_event: int
+    """
+    The matching-engine-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_event(self) -> int:
-        """
-        The matching-engine-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
 
-        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_out(self) -> int | None:
@@ -2531,35 +2313,22 @@ class MBP1Msg:
         price
 
         """
+    price: int
+    """
+    The order price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
+    0.000000001.
 
-    @property
-    def price(self) -> int:
-        """
-        The order price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
-        0.000000001.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_price
 
-        Returns
-        -------
-        int
+    """
 
-        See Also
-        --------
-        pretty_price
+    size: int
+    """
+    The order quantity.
 
-        """
-
-    @property
-    def size(self) -> int:
-        """
-        The order quantity.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def action(self) -> Action | str:
@@ -2574,6 +2343,8 @@ class MBP1Msg:
 
         """
 
+    @action.setter
+    def action(self, value: Action) -> None: ...
     @property
     def side(self) -> Side | str:
         """
@@ -2588,27 +2359,20 @@ class MBP1Msg:
 
         """
 
-    @property
-    def flags(self) -> int:
-        """
-        A bit field indicating event end, message characteristics, and data quality.
+    @side.setter
+    def side(self, value: Side) -> None: ...
 
-        Returns
-        -------
-        int
+    flags: int
+    """
+    A bit field indicating event end, message characteristics, and data quality.
 
-        """
+    """
 
-    @property
-    def depth(self) -> int:
-        """
-        The book level where the update event occurred.
+    depth: int
+    """
+    The book level where the update event occurred.
 
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def pretty_ts_recv(self) -> dt.datetime | None:
@@ -2621,45 +2385,29 @@ class MBP1Msg:
         datetime.datetime
 
         """
+    ts_recv: int
+    """
+    The capture-server-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_recv(self) -> int:
-        """
-        The capture-server-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
 
-        See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
+    """
 
-        Returns
-        -------
-        int
+    ts_in_delta: int
+    """
+    The matching-engine-sending timestamp expressed as the number of nanoseconds before
+    `ts_recv`.
 
-        """
+    See [ts_in_delta](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-in-delta).
 
-    @property
-    def ts_in_delta(self) -> int:
-        """
-        The matching-engine-sending timestamp expressed as the number of nanoseconds before
-        `ts_recv`.
+    """
 
-        See [ts_in_delta](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-in-delta).
+    sequence: int
+    """
+    The message sequence number assigned at the venue.
 
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def sequence(self) -> int:
-        """
-        The message sequence number assigned at the venue.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def levels(self) -> list[BidAskPair]:
@@ -2707,7 +2455,6 @@ class MBP10Msg:
         levels: list[BidAskPair] | None = None,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
-    @property
     def record_size(self) -> int:
         """
         Return the size of the record in bytes.
@@ -2732,32 +2479,21 @@ class MBP10Msg:
         RType
 
         """
+    publisher_id: int
+    """
+    The publisher ID assigned by Databento, which denotes the dataset and venue.
 
-    @property
-    def publisher_id(self) -> int:
-        """
-        The publisher ID assigned by Databento, which denotes the dataset and venue.
+    See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
 
-        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+    """
 
-        Returns
-        -------
-        int
+    instrument_id: int
+    """
+    The numeric instrument ID.
 
-        """
+    See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
 
-    @property
-    def instrument_id(self) -> int:
-        """
-        The numeric instrument ID.
-
-        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_index(self) -> int:
@@ -2808,20 +2544,14 @@ class MBP10Msg:
         datetime.datetime
 
         """
+    ts_event: int
+    """
+    The matching-engine-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_event(self) -> int:
-        """
-        The matching-engine-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
 
-        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_out(self) -> int | None:
@@ -2851,35 +2581,22 @@ class MBP10Msg:
         price
 
         """
+    price: int
+    """
+    The order price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
+    0.000000001.
 
-    @property
-    def price(self) -> int:
-        """
-        The order price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
-        0.000000001.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_price
 
-        Returns
-        -------
-        int
+    """
 
-        See Also
-        --------
-        pretty_price
+    size: int
+    """
+    The order quantity.
 
-        """
-
-    @property
-    def size(self) -> int:
-        """
-        The order quantity.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def action(self) -> Action | str:
@@ -2894,6 +2611,8 @@ class MBP10Msg:
 
         """
 
+    @action.setter
+    def action(self, value: Action) -> None: ...
     @property
     def side(self) -> Side | str:
         """
@@ -2908,27 +2627,20 @@ class MBP10Msg:
 
         """
 
-    @property
-    def flags(self) -> int:
-        """
-        A bit field indicating event end, message characteristics, and data quality.
+    @side.setter
+    def side(self, value: Side) -> None: ...
 
-        Returns
-        -------
-        int
+    flags: int
+    """
+    A bit field indicating event end, message characteristics, and data quality.
 
-        """
+    """
 
-    @property
-    def depth(self) -> int:
-        """
-        The book level where the update event occurred.
+    depth: int
+    """
+    The book level where the update event occurred.
 
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def pretty_ts_recv(self) -> dt.datetime | None:
@@ -2941,45 +2653,29 @@ class MBP10Msg:
         datetime.datetime
 
         """
+    ts_recv: int
+    """
+    The capture-server-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_recv(self) -> int:
-        """
-        The capture-server-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
 
-        See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
+    """
 
-        Returns
-        -------
-        int
+    ts_in_delta: int
+    """
+    The matching-engine-sending timestamp expressed as the number of nanoseconds before
+    `ts_recv`.
 
-        """
+    See [ts_in_delta](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-in-delta).
 
-    @property
-    def ts_in_delta(self) -> int:
-        """
-        The matching-engine-sending timestamp expressed as the number of nanoseconds before
-        `ts_recv`.
+    """
 
-        See [ts_in_delta](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-in-delta).
+    sequence: int
+    """
+    The message sequence number assigned at the venue.
 
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def sequence(self) -> int:
-        """
-        The message sequence number assigned at the venue.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def levels(self) -> list[BidAskPair]:
@@ -3025,7 +2721,6 @@ class BBOMsg:
         levels: list[BidAskPair] | None = None,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
-    @property
     def record_size(self) -> int:
         """
         Return the size of the record in bytes.
@@ -3050,32 +2745,21 @@ class BBOMsg:
         RType
 
         """
+    publisher_id: int
+    """
+    The publisher ID assigned by Databento, which denotes the dataset and venue.
 
-    @property
-    def publisher_id(self) -> int:
-        """
-        The publisher ID assigned by Databento, which denotes the dataset and venue.
+    See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
 
-        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+    """
 
-        Returns
-        -------
-        int
+    instrument_id: int
+    """
+    The numeric instrument ID.
 
-        """
+    See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
 
-    @property
-    def instrument_id(self) -> int:
-        """
-        The numeric instrument ID.
-
-        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_index(self) -> int:
@@ -3126,20 +2810,14 @@ class BBOMsg:
         datetime.datetime
 
         """
+    ts_event: int
+    """
+    The matching-engine-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_event(self) -> int:
-        """
-        The matching-engine-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
 
-        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_out(self) -> int | None:
@@ -3169,35 +2847,22 @@ class BBOMsg:
         price
 
         """
+    price: int
+    """
+    The last trade price price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000
+    or 0.000000001. Will be `UNDEF_PRICE` if there was no last trade in the session.
 
-    @property
-    def price(self) -> int:
-        """
-        The last trade price price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000
-        or 0.000000001. Will be `UNDEF_PRICE` if there was no last trade in the session.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_price
 
-        Returns
-        -------
-        int
+    """
 
-        See Also
-        --------
-        pretty_price
+    size: int
+    """
+    The quantity of the last trade.
 
-        """
-
-    @property
-    def size(self) -> int:
-        """
-        The quantity of the last trade.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def side(self) -> Side | str:
@@ -3214,16 +2879,14 @@ class BBOMsg:
 
         """
 
-    @property
-    def flags(self) -> int:
-        """
-        A bit field indicating event end, message characteristics, and data quality.
+    @side.setter
+    def side(self, value: Side) -> None: ...
 
-        Returns
-        -------
-        int
+    flags: int
+    """
+    A bit field indicating event end, message characteristics, and data quality.
 
-        """
+    """
 
     @property
     def pretty_ts_recv(self) -> dt.datetime | None:
@@ -3236,31 +2899,20 @@ class BBOMsg:
         datetime.datetime
 
         """
+    ts_recv: int
+    """
+    The end timestamp of the interval capture-server-received timestamp expressed as the
+    number of nanoseconds since the UNIX epoch.
 
-    @property
-    def ts_recv(self) -> int:
-        """
-        The end timestamp of the interval capture-server-received timestamp expressed as the
-        number of nanoseconds since the UNIX epoch.
+    See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
 
-        See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
+    """
 
-        Returns
-        -------
-        int
+    sequence: int
+    """
+    The message sequence number assigned at the venue of the last update.
 
-        """
-
-    @property
-    def sequence(self) -> int:
-        """
-        The message sequence number assigned at the venue of the last update.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def levels(self) -> list[BidAskPair]:
@@ -3307,7 +2959,6 @@ class CMBP1Msg:
         levels: list[ConsolidatedBidAskPair] | None = None,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
-    @property
     def record_size(self) -> int:
         """
         Return the size of the record in bytes.
@@ -3332,32 +2983,21 @@ class CMBP1Msg:
         RType
 
         """
+    publisher_id: int
+    """
+    The publisher ID assigned by Databento, which denotes the dataset and venue.
 
-    @property
-    def publisher_id(self) -> int:
-        """
-        The publisher ID assigned by Databento, which denotes the dataset and venue.
+    See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
 
-        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+    """
 
-        Returns
-        -------
-        int
+    instrument_id: int
+    """
+    The numeric instrument ID.
 
-        """
+    See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
 
-    @property
-    def instrument_id(self) -> int:
-        """
-        The numeric instrument ID.
-
-        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_index(self) -> int:
@@ -3408,20 +3048,14 @@ class CMBP1Msg:
         datetime.datetime
 
         """
+    ts_event: int
+    """
+    The matching-engine-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_event(self) -> int:
-        """
-        The matching-engine-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
 
-        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_out(self) -> int | None:
@@ -3451,35 +3085,22 @@ class CMBP1Msg:
         price
 
         """
+    price: int
+    """
+    The order price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
+    0.000000001.
 
-    @property
-    def price(self) -> int:
-        """
-        The order price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
-        0.000000001.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_price
 
-        Returns
-        -------
-        int
+    """
 
-        See Also
-        --------
-        pretty_price
+    size: int
+    """
+    The order quantity.
 
-        """
-
-    @property
-    def size(self) -> int:
-        """
-        The order quantity.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def action(self) -> Action | str:
@@ -3494,6 +3115,8 @@ class CMBP1Msg:
 
         """
 
+    @action.setter
+    def action(self, value: Action) -> None: ...
     @property
     def side(self) -> Side | str:
         """
@@ -3508,16 +3131,14 @@ class CMBP1Msg:
 
         """
 
-    @property
-    def flags(self) -> int:
-        """
-        A bit field indicating event end, message characteristics, and data quality.
+    @side.setter
+    def side(self, value: Side) -> None: ...
 
-        Returns
-        -------
-        int
+    flags: int
+    """
+    A bit field indicating event end, message characteristics, and data quality.
 
-        """
+    """
 
     @property
     def pretty_ts_recv(self) -> dt.datetime | None:
@@ -3530,34 +3151,23 @@ class CMBP1Msg:
         datetime.datetime
 
         """
+    ts_recv: int
+    """
+    The capture-server-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_recv(self) -> int:
-        """
-        The capture-server-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
 
-        See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
+    """
 
-        Returns
-        -------
-        int
+    ts_in_delta: int
+    """
+    The matching-engine-sending timestamp expressed as the number of nanoseconds before
+    `ts_recv`.
 
-        """
+    See [ts_in_delta](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-in-delta).
 
-    @property
-    def ts_in_delta(self) -> int:
-        """
-        The matching-engine-sending timestamp expressed as the number of nanoseconds before
-        `ts_recv`.
-
-        See [ts_in_delta](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-in-delta).
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def levels(self) -> list[ConsolidatedBidAskPair]:
@@ -3601,7 +3211,6 @@ class CBBOMsg:
         levels: list[ConsolidatedBidAskPair] | None = None,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
-    @property
     def record_size(self) -> int:
         """
         Return the size of the record in bytes.
@@ -3626,32 +3235,21 @@ class CBBOMsg:
         RType
 
         """
+    publisher_id: int
+    """
+    The publisher ID assigned by Databento, which denotes the dataset and venue.
 
-    @property
-    def publisher_id(self) -> int:
-        """
-        The publisher ID assigned by Databento, which denotes the dataset and venue.
+    See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
 
-        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+    """
 
-        Returns
-        -------
-        int
+    instrument_id: int
+    """
+    The numeric instrument ID.
 
-        """
+    See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
 
-    @property
-    def instrument_id(self) -> int:
-        """
-        The numeric instrument ID.
-
-        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_index(self) -> int:
@@ -3702,20 +3300,14 @@ class CBBOMsg:
         datetime.datetime
 
         """
+    ts_event: int
+    """
+    The matching-engine-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_event(self) -> int:
-        """
-        The matching-engine-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
 
-        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_out(self) -> int | None:
@@ -3745,35 +3337,22 @@ class CBBOMsg:
         price
 
         """
+    price: int
+    """
+    The last trade price price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000
+    or 0.000000001. Will be `UNDEF_PRICE` if there was no last trade in the session.
 
-    @property
-    def price(self) -> int:
-        """
-        The last trade price price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000
-        or 0.000000001. Will be `UNDEF_PRICE` if there was no last trade in the session.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_price
 
-        Returns
-        -------
-        int
+    """
 
-        See Also
-        --------
-        pretty_price
+    size: int
+    """
+    The quantity of the last trade.
 
-        """
-
-    @property
-    def size(self) -> int:
-        """
-        The quantity of the last trade.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def side(self) -> Side | str:
@@ -3790,16 +3369,14 @@ class CBBOMsg:
 
         """
 
-    @property
-    def flags(self) -> int:
-        """
-        A bit field indicating event end, message characteristics, and data quality.
+    @side.setter
+    def side(self, value: Side) -> None: ...
 
-        Returns
-        -------
-        int
+    flags: int
+    """
+    A bit field indicating event end, message characteristics, and data quality.
 
-        """
+    """
 
     @property
     def pretty_ts_recv(self) -> dt.datetime | None:
@@ -3812,20 +3389,14 @@ class CBBOMsg:
         datetime.datetime
 
         """
+    ts_recv: int
+    """
+    The end timestamp of the interval capture-server-received timestamp expressed as the
+    number of nanoseconds since the UNIX epoch.
 
-    @property
-    def ts_recv(self) -> int:
-        """
-        The end timestamp of the interval capture-server-received timestamp expressed as the
-        number of nanoseconds since the UNIX epoch.
+    See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
 
-        See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def levels(self) -> list[ConsolidatedBidAskPair]:
@@ -3885,7 +3456,6 @@ class OHLCVMsg:
         volume: int,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
-    @property
     def record_size(self) -> int:
         """
         Return the size of the record in bytes.
@@ -3910,32 +3480,21 @@ class OHLCVMsg:
         RType
 
         """
+    publisher_id: int
+    """
+    The publisher ID assigned by Databento, which denotes the dataset and venue.
 
-    @property
-    def publisher_id(self) -> int:
-        """
-        The publisher ID assigned by Databento, which denotes the dataset and venue.
+    See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
 
-        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+    """
 
-        Returns
-        -------
-        int
+    instrument_id: int
+    """
+    The numeric instrument ID.
 
-        """
+    See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
 
-    @property
-    def instrument_id(self) -> int:
-        """
-        The numeric instrument ID.
-
-        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_index(self) -> int:
@@ -3986,20 +3545,14 @@ class OHLCVMsg:
         datetime.datetime
 
         """
+    ts_event: int
+    """
+    The matching-engine-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_event(self) -> int:
-        """
-        The matching-engine-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
 
-        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_out(self) -> int | None:
@@ -4029,24 +3582,16 @@ class OHLCVMsg:
         open
 
         """
+    open: int
+    """
+    The open price for the bar where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000
+    or 0.000000001.
 
-    @property
-    def open(self) -> int:
-        """
-        The open price for the bar where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000
-        or 0.000000001.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_open
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_open
-
-        """
+    """
 
     @property
     def pretty_high(self) -> float:
@@ -4062,24 +3607,16 @@ class OHLCVMsg:
         high
 
         """
+    high: int
+    """
+    The high price for the bar where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000
+    or 0.000000001.
 
-    @property
-    def high(self) -> int:
-        """
-        The high price for the bar where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000
-        or 0.000000001.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_high
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_high
-
-        """
+    """
 
     @property
     def pretty_low(self) -> float:
@@ -4095,24 +3632,16 @@ class OHLCVMsg:
         low
 
         """
+    low: int
+    """
+    The low price for the bar where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000
+    or 0.000000001.
 
-    @property
-    def low(self) -> int:
-        """
-        The low price for the bar where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000
-        or 0.000000001.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_low
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_low
-
-        """
+    """
 
     @property
     def pretty_close(self) -> float:
@@ -4128,35 +3657,22 @@ class OHLCVMsg:
         close
 
         """
+    close: int
+    """
+    The close price for the bar where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000
+    or 0.000000001.
 
-    @property
-    def close(self) -> int:
-        """
-        The close price for the bar where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000
-        or 0.000000001.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_close
 
-        Returns
-        -------
-        int
+    """
 
-        See Also
-        --------
-        pretty_close
+    volume: int
+    """
+    The total volume traded during the aggregation period.
 
-        """
-
-    @property
-    def volume(self) -> int:
-        """
-        The total volume traded during the aggregation period.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
 class StatusMsg:
     """
@@ -4185,7 +3701,6 @@ class StatusMsg:
         is_short_sell_restricted: TriState | None = None,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
-    @property
     def record_size(self) -> int:
         """
         Return the size of the record in bytes.
@@ -4210,32 +3725,21 @@ class StatusMsg:
         RType
 
         """
+    publisher_id: int
+    """
+    The publisher ID assigned by Databento, which denotes the dataset and venue.
 
-    @property
-    def publisher_id(self) -> int:
-        """
-        The publisher ID assigned by Databento, which denotes the dataset and venue.
+    See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
 
-        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+    """
 
-        Returns
-        -------
-        int
+    instrument_id: int
+    """
+    The numeric instrument ID.
 
-        """
+    See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
 
-    @property
-    def instrument_id(self) -> int:
-        """
-        The numeric instrument ID.
-
-        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_index(self) -> int:
@@ -4286,20 +3790,14 @@ class StatusMsg:
         datetime.datetime
 
         """
+    ts_event: int
+    """
+    The matching-engine-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_event(self) -> int:
-        """
-        The matching-engine-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
 
-        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_out(self) -> int | None:
@@ -4326,20 +3824,14 @@ class StatusMsg:
         datetime.datetime
 
         """
+    ts_recv: int
+    """
+    The capture-server-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_recv(self) -> int:
-        """
-        The capture-server-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
 
-        See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def action(self) -> StatusAction | int:
@@ -4352,6 +3844,8 @@ class StatusMsg:
 
         """
 
+    @action.setter
+    def action(self, value: StatusAction) -> None: ...
     @property
     def reason(self) -> StatusReason | int:
         """
@@ -4363,6 +3857,8 @@ class StatusMsg:
 
         """
 
+    @reason.setter
+    def reason(self, value: StatusReason) -> None: ...
     @property
     def trading_event(self) -> TradingEvent | int:
         """
@@ -4374,6 +3870,8 @@ class StatusMsg:
 
         """
 
+    @trading_event.setter
+    def trading_event(self, value: TradingEvent) -> None: ...
     @property
     def is_trading(self) -> bool | None:
         """
@@ -4496,7 +3994,6 @@ class InstrumentDefMsg:
         leg_side: Side | None = None,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
-    @property
     def record_size(self) -> int:
         """
         Return the size of the record in bytes.
@@ -4521,32 +4018,21 @@ class InstrumentDefMsg:
         RType
 
         """
+    publisher_id: int
+    """
+    The publisher ID assigned by Databento, which denotes the dataset and venue.
 
-    @property
-    def publisher_id(self) -> int:
-        """
-        The publisher ID assigned by Databento, which denotes the dataset and venue.
+    See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
 
-        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+    """
 
-        Returns
-        -------
-        int
+    instrument_id: int
+    """
+    The numeric instrument ID.
 
-        """
+    See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
 
-    @property
-    def instrument_id(self) -> int:
-        """
-        The numeric instrument ID.
-
-        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_index(self) -> int:
@@ -4597,20 +4083,14 @@ class InstrumentDefMsg:
         datetime.datetime
 
         """
+    ts_event: int
+    """
+    The matching-engine-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_event(self) -> int:
-        """
-        The matching-engine-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
 
-        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_out(self) -> int | None:
@@ -4637,20 +4117,14 @@ class InstrumentDefMsg:
         datetime.datetime
 
         """
+    ts_recv: int
+    """
+    The capture-server-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_recv(self) -> int:
-        """
-        The capture-server-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
 
-        See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def pretty_min_price_increment(self) -> float:
@@ -4666,24 +4140,16 @@ class InstrumentDefMsg:
         min_price_increment
 
         """
+    min_price_increment: int
+    """
+    The minimum constant tick for the instrument where every 1 unit corresponds to 1e-9, i.e.
+    1/1,000,000,000 or 0.000000001.
 
-    @property
-    def min_price_increment(self) -> int:
-        """
-        The minimum constant tick for the instrument where every 1 unit corresponds to 1e-9, i.e.
-        1/1,000,000,000 or 0.000000001.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_min_price_increment
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_min_price_increment
-
-        """
+    """
 
     @property
     def pretty_display_factor(self) -> float:
@@ -4699,22 +4165,14 @@ class InstrumentDefMsg:
         display_factor
 
         """
+    display_factor: int
+    """
+    The multiplier to convert the venue's display price to the conventional price where every
+    1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 
-    @property
-    def display_factor(self) -> int:
-        """
-        The multiplier to convert the venue's display price to the conventional price where every
-        1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    See Also: pretty_display_factor
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_display_factor
-
-        """
+    """
 
     @property
     def pretty_expiration(self) -> dt.datetime | None:
@@ -4727,21 +4185,15 @@ class InstrumentDefMsg:
         datetime.datetime
 
         """
+    expiration: int
+    """
+    The last eligible trade time expressed as the number of nanoseconds since the
+    UNIX epoch.
 
-    @property
-    def expiration(self) -> int:
-        """
-        The last eligible trade time expressed as the number of nanoseconds since the
-        UNIX epoch.
+    Will be `UNDEF_TIMESTAMP` when null, such as for equities. Some publishers
+    only provide date-level granularity.
 
-        Will be `UNDEF_TIMESTAMP` when null, such as for equities. Some publishers
-        only provide date-level granularity.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def pretty_activation(self) -> dt.datetime | None:
@@ -4754,21 +4206,15 @@ class InstrumentDefMsg:
         datetime.datetime
 
         """
+    activation: int
+    """
+    The time of instrument activation expressed as the number of nanoseconds since the
+    UNIX epoch.
 
-    @property
-    def activation(self) -> int:
-        """
-        The time of instrument activation expressed as the number of nanoseconds since the
-        UNIX epoch.
+    Will be `UNDEF_TIMESTAMP` when null, such as for equities. Some publishers
+    only provide date-level granularity.
 
-        Will be `UNDEF_TIMESTAMP` when null, such as for equities. Some publishers
-        only provide date-level granularity.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def pretty_high_limit_price(self) -> float:
@@ -4784,24 +4230,16 @@ class InstrumentDefMsg:
         high_limit_price
 
         """
+    high_limit_price: int
+    """
+    The allowable high limit price for the trading day where every 1 unit corresponds to
+    1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 
-    @property
-    def high_limit_price(self) -> int:
-        """
-        The allowable high limit price for the trading day where every 1 unit corresponds to
-        1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_high_limit_price
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_high_limit_price
-
-        """
+    """
 
     @property
     def pretty_low_limit_price(self) -> float:
@@ -4817,24 +4255,16 @@ class InstrumentDefMsg:
         low_limit_price
 
         """
+    low_limit_price: int
+    """
+    The allowable low limit price for the trading day where every 1 unit corresponds to
+    1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 
-    @property
-    def low_limit_price(self) -> int:
-        """
-        The allowable low limit price for the trading day where every 1 unit corresponds to
-        1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_low_limit_price
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_low_limit_price
-
-        """
+    """
 
     @property
     def pretty_max_price_variation(self) -> float:
@@ -4850,24 +4280,16 @@ class InstrumentDefMsg:
         max_price_variation
 
         """
+    max_price_variation: int
+    """
+    The differential value for price banding where every 1 unit corresponds to 1e-9,
+    i.e. 1/1,000,000,000 or 0.000000001.
 
-    @property
-    def max_price_variation(self) -> int:
-        """
-        The differential value for price banding where every 1 unit corresponds to 1e-9,
-        i.e. 1/1,000,000,000 or 0.000000001.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_max_price_variation
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_max_price_variation
-
-        """
+    """
 
     @property
     def pretty_unit_of_measure_qty(self) -> float:
@@ -4883,22 +4305,14 @@ class InstrumentDefMsg:
         unit_of_measure_qty
 
         """
+    unit_of_measure_qty: int
+    """
+    The contract size for each instrument, in combination with `unit_of_measure`, where every
+    1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 
-    @property
-    def unit_of_measure_qty(self) -> int:
-        """
-        The contract size for each instrument, in combination with `unit_of_measure`, where every
-        1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    See Also: pretty_unit_of_measure_qty
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_unit_of_measure_qty
-
-        """
+    """
 
     @property
     def pretty_min_price_increment_amount(self) -> float:
@@ -4914,24 +4328,16 @@ class InstrumentDefMsg:
         min_price_increment_amount
 
         """
+    min_price_increment_amount: int
+    """
+    The value currently under development by the venue where every 1 unit corresponds to 1e-9,
+    i.e. 1/1,000,000,000 or 0.000000001.
 
-    @property
-    def min_price_increment_amount(self) -> int:
-        """
-        The value currently under development by the venue where every 1 unit corresponds to 1e-9,
-        i.e. 1/1,000,000,000 or 0.000000001.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_min_price_increment_amount
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_min_price_increment_amount
-
-        """
+    """
 
     @property
     def pretty_price_ratio(self) -> float:
@@ -4947,22 +4353,14 @@ class InstrumentDefMsg:
         price_ratio
 
         """
+    price_ratio: int
+    """
+    The value used for price calculation in spread and leg pricing where every 1 unit
+    corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 
-    @property
-    def price_ratio(self) -> int:
-        """
-        The value used for price calculation in spread and leg pricing where every 1 unit
-        corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    See Also: pretty_price_ratio
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_price_ratio
-
-        """
+    """
 
     @property
     def pretty_strike_price(self) -> float:
@@ -4978,37 +4376,24 @@ class InstrumentDefMsg:
         strike_price
 
         """
+    strike_price: int
+    """
+    The strike price of the option where every 1 unit corresponds to 1e-9, i.e.
+    1/1,000,000,000 or 0.000000001.
 
-    @property
-    def strike_price(self) -> int:
-        """
-        The strike price of the option where every 1 unit corresponds to 1e-9, i.e.
-        1/1,000,000,000 or 0.000000001.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_strike_price
 
-        Returns
-        -------
-        int
+    """
 
-        See Also
-        --------
-        pretty_strike_price
+    raw_instrument_id: int
+    """
+    The instrument ID assigned by the publisher. May be the same as `instrument_id`.
 
-        """
+    See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers)
 
-    @property
-    def raw_instrument_id(self) -> int:
-        """
-        The instrument ID assigned by the publisher. May be the same as `instrument_id`.
-
-        See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers)
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def pretty_leg_price(self) -> float:
@@ -5024,21 +4409,13 @@ class InstrumentDefMsg:
         leg_price
 
         """
+    leg_price: int
+    """
+    The tied price (if any) of the leg.
 
-    @property
-    def leg_price(self) -> int:
-        """
-        The tied price (if any) of the leg.
+    See Also: pretty_leg_price
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_leg_price
-
-        """
+    """
 
     @property
     def pretty_leg_delta(self) -> float:
@@ -5054,303 +4431,170 @@ class InstrumentDefMsg:
         leg_delta
 
         """
+    leg_delta: int
+    """
+    The associated delta (if any) of the leg.
 
-    @property
-    def leg_delta(self) -> int:
-        """
-        The associated delta (if any) of the leg.
+    See Also: pretty_leg_delta
 
-        Returns
-        -------
-        int
+    """
 
-        See Also
-        --------
-        pretty_leg_delta
+    inst_attrib_value: int
+    """
+    A bitmap of instrument eligibility attributes.
 
-        """
+    """
 
-    @property
-    def inst_attrib_value(self) -> int:
-        """
-        A bitmap of instrument eligibility attributes.
+    underlying_id: int
+    """
+    The `instrument_id` of the first underlying instrument.
 
-        Returns
-        -------
-        int
+    See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers).
 
-        """
+    """
 
-    @property
-    def underlying_id(self) -> int:
-        """
-        The `instrument_id` of the first underlying instrument.
+    market_depth_implied: int
+    """
+    The implied book depth on the price level data feed.
 
-        See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers).
+    """
 
-        Returns
-        -------
-        int
+    market_depth: int
+    """
+    The (outright) book depth on the price level data feed.
 
-        """
+    """
 
-    @property
-    def market_depth_implied(self) -> int:
-        """
-        The implied book depth on the price level data feed.
+    market_segment_id: int
+    """
+    The market segment of the instrument.
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    max_trade_vol: int
+    """
+    The maximum trading volume for the instrument.
 
-    @property
-    def market_depth(self) -> int:
-        """
-        The (outright) book depth on the price level data feed.
+    """
 
-        Returns
-        -------
-        int
+    min_lot_size: int
+    """
+    The minimum order entry quantity for the instrument.
 
-        """
+    """
 
-    @property
-    def market_segment_id(self) -> int:
-        """
-        The market segment of the instrument.
+    min_lot_size_block: int
+    """
+    The minimum quantity required for a block trade of the instrument.
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    min_lot_size_round_lot: int
+    """
+    The minimum quantity required for a round lot of the instrument. Multiples of this
+    quantity are also round lots.
 
-    @property
-    def max_trade_vol(self) -> int:
-        """
-        The maximum trading volume for the instrument.
+    """
 
-        Returns
-        -------
-        int
+    min_trade_vol: int
+    """
+    The minimum trading volume for the instrument.
 
-        """
+    """
 
-    @property
-    def min_lot_size(self) -> int:
-        """
-        The minimum order entry quantity for the instrument.
+    contract_multiplier: int
+    """
+    The number of deliverables per instrument, i.e. peak days.
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    decay_quantity: int
+    """
+    The quantity that a contract will decay daily, after `decay_start_date` has been reached.
 
-    @property
-    def min_lot_size_block(self) -> int:
-        """
-        The minimum quantity required for a block trade of the instrument.
+    """
 
-        Returns
-        -------
-        int
+    original_contract_size: int
+    """
+    The fixed contract value assigned to each instrument.
 
-        """
+    """
 
-    @property
-    def min_lot_size_round_lot(self) -> int:
-        """
-        The minimum quantity required for a round lot of the instrument. Multiples of this
-        quantity are also round lots.
+    leg_instrument_id: int
+    """
+    The numeric ID assigned to the leg instrument.
 
-        Returns
-        -------
-        int
+    See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers).
 
-        """
+    """
 
-    @property
-    def min_trade_vol(self) -> int:
-        """
-        The minimum trading volume for the instrument.
+    leg_ratio_price_numerator: int
+    """
+    The numerator of the price ratio of the leg within the spread.
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    leg_ratio_price_denominator: int
+    """
+    The denominator of the price ratio of the leg within the spread.
 
-    @property
-    def contract_multiplier(self) -> int:
-        """
-        The number of deliverables per instrument, i.e. peak days.
+    """
 
-        Returns
-        -------
-        int
+    leg_ratio_qty_numerator: int
+    """
+    The numerator of the quantity ratio of the leg within the spread.
 
-        """
+    """
 
-    @property
-    def decay_quantity(self) -> int:
-        """
-        The quantity that a contract will decay daily, after `decay_start_date` has been reached.
+    leg_ratio_qty_denominator: int
+    """
+    The denominator of the quantity ratio of the leg within the spread.
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    leg_underlying_id: int
+    """
+    The numeric ID of the leg instrument's underlying instrument.
 
-    @property
-    def original_contract_size(self) -> int:
-        """
-        The fixed contract value assigned to each instrument.
+    See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers).
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    appl_id: int
+    """
+    The channel ID assigned at the venue.
 
-    @property
-    def leg_instrument_id(self) -> int:
-        """
-        The numeric ID assigned to the leg instrument.
+    """
 
-        See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers).
+    maturity_year: int
+    """
+    The calendar year reflected in the instrument symbol.
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    decay_start_date: int
+    """
+    The date at which a contract will begin to decay.
 
-    @property
-    def leg_ratio_price_numerator(self) -> int:
-        """
-        The numerator of the price ratio of the leg within the spread.
+    """
 
-        Returns
-        -------
-        int
+    channel_id: int
+    """
+    The channel ID assigned by Databento as an incrementing integer starting at zero.
 
-        """
+    """
 
-    @property
-    def leg_ratio_price_denominator(self) -> int:
-        """
-        The denominator of the price ratio of the leg within the spread.
+    leg_count: int
+    """
+    The number of legs in the strategy or spread. Will be 0 for outrights.
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    leg_index: int
+    """
+    The 0-based index of the leg.
 
-    @property
-    def leg_ratio_qty_numerator(self) -> int:
-        """
-        The numerator of the quantity ratio of the leg within the spread.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def leg_ratio_qty_denominator(self) -> int:
-        """
-        The denominator of the quantity ratio of the leg within the spread.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def leg_underlying_id(self) -> int:
-        """
-        The numeric ID of the leg instrument's underlying instrument.
-
-        See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers).
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def appl_id(self) -> int:
-        """
-        The channel ID assigned at the venue.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def maturity_year(self) -> int:
-        """
-        The calendar year reflected in the instrument symbol.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def decay_start_date(self) -> int:
-        """
-        The date at which a contract will begin to decay.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def channel_id(self) -> int:
-        """
-        The channel ID assigned by Databento as an incrementing integer starting at zero.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def leg_count(self) -> int:
-        """
-        The number of legs in the strategy or spread. Will be 0 for outrights.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def leg_index(self) -> int:
-        """
-        The 0-based index of the leg.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def currency(self) -> str:
@@ -5510,6 +4754,8 @@ class InstrumentDefMsg:
 
         """
 
+    @instrument_class.setter
+    def instrument_class(self, value: InstrumentClass) -> None: ...
     @property
     def match_algorithm(self) -> MatchAlgorithm | str:
         """
@@ -5523,49 +4769,32 @@ class InstrumentDefMsg:
 
         """
 
-    @property
-    def main_fraction(self) -> int:
-        """
-        The price denominator of the main fraction.
+    @match_algorithm.setter
+    def match_algorithm(self, value: MatchAlgorithm) -> None: ...
 
-        Returns
-        -------
-        int
+    main_fraction: int
+    """
+    The price denominator of the main fraction.
 
-        """
+    """
 
-    @property
-    def price_display_format(self) -> int:
-        """
-        The number of digits to the right of the tick mark, to display fractional prices.
+    price_display_format: int
+    """
+    The number of digits to the right of the tick mark, to display fractional prices.
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    sub_fraction: int
+    """
+    The price denominator of the sub fraction.
 
-    @property
-    def sub_fraction(self) -> int:
-        """
-        The price denominator of the sub fraction.
+    """
 
-        Returns
-        -------
-        int
+    underlying_product: int
+    """
+    The product complex of the instrument.
 
-        """
-
-    @property
-    def underlying_product(self) -> int:
-        """
-        The product complex of the instrument.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def security_update_action(self) -> SecurityUpdateAction | str:
@@ -5578,38 +4807,26 @@ class InstrumentDefMsg:
 
         """
 
-    @property
-    def maturity_month(self) -> int:
-        """
-        The calendar month reflected in the instrument symbol.
+    @security_update_action.setter
+    def security_update_action(self, value: SecurityUpdateAction) -> None: ...
 
-        Returns
-        -------
-        int
+    maturity_month: int
+    """
+    The calendar month reflected in the instrument symbol.
 
-        """
+    """
 
-    @property
-    def maturity_day(self) -> int:
-        """
-        The calendar day reflected in the instrument symbol, or 0.
+    maturity_day: int
+    """
+    The calendar day reflected in the instrument symbol, or 0.
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    maturity_week: int
+    """
+    The calendar week reflected in the instrument symbol, or 0.
 
-    @property
-    def maturity_week(self) -> int:
-        """
-        The calendar week reflected in the instrument symbol, or 0.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def user_defined_instrument(self) -> UserDefinedInstrument | str:
@@ -5622,38 +4839,26 @@ class InstrumentDefMsg:
 
         """
 
-    @property
-    def contract_multiplier_unit(self) -> int:
-        """
-        The type of `contract_multiplier`. Either `1` for hours, or `2` for days.
+    @user_defined_instrument.setter
+    def user_defined_instrument(self, value: UserDefinedInstrument) -> None: ...
 
-        Returns
-        -------
-        int
+    contract_multiplier_unit: int
+    """
+    The type of `contract_multiplier`. Either `1` for hours, or `2` for days.
 
-        """
+    """
 
-    @property
-    def flow_schedule_type(self) -> int:
-        """
-        The schedule for delivering electricity.
+    flow_schedule_type: int
+    """
+    The schedule for delivering electricity.
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    tick_rule: int
+    """
+    The tick rule of the spread.
 
-    @property
-    def tick_rule(self) -> int:
-        """
-        The tick rule of the spread.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def leg_instrument_class(self) -> InstrumentClass | str:
@@ -5666,6 +4871,8 @@ class InstrumentDefMsg:
 
         """
 
+    @leg_instrument_class.setter
+    def leg_instrument_class(self, value: InstrumentClass) -> None: ...
     @property
     def leg_side(self) -> Side | str:
         """
@@ -5676,6 +4883,9 @@ class InstrumentDefMsg:
         Side | str
 
         """
+
+    @leg_side.setter
+    def leg_side(self, value: Side) -> None: ...
 
 class ImbalanceMsg:
     """
@@ -5717,7 +4927,6 @@ class ImbalanceMsg:
         unpaired_side: Side | None = None,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
-    @property
     def record_size(self) -> int:
         """
         Return the size of the record in bytes.
@@ -5742,32 +4951,21 @@ class ImbalanceMsg:
         RType
 
         """
+    publisher_id: int
+    """
+    The publisher ID assigned by Databento, which denotes the dataset and venue.
 
-    @property
-    def publisher_id(self) -> int:
-        """
-        The publisher ID assigned by Databento, which denotes the dataset and venue.
+    See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
 
-        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+    """
 
-        Returns
-        -------
-        int
+    instrument_id: int
+    """
+    The numeric instrument ID.
 
-        """
+    See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
 
-    @property
-    def instrument_id(self) -> int:
-        """
-        The numeric instrument ID.
-
-        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_index(self) -> int:
@@ -5818,20 +5016,14 @@ class ImbalanceMsg:
         datetime.datetime
 
         """
+    ts_event: int
+    """
+    The matching-engine-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_event(self) -> int:
-        """
-        The matching-engine-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
 
-        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_out(self) -> int | None:
@@ -5858,20 +5050,14 @@ class ImbalanceMsg:
         datetime.datetime
 
         """
+    ts_recv: int
+    """
+    The capture-server-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_recv(self) -> int:
-        """
-        The capture-server-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
 
-        See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def pretty_ref_price(self) -> float:
@@ -5887,24 +5073,16 @@ class ImbalanceMsg:
         ref_price
 
         """
+    ref_price: int
+    """
+    The price at which the imbalance shares are calculated, where every 1 unit corresponds
+    to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be `UNDEF_PRICE` when unused.
 
-    @property
-    def ref_price(self) -> int:
-        """
-        The price at which the imbalance shares are calculated, where every 1 unit corresponds
-        to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be `UNDEF_PRICE` when unused.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_ref_price
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_ref_price
-
-        """
+    """
 
     @property
     def pretty_auction_time(self) -> dt.datetime | None:
@@ -5917,18 +5095,12 @@ class ImbalanceMsg:
         datetime.datetime
 
         """
+    auction_time: int
+    """
+    Projected auction timestamp expressed as the number of nanoseconds since the UNIX epoch.
+    Will be `UNDEF_TIMESTAMP` when unused.
 
-    @property
-    def auction_time(self) -> int:
-        """
-        Projected auction timestamp expressed as the number of nanoseconds since the UNIX epoch.
-        Will be `UNDEF_TIMESTAMP` when unused.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def pretty_cont_book_clr_price(self) -> float:
@@ -5944,24 +5116,16 @@ class ImbalanceMsg:
         cont_book_clr_price
 
         """
+    cont_book_clr_price: int
+    """
+    The hypothetical auction-clearing price for both cross and continuous orders where every
+    1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be `UNDEF_PRICE` when unused.
 
-    @property
-    def cont_book_clr_price(self) -> int:
-        """
-        The hypothetical auction-clearing price for both cross and continuous orders where every
-        1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be `UNDEF_PRICE` when unused.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_cont_book_clr_price
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_cont_book_clr_price
-
-        """
+    """
 
     @property
     def pretty_auct_interest_clr_price(self) -> float:
@@ -5977,24 +5141,16 @@ class ImbalanceMsg:
         auct_interest_clr_price
 
         """
+    auct_interest_clr_price: int
+    """
+    The hypothetical auction-clearing price for cross orders only where every 1 unit corresponds
+    to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be `UNDEF_PRICE` when unused.
 
-    @property
-    def auct_interest_clr_price(self) -> int:
-        """
-        The hypothetical auction-clearing price for cross orders only where every 1 unit corresponds
-        to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be `UNDEF_PRICE` when unused.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_auct_interest_clr_price
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_auct_interest_clr_price
-
-        """
+    """
 
     @property
     def pretty_ssr_filling_price(self) -> float:
@@ -6010,25 +5166,17 @@ class ImbalanceMsg:
         ssr_filling_price
 
         """
+    ssr_filling_price: int
+    """
+    The price at which sell short interest will be filed if a sell short restriction is
+    in effect, where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    Will be `UNDEF_PRICE` when unused.
 
-    @property
-    def ssr_filling_price(self) -> int:
-        """
-        The price at which sell short interest will be filed if a sell short restriction is
-        in effect, where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
-        Will be `UNDEF_PRICE` when unused.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_ssr_filling_price
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_ssr_filling_price
-
-        """
+    """
 
     @property
     def pretty_ind_match_price(self) -> float:
@@ -6044,25 +5192,17 @@ class ImbalanceMsg:
         ind_match_price
 
         """
+    ind_match_price: int
+    """
+    The price at which the highest number of shares would trade, subject to auction collars,
+    where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    Will be `UNDEF_PRICE` when unused.
 
-    @property
-    def ind_match_price(self) -> int:
-        """
-        The price at which the highest number of shares would trade, subject to auction collars,
-        where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
-        Will be `UNDEF_PRICE` when unused.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_ind_match_price
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_ind_match_price
-
-        """
+    """
 
     @property
     def pretty_upper_collar(self) -> float:
@@ -6078,24 +5218,16 @@ class ImbalanceMsg:
         upper_collar
 
         """
+    upper_collar: int
+    """
+    Upper limit of the auction collar, where every 1 unit corresponds
+    to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be `UNDEF_PRICE` when unused.
 
-    @property
-    def upper_collar(self) -> int:
-        """
-        Upper limit of the auction collar, where every 1 unit corresponds
-        to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be `UNDEF_PRICE` when unused.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_upper_collar
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_upper_collar
-
-        """
+    """
 
     @property
     def pretty_lower_collar(self) -> float:
@@ -6111,85 +5243,52 @@ class ImbalanceMsg:
         lower_collar
 
         """
+    lower_collar: int
+    """
+    Upper limit of the auction collar, where every 1 unit corresponds
+    to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be `UNDEF_PRICE` when unused.
 
-    @property
-    def lower_collar(self) -> int:
-        """
-        Upper limit of the auction collar, where every 1 unit corresponds
-        to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be `UNDEF_PRICE` when unused.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_lower_collar
 
-        Returns
-        -------
-        int
+    """
 
-        See Also
-        --------
-        pretty_lower_collar
+    paired_qty: int
+    """
+    The quantity of shares that are eligible to be matched at `ref_price`.
+    Will be `UNDEF_ORDER_SIZE` when unused.
 
-        """
+    """
 
-    @property
-    def paired_qty(self) -> int:
-        """
-        The quantity of shares that are eligible to be matched at `ref_price`.
-        Will be `UNDEF_ORDER_SIZE` when unused.
+    total_imbalance_qty: int
+    """
+    The quantity of shares that are not paired at `ref_price`.
+    Will be `UNDEF_ORDER_SIZE` when not used.
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    market_imbalance_qty: int
+    """
+    The total market order imbalance quantity at the `ref_price`.
+    Will be `UNDEF_ORDER_SIZE` when unused.
 
-    @property
-    def total_imbalance_qty(self) -> int:
-        """
-        The quantity of shares that are not paired at `ref_price`.
-        Will be `UNDEF_ORDER_SIZE` when not used.
+    """
 
-        Returns
-        -------
-        int
+    unpaired_qty: int
+    """
+    During the Closing Auction, the number of unpaired shares priced at or better than the `ref_price`.
+    Will be `UNDEF_ORDER_SIZE` when unused.
 
-        """
+    """
 
-    @property
-    def market_imbalance_qty(self) -> int:
-        """
-        The total market order imbalance quantity at the `ref_price`.
-        Will be `UNDEF_ORDER_SIZE` when unused.
+    auction_type: str
+    """
+    Venue-specific character code indicating the auction type. Will be `~` when unused.
 
-        Returns
-        -------
-        int
+    Refer to the [venue-specific documentation](https://databento.com/docs/venues-and-datasets).
 
-        """
-
-    @property
-    def unpaired_qty(self) -> int:
-        """
-        During the Closing Auction, the number of unpaired shares priced at or better than the `ref_price`.
-        Will be `UNDEF_ORDER_SIZE` when unused.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def auction_type(self) -> str:
-        """
-        Venue-specific character code indicating the auction type. Will be `~` when unused.
-
-        Refer to the [venue-specific documentation](https://databento.com/docs/venues-and-datasets).
-
-        Returns
-        -------
-        str
-
-        """
+    """
 
     @property
     def side(self) -> Side | str:
@@ -6205,42 +5304,30 @@ class ImbalanceMsg:
 
         """
 
-    @property
-    def auction_status(self) -> int:
-        """
-        Venue-specific status code.
+    @side.setter
+    def side(self, value: Side) -> None: ...
 
-        Refer to the [venue-specific documentation](https://databento.com/docs/venues-and-datasets).
+    auction_status: int
+    """
+    Venue-specific status code.
 
-        Returns
-        -------
-        int
+    Refer to the [venue-specific documentation](https://databento.com/docs/venues-and-datasets).
 
-        """
+    """
 
-    @property
-    def freeze_status(self) -> int:
-        """
-        Venue-specific status code.
+    freeze_status: int
+    """
+    Venue-specific status code.
 
-        Refer to the [venue-specific documentation](https://databento.com/docs/venues-and-datasets).
+    Refer to the [venue-specific documentation](https://databento.com/docs/venues-and-datasets).
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    num_extensions: int
+    """
+    The number of times the halt period has been extended.
 
-    @property
-    def num_extensions(self) -> int:
-        """
-        The number of times the halt period has been extended.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def unpaired_side(self) -> Side | str:
@@ -6255,18 +5342,16 @@ class ImbalanceMsg:
 
         """
 
-    @property
-    def significant_imbalance(self) -> str:
-        """
-        Venue-specific character code. For Nasdaq, contains the raw Price Variation Indicator.
+    @unpaired_side.setter
+    def unpaired_side(self, value: Side) -> None: ...
 
-        Refer to the [venue-specific documentation](https://databento.com/docs/venues-and-datasets).
+    significant_imbalance: str
+    """
+    Venue-specific character code. For Nasdaq, contains the raw Price Variation Indicator.
 
-        Returns
-        -------
-        str
+    Refer to the [venue-specific documentation](https://databento.com/docs/venues-and-datasets).
 
-        """
+    """
 
 class StatMsg:
     """
@@ -6299,7 +5384,6 @@ class StatMsg:
         stat_flags: int = 0,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
-    @property
     def record_size(self) -> int:
         """
         Return the size of the record in bytes.
@@ -6324,32 +5408,21 @@ class StatMsg:
         RType
 
         """
+    publisher_id: int
+    """
+    The publisher ID assigned by Databento, which denotes the dataset and venue.
 
-    @property
-    def publisher_id(self) -> int:
-        """
-        The publisher ID assigned by Databento, which denotes the dataset and venue.
+    See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
 
-        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+    """
 
-        Returns
-        -------
-        int
+    instrument_id: int
+    """
+    The numeric instrument ID.
 
-        """
+    See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
 
-    @property
-    def instrument_id(self) -> int:
-        """
-        The numeric instrument ID.
-
-        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_index(self) -> int:
@@ -6400,20 +5473,14 @@ class StatMsg:
         datetime.datetime
 
         """
+    ts_event: int
+    """
+    The matching-engine-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_event(self) -> int:
-        """
-        The matching-engine-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
 
-        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_out(self) -> int | None:
@@ -6440,20 +5507,14 @@ class StatMsg:
         datetime.datetime
 
         """
+    ts_recv: int
+    """
+    The capture-server-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_recv(self) -> int:
-        """
-        The capture-server-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
 
-        See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def pretty_ts_ref(self) -> dt.datetime | None:
@@ -6466,18 +5527,12 @@ class StatMsg:
         datetime.datetime
 
         """
+    ts_ref: int
+    """
+    The reference timestamp of the statistic value expressed as the number of
+    nanoseconds since the UNIX epoch. Will be `UNDEF_TIMESTAMP` when unused.
 
-    @property
-    def ts_ref(self) -> int:
-        """
-        The reference timestamp of the statistic value expressed as the number of
-        nanoseconds since the UNIX epoch. Will be `UNDEF_TIMESTAMP` when unused.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def pretty_price(self) -> float:
@@ -6493,61 +5548,38 @@ class StatMsg:
         price
 
         """
+    price: int
+    """
+    The value for price statistics where every 1 unit corresponds to 1e-9, i.e.
+    1/1,000,000,000 or 0.000000001. Will be `UNDEF_PRICE` when unused.
 
-    @property
-    def price(self) -> int:
-        """
-        The value for price statistics where every 1 unit corresponds to 1e-9, i.e.
-        1/1,000,000,000 or 0.000000001. Will be `UNDEF_PRICE` when unused.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_price
 
-        Returns
-        -------
-        int
+    """
 
-        See Also
-        --------
-        pretty_price
+    quantity: int
+    """
+    The value for non-price statistics. Will be `UNDEF_STAT_QUANTITY`
+    when unused.
 
-        """
+    """
 
-    @property
-    def quantity(self) -> int:
-        """
-        The value for non-price statistics. Will be `UNDEF_STAT_QUANTITY`
-        when unused.
+    sequence: int
+    """
+    The message sequence number assigned at the venue.
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    ts_in_delta: int
+    """
+    The matching-engine-sending timestamp expressed as the number of nanoseconds before
+    `ts_recv`.
 
-    @property
-    def sequence(self) -> int:
-        """
-        The message sequence number assigned at the venue.
+    See [ts_in_delta](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-in-delta).
 
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def ts_in_delta(self) -> int:
-        """
-        The matching-engine-sending timestamp expressed as the number of nanoseconds before
-        `ts_recv`.
-
-        See [ts_in_delta](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-in-delta).
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def stat_type(self) -> StatType | int:
@@ -6561,16 +5593,14 @@ class StatMsg:
 
         """
 
-    @property
-    def channel_id(self) -> int:
-        """
-        The channel ID assigned by Databento as an incrementing integer starting at zero.
+    @stat_type.setter
+    def stat_type(self, value: StatType) -> None: ...
 
-        Returns
-        -------
-        int
+    channel_id: int
+    """
+    The channel ID assigned by Databento as an incrementing integer starting at zero.
 
-        """
+    """
 
     @property
     def update_action(self) -> StatUpdateAction | int:
@@ -6584,16 +5614,14 @@ class StatMsg:
 
         """
 
-    @property
-    def stat_flags(self) -> int:
-        """
-        Additional flags associate with certain stat types.
+    @update_action.setter
+    def update_action(self, value: StatUpdateAction) -> None: ...
 
-        Returns
-        -------
-        int
+    stat_flags: int
+    """
+    Additional flags associate with certain stat types.
 
-        """
+    """
 
 class ErrorMsg:
     """
@@ -6612,7 +5640,6 @@ class ErrorMsg:
         self, ts_event: int, err: str, is_last: bool = True, code: ErrorCode | None = None
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
-    @property
     def record_size(self) -> int:
         """
         Return the size of the record in bytes.
@@ -6637,32 +5664,21 @@ class ErrorMsg:
         RType
 
         """
+    publisher_id: int
+    """
+    The publisher ID assigned by Databento, which denotes the dataset and venue.
 
-    @property
-    def publisher_id(self) -> int:
-        """
-        The publisher ID assigned by Databento, which denotes the dataset and venue.
+    See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
 
-        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+    """
 
-        Returns
-        -------
-        int
+    instrument_id: int
+    """
+    The numeric instrument ID.
 
-        """
+    See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
 
-    @property
-    def instrument_id(self) -> int:
-        """
-        The numeric instrument ID.
-
-        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_index(self) -> int:
@@ -6713,20 +5729,14 @@ class ErrorMsg:
         datetime.datetime
 
         """
+    ts_event: int
+    """
+    The matching-engine-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_event(self) -> int:
-        """
-        The matching-engine-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
 
-        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_out(self) -> int | None:
@@ -6764,17 +5774,15 @@ class ErrorMsg:
 
         """
 
-    @property
-    def is_last(self) -> int:
-        """
-        Sometimes multiple errors are sent together. This field will be non-zero for the
-        last error.
+    @code.setter
+    def code(self, value: ErrorCode) -> None: ...
 
-        Returns
-        -------
-        int
+    is_last: int
+    """
+    Sometimes multiple errors are sent together. This field will be non-zero for the
+    last error.
 
-        """
+    """
 
 class SymbolMappingMsg:
     """
@@ -6803,7 +5811,6 @@ class SymbolMappingMsg:
         end_ts: int,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
-    @property
     def record_size(self) -> int:
         """
         Return the size of the record in bytes.
@@ -6828,32 +5835,21 @@ class SymbolMappingMsg:
         RType
 
         """
+    publisher_id: int
+    """
+    The publisher ID assigned by Databento, which denotes the dataset and venue.
 
-    @property
-    def publisher_id(self) -> int:
-        """
-        The publisher ID assigned by Databento, which denotes the dataset and venue.
+    See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
 
-        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+    """
 
-        Returns
-        -------
-        int
+    instrument_id: int
+    """
+    The numeric instrument ID.
 
-        """
+    See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
 
-    @property
-    def instrument_id(self) -> int:
-        """
-        The numeric instrument ID.
-
-        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_index(self) -> int:
@@ -6904,20 +5900,14 @@ class SymbolMappingMsg:
         datetime.datetime
 
         """
+    ts_event: int
+    """
+    The matching-engine-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_event(self) -> int:
-        """
-        The matching-engine-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
 
-        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_out(self) -> int | None:
@@ -6944,6 +5934,8 @@ class SymbolMappingMsg:
 
         """
 
+    @stype_in.setter
+    def stype_in(self, value: SType) -> None: ...
     @property
     def stype_in_symbol(self) -> str:
         """
@@ -6966,6 +5958,8 @@ class SymbolMappingMsg:
 
         """
 
+    @stype_out.setter
+    def stype_out(self, value: SType) -> None: ...
     @property
     def stype_out_symbol(self) -> str:
         """
@@ -6988,18 +5982,12 @@ class SymbolMappingMsg:
         datetime.datetime
 
         """
+    start_ts: int
+    """
+    The start of the mapping interval expressed as the number of nanoseconds since
+    the UNIX epoch.
 
-    @property
-    def start_ts(self) -> int:
-        """
-        The start of the mapping interval expressed as the number of nanoseconds since
-        the UNIX epoch.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def pretty_end_ts(self) -> dt.datetime | None:
@@ -7012,18 +6000,12 @@ class SymbolMappingMsg:
         datetime.datetime
 
         """
+    end_ts: int
+    """
+    The end of the mapping interval expressed as the number of nanoseconds since
+    the UNIX epoch.
 
-    @property
-    def end_ts(self) -> int:
-        """
-        The end of the mapping interval expressed as the number of nanoseconds since
-        the UNIX epoch.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
 class SystemMsg:
     """
@@ -7041,7 +6023,6 @@ class SystemMsg:
 
     def __init__(self, ts_event: int, msg: str, code: SystemCode | None = None) -> None: ...
     def __bytes__(self) -> bytes: ...
-    @property
     def record_size(self) -> int:
         """
         Return the size of the record in bytes.
@@ -7066,32 +6047,21 @@ class SystemMsg:
         RType
 
         """
+    publisher_id: int
+    """
+    The publisher ID assigned by Databento, which denotes the dataset and venue.
 
-    @property
-    def publisher_id(self) -> int:
-        """
-        The publisher ID assigned by Databento, which denotes the dataset and venue.
+    See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
 
-        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+    """
 
-        Returns
-        -------
-        int
+    instrument_id: int
+    """
+    The numeric instrument ID.
 
-        """
+    See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
 
-    @property
-    def instrument_id(self) -> int:
-        """
-        The numeric instrument ID.
-
-        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_index(self) -> int:
@@ -7142,20 +6112,14 @@ class SystemMsg:
         datetime.datetime
 
         """
+    ts_event: int
+    """
+    The matching-engine-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_event(self) -> int:
-        """
-        The matching-engine-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
 
-        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_out(self) -> int | None:
@@ -7204,6 +6168,9 @@ class SystemMsg:
 
         """
 
+    @code.setter
+    def code(self, value: SystemCode) -> None: ...
+
 class ErrorMsgV1:
     """
     An error message from the Databento Live Subscription Gateway (LSG) in DBN version 1.
@@ -7219,7 +6186,6 @@ class ErrorMsgV1:
 
     def __init__(self, ts_event: int, err: str) -> None: ...
     def __bytes__(self) -> bytes: ...
-    @property
     def record_size(self) -> int:
         """
         Return the size of the record in bytes.
@@ -7244,32 +6210,21 @@ class ErrorMsgV1:
         RType
 
         """
+    publisher_id: int
+    """
+    The publisher ID assigned by Databento, which denotes the dataset and venue.
 
-    @property
-    def publisher_id(self) -> int:
-        """
-        The publisher ID assigned by Databento, which denotes the dataset and venue.
+    See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
 
-        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+    """
 
-        Returns
-        -------
-        int
+    instrument_id: int
+    """
+    The numeric instrument ID.
 
-        """
+    See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
 
-    @property
-    def instrument_id(self) -> int:
-        """
-        The numeric instrument ID.
-
-        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_index(self) -> int:
@@ -7320,20 +6275,14 @@ class ErrorMsgV1:
         datetime.datetime
 
         """
+    ts_event: int
+    """
+    The matching-engine-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_event(self) -> int:
-        """
-        The matching-engine-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
 
-        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_out(self) -> int | None:
@@ -7440,7 +6389,6 @@ class InstrumentDefMsgV1:
         tick_rule: int,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
-    @property
     def record_size(self) -> int:
         """
         Return the size of the record in bytes.
@@ -7465,32 +6413,21 @@ class InstrumentDefMsgV1:
         RType
 
         """
+    publisher_id: int
+    """
+    The publisher ID assigned by Databento, which denotes the dataset and venue.
 
-    @property
-    def publisher_id(self) -> int:
-        """
-        The publisher ID assigned by Databento, which denotes the dataset and venue.
+    See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
 
-        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+    """
 
-        Returns
-        -------
-        int
+    instrument_id: int
+    """
+    The numeric instrument ID.
 
-        """
+    See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
 
-    @property
-    def instrument_id(self) -> int:
-        """
-        The numeric instrument ID.
-
-        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_index(self) -> int:
@@ -7541,20 +6478,14 @@ class InstrumentDefMsgV1:
         datetime.datetime
 
         """
+    ts_event: int
+    """
+    The matching-engine-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_event(self) -> int:
-        """
-        The matching-engine-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
 
-        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_out(self) -> int | None:
@@ -7581,20 +6512,14 @@ class InstrumentDefMsgV1:
         datetime.datetime
 
         """
+    ts_recv: int
+    """
+    The capture-server-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_recv(self) -> int:
-        """
-        The capture-server-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
 
-        See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def pretty_min_price_increment(self) -> float:
@@ -7610,24 +6535,16 @@ class InstrumentDefMsgV1:
         min_price_increment
 
         """
+    min_price_increment: int
+    """
+    The minimum constant tick for the instrument where every 1 unit corresponds to 1e-9, i.e.
+    1/1,000,000,000 or 0.000000001.
 
-    @property
-    def min_price_increment(self) -> int:
-        """
-        The minimum constant tick for the instrument where every 1 unit corresponds to 1e-9, i.e.
-        1/1,000,000,000 or 0.000000001.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_min_price_increment
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_min_price_increment
-
-        """
+    """
 
     @property
     def pretty_display_factor(self) -> float:
@@ -7643,22 +6560,14 @@ class InstrumentDefMsgV1:
         display_factor
 
         """
+    display_factor: int
+    """
+    The multiplier to convert the venue's display price to the conventional price where every
+    1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 
-    @property
-    def display_factor(self) -> int:
-        """
-        The multiplier to convert the venue's display price to the conventional price where every
-        1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    See Also: pretty_display_factor
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_display_factor
-
-        """
+    """
 
     @property
     def pretty_expiration(self) -> dt.datetime | None:
@@ -7671,21 +6580,15 @@ class InstrumentDefMsgV1:
         datetime.datetime
 
         """
+    expiration: int
+    """
+    The last eligible trade time expressed as the number of nanoseconds since the
+    UNIX epoch.
 
-    @property
-    def expiration(self) -> int:
-        """
-        The last eligible trade time expressed as the number of nanoseconds since the
-        UNIX epoch.
+    Will be `UNDEF_TIMESTAMP` when null, such as for equities. Some publishers
+    only provide date-level granularity.
 
-        Will be `UNDEF_TIMESTAMP` when null, such as for equities. Some publishers
-        only provide date-level granularity.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def pretty_activation(self) -> dt.datetime | None:
@@ -7698,21 +6601,15 @@ class InstrumentDefMsgV1:
         datetime.datetime
 
         """
+    activation: int
+    """
+    The time of instrument activation expressed as the number of nanoseconds since the
+    UNIX epoch.
 
-    @property
-    def activation(self) -> int:
-        """
-        The time of instrument activation expressed as the number of nanoseconds since the
-        UNIX epoch.
+    Will be `UNDEF_TIMESTAMP` when null, such as for equities. Some publishers
+    only provide date-level granularity.
 
-        Will be `UNDEF_TIMESTAMP` when null, such as for equities. Some publishers
-        only provide date-level granularity.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def pretty_high_limit_price(self) -> float:
@@ -7728,24 +6625,16 @@ class InstrumentDefMsgV1:
         high_limit_price
 
         """
+    high_limit_price: int
+    """
+    The allowable high limit price for the trading day where every 1 unit corresponds to
+    1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 
-    @property
-    def high_limit_price(self) -> int:
-        """
-        The allowable high limit price for the trading day where every 1 unit corresponds to
-        1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_high_limit_price
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_high_limit_price
-
-        """
+    """
 
     @property
     def pretty_low_limit_price(self) -> float:
@@ -7761,24 +6650,16 @@ class InstrumentDefMsgV1:
         low_limit_price
 
         """
+    low_limit_price: int
+    """
+    The allowable low limit price for the trading day where every 1 unit corresponds to
+    1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 
-    @property
-    def low_limit_price(self) -> int:
-        """
-        The allowable low limit price for the trading day where every 1 unit corresponds to
-        1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_low_limit_price
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_low_limit_price
-
-        """
+    """
 
     @property
     def pretty_max_price_variation(self) -> float:
@@ -7794,24 +6675,16 @@ class InstrumentDefMsgV1:
         max_price_variation
 
         """
+    max_price_variation: int
+    """
+    The differential value for price banding where every 1 unit corresponds to 1e-9,
+    i.e. 1/1,000,000,000 or 0.000000001.
 
-    @property
-    def max_price_variation(self) -> int:
-        """
-        The differential value for price banding where every 1 unit corresponds to 1e-9,
-        i.e. 1/1,000,000,000 or 0.000000001.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_max_price_variation
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_max_price_variation
-
-        """
+    """
 
     @property
     def pretty_trading_reference_price(self) -> float:
@@ -7827,23 +6700,15 @@ class InstrumentDefMsgV1:
         trading_reference_price
 
         """
+    trading_reference_price: int
+    """
+    The trading session settlement price on `trading_reference_date`.
 
-    @property
-    def trading_reference_price(self) -> int:
-        """
-        The trading session settlement price on `trading_reference_date`.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_trading_reference_price
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_trading_reference_price
-
-        """
+    """
 
     @property
     def pretty_unit_of_measure_qty(self) -> float:
@@ -7859,22 +6724,14 @@ class InstrumentDefMsgV1:
         unit_of_measure_qty
 
         """
+    unit_of_measure_qty: int
+    """
+    The contract size for each instrument, in combination with `unit_of_measure`, where every
+    1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 
-    @property
-    def unit_of_measure_qty(self) -> int:
-        """
-        The contract size for each instrument, in combination with `unit_of_measure`, where every
-        1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    See Also: pretty_unit_of_measure_qty
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_unit_of_measure_qty
-
-        """
+    """
 
     @property
     def pretty_min_price_increment_amount(self) -> float:
@@ -7890,24 +6747,16 @@ class InstrumentDefMsgV1:
         min_price_increment_amount
 
         """
+    min_price_increment_amount: int
+    """
+    The value currently under development by the venue where every 1 unit corresponds to 1e-9,
+    i.e. 1/1,000,000,000 or 0.000000001.
 
-    @property
-    def min_price_increment_amount(self) -> int:
-        """
-        The value currently under development by the venue where every 1 unit corresponds to 1e-9,
-        i.e. 1/1,000,000,000 or 0.000000001.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_min_price_increment_amount
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_min_price_increment_amount
-
-        """
+    """
 
     @property
     def pretty_price_ratio(self) -> float:
@@ -7923,237 +6772,134 @@ class InstrumentDefMsgV1:
         price_ratio
 
         """
+    price_ratio: int
+    """
+    The value used for price calculation in spread and leg pricing where every 1 unit
+    corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 
-    @property
-    def price_ratio(self) -> int:
-        """
-        The value used for price calculation in spread and leg pricing where every 1 unit
-        corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    See Also: pretty_price_ratio
 
-        Returns
-        -------
-        int
+    """
 
-        See Also
-        --------
-        pretty_price_ratio
+    inst_attrib_value: int
+    """
+    A bitmap of instrument eligibility attributes.
 
-        """
+    """
 
-    @property
-    def inst_attrib_value(self) -> int:
-        """
-        A bitmap of instrument eligibility attributes.
+    underlying_id: int
+    """
+    The `instrument_id` of the first underlying instrument.
 
-        Returns
-        -------
-        int
+    See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers).
 
-        """
+    """
 
-    @property
-    def underlying_id(self) -> int:
-        """
-        The `instrument_id` of the first underlying instrument.
+    raw_instrument_id: int
+    """
+    The instrument ID assigned by the publisher. May be the same as `instrument_id`.
 
-        See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers).
+    See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers)
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    market_depth_implied: int
+    """
+    The implied book depth on the price level data feed.
 
-    @property
-    def raw_instrument_id(self) -> int:
-        """
-        The instrument ID assigned by the publisher. May be the same as `instrument_id`.
+    """
 
-        See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers)
+    market_depth: int
+    """
+    The (outright) book depth on the price level data feed.
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    market_segment_id: int
+    """
+    The market segment of the instrument.
 
-    @property
-    def market_depth_implied(self) -> int:
-        """
-        The implied book depth on the price level data feed.
+    """
 
-        Returns
-        -------
-        int
+    max_trade_vol: int
+    """
+    The maximum trading volume for the instrument.
 
-        """
+    """
 
-    @property
-    def market_depth(self) -> int:
-        """
-        The (outright) book depth on the price level data feed.
+    min_lot_size: int
+    """
+    The minimum order entry quantity for the instrument.
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    min_lot_size_block: int
+    """
+    The minimum quantity required for a block trade of the instrument.
 
-    @property
-    def market_segment_id(self) -> int:
-        """
-        The market segment of the instrument.
+    """
 
-        Returns
-        -------
-        int
+    min_lot_size_round_lot: int
+    """
+    The minimum quantity required for a round lot of the instrument. Multiples of this
+    quantity are also round lots.
 
-        """
+    """
 
-    @property
-    def max_trade_vol(self) -> int:
-        """
-        The maximum trading volume for the instrument.
+    min_trade_vol: int
+    """
+    The minimum trading volume for the instrument.
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    contract_multiplier: int
+    """
+    The number of deliverables per instrument, i.e. peak days.
 
-    @property
-    def min_lot_size(self) -> int:
-        """
-        The minimum order entry quantity for the instrument.
+    """
 
-        Returns
-        -------
-        int
+    decay_quantity: int
+    """
+    The quantity that a contract will decay daily, after `decay_start_date` has been reached.
 
-        """
+    """
 
-    @property
-    def min_lot_size_block(self) -> int:
-        """
-        The minimum quantity required for a block trade of the instrument.
+    original_contract_size: int
+    """
+    The fixed contract value assigned to each instrument.
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    trading_reference_date: int
+    """
+    The trading session date corresponding to the settlement price in
+    `trading_reference_price`, in number of days since the UNIX epoch.
 
-    @property
-    def min_lot_size_round_lot(self) -> int:
-        """
-        The minimum quantity required for a round lot of the instrument. Multiples of this
-        quantity are also round lots.
+    """
 
-        Returns
-        -------
-        int
+    appl_id: int
+    """
+    The channel ID assigned at the venue.
 
-        """
+    """
 
-    @property
-    def min_trade_vol(self) -> int:
-        """
-        The minimum trading volume for the instrument.
+    maturity_year: int
+    """
+    The calendar year reflected in the instrument symbol.
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    decay_start_date: int
+    """
+    The date at which a contract will begin to decay.
 
-    @property
-    def contract_multiplier(self) -> int:
-        """
-        The number of deliverables per instrument, i.e. peak days.
+    """
 
-        Returns
-        -------
-        int
+    channel_id: int
+    """
+    The channel ID assigned by Databento as an incrementing integer starting at zero.
 
-        """
-
-    @property
-    def decay_quantity(self) -> int:
-        """
-        The quantity that a contract will decay daily, after `decay_start_date` has been reached.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def original_contract_size(self) -> int:
-        """
-        The fixed contract value assigned to each instrument.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def trading_reference_date(self) -> int:
-        """
-        The trading session date corresponding to the settlement price in
-        `trading_reference_price`, in number of days since the UNIX epoch.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def appl_id(self) -> int:
-        """
-        The channel ID assigned at the venue.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def maturity_year(self) -> int:
-        """
-        The calendar year reflected in the instrument symbol.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def decay_start_date(self) -> int:
-        """
-        The date at which a contract will begin to decay.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def channel_id(self) -> int:
-        """
-        The channel ID assigned by Databento as an incrementing integer starting at zero.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def currency(self) -> str:
@@ -8302,6 +7048,8 @@ class InstrumentDefMsgV1:
 
         """
 
+    @instrument_class.setter
+    def instrument_class(self, value: InstrumentClass) -> None: ...
     @property
     def pretty_strike_price(self) -> float:
         """
@@ -8316,24 +7064,16 @@ class InstrumentDefMsgV1:
         strike_price
 
         """
+    strike_price: int
+    """
+    The strike price of the option where every 1 unit corresponds to 1e-9, i.e.
+    1/1,000,000,000 or 0.000000001.
 
-    @property
-    def strike_price(self) -> int:
-        """
-        The strike price of the option where every 1 unit corresponds to 1e-9, i.e.
-        1/1,000,000,000 or 0.000000001.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_strike_price
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_strike_price
-
-        """
+    """
 
     @property
     def match_algorithm(self) -> MatchAlgorithm | str:
@@ -8348,159 +7088,92 @@ class InstrumentDefMsgV1:
 
         """
 
-    @property
-    def md_security_trading_status(self) -> int:
-        """
-        The current trading state of the instrument.
+    @match_algorithm.setter
+    def match_algorithm(self, value: MatchAlgorithm) -> None: ...
 
-        Returns
-        -------
-        int
+    md_security_trading_status: int
+    """
+    The current trading state of the instrument.
 
-        """
+    """
 
-    @property
-    def main_fraction(self) -> int:
-        """
-        The price denominator of the main fraction.
+    main_fraction: int
+    """
+    The price denominator of the main fraction.
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    price_display_format: int
+    """
+    The number of digits to the right of the tick mark, to display fractional prices.
 
-    @property
-    def price_display_format(self) -> int:
-        """
-        The number of digits to the right of the tick mark, to display fractional prices.
+    """
 
-        Returns
-        -------
-        int
+    settl_price_type: int
+    """
+    The type indicators for the settlement price, as a bitmap.
 
-        """
+    """
 
-    @property
-    def settl_price_type(self) -> int:
-        """
-        The type indicators for the settlement price, as a bitmap.
+    sub_fraction: int
+    """
+    The price denominator of the sub fraction.
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    underlying_product: int
+    """
+    The product complex of the instrument.
 
-    @property
-    def sub_fraction(self) -> int:
-        """
-        The price denominator of the sub fraction.
+    """
 
-        Returns
-        -------
-        int
+    security_update_action: SecurityUpdateAction
+    """
+    Indicates if the instrument definition has been added, modified, or deleted.
 
-        """
+    """
 
-    @property
-    def underlying_product(self) -> int:
-        """
-        The product complex of the instrument.
+    maturity_month: int
+    """
+    The calendar month reflected in the instrument symbol.
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    maturity_day: int
+    """
+    The calendar day reflected in the instrument symbol, or 0.
 
-    @property
-    def security_update_action(self) -> SecurityUpdateAction:
-        """
-        Indicates if the instrument definition has been added, modified, or deleted.
+    """
 
-        Returns
-        -------
-        SecurityUpdateAction
+    maturity_week: int
+    """
+    The calendar week reflected in the instrument symbol, or 0.
 
-        """
+    """
 
-    @property
-    def maturity_month(self) -> int:
-        """
-        The calendar month reflected in the instrument symbol.
+    user_defined_instrument: UserDefinedInstrument
+    """
+    Indicates if the instrument is user defined: **Y**es or **N**o.
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    contract_multiplier_unit: int
+    """
+    The type of `contract_multiplier`. Either `1` for hours, or `2` for days.
 
-    @property
-    def maturity_day(self) -> int:
-        """
-        The calendar day reflected in the instrument symbol, or 0.
+    """
 
-        Returns
-        -------
-        int
+    flow_schedule_type: int
+    """
+    The schedule for delivering electricity.
 
-        """
+    """
 
-    @property
-    def maturity_week(self) -> int:
-        """
-        The calendar week reflected in the instrument symbol, or 0.
+    tick_rule: int
+    """
+    The tick rule of the spread.
 
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def user_defined_instrument(self) -> UserDefinedInstrument:
-        """
-        Indicates if the instrument is user defined: **Y**es or **N**o.
-
-        Returns
-        -------
-        UserDefinedInstrument
-
-        """
-
-    @property
-    def contract_multiplier_unit(self) -> int:
-        """
-        The type of `contract_multiplier`. Either `1` for hours, or `2` for days.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def flow_schedule_type(self) -> int:
-        """
-        The schedule for delivering electricity.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def tick_rule(self) -> int:
-        """
-        The tick rule of the spread.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
 class StatMsgV1:
     """
@@ -8533,7 +7206,6 @@ class StatMsgV1:
         stat_flags: int = 0,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
-    @property
     def record_size(self) -> int:
         """
         Return the size of the record in bytes.
@@ -8558,32 +7230,21 @@ class StatMsgV1:
         RType
 
         """
+    publisher_id: int
+    """
+    The publisher ID assigned by Databento, which denotes the dataset and venue.
 
-    @property
-    def publisher_id(self) -> int:
-        """
-        The publisher ID assigned by Databento, which denotes the dataset and venue.
+    See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
 
-        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+    """
 
-        Returns
-        -------
-        int
+    instrument_id: int
+    """
+    The numeric instrument ID.
 
-        """
+    See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
 
-    @property
-    def instrument_id(self) -> int:
-        """
-        The numeric instrument ID.
-
-        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_index(self) -> int:
@@ -8634,20 +7295,14 @@ class StatMsgV1:
         datetime.datetime
 
         """
+    ts_event: int
+    """
+    The matching-engine-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_event(self) -> int:
-        """
-        The matching-engine-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
 
-        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_out(self) -> int | None:
@@ -8674,20 +7329,14 @@ class StatMsgV1:
         datetime.datetime
 
         """
+    ts_recv: int
+    """
+    The capture-server-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_recv(self) -> int:
-        """
-        The capture-server-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
 
-        See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def pretty_ts_ref(self) -> dt.datetime | None:
@@ -8700,18 +7349,12 @@ class StatMsgV1:
         datetime.datetime
 
         """
+    ts_ref: int
+    """
+    The reference timestamp of the statistic value expressed as the number of
+    nanoseconds since the UNIX epoch. Will be `UNDEF_TIMESTAMP` when unused.
 
-    @property
-    def ts_ref(self) -> int:
-        """
-        The reference timestamp of the statistic value expressed as the number of
-        nanoseconds since the UNIX epoch. Will be `UNDEF_TIMESTAMP` when unused.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def pretty_price(self) -> float:
@@ -8727,61 +7370,38 @@ class StatMsgV1:
         price
 
         """
+    price: int
+    """
+    The value for price statistics where every 1 unit corresponds to 1e-9, i.e.
+    1/1,000,000,000 or 0.000000001. Will be `UNDEF_PRICE` when unused.
 
-    @property
-    def price(self) -> int:
-        """
-        The value for price statistics where every 1 unit corresponds to 1e-9, i.e.
-        1/1,000,000,000 or 0.000000001. Will be `UNDEF_PRICE` when unused.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_price
 
-        Returns
-        -------
-        int
+    """
 
-        See Also
-        --------
-        pretty_price
+    quantity: int
+    """
+    The value for non-price statistics. Will be `UNDEF_STAT_QUANTITY`
+    when unused.
 
-        """
+    """
 
-    @property
-    def quantity(self) -> int:
-        """
-        The value for non-price statistics. Will be `UNDEF_STAT_QUANTITY`
-        when unused.
+    sequence: int
+    """
+    The message sequence number assigned at the venue.
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    ts_in_delta: int
+    """
+    The matching-engine-sending timestamp expressed as the number of nanoseconds before
+    `ts_recv`.
 
-    @property
-    def sequence(self) -> int:
-        """
-        The message sequence number assigned at the venue.
+    See [ts_in_delta](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-in-delta).
 
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def ts_in_delta(self) -> int:
-        """
-        The matching-engine-sending timestamp expressed as the number of nanoseconds before
-        `ts_recv`.
-
-        See [ts_in_delta](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-in-delta).
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def stat_type(self) -> StatType | int:
@@ -8795,16 +7415,14 @@ class StatMsgV1:
 
         """
 
-    @property
-    def channel_id(self) -> int:
-        """
-        The channel ID assigned by Databento as an incrementing integer starting at zero.
+    @stat_type.setter
+    def stat_type(self, value: StatType) -> None: ...
 
-        Returns
-        -------
-        int
+    channel_id: int
+    """
+    The channel ID assigned by Databento as an incrementing integer starting at zero.
 
-        """
+    """
 
     @property
     def update_action(self) -> StatUpdateAction | int:
@@ -8818,16 +7436,14 @@ class StatMsgV1:
 
         """
 
-    @property
-    def stat_flags(self) -> int:
-        """
-        Additional flags associate with certain stat types.
+    @update_action.setter
+    def update_action(self, value: StatUpdateAction) -> None: ...
 
-        Returns
-        -------
-        int
+    stat_flags: int
+    """
+    Additional flags associate with certain stat types.
 
-        """
+    """
 
 class SymbolMappingMsgV1:
     """
@@ -8853,7 +7469,6 @@ class SymbolMappingMsgV1:
         end_ts: int,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
-    @property
     def record_size(self) -> int:
         """
         Return the size of the record in bytes.
@@ -8878,32 +7493,21 @@ class SymbolMappingMsgV1:
         RType
 
         """
+    publisher_id: int
+    """
+    The publisher ID assigned by Databento, which denotes the dataset and venue.
 
-    @property
-    def publisher_id(self) -> int:
-        """
-        The publisher ID assigned by Databento, which denotes the dataset and venue.
+    See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
 
-        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+    """
 
-        Returns
-        -------
-        int
+    instrument_id: int
+    """
+    The numeric instrument ID.
 
-        """
+    See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
 
-    @property
-    def instrument_id(self) -> int:
-        """
-        The numeric instrument ID.
-
-        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_index(self) -> int:
@@ -8954,20 +7558,14 @@ class SymbolMappingMsgV1:
         datetime.datetime
 
         """
+    ts_event: int
+    """
+    The matching-engine-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_event(self) -> int:
-        """
-        The matching-engine-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
 
-        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_out(self) -> int | None:
@@ -9016,18 +7614,12 @@ class SymbolMappingMsgV1:
         datetime.datetime
 
         """
+    start_ts: int
+    """
+    The start of the mapping interval expressed as the number of nanoseconds since
+    the UNIX epoch.
 
-    @property
-    def start_ts(self) -> int:
-        """
-        The start of the mapping interval expressed as the number of nanoseconds since
-        the UNIX epoch.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def pretty_end_ts(self) -> dt.datetime | None:
@@ -9040,18 +7632,12 @@ class SymbolMappingMsgV1:
         datetime.datetime
 
         """
+    end_ts: int
+    """
+    The end of the mapping interval expressed as the number of nanoseconds since
+    the UNIX epoch.
 
-    @property
-    def end_ts(self) -> int:
-        """
-        The end of the mapping interval expressed as the number of nanoseconds since
-        the UNIX epoch.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
 class SystemMsgV1:
     """
@@ -9069,7 +7655,6 @@ class SystemMsgV1:
 
     def __init__(self, ts_event: int, msg: str) -> None: ...
     def __bytes__(self) -> bytes: ...
-    @property
     def record_size(self) -> int:
         """
         Return the size of the record in bytes.
@@ -9094,32 +7679,21 @@ class SystemMsgV1:
         RType
 
         """
+    publisher_id: int
+    """
+    The publisher ID assigned by Databento, which denotes the dataset and venue.
 
-    @property
-    def publisher_id(self) -> int:
-        """
-        The publisher ID assigned by Databento, which denotes the dataset and venue.
+    See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
 
-        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+    """
 
-        Returns
-        -------
-        int
+    instrument_id: int
+    """
+    The numeric instrument ID.
 
-        """
+    See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
 
-    @property
-    def instrument_id(self) -> int:
-        """
-        The numeric instrument ID.
-
-        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_index(self) -> int:
@@ -9170,20 +7744,14 @@ class SystemMsgV1:
         datetime.datetime
 
         """
+    ts_event: int
+    """
+    The matching-engine-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_event(self) -> int:
-        """
-        The matching-engine-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
 
-        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_out(self) -> int | None:
@@ -9301,7 +7869,6 @@ class InstrumentDefMsgV2:
         tick_rule: int,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
-    @property
     def record_size(self) -> int:
         """
         Return the size of the record in bytes.
@@ -9326,32 +7893,21 @@ class InstrumentDefMsgV2:
         RType
 
         """
+    publisher_id: int
+    """
+    The publisher ID assigned by Databento, which denotes the dataset and venue.
 
-    @property
-    def publisher_id(self) -> int:
-        """
-        The publisher ID assigned by Databento, which denotes the dataset and venue.
+    See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
 
-        See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+    """
 
-        Returns
-        -------
-        int
+    instrument_id: int
+    """
+    The numeric instrument ID.
 
-        """
+    See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
 
-    @property
-    def instrument_id(self) -> int:
-        """
-        The numeric instrument ID.
-
-        See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_index(self) -> int:
@@ -9402,20 +7958,14 @@ class InstrumentDefMsgV2:
         datetime.datetime
 
         """
+    ts_event: int
+    """
+    The matching-engine-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_event(self) -> int:
-        """
-        The matching-engine-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
 
-        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def ts_out(self) -> int | None:
@@ -9442,20 +7992,14 @@ class InstrumentDefMsgV2:
         datetime.datetime
 
         """
+    ts_recv: int
+    """
+    The capture-server-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
 
-    @property
-    def ts_recv(self) -> int:
-        """
-        The capture-server-received timestamp expressed as the number of nanoseconds
-        since the UNIX epoch.
+    See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
 
-        See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def pretty_min_price_increment(self) -> float:
@@ -9471,24 +8015,16 @@ class InstrumentDefMsgV2:
         min_price_increment
 
         """
+    min_price_increment: int
+    """
+    The minimum constant tick for the instrument where every 1 unit corresponds to 1e-9, i.e.
+    1/1,000,000,000 or 0.000000001.
 
-    @property
-    def min_price_increment(self) -> int:
-        """
-        The minimum constant tick for the instrument where every 1 unit corresponds to 1e-9, i.e.
-        1/1,000,000,000 or 0.000000001.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_min_price_increment
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_min_price_increment
-
-        """
+    """
 
     @property
     def pretty_display_factor(self) -> float:
@@ -9504,22 +8040,14 @@ class InstrumentDefMsgV2:
         display_factor
 
         """
+    display_factor: int
+    """
+    The multiplier to convert the venue's display price to the conventional price where every
+    1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 
-    @property
-    def display_factor(self) -> int:
-        """
-        The multiplier to convert the venue's display price to the conventional price where every
-        1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    See Also: pretty_display_factor
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_display_factor
-
-        """
+    """
 
     @property
     def pretty_expiration(self) -> dt.datetime | None:
@@ -9532,21 +8060,15 @@ class InstrumentDefMsgV2:
         datetime.datetime
 
         """
+    expiration: int
+    """
+    The last eligible trade time expressed as the number of nanoseconds since the
+    UNIX epoch.
 
-    @property
-    def expiration(self) -> int:
-        """
-        The last eligible trade time expressed as the number of nanoseconds since the
-        UNIX epoch.
+    Will be `UNDEF_TIMESTAMP` when null, such as for equities. Some publishers
+    only provide date-level granularity.
 
-        Will be `UNDEF_TIMESTAMP` when null, such as for equities. Some publishers
-        only provide date-level granularity.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def pretty_activation(self) -> dt.datetime | None:
@@ -9559,21 +8081,15 @@ class InstrumentDefMsgV2:
         datetime.datetime
 
         """
+    activation: int
+    """
+    The time of instrument activation expressed as the number of nanoseconds since the
+    UNIX epoch.
 
-    @property
-    def activation(self) -> int:
-        """
-        The time of instrument activation expressed as the number of nanoseconds since the
-        UNIX epoch.
+    Will be `UNDEF_TIMESTAMP` when null, such as for equities. Some publishers
+    only provide date-level granularity.
 
-        Will be `UNDEF_TIMESTAMP` when null, such as for equities. Some publishers
-        only provide date-level granularity.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def pretty_high_limit_price(self) -> float:
@@ -9589,24 +8105,16 @@ class InstrumentDefMsgV2:
         high_limit_price
 
         """
+    high_limit_price: int
+    """
+    The allowable high limit price for the trading day where every 1 unit corresponds to
+    1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 
-    @property
-    def high_limit_price(self) -> int:
-        """
-        The allowable high limit price for the trading day where every 1 unit corresponds to
-        1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_high_limit_price
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_high_limit_price
-
-        """
+    """
 
     @property
     def pretty_low_limit_price(self) -> float:
@@ -9622,24 +8130,16 @@ class InstrumentDefMsgV2:
         low_limit_price
 
         """
+    low_limit_price: int
+    """
+    The allowable low limit price for the trading day where every 1 unit corresponds to
+    1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 
-    @property
-    def low_limit_price(self) -> int:
-        """
-        The allowable low limit price for the trading day where every 1 unit corresponds to
-        1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_low_limit_price
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_low_limit_price
-
-        """
+    """
 
     @property
     def pretty_max_price_variation(self) -> float:
@@ -9655,24 +8155,16 @@ class InstrumentDefMsgV2:
         max_price_variation
 
         """
+    max_price_variation: int
+    """
+    The differential value for price banding where every 1 unit corresponds to 1e-9,
+    i.e. 1/1,000,000,000 or 0.000000001.
 
-    @property
-    def max_price_variation(self) -> int:
-        """
-        The differential value for price banding where every 1 unit corresponds to 1e-9,
-        i.e. 1/1,000,000,000 or 0.000000001.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_max_price_variation
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_max_price_variation
-
-        """
+    """
 
     @property
     def pretty_trading_reference_price(self) -> float:
@@ -9688,23 +8180,15 @@ class InstrumentDefMsgV2:
         trading_reference_price
 
         """
+    trading_reference_price: int
+    """
+    The trading session settlement price on `trading_reference_date`.
 
-    @property
-    def trading_reference_price(self) -> int:
-        """
-        The trading session settlement price on `trading_reference_date`.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_trading_reference_price
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_trading_reference_price
-
-        """
+    """
 
     @property
     def pretty_unit_of_measure_qty(self) -> float:
@@ -9720,22 +8204,14 @@ class InstrumentDefMsgV2:
         unit_of_measure_qty
 
         """
+    unit_of_measure_qty: int
+    """
+    The contract size for each instrument, in combination with `unit_of_measure`, where every
+    1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 
-    @property
-    def unit_of_measure_qty(self) -> int:
-        """
-        The contract size for each instrument, in combination with `unit_of_measure`, where every
-        1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    See Also: pretty_unit_of_measure_qty
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_unit_of_measure_qty
-
-        """
+    """
 
     @property
     def pretty_min_price_increment_amount(self) -> float:
@@ -9751,24 +8227,16 @@ class InstrumentDefMsgV2:
         min_price_increment_amount
 
         """
+    min_price_increment_amount: int
+    """
+    The value currently under development by the venue where every 1 unit corresponds to 1e-9,
+    i.e. 1/1,000,000,000 or 0.000000001.
 
-    @property
-    def min_price_increment_amount(self) -> int:
-        """
-        The value currently under development by the venue where every 1 unit corresponds to 1e-9,
-        i.e. 1/1,000,000,000 or 0.000000001.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_min_price_increment_amount
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_min_price_increment_amount
-
-        """
+    """
 
     @property
     def pretty_price_ratio(self) -> float:
@@ -9784,22 +8252,14 @@ class InstrumentDefMsgV2:
         price_ratio
 
         """
+    price_ratio: int
+    """
+    The value used for price calculation in spread and leg pricing where every 1 unit
+    corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 
-    @property
-    def price_ratio(self) -> int:
-        """
-        The value used for price calculation in spread and leg pricing where every 1 unit
-        corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+    See Also: pretty_price_ratio
 
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        pretty_price_ratio
-
-        """
+    """
 
     @property
     def pretty_strike_price(self) -> float:
@@ -9815,239 +8275,136 @@ class InstrumentDefMsgV2:
         strike_price
 
         """
+    strike_price: int
+    """
+    The strike price of the option where every 1 unit corresponds to 1e-9, i.e.
+    1/1,000,000,000 or 0.000000001.
 
-    @property
-    def strike_price(self) -> int:
-        """
-        The strike price of the option where every 1 unit corresponds to 1e-9, i.e.
-        1/1,000,000,000 or 0.000000001.
+    See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
-        See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
+    See Also: pretty_strike_price
 
-        Returns
-        -------
-        int
+    """
 
-        See Also
-        --------
-        pretty_strike_price
+    inst_attrib_value: int
+    """
+    A bitmap of instrument eligibility attributes.
 
-        """
+    """
 
-    @property
-    def inst_attrib_value(self) -> int:
-        """
-        A bitmap of instrument eligibility attributes.
+    underlying_id: int
+    """
+    The `instrument_id` of the first underlying instrument.
 
-        Returns
-        -------
-        int
+    See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers).
 
-        """
+    """
 
-    @property
-    def underlying_id(self) -> int:
-        """
-        The `instrument_id` of the first underlying instrument.
+    raw_instrument_id: int
+    """
+    The instrument ID assigned by the publisher. May be the same as `instrument_id`.
 
-        See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers).
+    See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers)
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    market_depth_implied: int
+    """
+    The implied book depth on the price level data feed.
 
-    @property
-    def raw_instrument_id(self) -> int:
-        """
-        The instrument ID assigned by the publisher. May be the same as `instrument_id`.
+    """
 
-        See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers)
+    market_depth: int
+    """
+    The (outright) book depth on the price level data feed.
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    market_segment_id: int
+    """
+    The market segment of the instrument.
 
-    @property
-    def market_depth_implied(self) -> int:
-        """
-        The implied book depth on the price level data feed.
+    """
 
-        Returns
-        -------
-        int
+    max_trade_vol: int
+    """
+    The maximum trading volume for the instrument.
 
-        """
+    """
 
-    @property
-    def market_depth(self) -> int:
-        """
-        The (outright) book depth on the price level data feed.
+    min_lot_size: int
+    """
+    The minimum order entry quantity for the instrument.
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    min_lot_size_block: int
+    """
+    The minimum quantity required for a block trade of the instrument.
 
-    @property
-    def market_segment_id(self) -> int:
-        """
-        The market segment of the instrument.
+    """
 
-        Returns
-        -------
-        int
+    min_lot_size_round_lot: int
+    """
+    The minimum quantity required for a round lot of the instrument. Multiples of this
+    quantity are also round lots.
 
-        """
+    """
 
-    @property
-    def max_trade_vol(self) -> int:
-        """
-        The maximum trading volume for the instrument.
+    min_trade_vol: int
+    """
+    The minimum trading volume for the instrument.
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    contract_multiplier: int
+    """
+    The number of deliverables per instrument, i.e. peak days.
 
-    @property
-    def min_lot_size(self) -> int:
-        """
-        The minimum order entry quantity for the instrument.
+    """
 
-        Returns
-        -------
-        int
+    decay_quantity: int
+    """
+    The quantity that a contract will decay daily, after `decay_start_date` has been reached.
 
-        """
+    """
 
-    @property
-    def min_lot_size_block(self) -> int:
-        """
-        The minimum quantity required for a block trade of the instrument.
+    original_contract_size: int
+    """
+    The fixed contract value assigned to each instrument.
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    trading_reference_date: int
+    """
+    The trading session date corresponding to the settlement price in
+    `trading_reference_price`, in number of days since the UNIX epoch.
 
-    @property
-    def min_lot_size_round_lot(self) -> int:
-        """
-        The minimum quantity required for a round lot of the instrument. Multiples of this
-        quantity are also round lots.
+    """
 
-        Returns
-        -------
-        int
+    appl_id: int
+    """
+    The channel ID assigned at the venue.
 
-        """
+    """
 
-    @property
-    def min_trade_vol(self) -> int:
-        """
-        The minimum trading volume for the instrument.
+    maturity_year: int
+    """
+    The calendar year reflected in the instrument symbol.
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    decay_start_date: int
+    """
+    The date at which a contract will begin to decay.
 
-    @property
-    def contract_multiplier(self) -> int:
-        """
-        The number of deliverables per instrument, i.e. peak days.
+    """
 
-        Returns
-        -------
-        int
+    channel_id: int
+    """
+    The channel ID assigned by Databento as an incrementing integer starting at zero.
 
-        """
-
-    @property
-    def decay_quantity(self) -> int:
-        """
-        The quantity that a contract will decay daily, after `decay_start_date` has been reached.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def original_contract_size(self) -> int:
-        """
-        The fixed contract value assigned to each instrument.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def trading_reference_date(self) -> int:
-        """
-        The trading session date corresponding to the settlement price in
-        `trading_reference_price`, in number of days since the UNIX epoch.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def appl_id(self) -> int:
-        """
-        The channel ID assigned at the venue.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def maturity_year(self) -> int:
-        """
-        The calendar year reflected in the instrument symbol.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def decay_start_date(self) -> int:
-        """
-        The date at which a contract will begin to decay.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def channel_id(self) -> int:
-        """
-        The channel ID assigned by Databento as an incrementing integer starting at zero.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def currency(self) -> str:
@@ -10196,6 +8553,8 @@ class InstrumentDefMsgV2:
 
         """
 
+    @instrument_class.setter
+    def instrument_class(self, value: InstrumentClass) -> None: ...
     @property
     def match_algorithm(self) -> MatchAlgorithm | str:
         """
@@ -10209,71 +8568,44 @@ class InstrumentDefMsgV2:
 
         """
 
-    @property
-    def md_security_trading_status(self) -> int:
-        """
-        The current trading state of the instrument.
+    @match_algorithm.setter
+    def match_algorithm(self, value: MatchAlgorithm) -> None: ...
 
-        Returns
-        -------
-        int
+    md_security_trading_status: int
+    """
+    The current trading state of the instrument.
 
-        """
+    """
 
-    @property
-    def main_fraction(self) -> int:
-        """
-        The price denominator of the main fraction.
+    main_fraction: int
+    """
+    The price denominator of the main fraction.
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    price_display_format: int
+    """
+    The number of digits to the right of the tick mark, to display fractional prices.
 
-    @property
-    def price_display_format(self) -> int:
-        """
-        The number of digits to the right of the tick mark, to display fractional prices.
+    """
 
-        Returns
-        -------
-        int
+    settl_price_type: int
+    """
+    The type indicators for the settlement price, as a bitmap.
 
-        """
+    """
 
-    @property
-    def settl_price_type(self) -> int:
-        """
-        The type indicators for the settlement price, as a bitmap.
+    sub_fraction: int
+    """
+    The price denominator of the sub fraction.
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    underlying_product: int
+    """
+    The product complex of the instrument.
 
-    @property
-    def sub_fraction(self) -> int:
-        """
-        The price denominator of the sub fraction.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def underlying_product(self) -> int:
-        """
-        The product complex of the instrument.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
     @property
     def security_update_action(self) -> SecurityUpdateAction | str:
@@ -10286,82 +8618,50 @@ class InstrumentDefMsgV2:
 
         """
 
-    @property
-    def maturity_month(self) -> int:
-        """
-        The calendar month reflected in the instrument symbol.
+    @security_update_action.setter
+    def security_update_action(self, value: SecurityUpdateAction) -> None: ...
 
-        Returns
-        -------
-        int
+    maturity_month: int
+    """
+    The calendar month reflected in the instrument symbol.
 
-        """
+    """
 
-    @property
-    def maturity_day(self) -> int:
-        """
-        The calendar day reflected in the instrument symbol, or 0.
+    maturity_day: int
+    """
+    The calendar day reflected in the instrument symbol, or 0.
 
-        Returns
-        -------
-        int
+    """
 
-        """
+    maturity_week: int
+    """
+    The calendar week reflected in the instrument symbol, or 0.
 
-    @property
-    def maturity_week(self) -> int:
-        """
-        The calendar week reflected in the instrument symbol, or 0.
+    """
 
-        Returns
-        -------
-        int
+    user_defined_instrument: UserDefinedInstrument
+    """
+    Indicates if the instrument is user defined: **Y**es or **N**o.
 
-        """
+    """
 
-    @property
-    def user_defined_instrument(self) -> UserDefinedInstrument:
-        """
-        Indicates if the instrument is user defined: **Y**es or **N**o.
+    contract_multiplier_unit: int
+    """
+    The type of `contract_multiplier`. Either `1` for hours, or `2` for days.
 
-        Returns
-        -------
-        UserDefinedInstrument
+    """
 
-        """
+    flow_schedule_type: int
+    """
+    The schedule for delivering electricity.
 
-    @property
-    def contract_multiplier_unit(self) -> int:
-        """
-        The type of `contract_multiplier`. Either `1` for hours, or `2` for days.
+    """
 
-        Returns
-        -------
-        int
+    tick_rule: int
+    """
+    The tick rule of the spread.
 
-        """
-
-    @property
-    def flow_schedule_type(self) -> int:
-        """
-        The schedule for delivering electricity.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def tick_rule(self) -> int:
-        """
-        The tick rule of the spread.
-
-        Returns
-        -------
-        int
-
-        """
+    """
 
 class DBNDecoder:
     """
