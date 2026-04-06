@@ -295,7 +295,7 @@ pub enum Dataset {
     XcisBbo = 13,
     /// NYSE National Trades
     XcisTrades = 14,
-    /// MEMX Memoir Depth
+    /// MEMX MEMOIR Depth
     MemxMemoir = 15,
     /// MIAX Pearl Depth
     EprlDom = 16,
@@ -631,7 +631,7 @@ pub enum Publisher {
     XcisBboXcis = 13,
     /// NYSE National Trades
     XcisTradesXcis = 14,
-    /// MEMX Memoir Depth
+    /// MEMX MEMOIR Depth
     MemxMemoirMemx = 15,
     /// MIAX Pearl Depth
     EprlDomEprl = 16,
