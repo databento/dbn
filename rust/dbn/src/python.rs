@@ -5,7 +5,8 @@
 mod conversions;
 mod enums;
 mod metadata;
-mod record;
+/// Python wrapper types for DBN records that include `ts_out` as a real field.
+pub mod record;
 pub mod repr;
 
 use std::{convert::Infallible, fmt};

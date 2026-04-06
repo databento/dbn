@@ -69,11 +69,7 @@ pub struct RecordHeader {
 #[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(dict, eq, module = "databento_dbn", name = "MBOMsg"),
-    derive(crate::macros::PyFieldDesc)
-)]
+#[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[cfg_attr(test, derive(type_layout::TypeLayout))]
 #[dbn_record(rtype::MBO)]
@@ -81,26 +77,21 @@ pub struct MboMsg {
     /// The common header.
     pub hd: RecordHeader,
     /// The order ID assigned at the venue.
-    #[pyo3(get, set)]
     pub order_id: u64,
     /// The order price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
     /// 0.000000001.
     ///
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(encode_order(4), fixed_price)]
-    #[pyo3(get, set)]
     pub price: i64,
     /// The order quantity.
     #[dbn(encode_order(5))]
-    #[pyo3(get, set)]
     pub size: u32,
     /// A bit field indicating event end, message characteristics, and data quality.
     /// See [`flags`](crate::flags) for possible values.
-    #[pyo3(get, set)]
     pub flags: FlagSet,
     /// The channel ID assigned by Databento as an incrementing integer starting at zero.
     #[dbn(encode_order(6))]
-    #[pyo3(get, set)]
     pub channel_id: u8,
     /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R** book, **T**rade, **F**ill, or **N**one.
     ///
@@ -118,16 +109,13 @@ pub struct MboMsg {
     ///
     /// See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
     #[dbn(encode_order(0), index_ts, unix_nanos)]
-    #[pyo3(get, set)]
     pub ts_recv: u64,
     /// The matching-engine-sending timestamp expressed as the number of nanoseconds before
     /// `ts_recv`.
     ///
     /// See [ts_in_delta](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-in-delta).
-    #[pyo3(get, set)]
     pub ts_in_delta: i32,
     /// The message sequence number assigned at the venue.
-    #[pyo3(get, set)]
     pub sequence: u32,
 }
 
@@ -230,11 +218,7 @@ pub struct ConsolidatedBidAskPair {
 #[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(dict, eq, module = "databento_dbn"),
-    derive(crate::macros::PyFieldDesc)
-)]
+#[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[cfg_attr(test, derive(type_layout::TypeLayout))]
 #[dbn_record(rtype::MBP_0)]
@@ -245,10 +229,8 @@ pub struct TradeMsg {
     ///
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
-    #[pyo3(get, set)]
     pub price: i64,
     /// The order quantity.
-    #[pyo3(get, set)]
     pub size: u32,
     /// The event action. Always **T**rade in the trades schema.
     ///
@@ -262,27 +244,22 @@ pub struct TradeMsg {
     pub side: c_char,
     /// A bit field indicating event end, message characteristics, and data quality.
     /// See [`flags`](crate::flags) for possible values.
-    #[pyo3(get, set)]
     pub flags: FlagSet,
     /// The book level where the update event occurred.
     #[dbn(encode_order(4))]
-    #[pyo3(get, set)]
     pub depth: u8,
     /// The capture-server-received timestamp expressed as the number of nanoseconds
     /// since the UNIX epoch.
     ///
     /// See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
     #[dbn(encode_order(0), index_ts, unix_nanos)]
-    #[pyo3(get, set)]
     pub ts_recv: u64,
     /// The matching-engine-sending timestamp expressed as the number of nanoseconds before
     /// `ts_recv`.
     ///
     /// See [ts_in_delta](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-in-delta).
-    #[pyo3(get, set)]
     pub ts_in_delta: i32,
     /// The message sequence number assigned at the venue.
-    #[pyo3(get, set)]
     pub sequence: u32,
 }
 
@@ -292,11 +269,7 @@ pub struct TradeMsg {
 #[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(dict, eq, module = "databento_dbn", name = "MBP1Msg"),
-    derive(crate::macros::PyFieldDesc)
-)]
+#[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[cfg_attr(test, derive(type_layout::TypeLayout))]
 #[dbn_record(rtype::MBP_1)]
@@ -308,10 +281,8 @@ pub struct Mbp1Msg {
     ///
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
-    #[pyo3(get, set)]
     pub price: i64,
     /// The order quantity.
-    #[pyo3(get, set)]
     pub size: u32,
     /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R** book, or **T**rade.
     ///
@@ -326,30 +297,24 @@ pub struct Mbp1Msg {
     pub side: c_char,
     /// A bit field indicating event end, message characteristics, and data quality.
     /// See [`flags`](crate::flags) for possible values.
-    #[pyo3(get, set)]
     pub flags: FlagSet,
     /// The book level where the update event occurred.
     #[dbn(encode_order(4))]
-    #[pyo3(get, set)]
     pub depth: u8,
     /// The capture-server-received timestamp expressed as the number of nanoseconds
     /// since the UNIX epoch.
     ///
     /// See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
     #[dbn(encode_order(0), index_ts, unix_nanos)]
-    #[pyo3(get, set)]
     pub ts_recv: u64,
     /// The matching-engine-sending timestamp expressed as the number of nanoseconds before
     /// `ts_recv`.
     ///
     /// See [ts_in_delta](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-in-delta).
-    #[pyo3(get, set)]
     pub ts_in_delta: i32,
     /// The message sequence number assigned at the venue.
-    #[pyo3(get, set)]
     pub sequence: u32,
     /// The top of the order book.
-    #[pyo3(get, set)]
     pub levels: [BidAskPair; 1],
 }
 
@@ -359,11 +324,7 @@ pub struct Mbp1Msg {
 #[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(dict, eq, module = "databento_dbn", name = "MBP10Msg"),
-    derive(crate::macros::PyFieldDesc)
-)]
+#[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[cfg_attr(test, derive(type_layout::TypeLayout))]
 #[dbn_record(rtype::MBP_10)]
@@ -375,10 +336,8 @@ pub struct Mbp10Msg {
     ///
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
-    #[pyo3(get, set)]
     pub price: i64,
     /// The order quantity.
-    #[pyo3(get, set)]
     pub size: u32,
     /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R** book, or **T**rade.
     ///
@@ -393,30 +352,24 @@ pub struct Mbp10Msg {
     pub side: c_char,
     /// A bit field indicating event end, message characteristics, and data quality.
     /// See [`flags`](crate::flags) for possible values.
-    #[pyo3(get, set)]
     pub flags: FlagSet,
     /// The book level where the update event occurred.
     #[dbn(encode_order(4))]
-    #[pyo3(get, set)]
     pub depth: u8,
     /// The capture-server-received timestamp expressed as the number of nanoseconds
     /// since the UNIX epoch.
     ///
     /// See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
     #[dbn(encode_order(0), index_ts, unix_nanos)]
-    #[pyo3(get, set)]
     pub ts_recv: u64,
     /// The matching-engine-sending timestamp expressed as the number of nanoseconds before
     /// `ts_recv`.
     ///
     /// See [ts_in_delta](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-in-delta).
-    #[pyo3(get, set)]
     pub ts_in_delta: i32,
     /// The message sequence number assigned at the venue.
-    #[pyo3(get, set)]
     pub sequence: u32,
     /// The top 10 levels of the order book.
-    #[pyo3(get, set)]
     pub levels: [BidAskPair; 10],
 }
 
@@ -426,11 +379,7 @@ pub struct Mbp10Msg {
 #[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(dict, eq, module = "databento_dbn", name = "BBOMsg"),
-    derive(crate::macros::PyFieldDesc)
-)]
+#[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[cfg_attr(test, derive(type_layout::TypeLayout))]
 #[dbn_record(rtype::BBO_1S, rtype::BBO_1M)]
@@ -443,10 +392,8 @@ pub struct BboMsg {
     ///
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
-    #[pyo3(get, set)]
     pub price: i64,
     /// The quantity of the last trade.
-    #[pyo3(get, set)]
     pub size: u32,
     #[doc(hidden)]
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -460,7 +407,6 @@ pub struct BboMsg {
     pub side: c_char,
     /// A bit field indicating event end, message characteristics, and data quality.
     /// See [`flags`](crate::flags) for possible values.
-    #[pyo3(get, set)]
     pub flags: FlagSet,
     #[doc(hidden)]
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -470,16 +416,13 @@ pub struct BboMsg {
     ///
     /// See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
     #[dbn(encode_order(0), index_ts, unix_nanos)]
-    #[pyo3(get, set)]
     pub ts_recv: u64,
     #[doc(hidden)]
     #[cfg_attr(feature = "serde", serde(skip))]
     pub _reserved3: [u8; 4],
     /// The message sequence number assigned at the venue of the last update.
-    #[pyo3(get, set)]
     pub sequence: u32,
     /// The top of the order book.
-    #[pyo3(get, set)]
     pub levels: [BidAskPair; 1],
 }
 
@@ -489,11 +432,7 @@ pub struct BboMsg {
 #[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(dict, eq, module = "databento_dbn", name = "CMBP1Msg"),
-    derive(crate::macros::PyFieldDesc)
-)]
+#[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[cfg_attr(test, derive(type_layout::TypeLayout))]
 #[dbn_record(rtype::CMBP_1, rtype::TCBBO)]
@@ -505,10 +444,8 @@ pub struct Cmbp1Msg {
     ///
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
-    #[pyo3(get, set)]
     pub price: i64,
     /// The order quantity.
-    #[pyo3(get, set)]
     pub size: u32,
     /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R** book, or **T**rade.
     ///
@@ -523,7 +460,6 @@ pub struct Cmbp1Msg {
     pub side: c_char,
     /// A bit field indicating event end, message characteristics, and data quality.
     /// See [`flags`](crate::flags) for possible values.
-    #[pyo3(get, set)]
     pub flags: FlagSet,
     #[doc(hidden)]
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -533,19 +469,16 @@ pub struct Cmbp1Msg {
     ///
     /// See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
     #[dbn(encode_order(0), index_ts, unix_nanos)]
-    #[pyo3(get, set)]
     pub ts_recv: u64,
     /// The matching-engine-sending timestamp expressed as the number of nanoseconds before
     /// `ts_recv`.
     ///
     /// See [ts_in_delta](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-in-delta).
-    #[pyo3(get, set)]
     pub ts_in_delta: i32,
     #[doc(hidden)]
     #[cfg_attr(feature = "serde", serde(skip))]
     pub _reserved2: [u8; 4],
     /// The top of the order book.
-    #[pyo3(get, set)]
     pub levels: [ConsolidatedBidAskPair; 1],
 }
 
@@ -554,11 +487,7 @@ pub struct Cmbp1Msg {
 #[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(dict, eq, module = "databento_dbn", name = "CBBOMsg"),
-    derive(crate::macros::PyFieldDesc)
-)]
+#[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[cfg_attr(test, derive(type_layout::TypeLayout))]
 #[dbn_record(rtype::CBBO_1S, rtype::CBBO_1M)]
@@ -571,10 +500,8 @@ pub struct CbboMsg {
     ///
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
-    #[pyo3(get, set)]
     pub price: i64,
     /// The quantity of the last trade.
-    #[pyo3(get, set)]
     pub size: u32,
     #[doc(hidden)]
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -588,7 +515,6 @@ pub struct CbboMsg {
     pub side: c_char,
     /// A bit field indicating event end, message characteristics, and data quality.
     /// See [`flags`](crate::flags) for possible values.
-    #[pyo3(get, set)]
     pub flags: FlagSet,
     #[doc(hidden)]
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -598,13 +524,11 @@ pub struct CbboMsg {
     ///
     /// See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
     #[dbn(encode_order(0), index_ts, unix_nanos)]
-    #[pyo3(get, set)]
     pub ts_recv: u64,
     #[doc(hidden)]
     #[cfg_attr(feature = "serde", serde(skip))]
     pub _reserved3: [u8; 8],
     /// The top of the order book.
-    #[pyo3(get, set)]
     pub levels: [ConsolidatedBidAskPair; 1],
 }
 
@@ -636,11 +560,7 @@ pub type Cbbo1MMsg = CbboMsg;
 #[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(dict, eq, module = "databento_dbn", name = "OHLCVMsg"),
-    derive(crate::macros::PyFieldDesc)
-)]
+#[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[cfg_attr(test, derive(type_layout::TypeLayout))]
 #[dbn_record(
@@ -659,31 +579,26 @@ pub struct OhlcvMsg {
     ///
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
-    #[pyo3(get, set)]
     pub open: i64,
     /// The high price for the bar where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000
     /// or 0.000000001.
     ///
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
-    #[pyo3(get, set)]
     pub high: i64,
     /// The low price for the bar where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000
     /// or 0.000000001.
     ///
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
-    #[pyo3(get, set)]
     pub low: i64,
     /// The close price for the bar where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000
     /// or 0.000000001.
     ///
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
-    #[pyo3(get, set)]
     pub close: i64,
     /// The total volume traded during the aggregation period.
-    #[pyo3(get, set)]
     pub volume: u64,
 }
 
@@ -692,11 +607,7 @@ pub struct OhlcvMsg {
 #[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(dict, eq, module = "databento_dbn"),
-    derive(crate::macros::PyFieldDesc)
-)]
+#[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[cfg_attr(test, derive(type_layout::TypeLayout))]
 #[dbn_record(rtype::STATUS)]
@@ -708,19 +619,15 @@ pub struct StatusMsg {
     ///
     /// See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
     #[dbn(encode_order(0), index_ts, unix_nanos)]
-    #[pyo3(get, set)]
     pub ts_recv: u64,
     /// The type of status change.
     #[dbn(fmt_method)]
-    #[pyo3(get, set)]
     pub action: u16,
     /// Additional details about the cause of the status change.
     #[dbn(fmt_method)]
-    #[pyo3(get, set)]
     pub reason: u16,
     /// Further information about the status change and its effect on trading.
     #[dbn(fmt_method)]
-    #[pyo3(get, set)]
     pub trading_event: u16,
     /// The best-efforts state of trading in the instrument, either `Y`, `N` or `~`.
     #[dbn(c_char)]
@@ -742,11 +649,7 @@ pub struct StatusMsg {
 #[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(dict, eq, module = "databento_dbn"),
-    derive(crate::macros::PyFieldDesc)
-)]
+#[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[cfg_attr(test, derive(type_layout::TypeLayout))]
 #[dbn_record(rtype::INSTRUMENT_DEF)]
@@ -758,19 +661,16 @@ pub struct InstrumentDefMsg {
     ///
     /// See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
     #[dbn(encode_order(0), index_ts, unix_nanos)]
-    #[pyo3(get, set)]
     pub ts_recv: u64,
     /// The minimum constant tick for the instrument where every 1 unit corresponds to 1e-9, i.e.
     /// 1/1,000,000,000 or 0.000000001.
     ///
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
-    #[pyo3(get, set)]
     pub min_price_increment: i64,
     /// The multiplier to convert the venue's display price to the conventional price where every
     /// 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
     #[dbn(fixed_price)]
-    #[pyo3(get, set)]
     pub display_factor: i64,
     /// The last eligible trade time expressed as the number of nanoseconds since the
     /// UNIX epoch.
@@ -778,7 +678,6 @@ pub struct InstrumentDefMsg {
     /// Will be [`UNDEF_TIMESTAMP`](crate::UNDEF_TIMESTAMP) when null, such as for equities. Some publishers
     /// only provide date-level granularity.
     #[dbn(unix_nanos)]
-    #[pyo3(get, set)]
     pub expiration: u64,
     /// The time of instrument activation expressed as the number of nanoseconds since the
     /// UNIX epoch.
@@ -786,157 +685,121 @@ pub struct InstrumentDefMsg {
     /// Will be [`UNDEF_TIMESTAMP`](crate::UNDEF_TIMESTAMP) when null, such as for equities. Some publishers
     /// only provide date-level granularity.
     #[dbn(unix_nanos)]
-    #[pyo3(get, set)]
     pub activation: u64,
     /// The allowable high limit price for the trading day where every 1 unit corresponds to
     /// 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
     ///
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
-    #[pyo3(get, set)]
     pub high_limit_price: i64,
     /// The allowable low limit price for the trading day where every 1 unit corresponds to
     /// 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
     ///
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
-    #[pyo3(get, set)]
     pub low_limit_price: i64,
     /// The differential value for price banding where every 1 unit corresponds to 1e-9,
     /// i.e. 1/1,000,000,000 or 0.000000001.
     ///
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
-    #[pyo3(get, set)]
     pub max_price_variation: i64,
     /// The contract size for each instrument, in combination with `unit_of_measure`, where every
     /// 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
     #[dbn(fixed_price)]
-    #[pyo3(get, set)]
     pub unit_of_measure_qty: i64,
     /// The value currently under development by the venue where every 1 unit corresponds to 1e-9,
     /// i.e. 1/1,000,000,000 or 0.000000001.
     ///
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
-    #[pyo3(get, set)]
     pub min_price_increment_amount: i64,
     /// The value used for price calculation in spread and leg pricing where every 1 unit
     /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
     #[dbn(fixed_price)]
-    #[pyo3(get, set)]
     pub price_ratio: i64,
     /// The strike price of the option where every 1 unit corresponds to 1e-9, i.e.
     /// 1/1,000,000,000 or 0.000000001.
     ///
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(encode_order(54), fixed_price)]
-    #[pyo3(get, set)]
     pub strike_price: i64,
     /// The instrument ID assigned by the publisher. May be the same as `instrument_id`.
     ///
     /// See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers)
     #[dbn(encode_order(20))]
-    #[pyo3(get, set)]
     pub raw_instrument_id: u64,
     /// The tied price (if any) of the leg.
     #[dbn(encode_order(165), fixed_price)]
-    #[pyo3(get, set)]
     pub leg_price: i64,
     /// The associated delta (if any) of the leg.
     #[dbn(encode_order(166), fixed_price)]
-    #[pyo3(get, set)]
     pub leg_delta: i64,
     /// A bitmap of instrument eligibility attributes.
     #[dbn(fmt_binary)]
-    #[pyo3(get, set)]
     pub inst_attrib_value: i32,
     /// The `instrument_id` of the first underlying instrument.
     ///
     /// See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers).
-    #[pyo3(get, set)]
     pub underlying_id: u32,
     /// The implied book depth on the price level data feed.
-    #[pyo3(get, set)]
     pub market_depth_implied: i32,
     /// The (outright) book depth on the price level data feed.
-    #[pyo3(get, set)]
     pub market_depth: i32,
     /// The market segment of the instrument.
-    #[pyo3(get, set)]
     pub market_segment_id: u32,
     /// The maximum trading volume for the instrument.
-    #[pyo3(get, set)]
     pub max_trade_vol: u32,
     /// The minimum order entry quantity for the instrument.
-    #[pyo3(get, set)]
     pub min_lot_size: i32,
     /// The minimum quantity required for a block trade of the instrument.
-    #[pyo3(get, set)]
     pub min_lot_size_block: i32,
     /// The minimum quantity required for a round lot of the instrument. Multiples of this
     /// quantity are also round lots.
-    #[pyo3(get, set)]
     pub min_lot_size_round_lot: i32,
     /// The minimum trading volume for the instrument.
-    #[pyo3(get, set)]
     pub min_trade_vol: u32,
     /// The number of deliverables per instrument, i.e. peak days.
-    #[pyo3(get, set)]
     pub contract_multiplier: i32,
     /// The quantity that a contract will decay daily, after `decay_start_date` has been reached.
-    #[pyo3(get, set)]
     pub decay_quantity: i32,
     /// The fixed contract value assigned to each instrument.
-    #[pyo3(get, set)]
     pub original_contract_size: i32,
     /// The numeric ID assigned to the leg instrument.
     ///
     /// See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers).
     #[dbn(encode_order(160))]
-    #[pyo3(get, set)]
     pub leg_instrument_id: u32,
     /// The numerator of the price ratio of the leg within the spread.
     #[dbn(encode_order(167))]
-    #[pyo3(get, set)]
     pub leg_ratio_price_numerator: i32,
     /// The denominator of the price ratio of the leg within the spread.
     #[dbn(encode_order(168))]
-    #[pyo3(get, set)]
     pub leg_ratio_price_denominator: i32,
     /// The numerator of the quantity ratio of the leg within the spread.
     #[dbn(encode_order(169))]
-    #[pyo3(get, set)]
     pub leg_ratio_qty_numerator: i32,
     /// The denominator of the quantity ratio of the leg within the spread.
     #[dbn(encode_order(170))]
-    #[pyo3(get, set)]
     pub leg_ratio_qty_denominator: i32,
     /// The numeric ID of the leg instrument's underlying instrument.
     ///
     /// See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers).
     #[dbn(encode_order(171))]
-    #[pyo3(get, set)]
     pub leg_underlying_id: u32,
     /// The channel ID assigned at the venue.
-    #[pyo3(get, set)]
     pub appl_id: i16,
     /// The calendar year reflected in the instrument symbol.
-    #[pyo3(get, set)]
     pub maturity_year: u16,
     /// The date at which a contract will begin to decay.
-    #[pyo3(get, set)]
     pub decay_start_date: u16,
     /// The channel ID assigned by Databento as an incrementing integer starting at zero.
-    #[pyo3(get, set)]
     pub channel_id: u16,
     /// The number of legs in the strategy or spread. Will be 0 for outrights.
     #[dbn(encode_order(158))]
-    #[pyo3(get, set)]
     pub leg_count: u16,
     /// The 0-based index of the leg.
     #[dbn(encode_order(159))]
-    #[pyo3(get, set)]
     pub leg_index: u16,
     /// The currency used for price fields.
     #[dbn(fmt_method)]
@@ -1003,40 +866,30 @@ pub struct InstrumentDefMsg {
     #[dbn(c_char)]
     pub match_algorithm: c_char,
     /// The price denominator of the main fraction.
-    #[pyo3(get, set)]
     pub main_fraction: u8,
     /// The number of digits to the right of the tick mark, to display fractional prices.
-    #[pyo3(get, set)]
     pub price_display_format: u8,
     /// The price denominator of the sub fraction.
-    #[pyo3(get, set)]
     pub sub_fraction: u8,
     /// The product complex of the instrument.
-    #[pyo3(get, set)]
     pub underlying_product: u8,
     /// Indicates if the instrument definition has been added, modified, or deleted.
     #[dbn(c_char, encode_order(3))]
     pub security_update_action: c_char,
     /// The calendar month reflected in the instrument symbol.
-    #[pyo3(get, set)]
     pub maturity_month: u8,
     /// The calendar day reflected in the instrument symbol, or 0.
-    #[pyo3(get, set)]
     pub maturity_day: u8,
     /// The calendar week reflected in the instrument symbol, or 0.
-    #[pyo3(get, set)]
     pub maturity_week: u8,
     /// Indicates if the instrument is user defined: **Y**es or **N**o.
     #[dbn(c_char)]
     pub user_defined_instrument: c_char,
     /// The type of `contract_multiplier`. Either `1` for hours, or `2` for days.
-    #[pyo3(get, set)]
     pub contract_multiplier_unit: i8,
     /// The schedule for delivering electricity.
-    #[pyo3(get, set)]
     pub flow_schedule_type: i8,
     /// The tick rule of the spread.
-    #[pyo3(get, set)]
     pub tick_rule: u8,
     /// The classification of the leg instrument.
     #[dbn(c_char, encode_order(163))]
@@ -1054,11 +907,7 @@ pub struct InstrumentDefMsg {
 #[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(dict, eq, module = "databento_dbn"),
-    derive(crate::macros::PyFieldDesc)
-)]
+#[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[cfg_attr(test, derive(type_layout::TypeLayout))]
 #[dbn_record(rtype::IMBALANCE)]
@@ -1070,7 +919,6 @@ pub struct ImbalanceMsg {
     ///
     /// See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
     #[dbn(encode_order(0), index_ts, unix_nanos)]
-    #[pyo3(get, set)]
     pub ts_recv: u64,
     /// The price at which the imbalance shares are calculated, where every 1 unit corresponds
     /// to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be [`UNDEF_PRICE`](crate::UNDEF_PRICE)
@@ -1078,12 +926,10 @@ pub struct ImbalanceMsg {
     ///
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
-    #[pyo3(get, set)]
     pub ref_price: i64,
     /// Projected auction timestamp expressed as the number of nanoseconds since the UNIX epoch.
     /// Will be [`UNDEF_TIMESTAMP`](crate::UNDEF_TIMESTAMP) when unused.
     #[dbn(unix_nanos)]
-    #[pyo3(get, set)]
     pub auction_time: u64,
     /// The hypothetical auction-clearing price for both cross and continuous orders where every
     /// 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
@@ -1091,14 +937,12 @@ pub struct ImbalanceMsg {
     ///
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
-    #[pyo3(get, set)]
     pub cont_book_clr_price: i64,
     /// The hypothetical auction-clearing price for cross orders only where every 1 unit corresponds
     /// to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be [`UNDEF_PRICE`](crate::UNDEF_PRICE) when unused.
     ///
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
-    #[pyo3(get, set)]
     pub auct_interest_clr_price: i64,
     /// The price at which sell short interest will be filed if a sell short restriction is
     /// in effect, where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
@@ -1106,7 +950,6 @@ pub struct ImbalanceMsg {
     ///
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
-    #[pyo3(get, set)]
     pub ssr_filling_price: i64,
     /// The price at which the highest number of shares would trade, subject to auction collars,
     /// where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
@@ -1114,37 +957,30 @@ pub struct ImbalanceMsg {
     ///
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
-    #[pyo3(get, set)]
     pub ind_match_price: i64,
     /// Upper limit of the auction collar, where every 1 unit corresponds
     /// to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be [`UNDEF_PRICE`](crate::UNDEF_PRICE) when unused.
     ///
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
-    #[pyo3(get, set)]
     pub upper_collar: i64,
     /// Lower limit of the auction collar, where every 1 unit corresponds
     /// to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be [`UNDEF_PRICE`](crate::UNDEF_PRICE) when unused.
     ///
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
-    #[pyo3(get, set)]
     pub lower_collar: i64,
     /// The quantity of shares that are eligible to be matched at [`ref_price`](Self::ref_price).
     /// Will be [`UNDEF_ORDER_SIZE`](crate::UNDEF_ORDER_SIZE) when unused.
-    #[pyo3(get, set)]
     pub paired_qty: u32,
     /// The quantity of shares that are not paired at [`ref_price`](Self::ref_price).
     /// Will be [`UNDEF_ORDER_SIZE`](crate::UNDEF_ORDER_SIZE) when not used.
-    #[pyo3(get, set)]
     pub total_imbalance_qty: u32,
     /// The total market order imbalance quantity at the [`ref_price`](Self::ref_price).
     /// Will be [`UNDEF_ORDER_SIZE`](crate::UNDEF_ORDER_SIZE) when unused.
-    #[pyo3(get, set)]
     pub market_imbalance_qty: u32,
     /// During the Closing Auction, the number of unpaired shares priced at or better than the
     /// [`ref_price`](Self::ref_price). Will be `UNDEF_ORDER_SIZE` when unused.
-    #[pyo3(get, set)]
     pub unpaired_qty: u32,
     /// Venue-specific character code indicating the auction type. Will be `~` when unused.
     ///
@@ -1160,15 +996,12 @@ pub struct ImbalanceMsg {
     /// Venue-specific status code.
     ///
     /// Refer to the [venue-specific documentation](https://databento.com/docs/venues-and-datasets).
-    #[pyo3(get, set)]
     pub auction_status: u8,
     /// Venue-specific status code.
     ///
     /// Refer to the [venue-specific documentation](https://databento.com/docs/venues-and-datasets).
-    #[pyo3(get, set)]
     pub freeze_status: u8,
     /// The number of times the halt period has been extended.
-    #[pyo3(get, set)]
     pub num_extensions: u8,
     /// The side of the [`unpaired_qty`](Self::unpaired_qty).
     /// Can be **A**sk, **B**id, or **N**one. Will be **N**one when unused or not applicable.
@@ -1192,11 +1025,7 @@ pub struct ImbalanceMsg {
 #[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(dict, eq, module = "databento_dbn"),
-    derive(crate::macros::PyFieldDesc)
-)]
+#[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[cfg_attr(test, derive(type_layout::TypeLayout))]
 #[dbn_record(rtype::STATISTICS)]
@@ -1208,13 +1037,11 @@ pub struct StatMsg {
     ///
     /// See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
     #[dbn(encode_order(0), index_ts, unix_nanos)]
-    #[pyo3(get, set)]
     pub ts_recv: u64,
     /// The reference timestamp of the statistic value expressed as the number of
     /// nanoseconds since the UNIX epoch. Will be [`UNDEF_TIMESTAMP`](crate::UNDEF_TIMESTAMP) when
     /// unused.
     #[dbn(unix_nanos)]
-    #[pyo3(get, set)]
     pub ts_ref: u64,
     /// The value for price statistics where every 1 unit corresponds to 1e-9, i.e.
     /// 1/1,000,000,000 or 0.000000001. Will be [`UNDEF_PRICE`](crate::UNDEF_PRICE)
@@ -1222,37 +1049,29 @@ pub struct StatMsg {
     ///
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
-    #[pyo3(get, set)]
     pub price: i64,
     /// The value for non-price statistics. Will be [`UNDEF_STAT_QUANTITY`](crate::UNDEF_STAT_QUANTITY)
     /// when unused.
-    #[pyo3(get, set)]
     pub quantity: i64,
     /// The message sequence number assigned at the venue.
-    #[pyo3(get, set)]
     pub sequence: u32,
     /// The matching-engine-sending timestamp expressed as the number of nanoseconds before
     /// `ts_recv`.
     ///
     /// See [ts_in_delta](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-in-delta).
-    #[pyo3(get, set)]
     pub ts_in_delta: i32,
     /// The type of statistic value contained in the message. Refer to the
     /// [`StatType`](crate::enums::StatType) enum for possible variants.
     #[dbn(fmt_method)]
-    #[pyo3(get, set)]
     pub stat_type: u16,
     /// The channel ID assigned by Databento as an incrementing integer starting at zero.
-    #[pyo3(get, set)]
     pub channel_id: u16,
     /// Indicates if the statistic is newly added (1) or deleted (2). (Deleted is only
     /// used with some stat types).
     #[dbn(fmt_method)]
-    #[pyo3(get, set)]
     pub update_action: u8,
     /// Additional flags associate with certain stat types.
     #[dbn(fmt_binary)]
-    #[pyo3(get, set)]
     pub stat_flags: u8,
     #[doc(hidden)]
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -1264,11 +1083,7 @@ pub struct StatMsg {
 #[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(dict, eq, module = "databento_dbn"),
-    derive(crate::macros::PyFieldDesc)
-)]
+#[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[cfg_attr(test, derive(type_layout::TypeLayout))]
 #[dbn_record(rtype::ERROR)]
@@ -1282,11 +1097,9 @@ pub struct ErrorMsg {
     /// The error code. See the [`ErrorCode`](crate::enums::ErrorCode) enum
     /// for possible values.
     #[dbn(fmt_method)]
-    #[pyo3(get, set)]
     pub code: u8,
     /// Sometimes multiple errors are sent together. This field will be non-zero for the
     /// last error.
-    #[pyo3(get, set)]
     pub is_last: u8,
 }
 
@@ -1296,11 +1109,7 @@ pub struct ErrorMsg {
 #[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(dict, eq, module = "databento_dbn"),
-    derive(crate::macros::PyFieldDesc)
-)]
+#[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[cfg_attr(test, derive(type_layout::TypeLayout))]
 #[dbn_record(rtype::SYMBOL_MAPPING)]
@@ -1309,7 +1118,6 @@ pub struct SymbolMappingMsg {
     pub hd: RecordHeader,
     /// The input symbology type of `stype_in_symbol`.
     #[dbn(fmt_method)]
-    #[pyo3(get, set)]
     pub stype_in: u8,
     /// The input symbol.
     #[dbn(fmt_method)]
@@ -1317,7 +1125,6 @@ pub struct SymbolMappingMsg {
     pub stype_in_symbol: [c_char; SYMBOL_CSTR_LEN],
     /// The output symbology type of `stype_out_symbol`. Will always be [`RawSymbol`](crate::SType::RawSymbol).
     #[dbn(fmt_method)]
-    #[pyo3(get, set)]
     pub stype_out: u8,
     /// The output symbol.
     #[dbn(fmt_method)]
@@ -1326,12 +1133,10 @@ pub struct SymbolMappingMsg {
     /// The start of the mapping interval expressed as the number of nanoseconds since
     /// the UNIX epoch.
     #[dbn(unix_nanos)]
-    #[pyo3(get, set)]
     pub start_ts: u64,
     /// The end of the mapping interval expressed as the number of nanoseconds since
     /// the UNIX epoch.
     #[dbn(unix_nanos)]
-    #[pyo3(get, set)]
     pub end_ts: u64,
 }
 
@@ -1341,11 +1146,7 @@ pub struct SymbolMappingMsg {
 #[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(
-    feature = "python",
-    pyo3::pyclass(dict, eq, module = "databento_dbn"),
-    derive(crate::macros::PyFieldDesc)
-)]
+#[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
 #[cfg_attr(test, derive(type_layout::TypeLayout))]
 #[dbn_record(rtype::SYSTEM)]
@@ -1359,7 +1160,6 @@ pub struct SystemMsg {
     /// Type of system message. See the [`SystemCode`](crate::enums::SystemCode) enum
     /// for possible values.
     #[dbn(fmt_method)]
-    #[pyo3(get, set)]
     pub code: u8,
 }
 

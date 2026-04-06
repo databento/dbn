@@ -1257,6 +1257,7 @@ class MBOMsg:
         channel_id: int | None = None,
         ts_in_delta: int = 0,
         sequence: int = 0,
+        ts_out: int = UNDEF_TIMESTAMP,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
     def record_size(self) -> int:
@@ -1357,17 +1358,24 @@ class MBOMsg:
 
     """
 
-    @property
-    def ts_out(self) -> int | None:
-        """
-        The live gateway send timestamp expressed as the number of nanoseconds since the
-        UNIX epoch.
+    ts_out: int
+    """
+    The live gateway send timestamp expressed as the number of nanoseconds since the
+    UNIX epoch. Returns `UNDEF_TIMESTAMP` when not set.
 
-        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+    See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+    """
+
+    @property
+    def pretty_ts_out(self) -> dt.datetime | None:
+        """
+        The live gateway send timestamp as a datetime or
+        `pandas.Timestamp`, if available. Returns `None` when `ts_out` is not set.
 
         Returns
         -------
-        int | None
+        datetime.datetime | None
 
         """
     order_id: int
@@ -1606,17 +1614,24 @@ class BidAskPair:
 
     """
 
-    @property
-    def ts_out(self) -> int | None:
-        """
-        The live gateway send timestamp expressed as the number of nanoseconds since the
-        UNIX epoch.
+    ts_out: int
+    """
+    The live gateway send timestamp expressed as the number of nanoseconds since the
+    UNIX epoch. Returns `UNDEF_TIMESTAMP` when not set.
 
-        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+    See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+    """
+
+    @property
+    def pretty_ts_out(self) -> dt.datetime | None:
+        """
+        The live gateway send timestamp as a datetime or
+        `pandas.Timestamp`, if available. Returns `None` when `ts_out` is not set.
 
         Returns
         -------
-        int | None
+        datetime.datetime | None
 
         """
 
@@ -1815,17 +1830,24 @@ class ConsolidatedBidAskPair:
 
     """
 
-    @property
-    def ts_out(self) -> int | None:
-        """
-        The live gateway send timestamp expressed as the number of nanoseconds since the
-        UNIX epoch.
+    ts_out: int
+    """
+    The live gateway send timestamp expressed as the number of nanoseconds since the
+    UNIX epoch. Returns `UNDEF_TIMESTAMP` when not set.
 
-        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+    See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+    """
+
+    @property
+    def pretty_ts_out(self) -> dt.datetime | None:
+        """
+        The live gateway send timestamp as a datetime or
+        `pandas.Timestamp`, if available. Returns `None` when `ts_out` is not set.
 
         Returns
         -------
-        int | None
+        datetime.datetime | None
 
         """
 
@@ -1934,6 +1956,7 @@ class TradeMsg:
         flags: int | None = None,
         ts_in_delta: int = 0,
         sequence: int = 0,
+        ts_out: int = UNDEF_TIMESTAMP,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
     def record_size(self) -> int:
@@ -2034,17 +2057,24 @@ class TradeMsg:
 
     """
 
-    @property
-    def ts_out(self) -> int | None:
-        """
-        The live gateway send timestamp expressed as the number of nanoseconds since the
-        UNIX epoch.
+    ts_out: int
+    """
+    The live gateway send timestamp expressed as the number of nanoseconds since the
+    UNIX epoch. Returns `UNDEF_TIMESTAMP` when not set.
 
-        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+    See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+    """
+
+    @property
+    def pretty_ts_out(self) -> dt.datetime | None:
+        """
+        The live gateway send timestamp as a datetime or
+        `pandas.Timestamp`, if available. Returns `None` when `ts_out` is not set.
 
         Returns
         -------
-        int | None
+        datetime.datetime | None
 
         """
 
@@ -2185,6 +2215,7 @@ class MBP1Msg:
         ts_in_delta: int = 0,
         sequence: int = 0,
         levels: list[BidAskPair] | None = None,
+        ts_out: int = UNDEF_TIMESTAMP,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
     def record_size(self) -> int:
@@ -2285,17 +2316,24 @@ class MBP1Msg:
 
     """
 
-    @property
-    def ts_out(self) -> int | None:
-        """
-        The live gateway send timestamp expressed as the number of nanoseconds since the
-        UNIX epoch.
+    ts_out: int
+    """
+    The live gateway send timestamp expressed as the number of nanoseconds since the
+    UNIX epoch. Returns `UNDEF_TIMESTAMP` when not set.
 
-        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+    See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+    """
+
+    @property
+    def pretty_ts_out(self) -> dt.datetime | None:
+        """
+        The live gateway send timestamp as a datetime or
+        `pandas.Timestamp`, if available. Returns `None` when `ts_out` is not set.
 
         Returns
         -------
-        int | None
+        datetime.datetime | None
 
         """
 
@@ -2453,6 +2491,7 @@ class MBP10Msg:
         ts_in_delta: int = 0,
         sequence: int = 0,
         levels: list[BidAskPair] | None = None,
+        ts_out: int = UNDEF_TIMESTAMP,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
     def record_size(self) -> int:
@@ -2553,17 +2592,24 @@ class MBP10Msg:
 
     """
 
-    @property
-    def ts_out(self) -> int | None:
-        """
-        The live gateway send timestamp expressed as the number of nanoseconds since the
-        UNIX epoch.
+    ts_out: int
+    """
+    The live gateway send timestamp expressed as the number of nanoseconds since the
+    UNIX epoch. Returns `UNDEF_TIMESTAMP` when not set.
 
-        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+    See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+    """
+
+    @property
+    def pretty_ts_out(self) -> dt.datetime | None:
+        """
+        The live gateway send timestamp as a datetime or
+        `pandas.Timestamp`, if available. Returns `None` when `ts_out` is not set.
 
         Returns
         -------
-        int | None
+        datetime.datetime | None
 
         """
 
@@ -2719,6 +2765,7 @@ class BBOMsg:
         flags: int | None = None,
         sequence: int = 0,
         levels: list[BidAskPair] | None = None,
+        ts_out: int = UNDEF_TIMESTAMP,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
     def record_size(self) -> int:
@@ -2819,17 +2866,24 @@ class BBOMsg:
 
     """
 
-    @property
-    def ts_out(self) -> int | None:
-        """
-        The live gateway send timestamp expressed as the number of nanoseconds since the
-        UNIX epoch.
+    ts_out: int
+    """
+    The live gateway send timestamp expressed as the number of nanoseconds since the
+    UNIX epoch. Returns `UNDEF_TIMESTAMP` when not set.
 
-        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+    See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+    """
+
+    @property
+    def pretty_ts_out(self) -> dt.datetime | None:
+        """
+        The live gateway send timestamp as a datetime or
+        `pandas.Timestamp`, if available. Returns `None` when `ts_out` is not set.
 
         Returns
         -------
-        int | None
+        datetime.datetime | None
 
         """
 
@@ -2957,6 +3011,7 @@ class CMBP1Msg:
         flags: int | None = None,
         ts_in_delta: int = 0,
         levels: list[ConsolidatedBidAskPair] | None = None,
+        ts_out: int = UNDEF_TIMESTAMP,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
     def record_size(self) -> int:
@@ -3057,17 +3112,24 @@ class CMBP1Msg:
 
     """
 
-    @property
-    def ts_out(self) -> int | None:
-        """
-        The live gateway send timestamp expressed as the number of nanoseconds since the
-        UNIX epoch.
+    ts_out: int
+    """
+    The live gateway send timestamp expressed as the number of nanoseconds since the
+    UNIX epoch. Returns `UNDEF_TIMESTAMP` when not set.
 
-        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+    See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+    """
+
+    @property
+    def pretty_ts_out(self) -> dt.datetime | None:
+        """
+        The live gateway send timestamp as a datetime or
+        `pandas.Timestamp`, if available. Returns `None` when `ts_out` is not set.
 
         Returns
         -------
-        int | None
+        datetime.datetime | None
 
         """
 
@@ -3209,6 +3271,7 @@ class CBBOMsg:
         ts_recv: int,
         flags: int | None = None,
         levels: list[ConsolidatedBidAskPair] | None = None,
+        ts_out: int = UNDEF_TIMESTAMP,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
     def record_size(self) -> int:
@@ -3309,17 +3372,24 @@ class CBBOMsg:
 
     """
 
-    @property
-    def ts_out(self) -> int | None:
-        """
-        The live gateway send timestamp expressed as the number of nanoseconds since the
-        UNIX epoch.
+    ts_out: int
+    """
+    The live gateway send timestamp expressed as the number of nanoseconds since the
+    UNIX epoch. Returns `UNDEF_TIMESTAMP` when not set.
 
-        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+    See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+    """
+
+    @property
+    def pretty_ts_out(self) -> dt.datetime | None:
+        """
+        The live gateway send timestamp as a datetime or
+        `pandas.Timestamp`, if available. Returns `None` when `ts_out` is not set.
 
         Returns
         -------
-        int | None
+        datetime.datetime | None
 
         """
 
@@ -3454,6 +3524,7 @@ class OHLCVMsg:
         low: int,
         close: int,
         volume: int,
+        ts_out: int = UNDEF_TIMESTAMP,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
     def record_size(self) -> int:
@@ -3554,17 +3625,24 @@ class OHLCVMsg:
 
     """
 
-    @property
-    def ts_out(self) -> int | None:
-        """
-        The live gateway send timestamp expressed as the number of nanoseconds since the
-        UNIX epoch.
+    ts_out: int
+    """
+    The live gateway send timestamp expressed as the number of nanoseconds since the
+    UNIX epoch. Returns `UNDEF_TIMESTAMP` when not set.
 
-        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+    See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+    """
+
+    @property
+    def pretty_ts_out(self) -> dt.datetime | None:
+        """
+        The live gateway send timestamp as a datetime or
+        `pandas.Timestamp`, if available. Returns `None` when `ts_out` is not set.
 
         Returns
         -------
-        int | None
+        datetime.datetime | None
 
         """
 
@@ -3699,6 +3777,7 @@ class StatusMsg:
         is_trading: TriState | None = None,
         is_quoting: TriState | None = None,
         is_short_sell_restricted: TriState | None = None,
+        ts_out: int = UNDEF_TIMESTAMP,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
     def record_size(self) -> int:
@@ -3799,17 +3878,24 @@ class StatusMsg:
 
     """
 
-    @property
-    def ts_out(self) -> int | None:
-        """
-        The live gateway send timestamp expressed as the number of nanoseconds since the
-        UNIX epoch.
+    ts_out: int
+    """
+    The live gateway send timestamp expressed as the number of nanoseconds since the
+    UNIX epoch. Returns `UNDEF_TIMESTAMP` when not set.
 
-        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+    See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+    """
+
+    @property
+    def pretty_ts_out(self) -> dt.datetime | None:
+        """
+        The live gateway send timestamp as a datetime or
+        `pandas.Timestamp`, if available. Returns `None` when `ts_out` is not set.
 
         Returns
         -------
-        int | None
+        datetime.datetime | None
 
         """
 
@@ -3992,6 +4078,7 @@ class InstrumentDefMsg:
         tick_rule: int | None = None,
         leg_instrument_class: InstrumentClass | None = None,
         leg_side: Side | None = None,
+        ts_out: int = UNDEF_TIMESTAMP,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
     def record_size(self) -> int:
@@ -4092,17 +4179,24 @@ class InstrumentDefMsg:
 
     """
 
-    @property
-    def ts_out(self) -> int | None:
-        """
-        The live gateway send timestamp expressed as the number of nanoseconds since the
-        UNIX epoch.
+    ts_out: int
+    """
+    The live gateway send timestamp expressed as the number of nanoseconds since the
+    UNIX epoch. Returns `UNDEF_TIMESTAMP` when not set.
 
-        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+    See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+    """
+
+    @property
+    def pretty_ts_out(self) -> dt.datetime | None:
+        """
+        The live gateway send timestamp as a datetime or
+        `pandas.Timestamp`, if available. Returns `None` when `ts_out` is not set.
 
         Returns
         -------
-        int | None
+        datetime.datetime | None
 
         """
 
@@ -4925,6 +5019,7 @@ class ImbalanceMsg:
         freeze_status: int = 0,
         num_extensions: int = 0,
         unpaired_side: Side | None = None,
+        ts_out: int = UNDEF_TIMESTAMP,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
     def record_size(self) -> int:
@@ -5025,17 +5120,24 @@ class ImbalanceMsg:
 
     """
 
-    @property
-    def ts_out(self) -> int | None:
-        """
-        The live gateway send timestamp expressed as the number of nanoseconds since the
-        UNIX epoch.
+    ts_out: int
+    """
+    The live gateway send timestamp expressed as the number of nanoseconds since the
+    UNIX epoch. Returns `UNDEF_TIMESTAMP` when not set.
 
-        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+    See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+    """
+
+    @property
+    def pretty_ts_out(self) -> dt.datetime | None:
+        """
+        The live gateway send timestamp as a datetime or
+        `pandas.Timestamp`, if available. Returns `None` when `ts_out` is not set.
 
         Returns
         -------
-        int | None
+        datetime.datetime | None
 
         """
 
@@ -5382,6 +5484,7 @@ class StatMsg:
         channel_id: int | None = None,
         update_action: StatUpdateAction | None = None,
         stat_flags: int = 0,
+        ts_out: int = UNDEF_TIMESTAMP,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
     def record_size(self) -> int:
@@ -5482,17 +5585,24 @@ class StatMsg:
 
     """
 
-    @property
-    def ts_out(self) -> int | None:
-        """
-        The live gateway send timestamp expressed as the number of nanoseconds since the
-        UNIX epoch.
+    ts_out: int
+    """
+    The live gateway send timestamp expressed as the number of nanoseconds since the
+    UNIX epoch. Returns `UNDEF_TIMESTAMP` when not set.
 
-        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+    See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+    """
+
+    @property
+    def pretty_ts_out(self) -> dt.datetime | None:
+        """
+        The live gateway send timestamp as a datetime or
+        `pandas.Timestamp`, if available. Returns `None` when `ts_out` is not set.
 
         Returns
         -------
-        int | None
+        datetime.datetime | None
 
         """
 
@@ -5637,7 +5747,12 @@ class ErrorMsg:
     _timestamp_fields: ClassVar[list[str]]
 
     def __init__(
-        self, ts_event: int, err: str, is_last: bool = True, code: ErrorCode | None = None
+        self,
+        ts_event: int,
+        err: str,
+        is_last: bool = True,
+        code: ErrorCode | None = None,
+        ts_out: int = UNDEF_TIMESTAMP,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
     def record_size(self) -> int:
@@ -5738,17 +5853,24 @@ class ErrorMsg:
 
     """
 
-    @property
-    def ts_out(self) -> int | None:
-        """
-        The live gateway send timestamp expressed as the number of nanoseconds since the
-        UNIX epoch.
+    ts_out: int
+    """
+    The live gateway send timestamp expressed as the number of nanoseconds since the
+    UNIX epoch. Returns `UNDEF_TIMESTAMP` when not set.
 
-        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+    See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+    """
+
+    @property
+    def pretty_ts_out(self) -> dt.datetime | None:
+        """
+        The live gateway send timestamp as a datetime or
+        `pandas.Timestamp`, if available. Returns `None` when `ts_out` is not set.
 
         Returns
         -------
-        int | None
+        datetime.datetime | None
 
         """
 
@@ -5809,6 +5931,7 @@ class SymbolMappingMsg:
         stype_out_symbol: str,
         start_ts: int,
         end_ts: int,
+        ts_out: int = UNDEF_TIMESTAMP,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
     def record_size(self) -> int:
@@ -5909,17 +6032,24 @@ class SymbolMappingMsg:
 
     """
 
-    @property
-    def ts_out(self) -> int | None:
-        """
-        The live gateway send timestamp expressed as the number of nanoseconds since the
-        UNIX epoch.
+    ts_out: int
+    """
+    The live gateway send timestamp expressed as the number of nanoseconds since the
+    UNIX epoch. Returns `UNDEF_TIMESTAMP` when not set.
 
-        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+    See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+    """
+
+    @property
+    def pretty_ts_out(self) -> dt.datetime | None:
+        """
+        The live gateway send timestamp as a datetime or
+        `pandas.Timestamp`, if available. Returns `None` when `ts_out` is not set.
 
         Returns
         -------
-        int | None
+        datetime.datetime | None
 
         """
 
@@ -6021,372 +6151,8 @@ class SystemMsg:
     _ordered_fields: ClassVar[list[str]]
     _timestamp_fields: ClassVar[list[str]]
 
-    def __init__(self, ts_event: int, msg: str, code: SystemCode | None = None) -> None: ...
-    def __bytes__(self) -> bytes: ...
-    def record_size(self) -> int:
-        """
-        Return the size of the record in bytes.
-
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        size_hint
-
-        """
-
-    @property
-    def rtype(self) -> RType:
-        """
-        The record type.
-
-        Returns
-        -------
-        RType
-
-        """
-    publisher_id: int
-    """
-    The publisher ID assigned by Databento, which denotes the dataset and venue.
-
-    See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
-
-    """
-
-    instrument_id: int
-    """
-    The numeric instrument ID.
-
-    See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
-
-    """
-
-    @property
-    def ts_index(self) -> int:
-        """
-        The raw primary timestamp for the record as the number of nanoseconds since the
-        UNIX epoch. For records that define a `ts_recv` and `ts_event`, this method will
-        return the appropriate timestamp for indexing based on the record's type.
-
-        This timestamp should be used for sorting records as well as indexing into any
-        symbology data structure.
-
-        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
-        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def pretty_ts_index(self) -> dt.datetime | None:
-        """
-        The primary timestamp for the record as the expressed as a datetime or a
-        `pandas.Timestamp`, if available. For records that define a `ts_recv` and `ts_event`,
-        this method will return the appropriate timestamp for indexing based on the record's type.
-
-        This timestamp should be used for sorting records as well as indexing into any
-        symbology data structure.
-
-        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
-        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
-
-        Returns
-        -------
-        datetime.datetime
-
-        """
-
-    @property
-    def pretty_ts_event(self) -> dt.datetime | None:
-        """
-        The matching-engine-received timestamp expressed as a
-        datetime or a `pandas.Timestamp`, if available.
-
-        Returns
-        -------
-        datetime.datetime
-
-        """
-    ts_event: int
-    """
-    The matching-engine-received timestamp expressed as the number of nanoseconds
-    since the UNIX epoch.
-
-    See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
-
-    """
-
-    @property
-    def ts_out(self) -> int | None:
-        """
-        The live gateway send timestamp expressed as the number of nanoseconds since the
-        UNIX epoch.
-
-        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
-
-        Returns
-        -------
-        int | None
-
-        """
-
-    def is_heartbeat(self) -> bool:
-        """
-        Return `true` if this message is a heartbeat, used to indicate the connection
-        with the gateway is still open.
-
-        Returns
-        -------
-        bool
-
-        """
-
-    @property
-    def msg(self) -> str:
-        """
-        The message from the Databento gateway.
-
-        Returns
-        -------
-        str
-
-        """
-
-    @property
-    def code(self) -> SystemCode | int:
-        """
-        Type of system message. See the `SystemCode` enum for possible values.
-
-        Returns
-        -------
-        SystemCode | int
-
-        """
-
-    @code.setter
-    def code(self, value: SystemCode) -> None: ...
-
-class ErrorMsgV1:
-    """
-    An error message from the Databento Live Subscription Gateway (LSG) in DBN version 1.
-
-    """
-
-    size_hint: ClassVar[int]
-    _dtypes: ClassVar[list[tuple[str, str]]]
-    _hidden_fields: ClassVar[list[str]]
-    _price_fields: ClassVar[list[str]]
-    _ordered_fields: ClassVar[list[str]]
-    _timestamp_fields: ClassVar[list[str]]
-
-    def __init__(self, ts_event: int, err: str) -> None: ...
-    def __bytes__(self) -> bytes: ...
-    def record_size(self) -> int:
-        """
-        Return the size of the record in bytes.
-
-        Returns
-        -------
-        int
-
-        See Also
-        --------
-        size_hint
-
-        """
-
-    @property
-    def rtype(self) -> RType:
-        """
-        The record type.
-
-        Returns
-        -------
-        RType
-
-        """
-    publisher_id: int
-    """
-    The publisher ID assigned by Databento, which denotes the dataset and venue.
-
-    See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
-
-    """
-
-    instrument_id: int
-    """
-    The numeric instrument ID.
-
-    See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
-
-    """
-
-    @property
-    def ts_index(self) -> int:
-        """
-        The raw primary timestamp for the record as the number of nanoseconds since the
-        UNIX epoch. For records that define a `ts_recv` and `ts_event`, this method will
-        return the appropriate timestamp for indexing based on the record's type.
-
-        This timestamp should be used for sorting records as well as indexing into any
-        symbology data structure.
-
-        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
-        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
-
-        Returns
-        -------
-        int
-
-        """
-
-    @property
-    def pretty_ts_index(self) -> dt.datetime | None:
-        """
-        The primary timestamp for the record as the expressed as a datetime or a
-        `pandas.Timestamp`, if available. For records that define a `ts_recv` and `ts_event`,
-        this method will return the appropriate timestamp for indexing based on the record's type.
-
-        This timestamp should be used for sorting records as well as indexing into any
-        symbology data structure.
-
-        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
-        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
-
-        Returns
-        -------
-        datetime.datetime
-
-        """
-
-    @property
-    def pretty_ts_event(self) -> dt.datetime | None:
-        """
-        The matching-engine-received timestamp expressed as a
-        datetime or a `pandas.Timestamp`, if available.
-
-        Returns
-        -------
-        datetime.datetime
-
-        """
-    ts_event: int
-    """
-    The matching-engine-received timestamp expressed as the number of nanoseconds
-    since the UNIX epoch.
-
-    See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
-
-    """
-
-    @property
-    def ts_out(self) -> int | None:
-        """
-        The live gateway send timestamp expressed as the number of nanoseconds since the
-        UNIX epoch.
-
-        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
-
-        Returns
-        -------
-        int | None
-
-        """
-
-    @property
-    def err(self) -> str:
-        """
-        The error message.
-
-        Returns
-        -------
-        str
-
-        """
-
-class InstrumentDefMsgV1:
-    """
-    A definition of an instrument in DBN version 1. The record of the definition schema.
-
-    """
-
-    size_hint: ClassVar[int]
-    _dtypes: ClassVar[list[tuple[str, str]]]
-    _hidden_fields: ClassVar[list[str]]
-    _price_fields: ClassVar[list[str]]
-    _ordered_fields: ClassVar[list[str]]
-    _timestamp_fields: ClassVar[list[str]]
-
     def __init__(
-        self,
-        publisher_id: int,
-        instrument_id: int,
-        ts_event: int,
-        ts_recv: int,
-        min_price_increment: int,
-        display_factor: int,
-        expiration: int,
-        activation: int,
-        high_limit_price: int,
-        low_limit_price: int,
-        max_price_variation: int,
-        trading_reference_price: int,
-        unit_of_measure_qty: int,
-        min_price_increment_amount: int,
-        price_ratio: int,
-        inst_attrib_value: int,
-        underlying_id: int,
-        raw_instrument_id: int,
-        market_depth_implied: int,
-        market_depth: int,
-        market_segment_id: int,
-        max_trade_vol: int,
-        min_lot_size: int,
-        min_lot_size_block: int,
-        min_lot_size_round_lot: int,
-        min_trade_vol: int,
-        contract_multiplier: int,
-        decay_quantity: int,
-        original_contract_size: int,
-        trading_reference_date: int,
-        appl_id: int,
-        maturity_year: int,
-        decay_start_date: int,
-        channel_id: int,
-        currency: str,
-        settl_currency: str,
-        secsubtype: str,
-        raw_symbol: str,
-        group: str,
-        exchange: str,
-        asset: str,
-        cfi: str,
-        security_type: str,
-        unit_of_measure: str,
-        underlying: str,
-        strike_price_currency: str,
-        instrument_class: InstrumentClass,
-        strike_price: int,
-        match_algorithm: MatchAlgorithm,
-        md_security_trading_status: int,
-        main_fraction: int,
-        price_display_format: int,
-        settl_price_type: int,
-        sub_fraction: int,
-        underlying_product: int,
-        security_update_action: SecurityUpdateAction,
-        maturity_month: int,
-        maturity_day: int,
-        maturity_week: int,
-        user_defined_instrument: UserDefinedInstrument,
-        contract_multiplier_unit: int,
-        flow_schedule_type: int,
-        tick_rule: int,
+        self, ts_event: int, msg: str, code: SystemCode | None = None, ts_out: int = UNDEF_TIMESTAMP
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
     def record_size(self) -> int:
@@ -6487,17 +6253,405 @@ class InstrumentDefMsgV1:
 
     """
 
-    @property
-    def ts_out(self) -> int | None:
-        """
-        The live gateway send timestamp expressed as the number of nanoseconds since the
-        UNIX epoch.
+    ts_out: int
+    """
+    The live gateway send timestamp expressed as the number of nanoseconds since the
+    UNIX epoch. Returns `UNDEF_TIMESTAMP` when not set.
 
-        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+    See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+    """
+
+    @property
+    def pretty_ts_out(self) -> dt.datetime | None:
+        """
+        The live gateway send timestamp as a datetime or
+        `pandas.Timestamp`, if available. Returns `None` when `ts_out` is not set.
 
         Returns
         -------
-        int | None
+        datetime.datetime | None
+
+        """
+
+    def is_heartbeat(self) -> bool:
+        """
+        Return `true` if this message is a heartbeat, used to indicate the connection
+        with the gateway is still open.
+
+        Returns
+        -------
+        bool
+
+        """
+
+    @property
+    def msg(self) -> str:
+        """
+        The message from the Databento gateway.
+
+        Returns
+        -------
+        str
+
+        """
+
+    @property
+    def code(self) -> SystemCode | int:
+        """
+        Type of system message. See the `SystemCode` enum for possible values.
+
+        Returns
+        -------
+        SystemCode | int
+
+        """
+
+    @code.setter
+    def code(self, value: SystemCode) -> None: ...
+
+class ErrorMsgV1:
+    """
+    An error message from the Databento Live Subscription Gateway (LSG) in DBN version 1.
+
+    """
+
+    size_hint: ClassVar[int]
+    _dtypes: ClassVar[list[tuple[str, str]]]
+    _hidden_fields: ClassVar[list[str]]
+    _price_fields: ClassVar[list[str]]
+    _ordered_fields: ClassVar[list[str]]
+    _timestamp_fields: ClassVar[list[str]]
+
+    def __init__(self, ts_event: int, err: str, ts_out: int = UNDEF_TIMESTAMP) -> None: ...
+    def __bytes__(self) -> bytes: ...
+    def record_size(self) -> int:
+        """
+        Return the size of the record in bytes.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        size_hint
+
+        """
+
+    @property
+    def rtype(self) -> RType:
+        """
+        The record type.
+
+        Returns
+        -------
+        RType
+
+        """
+    publisher_id: int
+    """
+    The publisher ID assigned by Databento, which denotes the dataset and venue.
+
+    See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+
+    """
+
+    instrument_id: int
+    """
+    The numeric instrument ID.
+
+    See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
+
+    """
+
+    @property
+    def ts_index(self) -> int:
+        """
+        The raw primary timestamp for the record as the number of nanoseconds since the
+        UNIX epoch. For records that define a `ts_recv` and `ts_event`, this method will
+        return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_ts_index(self) -> dt.datetime | None:
+        """
+        The primary timestamp for the record as the expressed as a datetime or a
+        `pandas.Timestamp`, if available. For records that define a `ts_recv` and `ts_event`,
+        this method will return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def pretty_ts_event(self) -> dt.datetime | None:
+        """
+        The matching-engine-received timestamp expressed as a
+        datetime or a `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+    ts_event: int
+    """
+    The matching-engine-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
+
+    See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+
+    """
+
+    ts_out: int
+    """
+    The live gateway send timestamp expressed as the number of nanoseconds since the
+    UNIX epoch. Returns `UNDEF_TIMESTAMP` when not set.
+
+    See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+    """
+
+    @property
+    def pretty_ts_out(self) -> dt.datetime | None:
+        """
+        The live gateway send timestamp as a datetime or
+        `pandas.Timestamp`, if available. Returns `None` when `ts_out` is not set.
+
+        Returns
+        -------
+        datetime.datetime | None
+
+        """
+
+    @property
+    def err(self) -> str:
+        """
+        The error message.
+
+        Returns
+        -------
+        str
+
+        """
+
+class InstrumentDefMsgV1:
+    """
+    A definition of an instrument in DBN version 1. The record of the definition schema.
+
+    """
+
+    size_hint: ClassVar[int]
+    _dtypes: ClassVar[list[tuple[str, str]]]
+    _hidden_fields: ClassVar[list[str]]
+    _price_fields: ClassVar[list[str]]
+    _ordered_fields: ClassVar[list[str]]
+    _timestamp_fields: ClassVar[list[str]]
+
+    def __init__(
+        self,
+        publisher_id: int,
+        instrument_id: int,
+        ts_event: int,
+        ts_recv: int,
+        min_price_increment: int,
+        display_factor: int,
+        expiration: int,
+        activation: int,
+        high_limit_price: int,
+        low_limit_price: int,
+        max_price_variation: int,
+        trading_reference_price: int,
+        unit_of_measure_qty: int,
+        min_price_increment_amount: int,
+        price_ratio: int,
+        inst_attrib_value: int,
+        underlying_id: int,
+        raw_instrument_id: int,
+        market_depth_implied: int,
+        market_depth: int,
+        market_segment_id: int,
+        max_trade_vol: int,
+        min_lot_size: int,
+        min_lot_size_block: int,
+        min_lot_size_round_lot: int,
+        min_trade_vol: int,
+        contract_multiplier: int,
+        decay_quantity: int,
+        original_contract_size: int,
+        trading_reference_date: int,
+        appl_id: int,
+        maturity_year: int,
+        decay_start_date: int,
+        channel_id: int,
+        currency: str,
+        settl_currency: str,
+        secsubtype: str,
+        raw_symbol: str,
+        group: str,
+        exchange: str,
+        asset: str,
+        cfi: str,
+        security_type: str,
+        unit_of_measure: str,
+        underlying: str,
+        strike_price_currency: str,
+        instrument_class: InstrumentClass,
+        strike_price: int,
+        match_algorithm: MatchAlgorithm,
+        md_security_trading_status: int,
+        main_fraction: int,
+        price_display_format: int,
+        settl_price_type: int,
+        sub_fraction: int,
+        underlying_product: int,
+        security_update_action: SecurityUpdateAction,
+        maturity_month: int,
+        maturity_day: int,
+        maturity_week: int,
+        user_defined_instrument: UserDefinedInstrument,
+        contract_multiplier_unit: int,
+        flow_schedule_type: int,
+        tick_rule: int,
+        ts_out: int = UNDEF_TIMESTAMP,
+    ) -> None: ...
+    def __bytes__(self) -> bytes: ...
+    def record_size(self) -> int:
+        """
+        Return the size of the record in bytes.
+
+        Returns
+        -------
+        int
+
+        See Also
+        --------
+        size_hint
+
+        """
+
+    @property
+    def rtype(self) -> RType:
+        """
+        The record type.
+
+        Returns
+        -------
+        RType
+
+        """
+    publisher_id: int
+    """
+    The publisher ID assigned by Databento, which denotes the dataset and venue.
+
+    See `Publishers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#publishers-datasets-and-venues.
+
+    """
+
+    instrument_id: int
+    """
+    The numeric instrument ID.
+
+    See `Instrument identifiers` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers.
+
+    """
+
+    @property
+    def ts_index(self) -> int:
+        """
+        The raw primary timestamp for the record as the number of nanoseconds since the
+        UNIX epoch. For records that define a `ts_recv` and `ts_event`, this method will
+        return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        int
+
+        """
+
+    @property
+    def pretty_ts_index(self) -> dt.datetime | None:
+        """
+        The primary timestamp for the record as the expressed as a datetime or a
+        `pandas.Timestamp`, if available. For records that define a `ts_recv` and `ts_event`,
+        this method will return the appropriate timestamp for indexing based on the record's type.
+
+        This timestamp should be used for sorting records as well as indexing into any
+        symbology data structure.
+
+        See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+        See `ts_recv` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+
+    @property
+    def pretty_ts_event(self) -> dt.datetime | None:
+        """
+        The matching-engine-received timestamp expressed as a
+        datetime or a `pandas.Timestamp`, if available.
+
+        Returns
+        -------
+        datetime.datetime
+
+        """
+    ts_event: int
+    """
+    The matching-engine-received timestamp expressed as the number of nanoseconds
+    since the UNIX epoch.
+
+    See `ts_event` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-event.
+
+    """
+
+    ts_out: int
+    """
+    The live gateway send timestamp expressed as the number of nanoseconds since the
+    UNIX epoch. Returns `UNDEF_TIMESTAMP` when not set.
+
+    See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+    """
+
+    @property
+    def pretty_ts_out(self) -> dt.datetime | None:
+        """
+        The live gateway send timestamp as a datetime or
+        `pandas.Timestamp`, if available. Returns `None` when `ts_out` is not set.
+
+        Returns
+        -------
+        datetime.datetime | None
 
         """
 
@@ -7204,6 +7358,7 @@ class StatMsgV1:
         channel_id: int | None = None,
         update_action: StatUpdateAction | None = None,
         stat_flags: int = 0,
+        ts_out: int = UNDEF_TIMESTAMP,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
     def record_size(self) -> int:
@@ -7304,17 +7459,24 @@ class StatMsgV1:
 
     """
 
-    @property
-    def ts_out(self) -> int | None:
-        """
-        The live gateway send timestamp expressed as the number of nanoseconds since the
-        UNIX epoch.
+    ts_out: int
+    """
+    The live gateway send timestamp expressed as the number of nanoseconds since the
+    UNIX epoch. Returns `UNDEF_TIMESTAMP` when not set.
 
-        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+    See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+    """
+
+    @property
+    def pretty_ts_out(self) -> dt.datetime | None:
+        """
+        The live gateway send timestamp as a datetime or
+        `pandas.Timestamp`, if available. Returns `None` when `ts_out` is not set.
 
         Returns
         -------
-        int | None
+        datetime.datetime | None
 
         """
 
@@ -7467,6 +7629,7 @@ class SymbolMappingMsgV1:
         stype_out_symbol: str,
         start_ts: int,
         end_ts: int,
+        ts_out: int = UNDEF_TIMESTAMP,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
     def record_size(self) -> int:
@@ -7567,17 +7730,24 @@ class SymbolMappingMsgV1:
 
     """
 
-    @property
-    def ts_out(self) -> int | None:
-        """
-        The live gateway send timestamp expressed as the number of nanoseconds since the
-        UNIX epoch.
+    ts_out: int
+    """
+    The live gateway send timestamp expressed as the number of nanoseconds since the
+    UNIX epoch. Returns `UNDEF_TIMESTAMP` when not set.
 
-        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+    See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+    """
+
+    @property
+    def pretty_ts_out(self) -> dt.datetime | None:
+        """
+        The live gateway send timestamp as a datetime or
+        `pandas.Timestamp`, if available. Returns `None` when `ts_out` is not set.
 
         Returns
         -------
-        int | None
+        datetime.datetime | None
 
         """
 
@@ -7653,7 +7823,7 @@ class SystemMsgV1:
     _ordered_fields: ClassVar[list[str]]
     _timestamp_fields: ClassVar[list[str]]
 
-    def __init__(self, ts_event: int, msg: str) -> None: ...
+    def __init__(self, ts_event: int, msg: str, ts_out: int = UNDEF_TIMESTAMP) -> None: ...
     def __bytes__(self) -> bytes: ...
     def record_size(self) -> int:
         """
@@ -7753,17 +7923,24 @@ class SystemMsgV1:
 
     """
 
-    @property
-    def ts_out(self) -> int | None:
-        """
-        The live gateway send timestamp expressed as the number of nanoseconds since the
-        UNIX epoch.
+    ts_out: int
+    """
+    The live gateway send timestamp expressed as the number of nanoseconds since the
+    UNIX epoch. Returns `UNDEF_TIMESTAMP` when not set.
 
-        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+    See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+    """
+
+    @property
+    def pretty_ts_out(self) -> dt.datetime | None:
+        """
+        The live gateway send timestamp as a datetime or
+        `pandas.Timestamp`, if available. Returns `None` when `ts_out` is not set.
 
         Returns
         -------
-        int | None
+        datetime.datetime | None
 
         """
 
@@ -7867,6 +8044,7 @@ class InstrumentDefMsgV2:
         contract_multiplier_unit: int,
         flow_schedule_type: int,
         tick_rule: int,
+        ts_out: int = UNDEF_TIMESTAMP,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
     def record_size(self) -> int:
@@ -7967,17 +8145,24 @@ class InstrumentDefMsgV2:
 
     """
 
-    @property
-    def ts_out(self) -> int | None:
-        """
-        The live gateway send timestamp expressed as the number of nanoseconds since the
-        UNIX epoch.
+    ts_out: int
+    """
+    The live gateway send timestamp expressed as the number of nanoseconds since the
+    UNIX epoch. Returns `UNDEF_TIMESTAMP` when not set.
 
-        See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+    See `ts_out` https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-out.
+
+    """
+
+    @property
+    def pretty_ts_out(self) -> dt.datetime | None:
+        """
+        The live gateway send timestamp as a datetime or
+        `pandas.Timestamp`, if available. Returns `None` when `ts_out` is not set.
 
         Returns
         -------
-        int | None
+        datetime.datetime | None
 
         """
 

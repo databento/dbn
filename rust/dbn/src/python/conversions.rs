@@ -1,15 +1,12 @@
 use std::ffi::c_char;
 
 use pyo3::{
-    conversion::IntoPyObjectExt,
     intern,
     prelude::*,
     types::{PyDateTime, PyDict, PyTzInfo},
 };
 
-use crate::{
-    python::PyFieldDesc, BidAskPair, ConsolidatedBidAskPair, HasRType, WithTsOut, UNDEF_TIMESTAMP,
-};
+use crate::{python::PyFieldDesc, BidAskPair, ConsolidatedBidAskPair, UNDEF_TIMESTAMP};
 
 pub fn char_to_c_char(c: char) -> crate::Result<c_char> {
     if c.is_ascii() {
@@ -84,21 +81,9 @@ pub fn append_level_suffix<const N: usize>(fields: Vec<String>) -> Vec<String> {
     res
 }
 
-/// `WithTsOut` adds a `ts_out` field to the main record when converted to Python.
-impl<'py, R> IntoPyObject<'py> for WithTsOut<R>
-where
-    R: HasRType + IntoPyObject<'py>,
-{
-    type Target = PyAny;
-    type Output = Bound<'py, PyAny>;
-    type Error = PyErr;
-
-    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let obj = self.rec.into_bound_py_any(py)?;
-        obj.setattr(intern!(py, "ts_out"), self.ts_out).unwrap();
-        Ok(obj)
-    }
-}
+// `IntoPyObject` for `WithTsOut<R>` and bare record types are generated per-type
+// in `python/record.rs` via codegen, creating Python wrapper structs that include
+// `ts_out` as a real field instead of a dynamic dict attribute.
 
 pub fn new_py_timestamp_or_datetime(
     py: Python<'_>,

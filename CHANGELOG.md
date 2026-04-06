@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.53.0 - TBD
+
+### Enhancements
+- Made `ts_out` a permanent field on all Python record types, replacing the
+  dynamic `__dict__` attribute. `ts_out` returns an `int` (`UNDEF_TIMESTAMP` when
+  not set)
+- Removed `__dict__` from all Python record classes, eliminating a separate
+  per-instance allocation
+
+### Breaking changes
+- `record.ts_out` now returns `UNDEF_TIMESTAMP` instead of raising `AttributeError`
+  when `ts_out` is not set. Code using `hasattr(record, "ts_out")` should check
+  `record.ts_out != UNDEF_TIMESTAMP` instead
+- `bytes(record)` now includes the 8-byte `ts_out` suffix when the record was
+  created with `ts_out`. Code that separately appends `ts_out` bytes after
+  `bytes(record)` should be updated to avoid double-writing
+- Arbitrary attribute assignment on record instances is no longer supported
+
 ## 0.52.1 - 2026-03-31
 
 ### Enhancements

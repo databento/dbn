@@ -249,7 +249,7 @@ mod tests {
             Python::run(
                 py,
                 c_str!(
-                    r#"from _lib import DBNDecoder
+                    r#"from _lib import DBNDecoder, UNDEF_TIMESTAMP
 
 decoder = DBNDecoder()
 with open(path, 'rb') as fin:
@@ -258,7 +258,10 @@ records = decoder.decode()
 assert len(records) == 3
 metadata = records[0]
 for record in records[1:]:
-    assert hasattr(record, "ts_out") == metadata.ts_out"#
+    if metadata.ts_out:
+        assert record.ts_out != UNDEF_TIMESTAMP
+    else:
+        assert record.ts_out == UNDEF_TIMESTAMP"#
                 ),
                 Some(&globals),
                 None,
