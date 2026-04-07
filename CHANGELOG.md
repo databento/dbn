@@ -8,6 +8,8 @@
   not set)
 - Removed `__dict__` from all Python record classes, eliminating a separate
   per-instance allocation
+- `FlagSet` setter methods are now `const`, making it easier to define constants, e.g.
+  `const FLAGS: FlagSet = FlagSet::empty().set_snapshot().set_last()`
 
 ### Breaking changes
 - `record.ts_out` now returns `UNDEF_TIMESTAMP` instead of raising `AttributeError`
