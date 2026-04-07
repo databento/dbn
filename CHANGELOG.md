@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.53.0 - TBD
+## 0.53.0 - 2026-04-07
 
 ### Enhancements
 - Made `ts_out` a permanent field on all Python record types, replacing the
@@ -17,6 +17,9 @@
   created with `ts_out`. Code that separately appends `ts_out` bytes after
   `bytes(record)` should be updated to avoid double-writing
 - Arbitrary attribute assignment on record instances is no longer supported
+
+### Bug fixes
+- Fixed memory leak around `ts_out` assignment
 
 ## 0.52.1 - 2026-03-31
 
