@@ -347,7 +347,7 @@ pub enum Dataset {
     XeurEobi = 38,
     /// European Energy Exchange EOBI
     XeeeEobi = 39,
-    /// Cboe Futures Exchange PITCH
+    /// CFE Depth
     XcbfPitch = 40,
     /// Blue Ocean ATS MEMOIR Depth
     OceaMemoir = 41,
@@ -811,9 +811,9 @@ pub enum Publisher {
     XeurEobiXoff = 103,
     /// European Energy Exchange EOBI - Off-Market Trades
     XeeeEobiXoff = 104,
-    /// Cboe Futures Exchange
+    /// Cboe Futures Exchange (CFE)
     XcbfPitchXcbf = 105,
-    /// Cboe Futures Exchange - Off-Market Trades
+    /// Cboe Futures Exchange (CFE) - Off-Market Trades
     XcbfPitchXoff = 106,
     /// Blue Ocean ATS MEMOIR
     OceaMemoirOcea = 107,
