@@ -249,7 +249,7 @@ mod tests {
             Python::run(
                 py,
                 c_str!(
-                    r#"from _lib import DBNDecoder
+                    r#"from _lib import DBNDecoder, UNDEF_TIMESTAMP
 
 decoder = DBNDecoder()
 with open(path, 'rb') as fin:
@@ -258,7 +258,10 @@ records = decoder.decode()
 assert len(records) == 3
 metadata = records[0]
 for record in records[1:]:
-    assert hasattr(record, "ts_out") == metadata.ts_out"#
+    if metadata.ts_out:
+        assert record.ts_out != UNDEF_TIMESTAMP
+    else:
+        assert record.ts_out == UNDEF_TIMESTAMP"#
                 ),
                 Some(&globals),
                 None,
@@ -427,6 +430,71 @@ with open(path, 'rb') as f:
     decoder.write(f.read())
 records = decoder.decode()
 assert len(records) == 3  # metadata + 2 records
+"#
+                ),
+                Some(&globals),
+                None,
+            )
+            .unwrap();
+        });
+    }
+
+    /// Regression test for memory leak when decoding records with `ts_out=True`
+    /// due to a bug with pyo3.
+    #[rstest]
+    fn test_decode_ts_out_no_memory_leak(_python: ()) {
+        use dbn::record::WithTsOut;
+
+        // Build a single WithTsOut<ErrorMsg> record with updated header length
+        let rec = WithTsOut::new(
+            ErrorMsg::new(1680708278000000000, None, "test", true),
+            1234567890,
+        );
+        let rec_bytes: &[u8] = rec.as_ref();
+
+        Python::attach(|py| {
+            let rec_bytes_py = pyo3::types::PyBytes::new(py, rec_bytes);
+            let globals = PyDict::new(py);
+            globals.set_item("rec_bytes", rec_bytes_py).unwrap();
+            Python::run(
+                py,
+                c_str!(
+                    r#"import gc
+import tracemalloc
+from _lib import DBNDecoder
+
+n = 100_000
+
+# Warmup: decode records through the ts_out path
+for _ in range(5_000):
+    dec = DBNDecoder(has_metadata=False, ts_out=True)
+    dec.write(rec_bytes)
+    recs = dec.decode()
+    del recs, dec
+gc.collect()
+
+tracemalloc.start()
+baseline = tracemalloc.get_traced_memory()[0]
+
+for _ in range(n):
+    dec = DBNDecoder(has_metadata=False, ts_out=True)
+    dec.write(rec_bytes)
+    recs = dec.decode()
+    del recs, dec
+
+gc.collect()
+current = tracemalloc.get_traced_memory()[0]
+tracemalloc.stop()
+
+growth = current - baseline
+
+# Each record should be fully freed after del. Allow 1 MB for noise.
+# With the PyO3 dict leak, this grows by ~64 bytes/record (6.4 MB for 100k).
+assert growth < 1_000_000, (
+    f"Memory leak in ts_out decode path: traced memory grew by "
+    f"{growth / 1_000_000:.1f} MB after {n:_} decode cycles "
+    f"({growth / n:.1f} bytes/record)"
+)
 "#
                 ),
                 Some(&globals),

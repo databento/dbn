@@ -24,6 +24,13 @@ pub const PUBLISHER_SPECIFIC: u8 = 1 << 1;
 
 /// A transparent wrapper around the bit field used in several DBN record types,
 /// namely [`MboMsg`](crate::MboMsg) and record types derived from it.
+///
+/// Most operations support constant evaluation, e.g.
+/// ```
+/// use dbn::FlagSet;
+///
+/// const FLAGS: FlagSet = FlagSet::empty().set_snapshot().set_last();
+/// ```
 #[repr(transparent)]
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
 #[cfg_attr(feature = "python", derive(FromPyObject), pyo3(transparent))]
@@ -83,7 +90,7 @@ impl FlagSet {
     }
 
     /// Turns all flags off, i.e. to `false`.
-    pub fn clear(&mut self) -> &mut Self {
+    pub const fn clear(&mut self) -> &mut Self {
         self.raw = 0;
         self
     }
@@ -94,7 +101,7 @@ impl FlagSet {
     }
 
     /// Sets the flags directly with a raw `u8`.
-    pub fn set_raw(&mut self, raw: u8) {
+    pub const fn set_raw(&mut self, raw: u8) {
         self.raw = raw;
     }
 
@@ -104,7 +111,7 @@ impl FlagSet {
     }
 
     /// Returns `true` if all flags are unset/false.
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.raw == 0
     }
 
@@ -116,7 +123,7 @@ impl FlagSet {
 
     /// Sets the `LAST` bit flag to `true` to indicate this is the last record in the
     /// event for a given instrument.
-    pub fn set_last(&mut self) -> Self {
+    pub const fn set_last(&mut self) -> Self {
         self.raw |= LAST;
         *self
     }
@@ -127,7 +134,7 @@ impl FlagSet {
     }
 
     /// Sets the `TOB` bit flag to `true` to indicate this is a top-of-book record.
-    pub fn set_tob(&mut self) -> Self {
+    pub const fn set_tob(&mut self) -> Self {
         self.raw |= TOB;
         *self
     }
@@ -140,7 +147,7 @@ impl FlagSet {
 
     /// Sets the `SNAPSHOT` bit flag to `true` to indicate this record was sourced from
     /// a replay.
-    pub fn set_snapshot(&mut self) -> Self {
+    pub const fn set_snapshot(&mut self) -> Self {
         self.raw |= SNAPSHOT;
         *self
     }
@@ -153,7 +160,7 @@ impl FlagSet {
 
     /// Sets the `MBP` bit flag to `true` to indicate this record is an aggregated price
     /// level record.
-    pub fn set_mbp(&mut self) -> Self {
+    pub const fn set_mbp(&mut self) -> Self {
         self.raw |= MBP;
         *self
     }
@@ -166,7 +173,7 @@ impl FlagSet {
 
     /// Sets the `BAD_TS_RECV` bit flag to `true` to indicate this record has an
     /// inaccurate `ts_recv` value.
-    pub fn set_bad_ts_recv(&mut self) -> Self {
+    pub const fn set_bad_ts_recv(&mut self) -> Self {
         self.raw |= BAD_TS_RECV;
         *self
     }
@@ -179,7 +186,7 @@ impl FlagSet {
 
     /// Sets the `MAYBE_BAD_BOOK` bit flag to `true` to indicate this record is from a
     /// channel where an unrecoverable gap was detected.
-    pub fn set_maybe_bad_book(&mut self) -> Self {
+    pub const fn set_maybe_bad_book(&mut self) -> Self {
         self.raw |= MAYBE_BAD_BOOK;
         *self
     }
@@ -190,7 +197,7 @@ impl FlagSet {
     }
 
     /// Sets the `PUBLISHER_SPECIFIC` bit flag to `true`.
-    pub fn set_publisher_specific(&mut self) -> Self {
+    pub const fn set_publisher_specific(&mut self) -> Self {
         self.raw |= PUBLISHER_SPECIFIC;
         *self
     }

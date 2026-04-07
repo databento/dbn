@@ -3,19 +3,21 @@
 use pyo3::{prelude::*, wrap_pyfunction, PyClass};
 
 use dbn::{
-    compat::{
-        ErrorMsgV1, InstrumentDefMsgV1, InstrumentDefMsgV2, StatMsgV1, SymbolMappingMsgV1,
-        SystemMsgV1,
-    },
     flags,
-    python::{DBNError, EnumIterator},
-    Action, BboMsg, BidAskPair, CbboMsg, Cmbp1Msg, Compression, ConsolidatedBidAskPair, Encoding,
-    ErrorCode, ErrorMsg, ImbalanceMsg, InstrumentClass, InstrumentDefMsg, MatchAlgorithm, MboMsg,
-    Mbp10Msg, Mbp1Msg, Metadata, OhlcvMsg, RType, SType, Schema, SecurityUpdateAction, Side,
-    StatMsg, StatType, StatUpdateAction, StatusAction, StatusMsg, StatusReason, SymbolMappingMsg,
-    SystemCode, SystemMsg, TradeMsg, TradingEvent, TriState, UserDefinedInstrument,
-    VersionUpgradePolicy, DBN_VERSION, FIXED_PRICE_SCALE, SYMBOL_CSTR_LEN, UNDEF_ORDER_SIZE,
-    UNDEF_PRICE, UNDEF_STAT_QUANTITY, UNDEF_TIMESTAMP,
+    python::{
+        record::{
+            PyBboMsg, PyCbboMsg, PyCmbp1Msg, PyErrorMsg, PyImbalanceMsg, PyInstrumentDefMsg,
+            PyMboMsg, PyMbp10Msg, PyMbp1Msg, PyOhlcvMsg, PyStatMsg, PyStatusMsg,
+            PySymbolMappingMsg, PySystemMsg, PyTradeMsg, PyV1ErrorMsg, PyV1InstrumentDefMsg,
+            PyV1StatMsg, PyV1SymbolMappingMsg, PyV1SystemMsg, PyV2InstrumentDefMsg,
+        },
+        DBNError, EnumIterator,
+    },
+    Action, BidAskPair, Compression, ConsolidatedBidAskPair, Encoding, ErrorCode, InstrumentClass,
+    MatchAlgorithm, Metadata, RType, SType, Schema, SecurityUpdateAction, Side, StatType,
+    StatUpdateAction, StatusAction, StatusReason, SystemCode, TradingEvent, TriState,
+    UserDefinedInstrument, VersionUpgradePolicy, DBN_VERSION, FIXED_PRICE_SCALE, SYMBOL_CSTR_LEN,
+    UNDEF_ORDER_SIZE, UNDEF_PRICE, UNDEF_STAT_QUANTITY, UNDEF_TIMESTAMP,
 };
 
 mod dbn_decoder;
@@ -40,29 +42,29 @@ fn databento_dbn(_py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     checked_add_class::<dbn_decoder::DbnDecoder>(m)?;
     checked_add_class::<transcoder::Transcoder>(m)?;
     // Records
-    checked_add_class::<MboMsg>(m)?;
+    checked_add_class::<PyMboMsg>(m)?;
     checked_add_class::<BidAskPair>(m)?;
     checked_add_class::<ConsolidatedBidAskPair>(m)?;
-    checked_add_class::<TradeMsg>(m)?;
-    checked_add_class::<Mbp1Msg>(m)?;
-    checked_add_class::<Mbp10Msg>(m)?;
-    checked_add_class::<OhlcvMsg>(m)?;
-    checked_add_class::<ImbalanceMsg>(m)?;
-    checked_add_class::<StatusMsg>(m)?;
-    checked_add_class::<InstrumentDefMsg>(m)?;
-    checked_add_class::<InstrumentDefMsgV2>(m)?;
-    checked_add_class::<InstrumentDefMsgV1>(m)?;
-    checked_add_class::<ErrorMsg>(m)?;
-    checked_add_class::<ErrorMsgV1>(m)?;
-    checked_add_class::<SymbolMappingMsg>(m)?;
-    checked_add_class::<SymbolMappingMsgV1>(m)?;
-    checked_add_class::<SystemMsg>(m)?;
-    checked_add_class::<SystemMsgV1>(m)?;
-    checked_add_class::<StatMsg>(m)?;
-    checked_add_class::<StatMsgV1>(m)?;
-    checked_add_class::<BboMsg>(m)?;
-    checked_add_class::<CbboMsg>(m)?;
-    checked_add_class::<Cmbp1Msg>(m)?;
+    checked_add_class::<PyTradeMsg>(m)?;
+    checked_add_class::<PyMbp1Msg>(m)?;
+    checked_add_class::<PyMbp10Msg>(m)?;
+    checked_add_class::<PyOhlcvMsg>(m)?;
+    checked_add_class::<PyImbalanceMsg>(m)?;
+    checked_add_class::<PyStatusMsg>(m)?;
+    checked_add_class::<PyInstrumentDefMsg>(m)?;
+    checked_add_class::<PyV2InstrumentDefMsg>(m)?;
+    checked_add_class::<PyV1InstrumentDefMsg>(m)?;
+    checked_add_class::<PyErrorMsg>(m)?;
+    checked_add_class::<PyV1ErrorMsg>(m)?;
+    checked_add_class::<PySymbolMappingMsg>(m)?;
+    checked_add_class::<PyV1SymbolMappingMsg>(m)?;
+    checked_add_class::<PySystemMsg>(m)?;
+    checked_add_class::<PyV1SystemMsg>(m)?;
+    checked_add_class::<PyStatMsg>(m)?;
+    checked_add_class::<PyV1StatMsg>(m)?;
+    checked_add_class::<PyBboMsg>(m)?;
+    checked_add_class::<PyCbboMsg>(m)?;
+    checked_add_class::<PyCmbp1Msg>(m)?;
     // PyClass enums
     checked_add_class::<Action>(m)?;
     checked_add_class::<Compression>(m)?;
@@ -223,7 +225,7 @@ variant = getattr(enum_type, variant)
 assert variant == enum_type(val)
 assert variant == val
 assert val == variant
-assert hash(val) == hash(variant), f"{val = }, {variant = } {hash(val) = }, {hash(variant) = }""#
+assert hash(val) == hash(variant)"#
                 ),
                 Some(&globals),
                 None,
@@ -258,7 +260,7 @@ variant = getattr(enum_type, variant)
 assert variant == enum_type(val)
 assert variant == val
 assert val == variant
-assert hash(val) == hash(variant), f"{val = }, {variant = } {hash(val) = }, {hash(variant) = }""#
+assert hash(val) == hash(variant)"#
                 ),
                 Some(&globals),
                 None,
@@ -292,7 +294,7 @@ import operator
 
 enum_type = getattr(db, enum_name)
 variant = getattr(enum_type, variant)
-assert operator.index(variant) == expected, f"{operator.index(variant)} != {expected}"
+assert operator.index(variant) == expected
 assert hex(variant) == hex(expected)
 "#
                 ),
@@ -332,6 +334,168 @@ assert msg.record_size() == msg.size_hint
                 None,
             )
             .unwrap();
+        });
+    }
+
+    /// Helper to run Python assertions against a record.
+    fn run_py(py: Python<'_>, code: &str) {
+        Python::run(
+            py,
+            &std::ffi::CString::new(code).unwrap(),
+            Some(&PyDict::new(py)),
+            None,
+        )
+        .unwrap();
+    }
+
+    const MBO_CTOR: &str = "MBOMsg(publisher_id=1, instrument_id=2, ts_event=3, order_id=4, price=5, size=6, action=Action.ADD, side=Side.BID, ts_recv=7)";
+    const TRADE_CTOR: &str = "TradeMsg(1, 2, 3, 5, 6, Action.ADD, Side.BID, 0, 7)";
+    const OHLCV_CTOR: &str = "OHLCVMsg(0x20, 1, 2, 3, 0, 0, 0, 0, 0)";
+
+    #[rstest]
+    #[case(MBO_CTOR)]
+    #[case(TRADE_CTOR)]
+    #[case(OHLCV_CTOR)]
+    fn test_ts_out_default_and_settable(_python: (), #[case] ctor: &str) {
+        Python::attach(|py| {
+            run_py(
+                py,
+                &format!(
+                    r#"from _lib import *
+msg = {ctor}
+assert msg.ts_out == UNDEF_TIMESTAMP
+assert msg.pretty_ts_out is None
+msg.ts_out = 1000
+assert msg.ts_out == 1000
+assert msg.pretty_ts_out is not None
+"#
+                ),
+            );
+        });
+    }
+
+    #[rstest]
+    fn test_ts_out_in_constructor(_python: ()) {
+        Python::attach(|py| {
+            run_py(
+                py,
+                r#"from _lib import *
+msg = MBOMsg(publisher_id=1, instrument_id=2, ts_event=3, order_id=4, price=5, size=6, action=Action.ADD, side=Side.BID, ts_recv=7, ts_out=42)
+assert msg.ts_out == 42
+"#,
+            );
+        });
+    }
+
+    #[rstest]
+    #[case(MBO_CTOR)]
+    #[case(TRADE_CTOR)]
+    #[case(OHLCV_CTOR)]
+    fn test_bytes_excludes_ts_out_when_not_set(_python: (), #[case] ctor: &str) {
+        Python::attach(|py| {
+            run_py(
+                py,
+                &format!(
+                    r#"from _lib import *
+msg = {ctor}
+record_bytes = bytes(msg)
+assert len(record_bytes) == msg.size_hint
+assert len(record_bytes) == msg.record_size()
+"#
+                ),
+            );
+        });
+    }
+
+    #[rstest]
+    #[case(MBO_CTOR)]
+    #[case(TRADE_CTOR)]
+    #[case(OHLCV_CTOR)]
+    fn test_no_arbitrary_attrs_on_records(_python: (), #[case] ctor: &str) {
+        Python::attach(|py| {
+            run_py(
+                py,
+                &format!(
+                    r#"from _lib import *
+msg = {ctor}
+try:
+    msg.foo = "bar"
+    assert False, "should not allow arbitrary attrs"
+except AttributeError:
+    pass
+"#
+                ),
+            );
+        });
+    }
+
+    #[rstest]
+    #[case(MBO_CTOR)]
+    #[case(TRADE_CTOR)]
+    #[case(OHLCV_CTOR)]
+    fn test_bytes_includes_ts_out_when_set(_python: (), #[case] ctor: &str) {
+        Python::attach(|py| {
+            run_py(
+                py,
+                &format!(
+                    r#"import struct
+from _lib import *
+msg = {ctor}
+base_size = msg.record_size()
+msg.ts_out = 42
+record_bytes = bytes(msg)
+assert len(record_bytes) == base_size + 8
+assert len(record_bytes) == msg.record_size()
+# last 8 bytes should be ts_out in little-endian
+ts_out_bytes = struct.unpack('<Q', record_bytes[-8:])[0]
+assert ts_out_bytes == 42
+"#
+                ),
+            );
+        });
+    }
+
+    #[rstest]
+    fn test_bytes_with_ts_out_in_constructor(_python: ()) {
+        Python::attach(|py| {
+            run_py(
+                py,
+                r#"import struct
+from _lib import *
+msg = MBOMsg(publisher_id=1, instrument_id=2, ts_event=3, order_id=4, price=5, size=6, action=Action.ADD, side=Side.BID, ts_recv=7)
+base_size = msg.record_size()
+msg_with_ts = MBOMsg(publisher_id=1, instrument_id=2, ts_event=3, order_id=4, price=5, size=6, action=Action.ADD, side=Side.BID, ts_recv=7, ts_out=100)
+record_bytes = bytes(msg_with_ts)
+assert len(record_bytes) == base_size + 8
+ts_out_bytes = struct.unpack('<Q', record_bytes[-8:])[0]
+assert ts_out_bytes == 100
+"#,
+            );
+        });
+    }
+
+    #[rstest]
+    #[case(MBO_CTOR)]
+    #[case(TRADE_CTOR)]
+    #[case(OHLCV_CTOR)]
+    fn test_ts_out_setter_restores_size(_python: (), #[case] ctor: &str) {
+        Python::attach(|py| {
+            run_py(
+                py,
+                &format!(
+                    r#"from _lib import *
+msg = {ctor}
+base_size = msg.record_size()
+# set ts_out, size should grow
+msg.ts_out = 42
+assert msg.record_size() == base_size + 8
+# reset to UNDEF, size should shrink back
+msg.ts_out = UNDEF_TIMESTAMP
+assert msg.record_size() == base_size
+assert len(bytes(msg)) == base_size
+"#
+                ),
+            );
         });
     }
 
