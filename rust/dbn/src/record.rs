@@ -35,8 +35,7 @@ pub use traits::{HasRType, Record, RecordMut};
 /// Common data for all Databento records. Always found at the beginning of a record
 /// struct.
 #[repr(C)]
-#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "trivial_copy", derive(Copy))]
+#[derive(Clone, Copy, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
 #[cfg_attr(test, derive(type_layout::TypeLayout))]

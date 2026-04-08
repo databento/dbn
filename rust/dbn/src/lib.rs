@@ -22,7 +22,8 @@
 //! - [Normalized market data struct definitions](crate::record) corresponding to the
 //!   different market data schemas offered by Databento
 //! - A [wrapper type](crate::RecordRef) for holding a reference to a record struct of
-//!   a dynamic type
+//!   a dynamic type, and an [owned counterpart](crate::RecordBuf) for storing one on
+//!   the stack
 //! - Helper functions and [macros] for common tasks
 //!
 //! # Feature flags
@@ -50,6 +51,7 @@ pub mod publishers;
 #[cfg(feature = "python")]
 pub mod python;
 pub mod record;
+pub mod record_buf;
 mod record_enum;
 pub mod record_ref;
 pub mod symbol_map;
@@ -77,8 +79,9 @@ pub use crate::{
         Mbp10Msg, Mbp1Msg, OhlcvMsg, Record, RecordHeader, RecordMut, StatMsg, StatusMsg,
         SymbolMappingMsg, SystemMsg, TbboMsg, TcbboMsg, TradeMsg, WithTsOut,
     },
+    record_buf::RecordBuf,
     record_enum::{RecordEnum, RecordRefEnum},
-    record_ref::RecordRef,
+    record_ref::{RecordRef, RecordRefMut},
     symbol_map::{PitSymbolMap, SymbolIndex, TsSymbolMap},
 };
 

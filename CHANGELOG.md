@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.54.0 - TBD
+
+### Enhancements
+- Added `RecordBuf`, an owned stack-allocated buffer for holding a DBN record of
+  dynamic type. Complements `RecordRef` (borrowed, dynamic) and concrete types
+  (owned, static). Supports `get()`, `try_get()`, `set()`, `upgrade()`, and
+  cross-capacity `PartialEq`
+- Added `RecordRefMut` for mutable non-owning references to DBN records
+- Added `RecordRef::to_owned()` and `RecordRefMut::to_owned()` for converting
+  borrowed records to an owned `RecordBuf`
+- Added `Hash`, `PartialEq`, and `Eq` for `RecordRef`, including cross-type equality
+  between `RecordBuf` and `RecordRef`
+
 ## 0.53.0 - 2026-04-07
 
 ### Enhancements
