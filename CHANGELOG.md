@@ -12,6 +12,7 @@
   borrowed records to an owned `RecordBuf`
 - Added `Hash`, `PartialEq`, and `Eq` for `RecordRef`, including cross-type equality
   between `RecordBuf` and `RecordRef`
+- Changed `RecordHeader` to be `Copy`
 
 ## 0.53.0 - 2026-04-07
 

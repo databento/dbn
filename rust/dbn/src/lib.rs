@@ -21,10 +21,51 @@
 //!   with the `async` feature flag
 //! - [Normalized market data struct definitions](crate::record) corresponding to the
 //!   different market data schemas offered by Databento
-//! - A [wrapper type](crate::RecordRef) for holding a reference to a record struct of
-//!   a dynamic type, and an [owned counterpart](crate::RecordBuf) for storing one on
-//!   the stack
+//! - Wrapper types for dynamically-typed records: [`RecordRef`] (immutable reference),
+//!   [`RecordRefMut`] (mutable reference), and [`RecordBuf`] (owned, stack-allocated)
+//! - [`RecordEnum`] and [`RecordRefEnum`] for exhaustive pattern matching over all
+//!   known record types
 //! - Helper functions and [macros] for common tasks
+//!
+//! # Quick start
+//!
+//! Reading a DBN file and iterating over records:
+//! ```no_run
+//! use dbn::{decode::{DbnDecoder, DecodeRecordRef, DbnMetadata}, TradeMsg};
+//!
+//! let mut decoder = DbnDecoder::from_file("20241007.trades.dbn.zst")?;
+//! println!("Dataset: {}", decoder.metadata().dataset);
+//! while let Some(rec_ref) = decoder.decode_record_ref()? {
+//!     if let Some(trade) = rec_ref.get::<TradeMsg>() {
+//!         println!(
+//!             "instrument {} traded at {}",
+//!             trade.hd.instrument_id,
+//!             dbn::pretty::Px(trade.price),
+//!         );
+//!     }
+//! }
+//! # Ok::<(), dbn::Error>(())
+//! ```
+//!
+//! Working with records in memory:
+//! ```
+//! use dbn::{MboMsg, RecordRef, RecordRefMut, RecordBuf};
+//!
+//! // Wrap a concrete record in a dynamically-typed reference
+//! let mbo = MboMsg::default();
+//! let rec_ref = RecordRef::from(&mbo);
+//! assert!(rec_ref.has::<MboMsg>());
+//!
+//! // Mutate through RecordRefMut
+//! let mut mbo = MboMsg::default();
+//! let rec_mut = RecordRefMut::from(&mut mbo);
+//! rec_mut.get_mut::<MboMsg>().unwrap().price = 5_000_000_000;
+//! assert_eq!(mbo.price, 5_000_000_000);
+//!
+//! // Own a record of dynamic type on the stack
+//! let buf: RecordBuf = RecordBuf::from(MboMsg::default());
+//! assert!(buf.has::<MboMsg>());
+//! ```
 //!
 //! # Feature flags
 //! - `async`: enables async decoding and encoding

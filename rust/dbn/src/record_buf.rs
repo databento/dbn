@@ -67,12 +67,31 @@ impl<const CAP: usize> RecordBuf<CAP> {
     }
 
     /// Returns an immutable reference to the record as a [`RecordRef`].
+    ///
+    /// # Examples
+    /// ```
+    /// use dbn::{MboMsg, RecordBuf, RecordRef};
+    ///
+    /// let buf: RecordBuf = RecordBuf::from(MboMsg::default());
+    /// let rec_ref: RecordRef = buf.as_rec_ref();
+    /// assert!(rec_ref.has::<MboMsg>());
+    /// ```
     pub fn as_rec_ref(&self) -> RecordRef<'_> {
         // SAFETY: `RecordBuf` always holds a valid record with a valid header.
         unsafe { RecordRef::new(self.as_ref()) }
     }
 
     /// Returns a mutable reference to the record as a [`RecordRefMut`].
+    ///
+    /// # Examples
+    /// ```
+    /// use dbn::{MboMsg, RecordBuf, RecordRefMut};
+    ///
+    /// let mut buf: RecordBuf = RecordBuf::from(MboMsg::default());
+    /// let rec_mut: RecordRefMut = buf.as_rec_ref_mut();
+    /// rec_mut.get_mut::<MboMsg>().unwrap().order_id = 99;
+    /// assert_eq!(buf.get::<MboMsg>().unwrap().order_id, 99);
+    /// ```
     pub fn as_rec_ref_mut(&mut self) -> RecordRefMut<'_> {
         // SAFETY: `RecordBuf` always holds a valid record with a valid header.
         unsafe { RecordRefMut::new(self.raw_buf_mut()) }
@@ -197,6 +216,15 @@ impl<const CAP: usize> RecordBuf<CAP> {
     /// This function panics if the rtype matches `T` but the encoded length is less
     /// than the size of `T`. Use [`try_get_mut()`](Self::try_get_mut) to handle this
     /// gracefully.
+    ///
+    /// # Examples
+    /// ```
+    /// use dbn::{MboMsg, RecordBuf};
+    ///
+    /// let mut buf: RecordBuf = RecordBuf::from(MboMsg::default());
+    /// buf.get_mut::<MboMsg>().unwrap().order_id = 42;
+    /// assert_eq!(buf.get::<MboMsg>().unwrap().order_id, 42);
+    /// ```
     pub fn get_mut<T: HasRType>(&mut self) -> Option<&mut T> {
         if self.has::<T>() {
             assert!(

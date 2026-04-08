@@ -1,4 +1,5 @@
-//! The [`RecordRef`] struct for non-owning dynamically-typed references to DBN records.
+//! Non-owning dynamically-typed references to DBN records: [`RecordRef`] for immutable
+//! access and [`RecordRefMut`] for mutable access.
 
 use std::{fmt::Debug, hash, io::IoSlice, marker::PhantomData, mem, ptr::NonNull};
 
@@ -47,8 +48,29 @@ pub struct RecordRef<'a> {
     _marker: PhantomData<&'a RecordHeader>,
 }
 
-/// A wrapper around a mutable reference to a DBN record. This wrapper
-/// allows for mixing of record types and schemas, and runtime record polymorphism.
+/// The mutable counterpart to [`RecordRef`]. Wraps a mutable reference to a DBN
+/// record, allowing runtime polymorphism over record types while retaining the
+/// ability to modify the underlying data.
+///
+/// Use `RecordRefMut` when you need to mutate a record whose concrete type is
+/// determined at runtime. For immutable access, use [`RecordRef`]. For owned
+/// storage, use [`RecordBuf`](crate::RecordBuf).
+///
+/// # Examples
+/// ```
+/// use dbn::{MboMsg, RecordRefMut};
+///
+/// let mut mbo = MboMsg::default();
+/// let rec = RecordRefMut::from(&mut mbo);
+///
+/// // Downcast to the concrete type and mutate
+/// if let Some(inner) = rec.get_mut::<MboMsg>() {
+///     inner.price = 5_000_000_000; // $5.00
+///     inner.size = 10;
+/// }
+/// assert_eq!(mbo.price, 5_000_000_000);
+/// assert_eq!(mbo.size, 10);
+/// ```
 #[derive(Copy, Clone)]
 pub struct RecordRefMut<'a> {
     ptr: NonNull<RecordHeader>,
@@ -452,6 +474,21 @@ impl<'a> RecordRefMut<'a> {
     /// This function will panic if the rtype indicates it's of type `T` but the encoded
     /// length of the record is less than the size of `T`. Use
     /// [`try_get_mut()`](Self::try_get_mut) to handle this gracefully.
+    ///
+    /// # Examples
+    /// ```
+    /// use dbn::{MboMsg, RecordRefMut, TradeMsg};
+    ///
+    /// let mut mbo = MboMsg::default();
+    /// let rec = RecordRefMut::from(&mut mbo);
+    ///
+    /// // Wrong type returns None
+    /// assert!(rec.get_mut::<TradeMsg>().is_none());
+    ///
+    /// // Correct type returns a mutable reference
+    /// rec.get_mut::<MboMsg>().unwrap().order_id = 42;
+    /// assert_eq!(mbo.order_id, 42);
+    /// ```
     pub fn get_mut<T: HasRType>(&self) -> Option<&'a mut T> {
         if self.has::<T>() {
             assert!(
@@ -475,6 +512,17 @@ impl<'a> RecordRefMut<'a> {
     /// # Errors
     /// This function returns an error if the buffer doesn't hold a `T`, or if the rtype
     /// matches but the length is too short.
+    ///
+    /// # Examples
+    /// ```
+    /// use dbn::{MboMsg, RecordRefMut};
+    ///
+    /// let mut mbo = MboMsg::default();
+    /// let mut rec = RecordRefMut::from(&mut mbo);
+    /// let inner = rec.try_get_mut::<MboMsg>().unwrap();
+    /// inner.price = 1_500_000_000;
+    /// assert_eq!(mbo.price, 1_500_000_000);
+    /// ```
     pub fn try_get_mut<T: HasRType>(&mut self) -> crate::Result<&'a mut T> {
         if self.has::<T>() {
             if self.record_size() >= mem::size_of::<T>() {
@@ -517,12 +565,32 @@ impl<'a> RecordRefMut<'a> {
     }
 
     /// Creates an owned [`RecordBuf`](crate::RecordBuf) by copying the record bytes.
+    ///
+    /// # Examples
+    /// ```
+    /// use dbn::{MboMsg, RecordRefMut};
+    ///
+    /// let mut mbo = MboMsg::default();
+    /// let rec = RecordRefMut::from(&mut mbo);
+    /// let owned = rec.to_owned();
+    /// assert!(owned.has::<MboMsg>());
+    /// ```
     pub fn to_owned(&self) -> crate::RecordBuf {
         // All valid records fit within MAX_RECORD_LEN.
         crate::RecordBuf::try_from(self.as_rec_ref()).expect("record exceeds MAX_RECORD_LEN")
     }
 
     /// Returns an immutable [`RecordRef`] view of this mutable reference.
+    ///
+    /// # Examples
+    /// ```
+    /// use dbn::{MboMsg, RecordRef, RecordRefMut};
+    ///
+    /// let mut mbo = MboMsg::default();
+    /// let rec_mut = RecordRefMut::from(&mut mbo);
+    /// let rec_ref: RecordRef = rec_mut.as_rec_ref();
+    /// assert!(rec_ref.has::<MboMsg>());
+    /// ```
     pub fn as_rec_ref(&self) -> RecordRef<'a> {
         RecordRef {
             ptr: self.ptr,

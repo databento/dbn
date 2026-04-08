@@ -1,3 +1,23 @@
+//! Enum wrappers for DBN records that enable exhaustive pattern matching.
+//!
+//! [`RecordRef`] handles dynamic record types through `has()`/`get()` chains.
+//! When you need a `match` expression that covers every record type, use
+//! [`RecordEnum`] (owned) or [`RecordRefEnum`] (borrowed) instead.
+//!
+//! # Examples
+//! ```
+//! use dbn::{MboMsg, RecordRef, RecordRefEnum};
+//!
+//! let mbo = MboMsg::default();
+//! let rec_ref = RecordRef::from(&mbo);
+//!
+//! match rec_ref.as_enum().unwrap() {
+//!     RecordRefEnum::Mbo(mbo) => println!("MBO order_id={}", mbo.order_id),
+//!     RecordRefEnum::Trade(trade) => println!("Trade price={}", trade.price),
+//!     _ => println!("other record type"),
+//! }
+//! ```
+
 use crate::{
     record::{CbboMsg, Cmbp1Msg},
     BboMsg, Error, ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,

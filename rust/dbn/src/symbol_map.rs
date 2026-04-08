@@ -6,9 +6,31 @@ use time::{macros::time, PrimitiveDateTime};
 
 use crate::{compat, v1, Error, HasRType, Metadata, Record, RecordRef, SymbolMappingMsg};
 
-/// A timeseries symbol map. Useful for working with historical requests over multiple days.
+/// A timeseries symbol map. Useful for working with historical requests over multiple
+/// days, where the same instrument ID can map to different symbols on different dates.
 ///
 /// Commonly built with [`Metadata::symbol_map()`].
+///
+/// # Examples
+/// ```no_run
+/// use dbn::{
+///     decode::{DbnDecoder, DecodeRecord, DbnMetadata},
+///     pretty, symbol_map::SymbolIndex,
+///     TradeMsg,
+/// };
+///
+/// let mut decoder = DbnDecoder::from_file("20241007.trades.dbn.zst")?;
+/// let symbol_map = decoder.metadata().symbol_map()?;
+///
+/// while let Some(trade) = decoder.decode_record::<TradeMsg>()? {
+///     if let Some(symbol) = symbol_map.get_for_rec(trade) {
+///         println!("{symbol}: price={}", pretty::Px(trade.price));
+///     } else {
+///         eprintln!("Missing symbol for {trade:?}")
+///     }
+/// }
+/// # Ok::<(), dbn::Error>(())
+/// ```
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TsSymbolMap(HashMap<(time::Date, u32), Arc<String>>);
 
@@ -16,11 +38,44 @@ pub struct TsSymbolMap(HashMap<(time::Date, u32), Arc<String>>);
 /// historical request over a single day or other situations where the symbol
 /// mappings are known not to change.
 ///
-/// Commonly built with [`Metadata::symbol_map_for_date()`].
+/// Commonly built with [`Metadata::symbol_map_for_date()`]. For live data, call
+/// [`on_record()`](Self::on_record) with each incoming record to keep the map
+/// updated as symbol mappings arrive.
+///
+/// # Examples
+///
+/// Single-day historical usage:
+/// ```no_run
+/// use dbn::{
+///     decode::{DbnDecoder, DecodeRecord, DbnMetadata},
+///     pretty,
+///     symbol_map::SymbolIndex,
+///     Mbp1Msg,
+/// };
+///
+/// let mut decoder = DbnDecoder::from_file("mbp1.dbn.zst")?;
+/// let date = decoder.metadata().start().date();
+/// let symbol_map = decoder.metadata().symbol_map_for_date(date)?;
+///
+/// while let Some(mbp) = decoder.decode_record::<Mbp1Msg>()? {
+///     if let Some(symbol) = symbol_map.get_for_rec(mbp) {
+///         println!(
+///             "{symbol}: bid={} ask={}",
+///             pretty::Px(mbp.levels[0].bid_px),
+///             pretty::Px(mbp.levels[0].ask_px)
+///         );
+///     } else {
+///         eprintln!("Missing symbol for {mbp:?}")
+///     }
+/// }
+/// # Ok::<(), dbn::Error>(())
+/// ```
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct PitSymbolMap(HashMap<u32, String>);
 
-/// Used for retrieving a symbol mapping for a DBN record.
+/// Retrieves a symbol mapping for a DBN record. Implemented by both
+/// [`TsSymbolMap`] and [`PitSymbolMap`], allowing code to be generic over the
+/// type of symbol map used.
 pub trait SymbolIndex {
     /// Returns the associated symbol mapping for `record`. Returns `None` if no mapping
     /// exists.

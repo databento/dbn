@@ -1,5 +1,43 @@
-//! Decoding DBN and Zstd-compressed DBN files and streams. Sync decoders implement
-//the ! [`DecodeDbn`] trait.
+//! Decoding DBN and Zstd-compressed DBN files and streams.
+//!
+//! The primary entry point is [`DbnDecoder`], which reads DBN data from any
+//! [`io::Read`](std::io::Read) source (files, network streams, in-memory buffers).
+//! When the format or compression is unknown at compile time, use [`DynDecoder`]
+//! to auto-detect from the first few bytes.
+//!
+//! Sync decoders implement the [`DecodeDbn`] trait. With the `async` feature flag,
+//! async variants are also available.
+//!
+//! # Examples
+//!
+//! Decode a DBN file, dispatching on record type:
+//! ```no_run
+//! use dbn::decode::{DbnDecoder, DecodeRecordRef, DbnMetadata};
+//! use dbn::{TradeMsg, OhlcvMsg, Record};
+//!
+//! let mut decoder = DbnDecoder::from_file("20241007.dbn.zst")?;
+//! println!("schema: {:?}", decoder.metadata().schema);
+//!
+//! while let Some(rec_ref) = decoder.decode_record_ref()? {
+//!     if let Some(trade) = rec_ref.get::<TradeMsg>() {
+//!         println!("trade: instrument={} price={}", trade.hd.instrument_id, trade.price);
+//!     } else if let Some(bar) = rec_ref.get::<OhlcvMsg>() {
+//!         println!("bar: instrument={} close={}", bar.hd.instrument_id, bar.close);
+//!     }
+//! }
+//! # Ok::<(), dbn::Error>(())
+//! ```
+//!
+//! Decode all records of a known type into a `Vec`:
+//! ```no_run
+//! use dbn::decode::{DbnDecoder, DecodeRecord};
+//! use dbn::MboMsg;
+//!
+//! let decoder = DbnDecoder::from_file("20241007.mbo.dbn.zst")?;
+//! let records: Vec<MboMsg> = decoder.decode_records()?;
+//! println!("{} MBO records", records.len());
+//! # Ok::<(), dbn::Error>(())
+//! ```
 pub mod dbn;
 // Having any tests in a deprecated module emits many warnings that can't be silenced, see
 // https://github.com/rust-lang/rust/issues/47238
