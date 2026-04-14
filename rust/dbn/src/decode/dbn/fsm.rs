@@ -169,8 +169,7 @@ impl DbnFsm {
         Ok(())
     }
 
-    /// Returns a reference to the most recently decoded record if exists, otherwise
-    /// `None`.
+    /// Returns an immutable reference to the most recently decoded record, or `None`.
     pub fn last_record(&self) -> Option<RecordRef<'_>> {
         match self.state {
             State::Prelude | State::Metadata { .. } | State::Record => None,
@@ -183,6 +182,22 @@ impl DbnFsm {
             }
             // SAFETY: previously validated as record
             State::Consume { .. } => Some(unsafe { RecordRef::new(self.buffer.data()) }),
+        }
+    }
+
+    /// Returns a mutable reference to the most recently decoded record, or `None`.
+    pub fn last_record_mut(&mut self) -> Option<crate::RecordRefMut<'_>> {
+        match self.state {
+            State::Prelude | State::Metadata { .. } | State::Record => None,
+            State::Consume { compat_fill, .. } if compat_fill > 0 => None,
+            State::Consume { compat, .. } if compat > 0 => {
+                // SAFETY: previously validated as record
+                Some(unsafe { crate::RecordRefMut::new(self.compat_buffer.data_mut()) })
+            }
+            // SAFETY: previously validated as record
+            State::Consume { .. } => {
+                Some(unsafe { crate::RecordRefMut::new(self.buffer.data_mut()) })
+            }
         }
     }
 

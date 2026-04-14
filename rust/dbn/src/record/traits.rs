@@ -1,3 +1,10 @@
+//! Core traits for working with DBN records.
+//!
+//! - [`Record`]: read-only access to any record's header, size, timestamps, and raw bytes.
+//! - [`RecordMut`]: mutable access to the record header.
+//! - [`HasRType`]: implemented by concrete record types (e.g. [`MboMsg`](crate::MboMsg)),
+//!   associates a static `rtype` used for downcasting via [`RecordRef`](crate::RecordRef).
+
 use super::ts_to_dt;
 use crate::{Publisher, RType, RecordHeader};
 

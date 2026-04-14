@@ -1,5 +1,41 @@
-//! Encoding DBN and Zstd-compressed DBN files and streams. Encoders implement the
-//! [`EncodeDbn`] trait.
+//! Encoding DBN records to various formats: DBN binary, CSV, and JSON.
+//!
+//! Each format has a dedicated encoder ([`DbnEncoder`], [`CsvEncoder`],
+//! [`JsonEncoder`]). When the format is chosen at runtime, use [`DynEncoder`]
+//! with [`DynEncoderBuilder`].
+//!
+//! Sync encoders implement the [`EncodeDbn`] trait. With the `async` feature flag,
+//! async variants are also available.
+//!
+//! # Examples
+//!
+//! Encode records to DBN in memory:
+//! ```
+//! use dbn::{
+//!     MboMsg, Metadata, Schema, SType,
+//!     encode::{DbnEncoder, EncodeRecord},
+//!     decode::{DbnDecoder, DecodeRecord},
+//! };
+//!
+//! let metadata = Metadata::builder()
+//!     .dataset("GLBX.MDP3")
+//!     .schema(Some(Schema::Mbo))
+//!     .start(0)
+//!     .stype_in(Some(SType::InstrumentId))
+//!     .stype_out(SType::InstrumentId)
+//!     .build();
+//!
+//! let mut buf = Vec::new();
+//! let mut encoder = DbnEncoder::new(&mut buf, &metadata)?;
+//! encoder.encode_record(&MboMsg::default())?;
+//! drop(encoder);
+//!
+//! // Read back
+//! let mut decoder = DbnDecoder::new(buf.as_slice())?;
+//! let rec = decoder.decode_record::<MboMsg>()?.unwrap();
+//! assert_eq!(*rec, MboMsg::default());
+//! # Ok::<(), dbn::Error>(())
+//! ```
 pub mod csv;
 pub mod dbn;
 mod dyn_encoder;
