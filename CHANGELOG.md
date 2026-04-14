@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.54.0 - TBD
+## 0.54.0 - 2026-04-14
 
 ### Enhancements
 - Added `RecordBuf`, an owned stack-allocated buffer for holding a DBN record of

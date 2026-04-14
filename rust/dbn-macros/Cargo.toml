@@ -11,9 +11,9 @@ repository.workspace = true
 proc-macro = true
 
 [dependencies]
-proc-macro-crate = "3.4.0"
+proc-macro-crate = "3.5.0"
 proc-macro2 = "1.0.106"
-quote = "1.0.44"
+quote = "1.0.45"
 syn = { version = "2.0", features = ["full"] }
 
 [dev-dependencies]
