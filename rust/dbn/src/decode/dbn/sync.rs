@@ -505,7 +505,7 @@ mod tests {
         decode::{tests::TEST_DATA_PATH, DynReader},
         encode::{dbn::Encoder, DbnEncodable, DbnRecordEncoder, DynWriter, EncodeRecord},
         rtype, v1, v2, v3, Compression, Dataset, Error, ErrorMsg, MboMsg, MetadataBuilder,
-        OhlcvMsg, Record, RecordHeader, Result, SType, Schema, WithTsOut,
+        OhlcvMsg, Record, RecordBuf, RecordHeader, Result, SType, Schema, TradeMsg, WithTsOut,
     };
 
     #[test]
@@ -804,5 +804,87 @@ mod tests {
             count += 1;
         }
         assert_eq!(count, N);
+    }
+
+    #[rstest]
+    #[case::mbo(Schema::Mbo, v3::MboMsg::default())]
+    #[case::trades(Schema::Trades, v3::TradeMsg::default())]
+    #[case::tbbo(Schema::Tbbo, v3::TbboMsg::default())]
+    #[case::mbp1(Schema::Mbp1, v3::Mbp1Msg::default())]
+    #[case::mbp10(Schema::Mbp10, v3::Mbp10Msg::default())]
+    #[case::ohlcv1m(Schema::Ohlcv1M, v3::OhlcvMsg::default_for_schema(Schema::Ohlcv1M))]
+    #[case::definitions(Schema::Definition, v3::InstrumentDefMsg::default())]
+    #[case::imbalance(Schema::Imbalance, v3::ImbalanceMsg::default())]
+    #[case::statistics(Schema::Statistics, v3::StatMsg::default())]
+    #[case::status(Schema::Status, v3::StatusMsg::default())]
+    fn test_decode_buf_iter<R: DbnEncodable + HasRType + PartialEq + Clone>(
+        #[case] schema: Schema,
+        #[case] _rec: R,
+    ) -> Result<()> {
+        let expected =
+            Decoder::from_zstd_file(format!("{TEST_DATA_PATH}/test_data.{schema}.v3.dbn.zst"))?
+                .decode_records::<R>()?;
+        let mut decoder =
+            Decoder::from_zstd_file(format!("{TEST_DATA_PATH}/test_data.{schema}.v3.dbn.zst"))?;
+        let buf_results: Vec<RecordBuf> = decoder.decode_buf_iter().collect::<Result<_>>()?;
+        assert_eq!(buf_results.len(), expected.len());
+        for (buf, exp) in buf_results.iter().zip(expected.iter()) {
+            assert_eq!(*buf.get::<R>().unwrap(), *exp);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_decode_buf_iter_mixed_types() -> crate::Result<()> {
+        let trade = TradeMsg {
+            hd: RecordHeader::new::<TradeMsg>(rtype::MBP_0, 1, 100, 1678284110000000000),
+            price: 5_000_000_000,
+            size: 10,
+            ..TradeMsg::default()
+        };
+        let ohlcv = OhlcvMsg {
+            hd: RecordHeader::new::<OhlcvMsg>(rtype::OHLCV_1S, 1, 200, 1678284120000000000),
+            open: 100,
+            high: 200,
+            low: 75,
+            close: 125,
+            volume: 65,
+        };
+        let mut buffer = Vec::new();
+        let mut encoder = DbnRecordEncoder::new(&mut buffer);
+        encoder.encode_record(&trade)?;
+        encoder.encode_record(&ohlcv)?;
+
+        let mut decoder = RecordDecoder::new(buffer.as_slice());
+        let results: Vec<RecordBuf> = decoder.decode_buf_iter().collect::<Result<_>>()?;
+
+        assert_eq!(results.len(), 2);
+        assert!(results[0].has::<TradeMsg>());
+        assert!(results[1].has::<OhlcvMsg>());
+        assert_eq!(*results[0].get::<TradeMsg>().unwrap(), trade);
+        assert_eq!(*results[1].get::<OhlcvMsg>().unwrap(), ohlcv);
+        Ok(())
+    }
+
+    #[test]
+    fn test_decode_buf_iter_error_after_valid() {
+        let trade = TradeMsg {
+            hd: RecordHeader::new::<TradeMsg>(rtype::MBP_0, 1, 100, 167828411000000000),
+            price: 5_000_000_000,
+            size: 10,
+            ..TradeMsg::default()
+        };
+        let mut buffer = Vec::new();
+        let mut encoder = DbnRecordEncoder::new(&mut buffer);
+        encoder.encode_record(&trade).unwrap();
+        // Append a corrupt record
+        buffer.extend_from_slice(&[0u8; std::mem::size_of::<RecordHeader>()]);
+
+        let mut decoder = RecordDecoder::new(buffer.as_slice());
+        let mut iter = decoder.decode_buf_iter();
+        let first = iter.next().unwrap().unwrap();
+        assert_eq!(*first.get::<TradeMsg>().unwrap(), trade);
+        let second = iter.next().unwrap();
+        assert!(matches!(second, Err(Error::Decode(_))));
     }
 }

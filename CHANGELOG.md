@@ -3,6 +3,11 @@
 ## 0.56.0 - TBD
 
 ### Enhancements
+- Added `DecodeRecordRef::decode_buf_iter()` for lazily iterating owned `RecordBuf`s
+  via a standard `Iterator`
+- Added `AsyncDecodeRecordRef::decode_stream()` for lazily decoding owned `RecordBuf`s
+  via a `futures::Stream`
+  - Added `async-stream` and `futures-core` dependencies (gated on `async` feature)
 - Added new publisher values for Cboe Titanium Cboe Global Indices Feed
 - Added support for splitting files by year to `TimeSplitter`
 

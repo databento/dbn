@@ -18,7 +18,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = []
-async = ["dep:async-compression", "dep:tokio"]
+async = ["dep:async-compression", "dep:async-stream", "dep:futures-core", "dep:tokio"]
 python = ["dep:pyo3", "dep:strum"]
 serde = ["dep:serde", "time/parsing", "time/serde"]
 # Enables deriving the `Copy` trait for records.
@@ -28,6 +28,8 @@ trivial_copy = []
 dbn-macros = { version = "=0.55.0", path = "../dbn-macros" }
 
 async-compression = { version = "0.4.41", features = ["tokio", "zstd"], optional = true }
+async-stream = { version = "0.3", optional = true }
+futures-core = { version = "0.3", optional = true }
 csv = { workspace = true }
 fallible-streaming-iterator = { version = "0.1.9", features = ["std"] }
 # Fast integer to string conversion
