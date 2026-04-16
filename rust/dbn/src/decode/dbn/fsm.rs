@@ -210,7 +210,12 @@ impl DbnFsm {
     }
 
     /// Returns the mutable slice to all writable space in the buffer.
+    ///
+    /// Reclaims the consumed prefix if the tail would be too small for
+    /// another max-sized record.
+    #[inline]
     pub fn space(&mut self) -> &mut [u8] {
+        self.buffer.shift_for_space(MAX_RECORD_LEN);
         self.buffer.space()
     }
 
@@ -232,13 +237,14 @@ impl DbnFsm {
             {
                 self.consume(read, compat, compat_fill, expand_compat);
             }
+            self.buffer.shift_for_space(bytes.len());
             if self.buffer.available_space() < bytes.len() {
                 let new_size =
                     (self.buffer.capacity() * 2).max(self.buffer.capacity() + bytes.len());
                 self.buffer.grow(new_size);
             }
         }
-        self.space()[..bytes.len()].copy_from_slice(bytes);
+        self.buffer.space()[..bytes.len()].copy_from_slice(bytes);
         self.fill(bytes.len());
     }
 
@@ -481,6 +487,7 @@ impl DbnFsm {
         }
         if compat > 0 {
             self.compat_buffer.consume(compat);
+            self.compat_buffer.shift_for_space(MAX_RECORD_LEN);
         }
         if expand_compat {
             self.double_compat_buffer();
@@ -1535,5 +1542,34 @@ mod tests {
         let rec = rec.unwrap();
         assert!(rec.record_size() > size_of::<R>());
         assert_eq!(ver, exp_ver);
+    }
+
+    /// After `skip()` advances past the halfway mark, `space()` must still
+    /// return room for the next record. Guards against regressions in the
+    /// lazy-shift path where `consume` no longer auto-shifts.
+    #[test]
+    fn test_skip_preserves_space_for_next_record() {
+        let rec_size = size_of::<TradeMsg>();
+        let buf_size = rec_size * 3;
+        let mut fsm = DbnFsm::builder()
+            .buffer_size(buf_size)
+            .skip_metadata(true)
+            .input_dbn_version(Some(DBN_VERSION))
+            .unwrap()
+            .build()
+            .unwrap();
+
+        let rec = TradeMsg::default();
+        fsm.write_all(rec.as_ref());
+        fsm.write_all(rec.as_ref());
+        fsm.write_all(rec.as_ref());
+        fsm.skip(rec_size * 2 + rec_size / 2);
+
+        assert!(
+            fsm.space().len() >= rec_size,
+            "space() returned {} bytes after skip, expected >= {}",
+            fsm.space().len(),
+            rec_size,
+        );
     }
 }
