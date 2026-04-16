@@ -694,9 +694,9 @@ mod tests {
             dbn::{AsyncEncoder, AsyncRecordEncoder},
             AsyncEncodeRecord, DbnEncodable,
         },
-        rtype, v1, v2, Bbo1SMsg, CbboMsg, Cmbp1Msg, Error, ErrorMsg, ImbalanceMsg,
-        InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, Record, RecordHeader, Result,
-        Schema, StatMsg, StatusMsg, TbboMsg, TradeMsg, WithTsOut,
+        rtype, v1, v2, Bbo1SMsg, CbboMsg, Cmbp1Msg, Dataset, Error, ErrorMsg, ImbalanceMsg,
+        InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, MetadataBuilder, OhlcvMsg, Record,
+        RecordHeader, Result, SType, Schema, StatMsg, StatusMsg, TbboMsg, TradeMsg, WithTsOut,
     };
 
     #[rstest]
@@ -911,5 +911,34 @@ mod tests {
         }
         assert!(has_decoded);
         Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_decode_past_capacity() {
+        const N: u64 = 5_000;
+        let metadata = MetadataBuilder::new()
+            .dataset(Dataset::XnasItch.to_string())
+            .schema(Some(Schema::Mbo))
+            .start(0)
+            .stype_in(Some(SType::InstrumentId))
+            .stype_out(SType::InstrumentId)
+            .build();
+        let mut buf: Vec<u8> = Vec::new();
+        {
+            let mut encoder = AsyncEncoder::new(&mut buf, &metadata).await.unwrap();
+            for i in 0..N {
+                let mut rec = MboMsg::default();
+                rec.hd.ts_event = i;
+                encoder.encode_record(&rec).await.unwrap();
+            }
+        }
+        assert!(buf.len() > DbnFsm::DEFAULT_BUF_SIZE * 2);
+        let mut decoder = Decoder::new(buf.as_slice()).await.unwrap();
+        let mut count: u64 = 0;
+        while let Some(rec) = decoder.decode_record::<MboMsg>().await.unwrap() {
+            assert_eq!(rec.hd.ts_event, count);
+            count += 1;
+        }
+        assert_eq!(count, N);
     }
 }
