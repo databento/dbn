@@ -5,6 +5,9 @@
 ### Enhancements
 - Added new publisher values for OPRA MEMX MX2 Options and IEX Options
 
+### Bug fixes
+- Removed unsound `Copy` and `Clone` implementations for `RecordRefMut`
+
 ## 0.54.0 - 2026-04-14
 
 ### Enhancements

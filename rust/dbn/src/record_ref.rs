@@ -71,7 +71,7 @@ pub struct RecordRef<'a> {
 /// assert_eq!(mbo.price, 5_000_000_000);
 /// assert_eq!(mbo.size, 10);
 /// ```
-#[derive(Copy, Clone)]
+// Cannot be Copy or Clone
 pub struct RecordRefMut<'a> {
     ptr: NonNull<RecordHeader>,
     /// Associates the object with the lifetime of the memory pointed to by `ptr`.
