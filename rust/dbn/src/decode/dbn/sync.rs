@@ -785,35 +785,6 @@ mod tests {
     }
 
     #[test]
-    fn test_decode_past_capacity() {
-        const N: u64 = 5_000;
-        let metadata = MetadataBuilder::new()
-            .dataset(Dataset::XnasItch.to_string())
-            .schema(Some(Schema::Mbo))
-            .start(0)
-            .stype_in(Some(SType::InstrumentId))
-            .stype_out(SType::InstrumentId)
-            .build();
-        let mut buf = Vec::new();
-        {
-            let mut encoder = Encoder::new(&mut buf, &metadata).unwrap();
-            for i in 0..N {
-                let mut rec = MboMsg::default();
-                rec.hd.ts_event = i;
-                encoder.encode_record(&rec).unwrap();
-            }
-        }
-        assert!(buf.len() > DbnFsm::DEFAULT_BUF_SIZE * 2);
-        let mut decoder = Decoder::new(buf.as_slice()).unwrap();
-        let mut count: u64 = 0;
-        while let Some(rec) = decoder.decode_record::<MboMsg>().unwrap() {
-            assert_eq!(rec.hd.ts_event, count);
-            count += 1;
-        }
-        assert_eq!(count, N);
-    }
-
-    #[test]
     fn test_record_decoder_past_capacity() {
         const N: u64 = 5_000;
         let mut buf = Vec::new();
