@@ -912,4 +912,27 @@ mod tests {
         assert!(has_decoded);
         Ok(())
     }
+
+    #[tokio::test]
+    async fn test_decode_past_capacity() {
+        const N: u64 = 5_000;
+        let mut buf: Vec<u8> = Vec::new();
+        {
+            let mut encoder = AsyncRecordEncoder::new(&mut buf);
+            for i in 0..N {
+                let mut rec = MboMsg::default();
+                rec.hd.ts_event = i;
+                encoder.encode(&rec).await.unwrap();
+            }
+        }
+        assert!(buf.len() > DbnFsm::DEFAULT_BUF_SIZE * 2);
+        let records = RecordDecoder::new(buf.as_slice())
+            .decode_records::<MboMsg>()
+            .await
+            .unwrap();
+        assert_eq!(records.len(), N as usize);
+        for (i, rec) in records.iter().enumerate() {
+            assert_eq!(rec.hd.ts_event, i as u64);
+        }
+    }
 }
