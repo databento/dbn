@@ -23,6 +23,7 @@ use crate::{
 pub struct DbnFsm {
     input_dbn_version: Option<DbnVersion>,
     upgrade_policy: VersionUpgradePolicy,
+    needs_upgrade: bool,
     ts_out: bool,
     state: State,
     buffer: AlignedBuffer,
@@ -35,6 +36,7 @@ impl std::fmt::Debug for DbnFsm {
         f.debug_struct("DbnFsm")
             .field("input_dbn_version", &self.input_dbn_version)
             .field("upgrade_policy", &self.upgrade_policy)
+            .field("needs_upgrade", &self.needs_upgrade)
             .field("ts_out", &self.ts_out)
             .field("state", &self.state)
             .field(
@@ -108,13 +110,26 @@ impl DbnFsm {
     /// Creates a new decoder with the specified buffer sizes. Assumes the
     /// data being decoded is packed.
     pub fn new(buffer_size: usize, compat_size: usize) -> Self {
+        let upgrade_policy = VersionUpgradePolicy::default();
         Self {
             input_dbn_version: None,
+            upgrade_policy,
+            needs_upgrade: Self::compute_needs_upgrade(upgrade_policy, None),
             ts_out: false,
-            upgrade_policy: VersionUpgradePolicy::default(),
             state: State::default(),
             buffer: AlignedBuffer::with_capacity(buffer_size),
             compat_buffer: AlignedBuffer::with_capacity(compat_size),
+        }
+    }
+
+    fn compute_needs_upgrade(
+        upgrade_policy: VersionUpgradePolicy,
+        input_dbn_version: Option<DbnVersion>,
+    ) -> bool {
+        match (upgrade_policy, input_dbn_version) {
+            (VersionUpgradePolicy::AsIs, _) => false,
+            (_, Some(DbnVersion(v))) => upgrade_policy.is_upgrade_situation(v),
+            (_, None) => true,
         }
     }
 
@@ -137,6 +152,7 @@ impl DbnFsm {
         let version = DbnVersion::try_from(version)?;
         self.upgrade_policy.validate_compatibility(version.0)?;
         self.input_dbn_version = Some(version);
+        self.needs_upgrade = Self::compute_needs_upgrade(self.upgrade_policy, Some(version));
         Ok(())
     }
 
@@ -162,10 +178,10 @@ impl DbnFsm {
     /// incompatible.
     pub fn set_upgrade_policy(&mut self, upgrade_policy: VersionUpgradePolicy) -> Result<()> {
         if let Some(DbnVersion(input_dbn_version)) = self.input_dbn_version {
-            self.upgrade_policy
-                .validate_compatibility(input_dbn_version)?;
+            upgrade_policy.validate_compatibility(input_dbn_version)?;
         }
         self.upgrade_policy = upgrade_policy;
+        self.needs_upgrade = Self::compute_needs_upgrade(upgrade_policy, self.input_dbn_version);
         Ok(())
     }
 
@@ -260,6 +276,7 @@ impl DbnFsm {
         self.buffer.reset();
         self.compat_buffer.reset();
         self.input_dbn_version = None;
+        self.needs_upgrade = Self::compute_needs_upgrade(self.upgrade_policy, None);
     }
 
     /// Skips ahead `nbytes`. Returns the actual number of bytes skipped.
@@ -318,6 +335,15 @@ impl DbnFsm {
                     }
                     if length > available_data {
                         return ProcessResult::ReadMore(length - available_data);
+                    }
+                    if !self.needs_upgrade {
+                        self.state = State::Consume {
+                            read: length,
+                            compat: 0,
+                            compat_fill: 0,
+                            expand_compat: false,
+                        };
+                        return ProcessResult::Record(());
                     }
                     let prev_compat_cap = self.compat_buffer.available_space();
                     let (rem_compat_buffer, rec) = unsafe {
@@ -443,6 +469,14 @@ impl DbnFsm {
             if length > remaining_data.len() {
                 break;
             }
+            if !self.needs_upgrade {
+                // SAFETY: previously validated as record
+                let rec = unsafe { RecordRef::new(remaining_data) };
+                rec_ref_buf.push(record_count, rec);
+                record_count += 1;
+                read_bytes += length;
+                continue;
+            }
             let prev_compat_cap = remaining_compat.len();
             let (new_rem_compat, rec) = unsafe {
                 Self::upgrade_record(
@@ -495,6 +529,8 @@ impl DbnFsm {
         }
         let version = data[DBN_PREFIX_LEN];
         self.input_dbn_version = Some(DbnVersion(version));
+        self.needs_upgrade =
+            Self::compute_needs_upgrade(self.upgrade_policy, Some(DbnVersion(version)));
         if version > DBN_VERSION {
             return Err(Error::decode(format!("can't decode newer version of DBN. Decoder version is {DBN_VERSION}, input version is {version}")));
         }
@@ -827,6 +863,10 @@ impl DbnFsm {
     /// More dynamic upgrading of records when we don't know the input DBN version:
     /// when reading DBN fragments (no metadata) and an input version wasn't specified.
     /// If the DBN version can be inferred, `input_dbn_version` will be set.
+    ///
+    /// Invariant: this only writes old versions (1 or 2) to `input_dbn_version`.
+    /// `needs_upgrade` is not refreshed after these writes; keep it that way by
+    /// never writing `DBN_VERSION` here, or refresh the cache at the call site.
     unsafe fn upgrade_record_detect_version<'a>(
         input_dbn_version: &mut Option<DbnVersion>,
         upgrade_policy: VersionUpgradePolicy,
@@ -930,6 +970,10 @@ impl DbnFsmBuilder {
         Ok(DbnFsm {
             input_dbn_version: self.input_dbn_version,
             upgrade_policy: self.upgrade_policy,
+            needs_upgrade: DbnFsm::compute_needs_upgrade(
+                self.upgrade_policy,
+                self.input_dbn_version,
+            ),
             ts_out: self.ts_out,
             state,
             buffer: AlignedBuffer::with_capacity(self.buffer_size),
@@ -1071,10 +1115,12 @@ where
 
 impl Default for DbnFsm {
     fn default() -> Self {
+        let upgrade_policy = VersionUpgradePolicy::default();
         Self {
             input_dbn_version: None,
+            upgrade_policy,
+            needs_upgrade: Self::compute_needs_upgrade(upgrade_policy, None),
             ts_out: false,
-            upgrade_policy: VersionUpgradePolicy::default(),
             state: State::default(),
             buffer: AlignedBuffer::with_capacity(Self::DEFAULT_BUF_SIZE),
             compat_buffer: AlignedBuffer::with_capacity(0),
@@ -1106,6 +1152,63 @@ mod tests {
         let mut pos = 0;
         let res = DbnFsm::decode_metadata_symbol(bytes.len(), bytes.as_slice(), &mut pos);
         assert!(res.is_err());
+    }
+
+    #[rstest]
+    #[case::asis_v1(VersionUpgradePolicy::AsIs, Some(1), false)]
+    #[case::asis_v2(VersionUpgradePolicy::AsIs, Some(2), false)]
+    #[case::asis_v3(VersionUpgradePolicy::AsIs, Some(3), false)]
+    #[case::asis_unknown(VersionUpgradePolicy::AsIs, None, false)]
+    #[case::v2_from_v1(VersionUpgradePolicy::UpgradeToV2, Some(1), true)]
+    #[case::v2_from_v2(VersionUpgradePolicy::UpgradeToV2, Some(2), false)]
+    #[case::v3_from_v1(VersionUpgradePolicy::UpgradeToV3, Some(1), true)]
+    #[case::v3_from_v2(VersionUpgradePolicy::UpgradeToV3, Some(2), true)]
+    #[case::v3_from_v3(VersionUpgradePolicy::UpgradeToV3, Some(3), false)]
+    #[case::v2_unknown(VersionUpgradePolicy::UpgradeToV2, None, true)]
+    #[case::v3_unknown(VersionUpgradePolicy::UpgradeToV3, None, true)]
+    fn test_compute_needs_upgrade(
+        #[case] policy: VersionUpgradePolicy,
+        #[case] version: Option<u8>,
+        #[case] expected: bool,
+    ) {
+        let dbn_version = version.map(DbnVersion);
+        assert_eq!(DbnFsm::compute_needs_upgrade(policy, dbn_version), expected);
+    }
+
+    #[test]
+    fn test_needs_upgrade_refreshed_on_setters() {
+        let mut fsm = DbnFsm::default();
+        assert_eq!(fsm.upgrade_policy, VersionUpgradePolicy::UpgradeToV3);
+        assert!(fsm.input_dbn_version.is_none());
+        assert!(fsm.needs_upgrade);
+
+        fsm.set_input_dbn_version(3).unwrap();
+        assert!(!fsm.needs_upgrade);
+
+        fsm.set_input_dbn_version(1).unwrap();
+        assert!(fsm.needs_upgrade);
+
+        fsm.set_upgrade_policy(VersionUpgradePolicy::AsIs).unwrap();
+        assert!(!fsm.needs_upgrade);
+
+        fsm.reset();
+        assert!(!fsm.needs_upgrade);
+
+        fsm.set_upgrade_policy(VersionUpgradePolicy::UpgradeToV3)
+            .unwrap();
+        assert!(fsm.needs_upgrade);
+    }
+
+    #[test]
+    fn test_set_upgrade_policy_validates_new_policy_not_old() {
+        let mut fsm = DbnFsm::default();
+        fsm.set_upgrade_policy(VersionUpgradePolicy::AsIs).unwrap();
+        fsm.set_input_dbn_version(3).unwrap();
+        assert!(
+            fsm.set_upgrade_policy(VersionUpgradePolicy::UpgradeToV2)
+                .is_err(),
+            "UpgradeToV2 is incompatible with input version 3"
+        );
     }
 
     #[test]
