@@ -38,6 +38,7 @@
 //! println!("{} MBO records", records.len());
 //! # Ok::<(), dbn::Error>(())
 //! ```
+mod chunking;
 pub mod dbn;
 // Having any tests in a deprecated module emits many warnings that can't be silenced, see
 // https://github.com/rust-lang/rust/issues/47238
@@ -61,6 +62,8 @@ pub mod zstd;
 pub use self::dbn::{
     Decoder as DbnDecoder, MetadataDecoder as DbnMetadataDecoder, RecordDecoder as DbnRecordDecoder,
 };
+#[doc(inline)]
+pub use chunking::{ByteChunk, ByteChunker, FilterStats, RecordFilter, RecordFilterBuilder};
 #[doc(inline)]
 pub use dyn_decoder::DynDecoder;
 #[doc(inline)]

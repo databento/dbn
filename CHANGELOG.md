@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Enhancements
+- Added `ByteChunker` for streaming raw record bytes from any `DecodeRecordRef`
+  in bounded byte chunks, and `RecordFilter` (itself a `DecodeRecordRef`) for
+  filtering records by `instrument_id`, `publisher_id`, and
+  `[start_ts, end_ts)` on their way through a decoder pipeline (credit: @wtn)
+
 ## 0.55.0 - 2026-04-21
 
 ### Enhancements
