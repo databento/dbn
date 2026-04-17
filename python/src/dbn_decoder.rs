@@ -8,6 +8,15 @@ use dbn::{
     rtype_dispatch, Compression, HasRType, VersionUpgradePolicy,
 };
 
+#[allow(clippy::clone_on_copy)]
+fn push_rec<'py, R>(rec: &R, py: Python<'py>, py_recs: &mut Vec<Py<PyAny>>) -> PyResult<()>
+where
+    R: Clone + HasRType + IntoPyObject<'py>,
+{
+    py_recs.push(rec.clone().into_py_any(py)?);
+    Ok(())
+}
+
 #[pyclass(module = "databento_dbn", name = "DBNDecoder")]
 pub struct DbnDecoder {
     fsm: DbnFsm,
@@ -93,15 +102,6 @@ impl DbnDecoder {
                     py_recs.push(metadata.into_py_any(py)?)
                 }
                 ProcessResult::Record(_) => {
-                    // Bug in clippy generates an error here. trivial_copy feature isn't enabled,
-                    // but clippy thinks these records are `Copy`
-                    fn push_rec<'py, R>(rec: &R, py: Python<'py>, py_recs: &mut Vec<Py<PyAny>>)
-                    where
-                        R: Clone + HasRType + IntoPyObject<'py>,
-                    {
-                        py_recs.push(rec.clone().into_py_any(py).unwrap());
-                    }
-
                     let rec = self.fsm.last_record().ok_or_else(|| {
                         PyRuntimeError::new_err("Error while decoding DBN stream")
                     })?;
@@ -109,7 +109,7 @@ impl DbnDecoder {
                     // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
                     // from the metadata header.
                     rtype_dispatch!(rec, ts_out: ts_out, push_rec(py, &mut py_recs))
-                        .map_err(PyErr::from)?;
+                        .map_err(PyErr::from)??;
                 }
                 ProcessResult::Err(error) => return Err(PyErr::from(error)),
             }

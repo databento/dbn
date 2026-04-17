@@ -7,6 +7,8 @@
 
 ### Bug fixes
 - Removed unsound `Copy` and `Clone` implementations for `RecordRefMut`
+- Fixed Python `DBNDecoder.decode()` panicking on record conversion failure; errors now
+  propagate as `PyErr`
 
 ## 0.54.0 - 2026-04-14
 
