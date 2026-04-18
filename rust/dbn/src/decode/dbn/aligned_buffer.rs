@@ -115,7 +115,7 @@ impl AlignedBuffer {
     /// Shifts unconsumed data to offset 0 if writable space < `needed`.
     /// Returns the writable space; does not grow.
     #[inline]
-    pub fn shift_for_space(&mut self, needed: usize) -> usize {
+    pub(super) fn shift_for_space(&mut self, needed: usize) -> usize {
         if self.available_space() < needed && self.position > 0 {
             self.shift();
         }
