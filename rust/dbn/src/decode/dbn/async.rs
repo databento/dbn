@@ -611,7 +611,6 @@ where
     loop {
         match fsm.process() {
             ProcessResult::ReadMore(n) => {
-                // asm guarantees there's at least `n` bytes available in `space()`
                 let mut total_read = 0;
                 loop {
                     let read = reader.read(fsm.space()).await.map_err(io_err)?;

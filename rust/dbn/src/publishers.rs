@@ -119,10 +119,14 @@ pub enum Venue {
     Xcbf = 52,
     /// Blue Ocean ATS
     Ocea = 53,
+    /// MX2 Options
+    Mxto = 54,
+    /// IEX Options LLC
+    Iexo = 55,
 }
 
 /// The number of [`Venue`] variants.
-pub const VENUE_COUNT: usize = 53;
+pub const VENUE_COUNT: usize = 55;
 
 impl Venue {
     /// Converts the venue to its `str` representation.
@@ -181,6 +185,8 @@ impl Venue {
             Self::Xeee => "XEEE",
             Self::Xcbf => "XCBF",
             Self::Ocea => "OCEA",
+            Self::Mxto => "MXTO",
+            Self::Iexo => "IEXO",
         }
     }
 }
@@ -255,6 +261,8 @@ impl std::str::FromStr for Venue {
             "XEEE" => Ok(Self::Xeee),
             "XCBF" => Ok(Self::Xcbf),
             "OCEA" => Ok(Self::Ocea),
+            "MXTO" => Ok(Self::Mxto),
+            "IEXO" => Ok(Self::Iexo),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
@@ -449,6 +457,8 @@ impl Dataset {
                 Publisher::OpraPillarBato,
                 Publisher::OpraPillarMxop,
                 Publisher::OpraPillarSphr,
+                Publisher::OpraPillarMxto,
+                Publisher::OpraPillarIexo,
             ],
             Self::DbeqBasic => &[
                 Publisher::DbeqBasicXchi,
@@ -817,10 +827,14 @@ pub enum Publisher {
     XcbfPitchXoff = 106,
     /// Blue Ocean ATS MEMOIR
     OceaMemoirOcea = 107,
+    /// OPRA - MEMX MX2 Options
+    OpraPillarMxto = 108,
+    /// OPRA - IEX Options LLC
+    OpraPillarIexo = 109,
 }
 
 /// The number of [`Publisher`] variants.
-pub const PUBLISHER_COUNT: usize = 107;
+pub const PUBLISHER_COUNT: usize = 109;
 
 impl Publisher {
     /// Converts the publisher to its `str` representation.
@@ -933,6 +947,8 @@ impl Publisher {
             Self::XcbfPitchXcbf => "XCBF.PITCH.XCBF",
             Self::XcbfPitchXoff => "XCBF.PITCH.XOFF",
             Self::OceaMemoirOcea => "OCEA.MEMOIR.OCEA",
+            Self::OpraPillarMxto => "OPRA.PILLAR.MXTO",
+            Self::OpraPillarIexo => "OPRA.PILLAR.IEXO",
         }
     }
 
@@ -1046,6 +1062,8 @@ impl Publisher {
             Self::XcbfPitchXcbf => Venue::Xcbf,
             Self::XcbfPitchXoff => Venue::Xoff,
             Self::OceaMemoirOcea => Venue::Ocea,
+            Self::OpraPillarMxto => Venue::Mxto,
+            Self::OpraPillarIexo => Venue::Iexo,
         }
     }
 
@@ -1159,6 +1177,8 @@ impl Publisher {
             Self::XcbfPitchXcbf => Dataset::XcbfPitch,
             Self::XcbfPitchXoff => Dataset::XcbfPitch,
             Self::OceaMemoirOcea => Dataset::OceaMemoir,
+            Self::OpraPillarMxto => Dataset::OpraPillar,
+            Self::OpraPillarIexo => Dataset::OpraPillar,
         }
     }
 
@@ -1275,6 +1295,8 @@ impl Publisher {
             (Dataset::XcbfPitch, Venue::Xcbf) => Ok(Self::XcbfPitchXcbf),
             (Dataset::XcbfPitch, Venue::Xoff) => Ok(Self::XcbfPitchXoff),
             (Dataset::OceaMemoir, Venue::Ocea) => Ok(Self::OceaMemoirOcea),
+            (Dataset::OpraPillar, Venue::Mxto) => Ok(Self::OpraPillarMxto),
+            (Dataset::OpraPillar, Venue::Iexo) => Ok(Self::OpraPillarIexo),
             _ => Err(Error::conversion::<Self>(format!("({dataset}, {venue})"))),
         }
     }
@@ -1404,6 +1426,8 @@ impl std::str::FromStr for Publisher {
             "XCBF.PITCH.XCBF" => Ok(Self::XcbfPitchXcbf),
             "XCBF.PITCH.XOFF" => Ok(Self::XcbfPitchXoff),
             "OCEA.MEMOIR.OCEA" => Ok(Self::OceaMemoirOcea),
+            "OPRA.PILLAR.MXTO" => Ok(Self::OpraPillarMxto),
+            "OPRA.PILLAR.IEXO" => Ok(Self::OpraPillarIexo),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.55.0 - TBD
+
+### Enhancements
+- Added new publisher values for OPRA MEMX MX2 Options and IEX Options
+- Improved `DbnFsm` decode throughput by making `AlignedBuffer` shifts lazy,
+  deferring the internal memmove to buffer refill boundaries (credit: @wtn)
+
+### Bug fixes
+- Removed unsound `Copy` and `Clone` implementations for `RecordRefMut`
+
 ## 0.54.0 - 2026-04-14
 
 ### Enhancements

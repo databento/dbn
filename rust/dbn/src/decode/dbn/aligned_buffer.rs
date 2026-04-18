@@ -90,23 +90,18 @@ impl AlignedBuffer {
         self.position == self.end
     }
 
-    /// Advances the read position. If past the halfway mark, shifts data to the front.
+    /// Advances the read position.
     #[inline]
     pub fn consume(&mut self, count: usize) -> usize {
         let cnt = cmp::min(count, self.available_data());
         self.position += cnt;
-        if self.position > self.capacity() / 2 {
-            self.shift();
-        }
         cnt
     }
 
-    /// Advances the read position without shifting.
+    /// Compatibility alias for [`consume`](Self::consume).
     #[inline]
     pub fn consume_noshift(&mut self, count: usize) -> usize {
-        let cnt = cmp::min(count, self.available_data());
-        self.position += cnt;
-        cnt
+        self.consume(count)
     }
 
     /// Marks `count` bytes (capped to available space) as written.
@@ -114,10 +109,17 @@ impl AlignedBuffer {
     pub fn fill(&mut self, count: usize) -> usize {
         let cnt = cmp::min(count, self.available_space());
         self.end += cnt;
-        if self.available_space() < self.available_data() + cnt {
+        cnt
+    }
+
+    /// Shifts unconsumed data to offset 0 if writable space < `needed`.
+    /// Returns the writable space; does not grow.
+    #[inline]
+    pub(super) fn shift_for_space(&mut self, needed: usize) -> usize {
+        if self.available_space() < needed && self.position > 0 {
             self.shift();
         }
-        cnt
+        self.available_space()
     }
 
     /// Grows the buffer to at least `new_size` bytes. Returns `true` if resized.
@@ -231,5 +233,48 @@ mod tests {
         let ptr = buf.data().as_ptr() as usize;
         assert_eq!(ptr % 8, 0, "buffer data must be 8-byte aligned after shift");
         assert_eq!(buf.data(), &[4, 5, 6, 7, 8]);
+    }
+
+    #[test]
+    fn test_consume_does_not_shift() {
+        let mut buf = AlignedBuffer::with_capacity(16);
+        buf.space()[..12].copy_from_slice(b"abcdefghijkl");
+        buf.fill(12);
+        // Past the halfway mark — consume must not shift.
+        buf.consume(10);
+        assert_eq!(buf.available_data(), 2);
+        assert_eq!(buf.available_space(), 4);
+        assert_eq!(buf.data(), b"kl");
+    }
+
+    #[test]
+    fn test_shift_for_space() {
+        let mut buf = AlignedBuffer::with_capacity(16);
+        buf.space()[..12].copy_from_slice(b"abcdefghijkl");
+        buf.fill(12);
+        buf.consume(10);
+        assert_eq!(buf.available_space(), 4);
+        // Writable space is ample: no shift.
+        buf.shift_for_space(2);
+        assert_eq!(buf.available_space(), 4);
+        assert_eq!(buf.data(), b"kl");
+        // Writable space insufficient: shift reclaims the prefix.
+        buf.shift_for_space(10);
+        assert_eq!(buf.available_space(), 14);
+        assert_eq!(buf.data(), b"kl");
+    }
+
+    #[test]
+    fn test_shift_for_space_at_position_zero() {
+        let mut buf = AlignedBuffer::with_capacity(16);
+        buf.space()[..4].copy_from_slice(b"abcd");
+        buf.fill(4);
+        // `position` is 0: the guard should early-exit even when `needed`
+        // exceeds available space.
+        let returned = buf.shift_for_space(1000);
+        assert_eq!(returned, 12);
+        assert_eq!(buf.available_space(), 12);
+        assert_eq!(buf.available_data(), 4);
+        assert_eq!(buf.data(), b"abcd");
     }
 }
