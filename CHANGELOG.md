@@ -7,6 +7,8 @@
 
 ### Bug fixes
 - Removed unsound `Copy` and `Clone` implementations for `RecordRefMut`
+- Fixed doctests calling `DbnDecoder::from_file` on `.dbn.zst` paths; switched
+  to `from_zstd_file` (credit: @wtn)
 
 ## 0.54.0 - 2026-04-14
 

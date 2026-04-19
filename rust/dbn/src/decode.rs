@@ -15,7 +15,7 @@
 //! use dbn::decode::{DbnDecoder, DecodeRecordRef, DbnMetadata};
 //! use dbn::{TradeMsg, OhlcvMsg, Record};
 //!
-//! let mut decoder = DbnDecoder::from_file("20241007.dbn.zst")?;
+//! let mut decoder = DbnDecoder::from_zstd_file("20241007.dbn.zst")?;
 //! println!("schema: {:?}", decoder.metadata().schema);
 //!
 //! while let Some(rec_ref) = decoder.decode_record_ref()? {
@@ -33,7 +33,7 @@
 //! use dbn::decode::{DbnDecoder, DecodeRecord};
 //! use dbn::MboMsg;
 //!
-//! let decoder = DbnDecoder::from_file("20241007.mbo.dbn.zst")?;
+//! let decoder = DbnDecoder::from_zstd_file("20241007.mbo.dbn.zst")?;
 //! let records: Vec<MboMsg> = decoder.decode_records()?;
 //! println!("{} MBO records", records.len());
 //! # Ok::<(), dbn::Error>(())
