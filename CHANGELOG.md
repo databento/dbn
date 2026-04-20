@@ -7,6 +7,13 @@
 - Improved `DbnFsm` decode throughput on current-version data and `AsIs` workloads by
   caching whether the upgrade policy-version combination requires upgrading, skipping
   the per-record `upgrade_record` dispatch on the fast path (credit: @wtn)
+- Improved `DbnFsm` decode throughput by making `AlignedBuffer` shifts lazy,
+  deferring the internal move to buffer refill boundaries (credit: @wtn)
+
+### Breaking changes
+- Removed implicit shifts from `AlignedBuffer::consume` and
+  `AlignedBuffer::fill`; callers must now invoke `shift` or
+  `shift_for_space` explicitly at refill boundaries
 
 ### Bug fixes
 - Removed unsound `Copy` and `Clone` implementations for `RecordRefMut`

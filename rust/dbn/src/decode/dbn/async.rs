@@ -611,9 +611,9 @@ where
     loop {
         match fsm.process() {
             ProcessResult::ReadMore(n) => {
-                // asm guarantees there's at least `n` bytes available in `space()`
                 let mut total_read = 0;
                 loop {
+                    // `fsm.space()` reclaims the consumed prefix as needed
                     let read = reader.read(fsm.space()).await.map_err(io_err)?;
                     if read == 0 {
                         return Err(crate::Error::io(

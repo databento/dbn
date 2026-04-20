@@ -5,10 +5,17 @@
 //! - uses `Box[u64]` for backing storage to guarantee 8-byte alignment
 //! - use boxed slice instead of `Vec`
 //! - mutable getter for readable data
+//! - shifts are explicit rather than triggered implicitly by `consume`/`fill`
 
 use std::cmp;
 
 /// A byte buffer backed by `Box<[u64]>` to guarantee 8-byte alignment.
+///
+/// Shifts are explicit: [`consume`](Self::consume) and [`fill`](Self::fill)
+/// only update indices. Callers reclaim the consumed prefix by invoking
+/// [`shift`](Self::shift) or [`shift_for_space`](Self::shift_for_space) at a
+/// point of their choosing (typically a refill boundary), so the move isn't
+/// paid on every record.
 ///
 /// Invariants: `0 <= position <= end <= byte_capacity`
 #[derive(Debug, Clone)]
@@ -90,23 +97,18 @@ impl AlignedBuffer {
         self.position == self.end
     }
 
-    /// Advances the read position. If past the halfway mark, shifts data to the front.
+    /// Advances the read position.
     #[inline]
     pub fn consume(&mut self, count: usize) -> usize {
         let cnt = cmp::min(count, self.available_data());
         self.position += cnt;
-        if self.position > self.capacity() / 2 {
-            self.shift();
-        }
         cnt
     }
 
-    /// Advances the read position without shifting.
+    /// Alias for [`consume`](Self::consume).
     #[inline]
     pub fn consume_noshift(&mut self, count: usize) -> usize {
-        let cnt = cmp::min(count, self.available_data());
-        self.position += cnt;
-        cnt
+        self.consume(count)
     }
 
     /// Marks `count` bytes (capped to available space) as written.
@@ -114,10 +116,16 @@ impl AlignedBuffer {
     pub fn fill(&mut self, count: usize) -> usize {
         let cnt = cmp::min(count, self.available_space());
         self.end += cnt;
-        if self.available_space() < self.available_data() + cnt {
+        cnt
+    }
+
+    /// Shifts unconsumed data to offset 0 if writable space is less than
+    /// `needed`, reclaiming the consumed prefix. Does not grow the buffer.
+    #[inline]
+    pub fn shift_for_space(&mut self, needed: usize) {
+        if self.available_space() < needed && self.position > 0 {
             self.shift();
         }
-        cnt
     }
 
     /// Grows the buffer to at least `new_size` bytes. Returns `true` if resized.
@@ -186,7 +194,7 @@ mod tests {
         assert_eq!(buf.data(), b"abcd");
 
         // Consume 2
-        buf.consume_noshift(2);
+        buf.consume(2);
         assert_eq!(buf.available_data(), 2);
         assert_eq!(buf.data(), b"cd");
 
@@ -225,11 +233,51 @@ mod tests {
         buf.space()[..8].copy_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8]);
         buf.fill(8);
         // Consume 3 bytes — position is now non-aligned
-        buf.consume_noshift(3);
+        buf.consume(3);
         // After shift, data moves back to position 0 (aligned)
         buf.shift();
         let ptr = buf.data().as_ptr() as usize;
         assert_eq!(ptr % 8, 0, "buffer data must be 8-byte aligned after shift");
         assert_eq!(buf.data(), &[4, 5, 6, 7, 8]);
+    }
+
+    #[test]
+    fn test_consume_does_not_shift() {
+        let mut buf = AlignedBuffer::with_capacity(16);
+        buf.space()[..12].copy_from_slice(b"abcdefghijkl");
+        buf.fill(12);
+        buf.consume(10);
+        assert_eq!(buf.available_data(), 2);
+        assert_eq!(buf.available_space(), 4);
+        assert_eq!(buf.data(), b"kl");
+    }
+
+    #[test]
+    fn test_shift_for_space() {
+        let mut buf = AlignedBuffer::with_capacity(16);
+        buf.space()[..12].copy_from_slice(b"abcdefghijkl");
+        buf.fill(12);
+        buf.consume(10);
+        assert_eq!(buf.available_space(), 4);
+        // Writable space is ample: no shift.
+        buf.shift_for_space(2);
+        assert_eq!(buf.available_space(), 4);
+        assert_eq!(buf.data(), b"kl");
+        // Writable space insufficient: shift reclaims the prefix.
+        buf.shift_for_space(10);
+        assert_eq!(buf.available_space(), 14);
+        assert_eq!(buf.data(), b"kl");
+    }
+
+    #[test]
+    fn test_shift_for_space_is_noop_when_nothing_consumed() {
+        let mut buf = AlignedBuffer::with_capacity(16);
+        buf.space()[..4].copy_from_slice(b"abcd");
+        buf.fill(4);
+        // `needed` exceeds capacity, but position is 0 so there's nothing to reclaim.
+        buf.shift_for_space(1000);
+        assert_eq!(buf.available_space(), 12);
+        assert_eq!(buf.available_data(), 4);
+        assert_eq!(buf.data(), b"abcd");
     }
 }
