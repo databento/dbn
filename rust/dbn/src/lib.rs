@@ -33,7 +33,7 @@
 //! ```no_run
 //! use dbn::{decode::{DbnDecoder, DecodeRecordRef, DbnMetadata}, TradeMsg};
 //!
-//! let mut decoder = DbnDecoder::from_file("20241007.trades.dbn.zst")?;
+//! let mut decoder = DbnDecoder::from_zstd_file("20241007.trades.dbn.zst")?;
 //! println!("Dataset: {}", decoder.metadata().dataset);
 //! while let Some(rec_ref) = decoder.decode_record_ref()? {
 //!     if let Some(trade) = rec_ref.get::<TradeMsg>() {
