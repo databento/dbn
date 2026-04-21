@@ -783,4 +783,26 @@ mod tests {
         decoder.decode_records::<v3::InstrumentDefMsg>()?;
         Ok(())
     }
+
+    #[test]
+    fn test_record_decoder_past_capacity() {
+        const N: u64 = 5_000;
+        let mut buf = Vec::new();
+        {
+            let mut encoder = DbnRecordEncoder::new(&mut buf);
+            for i in 0..N {
+                let mut rec = MboMsg::default();
+                rec.hd.ts_event = i;
+                encoder.encode_record(&rec).unwrap();
+            }
+        }
+        assert!(buf.len() > DbnFsm::DEFAULT_BUF_SIZE * 2);
+        let mut decoder = RecordDecoder::new(buf.as_slice());
+        let mut count: u64 = 0;
+        while let Some(rec) = decoder.decode::<MboMsg>().unwrap() {
+            assert_eq!(rec.hd.ts_event, count);
+            count += 1;
+        }
+        assert_eq!(count, N);
+    }
 }

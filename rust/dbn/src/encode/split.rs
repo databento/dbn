@@ -431,9 +431,11 @@ where
                 ))
             })?
             .clone();
-        let encoder = match self.encoders.entry(symbol.clone()) {
+        let encoder = match self.encoders.entry(symbol) {
             Entry::Occupied(entry) => entry.into_mut(),
             Entry::Vacant(entry) => {
+                // Only clone for new symbol
+                let symbol = entry.key().clone();
                 let split_metadata = metadata.cloned().map(|mut m| {
                     m.symbols.retain(|s| *s == symbol);
                     m.partial.retain(|s| *s == symbol);

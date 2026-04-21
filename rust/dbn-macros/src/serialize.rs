@@ -23,11 +23,14 @@ pub fn derive_csv_macro_impl(input: proc_macro::TokenStream) -> proc_macro::Toke
                 }
             };
             let serialize_header_iter = fields.iter().map(write_csv_header_token_stream);
-            let serialize_fields = fields
+            let serialize_fields = match fields
                 .iter()
                 .map(write_csv_field_token_stream)
                 .collect::<syn::Result<Vec<_>>>()
-                .unwrap_or_else(|e| vec![syn::Error::to_compile_error(&e)]);
+            {
+                Ok(fields) => fields,
+                Err(e) => return e.into_compile_error().into(),
+            };
             return quote! {
                 impl #crate_name::encode::csv::serialize::CsvSerialize for #ident {
                     fn serialize_header<W: ::std::io::Write>(writer: &mut ::csv::Writer<W>) -> ::csv::Result<()> {
@@ -68,11 +71,14 @@ pub fn derive_json_macro_impl(input: proc_macro::TokenStream) -> proc_macro::Tok
                     return ts.into_compile_error().into();
                 }
             };
-            let serialize_fields = fields
+            let serialize_fields = match fields
                 .iter()
                 .map(write_json_field_token_stream)
                 .collect::<syn::Result<Vec<_>>>()
-                .unwrap_or_else(|e| vec![syn::Error::to_compile_error(&e)]);
+            {
+                Ok(fields) => fields,
+                Err(e) => return e.into_compile_error().into(),
+            };
             return quote! {
                 impl crate::encode::json::serialize::JsonSerialize for #ident {
                     fn to_json<J: #crate_name::json_writer::JsonWriter, const PRETTY_PX: bool, const PRETTY_TS: bool>(

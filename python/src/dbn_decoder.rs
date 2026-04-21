@@ -484,7 +484,6 @@ for _ in range(n):
 
 gc.collect()
 current = tracemalloc.get_traced_memory()[0]
-tracemalloc.stop()
 
 growth = current - baseline
 
@@ -534,7 +533,6 @@ for _ in range(n):
 
 gc.collect()
 current = tracemalloc.get_traced_memory()[0]
-tracemalloc.stop()
 
 growth = current - baseline
 

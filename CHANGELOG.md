@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.55.0 - 2026-04-21
+
+### Enhancements
+- Added new publisher values for OPRA MEMX MX2 Options and IEX Options
+- Improved `DbnFsm` decode throughput on current-version data and `AsIs` workloads by
+  caching whether the upgrade policy-version combination requires upgrading, skipping
+  the per-record `upgrade_record` dispatch on the fast path (credit: @wtn)
+
+### Bug fixes
+- Removed unsound `Copy` and `Clone` implementations for `RecordRefMut`
+
 ## 0.54.0 - 2026-04-14
 
 ### Enhancements

@@ -19,7 +19,7 @@ use crate::{compat, v1, Error, HasRType, Metadata, Record, RecordRef, SymbolMapp
 ///     TradeMsg,
 /// };
 ///
-/// let mut decoder = DbnDecoder::from_file("20241007.trades.dbn.zst")?;
+/// let mut decoder = DbnDecoder::from_zstd_file("20241007.trades.dbn.zst")?;
 /// let symbol_map = decoder.metadata().symbol_map()?;
 ///
 /// while let Some(trade) = decoder.decode_record::<TradeMsg>()? {
@@ -53,7 +53,7 @@ pub struct TsSymbolMap(HashMap<(time::Date, u32), Arc<String>>);
 ///     Mbp1Msg,
 /// };
 ///
-/// let mut decoder = DbnDecoder::from_file("mbp1.dbn.zst")?;
+/// let mut decoder = DbnDecoder::from_zstd_file("mbp1.dbn.zst")?;
 /// let date = decoder.metadata().start().date();
 /// let symbol_map = decoder.metadata().symbol_map_for_date(date)?;
 ///
