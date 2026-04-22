@@ -226,7 +226,13 @@ impl DbnFsm {
     }
 
     /// Returns the mutable slice to all writable space in the buffer.
+    ///
+    /// May move the unconsumed tail to offset 0 to guarantee that the
+    /// returned slice is at least [`MAX_RECORD_LEN`] bytes long (when the
+    /// buffer is that large).
+    #[inline]
     pub fn space(&mut self) -> &mut [u8] {
+        self.buffer.shift_for_space(MAX_RECORD_LEN);
         self.buffer.space()
     }
 
@@ -248,13 +254,16 @@ impl DbnFsm {
             {
                 self.consume(read, compat, compat_fill, expand_compat);
             }
+            self.buffer.shift_for_space(bytes.len());
             if self.buffer.available_space() < bytes.len() {
                 let new_size =
                     (self.buffer.capacity() * 2).max(self.buffer.capacity() + bytes.len());
                 self.buffer.grow(new_size);
             }
         }
-        self.space()[..bytes.len()].copy_from_slice(bytes);
+        // `buffer.space()` skips `self.space()`'s `MAX_RECORD_LEN` shift;
+        // the block above has already ensured `available_space >= bytes.len()`.
+        self.buffer.space()[..bytes.len()].copy_from_slice(bytes);
         self.fill(bytes.len());
     }
 
@@ -280,6 +289,9 @@ impl DbnFsm {
     }
 
     /// Skips ahead `nbytes`. Returns the actual number of bytes skipped.
+    ///
+    /// Writable space is not reclaimed until the next call to
+    /// [`space()`](Self::space).
     pub fn skip(&mut self, nbytes: usize) -> usize {
         match self.state {
             State::Consume {
@@ -514,7 +526,15 @@ impl DbnFsm {
             self.compat_buffer.fill(compat_fill);
         }
         if compat > 0 {
+            // After `fill(compat_fill)` + `consume(compat)`, position == end
+            // (both process paths keep them in lockstep), so reset is
+            // equivalent to a full shift and avoids the conditional memmove.
             self.compat_buffer.consume(compat);
+            debug_assert!(
+                self.compat_buffer.is_empty(),
+                "compat_buffer must be fully consumed before reset",
+            );
+            self.compat_buffer.reset();
         }
         if expand_compat {
             self.double_compat_buffer();
@@ -545,7 +565,7 @@ impl DbnFsm {
             self.double_compat_buffer();
         }
         self.state = State::Metadata { length };
-        self.buffer.consume_noshift(Self::METADATA_PRELUDE_LEN);
+        self.buffer.consume(Self::METADATA_PRELUDE_LEN);
         self.buffer
             .grow(length as usize + Self::METADATA_PRELUDE_LEN);
         Ok(())
@@ -1638,5 +1658,66 @@ mod tests {
         let rec = rec.unwrap();
         assert!(rec.record_size() > size_of::<R>());
         assert_eq!(ver, exp_ver);
+    }
+
+    /// After `skip()` advances the read position, `space()` must reclaim the
+    /// consumed prefix and the decoder must be ready to process the tail.
+    #[test]
+    fn test_skip_reclaims_prefix_for_next_read() {
+        let rec_size = size_of::<TradeMsg>();
+        // Smallest buffer `space()` can uphold its invariant with.
+        let buf_size = MAX_RECORD_LEN;
+        let n_records = buf_size / rec_size;
+        let mut fsm = DbnFsm::builder()
+            .buffer_size(buf_size)
+            .skip_metadata(true)
+            .input_dbn_version(Some(DBN_VERSION))
+            .unwrap()
+            .build()
+            .unwrap();
+
+        let rec = TradeMsg::default();
+        for _ in 0..n_records {
+            fsm.write_all(rec.as_ref());
+        }
+        fsm.skip(rec_size * (n_records - 1));
+
+        let space_len = fsm.space().len();
+        assert!(
+            space_len >= rec_size,
+            "space() returned {space_len} bytes after skip, expected >= {rec_size}",
+        );
+        // Remaining record is still decodable; decoder is not wedged.
+        assert!(matches!(fsm.process(), ProcessResult::Record(())));
+    }
+
+    /// Repeated upgrades must reuse the compat buffer rather than grow it.
+    #[test]
+    fn test_compat_buffer_stable_under_upgrades() {
+        const N: usize = 16;
+        let mut fsm = DbnFsm::builder()
+            .skip_metadata(true)
+            .input_dbn_version(Some(1))
+            .unwrap()
+            .upgrade_policy(VersionUpgradePolicy::UpgradeToV3)
+            .compat_size(MAX_RECORD_LEN)
+            .build()
+            .unwrap();
+
+        let rec = v1::InstrumentDefMsg::default();
+        for _ in 0..N {
+            fsm.write_all(rec.as_ref());
+        }
+
+        let mut decoded = 0;
+        while matches!(fsm.process(), ProcessResult::Record(())) {
+            decoded += 1;
+        }
+        assert_eq!(decoded, N);
+        assert_eq!(
+            fsm.compat_buffer.capacity(),
+            MAX_RECORD_LEN,
+            "compat_buffer must not grow when each upgrade fits in the existing capacity",
+        );
     }
 }

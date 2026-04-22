@@ -8,6 +8,8 @@
 - Added `AsyncDecodeRecordRef::decode_stream()` for lazily decoding owned `RecordBuf`s
   via a `futures::Stream`
   - Added `async-stream` and `futures-core` dependencies (gated on `async` feature)
+- Improved `DbnFsm` decode throughput by making `AlignedBuffer` shifts lazy,
+  deferring the internal move to buffer refill boundaries (credit: @wtn)
 - Added new publisher values for Cboe Titanium Cboe Global Indices Feed
 - Added support for splitting files by year to `TimeSplitter`
 
