@@ -1,9 +1,10 @@
 # Changelog
 
-### 0.56.0 - TBD
+## 0.56.0 - TBD
 
-##### Enhancements
+### Enhancements
 - Added new publisher values for Cboe Titanium Cboe Global Indices Feed
+- Added support for splitting files by year to `TimeSplitter`
 
 ## 0.55.0 - 2026-04-21
 
