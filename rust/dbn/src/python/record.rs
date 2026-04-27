@@ -20,7 +20,7 @@ use super::{
 /// Python wrapper for [`MboMsg`] that always includes space for `ts_out`.
 #[repr(C)]
 #[derive(Clone, PartialEq, Eq, Hash)]
-#[pyclass(eq, module = "databento_dbn", name = "MBOMsg")]
+#[pyclass(eq, from_py_object, module = "databento_dbn", name = "MBOMsg")]
 pub struct PyMboMsg {
     pub(crate) inner: MboMsg,
     /// The live gateway send timestamp expressed as the number of nanoseconds since
@@ -431,7 +431,7 @@ impl ConsolidatedBidAskPair {
 /// Python wrapper for [`TradeMsg`] that always includes space for `ts_out`.
 #[repr(C)]
 #[derive(Clone, PartialEq, Eq, Hash)]
-#[pyclass(eq, module = "databento_dbn", name = "TradeMsg")]
+#[pyclass(eq, from_py_object, module = "databento_dbn", name = "TradeMsg")]
 pub struct PyTradeMsg {
     pub(crate) inner: TradeMsg,
     /// The live gateway send timestamp expressed as the number of nanoseconds since
@@ -741,7 +741,7 @@ impl<'py> IntoPyObject<'py> for WithTsOut<TradeMsg> {
 /// Python wrapper for [`Mbp1Msg`] that always includes space for `ts_out`.
 #[repr(C)]
 #[derive(Clone, PartialEq, Eq, Hash)]
-#[pyclass(eq, module = "databento_dbn", name = "MBP1Msg")]
+#[pyclass(eq, from_py_object, module = "databento_dbn", name = "MBP1Msg")]
 pub struct PyMbp1Msg {
     pub(crate) inner: Mbp1Msg,
     /// The live gateway send timestamp expressed as the number of nanoseconds since
@@ -1063,7 +1063,7 @@ impl<'py> IntoPyObject<'py> for WithTsOut<Mbp1Msg> {
 /// Python wrapper for [`Mbp10Msg`] that always includes space for `ts_out`.
 #[repr(C)]
 #[derive(Clone, PartialEq, Eq, Hash)]
-#[pyclass(eq, module = "databento_dbn", name = "MBP10Msg")]
+#[pyclass(eq, from_py_object, module = "databento_dbn", name = "MBP10Msg")]
 pub struct PyMbp10Msg {
     pub(crate) inner: Mbp10Msg,
     /// The live gateway send timestamp expressed as the number of nanoseconds since
@@ -1385,7 +1385,7 @@ impl<'py> IntoPyObject<'py> for WithTsOut<Mbp10Msg> {
 /// Python wrapper for [`BboMsg`] that always includes space for `ts_out`.
 #[repr(C)]
 #[derive(Clone, PartialEq, Eq, Hash)]
-#[pyclass(eq, module = "databento_dbn", name = "BBOMsg")]
+#[pyclass(eq, from_py_object, module = "databento_dbn", name = "BBOMsg")]
 pub struct PyBboMsg {
     pub(crate) inner: BboMsg,
     /// The live gateway send timestamp expressed as the number of nanoseconds since
@@ -1669,7 +1669,7 @@ impl<'py> IntoPyObject<'py> for WithTsOut<BboMsg> {
 /// Python wrapper for [`Cmbp1Msg`] that always includes space for `ts_out`.
 #[repr(C)]
 #[derive(Clone, PartialEq, Eq, Hash)]
-#[pyclass(eq, module = "databento_dbn", name = "CMBP1Msg")]
+#[pyclass(eq, from_py_object, module = "databento_dbn", name = "CMBP1Msg")]
 pub struct PyCmbp1Msg {
     pub(crate) inner: Cmbp1Msg,
     /// The live gateway send timestamp expressed as the number of nanoseconds since
@@ -1966,7 +1966,7 @@ impl<'py> IntoPyObject<'py> for WithTsOut<Cmbp1Msg> {
 /// Python wrapper for [`CbboMsg`] that always includes space for `ts_out`.
 #[repr(C)]
 #[derive(Clone, PartialEq, Eq, Hash)]
-#[pyclass(eq, module = "databento_dbn", name = "CBBOMsg")]
+#[pyclass(eq, from_py_object, module = "databento_dbn", name = "CBBOMsg")]
 pub struct PyCbboMsg {
     pub(crate) inner: CbboMsg,
     /// The live gateway send timestamp expressed as the number of nanoseconds since
@@ -2238,7 +2238,7 @@ impl<'py> IntoPyObject<'py> for WithTsOut<CbboMsg> {
 /// Python wrapper for [`OhlcvMsg`] that always includes space for `ts_out`.
 #[repr(C)]
 #[derive(Clone, PartialEq, Eq, Hash)]
-#[pyclass(eq, module = "databento_dbn", name = "OHLCVMsg")]
+#[pyclass(eq, from_py_object, module = "databento_dbn", name = "OHLCVMsg")]
 pub struct PyOhlcvMsg {
     pub(crate) inner: OhlcvMsg,
     /// The live gateway send timestamp expressed as the number of nanoseconds since
@@ -2502,7 +2502,7 @@ impl<'py> IntoPyObject<'py> for WithTsOut<OhlcvMsg> {
 /// Python wrapper for [`StatusMsg`] that always includes space for `ts_out`.
 #[repr(C)]
 #[derive(Clone, PartialEq, Eq, Hash)]
-#[pyclass(eq, module = "databento_dbn", name = "StatusMsg")]
+#[pyclass(eq, from_py_object, module = "databento_dbn", name = "StatusMsg")]
 pub struct PyStatusMsg {
     pub(crate) inner: StatusMsg,
     /// The live gateway send timestamp expressed as the number of nanoseconds since
@@ -2773,7 +2773,12 @@ impl<'py> IntoPyObject<'py> for WithTsOut<StatusMsg> {
 /// Python wrapper for [`InstrumentDefMsg`] that always includes space for `ts_out`.
 #[repr(C)]
 #[derive(Clone, PartialEq, Eq, Hash)]
-#[pyclass(eq, module = "databento_dbn", name = "InstrumentDefMsg")]
+#[pyclass(
+    eq,
+    from_py_object,
+    module = "databento_dbn",
+    name = "InstrumentDefMsg"
+)]
 pub struct PyInstrumentDefMsg {
     pub(crate) inner: InstrumentDefMsg,
     /// The live gateway send timestamp expressed as the number of nanoseconds since
@@ -3804,7 +3809,7 @@ impl<'py> IntoPyObject<'py> for WithTsOut<InstrumentDefMsg> {
 /// Python wrapper for [`ImbalanceMsg`] that always includes space for `ts_out`.
 #[repr(C)]
 #[derive(Clone, PartialEq, Eq, Hash)]
-#[pyclass(eq, module = "databento_dbn", name = "ImbalanceMsg")]
+#[pyclass(eq, from_py_object, module = "databento_dbn", name = "ImbalanceMsg")]
 pub struct PyImbalanceMsg {
     pub(crate) inner: ImbalanceMsg,
     /// The live gateway send timestamp expressed as the number of nanoseconds since
@@ -4276,7 +4281,7 @@ impl<'py> IntoPyObject<'py> for WithTsOut<ImbalanceMsg> {
 /// Python wrapper for [`StatMsg`] that always includes space for `ts_out`.
 #[repr(C)]
 #[derive(Clone, PartialEq, Eq, Hash)]
-#[pyclass(eq, module = "databento_dbn", name = "StatMsg")]
+#[pyclass(eq, from_py_object, module = "databento_dbn", name = "StatMsg")]
 pub struct PyStatMsg {
     pub(crate) inner: StatMsg,
     /// The live gateway send timestamp expressed as the number of nanoseconds since
@@ -4603,7 +4608,7 @@ impl<'py> IntoPyObject<'py> for WithTsOut<StatMsg> {
 /// Python wrapper for [`ErrorMsg`] that always includes space for `ts_out`.
 #[repr(C)]
 #[derive(Clone, PartialEq, Eq, Hash)]
-#[pyclass(eq, module = "databento_dbn", name = "ErrorMsg")]
+#[pyclass(eq, from_py_object, module = "databento_dbn", name = "ErrorMsg")]
 pub struct PyErrorMsg {
     pub(crate) inner: ErrorMsg,
     /// The live gateway send timestamp expressed as the number of nanoseconds since
@@ -4805,7 +4810,12 @@ impl<'py> IntoPyObject<'py> for WithTsOut<ErrorMsg> {
 /// Python wrapper for [`SymbolMappingMsg`] that always includes space for `ts_out`.
 #[repr(C)]
 #[derive(Clone, PartialEq, Eq, Hash)]
-#[pyclass(eq, module = "databento_dbn", name = "SymbolMappingMsg")]
+#[pyclass(
+    eq,
+    from_py_object,
+    module = "databento_dbn",
+    name = "SymbolMappingMsg"
+)]
 pub struct PySymbolMappingMsg {
     pub(crate) inner: SymbolMappingMsg,
     /// The live gateway send timestamp expressed as the number of nanoseconds since
@@ -5070,7 +5080,7 @@ impl<'py> IntoPyObject<'py> for WithTsOut<SymbolMappingMsg> {
 /// Python wrapper for [`SystemMsg`] that always includes space for `ts_out`.
 #[repr(C)]
 #[derive(Clone, PartialEq, Eq, Hash)]
-#[pyclass(eq, module = "databento_dbn", name = "SystemMsg")]
+#[pyclass(eq, from_py_object, module = "databento_dbn", name = "SystemMsg")]
 pub struct PySystemMsg {
     pub(crate) inner: SystemMsg,
     /// The live gateway send timestamp expressed as the number of nanoseconds since
@@ -5262,7 +5272,7 @@ impl<'py> IntoPyObject<'py> for WithTsOut<SystemMsg> {
 /// Python wrapper for [`v1::ErrorMsg`] that always includes space for `ts_out`.
 #[repr(C)]
 #[derive(Clone, PartialEq, Eq, Hash)]
-#[pyclass(eq, module = "databento_dbn", name = "ErrorMsgV1")]
+#[pyclass(eq, from_py_object, module = "databento_dbn", name = "ErrorMsgV1")]
 pub struct PyV1ErrorMsg {
     pub(crate) inner: v1::ErrorMsg,
     /// The live gateway send timestamp expressed as the number of nanoseconds since
@@ -5432,7 +5442,12 @@ impl<'py> IntoPyObject<'py> for WithTsOut<v1::ErrorMsg> {
 /// Python wrapper for [`v1::InstrumentDefMsg`] that always includes space for `ts_out`.
 #[repr(C)]
 #[derive(Clone, PartialEq, Eq, Hash)]
-#[pyclass(eq, module = "databento_dbn", name = "InstrumentDefMsgV1")]
+#[pyclass(
+    eq,
+    from_py_object,
+    module = "databento_dbn",
+    name = "InstrumentDefMsgV1"
+)]
 pub struct PyV1InstrumentDefMsg {
     pub(crate) inner: v1::InstrumentDefMsg,
     /// The live gateway send timestamp expressed as the number of nanoseconds since
@@ -6344,7 +6359,7 @@ impl<'py> IntoPyObject<'py> for WithTsOut<v1::InstrumentDefMsg> {
 /// Python wrapper for [`v1::StatMsg`] that always includes space for `ts_out`.
 #[repr(C)]
 #[derive(Clone, PartialEq, Eq, Hash)]
-#[pyclass(eq, module = "databento_dbn", name = "StatMsgV1")]
+#[pyclass(eq, from_py_object, module = "databento_dbn", name = "StatMsgV1")]
 pub struct PyV1StatMsg {
     pub(crate) inner: v1::StatMsg,
     /// The live gateway send timestamp expressed as the number of nanoseconds since
@@ -6671,7 +6686,12 @@ impl<'py> IntoPyObject<'py> for WithTsOut<v1::StatMsg> {
 /// Python wrapper for [`v1::SymbolMappingMsg`] that always includes space for `ts_out`.
 #[repr(C)]
 #[derive(Clone, PartialEq, Eq, Hash)]
-#[pyclass(eq, module = "databento_dbn", name = "SymbolMappingMsgV1")]
+#[pyclass(
+    eq,
+    from_py_object,
+    module = "databento_dbn",
+    name = "SymbolMappingMsgV1"
+)]
 pub struct PyV1SymbolMappingMsg {
     pub(crate) inner: v1::SymbolMappingMsg,
     /// The live gateway send timestamp expressed as the number of nanoseconds since
@@ -6909,7 +6929,7 @@ impl<'py> IntoPyObject<'py> for WithTsOut<v1::SymbolMappingMsg> {
 /// Python wrapper for [`v1::SystemMsg`] that always includes space for `ts_out`.
 #[repr(C)]
 #[derive(Clone, PartialEq, Eq, Hash)]
-#[pyclass(eq, module = "databento_dbn", name = "SystemMsgV1")]
+#[pyclass(eq, from_py_object, module = "databento_dbn", name = "SystemMsgV1")]
 pub struct PyV1SystemMsg {
     pub(crate) inner: v1::SystemMsg,
     /// The live gateway send timestamp expressed as the number of nanoseconds since
@@ -7084,7 +7104,12 @@ impl<'py> IntoPyObject<'py> for WithTsOut<v1::SystemMsg> {
 /// Python wrapper for [`v2::InstrumentDefMsg`] that always includes space for `ts_out`.
 #[repr(C)]
 #[derive(Clone, PartialEq, Eq, Hash)]
-#[pyclass(eq, module = "databento_dbn", name = "InstrumentDefMsgV2")]
+#[pyclass(
+    eq,
+    from_py_object,
+    module = "databento_dbn",
+    name = "InstrumentDefMsgV2"
+)]
 pub struct PyV2InstrumentDefMsg {
     pub(crate) inner: v2::InstrumentDefMsg,
     /// The live gateway send timestamp expressed as the number of nanoseconds since

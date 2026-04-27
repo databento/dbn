@@ -26,12 +26,15 @@ mod enums;
 mod transcoder;
 
 /// A Python module wrapping dbn functions
-#[pymodule] // The name of the function must match `lib.name` in `Cargo.toml`
+#[pymodule(gil_used = false)] // The name of the function must match `lib.name` in `Cargo.toml`
 #[pyo3(name = "_lib")]
 fn databento_dbn(_py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     fn checked_add_class<T: PyClass>(m: &Bound<PyModule>) -> PyResult<()> {
         // ensure a module was specified, otherwise it defaults to builtins
-        assert_eq!(T::MODULE.unwrap(), "databento_dbn");
+        assert_eq!(
+            T::type_object(m.py()).module()?.extract::<String>()?,
+            "databento_dbn",
+        );
         m.add_class::<T>()
     }
     // all functions exposed to Python need to be added here

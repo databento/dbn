@@ -14,6 +14,9 @@
 - Added support for splitting files by year to `TimeSplitter`
 - Improved Python `DBNDecoder.decode()` performance with pre-allocated output buffers
 - Added `DBNDecoder.write_and_decode()` to combine write and decode in a single call
+- Upgraded `pyo3` to 0.28.3
+  - Declared free-threaded Python support on the `databento_dbn` extension module. Not
+    yet building free-threaded wheels in CI
 
 ## 0.55.0 - 2026-04-21
 
