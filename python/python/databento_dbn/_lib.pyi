@@ -8926,6 +8926,26 @@ class DBNDecoder:
 
         """
 
+    def write_and_decode(
+        self,
+        bytes: bytes,
+    ) -> list[DBNRecord | Metadata]:
+        """
+        Write bytes and decode all available records in a single call.
+        Equivalent to calling ``write()`` then ``decode()``, but avoids a
+        second Python-to-Rust boundary crossing.
+
+        Returns
+        -------
+        list[DBNRecord | Metadata]
+
+        Raises
+        ------
+        DBNError
+            When the write or decoding fails.
+
+        """
+
 class Transcoder:
     """
     A class for transcoding DBN i.e. converting it from one compression and encoding to

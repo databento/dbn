@@ -12,6 +12,8 @@
   deferring the internal move to buffer refill boundaries (credit: @wtn)
 - Added new publisher values for Cboe Titanium Cboe Global Indices Feed
 - Added support for splitting files by year to `TimeSplitter`
+- Improved Python `DBNDecoder.decode()` performance with pre-allocated output buffers
+- Added `DBNDecoder.write_and_decode()` to combine write and decode in a single call
 
 ## 0.55.0 - 2026-04-21
 
