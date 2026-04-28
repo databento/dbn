@@ -37,6 +37,7 @@ pub enum SplitBy {
     Day,
     Week,
     Month,
+    Year,
 }
 
 impl SplitBy {
@@ -45,6 +46,7 @@ impl SplitBy {
             SplitBy::Day => Some(SplitDuration::Day),
             SplitBy::Week => Some(SplitDuration::Week),
             SplitBy::Month => Some(SplitDuration::Month),
+            SplitBy::Year => Some(SplitDuration::Year),
             SplitBy::Symbol | SplitBy::Schema => None,
         }
     }

@@ -123,10 +123,12 @@ pub enum Venue {
     Mxto = 54,
     /// IEX Options LLC
     Iexo = 55,
+    /// Cboe Global Indices Feed
+    Cgif = 56,
 }
 
 /// The number of [`Venue`] variants.
-pub const VENUE_COUNT: usize = 55;
+pub const VENUE_COUNT: usize = 56;
 
 impl Venue {
     /// Converts the venue to its `str` representation.
@@ -187,6 +189,7 @@ impl Venue {
             Self::Ocea => "OCEA",
             Self::Mxto => "MXTO",
             Self::Iexo => "IEXO",
+            Self::Cgif => "CGIF",
         }
     }
 }
@@ -263,6 +266,7 @@ impl std::str::FromStr for Venue {
             "OCEA" => Ok(Self::Ocea),
             "MXTO" => Ok(Self::Mxto),
             "IEXO" => Ok(Self::Iexo),
+            "CGIF" => Ok(Self::Cgif),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
@@ -359,10 +363,12 @@ pub enum Dataset {
     XcbfPitch = 40,
     /// Blue Ocean ATS MEMOIR Depth
     OceaMemoir = 41,
+    /// Cboe Titanium Cboe Global Indices Feed
+    CgifTitanium = 42,
 }
 
 /// The number of [`Dataset`] variants.
-pub const DATASET_COUNT: usize = 41;
+pub const DATASET_COUNT: usize = 42;
 
 impl Dataset {
     /// Converts the dataset to its `str` representation.
@@ -411,6 +417,7 @@ impl Dataset {
             Self::XeeeEobi => "XEEE.EOBI",
             Self::XcbfPitch => "XCBF.PITCH",
             Self::OceaMemoir => "OCEA.MEMOIR",
+            Self::CgifTitanium => "CGIF.TITANIUM",
         }
     }
 
@@ -537,6 +544,7 @@ impl Dataset {
             Self::XeeeEobi => &[Publisher::XeeeEobiXeee, Publisher::XeeeEobiXoff],
             Self::XcbfPitch => &[Publisher::XcbfPitchXcbf, Publisher::XcbfPitchXoff],
             Self::OceaMemoir => &[Publisher::OceaMemoirOcea],
+            Self::CgifTitanium => &[Publisher::CgifTitaniumCgif],
         }
     }
 }
@@ -601,6 +609,7 @@ impl std::str::FromStr for Dataset {
             "XEEE.EOBI" => Ok(Self::XeeeEobi),
             "XCBF.PITCH" => Ok(Self::XcbfPitch),
             "OCEA.MEMOIR" => Ok(Self::OceaMemoir),
+            "CGIF.TITANIUM" => Ok(Self::CgifTitanium),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
@@ -831,10 +840,12 @@ pub enum Publisher {
     OpraPillarMxto = 108,
     /// OPRA - IEX Options LLC
     OpraPillarIexo = 109,
+    /// Cboe Global Indices Feed
+    CgifTitaniumCgif = 110,
 }
 
 /// The number of [`Publisher`] variants.
-pub const PUBLISHER_COUNT: usize = 109;
+pub const PUBLISHER_COUNT: usize = 110;
 
 impl Publisher {
     /// Converts the publisher to its `str` representation.
@@ -949,6 +960,7 @@ impl Publisher {
             Self::OceaMemoirOcea => "OCEA.MEMOIR.OCEA",
             Self::OpraPillarMxto => "OPRA.PILLAR.MXTO",
             Self::OpraPillarIexo => "OPRA.PILLAR.IEXO",
+            Self::CgifTitaniumCgif => "CGIF.TITANIUM.CGIF",
         }
     }
 
@@ -1064,6 +1076,7 @@ impl Publisher {
             Self::OceaMemoirOcea => Venue::Ocea,
             Self::OpraPillarMxto => Venue::Mxto,
             Self::OpraPillarIexo => Venue::Iexo,
+            Self::CgifTitaniumCgif => Venue::Cgif,
         }
     }
 
@@ -1179,6 +1192,7 @@ impl Publisher {
             Self::OceaMemoirOcea => Dataset::OceaMemoir,
             Self::OpraPillarMxto => Dataset::OpraPillar,
             Self::OpraPillarIexo => Dataset::OpraPillar,
+            Self::CgifTitaniumCgif => Dataset::CgifTitanium,
         }
     }
 
@@ -1297,6 +1311,7 @@ impl Publisher {
             (Dataset::OceaMemoir, Venue::Ocea) => Ok(Self::OceaMemoirOcea),
             (Dataset::OpraPillar, Venue::Mxto) => Ok(Self::OpraPillarMxto),
             (Dataset::OpraPillar, Venue::Iexo) => Ok(Self::OpraPillarIexo),
+            (Dataset::CgifTitanium, Venue::Cgif) => Ok(Self::CgifTitaniumCgif),
             _ => Err(Error::conversion::<Self>(format!("({dataset}, {venue})"))),
         }
     }
@@ -1428,6 +1443,7 @@ impl std::str::FromStr for Publisher {
             "OCEA.MEMOIR.OCEA" => Ok(Self::OceaMemoirOcea),
             "OPRA.PILLAR.MXTO" => Ok(Self::OpraPillarMxto),
             "OPRA.PILLAR.IEXO" => Ok(Self::OpraPillarIexo),
+            "CGIF.TITANIUM.CGIF" => Ok(Self::CgifTitaniumCgif),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }

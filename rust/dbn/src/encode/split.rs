@@ -225,6 +225,8 @@ pub enum SplitDuration {
     Week,
     /// Split by month.
     Month,
+    /// Split by year.
+    Year,
 }
 
 /// Splits a stream by time.
@@ -306,6 +308,7 @@ where
                     .replace_year(end_year)
                     .unwrap()
             }
+            SplitDuration::Year => encoder_date.replace_year(encoder_date.year() + 1).unwrap(),
         }
         .with_time(Time::MIDNIGHT)
         .assume_utc();
@@ -365,6 +368,11 @@ where
             SplitDuration::Week if index_date.weekday() == Weekday::Sunday => index_date,
             SplitDuration::Week => index_date.prev_occurrence(Weekday::Sunday),
             SplitDuration::Month => index_date.replace_day(1).unwrap(),
+            SplitDuration::Year => index_date
+                .replace_day(1)
+                .unwrap()
+                .replace_month(time::Month::January)
+                .unwrap(),
         };
         let encoder = match self.encoders.entry(encoder_date) {
             Entry::Occupied(entry) => entry.into_mut(),
@@ -726,6 +734,30 @@ mod tests {
         assert_eq!(splitter.encoders.len(), 2);
         assert!(splitter.encoders.contains_key(&date!(2023 - 12 - 01)));
         assert!(splitter.encoders.contains_key(&date!(2024 - 01 - 01)));
+    }
+
+    #[test]
+    fn test_time_splitter_by_year() {
+        let build_encoder =
+            |_date: time::Date, _metadata: Option<Metadata>| Ok(TestEncoder::default());
+        let mut splitter = TimeSplitter::new(build_encoder, SplitDuration::Year);
+
+        let ts_2020 = datetime!(2020-07-15 10:00 UTC).unix_timestamp_nanos() as u64;
+        let ts_2021 = datetime!(2021-08-10 10:00 UTC).unix_timestamp_nanos() as u64;
+        let ts_2022 = datetime!(2022-09-05 10:00 UTC).unix_timestamp_nanos() as u64;
+
+        let rec_2020 = mbo_msg(ts_2020, 100);
+        let rec_2021 = mbo_msg(ts_2021, 100);
+        let rec_2022 = mbo_msg(ts_2022, 100);
+
+        splitter.sub_encoder(None, &rec_2020).unwrap();
+        splitter.sub_encoder(None, &rec_2021).unwrap();
+        splitter.sub_encoder(None, &rec_2022).unwrap();
+
+        assert_eq!(splitter.encoders.len(), 3);
+        assert!(splitter.encoders.contains_key(&date!(2020 - 01 - 01)));
+        assert!(splitter.encoders.contains_key(&date!(2021 - 01 - 01)));
+        assert!(splitter.encoders.contains_key(&date!(2022 - 01 - 01)));
     }
 
     #[test]

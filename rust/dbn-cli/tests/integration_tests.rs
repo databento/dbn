@@ -858,6 +858,27 @@ fn split_by_month(output_dir: TempDir) {
 }
 
 #[rstest]
+fn split_by_year(output_dir: TempDir) {
+    let output_pattern = format!("{}/{{date}}.json", output_dir.path().to_str().unwrap());
+    cmd()
+        .args([
+            &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst"),
+            "--split-by",
+            "year",
+            "--output-pattern",
+            &output_pattern,
+            "--json",
+        ])
+        .assert()
+        .success()
+        .stdout(is_empty())
+        .stderr(is_empty());
+    let output_path = format!("{}/2020-01-01.json", output_dir.path().to_str().unwrap());
+    let contents = fs::read_to_string(&output_path).unwrap();
+    assert!(contents.contains("\"rtype\":160"));
+}
+
+#[rstest]
 fn split_by_symbol(output_dir: TempDir) {
     let output_pattern = format!("{}/{{symbol}}.json", output_dir.path().to_str().unwrap());
     cmd()

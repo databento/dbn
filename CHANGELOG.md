@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.56.0 - 2026-04-28
+
+### Enhancements
+- Added `DecodeRecordRef::decode_buf_iter()` for lazily iterating owned `RecordBuf`s
+  via a standard `Iterator`
+- Added `AsyncDecodeRecordRef::decode_stream()` for lazily decoding owned `RecordBuf`s
+  via a `futures::Stream`
+  - Added `async-stream` and `futures-core` dependencies (gated on `async` feature)
+- Improved `DbnFsm` decode throughput by making `AlignedBuffer` shifts lazy,
+  deferring the internal move to buffer refill boundaries (credit: @wtn)
+- Added new publisher values for Cboe Titanium Cboe Global Indices Feed
+- Added support for splitting files by year to `TimeSplitter`
+- Improved Python `DBNDecoder.decode()` performance with pre-allocated output buffers
+- Added `DBNDecoder.write_and_decode()` to combine write and decode in a single call
+- Upgraded `pyo3` to 0.28.3
+  - Declared free-threaded Python support on the `databento_dbn` extension module. Not
+    yet building free-threaded wheels in CI
+
 ## 0.55.0 - 2026-04-21
 
 ### Enhancements

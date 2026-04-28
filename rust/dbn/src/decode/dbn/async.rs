@@ -611,9 +611,9 @@ where
     loop {
         match fsm.process() {
             ProcessResult::ReadMore(n) => {
-                // asm guarantees there's at least `n` bytes available in `space()`
                 let mut total_read = 0;
                 loop {
+                    // `fsm.space()` reclaims the consumed prefix as needed
                     let read = reader.read(fsm.space()).await.map_err(io_err)?;
                     if read == 0 {
                         return Err(crate::Error::io(
@@ -934,5 +934,122 @@ mod tests {
         for (i, rec) in records.iter().enumerate() {
             assert_eq!(rec.hd.ts_event, i as u64);
         }
+    }
+
+    #[rstest]
+    #[case::mbo(Schema::Mbo, MboMsg::default())]
+    #[case::trades(Schema::Trades, TradeMsg::default())]
+    #[case::cmbp1(Schema::Cmbp1, Cmbp1Msg::default_for_schema(Schema::Cmbp1))]
+    #[case::cbbo1s(Schema::Cbbo1S, CbboMsg::default_for_schema(Schema::Cbbo1S))]
+    #[case::bbo1s(Schema::Bbo1S, Bbo1SMsg::default_for_schema(Schema::Bbo1S))]
+    #[case::tbbo(Schema::Tbbo, TbboMsg::default())]
+    #[case::mbp1(Schema::Mbp1, Mbp1Msg::default())]
+    #[case::mbp10(Schema::Mbp10, Mbp10Msg::default())]
+    #[case::ohlcv1m(Schema::Ohlcv1M, OhlcvMsg::default_for_schema(Schema::Ohlcv1M))]
+    #[case::definitions(Schema::Definition, InstrumentDefMsg::default())]
+    #[case::imbalance(Schema::Imbalance, ImbalanceMsg::default())]
+    #[case::statistics(Schema::Statistics, StatMsg::default())]
+    #[case::status(Schema::Status, StatusMsg::default())]
+    #[tokio::test]
+    async fn test_decode_stream<R: DbnEncodable + HasRType + PartialEq + Clone>(
+        #[case] schema: Schema,
+        #[case] _rec: R,
+    ) -> Result<()> {
+        use futures_core::Stream;
+        use std::pin::pin;
+
+        let mut file_decoder =
+            Decoder::from_zstd_file(format!("{TEST_DATA_PATH}/test_data.{schema}.v3.dbn.zst"))
+                .await?;
+        let mut expected = Vec::new();
+        while let Some(record) = file_decoder.decode_record::<R>().await? {
+            expected.push(record.clone());
+        }
+
+        let mut decoder =
+            Decoder::from_zstd_file(format!("{TEST_DATA_PATH}/test_data.{schema}.v3.dbn.zst"))
+                .await?;
+        let mut stream = pin!(decoder.decode_stream());
+        let mut buf_results = Vec::new();
+        while let Some(item) = std::future::poll_fn(|cx| stream.as_mut().poll_next(cx)).await {
+            buf_results.push(item?);
+        }
+
+        assert_eq!(buf_results.len(), expected.len());
+        for (buf, exp) in buf_results.iter().zip(expected.iter()) {
+            assert_eq!(*buf.get::<R>().unwrap(), *exp);
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_decode_stream_mixed_types() -> crate::Result<()> {
+        use futures_core::Stream;
+        use std::pin::pin;
+
+        let trade = TradeMsg {
+            hd: RecordHeader::new::<TradeMsg>(rtype::MBP_0, 1, 100, 1678284110000000000),
+            price: 5_000_000_000,
+            size: 10,
+            ..TradeMsg::default()
+        };
+        let ohlcv = OhlcvMsg {
+            hd: RecordHeader::new::<OhlcvMsg>(rtype::OHLCV_1S, 1, 200, 1678284120000000000),
+            open: 100,
+            high: 200,
+            low: 75,
+            close: 125,
+            volume: 65,
+        };
+        let mut buffer = Vec::new();
+        let mut encoder = AsyncRecordEncoder::new(&mut buffer);
+        encoder.encode(&trade).await.unwrap();
+        encoder.encode(&ohlcv).await.unwrap();
+
+        let mut decoder = RecordDecoder::new(buffer.as_slice());
+        let mut stream = pin!(decoder.decode_stream());
+        let mut results = Vec::new();
+        while let Some(item) = std::future::poll_fn(|cx| stream.as_mut().poll_next(cx)).await {
+            results.push(item?);
+        }
+
+        assert_eq!(results.len(), 2);
+        assert!(results[0].has::<TradeMsg>());
+        assert!(results[1].has::<OhlcvMsg>());
+        assert_eq!(*results[0].get::<TradeMsg>().unwrap(), trade);
+        assert_eq!(*results[1].get::<OhlcvMsg>().unwrap(), ohlcv);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_decode_stream_error_after_valid() {
+        use futures_core::Stream;
+        use std::pin::pin;
+
+        let trade = TradeMsg {
+            hd: RecordHeader::new::<TradeMsg>(rtype::MBP_0, 1, 100, 1678284110000000000),
+            price: 5_000_000_000,
+            size: 10,
+            ..TradeMsg::default()
+        };
+        let mut buffer = Vec::new();
+        let mut encoder = AsyncRecordEncoder::new(&mut buffer);
+        encoder.encode(&trade).await.unwrap();
+        // Append a corrupt record
+        buffer.extend_from_slice(&[0u8; std::mem::size_of::<RecordHeader>()]);
+
+        let mut decoder = RecordDecoder::new(buffer.as_slice());
+        let mut stream = pin!(decoder.decode_stream());
+
+        let first = std::future::poll_fn(|cx| stream.as_mut().poll_next(cx))
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(*first.get::<TradeMsg>().unwrap(), trade);
+
+        let second = std::future::poll_fn(|cx| stream.as_mut().poll_next(cx))
+            .await
+            .unwrap();
+        assert!(matches!(second, Err(Error::Decode(_))));
     }
 }

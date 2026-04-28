@@ -162,7 +162,7 @@ where
             );
             split_encode_impl(decoder, map_symbols, splitter, Some(symbol_map))
         }
-        SplitBy::Day | SplitBy::Week | SplitBy::Month => {
+        SplitBy::Day | SplitBy::Week | SplitBy::Month | SplitBy::Year => {
             let splitter = TimeSplitter::new(
                 |date: time::Date, metadata| {
                     build_encoder(
@@ -212,7 +212,7 @@ where
             );
             split_encode_fragment_impl(decoder, splitter)
         }
-        SplitBy::Day | SplitBy::Week | SplitBy::Month => {
+        SplitBy::Day | SplitBy::Week | SplitBy::Month | SplitBy::Year => {
             let splitter = TimeSplitter::new(
                 |date: time::Date, metadata| {
                     build_encoder(
@@ -387,7 +387,7 @@ where
                 );
                 split_encode_fragment_impl(decoder, splitter)
             }
-            SplitBy::Day | SplitBy::Week | SplitBy::Month => {
+            SplitBy::Day | SplitBy::Week | SplitBy::Month | SplitBy::Year => {
                 let splitter = TimeSplitter::new(
                     |date: time::Date, _metadata| {
                         build_encoder(&output_pattern.replace("{date}", &date.to_string()))
@@ -417,7 +417,7 @@ where
                 );
                 split_encode_fragment_impl(decoder, splitter)
             }
-            SplitBy::Day | SplitBy::Week | SplitBy::Month => {
+            SplitBy::Day | SplitBy::Week | SplitBy::Month | SplitBy::Year => {
                 let splitter = TimeSplitter::new(
                     |date: time::Date, _metadata| {
                         build_encoder(&output_pattern.replace("{date}", &date.to_string()))

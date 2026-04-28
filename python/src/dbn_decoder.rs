@@ -1,11 +1,12 @@
 use std::io::Write;
+use std::mem;
 
 use pyo3::{exceptions::PyRuntimeError, prelude::*, IntoPyObjectExt};
 
 use dbn::{
     decode::dbn::fsm::{DbnFsm, ProcessResult},
     python::to_py_err,
-    rtype_dispatch, Compression, HasRType, VersionUpgradePolicy,
+    rtype_dispatch, Compression, HasRType, RecordHeader, VersionUpgradePolicy,
 };
 
 #[pyclass(module = "databento_dbn", name = "DBNDecoder")]
@@ -70,6 +71,14 @@ impl DbnDecoder {
         self.fsm.data()
     }
 
+    /// Writes bytes and decodes all available records in a single call.
+    /// Equivalent to calling `write()` then `decode()`, but avoids a
+    /// second Python-to-Rust boundary crossing.
+    fn write_and_decode(&mut self, py: Python<'_>, bytes: &[u8]) -> PyResult<Vec<Py<PyAny>>> {
+        self.write(bytes)?;
+        self.decode(py)
+    }
+
     fn decode(&mut self, py: Python<'_>) -> PyResult<Vec<Py<PyAny>>> {
         // Flush all decompressed data to FSM
         if let Some(zstd_decoder) = &mut self.zstd_decoder {
@@ -84,7 +93,8 @@ impl DbnDecoder {
         }
 
         let mut ts_out = self.fsm.ts_out();
-        let mut py_recs = Vec::new();
+        let capacity = self.fsm.data().len() / mem::size_of::<RecordHeader>();
+        let mut py_recs = Vec::with_capacity(capacity);
         loop {
             match self.fsm.process() {
                 ProcessResult::ReadMore(_) => return Ok(py_recs),
@@ -106,8 +116,8 @@ impl DbnDecoder {
                         PyRuntimeError::new_err("Error while decoding DBN stream")
                     })?;
 
-                    // Safety: It's safe to cast to `WithTsOut` because we're passing in the `ts_out`
-                    // from the metadata header.
+                    // SAFETY: It's safe to cast to `WithTsOut` because we're passing in the
+                    // `ts_out` from the metadata header.
                     rtype_dispatch!(rec, ts_out: ts_out, push_rec(py, &mut py_recs))
                         .map_err(PyErr::from)?;
                 }

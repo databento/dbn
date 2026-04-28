@@ -125,7 +125,7 @@ pub struct MboMsg {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(eq, module = "databento_dbn"),
+    pyo3::pyclass(eq, from_py_object, module = "databento_dbn"),
     derive(crate::macros::PyFieldDesc, crate::macros::WritePyRepr)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope
@@ -166,7 +166,7 @@ pub struct BidAskPair {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(eq, module = "databento_dbn"),
+    pyo3::pyclass(eq, from_py_object, module = "databento_dbn"),
     derive(crate::macros::PyFieldDesc, crate::macros::WritePyRepr)
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))] // bring `pyo3` attribute into scope

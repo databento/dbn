@@ -72,7 +72,7 @@ pub use stream::StreamIterDecoder;
 
 use std::{io::Seek, mem};
 
-use crate::{HasRType, Metadata, RecordRef, VersionUpgradePolicy};
+use crate::{HasRType, Metadata, RecordBuf, RecordRef, VersionUpgradePolicy};
 
 /// Trait for types that decode references to DBN records of a dynamic type.
 pub trait DecodeRecordRef {
@@ -86,6 +86,18 @@ pub trait DecodeRecordRef {
     /// If the `length` property of the record is invalid, an
     /// [`Error::Decode`](crate::Error::Decode) will be returned.
     fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef<'_>>>;
+
+    /// Returns an [`Iterator`] of owned [`RecordBuf`]s decoded from this reader.
+    ///
+    /// Each record is copied from the internal decode buffer into a `RecordBuf`.
+    /// For zero-copy access, use [`decode_record_ref()`](Self::decode_record_ref) instead.
+    fn decode_buf_iter(&mut self) -> impl Iterator<Item = crate::Result<RecordBuf>> + '_ {
+        std::iter::from_fn(move || match self.decode_record_ref() {
+            Ok(Some(rec_ref)) => Some(Ok(rec_ref.to_owned())),
+            Ok(None) => None,
+            Err(e) => Some(Err(e)),
+        })
+    }
 }
 
 /// Trait for decoders with metadata about what's being decoded.
@@ -186,6 +198,19 @@ pub trait AsyncDecodeRecordRef {
     /// This method is cancel safe. It can be used within a `tokio::select!` statement
     /// without the potential for corrupting the input stream.
     async fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef<'_>>>;
+
+    /// Returns a [`Stream`](futures_core::Stream) of owned [`RecordBuf`]s decoded
+    /// from this reader.
+    ///
+    /// Each record is copied from the internal decode buffer into a `RecordBuf`.
+    /// For zero-copy access, use [`decode_record_ref()`](Self::decode_record_ref) instead.
+    fn decode_stream(&mut self) -> impl futures_core::Stream<Item = crate::Result<RecordBuf>> + '_ {
+        async_stream::try_stream! {
+            while let Some(rec_ref) = self.decode_record_ref().await? {
+                yield rec_ref.to_owned();
+            }
+        }
+    }
 }
 
 /// Async trait for types that decode DBN records of a particular type.
