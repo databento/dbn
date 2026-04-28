@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.56.0 - TBD
+## 0.56.0 - 2026-04-28
 
 ### Enhancements
 - Added `DecodeRecordRef::decode_buf_iter()` for lazily iterating owned `RecordBuf`s
