@@ -119,8 +119,9 @@ impl TsSymbolMap {
         instrument_id: u32,
         start_date: time::Date,
         end_date: time::Date,
-        symbol: Arc<String>,
+        symbol: impl Into<Arc<String>>,
     ) -> crate::Result<()> {
+        let symbol: Arc<String> = symbol.into();
         match start_date.cmp(&end_date) {
             Ordering::Less => {
                 let mut day = start_date;

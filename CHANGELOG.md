@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.58.0 - TBD
+
+### Enhancements
+- Relaxed `TsSymbolMap::insert` to accept `impl Into<Arc<String>>` for the `symbol`
+  parameter, allowing callers to pass a `String` directly
+
 ## 0.57.0 - 2026-05-05
 
 ### Enhancements
