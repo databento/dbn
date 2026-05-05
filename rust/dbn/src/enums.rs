@@ -372,6 +372,9 @@ pub enum InstrumentClass {
     /// A future.
     #[pyo3(name = "FUTURE")]
     Future = b'F',
+    /// An index.
+    #[pyo3(name = "INDEX")]
+    Index = b'I',
     /// A stock.
     #[pyo3(name = "STOCK")]
     Stock = b'K',
@@ -1036,10 +1039,18 @@ pub enum StatType {
     /// `quantity` will be set. `ts_ref` will indicate the trading date of the volume.
     #[pyo3(name = "BLOCK_VOLUME")]
     BlockVolume = 19,
+    /// The probable price of the last trade of an instrument published during the trading
+    /// session. `price` will be set.
+    #[pyo3(name = "INDICATIVE_CLOSE_PRICE")]
+    IndicativeClosePrice = 20,
     /// A venue specific volume statistic. Refer to the venue documentation for more information.
     /// `quantity` will be set.
     #[pyo3(name = "VENUE_SPECIFIC_VOLUME_1")]
     VenueSpecificVolume1 = 10001,
+    /// A venue specific price statistic. Refer to the venue documentation for more information.
+    /// `price` will be set.
+    #[pyo3(name = "VENUE_SPECIFIC_PRICE_1")]
+    VenueSpecificPrice1 = 10002,
 }
 
 /// The type of [`StatMsg`](crate::record::StatMsg) update.

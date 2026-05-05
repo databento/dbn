@@ -422,6 +422,8 @@ class InstrumentClass(Enum):
         A call option.
     FUTURE
         A future.
+    INDEX
+        An index.
     STOCK
         A stock.
     MIXED_SPREAD
@@ -442,6 +444,7 @@ class InstrumentClass(Enum):
     BOND: str
     CALL: str
     FUTURE: str
+    INDEX: str
     STOCK: str
     MIXED_SPREAD: str
     PUT: str
@@ -830,9 +833,15 @@ class StatType(Enum):
     BLOCK_VOLUME
         The number of Block contracts cleared for an instrument on the previous trading date.
         `quantity` will be set. `ts_ref` will indicate the trading date of the volume.
+    INDICATIVE_CLOSE_PRICE
+        The probable price of the last trade of an instrument published during the trading
+        session. `price` will be set.
     VENUE_SPECIFIC_VOLUME_1
         A venue specific volume statistic. Refer to the venue documentation for more information.
         `quantity` will be set.
+    VENUE_SPECIFIC_PRICE_1
+        A venue specific price statistic. Refer to the venue documentation for more information.
+        `price` will be set.
 
     """
 
@@ -855,7 +864,9 @@ class StatType(Enum):
     UPPER_PRICE_LIMIT: int
     LOWER_PRICE_LIMIT: int
     BLOCK_VOLUME: int
+    INDICATIVE_CLOSE_PRICE: int
     VENUE_SPECIFIC_VOLUME_1: int
+    VENUE_SPECIFIC_PRICE_1: int
 
     def __init__(self, value: int) -> None: ...
     def __index__(self) -> int: ...

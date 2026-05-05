@@ -307,6 +307,7 @@ impl InstrumentClass {
             Self::Bond => "BOND",
             Self::Call => "CALL",
             Self::Future => "FUTURE",
+            Self::Index => "INDEX",
             Self::Stock => "STOCK",
             Self::MixedSpread => "MIXED_SPREAD",
             Self::Put => "PUT",
@@ -975,7 +976,9 @@ impl StatType {
             Self::UpperPriceLimit => "UPPER_PRICE_LIMIT",
             Self::LowerPriceLimit => "LOWER_PRICE_LIMIT",
             Self::BlockVolume => "BLOCK_VOLUME",
+            Self::IndicativeClosePrice => "INDICATIVE_CLOSE_PRICE",
             Self::VenueSpecificVolume1 => "VENUE_SPECIFIC_VOLUME_1",
+            Self::VenueSpecificPrice1 => "VENUE_SPECIFIC_PRICE_1",
         }
     }
 
