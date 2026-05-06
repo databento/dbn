@@ -5,6 +5,9 @@
 ### Enhancements
 - Relaxed `TsSymbolMap::insert` to accept `impl Into<Arc<String>>` for the `symbol`
   parameter, allowing callers to pass a `String` directly
+- Added flat per-level properties (`bid_px_00`, `pretty_ask_px_03`, etc.) to the
+  Python `MBP1Msg`, `MBP10Msg`, `BBOMsg`, `CMBP1Msg`, and `CBBOMsg` record classes
+  for parity with the DataFrame layout
 
 ## 0.57.0 - 2026-05-05
 
