@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.58.0 - TBD
+## 0.58.0 - 2026-05-12
 
 ### Enhancements
 - Relaxed `TsSymbolMap::insert` to accept `impl Into<Arc<String>>` for the `symbol`
