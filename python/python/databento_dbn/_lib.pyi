@@ -2473,6 +2473,74 @@ class MBP1Msg:
 
         """
 
+    @property
+    def pretty_bid_px_00(self) -> float:
+        """
+        The BidAskPair `bid_px` at level 00 as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        bid_px_00
+
+        """
+    bid_px_00: int
+    """
+    The BidAskPair `bid_px` at level 00.
+
+    See Also: pretty_bid_px_00
+
+    """
+
+    @property
+    def pretty_ask_px_00(self) -> float:
+        """
+        The BidAskPair `ask_px` at level 00 as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        ask_px_00
+
+        """
+    ask_px_00: int
+    """
+    The BidAskPair `ask_px` at level 00.
+
+    See Also: pretty_ask_px_00
+
+    """
+
+    bid_sz_00: int
+    """
+    The BidAskPair `bid_sz` at level 00.
+
+    """
+
+    ask_sz_00: int
+    """
+    The BidAskPair `ask_sz` at level 00.
+
+    """
+
+    bid_ct_00: int
+    """
+    The BidAskPair `bid_ct` at level 00.
+
+    """
+
+    ask_ct_00: int
+    """
+    The BidAskPair `ask_ct` at level 00.
+
+    """
+
 class MBP10Msg:
     """
     Market-by-price implementation with a known book depth of 10. The record of the MBP-10
@@ -2749,6 +2817,686 @@ class MBP10Msg:
 
         """
 
+    @property
+    def pretty_bid_px_00(self) -> float:
+        """
+        The BidAskPair `bid_px` at level 00 as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        bid_px_00
+
+        """
+    bid_px_00: int
+    """
+    The BidAskPair `bid_px` at level 00.
+
+    See Also: pretty_bid_px_00
+
+    """
+
+    @property
+    def pretty_ask_px_00(self) -> float:
+        """
+        The BidAskPair `ask_px` at level 00 as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        ask_px_00
+
+        """
+    ask_px_00: int
+    """
+    The BidAskPair `ask_px` at level 00.
+
+    See Also: pretty_ask_px_00
+
+    """
+
+    bid_sz_00: int
+    """
+    The BidAskPair `bid_sz` at level 00.
+
+    """
+
+    ask_sz_00: int
+    """
+    The BidAskPair `ask_sz` at level 00.
+
+    """
+
+    bid_ct_00: int
+    """
+    The BidAskPair `bid_ct` at level 00.
+
+    """
+
+    ask_ct_00: int
+    """
+    The BidAskPair `ask_ct` at level 00.
+
+    """
+
+    @property
+    def pretty_bid_px_01(self) -> float:
+        """
+        The BidAskPair `bid_px` at level 01 as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        bid_px_01
+
+        """
+    bid_px_01: int
+    """
+    The BidAskPair `bid_px` at level 01.
+
+    See Also: pretty_bid_px_01
+
+    """
+
+    @property
+    def pretty_ask_px_01(self) -> float:
+        """
+        The BidAskPair `ask_px` at level 01 as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        ask_px_01
+
+        """
+    ask_px_01: int
+    """
+    The BidAskPair `ask_px` at level 01.
+
+    See Also: pretty_ask_px_01
+
+    """
+
+    bid_sz_01: int
+    """
+    The BidAskPair `bid_sz` at level 01.
+
+    """
+
+    ask_sz_01: int
+    """
+    The BidAskPair `ask_sz` at level 01.
+
+    """
+
+    bid_ct_01: int
+    """
+    The BidAskPair `bid_ct` at level 01.
+
+    """
+
+    ask_ct_01: int
+    """
+    The BidAskPair `ask_ct` at level 01.
+
+    """
+
+    @property
+    def pretty_bid_px_02(self) -> float:
+        """
+        The BidAskPair `bid_px` at level 02 as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        bid_px_02
+
+        """
+    bid_px_02: int
+    """
+    The BidAskPair `bid_px` at level 02.
+
+    See Also: pretty_bid_px_02
+
+    """
+
+    @property
+    def pretty_ask_px_02(self) -> float:
+        """
+        The BidAskPair `ask_px` at level 02 as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        ask_px_02
+
+        """
+    ask_px_02: int
+    """
+    The BidAskPair `ask_px` at level 02.
+
+    See Also: pretty_ask_px_02
+
+    """
+
+    bid_sz_02: int
+    """
+    The BidAskPair `bid_sz` at level 02.
+
+    """
+
+    ask_sz_02: int
+    """
+    The BidAskPair `ask_sz` at level 02.
+
+    """
+
+    bid_ct_02: int
+    """
+    The BidAskPair `bid_ct` at level 02.
+
+    """
+
+    ask_ct_02: int
+    """
+    The BidAskPair `ask_ct` at level 02.
+
+    """
+
+    @property
+    def pretty_bid_px_03(self) -> float:
+        """
+        The BidAskPair `bid_px` at level 03 as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        bid_px_03
+
+        """
+    bid_px_03: int
+    """
+    The BidAskPair `bid_px` at level 03.
+
+    See Also: pretty_bid_px_03
+
+    """
+
+    @property
+    def pretty_ask_px_03(self) -> float:
+        """
+        The BidAskPair `ask_px` at level 03 as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        ask_px_03
+
+        """
+    ask_px_03: int
+    """
+    The BidAskPair `ask_px` at level 03.
+
+    See Also: pretty_ask_px_03
+
+    """
+
+    bid_sz_03: int
+    """
+    The BidAskPair `bid_sz` at level 03.
+
+    """
+
+    ask_sz_03: int
+    """
+    The BidAskPair `ask_sz` at level 03.
+
+    """
+
+    bid_ct_03: int
+    """
+    The BidAskPair `bid_ct` at level 03.
+
+    """
+
+    ask_ct_03: int
+    """
+    The BidAskPair `ask_ct` at level 03.
+
+    """
+
+    @property
+    def pretty_bid_px_04(self) -> float:
+        """
+        The BidAskPair `bid_px` at level 04 as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        bid_px_04
+
+        """
+    bid_px_04: int
+    """
+    The BidAskPair `bid_px` at level 04.
+
+    See Also: pretty_bid_px_04
+
+    """
+
+    @property
+    def pretty_ask_px_04(self) -> float:
+        """
+        The BidAskPair `ask_px` at level 04 as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        ask_px_04
+
+        """
+    ask_px_04: int
+    """
+    The BidAskPair `ask_px` at level 04.
+
+    See Also: pretty_ask_px_04
+
+    """
+
+    bid_sz_04: int
+    """
+    The BidAskPair `bid_sz` at level 04.
+
+    """
+
+    ask_sz_04: int
+    """
+    The BidAskPair `ask_sz` at level 04.
+
+    """
+
+    bid_ct_04: int
+    """
+    The BidAskPair `bid_ct` at level 04.
+
+    """
+
+    ask_ct_04: int
+    """
+    The BidAskPair `ask_ct` at level 04.
+
+    """
+
+    @property
+    def pretty_bid_px_05(self) -> float:
+        """
+        The BidAskPair `bid_px` at level 05 as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        bid_px_05
+
+        """
+    bid_px_05: int
+    """
+    The BidAskPair `bid_px` at level 05.
+
+    See Also: pretty_bid_px_05
+
+    """
+
+    @property
+    def pretty_ask_px_05(self) -> float:
+        """
+        The BidAskPair `ask_px` at level 05 as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        ask_px_05
+
+        """
+    ask_px_05: int
+    """
+    The BidAskPair `ask_px` at level 05.
+
+    See Also: pretty_ask_px_05
+
+    """
+
+    bid_sz_05: int
+    """
+    The BidAskPair `bid_sz` at level 05.
+
+    """
+
+    ask_sz_05: int
+    """
+    The BidAskPair `ask_sz` at level 05.
+
+    """
+
+    bid_ct_05: int
+    """
+    The BidAskPair `bid_ct` at level 05.
+
+    """
+
+    ask_ct_05: int
+    """
+    The BidAskPair `ask_ct` at level 05.
+
+    """
+
+    @property
+    def pretty_bid_px_06(self) -> float:
+        """
+        The BidAskPair `bid_px` at level 06 as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        bid_px_06
+
+        """
+    bid_px_06: int
+    """
+    The BidAskPair `bid_px` at level 06.
+
+    See Also: pretty_bid_px_06
+
+    """
+
+    @property
+    def pretty_ask_px_06(self) -> float:
+        """
+        The BidAskPair `ask_px` at level 06 as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        ask_px_06
+
+        """
+    ask_px_06: int
+    """
+    The BidAskPair `ask_px` at level 06.
+
+    See Also: pretty_ask_px_06
+
+    """
+
+    bid_sz_06: int
+    """
+    The BidAskPair `bid_sz` at level 06.
+
+    """
+
+    ask_sz_06: int
+    """
+    The BidAskPair `ask_sz` at level 06.
+
+    """
+
+    bid_ct_06: int
+    """
+    The BidAskPair `bid_ct` at level 06.
+
+    """
+
+    ask_ct_06: int
+    """
+    The BidAskPair `ask_ct` at level 06.
+
+    """
+
+    @property
+    def pretty_bid_px_07(self) -> float:
+        """
+        The BidAskPair `bid_px` at level 07 as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        bid_px_07
+
+        """
+    bid_px_07: int
+    """
+    The BidAskPair `bid_px` at level 07.
+
+    See Also: pretty_bid_px_07
+
+    """
+
+    @property
+    def pretty_ask_px_07(self) -> float:
+        """
+        The BidAskPair `ask_px` at level 07 as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        ask_px_07
+
+        """
+    ask_px_07: int
+    """
+    The BidAskPair `ask_px` at level 07.
+
+    See Also: pretty_ask_px_07
+
+    """
+
+    bid_sz_07: int
+    """
+    The BidAskPair `bid_sz` at level 07.
+
+    """
+
+    ask_sz_07: int
+    """
+    The BidAskPair `ask_sz` at level 07.
+
+    """
+
+    bid_ct_07: int
+    """
+    The BidAskPair `bid_ct` at level 07.
+
+    """
+
+    ask_ct_07: int
+    """
+    The BidAskPair `ask_ct` at level 07.
+
+    """
+
+    @property
+    def pretty_bid_px_08(self) -> float:
+        """
+        The BidAskPair `bid_px` at level 08 as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        bid_px_08
+
+        """
+    bid_px_08: int
+    """
+    The BidAskPair `bid_px` at level 08.
+
+    See Also: pretty_bid_px_08
+
+    """
+
+    @property
+    def pretty_ask_px_08(self) -> float:
+        """
+        The BidAskPair `ask_px` at level 08 as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        ask_px_08
+
+        """
+    ask_px_08: int
+    """
+    The BidAskPair `ask_px` at level 08.
+
+    See Also: pretty_ask_px_08
+
+    """
+
+    bid_sz_08: int
+    """
+    The BidAskPair `bid_sz` at level 08.
+
+    """
+
+    ask_sz_08: int
+    """
+    The BidAskPair `ask_sz` at level 08.
+
+    """
+
+    bid_ct_08: int
+    """
+    The BidAskPair `bid_ct` at level 08.
+
+    """
+
+    ask_ct_08: int
+    """
+    The BidAskPair `ask_ct` at level 08.
+
+    """
+
+    @property
+    def pretty_bid_px_09(self) -> float:
+        """
+        The BidAskPair `bid_px` at level 09 as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        bid_px_09
+
+        """
+    bid_px_09: int
+    """
+    The BidAskPair `bid_px` at level 09.
+
+    See Also: pretty_bid_px_09
+
+    """
+
+    @property
+    def pretty_ask_px_09(self) -> float:
+        """
+        The BidAskPair `ask_px` at level 09 as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        ask_px_09
+
+        """
+    ask_px_09: int
+    """
+    The BidAskPair `ask_px` at level 09.
+
+    See Also: pretty_ask_px_09
+
+    """
+
+    bid_sz_09: int
+    """
+    The BidAskPair `bid_sz` at level 09.
+
+    """
+
+    ask_sz_09: int
+    """
+    The BidAskPair `ask_sz` at level 09.
+
+    """
+
+    bid_ct_09: int
+    """
+    The BidAskPair `bid_ct` at level 09.
+
+    """
+
+    ask_ct_09: int
+    """
+    The BidAskPair `ask_ct` at level 09.
+
+    """
+
 class BBOMsg:
     """
     Subsampled market by price with a known book depth of 1. The record of the BBO-1s and
@@ -2993,6 +3741,74 @@ class BBOMsg:
         BBOMsg contains 1 level of BidAskPair.
 
         """
+
+    @property
+    def pretty_bid_px_00(self) -> float:
+        """
+        The BidAskPair `bid_px` at level 00 as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        bid_px_00
+
+        """
+    bid_px_00: int
+    """
+    The BidAskPair `bid_px` at level 00.
+
+    See Also: pretty_bid_px_00
+
+    """
+
+    @property
+    def pretty_ask_px_00(self) -> float:
+        """
+        The BidAskPair `ask_px` at level 00 as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        ask_px_00
+
+        """
+    ask_px_00: int
+    """
+    The BidAskPair `ask_px` at level 00.
+
+    See Also: pretty_ask_px_00
+
+    """
+
+    bid_sz_00: int
+    """
+    The BidAskPair `bid_sz` at level 00.
+
+    """
+
+    ask_sz_00: int
+    """
+    The BidAskPair `ask_sz` at level 00.
+
+    """
+
+    bid_ct_00: int
+    """
+    The BidAskPair `bid_ct` at level 00.
+
+    """
+
+    ask_ct_00: int
+    """
+    The BidAskPair `ask_ct` at level 00.
+
+    """
 
 class CMBP1Msg:
     """
@@ -3257,6 +4073,74 @@ class CMBP1Msg:
 
         """
 
+    @property
+    def pretty_bid_px_00(self) -> float:
+        """
+        The ConsolidatedBidAskPair `bid_px` at level 00 as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        bid_px_00
+
+        """
+    bid_px_00: int
+    """
+    The ConsolidatedBidAskPair `bid_px` at level 00.
+
+    See Also: pretty_bid_px_00
+
+    """
+
+    @property
+    def pretty_ask_px_00(self) -> float:
+        """
+        The ConsolidatedBidAskPair `ask_px` at level 00 as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        ask_px_00
+
+        """
+    ask_px_00: int
+    """
+    The ConsolidatedBidAskPair `ask_px` at level 00.
+
+    See Also: pretty_ask_px_00
+
+    """
+
+    bid_sz_00: int
+    """
+    The ConsolidatedBidAskPair `bid_sz` at level 00.
+
+    """
+
+    ask_sz_00: int
+    """
+    The ConsolidatedBidAskPair `ask_sz` at level 00.
+
+    """
+
+    bid_pb_00: int
+    """
+    The ConsolidatedBidAskPair `bid_pb` at level 00.
+
+    """
+
+    ask_pb_00: int
+    """
+    The ConsolidatedBidAskPair `ask_pb` at level 00.
+
+    """
+
 class CBBOMsg:
     """
     Subsampled consolidated market by price with a known book depth of 1. The record of the CBBO-1s and CBBO-1m schemas.
@@ -3493,6 +4377,74 @@ class CBBOMsg:
         CBBOMsg contains 1 level of ConsolidatedBidAskPair.
 
         """
+
+    @property
+    def pretty_bid_px_00(self) -> float:
+        """
+        The ConsolidatedBidAskPair `bid_px` at level 00 as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        bid_px_00
+
+        """
+    bid_px_00: int
+    """
+    The ConsolidatedBidAskPair `bid_px` at level 00.
+
+    See Also: pretty_bid_px_00
+
+    """
+
+    @property
+    def pretty_ask_px_00(self) -> float:
+        """
+        The ConsolidatedBidAskPair `ask_px` at level 00 as a float.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        ask_px_00
+
+        """
+    ask_px_00: int
+    """
+    The ConsolidatedBidAskPair `ask_px` at level 00.
+
+    See Also: pretty_ask_px_00
+
+    """
+
+    bid_sz_00: int
+    """
+    The ConsolidatedBidAskPair `bid_sz` at level 00.
+
+    """
+
+    ask_sz_00: int
+    """
+    The ConsolidatedBidAskPair `ask_sz` at level 00.
+
+    """
+
+    bid_pb_00: int
+    """
+    The ConsolidatedBidAskPair `bid_pb` at level 00.
+
+    """
+
+    ask_pb_00: int
+    """
+    The ConsolidatedBidAskPair `ask_pb` at level 00.
+
+    """
 
 TBBOMsg = MBP1Msg
 

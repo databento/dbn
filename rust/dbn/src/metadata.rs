@@ -107,9 +107,9 @@ impl Metadata {
     /// time range of the request. Otherwise, [`Self::symbol_map()`] is recommended.
     ///
     /// # Errors
-    /// This function returns an error if `stype_out` is not [`SType::InstrumentId`] or
-    /// it can't parse a symbol into a `u32` instrument ID. It will also return an error
-    /// if `date` is outside the query range.
+    /// This function returns an error if neither `stype_in` nor `stype_out` is
+    /// [`SType::InstrumentId`], or if a symbol cannot be parsed into a `u32` instrument
+    /// ID, or if `date` is outside the query range.
     pub fn symbol_map_for_date(&self, date: time::Date) -> crate::Result<PitSymbolMap> {
         PitSymbolMap::from_metadata(self, date)
     }
@@ -120,8 +120,9 @@ impl Metadata {
     /// change, [`Self::symbol_map_for_date()`] is recommended.
     ///
     /// # Errors
-    /// This function returns an error if `stype_out` is not [`SType::InstrumentId`] or
-    /// it can't parse a symbol into a `u32` instrument ID.
+    /// This function returns an error if neither `stype_in` nor `stype_out` is
+    /// [`SType::InstrumentId`], or if a symbol cannot be parsed into a `u32` instrument
+    /// ID.
     pub fn symbol_map(&self) -> crate::Result<TsSymbolMap> {
         TsSymbolMap::from_metadata(self)
     }

@@ -999,6 +999,63 @@ impl PyMbp1Msg {
         self.inner.levels = levels;
     }
 
+    #[getter]
+    fn get_bid_px_00(&self) -> i64 {
+        self.inner.levels[0].bid_px
+    }
+    #[setter]
+    fn set_bid_px_00(&mut self, bid_px: i64) {
+        self.inner.levels[0].bid_px = bid_px;
+    }
+    #[getter]
+    fn get_pretty_bid_px_00(&self) -> f64 {
+        self.inner.levels[0].bid_px_f64()
+    }
+    #[getter]
+    fn get_ask_px_00(&self) -> i64 {
+        self.inner.levels[0].ask_px
+    }
+    #[setter]
+    fn set_ask_px_00(&mut self, ask_px: i64) {
+        self.inner.levels[0].ask_px = ask_px;
+    }
+    #[getter]
+    fn get_pretty_ask_px_00(&self) -> f64 {
+        self.inner.levels[0].ask_px_f64()
+    }
+    #[getter]
+    fn get_bid_sz_00(&self) -> u32 {
+        self.inner.levels[0].bid_sz
+    }
+    #[setter]
+    fn set_bid_sz_00(&mut self, bid_sz: u32) {
+        self.inner.levels[0].bid_sz = bid_sz;
+    }
+    #[getter]
+    fn get_ask_sz_00(&self) -> u32 {
+        self.inner.levels[0].ask_sz
+    }
+    #[setter]
+    fn set_ask_sz_00(&mut self, ask_sz: u32) {
+        self.inner.levels[0].ask_sz = ask_sz;
+    }
+    #[getter]
+    fn get_bid_ct_00(&self) -> u32 {
+        self.inner.levels[0].bid_ct
+    }
+    #[setter]
+    fn set_bid_ct_00(&mut self, bid_ct: u32) {
+        self.inner.levels[0].bid_ct = bid_ct;
+    }
+    #[getter]
+    fn get_ask_ct_00(&self) -> u32 {
+        self.inner.levels[0].ask_ct
+    }
+    #[setter]
+    fn set_ask_ct_00(&mut self, ask_ct: u32) {
+        self.inner.levels[0].ask_ct = ask_ct;
+    }
+
     #[classattr]
     #[pyo3(name = "_dtypes")]
     fn py_dtypes() -> Vec<(String, String)> {
@@ -1321,6 +1378,567 @@ impl PyMbp10Msg {
         self.inner.levels = levels;
     }
 
+    #[getter]
+    fn get_bid_px_00(&self) -> i64 {
+        self.inner.levels[0].bid_px
+    }
+    #[setter]
+    fn set_bid_px_00(&mut self, bid_px: i64) {
+        self.inner.levels[0].bid_px = bid_px;
+    }
+    #[getter]
+    fn get_pretty_bid_px_00(&self) -> f64 {
+        self.inner.levels[0].bid_px_f64()
+    }
+    #[getter]
+    fn get_ask_px_00(&self) -> i64 {
+        self.inner.levels[0].ask_px
+    }
+    #[setter]
+    fn set_ask_px_00(&mut self, ask_px: i64) {
+        self.inner.levels[0].ask_px = ask_px;
+    }
+    #[getter]
+    fn get_pretty_ask_px_00(&self) -> f64 {
+        self.inner.levels[0].ask_px_f64()
+    }
+    #[getter]
+    fn get_bid_sz_00(&self) -> u32 {
+        self.inner.levels[0].bid_sz
+    }
+    #[setter]
+    fn set_bid_sz_00(&mut self, bid_sz: u32) {
+        self.inner.levels[0].bid_sz = bid_sz;
+    }
+    #[getter]
+    fn get_ask_sz_00(&self) -> u32 {
+        self.inner.levels[0].ask_sz
+    }
+    #[setter]
+    fn set_ask_sz_00(&mut self, ask_sz: u32) {
+        self.inner.levels[0].ask_sz = ask_sz;
+    }
+    #[getter]
+    fn get_bid_ct_00(&self) -> u32 {
+        self.inner.levels[0].bid_ct
+    }
+    #[setter]
+    fn set_bid_ct_00(&mut self, bid_ct: u32) {
+        self.inner.levels[0].bid_ct = bid_ct;
+    }
+    #[getter]
+    fn get_ask_ct_00(&self) -> u32 {
+        self.inner.levels[0].ask_ct
+    }
+    #[setter]
+    fn set_ask_ct_00(&mut self, ask_ct: u32) {
+        self.inner.levels[0].ask_ct = ask_ct;
+    }
+    #[getter]
+    fn get_bid_px_01(&self) -> i64 {
+        self.inner.levels[1].bid_px
+    }
+    #[setter]
+    fn set_bid_px_01(&mut self, bid_px: i64) {
+        self.inner.levels[1].bid_px = bid_px;
+    }
+    #[getter]
+    fn get_pretty_bid_px_01(&self) -> f64 {
+        self.inner.levels[1].bid_px_f64()
+    }
+    #[getter]
+    fn get_ask_px_01(&self) -> i64 {
+        self.inner.levels[1].ask_px
+    }
+    #[setter]
+    fn set_ask_px_01(&mut self, ask_px: i64) {
+        self.inner.levels[1].ask_px = ask_px;
+    }
+    #[getter]
+    fn get_pretty_ask_px_01(&self) -> f64 {
+        self.inner.levels[1].ask_px_f64()
+    }
+    #[getter]
+    fn get_bid_sz_01(&self) -> u32 {
+        self.inner.levels[1].bid_sz
+    }
+    #[setter]
+    fn set_bid_sz_01(&mut self, bid_sz: u32) {
+        self.inner.levels[1].bid_sz = bid_sz;
+    }
+    #[getter]
+    fn get_ask_sz_01(&self) -> u32 {
+        self.inner.levels[1].ask_sz
+    }
+    #[setter]
+    fn set_ask_sz_01(&mut self, ask_sz: u32) {
+        self.inner.levels[1].ask_sz = ask_sz;
+    }
+    #[getter]
+    fn get_bid_ct_01(&self) -> u32 {
+        self.inner.levels[1].bid_ct
+    }
+    #[setter]
+    fn set_bid_ct_01(&mut self, bid_ct: u32) {
+        self.inner.levels[1].bid_ct = bid_ct;
+    }
+    #[getter]
+    fn get_ask_ct_01(&self) -> u32 {
+        self.inner.levels[1].ask_ct
+    }
+    #[setter]
+    fn set_ask_ct_01(&mut self, ask_ct: u32) {
+        self.inner.levels[1].ask_ct = ask_ct;
+    }
+    #[getter]
+    fn get_bid_px_02(&self) -> i64 {
+        self.inner.levels[2].bid_px
+    }
+    #[setter]
+    fn set_bid_px_02(&mut self, bid_px: i64) {
+        self.inner.levels[2].bid_px = bid_px;
+    }
+    #[getter]
+    fn get_pretty_bid_px_02(&self) -> f64 {
+        self.inner.levels[2].bid_px_f64()
+    }
+    #[getter]
+    fn get_ask_px_02(&self) -> i64 {
+        self.inner.levels[2].ask_px
+    }
+    #[setter]
+    fn set_ask_px_02(&mut self, ask_px: i64) {
+        self.inner.levels[2].ask_px = ask_px;
+    }
+    #[getter]
+    fn get_pretty_ask_px_02(&self) -> f64 {
+        self.inner.levels[2].ask_px_f64()
+    }
+    #[getter]
+    fn get_bid_sz_02(&self) -> u32 {
+        self.inner.levels[2].bid_sz
+    }
+    #[setter]
+    fn set_bid_sz_02(&mut self, bid_sz: u32) {
+        self.inner.levels[2].bid_sz = bid_sz;
+    }
+    #[getter]
+    fn get_ask_sz_02(&self) -> u32 {
+        self.inner.levels[2].ask_sz
+    }
+    #[setter]
+    fn set_ask_sz_02(&mut self, ask_sz: u32) {
+        self.inner.levels[2].ask_sz = ask_sz;
+    }
+    #[getter]
+    fn get_bid_ct_02(&self) -> u32 {
+        self.inner.levels[2].bid_ct
+    }
+    #[setter]
+    fn set_bid_ct_02(&mut self, bid_ct: u32) {
+        self.inner.levels[2].bid_ct = bid_ct;
+    }
+    #[getter]
+    fn get_ask_ct_02(&self) -> u32 {
+        self.inner.levels[2].ask_ct
+    }
+    #[setter]
+    fn set_ask_ct_02(&mut self, ask_ct: u32) {
+        self.inner.levels[2].ask_ct = ask_ct;
+    }
+    #[getter]
+    fn get_bid_px_03(&self) -> i64 {
+        self.inner.levels[3].bid_px
+    }
+    #[setter]
+    fn set_bid_px_03(&mut self, bid_px: i64) {
+        self.inner.levels[3].bid_px = bid_px;
+    }
+    #[getter]
+    fn get_pretty_bid_px_03(&self) -> f64 {
+        self.inner.levels[3].bid_px_f64()
+    }
+    #[getter]
+    fn get_ask_px_03(&self) -> i64 {
+        self.inner.levels[3].ask_px
+    }
+    #[setter]
+    fn set_ask_px_03(&mut self, ask_px: i64) {
+        self.inner.levels[3].ask_px = ask_px;
+    }
+    #[getter]
+    fn get_pretty_ask_px_03(&self) -> f64 {
+        self.inner.levels[3].ask_px_f64()
+    }
+    #[getter]
+    fn get_bid_sz_03(&self) -> u32 {
+        self.inner.levels[3].bid_sz
+    }
+    #[setter]
+    fn set_bid_sz_03(&mut self, bid_sz: u32) {
+        self.inner.levels[3].bid_sz = bid_sz;
+    }
+    #[getter]
+    fn get_ask_sz_03(&self) -> u32 {
+        self.inner.levels[3].ask_sz
+    }
+    #[setter]
+    fn set_ask_sz_03(&mut self, ask_sz: u32) {
+        self.inner.levels[3].ask_sz = ask_sz;
+    }
+    #[getter]
+    fn get_bid_ct_03(&self) -> u32 {
+        self.inner.levels[3].bid_ct
+    }
+    #[setter]
+    fn set_bid_ct_03(&mut self, bid_ct: u32) {
+        self.inner.levels[3].bid_ct = bid_ct;
+    }
+    #[getter]
+    fn get_ask_ct_03(&self) -> u32 {
+        self.inner.levels[3].ask_ct
+    }
+    #[setter]
+    fn set_ask_ct_03(&mut self, ask_ct: u32) {
+        self.inner.levels[3].ask_ct = ask_ct;
+    }
+    #[getter]
+    fn get_bid_px_04(&self) -> i64 {
+        self.inner.levels[4].bid_px
+    }
+    #[setter]
+    fn set_bid_px_04(&mut self, bid_px: i64) {
+        self.inner.levels[4].bid_px = bid_px;
+    }
+    #[getter]
+    fn get_pretty_bid_px_04(&self) -> f64 {
+        self.inner.levels[4].bid_px_f64()
+    }
+    #[getter]
+    fn get_ask_px_04(&self) -> i64 {
+        self.inner.levels[4].ask_px
+    }
+    #[setter]
+    fn set_ask_px_04(&mut self, ask_px: i64) {
+        self.inner.levels[4].ask_px = ask_px;
+    }
+    #[getter]
+    fn get_pretty_ask_px_04(&self) -> f64 {
+        self.inner.levels[4].ask_px_f64()
+    }
+    #[getter]
+    fn get_bid_sz_04(&self) -> u32 {
+        self.inner.levels[4].bid_sz
+    }
+    #[setter]
+    fn set_bid_sz_04(&mut self, bid_sz: u32) {
+        self.inner.levels[4].bid_sz = bid_sz;
+    }
+    #[getter]
+    fn get_ask_sz_04(&self) -> u32 {
+        self.inner.levels[4].ask_sz
+    }
+    #[setter]
+    fn set_ask_sz_04(&mut self, ask_sz: u32) {
+        self.inner.levels[4].ask_sz = ask_sz;
+    }
+    #[getter]
+    fn get_bid_ct_04(&self) -> u32 {
+        self.inner.levels[4].bid_ct
+    }
+    #[setter]
+    fn set_bid_ct_04(&mut self, bid_ct: u32) {
+        self.inner.levels[4].bid_ct = bid_ct;
+    }
+    #[getter]
+    fn get_ask_ct_04(&self) -> u32 {
+        self.inner.levels[4].ask_ct
+    }
+    #[setter]
+    fn set_ask_ct_04(&mut self, ask_ct: u32) {
+        self.inner.levels[4].ask_ct = ask_ct;
+    }
+    #[getter]
+    fn get_bid_px_05(&self) -> i64 {
+        self.inner.levels[5].bid_px
+    }
+    #[setter]
+    fn set_bid_px_05(&mut self, bid_px: i64) {
+        self.inner.levels[5].bid_px = bid_px;
+    }
+    #[getter]
+    fn get_pretty_bid_px_05(&self) -> f64 {
+        self.inner.levels[5].bid_px_f64()
+    }
+    #[getter]
+    fn get_ask_px_05(&self) -> i64 {
+        self.inner.levels[5].ask_px
+    }
+    #[setter]
+    fn set_ask_px_05(&mut self, ask_px: i64) {
+        self.inner.levels[5].ask_px = ask_px;
+    }
+    #[getter]
+    fn get_pretty_ask_px_05(&self) -> f64 {
+        self.inner.levels[5].ask_px_f64()
+    }
+    #[getter]
+    fn get_bid_sz_05(&self) -> u32 {
+        self.inner.levels[5].bid_sz
+    }
+    #[setter]
+    fn set_bid_sz_05(&mut self, bid_sz: u32) {
+        self.inner.levels[5].bid_sz = bid_sz;
+    }
+    #[getter]
+    fn get_ask_sz_05(&self) -> u32 {
+        self.inner.levels[5].ask_sz
+    }
+    #[setter]
+    fn set_ask_sz_05(&mut self, ask_sz: u32) {
+        self.inner.levels[5].ask_sz = ask_sz;
+    }
+    #[getter]
+    fn get_bid_ct_05(&self) -> u32 {
+        self.inner.levels[5].bid_ct
+    }
+    #[setter]
+    fn set_bid_ct_05(&mut self, bid_ct: u32) {
+        self.inner.levels[5].bid_ct = bid_ct;
+    }
+    #[getter]
+    fn get_ask_ct_05(&self) -> u32 {
+        self.inner.levels[5].ask_ct
+    }
+    #[setter]
+    fn set_ask_ct_05(&mut self, ask_ct: u32) {
+        self.inner.levels[5].ask_ct = ask_ct;
+    }
+    #[getter]
+    fn get_bid_px_06(&self) -> i64 {
+        self.inner.levels[6].bid_px
+    }
+    #[setter]
+    fn set_bid_px_06(&mut self, bid_px: i64) {
+        self.inner.levels[6].bid_px = bid_px;
+    }
+    #[getter]
+    fn get_pretty_bid_px_06(&self) -> f64 {
+        self.inner.levels[6].bid_px_f64()
+    }
+    #[getter]
+    fn get_ask_px_06(&self) -> i64 {
+        self.inner.levels[6].ask_px
+    }
+    #[setter]
+    fn set_ask_px_06(&mut self, ask_px: i64) {
+        self.inner.levels[6].ask_px = ask_px;
+    }
+    #[getter]
+    fn get_pretty_ask_px_06(&self) -> f64 {
+        self.inner.levels[6].ask_px_f64()
+    }
+    #[getter]
+    fn get_bid_sz_06(&self) -> u32 {
+        self.inner.levels[6].bid_sz
+    }
+    #[setter]
+    fn set_bid_sz_06(&mut self, bid_sz: u32) {
+        self.inner.levels[6].bid_sz = bid_sz;
+    }
+    #[getter]
+    fn get_ask_sz_06(&self) -> u32 {
+        self.inner.levels[6].ask_sz
+    }
+    #[setter]
+    fn set_ask_sz_06(&mut self, ask_sz: u32) {
+        self.inner.levels[6].ask_sz = ask_sz;
+    }
+    #[getter]
+    fn get_bid_ct_06(&self) -> u32 {
+        self.inner.levels[6].bid_ct
+    }
+    #[setter]
+    fn set_bid_ct_06(&mut self, bid_ct: u32) {
+        self.inner.levels[6].bid_ct = bid_ct;
+    }
+    #[getter]
+    fn get_ask_ct_06(&self) -> u32 {
+        self.inner.levels[6].ask_ct
+    }
+    #[setter]
+    fn set_ask_ct_06(&mut self, ask_ct: u32) {
+        self.inner.levels[6].ask_ct = ask_ct;
+    }
+    #[getter]
+    fn get_bid_px_07(&self) -> i64 {
+        self.inner.levels[7].bid_px
+    }
+    #[setter]
+    fn set_bid_px_07(&mut self, bid_px: i64) {
+        self.inner.levels[7].bid_px = bid_px;
+    }
+    #[getter]
+    fn get_pretty_bid_px_07(&self) -> f64 {
+        self.inner.levels[7].bid_px_f64()
+    }
+    #[getter]
+    fn get_ask_px_07(&self) -> i64 {
+        self.inner.levels[7].ask_px
+    }
+    #[setter]
+    fn set_ask_px_07(&mut self, ask_px: i64) {
+        self.inner.levels[7].ask_px = ask_px;
+    }
+    #[getter]
+    fn get_pretty_ask_px_07(&self) -> f64 {
+        self.inner.levels[7].ask_px_f64()
+    }
+    #[getter]
+    fn get_bid_sz_07(&self) -> u32 {
+        self.inner.levels[7].bid_sz
+    }
+    #[setter]
+    fn set_bid_sz_07(&mut self, bid_sz: u32) {
+        self.inner.levels[7].bid_sz = bid_sz;
+    }
+    #[getter]
+    fn get_ask_sz_07(&self) -> u32 {
+        self.inner.levels[7].ask_sz
+    }
+    #[setter]
+    fn set_ask_sz_07(&mut self, ask_sz: u32) {
+        self.inner.levels[7].ask_sz = ask_sz;
+    }
+    #[getter]
+    fn get_bid_ct_07(&self) -> u32 {
+        self.inner.levels[7].bid_ct
+    }
+    #[setter]
+    fn set_bid_ct_07(&mut self, bid_ct: u32) {
+        self.inner.levels[7].bid_ct = bid_ct;
+    }
+    #[getter]
+    fn get_ask_ct_07(&self) -> u32 {
+        self.inner.levels[7].ask_ct
+    }
+    #[setter]
+    fn set_ask_ct_07(&mut self, ask_ct: u32) {
+        self.inner.levels[7].ask_ct = ask_ct;
+    }
+    #[getter]
+    fn get_bid_px_08(&self) -> i64 {
+        self.inner.levels[8].bid_px
+    }
+    #[setter]
+    fn set_bid_px_08(&mut self, bid_px: i64) {
+        self.inner.levels[8].bid_px = bid_px;
+    }
+    #[getter]
+    fn get_pretty_bid_px_08(&self) -> f64 {
+        self.inner.levels[8].bid_px_f64()
+    }
+    #[getter]
+    fn get_ask_px_08(&self) -> i64 {
+        self.inner.levels[8].ask_px
+    }
+    #[setter]
+    fn set_ask_px_08(&mut self, ask_px: i64) {
+        self.inner.levels[8].ask_px = ask_px;
+    }
+    #[getter]
+    fn get_pretty_ask_px_08(&self) -> f64 {
+        self.inner.levels[8].ask_px_f64()
+    }
+    #[getter]
+    fn get_bid_sz_08(&self) -> u32 {
+        self.inner.levels[8].bid_sz
+    }
+    #[setter]
+    fn set_bid_sz_08(&mut self, bid_sz: u32) {
+        self.inner.levels[8].bid_sz = bid_sz;
+    }
+    #[getter]
+    fn get_ask_sz_08(&self) -> u32 {
+        self.inner.levels[8].ask_sz
+    }
+    #[setter]
+    fn set_ask_sz_08(&mut self, ask_sz: u32) {
+        self.inner.levels[8].ask_sz = ask_sz;
+    }
+    #[getter]
+    fn get_bid_ct_08(&self) -> u32 {
+        self.inner.levels[8].bid_ct
+    }
+    #[setter]
+    fn set_bid_ct_08(&mut self, bid_ct: u32) {
+        self.inner.levels[8].bid_ct = bid_ct;
+    }
+    #[getter]
+    fn get_ask_ct_08(&self) -> u32 {
+        self.inner.levels[8].ask_ct
+    }
+    #[setter]
+    fn set_ask_ct_08(&mut self, ask_ct: u32) {
+        self.inner.levels[8].ask_ct = ask_ct;
+    }
+    #[getter]
+    fn get_bid_px_09(&self) -> i64 {
+        self.inner.levels[9].bid_px
+    }
+    #[setter]
+    fn set_bid_px_09(&mut self, bid_px: i64) {
+        self.inner.levels[9].bid_px = bid_px;
+    }
+    #[getter]
+    fn get_pretty_bid_px_09(&self) -> f64 {
+        self.inner.levels[9].bid_px_f64()
+    }
+    #[getter]
+    fn get_ask_px_09(&self) -> i64 {
+        self.inner.levels[9].ask_px
+    }
+    #[setter]
+    fn set_ask_px_09(&mut self, ask_px: i64) {
+        self.inner.levels[9].ask_px = ask_px;
+    }
+    #[getter]
+    fn get_pretty_ask_px_09(&self) -> f64 {
+        self.inner.levels[9].ask_px_f64()
+    }
+    #[getter]
+    fn get_bid_sz_09(&self) -> u32 {
+        self.inner.levels[9].bid_sz
+    }
+    #[setter]
+    fn set_bid_sz_09(&mut self, bid_sz: u32) {
+        self.inner.levels[9].bid_sz = bid_sz;
+    }
+    #[getter]
+    fn get_ask_sz_09(&self) -> u32 {
+        self.inner.levels[9].ask_sz
+    }
+    #[setter]
+    fn set_ask_sz_09(&mut self, ask_sz: u32) {
+        self.inner.levels[9].ask_sz = ask_sz;
+    }
+    #[getter]
+    fn get_bid_ct_09(&self) -> u32 {
+        self.inner.levels[9].bid_ct
+    }
+    #[setter]
+    fn set_bid_ct_09(&mut self, bid_ct: u32) {
+        self.inner.levels[9].bid_ct = bid_ct;
+    }
+    #[getter]
+    fn get_ask_ct_09(&self) -> u32 {
+        self.inner.levels[9].ask_ct
+    }
+    #[setter]
+    fn set_ask_ct_09(&mut self, ask_ct: u32) {
+        self.inner.levels[9].ask_ct = ask_ct;
+    }
+
     #[classattr]
     #[pyo3(name = "_dtypes")]
     fn py_dtypes() -> Vec<(String, String)> {
@@ -1603,6 +2221,63 @@ impl PyBboMsg {
     #[setter]
     fn set_levels(&mut self, levels: [BidAskPair; 1]) {
         self.inner.levels = levels;
+    }
+
+    #[getter]
+    fn get_bid_px_00(&self) -> i64 {
+        self.inner.levels[0].bid_px
+    }
+    #[setter]
+    fn set_bid_px_00(&mut self, bid_px: i64) {
+        self.inner.levels[0].bid_px = bid_px;
+    }
+    #[getter]
+    fn get_pretty_bid_px_00(&self) -> f64 {
+        self.inner.levels[0].bid_px_f64()
+    }
+    #[getter]
+    fn get_ask_px_00(&self) -> i64 {
+        self.inner.levels[0].ask_px
+    }
+    #[setter]
+    fn set_ask_px_00(&mut self, ask_px: i64) {
+        self.inner.levels[0].ask_px = ask_px;
+    }
+    #[getter]
+    fn get_pretty_ask_px_00(&self) -> f64 {
+        self.inner.levels[0].ask_px_f64()
+    }
+    #[getter]
+    fn get_bid_sz_00(&self) -> u32 {
+        self.inner.levels[0].bid_sz
+    }
+    #[setter]
+    fn set_bid_sz_00(&mut self, bid_sz: u32) {
+        self.inner.levels[0].bid_sz = bid_sz;
+    }
+    #[getter]
+    fn get_ask_sz_00(&self) -> u32 {
+        self.inner.levels[0].ask_sz
+    }
+    #[setter]
+    fn set_ask_sz_00(&mut self, ask_sz: u32) {
+        self.inner.levels[0].ask_sz = ask_sz;
+    }
+    #[getter]
+    fn get_bid_ct_00(&self) -> u32 {
+        self.inner.levels[0].bid_ct
+    }
+    #[setter]
+    fn set_bid_ct_00(&mut self, bid_ct: u32) {
+        self.inner.levels[0].bid_ct = bid_ct;
+    }
+    #[getter]
+    fn get_ask_ct_00(&self) -> u32 {
+        self.inner.levels[0].ask_ct
+    }
+    #[setter]
+    fn set_ask_ct_00(&mut self, ask_ct: u32) {
+        self.inner.levels[0].ask_ct = ask_ct;
     }
 
     #[classattr]
@@ -1902,6 +2577,63 @@ impl PyCmbp1Msg {
         self.inner.levels = levels;
     }
 
+    #[getter]
+    fn get_bid_px_00(&self) -> i64 {
+        self.inner.levels[0].bid_px
+    }
+    #[setter]
+    fn set_bid_px_00(&mut self, bid_px: i64) {
+        self.inner.levels[0].bid_px = bid_px;
+    }
+    #[getter]
+    fn get_pretty_bid_px_00(&self) -> f64 {
+        self.inner.levels[0].bid_px_f64()
+    }
+    #[getter]
+    fn get_ask_px_00(&self) -> i64 {
+        self.inner.levels[0].ask_px
+    }
+    #[setter]
+    fn set_ask_px_00(&mut self, ask_px: i64) {
+        self.inner.levels[0].ask_px = ask_px;
+    }
+    #[getter]
+    fn get_pretty_ask_px_00(&self) -> f64 {
+        self.inner.levels[0].ask_px_f64()
+    }
+    #[getter]
+    fn get_bid_sz_00(&self) -> u32 {
+        self.inner.levels[0].bid_sz
+    }
+    #[setter]
+    fn set_bid_sz_00(&mut self, bid_sz: u32) {
+        self.inner.levels[0].bid_sz = bid_sz;
+    }
+    #[getter]
+    fn get_ask_sz_00(&self) -> u32 {
+        self.inner.levels[0].ask_sz
+    }
+    #[setter]
+    fn set_ask_sz_00(&mut self, ask_sz: u32) {
+        self.inner.levels[0].ask_sz = ask_sz;
+    }
+    #[getter]
+    fn get_bid_pb_00(&self) -> u16 {
+        self.inner.levels[0].bid_pb
+    }
+    #[setter]
+    fn set_bid_pb_00(&mut self, bid_pb: u16) {
+        self.inner.levels[0].bid_pb = bid_pb;
+    }
+    #[getter]
+    fn get_ask_pb_00(&self) -> u16 {
+        self.inner.levels[0].ask_pb
+    }
+    #[setter]
+    fn set_ask_pb_00(&mut self, ask_pb: u16) {
+        self.inner.levels[0].ask_pb = ask_pb;
+    }
+
     #[classattr]
     #[pyo3(name = "_dtypes")]
     fn py_dtypes() -> Vec<(String, String)> {
@@ -2172,6 +2904,63 @@ impl PyCbboMsg {
     #[setter]
     fn set_levels(&mut self, levels: [ConsolidatedBidAskPair; 1]) {
         self.inner.levels = levels;
+    }
+
+    #[getter]
+    fn get_bid_px_00(&self) -> i64 {
+        self.inner.levels[0].bid_px
+    }
+    #[setter]
+    fn set_bid_px_00(&mut self, bid_px: i64) {
+        self.inner.levels[0].bid_px = bid_px;
+    }
+    #[getter]
+    fn get_pretty_bid_px_00(&self) -> f64 {
+        self.inner.levels[0].bid_px_f64()
+    }
+    #[getter]
+    fn get_ask_px_00(&self) -> i64 {
+        self.inner.levels[0].ask_px
+    }
+    #[setter]
+    fn set_ask_px_00(&mut self, ask_px: i64) {
+        self.inner.levels[0].ask_px = ask_px;
+    }
+    #[getter]
+    fn get_pretty_ask_px_00(&self) -> f64 {
+        self.inner.levels[0].ask_px_f64()
+    }
+    #[getter]
+    fn get_bid_sz_00(&self) -> u32 {
+        self.inner.levels[0].bid_sz
+    }
+    #[setter]
+    fn set_bid_sz_00(&mut self, bid_sz: u32) {
+        self.inner.levels[0].bid_sz = bid_sz;
+    }
+    #[getter]
+    fn get_ask_sz_00(&self) -> u32 {
+        self.inner.levels[0].ask_sz
+    }
+    #[setter]
+    fn set_ask_sz_00(&mut self, ask_sz: u32) {
+        self.inner.levels[0].ask_sz = ask_sz;
+    }
+    #[getter]
+    fn get_bid_pb_00(&self) -> u16 {
+        self.inner.levels[0].bid_pb
+    }
+    #[setter]
+    fn set_bid_pb_00(&mut self, bid_pb: u16) {
+        self.inner.levels[0].bid_pb = bid_pb;
+    }
+    #[getter]
+    fn get_ask_pb_00(&self) -> u16 {
+        self.inner.levels[0].ask_pb
+    }
+    #[setter]
+    fn set_ask_pb_00(&mut self, ask_pb: u16) {
+        self.inner.levels[0].ask_pb = ask_pb;
     }
 
     #[classattr]
