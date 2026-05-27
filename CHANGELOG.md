@@ -7,6 +7,7 @@
   the `EncodeRecordRef` and `AsyncEncodeRecordRef` traits. The DBN encoder uses vectored
   I/O to append the `ts_out` timestamp without copying the record body, while
   CSV and JSON encoders serialize from a cloned struct as usual
+- Added new venues, datasets, and publishers for US Equities Securities Information Processors
 
 ## 0.58.0 - 2026-05-12
 
