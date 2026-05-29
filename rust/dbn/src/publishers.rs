@@ -592,6 +592,8 @@ impl Dataset {
                 Publisher::EqusSipFiny,
                 Publisher::EqusSipFinc,
                 Publisher::EqusSipXadf,
+                Publisher::EqusSipCta,
+                Publisher::EqusSipUtp,
             ],
         }
     }
@@ -937,10 +939,14 @@ pub enum Publisher {
     EqusSipFinc = 132,
     /// US Equities SIP - FINRA Alternative Display Facility
     EqusSipXadf = 133,
+    /// US Equities SIP - CTA
+    EqusSipCta = 134,
+    /// US Equities SIP - UTP
+    EqusSipUtp = 135,
 }
 
 /// The number of [`Publisher`] variants.
-pub const PUBLISHER_COUNT: usize = 133;
+pub const PUBLISHER_COUNT: usize = 135;
 
 impl Publisher {
     /// Converts the publisher to its `str` representation.
@@ -1079,6 +1085,8 @@ impl Publisher {
             Self::EqusSipFiny => "EQUS.SIP.FINY",
             Self::EqusSipFinc => "EQUS.SIP.FINC",
             Self::EqusSipXadf => "EQUS.SIP.XADF",
+            Self::EqusSipCta => "EQUS.SIP.CTA",
+            Self::EqusSipUtp => "EQUS.SIP.UTP",
         }
     }
 
@@ -1218,6 +1226,8 @@ impl Publisher {
             Self::EqusSipFiny => Venue::Finy,
             Self::EqusSipFinc => Venue::Finc,
             Self::EqusSipXadf => Venue::Xadf,
+            Self::EqusSipCta => Venue::Cta,
+            Self::EqusSipUtp => Venue::Utp,
         }
     }
 
@@ -1357,6 +1367,8 @@ impl Publisher {
             Self::EqusSipFiny => Dataset::EqusSip,
             Self::EqusSipFinc => Dataset::EqusSip,
             Self::EqusSipXadf => Dataset::EqusSip,
+            Self::EqusSipCta => Dataset::EqusSip,
+            Self::EqusSipUtp => Dataset::EqusSip,
         }
     }
 
@@ -1499,6 +1511,8 @@ impl Publisher {
             (Dataset::EqusSip, Venue::Finy) => Ok(Self::EqusSipFiny),
             (Dataset::EqusSip, Venue::Finc) => Ok(Self::EqusSipFinc),
             (Dataset::EqusSip, Venue::Xadf) => Ok(Self::EqusSipXadf),
+            (Dataset::EqusSip, Venue::Cta) => Ok(Self::EqusSipCta),
+            (Dataset::EqusSip, Venue::Utp) => Ok(Self::EqusSipUtp),
             _ => Err(Error::conversion::<Self>(format!("({dataset}, {venue})"))),
         }
     }
@@ -1654,6 +1668,8 @@ impl std::str::FromStr for Publisher {
             "EQUS.SIP.FINY" => Ok(Self::EqusSipFiny),
             "EQUS.SIP.FINC" => Ok(Self::EqusSipFinc),
             "EQUS.SIP.XADF" => Ok(Self::EqusSipXadf),
+            "EQUS.SIP.CTA" => Ok(Self::EqusSipCta),
+            "EQUS.SIP.UTP" => Ok(Self::EqusSipUtp),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
