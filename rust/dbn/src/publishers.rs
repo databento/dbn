@@ -125,10 +125,20 @@ pub enum Venue {
     Iexo = 55,
     /// Cboe Global Indices Feed
     Cgif = 56,
+    /// Texas Stock Exchange, LLC
+    Txse = 57,
+    /// 24X National Exchange, LLC
+    _24Eq = 58,
+    /// Consolidated Tape Association
+    Cta = 59,
+    /// Unlisted Trading Privileges
+    Utp = 60,
+    /// FINRA Alternative Display Facility
+    Xadf = 61,
 }
 
 /// The number of [`Venue`] variants.
-pub const VENUE_COUNT: usize = 56;
+pub const VENUE_COUNT: usize = 61;
 
 impl Venue {
     /// Converts the venue to its `str` representation.
@@ -190,6 +200,11 @@ impl Venue {
             Self::Mxto => "MXTO",
             Self::Iexo => "IEXO",
             Self::Cgif => "CGIF",
+            Self::Txse => "TXSE",
+            Self::_24Eq => "24EQ",
+            Self::Cta => "CTA",
+            Self::Utp => "UTP",
+            Self::Xadf => "XADF",
         }
     }
 }
@@ -267,6 +282,11 @@ impl std::str::FromStr for Venue {
             "MXTO" => Ok(Self::Mxto),
             "IEXO" => Ok(Self::Iexo),
             "CGIF" => Ok(Self::Cgif),
+            "TXSE" => Ok(Self::Txse),
+            "24EQ" => Ok(Self::_24Eq),
+            "CTA" => Ok(Self::Cta),
+            "UTP" => Ok(Self::Utp),
+            "XADF" => Ok(Self::Xadf),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
@@ -365,10 +385,12 @@ pub enum Dataset {
     OceaMemoir = 41,
     /// Cboe Titanium Cboe Global Indices Feed
     CgifTitanium = 42,
+    /// US Equities Security Information Processor
+    EqusSip = 43,
 }
 
 /// The number of [`Dataset`] variants.
-pub const DATASET_COUNT: usize = 42;
+pub const DATASET_COUNT: usize = 43;
 
 impl Dataset {
     /// Converts the dataset to its `str` representation.
@@ -418,6 +440,7 @@ impl Dataset {
             Self::XcbfPitch => "XCBF.PITCH",
             Self::OceaMemoir => "OCEA.MEMOIR",
             Self::CgifTitanium => "CGIF.TITANIUM",
+            Self::EqusSip => "EQUS.SIP",
         }
     }
 
@@ -545,6 +568,33 @@ impl Dataset {
             Self::XcbfPitch => &[Publisher::XcbfPitchXcbf, Publisher::XcbfPitchXoff],
             Self::OceaMemoir => &[Publisher::OceaMemoirOcea],
             Self::CgifTitanium => &[Publisher::CgifTitaniumCgif],
+            Self::EqusSip => &[
+                Publisher::EqusSipXase,
+                Publisher::EqusSipXbos,
+                Publisher::EqusSipXcis,
+                Publisher::EqusSipTxse,
+                Publisher::EqusSip24Eq,
+                Publisher::EqusSipEprl,
+                Publisher::EqusSipXisx,
+                Publisher::EqusSipEdga,
+                Publisher::EqusSipEdgx,
+                Publisher::EqusSipLtse,
+                Publisher::EqusSipXchi,
+                Publisher::EqusSipXnys,
+                Publisher::EqusSipArcx,
+                Publisher::EqusSipXnas,
+                Publisher::EqusSipMemx,
+                Publisher::EqusSipIexg,
+                Publisher::EqusSipXpsx,
+                Publisher::EqusSipBaty,
+                Publisher::EqusSipBats,
+                Publisher::EqusSipFinn,
+                Publisher::EqusSipFiny,
+                Publisher::EqusSipFinc,
+                Publisher::EqusSipXadf,
+                Publisher::EqusSipCta,
+                Publisher::EqusSipUtp,
+            ],
         }
     }
 }
@@ -610,6 +660,7 @@ impl std::str::FromStr for Dataset {
             "XCBF.PITCH" => Ok(Self::XcbfPitch),
             "OCEA.MEMOIR" => Ok(Self::OceaMemoir),
             "CGIF.TITANIUM" => Ok(Self::CgifTitanium),
+            "EQUS.SIP" => Ok(Self::EqusSip),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
@@ -842,10 +893,60 @@ pub enum Publisher {
     OpraPillarIexo = 109,
     /// Cboe Global Indices Feed
     CgifTitaniumCgif = 110,
+    /// US Equities SIP - NYSE American
+    EqusSipXase = 111,
+    /// US Equities SIP - Nasdaq Texas
+    EqusSipXbos = 112,
+    /// US Equities SIP - NYSE National
+    EqusSipXcis = 113,
+    /// US Equities SIP - Texas Stock Exchange
+    EqusSipTxse = 114,
+    /// US Equities SIP - 24X National Exchange
+    EqusSip24Eq = 115,
+    /// US Equities SIP - MIAX Pearl
+    EqusSipEprl = 116,
+    /// US Equities SIP - Nasdaq ISE
+    EqusSipXisx = 117,
+    /// US Equities SIP - Cboe EDGA
+    EqusSipEdga = 118,
+    /// US Equities SIP - Cboe EDGX
+    EqusSipEdgx = 119,
+    /// US Equities SIP - Long-Term Stock Exchange
+    EqusSipLtse = 120,
+    /// US Equities SIP - NYSE Texas
+    EqusSipXchi = 121,
+    /// US Equities SIP - NYSE
+    EqusSipXnys = 122,
+    /// US Equities SIP - NYSE Arca
+    EqusSipArcx = 123,
+    /// US Equities SIP - Nasdaq
+    EqusSipXnas = 124,
+    /// US Equities SIP - MEMX
+    EqusSipMemx = 125,
+    /// US Equities SIP - IEX
+    EqusSipIexg = 126,
+    /// US Equities SIP - Nasdaq PSX
+    EqusSipXpsx = 127,
+    /// US Equities SIP - Cboe BYX
+    EqusSipBaty = 128,
+    /// US Equities SIP - Cboe BZX
+    EqusSipBats = 129,
+    /// US Equities SIP - FINRA/Nasdaq TRF Carteret
+    EqusSipFinn = 130,
+    /// US Equities SIP - FINRA/NYSE TRF
+    EqusSipFiny = 131,
+    /// US Equities SIP - FINRA/Nasdaq TRF Chicago
+    EqusSipFinc = 132,
+    /// US Equities SIP - FINRA Alternative Display Facility
+    EqusSipXadf = 133,
+    /// US Equities SIP - CTA
+    EqusSipCta = 134,
+    /// US Equities SIP - UTP
+    EqusSipUtp = 135,
 }
 
 /// The number of [`Publisher`] variants.
-pub const PUBLISHER_COUNT: usize = 110;
+pub const PUBLISHER_COUNT: usize = 135;
 
 impl Publisher {
     /// Converts the publisher to its `str` representation.
@@ -961,6 +1062,31 @@ impl Publisher {
             Self::OpraPillarMxto => "OPRA.PILLAR.MXTO",
             Self::OpraPillarIexo => "OPRA.PILLAR.IEXO",
             Self::CgifTitaniumCgif => "CGIF.TITANIUM.CGIF",
+            Self::EqusSipXase => "EQUS.SIP.XASE",
+            Self::EqusSipXbos => "EQUS.SIP.XBOS",
+            Self::EqusSipXcis => "EQUS.SIP.XCIS",
+            Self::EqusSipTxse => "EQUS.SIP.TXSE",
+            Self::EqusSip24Eq => "EQUS.SIP.24EQ",
+            Self::EqusSipEprl => "EQUS.SIP.EPRL",
+            Self::EqusSipXisx => "EQUS.SIP.XISX",
+            Self::EqusSipEdga => "EQUS.SIP.EDGA",
+            Self::EqusSipEdgx => "EQUS.SIP.EDGX",
+            Self::EqusSipLtse => "EQUS.SIP.LTSE",
+            Self::EqusSipXchi => "EQUS.SIP.XCHI",
+            Self::EqusSipXnys => "EQUS.SIP.XNYS",
+            Self::EqusSipArcx => "EQUS.SIP.ARCX",
+            Self::EqusSipXnas => "EQUS.SIP.XNAS",
+            Self::EqusSipMemx => "EQUS.SIP.MEMX",
+            Self::EqusSipIexg => "EQUS.SIP.IEXG",
+            Self::EqusSipXpsx => "EQUS.SIP.XPSX",
+            Self::EqusSipBaty => "EQUS.SIP.BATY",
+            Self::EqusSipBats => "EQUS.SIP.BATS",
+            Self::EqusSipFinn => "EQUS.SIP.FINN",
+            Self::EqusSipFiny => "EQUS.SIP.FINY",
+            Self::EqusSipFinc => "EQUS.SIP.FINC",
+            Self::EqusSipXadf => "EQUS.SIP.XADF",
+            Self::EqusSipCta => "EQUS.SIP.CTA",
+            Self::EqusSipUtp => "EQUS.SIP.UTP",
         }
     }
 
@@ -1077,6 +1203,31 @@ impl Publisher {
             Self::OpraPillarMxto => Venue::Mxto,
             Self::OpraPillarIexo => Venue::Iexo,
             Self::CgifTitaniumCgif => Venue::Cgif,
+            Self::EqusSipXase => Venue::Xase,
+            Self::EqusSipXbos => Venue::Xbos,
+            Self::EqusSipXcis => Venue::Xcis,
+            Self::EqusSipTxse => Venue::Txse,
+            Self::EqusSip24Eq => Venue::_24Eq,
+            Self::EqusSipEprl => Venue::Eprl,
+            Self::EqusSipXisx => Venue::Xisx,
+            Self::EqusSipEdga => Venue::Edga,
+            Self::EqusSipEdgx => Venue::Edgx,
+            Self::EqusSipLtse => Venue::Ltse,
+            Self::EqusSipXchi => Venue::Xchi,
+            Self::EqusSipXnys => Venue::Xnys,
+            Self::EqusSipArcx => Venue::Arcx,
+            Self::EqusSipXnas => Venue::Xnas,
+            Self::EqusSipMemx => Venue::Memx,
+            Self::EqusSipIexg => Venue::Iexg,
+            Self::EqusSipXpsx => Venue::Xpsx,
+            Self::EqusSipBaty => Venue::Baty,
+            Self::EqusSipBats => Venue::Bats,
+            Self::EqusSipFinn => Venue::Finn,
+            Self::EqusSipFiny => Venue::Finy,
+            Self::EqusSipFinc => Venue::Finc,
+            Self::EqusSipXadf => Venue::Xadf,
+            Self::EqusSipCta => Venue::Cta,
+            Self::EqusSipUtp => Venue::Utp,
         }
     }
 
@@ -1193,6 +1344,31 @@ impl Publisher {
             Self::OpraPillarMxto => Dataset::OpraPillar,
             Self::OpraPillarIexo => Dataset::OpraPillar,
             Self::CgifTitaniumCgif => Dataset::CgifTitanium,
+            Self::EqusSipXase => Dataset::EqusSip,
+            Self::EqusSipXbos => Dataset::EqusSip,
+            Self::EqusSipXcis => Dataset::EqusSip,
+            Self::EqusSipTxse => Dataset::EqusSip,
+            Self::EqusSip24Eq => Dataset::EqusSip,
+            Self::EqusSipEprl => Dataset::EqusSip,
+            Self::EqusSipXisx => Dataset::EqusSip,
+            Self::EqusSipEdga => Dataset::EqusSip,
+            Self::EqusSipEdgx => Dataset::EqusSip,
+            Self::EqusSipLtse => Dataset::EqusSip,
+            Self::EqusSipXchi => Dataset::EqusSip,
+            Self::EqusSipXnys => Dataset::EqusSip,
+            Self::EqusSipArcx => Dataset::EqusSip,
+            Self::EqusSipXnas => Dataset::EqusSip,
+            Self::EqusSipMemx => Dataset::EqusSip,
+            Self::EqusSipIexg => Dataset::EqusSip,
+            Self::EqusSipXpsx => Dataset::EqusSip,
+            Self::EqusSipBaty => Dataset::EqusSip,
+            Self::EqusSipBats => Dataset::EqusSip,
+            Self::EqusSipFinn => Dataset::EqusSip,
+            Self::EqusSipFiny => Dataset::EqusSip,
+            Self::EqusSipFinc => Dataset::EqusSip,
+            Self::EqusSipXadf => Dataset::EqusSip,
+            Self::EqusSipCta => Dataset::EqusSip,
+            Self::EqusSipUtp => Dataset::EqusSip,
         }
     }
 
@@ -1312,6 +1488,31 @@ impl Publisher {
             (Dataset::OpraPillar, Venue::Mxto) => Ok(Self::OpraPillarMxto),
             (Dataset::OpraPillar, Venue::Iexo) => Ok(Self::OpraPillarIexo),
             (Dataset::CgifTitanium, Venue::Cgif) => Ok(Self::CgifTitaniumCgif),
+            (Dataset::EqusSip, Venue::Xase) => Ok(Self::EqusSipXase),
+            (Dataset::EqusSip, Venue::Xbos) => Ok(Self::EqusSipXbos),
+            (Dataset::EqusSip, Venue::Xcis) => Ok(Self::EqusSipXcis),
+            (Dataset::EqusSip, Venue::Txse) => Ok(Self::EqusSipTxse),
+            (Dataset::EqusSip, Venue::_24Eq) => Ok(Self::EqusSip24Eq),
+            (Dataset::EqusSip, Venue::Eprl) => Ok(Self::EqusSipEprl),
+            (Dataset::EqusSip, Venue::Xisx) => Ok(Self::EqusSipXisx),
+            (Dataset::EqusSip, Venue::Edga) => Ok(Self::EqusSipEdga),
+            (Dataset::EqusSip, Venue::Edgx) => Ok(Self::EqusSipEdgx),
+            (Dataset::EqusSip, Venue::Ltse) => Ok(Self::EqusSipLtse),
+            (Dataset::EqusSip, Venue::Xchi) => Ok(Self::EqusSipXchi),
+            (Dataset::EqusSip, Venue::Xnys) => Ok(Self::EqusSipXnys),
+            (Dataset::EqusSip, Venue::Arcx) => Ok(Self::EqusSipArcx),
+            (Dataset::EqusSip, Venue::Xnas) => Ok(Self::EqusSipXnas),
+            (Dataset::EqusSip, Venue::Memx) => Ok(Self::EqusSipMemx),
+            (Dataset::EqusSip, Venue::Iexg) => Ok(Self::EqusSipIexg),
+            (Dataset::EqusSip, Venue::Xpsx) => Ok(Self::EqusSipXpsx),
+            (Dataset::EqusSip, Venue::Baty) => Ok(Self::EqusSipBaty),
+            (Dataset::EqusSip, Venue::Bats) => Ok(Self::EqusSipBats),
+            (Dataset::EqusSip, Venue::Finn) => Ok(Self::EqusSipFinn),
+            (Dataset::EqusSip, Venue::Finy) => Ok(Self::EqusSipFiny),
+            (Dataset::EqusSip, Venue::Finc) => Ok(Self::EqusSipFinc),
+            (Dataset::EqusSip, Venue::Xadf) => Ok(Self::EqusSipXadf),
+            (Dataset::EqusSip, Venue::Cta) => Ok(Self::EqusSipCta),
+            (Dataset::EqusSip, Venue::Utp) => Ok(Self::EqusSipUtp),
             _ => Err(Error::conversion::<Self>(format!("({dataset}, {venue})"))),
         }
     }
@@ -1444,6 +1645,31 @@ impl std::str::FromStr for Publisher {
             "OPRA.PILLAR.MXTO" => Ok(Self::OpraPillarMxto),
             "OPRA.PILLAR.IEXO" => Ok(Self::OpraPillarIexo),
             "CGIF.TITANIUM.CGIF" => Ok(Self::CgifTitaniumCgif),
+            "EQUS.SIP.XASE" => Ok(Self::EqusSipXase),
+            "EQUS.SIP.XBOS" => Ok(Self::EqusSipXbos),
+            "EQUS.SIP.XCIS" => Ok(Self::EqusSipXcis),
+            "EQUS.SIP.TXSE" => Ok(Self::EqusSipTxse),
+            "EQUS.SIP.24EQ" => Ok(Self::EqusSip24Eq),
+            "EQUS.SIP.EPRL" => Ok(Self::EqusSipEprl),
+            "EQUS.SIP.XISX" => Ok(Self::EqusSipXisx),
+            "EQUS.SIP.EDGA" => Ok(Self::EqusSipEdga),
+            "EQUS.SIP.EDGX" => Ok(Self::EqusSipEdgx),
+            "EQUS.SIP.LTSE" => Ok(Self::EqusSipLtse),
+            "EQUS.SIP.XCHI" => Ok(Self::EqusSipXchi),
+            "EQUS.SIP.XNYS" => Ok(Self::EqusSipXnys),
+            "EQUS.SIP.ARCX" => Ok(Self::EqusSipArcx),
+            "EQUS.SIP.XNAS" => Ok(Self::EqusSipXnas),
+            "EQUS.SIP.MEMX" => Ok(Self::EqusSipMemx),
+            "EQUS.SIP.IEXG" => Ok(Self::EqusSipIexg),
+            "EQUS.SIP.XPSX" => Ok(Self::EqusSipXpsx),
+            "EQUS.SIP.BATY" => Ok(Self::EqusSipBaty),
+            "EQUS.SIP.BATS" => Ok(Self::EqusSipBats),
+            "EQUS.SIP.FINN" => Ok(Self::EqusSipFinn),
+            "EQUS.SIP.FINY" => Ok(Self::EqusSipFiny),
+            "EQUS.SIP.FINC" => Ok(Self::EqusSipFinc),
+            "EQUS.SIP.XADF" => Ok(Self::EqusSipXadf),
+            "EQUS.SIP.CTA" => Ok(Self::EqusSipCta),
+            "EQUS.SIP.UTP" => Ok(Self::EqusSipUtp),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }

@@ -13,6 +13,8 @@ use crate::{
     NULL_RECORD_COUNT, NULL_SCHEMA, NULL_STYPE, UNDEF_TIMESTAMP,
 };
 
+use super::{MAX_SLICES, TS_OUT_LEN};
+
 /// Type for encoding files and streams in Databento Binary Encoding (DBN).
 pub struct Encoder<W>
 where
@@ -102,6 +104,16 @@ where
     /// `writer`.
     unsafe fn encode_record_ref_ts_out(&mut self, record: RecordRef, ts_out: bool) -> Result<()> {
         self.record_encoder.encode_record_ref_ts_out(record, ts_out)
+    }
+
+    fn encode_record_ref_with_ts_out(&mut self, record: RecordRef, ts_out: u64) -> Result<()> {
+        self.record_encoder
+            .encode_record_ref_with_ts_out(record, ts_out)
+    }
+
+    fn encode_record_refs_with_ts_out(&mut self, records: &[RecordRef], ts_out: u64) -> Result<()> {
+        self.record_encoder
+            .encode_record_refs_with_ts_out(records, ts_out)
     }
 }
 
@@ -449,9 +461,8 @@ where
     }
 
     fn encode_record_refs(&mut self, records: &[RecordRef]) -> Result<()> {
-        const BATCH_SIZE: usize = 128;
-        let mut slices = [const { MaybeUninit::uninit() }; BATCH_SIZE];
-        for record_chunk in records.chunks(BATCH_SIZE) {
+        let mut slices = [const { MaybeUninit::uninit() }; MAX_SLICES];
+        for record_chunk in records.chunks(MAX_SLICES) {
             for (elem, rec) in slices.iter_mut().zip(record_chunk.iter()) {
                 elem.write(IoSlice::from(*rec));
             }
@@ -476,6 +487,64 @@ where
     /// `writer`.
     unsafe fn encode_record_ref_ts_out(&mut self, record: RecordRef, _ts_out: bool) -> Result<()> {
         self.encode_record_ref(record)
+    }
+
+    fn encode_record_ref_with_ts_out(&mut self, record: RecordRef, ts_out: u64) -> Result<()> {
+        let record_bytes = record.as_ref();
+        let new_length = [record_bytes[0]
+            .checked_add(TS_OUT_LEN)
+            .ok_or_else(|| Error::encode("record length overflow adding ts_out"))?];
+        let ts_out_bytes = ts_out.to_le_bytes();
+
+        let mut slices = [
+            IoSlice::new(&new_length),        // 1 byte (modified length)
+            IoSlice::new(&record_bytes[1..]), // rest of record (zero-copy)
+            IoSlice::new(&ts_out_bytes),      // 8 bytes
+        ];
+
+        write_all_vectored(&mut self.writer, &mut slices)
+            .map_err(|e| Error::io(e, format!("encoding {record:?} with ts_out")))
+    }
+
+    fn encode_record_refs_with_ts_out(&mut self, records: &[RecordRef], ts_out: u64) -> Result<()> {
+        // Slices per record: modified length (1 byte), record body (var), ts_out (8 bytes)
+        const SLICES_PER_RECORD: usize = 3;
+        const BATCH_SIZE: usize = MAX_SLICES / SLICES_PER_RECORD;
+
+        let ts_out_bytes = ts_out.to_le_bytes();
+
+        for record_chunk in records.chunks(BATCH_SIZE) {
+            let mut lengths = [0u8; BATCH_SIZE];
+            let mut slices = [const { MaybeUninit::uninit() }; BATCH_SIZE * SLICES_PER_RECORD];
+
+            // Build IoSlice array: for each record, SLICES_PER_RECORD slices
+            for (i, (rec, len)) in record_chunk.iter().zip(lengths.iter_mut()).enumerate() {
+                let record_bytes = rec.as_ref();
+                *len = record_bytes[0]
+                    .checked_add(TS_OUT_LEN)
+                    .ok_or_else(|| Error::encode("record length overflow adding ts_out"))?;
+                let base = i * SLICES_PER_RECORD;
+                slices[base].write(IoSlice::new(std::slice::from_ref(len)));
+                slices[base + 1].write(IoSlice::new(&record_bytes[1..]));
+                slices[base + 2].write(IoSlice::new(&ts_out_bytes));
+            }
+
+            let slice_count = record_chunk.len() * SLICES_PER_RECORD;
+            // SAFETY: Every element up to `slice_count` has been initialized
+            let slices = unsafe {
+                transmute::<&mut [MaybeUninit<IoSlice<'_>>], &mut [IoSlice<'_>]>(
+                    &mut slices[..slice_count],
+                )
+            };
+
+            write_all_vectored(&mut self.writer, slices).map_err(|e| {
+                Error::io(
+                    e,
+                    format!("encoding {} RecordRefs with ts_out", records.len()),
+                )
+            })?;
+        }
+        Ok(())
     }
 }
 
@@ -943,6 +1012,113 @@ mod tests {
             let mut decoder = crate::decode::dbn::RecordDecoder::new(&buffer[..]);
             let mut decoded_count = 0;
             while decoder.decode_record_ref().unwrap().is_some() {
+                decoded_count += 1;
+            }
+            assert_eq!(decoded_count, count);
+        }
+
+        #[test]
+        fn test_encode_record_refs_with_ts_out_roundtrip() {
+            use crate::WithTsOut;
+
+            let mbo1 = make_mbo_msg(100, 1658441851000000000);
+            let trade1 = make_trade_msg(101, 1658441851001000000);
+            let mbo2 = make_mbo_msg(102, 1658441851002000000);
+
+            let refs: Vec<RecordRef> = vec![
+                RecordRef::from(&mbo1),
+                RecordRef::from(&trade1),
+                RecordRef::from(&mbo2),
+            ];
+            let ts_out = 1658441851999000000u64;
+
+            // Encode using batch method with ts_out
+            let mut buffer = Vec::new();
+            let mut encoder = RecordEncoder::new(&mut buffer);
+            encoder
+                .encode_record_refs_with_ts_out(&refs, ts_out)
+                .unwrap();
+
+            // Verify buffer size: each record gains 8 bytes for ts_out
+            let expected_size = std::mem::size_of::<MboMsg>() * 2
+                + std::mem::size_of::<TradeMsg>()
+                + 3 * std::mem::size_of::<u64>();
+            assert_eq!(buffer.len(), expected_size);
+
+            // Decode and verify roundtrip
+            let mut decoder = crate::decode::dbn::RecordDecoder::new(&buffer[..]);
+
+            let decoded: &WithTsOut<MboMsg> = decoder.decode_record().unwrap().unwrap();
+            assert_eq!(decoded.rec.hd.instrument_id, mbo1.hd.instrument_id);
+            assert_eq!(decoded.ts_out, ts_out);
+
+            let decoded: &WithTsOut<TradeMsg> = decoder.decode_record().unwrap().unwrap();
+            assert_eq!(decoded.rec.hd.instrument_id, trade1.hd.instrument_id);
+            assert_eq!(decoded.ts_out, ts_out);
+
+            let decoded: &WithTsOut<MboMsg> = decoder.decode_record().unwrap().unwrap();
+            assert_eq!(decoded.rec.hd.instrument_id, mbo2.hd.instrument_id);
+            assert_eq!(decoded.ts_out, ts_out);
+        }
+
+        #[test]
+        fn test_encode_record_refs_with_ts_out_single_is_equivalent() {
+            let mbo = make_mbo_msg(100, 1658441851000000000);
+            let trade = make_trade_msg(101, 1658441851001000000);
+
+            let refs: Vec<RecordRef> = vec![RecordRef::from(&mbo), RecordRef::from(&trade)];
+            let ts_out = 1658441851999000000u64;
+
+            // Encode one at a time
+            let mut buffer_single = Vec::new();
+            let mut encoder_single = RecordEncoder::new(&mut buffer_single);
+            for record_ref in &refs {
+                encoder_single
+                    .encode_record_ref_with_ts_out(*record_ref, ts_out)
+                    .unwrap();
+            }
+
+            // Encode as batch
+            let mut buffer_batch = Vec::new();
+            let mut encoder_batch = RecordEncoder::new(&mut buffer_batch);
+            encoder_batch
+                .encode_record_refs_with_ts_out(&refs, ts_out)
+                .unwrap();
+
+            assert_eq!(buffer_single, buffer_batch);
+        }
+
+        #[rstest]
+        #[case::partial_batch(41)]
+        #[case::exact_batch(42)]
+        #[case::batch_plus_one(43)]
+        #[case::multiple_batches(100)]
+        fn test_encode_record_refs_with_ts_out_batch_sizes(#[case] count: usize) {
+            use crate::WithTsOut;
+
+            let records: Vec<MboMsg> = (0..count)
+                .map(|i| make_mbo_msg(100 + i as u32, 1658441851000000000 + i as u64 * 1000))
+                .collect();
+
+            let refs: Vec<RecordRef> = records.iter().map(RecordRef::from).collect();
+            let ts_out = 1658441851999000000u64;
+
+            let mut buffer = Vec::new();
+            let mut encoder = RecordEncoder::new(&mut buffer);
+            encoder
+                .encode_record_refs_with_ts_out(&refs, ts_out)
+                .unwrap();
+
+            // Verify buffer size: each record is MboMsg + 8 bytes for ts_out
+            let expected_size =
+                count * (std::mem::size_of::<MboMsg>() + std::mem::size_of::<u64>());
+            assert_eq!(buffer.len(), expected_size);
+
+            // Decode and count records
+            let mut decoder = crate::decode::dbn::RecordDecoder::new(&buffer[..]);
+            let mut decoded_count = 0;
+            while let Some(decoded) = decoder.decode_record::<WithTsOut<MboMsg>>().unwrap() {
+                assert_eq!(decoded.ts_out, ts_out);
                 decoded_count += 1;
             }
             assert_eq!(decoded_count, count);

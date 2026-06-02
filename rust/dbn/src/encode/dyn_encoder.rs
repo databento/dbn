@@ -260,6 +260,14 @@ where
     unsafe fn encode_record_ref_ts_out(&mut self, record: RecordRef, ts_out: bool) -> Result<()> {
         self.0.encode_record_ref_ts_out(record, ts_out)
     }
+
+    fn encode_record_ref_with_ts_out(&mut self, record: RecordRef, ts_out: u64) -> Result<()> {
+        self.0.encode_record_ref_with_ts_out(record, ts_out)
+    }
+
+    fn encode_record_refs_with_ts_out(&mut self, records: &[RecordRef], ts_out: u64) -> Result<()> {
+        self.0.encode_record_refs_with_ts_out(records, ts_out)
+    }
 }
 
 impl<W> EncodeDbn for DynEncoder<'_, W>
@@ -337,6 +345,22 @@ where
             DynEncoderImpl::Dbn(enc) => enc.encode_record_ref_ts_out(record, ts_out),
             DynEncoderImpl::Csv(enc) => enc.encode_record_ref_ts_out(record, ts_out),
             DynEncoderImpl::Json(enc) => enc.encode_record_ref_ts_out(record, ts_out),
+        }
+    }
+
+    fn encode_record_ref_with_ts_out(&mut self, record: RecordRef, ts_out: u64) -> Result<()> {
+        match self {
+            DynEncoderImpl::Dbn(enc) => enc.encode_record_ref_with_ts_out(record, ts_out),
+            DynEncoderImpl::Csv(enc) => enc.encode_record_ref_with_ts_out(record, ts_out),
+            DynEncoderImpl::Json(enc) => enc.encode_record_ref_with_ts_out(record, ts_out),
+        }
+    }
+
+    fn encode_record_refs_with_ts_out(&mut self, records: &[RecordRef], ts_out: u64) -> Result<()> {
+        match self {
+            DynEncoderImpl::Dbn(enc) => enc.encode_record_refs_with_ts_out(records, ts_out),
+            DynEncoderImpl::Csv(enc) => enc.encode_record_refs_with_ts_out(records, ts_out),
+            DynEncoderImpl::Json(enc) => enc.encode_record_refs_with_ts_out(records, ts_out),
         }
     }
 }

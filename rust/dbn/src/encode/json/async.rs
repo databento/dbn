@@ -2,7 +2,7 @@ use tokio::io::{self, AsyncWriteExt};
 
 use crate::{
     encode::{AsyncEncodeRecord, AsyncEncodeRecordRef, AsyncEncodeRecordTextExt, DbnEncodable},
-    rtype_dispatch, Error, Metadata, RecordRef, Result,
+    rtype_dispatch, Error, HasRType, Metadata, RecordRef, Result,
 };
 
 use super::serialize::{to_json_in_buf, to_json_with_sym_in_buf};
@@ -99,6 +99,15 @@ where
         self.buf.clear();
         res
     }
+
+    async fn encode_with_ts_out<R: DbnEncodable + HasRType + Clone>(
+        &mut self,
+        rec: &R,
+        ts_out: u64,
+    ) -> Result<()> {
+        self.encode_record(&crate::WithTsOut::new(rec.clone(), ts_out))
+            .await
+    }
 }
 
 impl<W> AsyncEncodeRecord for Encoder<W>
@@ -164,6 +173,14 @@ where
         ts_out: bool,
     ) -> Result<()> {
         rtype_dispatch!(record_ref, ts_out: ts_out, self.encode_record().await)?
+    }
+
+    async fn encode_record_ref_with_ts_out(
+        &mut self,
+        record_ref: RecordRef<'_>,
+        ts_out: u64,
+    ) -> Result<()> {
+        rtype_dispatch!(record_ref, self.encode_with_ts_out(ts_out).await)?
     }
 }
 

@@ -12,7 +12,21 @@ For more information about DBN, read our [introduction to DBN](https://databento
 
 ## Installation
 
-To install the latest version, run the following command:
+Pre-built `dbn` binaries are attached to every [release](https://github.com/databento/dbn/releases)
+of this repository.
+Builds are available for the following targets:
+
+- Linux: `x86_64` and `aarch64`, both `gnu` and `musl`
+- macOS: `x86_64` and `aarch64`
+- Windows: `x86_64` and `aarch64`
+
+Each release ships a `dbn-<version>-<target>.tar.gz` archive (or `.zip` on Windows)
+together with a `.sha256` checksum file.
+Download the archive for your platform, verify the checksum, extract the archive,
+and move the `dbn` binary somewhere on your `PATH`.
+
+Alternatively, if you have a Rust toolchain installed, you can build and install
+from source with Cargo:
 ```sh
 cargo install dbn-cli
 ```
