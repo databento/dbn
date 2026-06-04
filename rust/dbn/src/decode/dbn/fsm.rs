@@ -288,6 +288,14 @@ impl DbnFsm {
         self.needs_upgrade = Self::compute_needs_upgrade(self.upgrade_policy, None);
     }
 
+    /// Resets buffered record state after seeking while preserving decoder
+    /// configuration.
+    pub(crate) fn reset_for_seek(&mut self) {
+        self.state = State::Record;
+        self.buffer.reset();
+        self.compat_buffer.reset();
+    }
+
     /// Skips ahead `nbytes`. Returns the actual number of bytes skipped.
     ///
     /// Writable space is not reclaimed until the next call to

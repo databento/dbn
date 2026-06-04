@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.60.0 - TBD
+
+### Enhancements
+- Added `RecordDecoder::seek_to` for absolute byte-offset seeking
+- Added `is_compressed` helpers for dynamic DBN readers
+
 ## 0.59.0 - 2026-06-02
 
 ### Enhancements
