@@ -396,6 +396,7 @@ impl MatchAlgorithm {
             Self::EurodollarFutures => "EURODOLLAR_FUTURES",
             Self::TimeProRata => "TIME_PRO_RATA",
             Self::InstitutionalPrioritization => "INSTITUTIONAL_PRIORITIZATION",
+            Self::Allocation => "ALLOCATION",
         }
     }
 

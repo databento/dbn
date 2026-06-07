@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.61.0 - TBD
+
+### Enhancements
+- Added `MatchAlgorithm` variant `Allocation`
+
 ## 0.60.0 - 2026-06-09
 
 ### Enhancements
