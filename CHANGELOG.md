@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.60.0 - TBD
+## 0.60.0 - 2026-06-09
 
 ### Enhancements
 - Added `RecordDecoder::seek_to` for absolute byte-offset seeking
