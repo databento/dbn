@@ -101,6 +101,11 @@ where
             DynReaderImpl::Zstd(reader) => reader.get_ref(),
         }
     }
+
+    /// Returns whether the input is Zstandard-compressed.
+    pub fn is_compressed(&self) -> bool {
+        matches!(&self.0, DynReaderImpl::Zstd(_))
+    }
 }
 
 impl DynReader<'_, BufReader<File>> {
@@ -180,6 +185,8 @@ mod tests {
             DynReader::from_file(format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn")).unwrap();
         let mut compressed =
             DynReader::from_file(format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst")).unwrap();
+        assert!(!uncompressed.is_compressed());
+        assert!(compressed.is_compressed());
         let mut uncompressed_res = Vec::new();
         uncompressed.read_to_end(&mut uncompressed_res).unwrap();
         let mut compressed_res = Vec::new();
@@ -300,6 +307,11 @@ mod r#async {
                 DynReaderImpl::Zstd(reader) => reader.get_ref(),
             }
         }
+
+        /// Returns whether the input is Zstandard-compressed.
+        pub fn is_compressed(&self) -> bool {
+            matches!(&self.0, DynReaderImpl::Zstd(_))
+        }
     }
 
     impl DynReader<BufReader<File>> {
@@ -385,6 +397,7 @@ mod r#async {
             }
         }
     }
+
     #[cfg(test)]
     mod tests {
         use crate::{
@@ -398,7 +411,7 @@ mod r#async {
         #[tokio::test]
         async fn test_decode_multiframe_zst() {
             let mut decoder = AsyncDbnRecordDecoder::with_version(
-                DynReader::from_file(&format!(
+                DynReader::from_file(format!(
                     "{TEST_DATA_PATH}/multi-frame.definition.v1.dbn.frag.zst"
                 ))
                 .await
@@ -413,6 +426,21 @@ mod r#async {
                 count += 1;
             }
             assert_eq!(count, 8);
+        }
+
+        #[tokio::test]
+        async fn test_dyn_reader_is_compressed() {
+            let uncompressed =
+                DynReader::from_file(format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn"))
+                    .await
+                    .unwrap();
+            let compressed =
+                DynReader::from_file(format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst"))
+                    .await
+                    .unwrap();
+
+            assert!(!uncompressed.is_compressed());
+            assert!(compressed.is_compressed());
         }
     }
 }

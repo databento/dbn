@@ -8,8 +8,8 @@ use crate::{
     decode::{
         dbn::fsm::{DbnFsm, ProcessResult},
         private::LastRecord,
-        DbnMetadata, DecodeRecord, DecodeRecordRef, DecodeStream, SkipBytes, StreamIterDecoder,
-        VersionUpgradePolicy,
+        DbnMetadata, DecodeRecord, DecodeRecordRef, DecodeStream, DynReader, SkipBytes,
+        StreamIterDecoder, VersionUpgradePolicy,
     },
     HasRType, Metadata, RecordRef, DBN_VERSION,
 };
@@ -368,6 +368,64 @@ where
     }
 }
 
+impl<R> RecordDecoder<R>
+where
+    R: io::Read + io::Seek,
+{
+    /// Seeks to absolute byte position `pos` and clears buffered decoder state.
+    ///
+    /// # Warning
+    /// Callers are responsible for ensuring `pos` is a valid record boundary.
+    ///
+    /// # Errors
+    /// This function returns an error if it fails to seek in the inner reader.
+    pub fn seek_to(&mut self, pos: u64) -> crate::Result<()> {
+        self.reader
+            .seek(io::SeekFrom::Start(pos))
+            .map(drop)
+            .map_err(|err| crate::Error::io(err, format!("seeking to byte offset {pos}")))?;
+        self.fsm.reset_for_seek();
+        Ok(())
+    }
+}
+
+impl<'a, R> RecordDecoder<DynReader<'a, R>>
+where
+    R: io::BufRead,
+{
+    /// Seeks to absolute byte position `pos` and clears buffered decoder state.
+    ///
+    /// # Warning
+    /// Callers are responsible for ensuring `pos` is a valid record boundary.
+    ///
+    /// # Errors
+    /// This function returns an error if it fails to seek in the inner reader, or if
+    /// the input is Zstandard-compressed.
+    pub fn seek_to(&mut self, pos: u64) -> crate::Result<()>
+    where
+        R: io::Seek,
+    {
+        if self.reader.is_compressed() {
+            return Err(crate::Error::BadArgument {
+                param_name: "self".to_owned(),
+                desc: "absolute seek is unsupported for zstd-compressed input".to_owned(),
+            });
+        }
+        self.reader
+            .get_mut()
+            .seek(io::SeekFrom::Start(pos))
+            .map(drop)
+            .map_err(|err| crate::Error::io(err, format!("seeking to byte offset {pos}")))?;
+        self.fsm.reset_for_seek();
+        Ok(())
+    }
+
+    /// Returns whether the input is Zstandard-compressed.
+    pub fn is_compressed(&self) -> bool {
+        self.reader.is_compressed()
+    }
+}
+
 impl<R> LastRecord for RecordDecoder<R>
 where
     R: io::Read,
@@ -616,6 +674,54 @@ mod tests {
             .unwrap();
         assert!(decoder.decode_record::<MboMsg>().unwrap().is_some());
         assert!(decoder.decode_record::<MboMsg>().unwrap().is_none());
+    }
+
+    #[test]
+    fn test_seek_to_resets_buffered_records() {
+        let mut first = MboMsg {
+            hd: RecordHeader::new::<MboMsg>(rtype::MBO, 1, 100, 1),
+            ..Default::default()
+        };
+        first.order_id = 1;
+        let mut second = MboMsg {
+            hd: RecordHeader::new::<MboMsg>(rtype::MBO, 1, 101, 2),
+            ..Default::default()
+        };
+        second.order_id = 2;
+        let mut buffer = Vec::new();
+        buffer.extend_from_slice(first.as_ref());
+        buffer.extend_from_slice(second.as_ref());
+
+        let mut decoder = RecordDecoder::with_version(
+            std::io::Cursor::new(buffer),
+            DBN_VERSION,
+            VersionUpgradePolicy::AsIs,
+            false,
+        )
+        .unwrap();
+
+        assert_eq!(*decoder.decode::<MboMsg>().unwrap().unwrap(), first);
+        decoder
+            .seek_to(std::mem::size_of::<MboMsg>() as u64)
+            .unwrap();
+        assert_eq!(*decoder.decode::<MboMsg>().unwrap().unwrap(), second);
+        decoder.seek_to(0).unwrap();
+        assert_eq!(*decoder.decode::<MboMsg>().unwrap().unwrap(), first);
+    }
+
+    #[test]
+    fn test_seek_to_compressed_returns_bad_argument() {
+        let reader =
+            DynReader::from_file(format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst")).unwrap();
+        let mut decoder =
+            RecordDecoder::with_version(reader, DBN_VERSION, VersionUpgradePolicy::AsIs, false)
+                .unwrap();
+
+        assert!(matches!(
+            decoder.seek_to(0).unwrap_err(),
+            Error::BadArgument { param_name, desc }
+                if param_name == "self" && desc.contains("zstd-compressed")
+        ));
     }
 
     #[test]

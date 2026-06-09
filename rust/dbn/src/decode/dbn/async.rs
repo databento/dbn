@@ -10,8 +10,8 @@ use crate::{
     decode::{
         dbn::fsm::{DbnFsm, ProcessResult},
         zstd::zstd_decoder,
-        AsyncDecodeRecord, AsyncDecodeRecordRef, AsyncSkipBytes, DbnMetadata, VersionUpgradePolicy,
-        ZSTD_FILE_BUFFER_CAPACITY,
+        AsyncDecodeRecord, AsyncDecodeRecordRef, AsyncDynReader, AsyncSkipBytes, DbnMetadata,
+        VersionUpgradePolicy, ZSTD_FILE_BUFFER_CAPACITY,
     },
     HasRType, Metadata, RecordRef, Result, DBN_VERSION,
 };
@@ -460,6 +460,73 @@ where
 
 impl<R> RecordDecoder<R>
 where
+    R: io::AsyncReadExt + io::AsyncSeekExt + Unpin,
+{
+    /// Seeks to absolute byte position `pos` and clears buffered decoder state.
+    ///
+    /// # Warning
+    /// Callers are responsible for ensuring `pos` is a valid record boundary.
+    ///
+    /// # Cancel safety
+    /// This method may not be cancellation safe, depending on the cancellation safety
+    /// of `seek()` of the inner reader `R`.
+    ///
+    /// # Errors
+    /// This function returns an error if it fails to seek in the inner reader.
+    pub async fn seek_to(&mut self, pos: u64) -> crate::Result<()> {
+        self.reader
+            .seek(std::io::SeekFrom::Start(pos))
+            .await
+            .map(drop)
+            .map_err(|err| crate::Error::io(err, format!("seeking to byte offset {pos}")))?;
+        self.fsm.reset_for_seek();
+        Ok(())
+    }
+}
+
+impl<R> RecordDecoder<AsyncDynReader<R>>
+where
+    R: io::AsyncReadExt + io::AsyncBufReadExt + Unpin,
+{
+    /// Seeks to absolute byte position `pos` and clears buffered decoder state.
+    ///
+    /// # Warning
+    /// Callers are responsible for ensuring `pos` is a valid record boundary.
+    ///
+    /// # Cancel safety
+    /// This method is not cancel safe.
+    ///
+    /// # Errors
+    /// This function returns an error if it fails to seek in the inner reader, or if
+    /// the input is Zstandard-compressed.
+    pub async fn seek_to(&mut self, pos: u64) -> crate::Result<()>
+    where
+        R: io::AsyncSeekExt,
+    {
+        if self.reader.is_compressed() {
+            return Err(crate::Error::BadArgument {
+                param_name: "self".to_owned(),
+                desc: "absolute seek is unsupported for zstd-compressed input".to_owned(),
+            });
+        }
+        self.reader
+            .get_mut()
+            .seek(std::io::SeekFrom::Start(pos))
+            .await
+            .map(drop)
+            .map_err(|err| crate::Error::io(err, format!("seeking to byte offset {pos}")))?;
+        self.fsm.reset_for_seek();
+        Ok(())
+    }
+
+    /// Returns whether the input is Zstandard-compressed.
+    pub fn is_compressed(&self) -> bool {
+        self.reader.is_compressed()
+    }
+}
+
+impl<R> RecordDecoder<R>
+where
     R: AsyncSkipBytes + io::AsyncReadExt + Unpin,
 {
     /// Seeks forward the specified number of bytes.
@@ -761,6 +828,57 @@ mod tests {
             .unwrap();
         assert!(decoder.decode_record::<MboMsg>().await.unwrap().is_some());
         assert!(decoder.decode_record::<MboMsg>().await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn test_seek_to_resets_buffered_records() {
+        let mut first = MboMsg {
+            hd: RecordHeader::new::<MboMsg>(rtype::MBO, 1, 100, 1),
+            ..Default::default()
+        };
+        first.order_id = 1;
+        let mut second = MboMsg {
+            hd: RecordHeader::new::<MboMsg>(rtype::MBO, 1, 101, 2),
+            ..Default::default()
+        };
+        second.order_id = 2;
+        let mut buffer = Vec::new();
+        buffer.extend_from_slice(first.as_ref());
+        buffer.extend_from_slice(second.as_ref());
+
+        let mut decoder = RecordDecoder::with_version(
+            std::io::Cursor::new(buffer),
+            DBN_VERSION,
+            VersionUpgradePolicy::AsIs,
+            false,
+        )
+        .unwrap();
+
+        assert_eq!(*decoder.decode::<MboMsg>().await.unwrap().unwrap(), first);
+        decoder
+            .seek_to(std::mem::size_of::<MboMsg>() as u64)
+            .await
+            .unwrap();
+        assert_eq!(*decoder.decode::<MboMsg>().await.unwrap().unwrap(), second);
+        decoder.seek_to(0).await.unwrap();
+        assert_eq!(*decoder.decode::<MboMsg>().await.unwrap().unwrap(), first);
+    }
+
+    #[tokio::test]
+    async fn test_seek_to_compressed_returns_bad_argument() {
+        let reader =
+            AsyncDynReader::from_file(format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst"))
+                .await
+                .unwrap();
+        let mut decoder =
+            RecordDecoder::with_version(reader, DBN_VERSION, VersionUpgradePolicy::AsIs, false)
+                .unwrap();
+
+        assert!(matches!(
+            decoder.seek_to(0).await.unwrap_err(),
+            Error::BadArgument { param_name, desc }
+                if param_name == "self" && desc.contains("zstd-compressed")
+        ));
     }
 
     #[tokio::test]
