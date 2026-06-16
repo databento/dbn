@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.61.0 - 2026-06-16
+
+### Enhancements
+- Added `MatchAlgorithm` variant `Allocation`
+- Upgraded `time` version to 0.3.49
+- Upgraded `pyo3` to 0.29.0
+
 ## 0.60.0 - 2026-06-09
 
 ### Enhancements

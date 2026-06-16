@@ -476,15 +476,15 @@ class MatchAlgorithm(Enum):
         Trade quantity is allocated to resting orders based on a pro-rata percentage:
         resting order quantity divided by total quantity.
     FIFO_LMM
-        Like `FIFO` but with LMM allocations prior to FIFO allocations.
+        Like FIFO, but with LMM allocations prior to FIFO allocations.
     THRESHOLD_PRO_RATA
-        Like `PRO_RATA` but includes a configurable allocation to the first order that
-        improves the market.
+        Like Pro-Rata, but includes a configurable allocation to the first order that
+        improves the market. Minimum order thresholds may exist.
     FIFO_TOP_LMM
-        Like `FIFO_LMM` but includes a configurable allocation to the first order that
+        Like FIFO with LMM, but includes a configurable allocation to the first order that
         improves the market.
     THRESHOLD_PRO_RATA_LMM
-        Like `THRESHOLD_PRO_RATA` but includes a special priority to LMMs.
+        Like Threshold Pro-Rata, but includes a special priority to LMMs.
     EURODOLLAR_FUTURES
         Special variant used only for Eurodollar futures on CME.
     TIME_PRO_RATA
@@ -494,6 +494,9 @@ class MatchAlgorithm(Enum):
         A two-pass FIFO algorithm. The first pass fills the Institutional Group the aggressing
         order is associated with. The second pass matches orders without an Institutional Group
         association. See [CME documentation](https://cmegroupclientsite.atlassian.net/wiki/spaces/EPICSANDBOX/pages/457217267#InstitutionalPrioritizationMatchAlgorithm).
+    ALLOCATION
+        Like Pro-Rata, but includes a configurable allocation to the first order that
+        improves the market.
 
     """
 
@@ -508,6 +511,7 @@ class MatchAlgorithm(Enum):
     EURODOLLAR_FUTURES: str
     TIME_PRO_RATA: str
     INSTITUTIONAL_PRIORITIZATION: str
+    ALLOCATION: str
 
     def __init__(self, value: str) -> None: ...
     def __index__(self) -> int: ...

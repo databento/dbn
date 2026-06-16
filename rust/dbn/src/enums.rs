@@ -445,7 +445,7 @@ pub enum MatchAlgorithm {
     #[pyo3(name = "FIFO_LMM")]
     FifoLmm = b'T',
     /// Like [`Self::ProRata`] but includes a configurable allocation to the first order that
-    /// improves the market.
+    /// improves the market. Minimum order thresholds may exist.
     #[pyo3(name = "THRESHOLD_PRO_RATA")]
     ThresholdProRata = b'O',
     /// Like [`Self::FifoLmm`] but includes a configurable allocation to the first order that
@@ -467,6 +467,9 @@ pub enum MatchAlgorithm {
     /// association. See [CME documentation](https://cmegroupclientsite.atlassian.net/wiki/spaces/EPICSANDBOX/pages/457217267#InstitutionalPrioritizationMatchAlgorithm).
     #[pyo3(name = "INSTITUTIONAL_PRIORITIZATION")]
     InstitutionalPrioritization = b'V',
+    /// Like [`Self::ProRata`], but includes a configurable allocation to the first order that improves the market.
+    #[pyo3(name = "ALLOCATION")]
+    Allocation = b'A',
 }
 
 impl From<MatchAlgorithm> for char {
