@@ -4,6 +4,7 @@
 
 ### Enhancements
 - Added new publisher values for Cboe Titanium Cboe Global Indices Feed
+- Added `StatType` variants `MwcbLevel1`, `MwcbLevel2`, and `MwcbLevel3`
 
 ### Breaking changes
 - Renamed the following Venue, Dataset, and Publisher:

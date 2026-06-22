@@ -978,6 +978,9 @@ impl StatType {
             Self::LowerPriceLimit => "LOWER_PRICE_LIMIT",
             Self::BlockVolume => "BLOCK_VOLUME",
             Self::IndicativeClosePrice => "INDICATIVE_CLOSE_PRICE",
+            Self::MwcbLevel1 => "MWCB_LEVEL_1",
+            Self::MwcbLevel2 => "MWCB_LEVEL_2",
+            Self::MwcbLevel3 => "MWCB_LEVEL_3",
             Self::VenueSpecificVolume1 => "VENUE_SPECIFIC_VOLUME_1",
             Self::VenueSpecificPrice1 => "VENUE_SPECIFIC_PRICE_1",
         }

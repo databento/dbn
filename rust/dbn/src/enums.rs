@@ -1046,6 +1046,15 @@ pub enum StatType {
     /// session. `price` will be set.
     #[pyo3(name = "INDICATIVE_CLOSE_PRICE")]
     IndicativeClosePrice = 20,
+    /// The Market-Wide Circuit Breaker (MWCB) Level 1 threshold (7%), expressed as S&P 500 index points. `price` will be set.
+    #[pyo3(name = "MWCB_LEVEL_1")]
+    MwcbLevel1 = 21,
+    /// The Market-Wide Circuit Breaker (MWCB) Level 2 threshold (13%), expressed as S&P 500 index points. `price` will be set.
+    #[pyo3(name = "MWCB_LEVEL_2")]
+    MwcbLevel2 = 22,
+    /// The Market-Wide Circuit Breaker (MWCB) Level 3 threshold (20%), expressed as S&P 500 index points. `price` will be set.
+    #[pyo3(name = "MWCB_LEVEL_3")]
+    MwcbLevel3 = 23,
     /// A venue specific volume statistic. Refer to the venue documentation for more information.
     /// `quantity` will be set.
     #[pyo3(name = "VENUE_SPECIFIC_VOLUME_1")]
