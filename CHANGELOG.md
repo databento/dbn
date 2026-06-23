@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.62.0 - TBD
+
+### Enhancements
+- Added new publisher values for Cboe Titanium Cboe Global Indices Feed
+
+### Breaking changes
+- Renamed the following Venue, Dataset, and Publisher:
+    - `CGIF` to `MAIN`
+    - `CGIF.TITANIUM` to `MAIN.CGIF`
+    - `CGIF.TITANIUM.CGIF` to `MAIN.CGIF.MAIN`
+
 ## 0.61.0 - 2026-06-16
 
 ### Enhancements

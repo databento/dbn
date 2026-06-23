@@ -124,7 +124,7 @@ pub enum Venue {
     /// IEX Options LLC
     Iexo = 55,
     /// Cboe Global Indices Feed
-    Cgif = 56,
+    Main = 56,
     /// Texas Stock Exchange, LLC
     Txse = 57,
     /// 24X National Exchange, LLC
@@ -135,10 +135,24 @@ pub enum Venue {
     Utp = 60,
     /// FINRA Alternative Display Facility
     Xadf = 61,
+    /// CGIF Morgan Stanley Capital International
+    Msci = 62,
+    /// CGIF FTSE Russell
+    Ftse = 63,
+    /// CGIF Intraday Net Asset Values
+    Inav = 64,
+    /// CGIF Morning Star
+    Mstar = 65,
+    /// CGIF Crypto Currency
+    Cccy = 66,
+    /// CGIF CBOE Global Indices
+    Cgi = 67,
+    /// CGIF Definitions
+    Def = 68,
 }
 
 /// The number of [`Venue`] variants.
-pub const VENUE_COUNT: usize = 61;
+pub const VENUE_COUNT: usize = 68;
 
 impl Venue {
     /// Converts the venue to its `str` representation.
@@ -199,12 +213,19 @@ impl Venue {
             Self::Ocea => "OCEA",
             Self::Mxto => "MXTO",
             Self::Iexo => "IEXO",
-            Self::Cgif => "CGIF",
+            Self::Main => "MAIN",
             Self::Txse => "TXSE",
             Self::_24Eq => "24EQ",
             Self::Cta => "CTA",
             Self::Utp => "UTP",
             Self::Xadf => "XADF",
+            Self::Msci => "MSCI",
+            Self::Ftse => "FTSE",
+            Self::Inav => "INAV",
+            Self::Mstar => "MSTAR",
+            Self::Cccy => "CCCY",
+            Self::Cgi => "CGI",
+            Self::Def => "DEF",
         }
     }
 }
@@ -281,12 +302,19 @@ impl std::str::FromStr for Venue {
             "OCEA" => Ok(Self::Ocea),
             "MXTO" => Ok(Self::Mxto),
             "IEXO" => Ok(Self::Iexo),
-            "CGIF" => Ok(Self::Cgif),
+            "MAIN" => Ok(Self::Main),
             "TXSE" => Ok(Self::Txse),
             "24EQ" => Ok(Self::_24Eq),
             "CTA" => Ok(Self::Cta),
             "UTP" => Ok(Self::Utp),
             "XADF" => Ok(Self::Xadf),
+            "MSCI" => Ok(Self::Msci),
+            "FTSE" => Ok(Self::Ftse),
+            "INAV" => Ok(Self::Inav),
+            "MSTAR" => Ok(Self::Mstar),
+            "CCCY" => Ok(Self::Cccy),
+            "CGI" => Ok(Self::Cgi),
+            "DEF" => Ok(Self::Def),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
@@ -384,13 +412,25 @@ pub enum Dataset {
     /// Blue Ocean ATS MEMOIR Depth
     OceaMemoir = 41,
     /// Cboe Titanium Cboe Global Indices Feed
-    CgifTitanium = 42,
+    MainCgif = 42,
     /// US Equities Security Information Processor
     EqusSip = 43,
+    /// CGIF - Morgan Stanley Capital International
+    MsciCgif = 44,
+    /// CGIF - FTSE Russell
+    FtseCgif = 45,
+    /// CGIF - Intraday Net Asset Values
+    InavCgif = 46,
+    /// CGIF - Morning Star
+    MstarCgif = 47,
+    /// CGIF - Crypto Currency
+    CccyCgif = 48,
+    /// CGIF - CBOE Global Indices
+    CgiCgif = 49,
 }
 
 /// The number of [`Dataset`] variants.
-pub const DATASET_COUNT: usize = 43;
+pub const DATASET_COUNT: usize = 49;
 
 impl Dataset {
     /// Converts the dataset to its `str` representation.
@@ -439,8 +479,14 @@ impl Dataset {
             Self::XeeeEobi => "XEEE.EOBI",
             Self::XcbfPitch => "XCBF.PITCH",
             Self::OceaMemoir => "OCEA.MEMOIR",
-            Self::CgifTitanium => "CGIF.TITANIUM",
+            Self::MainCgif => "MAIN.CGIF",
             Self::EqusSip => "EQUS.SIP",
+            Self::MsciCgif => "MSCI.CGIF",
+            Self::FtseCgif => "FTSE.CGIF",
+            Self::InavCgif => "INAV.CGIF",
+            Self::MstarCgif => "MSTAR.CGIF",
+            Self::CccyCgif => "CCCY.CGIF",
+            Self::CgiCgif => "CGI.CGIF",
         }
     }
 
@@ -567,7 +613,7 @@ impl Dataset {
             Self::XeeeEobi => &[Publisher::XeeeEobiXeee, Publisher::XeeeEobiXoff],
             Self::XcbfPitch => &[Publisher::XcbfPitchXcbf, Publisher::XcbfPitchXoff],
             Self::OceaMemoir => &[Publisher::OceaMemoirOcea],
-            Self::CgifTitanium => &[Publisher::CgifTitaniumCgif],
+            Self::MainCgif => &[Publisher::MainCgifMain, Publisher::MainCgifDef],
             Self::EqusSip => &[
                 Publisher::EqusSipXase,
                 Publisher::EqusSipXbos,
@@ -595,6 +641,12 @@ impl Dataset {
                 Publisher::EqusSipCta,
                 Publisher::EqusSipUtp,
             ],
+            Self::MsciCgif => &[Publisher::MsciCgifMsci],
+            Self::FtseCgif => &[Publisher::FtseCgifFtse],
+            Self::InavCgif => &[Publisher::InavCgifInav],
+            Self::MstarCgif => &[Publisher::MstarCgifMstar],
+            Self::CccyCgif => &[Publisher::CccyCgifCccy],
+            Self::CgiCgif => &[Publisher::CgiCgifCgi],
         }
     }
 }
@@ -659,8 +711,14 @@ impl std::str::FromStr for Dataset {
             "XEEE.EOBI" => Ok(Self::XeeeEobi),
             "XCBF.PITCH" => Ok(Self::XcbfPitch),
             "OCEA.MEMOIR" => Ok(Self::OceaMemoir),
-            "CGIF.TITANIUM" => Ok(Self::CgifTitanium),
+            "MAIN.CGIF" => Ok(Self::MainCgif),
             "EQUS.SIP" => Ok(Self::EqusSip),
+            "MSCI.CGIF" => Ok(Self::MsciCgif),
+            "FTSE.CGIF" => Ok(Self::FtseCgif),
+            "INAV.CGIF" => Ok(Self::InavCgif),
+            "MSTAR.CGIF" => Ok(Self::MstarCgif),
+            "CCCY.CGIF" => Ok(Self::CccyCgif),
+            "CGI.CGIF" => Ok(Self::CgiCgif),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
@@ -892,7 +950,7 @@ pub enum Publisher {
     /// OPRA - IEX Options LLC
     OpraPillarIexo = 109,
     /// Cboe Global Indices Feed
-    CgifTitaniumCgif = 110,
+    MainCgifMain = 110,
     /// US Equities SIP - NYSE American
     EqusSipXase = 111,
     /// US Equities SIP - Nasdaq Texas
@@ -943,10 +1001,24 @@ pub enum Publisher {
     EqusSipCta = 134,
     /// US Equities SIP - UTP
     EqusSipUtp = 135,
+    /// CGIF - Morgan Stanley Capital International
+    MsciCgifMsci = 136,
+    /// CGIF - FTSE Russell
+    FtseCgifFtse = 137,
+    /// CGIF - Intraday Net Asset Values
+    InavCgifInav = 138,
+    /// CGIF - Morning Star
+    MstarCgifMstar = 139,
+    /// CGIF - Crypto Currency
+    CccyCgifCccy = 140,
+    /// CGIF - CBOE Global Indices
+    CgiCgifCgi = 141,
+    /// CGIF - Definitions
+    MainCgifDef = 142,
 }
 
 /// The number of [`Publisher`] variants.
-pub const PUBLISHER_COUNT: usize = 135;
+pub const PUBLISHER_COUNT: usize = 142;
 
 impl Publisher {
     /// Converts the publisher to its `str` representation.
@@ -1061,7 +1133,7 @@ impl Publisher {
             Self::OceaMemoirOcea => "OCEA.MEMOIR.OCEA",
             Self::OpraPillarMxto => "OPRA.PILLAR.MXTO",
             Self::OpraPillarIexo => "OPRA.PILLAR.IEXO",
-            Self::CgifTitaniumCgif => "CGIF.TITANIUM.CGIF",
+            Self::MainCgifMain => "MAIN.CGIF.MAIN",
             Self::EqusSipXase => "EQUS.SIP.XASE",
             Self::EqusSipXbos => "EQUS.SIP.XBOS",
             Self::EqusSipXcis => "EQUS.SIP.XCIS",
@@ -1087,6 +1159,13 @@ impl Publisher {
             Self::EqusSipXadf => "EQUS.SIP.XADF",
             Self::EqusSipCta => "EQUS.SIP.CTA",
             Self::EqusSipUtp => "EQUS.SIP.UTP",
+            Self::MsciCgifMsci => "MSCI.CGIF.MSCI",
+            Self::FtseCgifFtse => "FTSE.CGIF.FTSE",
+            Self::InavCgifInav => "INAV.CGIF.INAV",
+            Self::MstarCgifMstar => "MSTAR.CGIF.MSTAR",
+            Self::CccyCgifCccy => "CCCY.CGIF.CCCY",
+            Self::CgiCgifCgi => "CGI.CGIF.CGI",
+            Self::MainCgifDef => "MAIN.CGIF.DEF",
         }
     }
 
@@ -1202,7 +1281,7 @@ impl Publisher {
             Self::OceaMemoirOcea => Venue::Ocea,
             Self::OpraPillarMxto => Venue::Mxto,
             Self::OpraPillarIexo => Venue::Iexo,
-            Self::CgifTitaniumCgif => Venue::Cgif,
+            Self::MainCgifMain => Venue::Main,
             Self::EqusSipXase => Venue::Xase,
             Self::EqusSipXbos => Venue::Xbos,
             Self::EqusSipXcis => Venue::Xcis,
@@ -1228,6 +1307,13 @@ impl Publisher {
             Self::EqusSipXadf => Venue::Xadf,
             Self::EqusSipCta => Venue::Cta,
             Self::EqusSipUtp => Venue::Utp,
+            Self::MsciCgifMsci => Venue::Msci,
+            Self::FtseCgifFtse => Venue::Ftse,
+            Self::InavCgifInav => Venue::Inav,
+            Self::MstarCgifMstar => Venue::Mstar,
+            Self::CccyCgifCccy => Venue::Cccy,
+            Self::CgiCgifCgi => Venue::Cgi,
+            Self::MainCgifDef => Venue::Def,
         }
     }
 
@@ -1343,7 +1429,7 @@ impl Publisher {
             Self::OceaMemoirOcea => Dataset::OceaMemoir,
             Self::OpraPillarMxto => Dataset::OpraPillar,
             Self::OpraPillarIexo => Dataset::OpraPillar,
-            Self::CgifTitaniumCgif => Dataset::CgifTitanium,
+            Self::MainCgifMain => Dataset::MainCgif,
             Self::EqusSipXase => Dataset::EqusSip,
             Self::EqusSipXbos => Dataset::EqusSip,
             Self::EqusSipXcis => Dataset::EqusSip,
@@ -1369,6 +1455,13 @@ impl Publisher {
             Self::EqusSipXadf => Dataset::EqusSip,
             Self::EqusSipCta => Dataset::EqusSip,
             Self::EqusSipUtp => Dataset::EqusSip,
+            Self::MsciCgifMsci => Dataset::MsciCgif,
+            Self::FtseCgifFtse => Dataset::FtseCgif,
+            Self::InavCgifInav => Dataset::InavCgif,
+            Self::MstarCgifMstar => Dataset::MstarCgif,
+            Self::CccyCgifCccy => Dataset::CccyCgif,
+            Self::CgiCgifCgi => Dataset::CgiCgif,
+            Self::MainCgifDef => Dataset::MainCgif,
         }
     }
 
@@ -1487,7 +1580,7 @@ impl Publisher {
             (Dataset::OceaMemoir, Venue::Ocea) => Ok(Self::OceaMemoirOcea),
             (Dataset::OpraPillar, Venue::Mxto) => Ok(Self::OpraPillarMxto),
             (Dataset::OpraPillar, Venue::Iexo) => Ok(Self::OpraPillarIexo),
-            (Dataset::CgifTitanium, Venue::Cgif) => Ok(Self::CgifTitaniumCgif),
+            (Dataset::MainCgif, Venue::Main) => Ok(Self::MainCgifMain),
             (Dataset::EqusSip, Venue::Xase) => Ok(Self::EqusSipXase),
             (Dataset::EqusSip, Venue::Xbos) => Ok(Self::EqusSipXbos),
             (Dataset::EqusSip, Venue::Xcis) => Ok(Self::EqusSipXcis),
@@ -1513,6 +1606,13 @@ impl Publisher {
             (Dataset::EqusSip, Venue::Xadf) => Ok(Self::EqusSipXadf),
             (Dataset::EqusSip, Venue::Cta) => Ok(Self::EqusSipCta),
             (Dataset::EqusSip, Venue::Utp) => Ok(Self::EqusSipUtp),
+            (Dataset::MsciCgif, Venue::Msci) => Ok(Self::MsciCgifMsci),
+            (Dataset::FtseCgif, Venue::Ftse) => Ok(Self::FtseCgifFtse),
+            (Dataset::InavCgif, Venue::Inav) => Ok(Self::InavCgifInav),
+            (Dataset::MstarCgif, Venue::Mstar) => Ok(Self::MstarCgifMstar),
+            (Dataset::CccyCgif, Venue::Cccy) => Ok(Self::CccyCgifCccy),
+            (Dataset::CgiCgif, Venue::Cgi) => Ok(Self::CgiCgifCgi),
+            (Dataset::MainCgif, Venue::Def) => Ok(Self::MainCgifDef),
             _ => Err(Error::conversion::<Self>(format!("({dataset}, {venue})"))),
         }
     }
@@ -1644,7 +1744,7 @@ impl std::str::FromStr for Publisher {
             "OCEA.MEMOIR.OCEA" => Ok(Self::OceaMemoirOcea),
             "OPRA.PILLAR.MXTO" => Ok(Self::OpraPillarMxto),
             "OPRA.PILLAR.IEXO" => Ok(Self::OpraPillarIexo),
-            "CGIF.TITANIUM.CGIF" => Ok(Self::CgifTitaniumCgif),
+            "MAIN.CGIF.MAIN" => Ok(Self::MainCgifMain),
             "EQUS.SIP.XASE" => Ok(Self::EqusSipXase),
             "EQUS.SIP.XBOS" => Ok(Self::EqusSipXbos),
             "EQUS.SIP.XCIS" => Ok(Self::EqusSipXcis),
@@ -1670,6 +1770,13 @@ impl std::str::FromStr for Publisher {
             "EQUS.SIP.XADF" => Ok(Self::EqusSipXadf),
             "EQUS.SIP.CTA" => Ok(Self::EqusSipCta),
             "EQUS.SIP.UTP" => Ok(Self::EqusSipUtp),
+            "MSCI.CGIF.MSCI" => Ok(Self::MsciCgifMsci),
+            "FTSE.CGIF.FTSE" => Ok(Self::FtseCgifFtse),
+            "INAV.CGIF.INAV" => Ok(Self::InavCgifInav),
+            "MSTAR.CGIF.MSTAR" => Ok(Self::MstarCgifMstar),
+            "CCCY.CGIF.CCCY" => Ok(Self::CccyCgifCccy),
+            "CGI.CGIF.CGI" => Ok(Self::CgiCgifCgi),
+            "MAIN.CGIF.DEF" => Ok(Self::MainCgifDef),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
