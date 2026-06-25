@@ -21,7 +21,7 @@ impl Default for MboMsg {
             hd: RecordHeader::default::<Self>(rtype::MBO),
             order_id: 0,
             price: UNDEF_PRICE,
-            size: UNDEF_ORDER_SIZE,
+            size: 0,
             flags: Default::default(),
             channel_id: u8::MAX,
             action: Action::default() as c_char,
@@ -66,7 +66,7 @@ impl Default for TradeMsg {
         Self {
             hd: RecordHeader::default::<Self>(rtype::MBP_0),
             price: UNDEF_PRICE,
-            size: UNDEF_ORDER_SIZE,
+            size: 0,
             action: Action::default() as c_char,
             side: Side::default() as c_char,
             flags: Default::default(),
@@ -83,7 +83,7 @@ impl Default for Mbp1Msg {
         Self {
             hd: RecordHeader::default::<Self>(rtype::MBP_1),
             price: UNDEF_PRICE,
-            size: UNDEF_ORDER_SIZE,
+            size: 0,
             action: Action::default() as c_char,
             side: Side::default() as c_char,
             flags: Default::default(),
@@ -101,7 +101,7 @@ impl Default for Mbp10Msg {
         Self {
             hd: RecordHeader::default::<Self>(rtype::MBP_10),
             price: UNDEF_PRICE,
-            size: UNDEF_ORDER_SIZE,
+            size: 0,
             action: Action::default() as c_char,
             side: Side::default() as c_char,
             flags: Default::default(),
@@ -120,7 +120,7 @@ impl BboMsg {
         Self {
             hd: RecordHeader::default::<Self>(RType::from(schema) as u8),
             price: UNDEF_PRICE,
-            size: UNDEF_ORDER_SIZE,
+            size: 0,
             _reserved1: 0,
             side: Side::default() as c_char,
             flags: Default::default(),
@@ -139,7 +139,7 @@ impl Cmbp1Msg {
         Self {
             hd: RecordHeader::default::<Self>(RType::from(schema) as u8),
             price: UNDEF_PRICE,
-            size: UNDEF_ORDER_SIZE,
+            size: 0,
             action: Action::default() as c_char,
             side: Side::default() as c_char,
             flags: Default::default(),
@@ -158,7 +158,7 @@ impl CbboMsg {
         Self {
             hd: RecordHeader::default::<Self>(RType::from(schema) as u8),
             price: UNDEF_PRICE,
-            size: UNDEF_ORDER_SIZE,
+            size: 0,
             _reserved1: 0,
             side: Side::default() as c_char,
             flags: Default::default(),

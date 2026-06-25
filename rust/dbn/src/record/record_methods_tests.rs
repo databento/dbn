@@ -29,12 +29,12 @@ fn debug_mbo() {
         ..Default::default()
     };
     assert_eq!(
-            format!("{rec:?}"),
-            "MboMsg { hd: RecordHeader { length: 14, rtype: Mbo, publisher_id: OpraPillarXcbo, \
+        format!("{rec:?}"),
+        "MboMsg { hd: RecordHeader { length: 14, rtype: Mbo, publisher_id: OpraPillarXcbo, \
             instrument_id: 678, ts_event: 1704468548242628731 }, order_id: 0, \
-            price: 4500.500000000, size: 4294967295, flags: LAST | BAD_TS_RECV (136), channel_id: 255, \
+            price: 4500.500000000, size: 0, flags: LAST | BAD_TS_RECV (136), channel_id: 255, \
             action: 'A', side: 'B', ts_recv: 18446744073709551615, ts_in_delta: 0, sequence: 0 }"
-        );
+    );
 }
 
 #[test]

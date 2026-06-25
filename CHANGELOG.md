@@ -11,6 +11,8 @@
     - `CGIF` to `MAIN`
     - `CGIF.TITANIUM` to `MAIN.CGIF`
     - `CGIF.TITANIUM.CGIF` to `MAIN.CGIF.MAIN`
+- Changed the default `size` field to 0 in `MboMsg`, `TradeMsg`, `Mbp1Msg`, `Mbp10Msg`,
+  `BboMsg`, `Cmbp1Msg`, and `CbboMsg`
 
 ## 0.61.0 - 2026-06-16
 
