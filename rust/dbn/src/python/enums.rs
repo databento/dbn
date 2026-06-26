@@ -981,6 +981,9 @@ impl StatType {
             Self::MwcbLevel1 => "MWCB_LEVEL_1",
             Self::MwcbLevel2 => "MWCB_LEVEL_2",
             Self::MwcbLevel3 => "MWCB_LEVEL_3",
+            Self::AuctionCollarReferencePrice => "AUCTION_COLLAR_REFERENCE_PRICE",
+            Self::AuctionCollarUpperPrice => "AUCTION_COLLAR_UPPER_PRICE",
+            Self::AuctionCollarLowerPrice => "AUCTION_COLLAR_LOWER_PRICE",
             Self::VenueSpecificVolume1 => "VENUE_SPECIFIC_VOLUME_1",
             Self::VenueSpecificPrice1 => "VENUE_SPECIFIC_PRICE_1",
         }

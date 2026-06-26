@@ -1055,6 +1055,15 @@ pub enum StatType {
     /// The Market-Wide Circuit Breaker (MWCB) Level 3 threshold (20%), expressed as S&P 500 index points. `price` will be set.
     #[pyo3(name = "MWCB_LEVEL_3")]
     MwcbLevel3 = 23,
+    /// The auction collar reference price. `price` will be set.
+    #[pyo3(name = "AUCTION_COLLAR_REFERENCE_PRICE")]
+    AuctionCollarReferencePrice = 24,
+    /// The auction collar upper price. `price` will be set.
+    #[pyo3(name = "AUCTION_COLLAR_UPPER_PRICE")]
+    AuctionCollarUpperPrice = 25,
+    /// The auction collar lower price. `price` will be set.
+    #[pyo3(name = "AUCTION_COLLAR_LOWER_PRICE")]
+    AuctionCollarLowerPrice = 26,
     /// A venue specific volume statistic. Refer to the venue documentation for more information.
     /// `quantity` will be set.
     #[pyo3(name = "VENUE_SPECIFIC_VOLUME_1")]
