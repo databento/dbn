@@ -10,7 +10,7 @@ on:
 
 jobs:
   tag-release:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }} || ${{ github.event.workflow_dispatch }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     name: tag-release - Python 3.12 (ubuntu-latest)
     runs-on: ubuntu-latest
     outputs:
@@ -34,7 +34,7 @@ jobs:
       # Create GitHub release
       - name: Create release
         id: create-release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           name: ${{ env.RELEASE_NAME }}
           tag_name: ${{ env.TAG_NAME }}
@@ -73,13 +73,13 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Build wheels - x86_64
-        uses: messense/maturin-action@v1
+        uses: PyO3/maturin-action@v1
         with:
           target: x86_64
           args: --release --out dist --manifest-path python/Cargo.toml --interpreter python${{ matrix.python-version }}
 
       - name: Build wheels - universal2
-        uses: messense/maturin-action@v1
+        uses: PyO3/maturin-action@v1
         with:
           args: --release --target universal2-apple-darwin --out dist --manifest-path python/Cargo.toml --interpreter python${{ matrix.python-version }}
 
@@ -121,7 +121,7 @@ jobs:
           architecture: x64
 
       - name: Build wheels
-        uses: messense/maturin-action@v1
+        uses: PyO3/maturin-action@v1
         with:
           target: x64
           args: --release --out dist --manifest-path python/Cargo.toml --interpreter python${{ matrix.python-version }}
@@ -164,7 +164,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Build wheels
-        uses: messense/maturin-action@v1
+        uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
           manylinux: auto
@@ -208,7 +208,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Build wheels
-        uses: messense/maturin-action@v1
+        uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
           manylinux: musllinux_1_2
@@ -302,8 +302,6 @@ jobs:
           target: x86_64-unknown-linux-gnu
         - os: ubuntu-latest
           target: x86_64-unknown-linux-musl
-        - os: macos-latest
-          target: x86_64-apple-darwin
         - os: macos-latest
           target: x86_64-apple-darwin
         - os: macos-latest

@@ -38,10 +38,9 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          architecture: ${{ matrix.arch }}
 
       - name: Build wheels
-        uses: messense/maturin-action@v1
+        uses: PyO3/maturin-action@v1
         with:
           target: x86_64
           args: --release --out dist --manifest-path python/Cargo.toml --interpreter python${{ matrix.python-version }}
@@ -91,7 +90,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Build wheels
-        uses: messense/maturin-action@v1
+        uses: PyO3/maturin-action@v1
         with:
           target: aarch64
           manylinux: auto
@@ -138,13 +137,13 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Build wheels - x86_64
-        uses: messense/maturin-action@v1
+        uses: PyO3/maturin-action@v1
         with:
           target: x86_64
           args: --release --out dist --manifest-path python/Cargo.toml --interpreter python${{ matrix.python-version }}
 
       - name: Build wheels - universal2
-        uses: messense/maturin-action@v1
+        uses: PyO3/maturin-action@v1
         with:
           args: --release --target universal2-apple-darwin --out dist --manifest-path python/Cargo.toml --interpreter python${{ matrix.python-version }}
 
