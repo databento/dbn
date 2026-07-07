@@ -840,6 +840,18 @@ class StatType(Enum):
     INDICATIVE_CLOSE_PRICE
         The probable price of the last trade of an instrument published during the trading
         session. `price` will be set.
+    MWCB_LEVEL_1
+        The Market-Wide Circuit Breaker (MWCB) Level 1 threshold (7%), expressed as S&P 500 index points. `price` will be set.
+    MWCB_LEVEL_2
+        The Market-Wide Circuit Breaker (MWCB) Level 2 threshold (13%), expressed as S&P 500 index points. `price` will be set.
+    MWCB_LEVEL_3
+        The Market-Wide Circuit Breaker (MWCB) Level 3 threshold (20%), expressed as S&P 500 index points. `price` will be set.
+    AUCTION_COLLAR_REFERENCE_PRICE
+        The auction collar reference price. `price` will be set.
+    AUCTION_COLLAR_UPPER_PRICE
+        The auction collar upper price. `price` will be set.
+    AUCTION_COLLAR_LOWER_PRICE
+        The auction collar lower price. `price` will be set.
     VENUE_SPECIFIC_VOLUME_1
         A venue specific volume statistic. Refer to the venue documentation for more information.
         `quantity` will be set.
@@ -869,6 +881,12 @@ class StatType(Enum):
     LOWER_PRICE_LIMIT: int
     BLOCK_VOLUME: int
     INDICATIVE_CLOSE_PRICE: int
+    MWCB_LEVEL_1: int
+    MWCB_LEVEL_2: int
+    MWCB_LEVEL_3: int
+    AUCTION_COLLAR_REFERENCE_PRICE: int
+    AUCTION_COLLAR_UPPER_PRICE: int
+    AUCTION_COLLAR_LOWER_PRICE: int
     VENUE_SPECIFIC_VOLUME_1: int
     VENUE_SPECIFIC_PRICE_1: int
 
