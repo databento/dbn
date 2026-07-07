@@ -1,12 +1,13 @@
 # Changelog
 
-## 0.62.0 - TBD
+## 0.62.0 - 2026-07-07
 
 ### Enhancements
 - Added new publisher values for Cboe Titanium Cboe Global Indices Feed
 - Added `StatType` variants `MwcbLevel1`, `MwcbLevel2`, and `MwcbLevel3`
 - Added `StatType` variants `AuctionCollarReferencePrice`, `AuctionCollarUpperPrice`,
   and `AuctionCollarLowerPrice`
+- Upgraded `time` to 0.3.53
 
 ### Breaking changes
 - Renamed the following Venue, Dataset, and Publisher:
