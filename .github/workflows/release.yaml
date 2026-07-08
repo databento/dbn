@@ -319,7 +319,7 @@ jobs:
       run: rustup toolchain add --profile minimal --target ${{ matrix.target }} stable
 
     - name: Install cross
-      run: cargo install cross
+      run: cargo install cross --version 0.2.5 --locked
 
     - name: Set target variables
       shell: bash
@@ -355,6 +355,94 @@ jobs:
         mkdir -p "$ARCHIVE"/doc
         cp "$BIN" "$ARCHIVE"/
         cp {rust/dbn-cli/README.md,LICENSE} "$ARCHIVE"/
+        cp CHANGELOG.md "$ARCHIVE"/doc/
+
+    - name: Build archive (Windows)
+      shell: bash
+      if: matrix.os == 'windows-latest'
+      run: |
+        7z a "$ARCHIVE.zip" "$ARCHIVE"
+        certutil -hashfile "$ARCHIVE.zip" SHA256 > "$ARCHIVE.zip.sha256"
+        echo "ASSET=$ARCHIVE.zip" >> $GITHUB_ENV
+        echo "ASSET_SUM=$ARCHIVE.zip.sha256" >> $GITHUB_ENV
+
+    - name: Build archive (Unix)
+      shell: bash
+      if: matrix.os != 'windows-latest'
+      run: |
+        tar czf "$ARCHIVE.tar.gz" "$ARCHIVE"
+        shasum -a 256 "$ARCHIVE.tar.gz" > "$ARCHIVE.tar.gz.sha256"
+        echo "ASSET=$ARCHIVE.tar.gz" >> $GITHUB_ENV
+        echo "ASSET_SUM=$ARCHIVE.tar.gz.sha256" >> $GITHUB_ENV
+
+    - name: Upload release archive
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      shell: bash
+      # clobber to overwrite if we have to rerun the release
+      run: |
+        gh release upload v${{ env.VERSION }} ${{ env.ASSET }} ${{ env.ASSET_SUM }} --clobber
+
+  build-libdbn-c:
+    needs: [tag-release]
+    runs-on: ${{ matrix.os }}
+    env:
+      TARGET_FLAGS:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - os: ubuntu-latest
+          target: x86_64-unknown-linux-gnu
+        - os: ubuntu-latest
+          target: aarch64-unknown-linux-gnu
+        - os: macos-latest
+          target: x86_64-apple-darwin
+        - os: macos-latest
+          target: aarch64-apple-darwin
+        - os: windows-latest
+          target: x86_64-pc-windows-msvc
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v5
+
+    - name: Set up Rust
+      run: rustup toolchain add --profile minimal --target ${{ matrix.target }} stable
+
+    - name: Install cross
+      run: cargo install cross --version 0.2.5 --locked
+
+    - name: Set target variables
+      shell: bash
+      run: echo "TARGET_FLAGS=--target ${{ matrix.target }}" >> $GITHUB_ENV
+
+    - name: Build static library
+      shell: bash
+      run: |
+        cross build --release --package dbn-c ${{ env.TARGET_FLAGS }}
+        if [ "${{ matrix.os }}" = "windows-latest" ]; then
+          lib="target/${{ matrix.target }}/release/dbn_c.lib"
+        else
+          lib="target/${{ matrix.target }}/release/libdbn_c.a"
+        fi
+        stat "$lib"
+        echo "LIB=$lib" >> $GITHUB_ENV
+
+    - name: Determine archive name
+      shell: bash
+      run: |
+        version="$(scripts/get_version.sh)"
+        echo "ARCHIVE=libdbn_c-$version-${{ matrix.target }}" >> $GITHUB_ENV
+        echo "VERSION=$version" >> $GITHUB_ENV
+
+    - name: Create directory for archive
+      shell: bash
+      run: |
+        mkdir -p "$ARCHIVE"/include "$ARCHIVE"/doc
+        cp "$LIB" "$ARCHIVE"/
+        cp c/include/dbn_ffi.h "$ARCHIVE"/include/
+        cp {c/README.md,LICENSE} "$ARCHIVE"/
         cp CHANGELOG.md "$ARCHIVE"/doc/
 
     - name: Build archive (Windows)
