@@ -10023,6 +10023,42 @@ class Transcoder:
         ------
         DBNError
             When the write to the output fails.
+        ValueError
+            When the transcoder is already finished.
+        """
+
+    def finish(
+        self,
+    ) -> None:
+        """
+        Finalize the output stream, writing any epilogue required by the
+        compression, i.e. the Zstandard end-of-frame block and checksum.
+
+        Writing to or flushing a finished transcoder raises a `ValueError`.
+
+        Raises
+        ------
+        DBNError
+            When the write to the output fails.
+        """
+
+    def __enter__(self) -> Transcoder:
+        """
+        Enter the context manager which will call `finish()` on exit to
+        finalize the output. The call to `finish()` is skipped if the
+        context manager exits with an exception.
+        """
+
+    def __exit__(
+        self,
+        exc_type: object,
+        exc_value: object,
+        traceback: object,
+    ) -> None:
+        """
+        Exit the context manager, calling `finish()` to finalize the output.
+        The call to `finish()` is skipped if the context manager exits with
+        an exception.
         """
 
 def update_encoded_metadata(

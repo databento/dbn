@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.63.1 - Upcoming
+
+### Enhancements
+- Added a `finish()` method to `DynWriter` to flush data and finalize the
+  output stream. For compressed data this will write the zstandard end-of-frame
+  block
+- Added `finish()` method to the Python `Transcoder` and a context manager
+  to call this method on exit. This will ensure compressed output contains the
+  end-of-frame block
+
 ## 0.63.0 - 2026-07-14
 
 ### Enhancements

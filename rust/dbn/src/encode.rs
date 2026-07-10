@@ -287,12 +287,23 @@ fn zstd_encoder_with_clevel<'a, W: io::Write>(
     writer: W,
     level: i32,
 ) -> Result<zstd::stream::AutoFinishEncoder<'a, W>> {
+    Ok(raw_zstd_encoder_with_clevel(writer, level)?.auto_finish())
+}
+
+fn raw_zstd_encoder<'a, W: io::Write>(writer: W) -> Result<zstd::stream::Encoder<'a, W>> {
+    raw_zstd_encoder_with_clevel(writer, ZSTD_COMPRESSION_LEVEL)
+}
+
+fn raw_zstd_encoder_with_clevel<'a, W: io::Write>(
+    writer: W,
+    level: i32,
+) -> Result<zstd::stream::Encoder<'a, W>> {
     let mut zstd_encoder =
         zstd::Encoder::new(writer, level).map_err(|e| Error::io(e, "creating zstd encoder"))?;
     zstd_encoder
         .include_checksum(true)
         .map_err(|e| Error::io(e, "setting zstd checksum"))?;
-    Ok(zstd_encoder.auto_finish())
+    Ok(zstd_encoder)
 }
 
 #[cfg(feature = "async")]
