@@ -1396,28 +1396,41 @@ impl From<TriState> for char {
 }
 
 /// How to handle decoding DBN data from other versions.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    TryFromPrimitive,
+    IntoPrimitive,
+)]
 #[cfg_attr(
     feature = "python",
     derive(strum::EnumIter),
     pyo3::pyclass(from_py_object, module = "databento_dbn")
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
+#[repr(u8)]
 pub enum VersionUpgradePolicy {
     /// Decode data from all supported versions (less than or equal to
     /// [`DBN_VERSION`](crate::DBN_VERSION)) as-is.
     #[pyo3(name = "AS_IS")]
-    AsIs,
+    AsIs = 1,
     /// Decode and convert data from DBN versions prior to version 2 to that version.
     /// Attempting to decode data from newer versions will fail.
     #[pyo3(name = "UPGRADE_TO_V2")]
-    UpgradeToV2,
+    UpgradeToV2 = 2,
     /// Decode and convert data from DBN versions prior to version 3 to that version.
     /// Attempting to decode data from newer versions (when they're introduced) will
     /// fail.
     #[default]
     #[pyo3(name = "UPGRADE_TO_V3")]
-    UpgradeToV3,
+    UpgradeToV3 = 3,
 }
 
 /// An error code from the live subscription gateway.
