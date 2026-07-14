@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.63.0 - 2026-07-14
+
+### Enhancements
+- Added an integer representation for `VersionUpgradePolicy`: the enum is now
+  `repr(u8)` with discriminants starting at 1, derives `TryFromPrimitive` and
+  `IntoPrimitive`, and in Python gained a `value` property, a `from_int`
+  constructor, integer construction, and comparison against integers
+
 ## 0.62.0 - 2026-07-07
 
 ### Enhancements

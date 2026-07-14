@@ -1,6 +1,5 @@
 use std::{
     fmt::{self, Write},
-    hash::{DefaultHasher, Hash, Hasher},
     str::FromStr,
 };
 
@@ -1386,10 +1385,18 @@ impl WritePyRepr for TriState {
 
 #[pymethods]
 impl VersionUpgradePolicy {
-    fn __hash__(&self) -> isize {
-        let mut hasher = DefaultHasher::new();
-        self.hash(&mut hasher);
-        hasher.finish() as isize
+    #[new]
+    fn py_new(py: Python<'_>, value: &Bound<PyAny>) -> PyResult<Self> {
+        let t = Self::type_object(py);
+        Self::py_from_int(&t, value)
+    }
+
+    fn __hash__(&self, py: Python<'_>) -> PyResult<isize> {
+        PyInt::new(py, self.value()).hash()
+    }
+
+    fn __index__(&self) -> u8 {
+        *self as u8
     }
 
     fn __repr__(&self) -> String {
@@ -1407,22 +1414,38 @@ impl VersionUpgradePolicy {
         }
     }
 
-    fn __eq__(&self, other: &Bound<PyAny>, _py: Python<'_>) -> bool {
-        let Ok(other_enum) = other.extract::<Self>() else {
+    fn __eq__(&self, other: &Bound<PyAny>, py: Python<'_>) -> bool {
+        let Ok(other_enum) = other.extract::<Self>().or_else(|_| Self::py_new(py, other)) else {
             return false;
         };
         self.eq(&other_enum)
+    }
+
+    #[getter]
+    fn value(&self) -> u8 {
+        *self as u8
     }
 
     #[classmethod]
     fn variants(_: &Bound<PyType>, py: Python<'_>) -> PyResult<EnumIterator> {
         EnumIterator::new::<Self>(py)
     }
+    #[classmethod]
+    #[pyo3(name = "from_int")]
+    fn py_from_int(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
+        let value: u8 = value.extract().map_err(to_py_err)?;
+        Self::try_from(value).map_err(to_py_err)
+    }
 }
 
 impl WritePyRepr for VersionUpgradePolicy {
     fn write_py_repr(&self, s: &mut String) -> fmt::Result {
-        write!(s, "<VersionUpgradePolicy.{}>", self.name())
+        write!(
+            s,
+            "<VersionUpgradePolicy.{}: {}>",
+            self.name(),
+            self.value()
+        )
     }
 }
 
