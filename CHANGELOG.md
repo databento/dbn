@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.63.0 - Upcoming
+## 0.63.0 - 2026-07-14
 
 ### Enhancements
 - Added an integer representation for `VersionUpgradePolicy`: the enum is now
