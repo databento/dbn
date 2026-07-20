@@ -1,5 +1,6 @@
 #![cfg(test)]
 
+use crate::v3;
 use mem::offset_of;
 use rstest::rstest;
 use type_layout::{Field, TypeLayout};
@@ -158,5 +159,5 @@ fn test_db_ts_always_valid_time_offsetdatetime() {
 
 #[test]
 fn test_record_object_safe() {
-    let _record: Box<dyn Record> = Box::new(ErrorMsg::new(1, None, "Boxed record", true));
+    let _record: Box<dyn v3::Record> = Box::new(ErrorMsg::new(1, None, "Boxed record", true));
 }

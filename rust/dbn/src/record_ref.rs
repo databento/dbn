@@ -1,11 +1,17 @@
 //! Non-owning dynamically-typed references to DBN records: [`RecordRef`] for immutable
 //! access and [`RecordRefMut`] for mutable access.
+//!
+//! Both are generic over the record header layout `H`. The default, [`RecordHeader`],
+//! covers all v1-v3 records; DBN version 4 records use
+//! [`v4::RecordHeader`](crate::v4::RecordHeader). The header type parameter ties a
+//! reference to a DBN version so a downcast can't mix a v1-v3 record type with a v4
+//! header (or vice versa).
 
 use std::{fmt::Debug, hash, io::IoSlice, marker::PhantomData, mem, ptr::NonNull};
 
 use crate::{
-    record::{HasRType, Record, RecordHeader},
-    rtype_dispatch, RType, RecordMut, RecordRefEnum,
+    record::{HasRType, Record, RecordHeader, RecordHeaderKind},
+    rtype_dispatch, RType, RecordMut,
 };
 
 /// A wrapper around a non-owning immutable reference to a DBN record. This wrapper
@@ -18,6 +24,27 @@ use crate::{
 /// It has the [`has()`](Self::has) method for testing if the contained value is of a
 /// particular type, and the inner value can be downcasted to specific record types via
 /// the [`get()`](Self::get) method.
+///
+/// The header layout is the type parameter `H`, defaulting to [`RecordHeader`] for
+/// v1-v3 records. `H` ties a reference to a DBN version: a v4 reference cannot be
+/// downcast to a v1-v3 record type, nor a v1-v3 reference to a v4 record type, because
+/// [`get()`](Self::get) requires `T: HasRType<Header = H>`.
+///
+/// ```compile_fail,E0277
+/// use dbn::{v4, MboMsg, RecordRef};
+/// // v3 `MboMsg` has `Header = RecordHeader`, not `v4::RecordHeader`.
+/// fn bad<'a>(rec: RecordRef<'a, v4::RecordHeader>) -> Option<&'a MboMsg> {
+///     rec.get::<MboMsg>()
+/// }
+/// ```
+///
+/// ```compile_fail,E0277
+/// use dbn::{v4, RecordRef};
+/// // v4 `MboMsg` has `Header = v4::RecordHeader`, not `RecordHeader`.
+/// fn bad<'a>(rec: RecordRef<'a>) -> Option<&'a v4::MboMsg> {
+///     rec.get::<v4::MboMsg>()
+/// }
+/// ```
 ///
 /// # Examples
 /// ```
@@ -42,10 +69,10 @@ use crate::{
 /// The common record header is directly accessible through the
 /// [`header()`](Self::header) method.
 #[derive(Copy, Clone)]
-pub struct RecordRef<'a> {
-    ptr: NonNull<RecordHeader>,
+pub struct RecordRef<'a, H: RecordHeaderKind = RecordHeader> {
+    ptr: NonNull<H>,
     /// Associates the object with the lifetime of the memory pointed to by `ptr`.
-    _marker: PhantomData<&'a RecordHeader>,
+    _marker: PhantomData<&'a H>,
 }
 
 /// The mutable counterpart to [`RecordRef`]. Wraps a mutable reference to a DBN
@@ -72,54 +99,47 @@ pub struct RecordRef<'a> {
 /// assert_eq!(mbo.size, 10);
 /// ```
 // Cannot be Copy or Clone
-pub struct RecordRefMut<'a> {
-    ptr: NonNull<RecordHeader>,
+pub struct RecordRefMut<'a, H: RecordHeaderKind = RecordHeader> {
+    ptr: NonNull<H>,
     /// Associates the object with the lifetime of the memory pointed to by `ptr`.
-    _marker: PhantomData<&'a RecordHeader>,
+    _marker: PhantomData<&'a H>,
 }
 
 // Safety: RecordRef exhibits immutable reference semantics similar to &T.
 // It should be safe to both send it across threads or access it simultaneously
 // (since the data is immutable).
-unsafe impl Send for RecordRef<'_> {}
-unsafe impl Sync for RecordRef<'_> {}
+unsafe impl<H: RecordHeaderKind> Send for RecordRef<'_, H> {}
+unsafe impl<H: RecordHeaderKind> Sync for RecordRef<'_, H> {}
 
 // Safety: RecordRefMut exhibits mutable reference semantics similar to &mut T.
-// It should be safe to send it across threads (unique ownership of the referent) and
-// to share it, because mutation requires `&mut self`.
-unsafe impl Send for RecordRefMut<'_> {}
-unsafe impl Sync for RecordRefMut<'_> {}
+// It should be safe to send it across threads (unique ownership of the referent).
+unsafe impl<H: RecordHeaderKind> Send for RecordRefMut<'_, H> {}
+unsafe impl<H: RecordHeaderKind> Sync for RecordRefMut<'_, H> {}
 
-impl<'a> RecordRef<'a> {
-    /// Returns a reference to the common record header at the start of every record.
-    pub fn header(&self) -> &'a RecordHeader {
-        // Safety: assumes `ptr` passes to a `RecordHeader`.
-        unsafe { self.ptr.as_ref() }
-    }
-
+impl<'a, H: RecordHeaderKind> RecordRef<'a, H> {
     /// Constructs a new reference to the DBN record in `buffer`.
     ///
     /// # Safety
-    /// `buffer` should begin with a [`RecordHeader`] and contain a type implementing
+    /// `buffer` should begin with a header of type `H` and contain a type implementing
     /// [`HasRType`].
     pub unsafe fn new(buffer: &'a [u8]) -> Self {
         debug_assert!(
-            buffer.len() >= mem::size_of::<RecordHeader>(),
+            buffer.len() >= mem::size_of::<H>(),
             "buffer of length {} is too short",
             buffer.len()
         );
 
         // Safety: casting to `*mut` to use `NonNull`, but `ptr` is still treated internally
         // as an immutable reference
-        let raw_ptr = buffer.as_ptr() as *mut RecordHeader;
+        let raw_ptr = buffer.as_ptr() as *mut H;
 
         // Check if alignment of pointer matches that of header (and all records)
         debug_assert_eq!(
-            raw_ptr.align_offset(std::mem::align_of::<RecordHeader>()),
+            raw_ptr.align_offset(std::mem::align_of::<H>()),
             0,
             "unaligned buffer passed to `RecordRef::new`"
         );
-        let ptr = NonNull::new_unchecked(raw_ptr.cast::<RecordHeader>());
+        let ptr = NonNull::new_unchecked(raw_ptr);
         Self {
             ptr,
             _marker: PhantomData,
@@ -130,12 +150,18 @@ impl<'a> RecordRef<'a> {
     ///
     /// # Safety
     /// `header` must point to a valid DBN record.
-    pub unsafe fn unchecked_from_header(header: *const RecordHeader) -> Self {
+    pub unsafe fn unchecked_from_header(header: *const H) -> Self {
         Self {
             // `NonNull` requires `mut` but it is never mutated
             ptr: NonNull::new_unchecked(header.cast_mut()),
             _marker: PhantomData,
         }
+    }
+
+    /// Returns a reference to the common record header at the start of every record.
+    pub fn header(&self) -> &'a H {
+        // Safety: assumes `ptr` points to a valid header.
+        unsafe { self.ptr.as_ref() }
     }
 
     /// Returns `true` if the object points to a record of type `T`.
@@ -162,8 +188,8 @@ impl<'a> RecordRef<'a> {
     /// // It's not a trade
     /// assert!(!rec.has::<TradeMsg>());
     /// ```
-    pub fn has<T: HasRType>(&self) -> bool {
-        T::has_rtype(self.header().rtype)
+    pub fn has<T: HasRType<Header = H>>(&self) -> bool {
+        T::has_rtype(self.header().raw_rtype())
     }
 
     /// Returns a reference to the underlying record of type `T` or `None` if it points
@@ -199,15 +225,15 @@ impl<'a> RecordRef<'a> {
     /// // Try to extract a version 2 definition
     /// let _def = rec.get::<v2::InstrumentDefMsg>();
     /// ```
-    pub fn get<T: HasRType>(&self) -> Option<&'a T> {
+    pub fn get<T: HasRType<Header = H>>(&self) -> Option<&'a T> {
         if self.has::<T>() {
             assert!(
-                self.record_size() >= mem::size_of::<T>(),
+                self.header().record_size() >= mem::size_of::<T>(),
                 "Malformed `{}` record: expected length of at least {} bytes, found {} bytes. \
                 Confirm the DBN version in the Metadata header and the version upgrade policy",
                 std::any::type_name::<T>(),
                 mem::size_of::<T>(),
-                self.record_size()
+                self.header().record_size()
             );
             // Safety: checked `rtype` in call to `has()`. Assumes the initial data based to
             // `RecordRef` is indeed a record.
@@ -240,9 +266,9 @@ impl<'a> RecordRef<'a> {
     /// // Also works with data that might have ts_out
     /// assert!(rec.try_get::<WithTsOut<v1::InstrumentDefMsg>>().is_err());
     /// ```
-    pub fn try_get<T: HasRType>(&self) -> crate::Result<&'a T> {
+    pub fn try_get<T: HasRType<Header = H>>(&self) -> crate::Result<&'a T> {
         if self.has::<T>() {
-            if self.record_size() >= mem::size_of::<T>() {
+            if self.header().record_size() >= mem::size_of::<T>() {
                 // Safety: checked `rtype` in call to `has()` and size
                 Ok(unsafe { self.ptr.cast::<T>().as_ref() })
             } else {
@@ -255,16 +281,6 @@ impl<'a> RecordRef<'a> {
                 "{self:?} has incorrect rtype"
             )))
         }
-    }
-
-    /// Returns a native Rust enum with a variant for each record type. This allows for
-    /// pattern `match`ing.
-    ///
-    /// # Errors
-    /// This function returns a conversion error if the rtype does not correspond with
-    /// any known DBN record type.
-    pub fn as_enum(&self) -> crate::Result<RecordRefEnum<'_>> {
-        RecordRefEnum::try_from(*self)
     }
 
     /// Returns a reference to the underlying record of type `T` without checking if
@@ -287,8 +303,8 @@ impl<'a> RecordRef<'a> {
     ///     println!("{:?}", unsafe { rec.get_unchecked::<BboMsg>() });
     /// }
     /// ```
-    pub unsafe fn get_unchecked<T: HasRType>(&self) -> &'a T {
-        debug_assert!(self.record_size() >= mem::size_of::<T>());
+    pub unsafe fn get_unchecked<T: HasRType<Header = H>>(&self) -> &'a T {
+        debug_assert!(self.header().record_size() >= mem::size_of::<T>());
         self.ptr.cast::<T>().as_ref()
     }
 
@@ -303,44 +319,60 @@ impl<'a> RecordRef<'a> {
     /// let owned = rec_ref.to_owned();
     /// assert!(owned == rec_ref);
     /// ```
-    pub fn to_owned(&self) -> crate::RecordBuf {
+    pub fn to_owned(&self) -> crate::RecordBuf<{ crate::MAX_RECORD_LEN }, H> {
         // All valid records fit within MAX_RECORD_LEN.
         crate::RecordBuf::try_from(*self).expect("record exceeds MAX_RECORD_LEN")
     }
 }
 
-impl<'a, R> From<&'a R> for RecordRef<'a>
+impl<'a> RecordRef<'a, RecordHeader> {
+    /// Returns a native Rust enum with a variant for each record type. This allows for
+    /// pattern `match`ing.
+    ///
+    /// # Errors
+    /// This function returns a conversion error if the rtype does not correspond with
+    /// any known DBN record type.
+    pub fn as_enum(&self) -> crate::Result<crate::RecordRefEnum<'_>> {
+        crate::RecordRefEnum::try_from(*self)
+    }
+}
+
+impl<'a, R> From<&'a R> for RecordRef<'a, R::Header>
 where
     R: Record,
 {
     /// Constructs a new reference to a DBN record.
     fn from(rec: &'a R) -> Self {
         Self {
-            // Safety: `R` begins with a `RecordHeader` because it implements `Record`, so
+            // Safety: `R` begins with an `R::Header` because it implements `Record`, so
             // its byte slice starts at that header. Casting to `mut` is required for
             // `NonNull`, but it is never mutated.
             ptr: unsafe {
-                NonNull::new_unchecked(rec.as_ref().as_ptr().cast::<RecordHeader>().cast_mut())
+                NonNull::new_unchecked((rec.as_ref().as_ptr() as *const R::Header).cast_mut())
             },
             _marker: PhantomData,
         }
     }
 }
 
-impl<'a> AsRef<[u8]> for RecordRef<'a> {
+impl<'a, H: RecordHeaderKind> AsRef<[u8]> for RecordRef<'a, H> {
     fn as_ref(&self) -> &'a [u8] {
         // # Safety
         // Assumes the encoded record length is correct.
-        unsafe { std::slice::from_raw_parts(self.ptr.as_ptr() as *const u8, self.record_size()) }
+        unsafe {
+            std::slice::from_raw_parts(self.ptr.as_ptr() as *const u8, self.header().record_size())
+        }
     }
 }
 
-impl<'a> Record for RecordRef<'a> {
+impl Record for RecordRef<'_, RecordHeader> {
+    type Header = RecordHeader;
+
     fn record_size(&self) -> usize {
         self.header().record_size()
     }
 
-    fn rtype(&self) -> crate::Result<RType> {
+    fn rtype(&self) -> crate::Result<crate::RType> {
         self.header().rtype()
     }
 
@@ -377,38 +409,54 @@ impl<'a> Record for RecordRef<'a> {
     }
 }
 
-impl<'a> From<RecordRefEnum<'a>> for RecordRef<'a> {
-    fn from(rec_enum: RecordRefEnum<'a>) -> Self {
-        match rec_enum {
-            RecordRefEnum::Mbo(rec) => Self::from(rec),
-            RecordRefEnum::Trade(rec) => Self::from(rec),
-            RecordRefEnum::Mbp1(rec) => Self::from(rec),
-            RecordRefEnum::Mbp10(rec) => Self::from(rec),
-            RecordRefEnum::Ohlcv(rec) => Self::from(rec),
-            RecordRefEnum::Status(rec) => Self::from(rec),
-            RecordRefEnum::InstrumentDef(rec) => Self::from(rec),
-            RecordRefEnum::Imbalance(rec) => Self::from(rec),
-            RecordRefEnum::Stat(rec) => Self::from(rec),
-            RecordRefEnum::Error(rec) => Self::from(rec),
-            RecordRefEnum::SymbolMapping(rec) => Self::from(rec),
-            RecordRefEnum::System(rec) => Self::from(rec),
-            RecordRefEnum::Cmbp1(rec) => Self::from(rec),
-            RecordRefEnum::Bbo(rec) => Self::from(rec),
-            RecordRefEnum::Cbbo(rec) => Self::from(rec),
-        }
+impl Record for RecordRef<'_, crate::v4::RecordHeader> {
+    type Header = crate::v4::RecordHeader;
+
+    fn record_size(&self) -> usize {
+        self.header().record_size()
+    }
+
+    fn rtype(&self) -> crate::Result<crate::RType> {
+        self.header().rtype()
+    }
+
+    fn raw_rtype(&self) -> u16 {
+        self.header().rtype
+    }
+
+    fn publisher_id(&self) -> u16 {
+        self.header().publisher_id
+    }
+
+    fn publisher(&self) -> crate::Result<crate::Publisher> {
+        self.header().publisher()
+    }
+
+    fn instrument_id(&self) -> u64 {
+        self.header().instrument_id
+    }
+
+    fn raw_ts_event(&self) -> u64 {
+        self.header().ts_event
+    }
+
+    fn raw_index_ts(&self) -> u64 {
+        self.get::<crate::v4::MboMsg>()
+            .map(|r| r.raw_index_ts())
+            .unwrap_or_else(|| self.header().ts_event)
     }
 }
 
-impl<'a> From<RecordRef<'a>> for IoSlice<'a> {
-    fn from(rec: RecordRef<'a>) -> Self {
+impl<'a, H: RecordHeaderKind> From<RecordRef<'a, H>> for IoSlice<'a> {
+    fn from(rec: RecordRef<'a, H>) -> Self {
         // SAFETY: Assumes the encoded record length is correct.
         Self::new(unsafe {
-            std::slice::from_raw_parts(rec.ptr.as_ptr() as *const u8, rec.record_size())
+            std::slice::from_raw_parts(rec.ptr.as_ptr() as *const u8, rec.header().record_size())
         })
     }
 }
 
-impl Debug for RecordRef<'_> {
+impl<H: RecordHeaderKind + Debug> Debug for RecordRef<'_, H> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("RecordRef")
             .field(
@@ -419,7 +467,39 @@ impl Debug for RecordRef<'_> {
     }
 }
 
-impl<'a> RecordRefMut<'a> {
+impl<'a, H: RecordHeaderKind> RecordRefMut<'a, H> {
+    /// Constructs a new reference to the DBN record in `buffer`.
+    ///
+    /// # Safety
+    /// `buffer` should begin with a header of type `H` and contain a type implementing
+    /// [`HasRType`].
+    pub unsafe fn new(buffer: &'a mut [u8]) -> Self {
+        debug_assert!(buffer.len() >= mem::size_of::<H>());
+
+        // Safety: derived from a mutable borrow, so the pointer carries write
+        // provenance for all of `'a`. `as_ptr` would only grant read access.
+        let raw_ptr = buffer.as_mut_ptr() as *mut H;
+
+        // Check if alignment of pointer matches that of header (and all records)
+        debug_assert_eq!(raw_ptr.addr() % std::mem::align_of::<H>(), 0);
+        let ptr = NonNull::new_unchecked(raw_ptr);
+        Self {
+            ptr,
+            _marker: PhantomData,
+        }
+    }
+
+    /// Constructs a new reference to the DBN record.
+    ///
+    /// # Safety
+    /// `header` must point to a valid, mutable DBN record.
+    pub unsafe fn unchecked_from_header(header: *mut H) -> Self {
+        Self {
+            ptr: NonNull::new_unchecked(header),
+            _marker: PhantomData,
+        }
+    }
+
     /// Returns a reference to the common record header at the start of every record.
     ///
     /// The returned reference borrows `self`, so it cannot coexist with a mutable one.
@@ -432,46 +512,14 @@ impl<'a> RecordRefMut<'a> {
     /// rec.get_mut::<MboMsg>().unwrap().hd.instrument_id = 9;
     /// assert_eq!(hd.instrument_id, 9);
     /// ```
-    pub fn header(&self) -> &RecordHeader {
-        // Safety: assumes `ptr` points to a `RecordHeader`.
+    pub fn header(&self) -> &H {
+        // Safety: assumes `ptr` points to a valid header.
         unsafe { self.ptr.as_ref() }
     }
 
-    /// Constructs a new reference to the DBN record in `buffer`.
-    ///
-    /// # Safety
-    /// `buffer` should begin with a [`RecordHeader`] and contain a type implementing
-    /// [`HasRType`].
-    pub unsafe fn new(buffer: &'a mut [u8]) -> Self {
-        debug_assert!(buffer.len() >= mem::size_of::<RecordHeader>());
-
-        // Safety: derived from a mutable borrow, so the pointer carries write
-        // provenance for all of `'a`. `as_ptr` would only grant read access.
-        let raw_ptr = buffer.as_mut_ptr() as *mut RecordHeader;
-
-        // Check if alignment of pointer matches that of header (and all records)
-        debug_assert_eq!(raw_ptr.addr() % std::mem::align_of::<RecordHeader>(), 0);
-        let ptr = NonNull::new_unchecked(raw_ptr.cast::<RecordHeader>());
-        Self {
-            ptr,
-            _marker: PhantomData,
-        }
-    }
-
-    /// Constructs a new reference to the DBN record.
-    ///
-    /// # Safety
-    /// `header` must point to a valid, mutable DBN record.
-    pub unsafe fn unchecked_from_header(header: *mut RecordHeader) -> Self {
-        Self {
-            ptr: NonNull::new_unchecked(header),
-            _marker: PhantomData,
-        }
-    }
-
     /// Returns `true` if the object points to a record of type `T`.
-    pub fn has<T: HasRType>(&self) -> bool {
-        T::has_rtype(self.header().rtype)
+    pub fn has<T: HasRType<Header = H>>(&self) -> bool {
+        T::has_rtype(self.header().raw_rtype())
     }
 
     /// Returns a reference to the underlying record of type `T` or `None` if it points
@@ -492,7 +540,7 @@ impl<'a> RecordRefMut<'a> {
     /// rec.get_mut::<MboMsg>().unwrap().order_id = 9;
     /// assert_eq!(shared.order_id, 9);
     /// ```
-    pub fn get<T: HasRType>(&self) -> Option<&T> {
+    pub fn get<T: HasRType<Header = H>>(&self) -> Option<&T> {
         self.as_rec_ref().get()
     }
 
@@ -502,7 +550,7 @@ impl<'a> RecordRefMut<'a> {
     /// # Errors
     /// This function returns an error if the buffer doesn't hold a `T`, or if the rtype
     /// matches but the length is too short.
-    pub fn try_get<T: HasRType>(&self) -> crate::Result<&T> {
+    pub fn try_get<T: HasRType<Header = H>>(&self) -> crate::Result<&T> {
         self.as_rec_ref().try_get()
     }
 
@@ -540,15 +588,15 @@ impl<'a> RecordRefMut<'a> {
     /// a.order_id = 1;
     /// b.order_id = 2;
     /// ```
-    pub fn get_mut<T: HasRType>(&mut self) -> Option<&mut T> {
+    pub fn get_mut<T: HasRType<Header = H>>(&mut self) -> Option<&mut T> {
         if self.has::<T>() {
             assert!(
-                self.record_size() >= mem::size_of::<T>(),
+                self.header().record_size() >= mem::size_of::<T>(),
                 "Malformed `{}` record: expected length of at least {} bytes, found {} bytes. \
                 Confirm the DBN version in the Metadata header and the version upgrade policy",
                 std::any::type_name::<T>(),
                 mem::size_of::<T>(),
-                self.record_size()
+                self.header().record_size()
             );
             // SAFETY: checked rtype and size.
             Some(unsafe { self.ptr.cast::<T>().as_mut() })
@@ -574,9 +622,9 @@ impl<'a> RecordRefMut<'a> {
     /// inner.price = 1_500_000_000;
     /// assert_eq!(mbo.price, 1_500_000_000);
     /// ```
-    pub fn try_get_mut<T: HasRType>(&mut self) -> crate::Result<&mut T> {
+    pub fn try_get_mut<T: HasRType<Header = H>>(&mut self) -> crate::Result<&mut T> {
         if self.has::<T>() {
-            if self.record_size() >= mem::size_of::<T>() {
+            if self.header().record_size() >= mem::size_of::<T>() {
                 // SAFETY: checked rtype and size.
                 Ok(unsafe { self.ptr.cast::<T>().as_mut() })
             } else {
@@ -598,8 +646,8 @@ impl<'a> RecordRefMut<'a> {
     ///
     /// # Safety
     /// The caller needs to validate this object points to a `T`.
-    pub unsafe fn get_unchecked<T: HasRType>(&self) -> &T {
-        debug_assert!(self.record_size() >= mem::size_of::<T>());
+    pub unsafe fn get_unchecked<T: HasRType<Header = H>>(&self) -> &T {
+        debug_assert!(self.header().record_size() >= mem::size_of::<T>());
         self.ptr.cast::<T>().as_ref()
     }
 
@@ -610,8 +658,8 @@ impl<'a> RecordRefMut<'a> {
     ///
     /// # Safety
     /// The caller needs to validate this object points to a `T`.
-    pub unsafe fn get_mut_unchecked<T: HasRType>(&mut self) -> &mut T {
-        debug_assert!(self.record_size() >= mem::size_of::<T>());
+    pub unsafe fn get_mut_unchecked<T: HasRType<Header = H>>(&mut self) -> &mut T {
+        debug_assert!(self.header().record_size() >= mem::size_of::<T>());
         self.ptr.cast::<T>().as_mut()
     }
 
@@ -622,11 +670,11 @@ impl<'a> RecordRefMut<'a> {
     /// use dbn::{MboMsg, RecordRefMut};
     ///
     /// let mut mbo = MboMsg::default();
-    /// let rec = RecordRefMut::from(&mut mbo);
+    /// let mut rec = RecordRefMut::from(&mut mbo);
     /// let owned = rec.to_owned();
     /// assert!(owned.has::<MboMsg>());
     /// ```
-    pub fn to_owned(&self) -> crate::RecordBuf {
+    pub fn to_owned(&self) -> crate::RecordBuf<{ crate::MAX_RECORD_LEN }, H> {
         // All valid records fit within MAX_RECORD_LEN.
         crate::RecordBuf::try_from(self.as_rec_ref()).expect("record exceeds MAX_RECORD_LEN")
     }
@@ -642,7 +690,18 @@ impl<'a> RecordRefMut<'a> {
     /// let rec_ref: RecordRef = rec_mut.as_rec_ref();
     /// assert!(rec_ref.has::<MboMsg>());
     /// ```
-    pub fn as_rec_ref(&self) -> RecordRef<'_> {
+    ///
+    /// The view borrows `self`, so nothing it yields can outlive a later mutation.
+    /// ```compile_fail
+    /// use dbn::{MboMsg, RecordRefMut};
+    ///
+    /// let mut mbo = MboMsg::default();
+    /// let mut rec = RecordRefMut::from(&mut mbo);
+    /// let shared = rec.as_rec_ref().get::<MboMsg>().unwrap();
+    /// rec.get_mut::<MboMsg>().unwrap().order_id = 9;
+    /// assert_eq!(shared.order_id, 9);
+    /// ```
+    pub fn as_rec_ref(&self) -> RecordRef<'_, H> {
         RecordRef {
             ptr: self.ptr,
             _marker: PhantomData,
@@ -650,36 +709,40 @@ impl<'a> RecordRefMut<'a> {
     }
 }
 
-impl<'a, R> From<&'a mut R> for RecordRefMut<'a>
+impl<'a, R> From<&'a mut R> for RecordRefMut<'a, R::Header>
 where
-    R: HasRType,
+    R: Record,
 {
     /// Constructs a new reference to a DBN record.
     fn from(rec: &'a mut R) -> Self {
         Self {
-            // Safety: `R` begins with a `RecordHeader` because it implements
-            // `HasRType`. Derived from the whole record so the pointer covers every
-            // byte `get_mut` may reach, which a `header_mut` borrow would not.
-            ptr: NonNull::from(rec).cast::<RecordHeader>(),
+            // Safety: `R` begins with its header because it implements `Record`.
+            // Derived from the whole record so the pointer covers every byte
+            // `get_mut` may reach, which a `header_mut` borrow would not.
+            ptr: NonNull::from(rec).cast::<R::Header>(),
             _marker: PhantomData,
         }
     }
 }
 
-impl<'a> AsRef<[u8]> for RecordRefMut<'a> {
+impl<H: RecordHeaderKind> AsRef<[u8]> for RecordRefMut<'_, H> {
     fn as_ref(&self) -> &[u8] {
         // # Safety
         // Assumes the encoded record length is correct.
-        unsafe { std::slice::from_raw_parts(self.ptr.as_ptr() as *const u8, self.record_size()) }
+        unsafe {
+            std::slice::from_raw_parts(self.ptr.as_ptr() as *const u8, self.header().record_size())
+        }
     }
 }
 
-impl<'a> Record for RecordRefMut<'a> {
+impl Record for RecordRefMut<'_, RecordHeader> {
+    type Header = RecordHeader;
+
     fn record_size(&self) -> usize {
         self.header().record_size()
     }
 
-    fn rtype(&self) -> crate::Result<RType> {
+    fn rtype(&self) -> crate::Result<crate::RType> {
         self.header().rtype()
     }
 
@@ -716,14 +779,14 @@ impl<'a> Record for RecordRefMut<'a> {
     }
 }
 
-impl<'a> RecordMut for RecordRefMut<'a> {
+impl RecordMut for RecordRefMut<'_, RecordHeader> {
     fn header_mut(&mut self) -> &mut RecordHeader {
         // Safety: assumes `ptr` points to a `RecordHeader`.
         unsafe { self.ptr.as_mut() }
     }
 }
 
-impl Debug for RecordRefMut<'_> {
+impl<H: RecordHeaderKind + Debug> Debug for RecordRefMut<'_, H> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("RecordRefMut")
             .field(
@@ -734,14 +797,8 @@ impl Debug for RecordRefMut<'_> {
     }
 }
 
-impl<'a, const CAP: usize> From<&'a mut crate::RecordBuf<CAP>> for RecordRefMut<'a> {
-    fn from(buf: &'a mut crate::RecordBuf<CAP>) -> Self {
-        buf.as_rec_ref_mut()
-    }
-}
-
-impl<'a> From<RecordRefMut<'a>> for RecordRef<'a> {
-    fn from(ref_mut: RecordRefMut<'a>) -> Self {
+impl<'a, H: RecordHeaderKind> From<RecordRefMut<'a, H>> for RecordRef<'a, H> {
+    fn from(ref_mut: RecordRefMut<'a, H>) -> Self {
         Self {
             ptr: ref_mut.ptr,
             _marker: PhantomData,
@@ -749,54 +806,58 @@ impl<'a> From<RecordRefMut<'a>> for RecordRef<'a> {
     }
 }
 
-impl hash::Hash for RecordRef<'_> {
-    fn hash<H: hash::Hasher>(&self, state: &mut H) {
+impl<H: RecordHeaderKind> hash::Hash for RecordRef<'_, H> {
+    fn hash<S: hash::Hasher>(&self, state: &mut S) {
         self.as_ref().hash(state);
     }
 }
 
-impl hash::Hash for RecordRefMut<'_> {
-    fn hash<H: hash::Hasher>(&self, state: &mut H) {
+impl<H: RecordHeaderKind> hash::Hash for RecordRefMut<'_, H> {
+    fn hash<S: hash::Hasher>(&self, state: &mut S) {
         self.as_ref().hash(state);
     }
 }
 
-impl PartialEq for RecordRef<'_> {
+impl<H: RecordHeaderKind> PartialEq for RecordRef<'_, H> {
     fn eq(&self, other: &Self) -> bool {
         *self.as_ref() == *other.as_ref()
     }
 }
 
-impl Eq for RecordRef<'_> {}
+impl<H: RecordHeaderKind> Eq for RecordRef<'_, H> {}
 
-impl<const CAP: usize> PartialEq<crate::RecordBuf<CAP>> for RecordRef<'_> {
-    fn eq(&self, other: &crate::RecordBuf<CAP>) -> bool {
+impl<const CAP: usize, H: RecordHeaderKind> PartialEq<crate::RecordBuf<CAP, H>>
+    for RecordRef<'_, H>
+{
+    fn eq(&self, other: &crate::RecordBuf<CAP, H>) -> bool {
         *self.as_ref() == *other.as_ref()
     }
 }
 
-impl PartialEq<RecordRefMut<'_>> for RecordRef<'_> {
-    fn eq(&self, other: &RecordRefMut<'_>) -> bool {
+impl<H: RecordHeaderKind> PartialEq<RecordRefMut<'_, H>> for RecordRef<'_, H> {
+    fn eq(&self, other: &RecordRefMut<'_, H>) -> bool {
         *self.as_ref() == *other.as_ref()
     }
 }
 
-impl PartialEq for RecordRefMut<'_> {
+impl<H: RecordHeaderKind> PartialEq for RecordRefMut<'_, H> {
     fn eq(&self, other: &Self) -> bool {
         *self.as_ref() == *other.as_ref()
     }
 }
 
-impl Eq for RecordRefMut<'_> {}
+impl<H: RecordHeaderKind> Eq for RecordRefMut<'_, H> {}
 
-impl<const CAP: usize> PartialEq<crate::RecordBuf<CAP>> for RecordRefMut<'_> {
-    fn eq(&self, other: &crate::RecordBuf<CAP>) -> bool {
+impl<const CAP: usize, H: RecordHeaderKind> PartialEq<crate::RecordBuf<CAP, H>>
+    for RecordRefMut<'_, H>
+{
+    fn eq(&self, other: &crate::RecordBuf<CAP, H>) -> bool {
         *self.as_ref() == *other.as_ref()
     }
 }
 
-impl PartialEq<RecordRef<'_>> for RecordRefMut<'_> {
-    fn eq(&self, other: &RecordRef<'_>) -> bool {
+impl<H: RecordHeaderKind> PartialEq<RecordRef<'_, H>> for RecordRefMut<'_, H> {
+    fn eq(&self, other: &RecordRef<'_, H>) -> bool {
         *self.as_ref() == *other.as_ref()
     }
 }
@@ -963,9 +1024,13 @@ mod tests {
     #[test]
     fn test_record_ref_mut_get_mut() {
         let mut mbo = SOURCE_RECORD;
-        let mut target = RecordRefMut::from(&mut mbo);
-        let rec = target.get_mut::<MboMsg>().unwrap();
-        rec.size = 99;
+        {
+            // The mutable borrow has to end before `mbo` is read again, which is what
+            // makes these accessors sound.
+            let mut target = RecordRefMut::from(&mut mbo);
+            let rec = target.get_mut::<MboMsg>().unwrap();
+            rec.size = 99;
+        }
         assert_eq!(mbo.size, 99);
     }
 

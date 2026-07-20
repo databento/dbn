@@ -834,8 +834,8 @@ mod tests {
         use crate::{
             decode::{DecodeRecord, DecodeRecordRef},
             encode::{dbn::RecordEncoder, EncodeRecord, EncodeRecordRef},
-            record::{MboMsg, RecordHeader, TradeMsg},
-            rtype, FlagSet, Record, RecordRef,
+            record::{MboMsg, Record, RecordHeader, TradeMsg},
+            rtype, FlagSet, RecordRef,
         };
 
         fn make_mbo_msg(instrument_id: u32, ts_event: u64) -> MboMsg {

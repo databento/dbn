@@ -19,7 +19,7 @@ use crate::{
         DbnMetadata, DecodeRecord, DecodeRecordRef, DecodeStream, FromLittleEndianSlice,
         StreamIterDecoder, VersionUpgradePolicy,
     },
-    Compression, HasRType, MappingInterval, Metadata, RecordRef, SType, Schema, SymbolMapping,
+    v3, Compression, MappingInterval, Metadata, RecordRef, SType, Schema, SymbolMapping,
 };
 
 /// Object for reading, parsing, and serializing a legacy Databento Binary Encoding (DBZ) file.
@@ -139,7 +139,7 @@ impl<R: io::BufRead> DbnMetadata for Decoder<R> {
 }
 
 impl<R: io::BufRead> DecodeRecord for Decoder<R> {
-    fn decode_record<T: HasRType>(&mut self) -> crate::Result<Option<&T>> {
+    fn decode_record<T: v3::HasRType>(&mut self) -> crate::Result<Option<&T>> {
         self.decode_record_ref().and_then(|rec| {
             if let Some(rec) = rec {
                 rec.try_get().map(Some)
@@ -157,7 +157,7 @@ impl<R: io::BufRead> DecodeStream for Decoder<R> {
     /// # Errors
     /// This function will return an error if the zstd portion of the DBZ file
     /// was compressed in an unexpected manner.
-    fn decode_stream<T: HasRType>(self) -> super::StreamIterDecoder<Self, T>
+    fn decode_stream<T: v3::HasRType>(self) -> super::StreamIterDecoder<Self, T>
     where
         Self: Sized,
     {
@@ -421,7 +421,7 @@ mod tests {
     #[case::tbbo(TbboMsg::default(), Schema::Tbbo, 2)]
     #[case::trades(TradeMsg::default(), Schema::Trades, 2)]
     #[case::definition(InstrumentDefMsgV1::default(), Schema::Definition, 2)]
-    fn test_decode_stream<R: HasRType>(
+    fn test_decode_stream<R: v3::HasRType>(
         #[case] _rec: R,
         #[case] schema: Schema,
         #[case] exp_rec_count: usize,

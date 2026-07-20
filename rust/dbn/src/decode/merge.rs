@@ -1,6 +1,6 @@
 use std::{cmp::Reverse, collections::BinaryHeap};
 
-use crate::{Error, HasRType, Metadata, Record, RecordRef};
+use crate::{v3, Error, Metadata, Record, RecordRef};
 
 use super::{private, DbnMetadata, DecodeRecord, DecodeRecordRef, DecodeStream, StreamIterDecoder};
 
@@ -65,7 +65,7 @@ impl<D> DecodeRecord for Decoder<D>
 where
     D: private::LastRecord + DecodeRecordRef,
 {
-    fn decode_record<T: HasRType>(&mut self) -> crate::Result<Option<&T>> {
+    fn decode_record<T: v3::HasRType>(&mut self) -> crate::Result<Option<&T>> {
         self.decoder.decode_record()
     }
 }
@@ -83,7 +83,7 @@ impl<D> DecodeStream for Decoder<D>
 where
     D: private::LastRecord + DecodeRecordRef,
 {
-    fn decode_stream<T: HasRType>(self) -> StreamIterDecoder<Self, T>
+    fn decode_stream<T: v3::HasRType>(self) -> StreamIterDecoder<Self, T>
     where
         Self: Sized,
     {
@@ -284,7 +284,7 @@ impl<D> DecodeRecord for RecordDecoder<D>
 where
     D: private::LastRecord + DecodeRecordRef,
 {
-    fn decode_record<T: HasRType>(&mut self) -> crate::Result<Option<&T>> {
+    fn decode_record<T: v3::HasRType>(&mut self) -> crate::Result<Option<&T>> {
         self.decode_record_ref().and_then(|rec| {
             if let Some(rec) = rec {
                 rec.try_get().map(Some)
@@ -311,7 +311,7 @@ impl<D> DecodeStream for RecordDecoder<D>
 where
     D: private::LastRecord + DecodeRecordRef,
 {
-    fn decode_stream<T: HasRType>(self) -> super::StreamIterDecoder<Self, T>
+    fn decode_stream<T: v3::HasRType>(self) -> super::StreamIterDecoder<Self, T>
     where
         Self: Sized,
     {

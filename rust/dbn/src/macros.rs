@@ -548,12 +548,12 @@ mod tests {
             x + y
         }
 
-        async fn do_something<T: HasRType>(&self, arg: u8) -> bool {
+        async fn do_something<T: HasRType>(&self, arg: u16) -> bool {
             T::has_rtype(arg)
         }
     }
 
-    fn has_rtype<T: HasRType>(arg: u8) -> bool {
+    fn has_rtype<T: HasRType>(arg: u16) -> bool {
         T::has_rtype(arg)
     }
 
@@ -561,7 +561,7 @@ mod tests {
     fn test_two_args() {
         assert!(schema_dispatch!(
             Schema::Imbalance,
-            has_rtype(rtype::IMBALANCE)
+            has_rtype(u16::from(rtype::IMBALANCE))
         ))
     }
 
@@ -588,7 +588,9 @@ mod tests {
             let target = Dummy {};
             let ret_true = schema_dispatch!(
                 Schema::Trades,
-                target.do_something(crate::enums::rtype::MBP_0).await,
+                target
+                    .do_something(u16::from(crate::enums::rtype::MBP_0))
+                    .await,
             );
             let ret_false = schema_dispatch!(Schema::Trades, target.do_something(0xff).await);
             assert!(ret_true);

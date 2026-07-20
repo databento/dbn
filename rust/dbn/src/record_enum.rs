@@ -21,7 +21,8 @@
 use crate::{
     record::{CbboMsg, Cmbp1Msg},
     BboMsg, Error, ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
-    RType, Record, RecordMut, RecordRef, StatMsg, StatusMsg, SymbolMappingMsg, SystemMsg, TradeMsg,
+    RType, Record, RecordHeader, RecordMut, RecordRef, StatMsg, StatusMsg, SymbolMappingMsg,
+    SystemMsg, TradeMsg,
 };
 
 /// An owned DBN record type of flexible type. Unlike [`RecordRef`], this type allows
@@ -125,6 +126,27 @@ impl<'a> From<&'a RecordEnum> for RecordRefEnum<'a> {
 }
 
 impl RecordRefEnum<'_> {
+    /// Returns a reference to the common record header at the start of every record.
+    pub fn header(&self) -> &crate::RecordHeader {
+        match self {
+            Self::Mbo(rec) => &rec.hd,
+            Self::Trade(rec) => &rec.hd,
+            Self::Mbp1(rec) => &rec.hd,
+            Self::Mbp10(rec) => &rec.hd,
+            Self::Ohlcv(rec) => &rec.hd,
+            Self::Status(rec) => &rec.hd,
+            Self::InstrumentDef(rec) => &rec.hd,
+            Self::Imbalance(rec) => &rec.hd,
+            Self::Stat(rec) => &rec.hd,
+            Self::Error(rec) => &rec.hd,
+            Self::SymbolMapping(rec) => &rec.hd,
+            Self::System(rec) => &rec.hd,
+            Self::Cmbp1(rec) => &rec.hd,
+            Self::Bbo(rec) => &rec.hd,
+            Self::Cbbo(rec) => &rec.hd,
+        }
+    }
+
     /// Converts the reference enum into an owned enum value.
     pub fn to_owned(&self) -> RecordEnum {
         #[allow(clippy::clone_on_copy)] // required for when trivial_copy feature is disabled
@@ -384,11 +406,33 @@ impl RecordEnum {
 }
 
 impl Record for RecordEnum {
+    type Header = RecordHeader;
+
+    fn raw_index_ts(&self) -> u64 {
+        match self {
+            RecordEnum::Mbo(rec) => rec.raw_index_ts(),
+            RecordEnum::Trade(rec) => rec.raw_index_ts(),
+            RecordEnum::Mbp1(rec) => rec.raw_index_ts(),
+            RecordEnum::Mbp10(rec) => rec.raw_index_ts(),
+            RecordEnum::Ohlcv(rec) => rec.raw_index_ts(),
+            RecordEnum::Status(rec) => rec.raw_index_ts(),
+            RecordEnum::InstrumentDef(rec) => rec.raw_index_ts(),
+            RecordEnum::Imbalance(rec) => rec.raw_index_ts(),
+            RecordEnum::Stat(rec) => rec.raw_index_ts(),
+            RecordEnum::Error(rec) => rec.raw_index_ts(),
+            RecordEnum::SymbolMapping(rec) => rec.raw_index_ts(),
+            RecordEnum::System(rec) => rec.raw_index_ts(),
+            RecordEnum::Cmbp1(rec) => rec.raw_index_ts(),
+            RecordEnum::Bbo(rec) => rec.raw_index_ts(),
+            RecordEnum::Cbbo(rec) => rec.raw_index_ts(),
+        }
+    }
+
     fn record_size(&self) -> usize {
         self.header().record_size()
     }
 
-    fn rtype(&self) -> crate::Result<crate::RType> {
+    fn rtype(&self) -> crate::Result<RType> {
         self.header().rtype()
     }
 
@@ -410,26 +454,6 @@ impl Record for RecordEnum {
 
     fn raw_ts_event(&self) -> u64 {
         self.header().ts_event
-    }
-
-    fn raw_index_ts(&self) -> u64 {
-        match self {
-            RecordEnum::Mbo(rec) => rec.raw_index_ts(),
-            RecordEnum::Trade(rec) => rec.raw_index_ts(),
-            RecordEnum::Mbp1(rec) => rec.raw_index_ts(),
-            RecordEnum::Mbp10(rec) => rec.raw_index_ts(),
-            RecordEnum::Ohlcv(rec) => rec.raw_index_ts(),
-            RecordEnum::Status(rec) => rec.raw_index_ts(),
-            RecordEnum::InstrumentDef(rec) => rec.raw_index_ts(),
-            RecordEnum::Imbalance(rec) => rec.raw_index_ts(),
-            RecordEnum::Stat(rec) => rec.raw_index_ts(),
-            RecordEnum::Error(rec) => rec.raw_index_ts(),
-            RecordEnum::SymbolMapping(rec) => rec.raw_index_ts(),
-            RecordEnum::System(rec) => rec.raw_index_ts(),
-            RecordEnum::Cmbp1(rec) => rec.raw_index_ts(),
-            RecordEnum::Bbo(rec) => rec.raw_index_ts(),
-            RecordEnum::Cbbo(rec) => rec.raw_index_ts(),
-        }
     }
 }
 
@@ -477,35 +501,34 @@ impl RecordMut for RecordEnum {
     }
 }
 
-impl RecordRefEnum<'_> {
-    /// Returns a reference to the common record header at the start of every record.
-    pub fn header(&self) -> &crate::RecordHeader {
+impl Record for RecordRefEnum<'_> {
+    type Header = RecordHeader;
+
+    fn raw_index_ts(&self) -> u64 {
         match self {
-            Self::Mbo(rec) => &rec.hd,
-            Self::Trade(rec) => &rec.hd,
-            Self::Mbp1(rec) => &rec.hd,
-            Self::Mbp10(rec) => &rec.hd,
-            Self::Ohlcv(rec) => &rec.hd,
-            Self::Status(rec) => &rec.hd,
-            Self::InstrumentDef(rec) => &rec.hd,
-            Self::Imbalance(rec) => &rec.hd,
-            Self::Stat(rec) => &rec.hd,
-            Self::Error(rec) => &rec.hd,
-            Self::SymbolMapping(rec) => &rec.hd,
-            Self::System(rec) => &rec.hd,
-            Self::Cmbp1(rec) => &rec.hd,
-            Self::Bbo(rec) => &rec.hd,
-            Self::Cbbo(rec) => &rec.hd,
+            RecordRefEnum::Mbo(rec) => rec.raw_index_ts(),
+            RecordRefEnum::Trade(rec) => rec.raw_index_ts(),
+            RecordRefEnum::Mbp1(rec) => rec.raw_index_ts(),
+            RecordRefEnum::Mbp10(rec) => rec.raw_index_ts(),
+            RecordRefEnum::Ohlcv(rec) => rec.raw_index_ts(),
+            RecordRefEnum::Status(rec) => rec.raw_index_ts(),
+            RecordRefEnum::InstrumentDef(rec) => rec.raw_index_ts(),
+            RecordRefEnum::Imbalance(rec) => rec.raw_index_ts(),
+            RecordRefEnum::Stat(rec) => rec.raw_index_ts(),
+            RecordRefEnum::Error(rec) => rec.raw_index_ts(),
+            RecordRefEnum::SymbolMapping(rec) => rec.raw_index_ts(),
+            RecordRefEnum::System(rec) => rec.raw_index_ts(),
+            RecordRefEnum::Cmbp1(rec) => rec.raw_index_ts(),
+            RecordRefEnum::Bbo(rec) => rec.raw_index_ts(),
+            RecordRefEnum::Cbbo(rec) => rec.raw_index_ts(),
         }
     }
-}
 
-impl Record for RecordRefEnum<'_> {
     fn record_size(&self) -> usize {
         self.header().record_size()
     }
 
-    fn rtype(&self) -> crate::Result<crate::RType> {
+    fn rtype(&self) -> crate::Result<RType> {
         self.header().rtype()
     }
 
@@ -527,26 +550,6 @@ impl Record for RecordRefEnum<'_> {
 
     fn raw_ts_event(&self) -> u64 {
         self.header().ts_event
-    }
-
-    fn raw_index_ts(&self) -> u64 {
-        match self {
-            RecordRefEnum::Mbo(rec) => rec.raw_index_ts(),
-            RecordRefEnum::Trade(rec) => rec.raw_index_ts(),
-            RecordRefEnum::Mbp1(rec) => rec.raw_index_ts(),
-            RecordRefEnum::Mbp10(rec) => rec.raw_index_ts(),
-            RecordRefEnum::Ohlcv(rec) => rec.raw_index_ts(),
-            RecordRefEnum::Status(rec) => rec.raw_index_ts(),
-            RecordRefEnum::InstrumentDef(rec) => rec.raw_index_ts(),
-            RecordRefEnum::Imbalance(rec) => rec.raw_index_ts(),
-            RecordRefEnum::Stat(rec) => rec.raw_index_ts(),
-            RecordRefEnum::Error(rec) => rec.raw_index_ts(),
-            RecordRefEnum::SymbolMapping(rec) => rec.raw_index_ts(),
-            RecordRefEnum::System(rec) => rec.raw_index_ts(),
-            RecordRefEnum::Cmbp1(rec) => rec.raw_index_ts(),
-            RecordRefEnum::Bbo(rec) => rec.raw_index_ts(),
-            RecordRefEnum::Cbbo(rec) => rec.raw_index_ts(),
-        }
     }
 }
 
@@ -572,9 +575,31 @@ impl AsRef<[u8]> for RecordRefEnum<'_> {
     }
 }
 
+impl<'a> From<RecordRefEnum<'a>> for RecordRef<'a> {
+    fn from(rec_enum: RecordRefEnum<'a>) -> Self {
+        match rec_enum {
+            RecordRefEnum::Mbo(rec) => Self::from(rec),
+            RecordRefEnum::Trade(rec) => Self::from(rec),
+            RecordRefEnum::Mbp1(rec) => Self::from(rec),
+            RecordRefEnum::Mbp10(rec) => Self::from(rec),
+            RecordRefEnum::Ohlcv(rec) => Self::from(rec),
+            RecordRefEnum::Status(rec) => Self::from(rec),
+            RecordRefEnum::InstrumentDef(rec) => Self::from(rec),
+            RecordRefEnum::Imbalance(rec) => Self::from(rec),
+            RecordRefEnum::Stat(rec) => Self::from(rec),
+            RecordRefEnum::Error(rec) => Self::from(rec),
+            RecordRefEnum::SymbolMapping(rec) => Self::from(rec),
+            RecordRefEnum::System(rec) => Self::from(rec),
+            RecordRefEnum::Cmbp1(rec) => Self::from(rec),
+            RecordRefEnum::Bbo(rec) => Self::from(rec),
+            RecordRefEnum::Cbbo(rec) => Self::from(rec),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::{record::*, v1, v2, HasRType};
+    use crate::{record::*, v1, v2, v3};
 
     use super::*;
     use rstest::rstest;
@@ -619,7 +644,7 @@ mod tests {
         Some("couldn't convert earlier version of StatMsg (must be current version) to dbn::record_enum::RecordRefEnum")
     )]
     #[case::stat_current(StatMsg::default(), None)]
-    fn test_v1_v2_safety<R: HasRType>(#[case] rec: R, #[case] exp_err: Option<&str>) {
+    fn test_v1_v2_safety<R: v3::HasRType>(#[case] rec: R, #[case] exp_err: Option<&str>) {
         let rec_ref = RecordRef::from(&rec);
         let res = rec_ref.as_enum();
         dbg!(&res);

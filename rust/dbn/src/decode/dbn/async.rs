@@ -14,7 +14,7 @@ use crate::{
         AsyncDecodeRecord, AsyncDecodeRecordRef, AsyncDynReader, AsyncSkipBytes, DbnMetadata,
         VersionUpgradePolicy, ZSTD_FILE_BUFFER_CAPACITY,
     },
-    HasRType, Metadata, RecordRef, Result, DBN_VERSION,
+    v3, Metadata, RecordRef, Result, DBN_VERSION,
 };
 
 /// An async decoder for Databento Binary Encoding (DBN), both metadata and records.
@@ -112,7 +112,7 @@ where
     /// # Cancel safety
     /// This method is cancel safe. It can be used within a `tokio::select!` statement
     /// without the potential for corrupting the input stream.
-    pub async fn decode_record<'a, T: HasRType + 'a>(&'a mut self) -> Result<Option<&'a T>> {
+    pub async fn decode_record<'a, T: v3::HasRType + 'a>(&'a mut self) -> Result<Option<&'a T>> {
         self.decoder.decode().await
     }
 
@@ -126,7 +126,7 @@ where
     /// # Cancel safety
     /// This method is not cancellation safe. If used within a `tokio::select!` statement
     /// partially decoded records will be lost and the stream may be corrupted.
-    pub async fn decode_records<T: HasRType + Clone>(&mut self) -> Result<Vec<T>> {
+    pub async fn decode_records<T: v3::HasRType + Clone>(&mut self) -> Result<Vec<T>> {
         self.decoder.decode_records().await
     }
 
@@ -255,7 +255,7 @@ impl<R> AsyncDecodeRecord for Decoder<R>
 where
     R: io::AsyncReadExt + Unpin,
 {
-    async fn decode_record<'a, T: HasRType + 'a>(&'a mut self) -> crate::Result<Option<&'a T>> {
+    async fn decode_record<'a, T: v3::HasRType + 'a>(&'a mut self) -> crate::Result<Option<&'a T>> {
         self.decoder.decode().await
     }
 }
@@ -371,7 +371,7 @@ where
     /// # Cancel safety
     /// This method is cancel safe. It can be used within a `tokio::select!` statement
     /// without the potential for corrupting the input stream.
-    pub async fn decode<'a, T: HasRType + 'a>(&'a mut self) -> Result<Option<&'a T>> {
+    pub async fn decode<'a, T: v3::HasRType + 'a>(&'a mut self) -> Result<Option<&'a T>> {
         self.decode_ref().await.and_then(|rec| {
             if let Some(rec) = rec {
                 rec.try_get().map(Some)
@@ -391,7 +391,7 @@ where
     /// # Cancel safety
     /// This method is not cancellation safe. If used within a `tokio::select!` statement
     /// partially decoded records will be lost and the stream may be corrupted.
-    pub async fn decode_records<T: HasRType + Clone>(&mut self) -> Result<Vec<T>> {
+    pub async fn decode_records<T: v3::HasRType + Clone>(&mut self) -> Result<Vec<T>> {
         let mut res = Vec::new();
         while let Some(rec) = self.decode::<T>().await? {
             res.push(rec.clone());
@@ -464,7 +464,7 @@ impl<R> AsyncDecodeRecord for RecordDecoder<R>
 where
     R: io::AsyncReadExt + Unpin,
 {
-    async fn decode_record<'a, T: HasRType + 'a>(&'a mut self) -> crate::Result<Option<&'a T>> {
+    async fn decode_record<'a, T: v3::HasRType + 'a>(&'a mut self) -> crate::Result<Option<&'a T>> {
         self.decode().await
     }
 }
@@ -806,7 +806,7 @@ mod tests {
     #[case::statistics(Schema::Statistics, StatMsg::default())]
     #[case::status(Schema::Status, StatusMsg::default())]
     #[tokio::test]
-    async fn test_dbn_identity<R: DbnEncodable + HasRType + PartialEq + Clone>(
+    async fn test_dbn_identity<R: DbnEncodable + v3::HasRType + PartialEq + Clone>(
         #[case] schema: Schema,
         #[case] _rec: R,
     ) -> Result<()> {
@@ -1124,7 +1124,7 @@ mod tests {
     #[case::statistics(Schema::Statistics, StatMsg::default())]
     #[case::status(Schema::Status, StatusMsg::default())]
     #[tokio::test]
-    async fn test_decode_stream<R: DbnEncodable + HasRType + PartialEq + Clone>(
+    async fn test_decode_stream<R: DbnEncodable + v3::HasRType + PartialEq + Clone>(
         #[case] schema: Schema,
         #[case] _rec: R,
     ) -> Result<()> {

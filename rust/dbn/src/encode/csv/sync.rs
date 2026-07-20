@@ -5,7 +5,7 @@ use fallible_streaming_iterator::FallibleStreamingIterator;
 use crate::{
     decode::{DbnMetadata, DecodeRecordRef},
     encode::{DbnEncodable, EncodeDbn, EncodeRecord, EncodeRecordRef, EncodeRecordTextExt},
-    rtype_dispatch, schema_dispatch, v2, Error, HasRType, RType, Record, Result, Schema, WithTsOut,
+    rtype_dispatch, schema_dispatch, v2, v3, Error, RType, Record, Result, Schema, WithTsOut,
     DBN_VERSION,
 };
 
@@ -251,7 +251,7 @@ where
         self.writer.write_field(symbol.unwrap_or_default())
     }
 
-    fn encode_with_ts_out<R: DbnEncodable + HasRType + Clone>(
+    fn encode_with_ts_out<R: DbnEncodable + v3::HasRType + crate::RecordMut + Clone>(
         &mut self,
         rec: &R,
         ts_out: u64,

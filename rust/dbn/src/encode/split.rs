@@ -535,7 +535,7 @@ where
                 NoSchemaBehavior::Broadcast => {
                     let rec_ref =
                     // SAFETY: `record` is a valid DBN record: it satisfies `R: Record`.
-                        unsafe { RecordRef::unchecked_from_header(record.as_ref().as_ptr().cast()) };
+                        unsafe { RecordRef::unchecked_from_header(record.as_ref().as_ptr() as *const crate::RecordHeader) };
                     for encoder in self.encoders.values_mut() {
                         // Have to use `encode_record_ref` here because `SplitEncoder` supports
                         // both `EncodeRecord` and `EncodeRecordRef`

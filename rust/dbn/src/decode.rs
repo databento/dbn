@@ -79,7 +79,7 @@ pub use stream::StreamIterDecoder;
 
 use std::{io::Seek, mem};
 
-use crate::{HasRType, Metadata, RecordBuf, RecordRef, VersionUpgradePolicy};
+use crate::{v3, Metadata, RecordBuf, RecordRef, VersionUpgradePolicy};
 
 /// Trait for types that decode references to DBN records of a dynamic type.
 pub trait DecodeRecordRef {
@@ -130,7 +130,7 @@ pub trait DecodeRecord {
     ///
     /// If the `length` property of the record is invalid, an
     /// [`Error::Decode`](crate::Error::Decode) will be returned.
-    fn decode_record<T: HasRType>(&mut self) -> crate::Result<Option<&T>>;
+    fn decode_record<T: v3::HasRType>(&mut self) -> crate::Result<Option<&T>>;
 
     /// Tries to decode all records into a `Vec`. This eagerly decodes the data.
     ///
@@ -143,7 +143,7 @@ pub trait DecodeRecord {
     ///
     /// If the `length` property of any of the records is invalid, a
     /// [`Error::Decode`](crate::Error::Decode) will be returned.
-    fn decode_records<T: HasRType + Clone>(mut self) -> crate::Result<Vec<T>>
+    fn decode_records<T: v3::HasRType + Clone>(mut self) -> crate::Result<Vec<T>>
     where
         Self: Sized,
     {
@@ -162,7 +162,7 @@ pub trait DecodeDbn: DecodeRecord + DecodeRecordRef + DbnMetadata {}
 pub trait DecodeStream: DecodeRecord + private::LastRecord {
     /// Converts the decoder into a streaming iterator of records of type `T`. This
     /// lazily decodes the data.
-    fn decode_stream<T: HasRType>(self) -> StreamIterDecoder<Self, T>
+    fn decode_stream<T: v3::HasRType>(self) -> StreamIterDecoder<Self, T>
     where
         Self: Sized;
 }
@@ -240,7 +240,7 @@ pub trait AsyncDecodeRecord {
     /// # Cancel safety
     /// This method is cancel safe. It can be used within a `tokio::select!` statement
     /// without the potential for corrupting the input stream.
-    async fn decode_record<'a, T: HasRType + 'a>(&'a mut self) -> crate::Result<Option<&'a T>>;
+    async fn decode_record<'a, T: v3::HasRType + 'a>(&'a mut self) -> crate::Result<Option<&'a T>>;
 
     /// Tries to decode all records into a `Vec`. This eagerly decodes the data.
     ///
@@ -257,7 +257,7 @@ pub trait AsyncDecodeRecord {
     /// # Cancel safety
     /// This method is not cancellation safe. If used within a `tokio::select!` statement
     /// partially decoded records will be lost and the stream may be corrupted.
-    async fn decode_records<T: HasRType + Clone>(&mut self) -> crate::Result<Vec<T>>
+    async fn decode_records<T: v3::HasRType + Clone>(&mut self) -> crate::Result<Vec<T>>
     where
         Self: Sized,
     {

@@ -9,10 +9,31 @@
   `TsSymbolMap` from live `SymbolMappingMsg` records
 - Added `interval()` methods to `Schema` and `RType` in the Python bindings, which return
   the subsampling interval as a `datetime.timedelta` or `None`
+- Added a preliminary `v4` module for the in-development DBN version 4
+- Added `RecordHeaderKind` trait to abstract over different `RecordHeader`s
+- Added `HasRType` and `Record` traits and `RecordRef`, `RecordRefMut`, and `RecordBuf`
+  aliases to the `v1`, `v2`, and `v3` modules, bound to the v1-v3 `RecordHeader`
 
 ### Breaking changes
 - Changed `TsSymbolMap::insert()` to take the `start` and `end` of the mapping as UNIX
   timestamps instead of dates
+- `RecordRef`, `RecordRefMut`, and `RecordBuf` are generic over the record header
+  layout, which defaults to the v1-v3 `RecordHeader`. `Record` has a new `Header`
+  associated type naming the layout a record begins with. Generic code bounded on `T:
+  HasRType` that downcasts a `RecordRef` or builds a `RecordBuf` needs `T: v3::HasRType`
+- `RecordRef::new()`, `RecordRefMut::new()`, and their `unchecked_from_header()`
+  constructors need the header specified
+- `HasRType::has_rtype()` takes a `u16`, and `HasRType` no longer requires `RecordMut`
+- `DecodeRecord`, `DecodeStream`, and `AsyncDecodeRecord` decode v1-v3 records, so their
+  generic methods require `T: v3::HasRType`
+- `WithTsOut`, `transmute_record()`, `transmute_record_bytes()`, and
+  `transmute_record_mut()` accept only v1-v3 records, and `InstrumentDefRec`,
+  `StatRec`, and `SymbolMappingRec` extend `v3::HasRType`
+- `dyn Record` requires naming the header, e.g. `dyn v3::Record`, which can also hold v1
+  and v2 records since they share the same header
+- Removed `From<&RecordEnum>` and `From<&RecordBuf>` for `RecordRef`, and `From<&mut
+  RecordBuf>` for `RecordRefMut`. The blanket `From<&R> for RecordRef` covers every
+  `Record`, including these
 
 ### Deprecations
 - Deprecated `TsSymbolMap::get()` in favor of `get_for_ts()`

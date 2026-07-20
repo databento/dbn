@@ -9,28 +9,31 @@
 //! is needed.
 //!
 //! The const-generic parameter `CAP` controls the maximum record size the buffer can
-//! hold. It defaults to [`MAX_RECORD_LEN`], which fits any current DBN record type.
+//! hold. It defaults to [`MAX_RECORD_LEN`], which fits any current DBN record type. The
+//! header type parameter `H` defaults to [`RecordHeader`] for v1-v3 records; v4 records
+//! use [`v4::RecordHeader`](crate::v4::RecordHeader).
 //!
 //! # When to use which type
 //!
 //! - [`RecordRef`]: borrowing a record of unknown type (zero-copy)
 //! - [`RecordBuf`]: owning a record of unknown type (stack-allocated)
-//! - [`RecordEnum`](crate::RecordEnum) / [`RecordRefEnum`]: exhaustive pattern matching
+//! - [`RecordEnum`](crate::RecordEnum) / [`RecordRefEnum`](crate::RecordRefEnum): exhaustive pattern matching
 //!   over all known record types
 //! - Concrete types (`MboMsg`, `TradeMsg`, etc.): when the type is known at compile time
 
 use std::{fmt::Debug, hash, io::IoSlice, mem};
 
 use crate::{
-    rtype_dispatch, HasRType, RType, Record, RecordHeader, RecordMut, RecordRef, RecordRefEnum,
-    RecordRefMut, MAX_RECORD_LEN,
+    record::{HasRType, Record, RecordHeader, RecordHeaderKind},
+    rtype_dispatch, RType, RecordMut, RecordRef, RecordRefMut, MAX_RECORD_LEN,
 };
 
 /// An owned buffer that holds a DBN record of a dynamic type.
 ///
 /// The const-generic parameter `CAP` controls the byte capacity of the buffer,
-/// defaulting to [`MAX_RECORD_LEN`]. A `RecordBuf` always contains a valid record;
-/// use `Option<RecordBuf>` to represent the absence of a record.
+/// defaulting to [`MAX_RECORD_LEN`]. The header type `H` defaults to [`RecordHeader`].
+/// A `RecordBuf` always contains a valid record; use `Option<RecordBuf>` to represent
+/// the absence of a record.
 ///
 /// # Examples
 /// ```
@@ -51,15 +54,17 @@ use crate::{
 #[derive(Clone)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[repr(align(8))]
-pub struct RecordBuf<const CAP: usize = MAX_RECORD_LEN>(Repr<CAP>);
+pub struct RecordBuf<const CAP: usize = MAX_RECORD_LEN, H: RecordHeaderKind = RecordHeader>(
+    Repr<CAP, H>,
+);
 
 #[derive(Clone, Copy)]
-union Repr<const CAP: usize> {
-    hd: RecordHeader,
+union Repr<const CAP: usize, H: RecordHeaderKind> {
+    hd: H,
     buf: [u8; CAP],
 }
 
-impl<const CAP: usize> RecordBuf<CAP> {
+impl<const CAP: usize, H: RecordHeaderKind> RecordBuf<CAP, H> {
     /// Returns the compile-time capacity of the buffer, i.e. the size of the largest
     /// record it can hold.
     pub const fn capacity() -> usize {
@@ -76,7 +81,7 @@ impl<const CAP: usize> RecordBuf<CAP> {
     /// let rec_ref: RecordRef = buf.as_rec_ref();
     /// assert!(rec_ref.has::<MboMsg>());
     /// ```
-    pub fn as_rec_ref(&self) -> RecordRef<'_> {
+    pub fn as_rec_ref(&self) -> RecordRef<'_, H> {
         // SAFETY: `RecordBuf` always holds a valid record with a valid header.
         unsafe { RecordRef::new(self.as_ref()) }
     }
@@ -92,17 +97,9 @@ impl<const CAP: usize> RecordBuf<CAP> {
     /// rec_mut.get_mut::<MboMsg>().unwrap().order_id = 99;
     /// assert_eq!(buf.get::<MboMsg>().unwrap().order_id, 99);
     /// ```
-    pub fn as_rec_ref_mut(&mut self) -> RecordRefMut<'_> {
+    pub fn as_rec_ref_mut(&mut self) -> RecordRefMut<'_, H> {
         // SAFETY: `RecordBuf` always holds a valid record with a valid header.
         unsafe { RecordRefMut::new(self.raw_buf_mut()) }
-    }
-
-    /// Returns a [`RecordRefEnum`] for exhaustive pattern matching.
-    ///
-    /// # Errors
-    /// Returns an error if the rtype does not correspond to any known DBN record type.
-    pub fn as_enum(&self) -> crate::Result<RecordRefEnum<'_>> {
-        RecordRefEnum::try_from(self.as_rec_ref())
     }
 
     /// Upgrades the record from type `F` to type `T` in place.
@@ -121,8 +118,8 @@ impl<const CAP: usize> RecordBuf<CAP> {
     /// ```
     pub fn upgrade<F, T>(&mut self) -> crate::Result<()>
     where
-        F: HasRType,
-        T: HasRType,
+        F: HasRType<Header = H>,
+        T: HasRType<Header = H>,
         T: for<'a> From<&'a F>,
     {
         let upgraded = T::from(self.try_get::<F>()?);
@@ -146,7 +143,7 @@ impl<const CAP: usize> RecordBuf<CAP> {
     /// ```
     pub fn set<T>(&mut self, other: T)
     where
-        T: HasRType,
+        T: HasRType<Header = H>,
     {
         const {
             assert!(
@@ -168,16 +165,9 @@ impl<const CAP: usize> RecordBuf<CAP> {
         }
     }
 
-    /// Returns a reference to the common record header at the start of every record.
-    pub fn header(&self) -> &RecordHeader {
-        // SAFETY: `RecordBuf` always holds a valid record. The `hd` field of the union
-        // is always valid because every record starts with a `RecordHeader`.
-        unsafe { &self.0.hd }
-    }
-
     /// Returns `true` if the buffer holds a record of type `T`.
-    pub fn has<T: HasRType>(&self) -> bool {
-        T::has_rtype(self.header().rtype)
+    pub fn has<T: HasRType<Header = H>>(&self) -> bool {
+        T::has_rtype(self.header().raw_rtype())
     }
 
     /// Returns a reference to the inner record of type `T`, or `None` if the buffer
@@ -198,19 +188,19 @@ impl<const CAP: usize> RecordBuf<CAP> {
     ///     println!("{rec:?}");
     /// }
     /// ```
-    pub fn get<T: HasRType>(&self) -> Option<&T> {
+    pub fn get<T: HasRType<Header = H>>(&self) -> Option<&T> {
         if self.has::<T>() {
             assert!(
-                self.record_size() >= mem::size_of::<T>(),
+                self.header().record_size() >= mem::size_of::<T>(),
                 "Malformed `{}` record: expected length of at least {} bytes, found {} bytes. \
                 Confirm the DBN version in the Metadata header and the version upgrade policy",
                 std::any::type_name::<T>(),
                 mem::size_of::<T>(),
-                self.record_size()
+                self.header().record_size()
             );
             // SAFETY: checked rtype and size. `Repr` is a union starting at the same
             // address, and `RecordBuf` is aligned to 8 bytes.
-            Some(unsafe { std::mem::transmute::<&Repr<CAP>, &T>(&self.0) })
+            Some(unsafe { std::mem::transmute::<&Repr<CAP, H>, &T>(&self.0) })
         } else {
             None
         }
@@ -232,18 +222,18 @@ impl<const CAP: usize> RecordBuf<CAP> {
     /// buf.get_mut::<MboMsg>().unwrap().order_id = 42;
     /// assert_eq!(buf.get::<MboMsg>().unwrap().order_id, 42);
     /// ```
-    pub fn get_mut<T: HasRType>(&mut self) -> Option<&mut T> {
+    pub fn get_mut<T: HasRType<Header = H>>(&mut self) -> Option<&mut T> {
         if self.has::<T>() {
             assert!(
-                self.record_size() >= mem::size_of::<T>(),
+                self.header().record_size() >= mem::size_of::<T>(),
                 "Malformed `{}` record: expected length of at least {} bytes, found {} bytes. \
                 Confirm the DBN version in the Metadata header and the version upgrade policy",
                 std::any::type_name::<T>(),
                 mem::size_of::<T>(),
-                self.record_size()
+                self.header().record_size()
             );
             // SAFETY: checked rtype and size.
-            Some(unsafe { std::mem::transmute::<&mut Repr<CAP>, &mut T>(&mut self.0) })
+            Some(unsafe { std::mem::transmute::<&mut Repr<CAP, H>, &mut T>(&mut self.0) })
         } else {
             None
         }
@@ -268,19 +258,21 @@ impl<const CAP: usize> RecordBuf<CAP> {
     /// // v1 works
     /// buf.try_get::<v1::InstrumentDefMsg>().unwrap();
     /// ```
-    pub fn try_get<T: HasRType>(&self) -> crate::Result<&T> {
+    pub fn try_get<T: HasRType<Header = H>>(&self) -> crate::Result<&T> {
         if self.has::<T>() {
-            if self.record_size() >= mem::size_of::<T>() {
+            if self.header().record_size() >= mem::size_of::<T>() {
                 // SAFETY: checked rtype and size.
-                Ok(unsafe { std::mem::transmute::<&Repr<CAP>, &T>(&self.0) })
+                Ok(unsafe { std::mem::transmute::<&Repr<CAP, H>, &T>(&self.0) })
             } else {
                 Err(crate::Error::conversion::<T>(format_args!(
-                    "{self:?} has insufficient length, may be an earlier version of this record"
+                    "{:?} has insufficient length, may be an earlier version of this record",
+                    self.header()
                 )))
             }
         } else {
             Err(crate::Error::conversion::<T>(format_args!(
-                "{self:?} has incorrect rtype"
+                "{:?} has incorrect rtype",
+                self.header()
             )))
         }
     }
@@ -291,19 +283,21 @@ impl<const CAP: usize> RecordBuf<CAP> {
     /// # Errors
     /// This function returns an error if the buffer doesn't hold a `T`, or if the rtype
     /// matches but the length is too short.
-    pub fn try_get_mut<T: HasRType>(&mut self) -> crate::Result<&mut T> {
+    pub fn try_get_mut<T: HasRType<Header = H>>(&mut self) -> crate::Result<&mut T> {
         if self.has::<T>() {
-            if self.record_size() >= mem::size_of::<T>() {
+            if self.header().record_size() >= mem::size_of::<T>() {
                 // SAFETY: checked rtype and size.
-                Ok(unsafe { std::mem::transmute::<&mut Repr<CAP>, &mut T>(&mut self.0) })
+                Ok(unsafe { std::mem::transmute::<&mut Repr<CAP, H>, &mut T>(&mut self.0) })
             } else {
                 Err(crate::Error::conversion::<T>(format_args!(
-                    "{self:?} has insufficient length, may be an earlier version of this record"
+                    "{:?} has insufficient length, may be an earlier version of this record",
+                    self.header()
                 )))
             }
         } else {
             Err(crate::Error::conversion::<T>(format_args!(
-                "{self:?} has incorrect rtype"
+                "{:?} has incorrect rtype",
+                self.header()
             )))
         }
     }
@@ -314,8 +308,8 @@ impl<const CAP: usize> RecordBuf<CAP> {
     ///
     /// # Safety
     /// The caller must ensure the buffer holds a record of type `T`.
-    pub unsafe fn get_unchecked<T: HasRType>(&self) -> &T {
-        debug_assert!(self.record_size() >= mem::size_of::<T>());
+    pub unsafe fn get_unchecked<T: HasRType<Header = H>>(&self) -> &T {
+        debug_assert!(self.header().record_size() >= mem::size_of::<T>());
         // SAFETY: caller guarantees the buffer holds a `T`; `debug_assert` checks size.
         // Union field access and raw pointer dereference.
         self.0.buf.as_ptr().cast::<T>().as_ref().unwrap_unchecked()
@@ -328,8 +322,8 @@ impl<const CAP: usize> RecordBuf<CAP> {
     ///
     /// # Safety
     /// The caller must ensure the buffer holds a record of type `T`.
-    pub unsafe fn get_unchecked_mut<T: HasRType>(&mut self) -> &mut T {
-        debug_assert!(self.record_size() >= mem::size_of::<T>());
+    pub unsafe fn get_unchecked_mut<T: HasRType<Header = H>>(&mut self) -> &mut T {
+        debug_assert!(self.header().record_size() >= mem::size_of::<T>());
         // SAFETY: caller guarantees the buffer holds a `T`; `debug_assert` checks size.
         // Union field access and raw pointer dereference.
         self.0
@@ -339,14 +333,41 @@ impl<const CAP: usize> RecordBuf<CAP> {
             .as_mut()
             .unwrap_unchecked()
     }
+
+    /// Returns a reference to the common record header at the start of every record.
+    pub fn header(&self) -> &H {
+        // SAFETY: `RecordBuf` always holds a valid record. The `hd` field of the union
+        // is always valid because every record starts with a header.
+        unsafe { &self.0.hd }
+    }
+
+    /// Returns a mutable slice of the full buffer (`CAP` bytes), suitable for use as a
+    /// raw write target (e.g. reading record bytes directly from a decoder). After writing,
+    /// the caller must ensure the header's `length` field correctly reflects the record size.
+    pub fn raw_buf_mut(&mut self) -> &mut [u8; CAP] {
+        // SAFETY: the union's `buf` field covers the full `CAP` bytes.
+        unsafe { &mut self.0.buf }
+    }
 }
 
-impl<const CAP: usize> Record for RecordBuf<CAP> {
+impl<const CAP: usize> RecordBuf<CAP, RecordHeader> {
+    /// Returns a [`crate::RecordRefEnum`] for exhaustive pattern matching.
+    ///
+    /// # Errors
+    /// Returns an error if the rtype does not correspond to any known DBN record type.
+    pub fn as_enum(&self) -> crate::Result<crate::RecordRefEnum<'_>> {
+        crate::RecordRefEnum::try_from(self.as_rec_ref())
+    }
+}
+
+impl<const CAP: usize> Record for RecordBuf<CAP, RecordHeader> {
+    type Header = RecordHeader;
+
     fn record_size(&self) -> usize {
         self.header().record_size()
     }
 
-    fn rtype(&self) -> crate::Result<RType> {
+    fn rtype(&self) -> crate::Result<crate::RType> {
         self.header().rtype()
     }
 
@@ -383,33 +404,63 @@ impl<const CAP: usize> Record for RecordBuf<CAP> {
     }
 }
 
-impl<const CAP: usize> RecordMut for RecordBuf<CAP> {
+impl<const CAP: usize> RecordMut for RecordBuf<CAP, RecordHeader> {
     fn header_mut(&mut self) -> &mut RecordHeader {
         // SAFETY: same as `header()`.
         unsafe { &mut self.0.hd }
     }
 }
 
-impl<const CAP: usize> AsRef<[u8]> for RecordBuf<CAP> {
+impl<const CAP: usize> Record for RecordBuf<CAP, crate::v4::RecordHeader> {
+    type Header = crate::v4::RecordHeader;
+
+    fn record_size(&self) -> usize {
+        self.header().record_size()
+    }
+
+    fn rtype(&self) -> crate::Result<crate::RType> {
+        self.header().rtype()
+    }
+
+    fn raw_rtype(&self) -> u16 {
+        self.header().rtype
+    }
+
+    fn publisher_id(&self) -> u16 {
+        self.header().publisher_id
+    }
+
+    fn publisher(&self) -> crate::Result<crate::Publisher> {
+        self.header().publisher()
+    }
+
+    fn instrument_id(&self) -> u64 {
+        self.header().instrument_id
+    }
+
+    fn raw_ts_event(&self) -> u64 {
+        self.header().ts_event
+    }
+
+    fn raw_index_ts(&self) -> u64 {
+        self.get::<crate::v4::MboMsg>()
+            .map(|r| r.raw_index_ts())
+            .unwrap_or_else(|| self.header().ts_event)
+    }
+}
+
+impl<const CAP: usize, H: RecordHeaderKind> AsRef<[u8]> for RecordBuf<CAP, H> {
     fn as_ref(&self) -> &[u8] {
         // SAFETY: `buf` is always fully initialized (every constructor writes all bytes).
         // `record_size()` comes from the header `length` field, which `raw_buf_mut()` lets
         // safe code set beyond the buffer, so it's clamped to `CAP`.
-        unsafe { std::slice::from_raw_parts(self.0.buf.as_ptr(), self.record_size().min(CAP)) }
+        unsafe {
+            std::slice::from_raw_parts(self.0.buf.as_ptr(), self.header().record_size().min(CAP))
+        }
     }
 }
 
-impl<const CAP: usize> RecordBuf<CAP> {
-    /// Returns a mutable slice of the full buffer (`CAP` bytes), suitable for use as a
-    /// raw write target (e.g. reading record bytes directly from a decoder). After writing,
-    /// the caller must ensure the header's `length` field correctly reflects the record size.
-    pub fn raw_buf_mut(&mut self) -> &mut [u8; CAP] {
-        // SAFETY: the union's `buf` field covers the full `CAP` bytes.
-        unsafe { &mut self.0.buf }
-    }
-}
-
-impl<T, const CAP: usize> From<T> for RecordBuf<CAP>
+impl<T, const CAP: usize> From<T> for RecordBuf<CAP, T::Header>
 where
     T: HasRType,
 {
@@ -428,39 +479,41 @@ where
     }
 }
 
-impl<'a, const CAP: usize> From<&'a RecordBuf<CAP>> for IoSlice<'a> {
-    fn from(rec: &'a RecordBuf<CAP>) -> Self {
+impl<'a, const CAP: usize, H: RecordHeaderKind> From<&'a RecordBuf<CAP, H>> for IoSlice<'a> {
+    fn from(rec: &'a RecordBuf<CAP, H>) -> Self {
         Self::new(rec.as_ref())
     }
 }
 
-impl<const A: usize, const B: usize> PartialEq<RecordBuf<B>> for RecordBuf<A> {
-    fn eq(&self, other: &RecordBuf<B>) -> bool {
+impl<const A: usize, const B: usize, H: RecordHeaderKind> PartialEq<RecordBuf<B, H>>
+    for RecordBuf<A, H>
+{
+    fn eq(&self, other: &RecordBuf<B, H>) -> bool {
         self.as_ref() == other.as_ref()
     }
 }
 
-impl<const CAP: usize> Eq for RecordBuf<CAP> {}
+impl<const CAP: usize, H: RecordHeaderKind> Eq for RecordBuf<CAP, H> {}
 
-impl<const CAP: usize> hash::Hash for RecordBuf<CAP> {
-    fn hash<H: hash::Hasher>(&self, state: &mut H) {
+impl<const CAP: usize, H: RecordHeaderKind> hash::Hash for RecordBuf<CAP, H> {
+    fn hash<S: hash::Hasher>(&self, state: &mut S) {
         self.as_ref().hash(state);
     }
 }
 
-impl<const CAP: usize> PartialEq<RecordRef<'_>> for RecordBuf<CAP> {
-    fn eq(&self, other: &RecordRef<'_>) -> bool {
+impl<const CAP: usize, H: RecordHeaderKind> PartialEq<RecordRef<'_, H>> for RecordBuf<CAP, H> {
+    fn eq(&self, other: &RecordRef<'_, H>) -> bool {
         *self.as_ref() == *other.as_ref()
     }
 }
 
-impl<const CAP: usize> PartialEq<RecordRefMut<'_>> for RecordBuf<CAP> {
-    fn eq(&self, other: &RecordRefMut<'_>) -> bool {
+impl<const CAP: usize, H: RecordHeaderKind> PartialEq<RecordRefMut<'_, H>> for RecordBuf<CAP, H> {
+    fn eq(&self, other: &RecordRefMut<'_, H>) -> bool {
         *self.as_ref() == *other.as_ref()
     }
 }
 
-impl<const CAP: usize> Debug for RecordBuf<CAP> {
+impl<const CAP: usize> Debug for RecordBuf<CAP, RecordHeader> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         fn fmt_rec<T: HasRType + Debug>(t: &T, debug: &mut std::fmt::DebugStruct) {
             debug.field("buf", &t);
@@ -473,21 +526,32 @@ impl<const CAP: usize> Debug for RecordBuf<CAP> {
     }
 }
 
-impl<const CAP: usize> TryFrom<RecordRef<'_>> for RecordBuf<CAP> {
+impl<const CAP: usize> Debug for RecordBuf<CAP, crate::v4::RecordHeader> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut debug = f.debug_struct("RecordBuf");
+        match self.get::<crate::v4::MboMsg>() {
+            Some(rec) => debug.field("buf", rec).finish(),
+            None => debug.field("hd", self.header()).finish_non_exhaustive(),
+        }
+    }
+}
+
+impl<const CAP: usize, H: RecordHeaderKind> TryFrom<RecordRef<'_, H>> for RecordBuf<CAP, H> {
     type Error = crate::Error;
 
     /// Creates a `RecordBuf` by copying bytes from a [`RecordRef`].
     ///
     /// # Errors
     /// Returns an error if the record is too large for the buffer's capacity.
-    fn try_from(rec_ref: RecordRef<'_>) -> Result<Self, Self::Error> {
-        if rec_ref.record_size() > CAP {
+    fn try_from(rec_ref: RecordRef<'_, H>) -> Result<Self, Self::Error> {
+        let record_size = rec_ref.header().record_size();
+        if record_size > CAP {
             Err(crate::Error::conversion::<Self>(format_args!(
                 "{rec_ref:?} is too long for the RecordBuf's capacity"
             )))
         } else {
             let mut buf = [0; CAP];
-            buf[..rec_ref.record_size()].copy_from_slice(rec_ref.as_ref());
+            buf[..record_size].copy_from_slice(rec_ref.as_ref());
             Ok(Self(Repr { buf }))
         }
     }

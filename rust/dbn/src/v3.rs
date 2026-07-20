@@ -1,9 +1,10 @@
 //! Record data types for encoding different Databento [`Schema`](crate::enums::Schema)s
-//! in the upcoming DBN version 3.
+//! in the current DBN version 3.
 
 pub use crate::compat::{
-    ASSET_CSTR_LEN_V3 as ASSET_CSTR_LEN, SYMBOL_CSTR_LEN_V3 as SYMBOL_CSTR_LEN,
-    UNDEF_STAT_QUANTITY_V3 as UNDEF_STAT_QUANTITY,
+    HasRTypeV1 as HasRType, RecordBufV1 as RecordBuf, RecordRefMutV1 as RecordRefMut,
+    RecordRefV1 as RecordRef, RecordV1 as Record, ASSET_CSTR_LEN_V3 as ASSET_CSTR_LEN,
+    SYMBOL_CSTR_LEN_V3 as SYMBOL_CSTR_LEN, UNDEF_STAT_QUANTITY_V3 as UNDEF_STAT_QUANTITY,
 };
 pub use crate::record::{
     Bbo1MMsg, Bbo1SMsg, BboMsg, Cbbo1MMsg, Cbbo1SMsg, CbboMsg, Cmbp1Msg, ErrorMsg, ImbalanceMsg,

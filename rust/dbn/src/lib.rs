@@ -104,6 +104,7 @@ mod test_utils;
 pub mod v1;
 pub mod v2;
 pub mod v3;
+pub mod v4;
 
 #[doc(inline)]
 pub use crate::{
@@ -120,8 +121,8 @@ pub use crate::{
     record::{
         Bbo1MMsg, Bbo1SMsg, BboMsg, BidAskPair, Cbbo1MMsg, Cbbo1SMsg, CbboMsg, Cmbp1Msg,
         ConsolidatedBidAskPair, ErrorMsg, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg,
-        Mbp10Msg, Mbp1Msg, OhlcvMsg, Record, RecordHeader, RecordMut, StatMsg, StatusMsg,
-        SymbolMappingMsg, SystemMsg, TbboMsg, TcbboMsg, TradeMsg, WithTsOut,
+        Mbp10Msg, Mbp1Msg, OhlcvMsg, Record, RecordHeader, RecordHeaderKind, RecordMut, StatMsg,
+        StatusMsg, SymbolMappingMsg, SystemMsg, TbboMsg, TcbboMsg, TradeMsg, WithTsOut,
     },
     record_buf::RecordBuf,
     record_enum::{RecordEnum, RecordRefEnum},

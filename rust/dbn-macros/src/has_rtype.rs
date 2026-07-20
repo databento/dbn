@@ -34,6 +34,8 @@ pub fn attribute_macro_impl(
         #input_struct
 
         impl #crate_name::record::Record for #record_type {
+            type Header = #crate_name::record::RecordHeader;
+
             fn record_size(&self) -> usize {
                 self.hd.record_size()
             }
@@ -73,8 +75,8 @@ pub fn attribute_macro_impl(
 
         impl #crate_name::record::HasRType for #record_type {
             #[allow(deprecated)]
-            fn has_rtype(rtype: u8) -> bool {
-                matches!(rtype, #(#rtypes)|*)
+            fn has_rtype(rtype: u16) -> bool {
+                #(rtype == #rtypes as u16)||*
             }
         }
 

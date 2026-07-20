@@ -2,7 +2,7 @@ use fallible_streaming_iterator::FallibleStreamingIterator;
 
 use crate::{
     decode::{private::LastRecord, DecodeRecordRef},
-    Error, HasRType, RecordRef,
+    v3, Error, RecordRef,
 };
 
 /// A testing shim to get a streaming iterator from a [`Vec`].
@@ -35,7 +35,7 @@ impl<T> FallibleStreamingIterator for VecStream<T> {
 
 impl<T> DecodeRecordRef for VecStream<T>
 where
-    T: HasRType,
+    T: v3::HasRType,
 {
     fn decode_record_ref(&mut self) -> crate::Result<Option<crate::RecordRef<'_>>> {
         self.idx += 1;
@@ -48,7 +48,7 @@ where
 
 impl<T> LastRecord for VecStream<T>
 where
-    T: HasRType + AsRef<[u8]>,
+    T: v3::HasRType + AsRef<[u8]>,
 {
     fn last_record(&self) -> Option<RecordRef<'_>> {
         if self.vec.is_empty() {

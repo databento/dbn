@@ -2,9 +2,10 @@
 //! in DBN version 2.
 
 pub use crate::compat::{
-    InstrumentDefMsgV2 as InstrumentDefMsg, StatMsgV1 as StatMsg,
-    ASSET_CSTR_LEN_V2 as ASSET_CSTR_LEN, SYMBOL_CSTR_LEN_V2 as SYMBOL_CSTR_LEN,
-    UNDEF_STAT_QUANTITY_V2 as UNDEF_STAT_QUANTITY,
+    HasRTypeV1 as HasRType, InstrumentDefMsgV2 as InstrumentDefMsg, RecordBufV1 as RecordBuf,
+    RecordRefMutV1 as RecordRefMut, RecordRefV1 as RecordRef, RecordV1 as Record,
+    StatMsgV1 as StatMsg, ASSET_CSTR_LEN_V2 as ASSET_CSTR_LEN,
+    SYMBOL_CSTR_LEN_V2 as SYMBOL_CSTR_LEN, UNDEF_STAT_QUANTITY_V2 as UNDEF_STAT_QUANTITY,
 };
 pub use crate::record::{
     Bbo1MMsg, Bbo1SMsg, BboMsg, Cbbo1MMsg, Cbbo1SMsg, CbboMsg, Cmbp1Msg, ErrorMsg, ImbalanceMsg,

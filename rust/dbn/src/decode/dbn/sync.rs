@@ -9,7 +9,7 @@ use crate::{
         DbnMetadata, DecodeRecord, DecodeRecordRef, DecodeStream, SkipBytes, StreamIterDecoder,
         VersionUpgradePolicy,
     },
-    HasRType, Metadata, RecordRef, DBN_VERSION,
+    v3, Metadata, RecordRef, DBN_VERSION,
 };
 
 /// Type for decoding files and streams in Databento Binary Encoding (DBN), both metadata and records.
@@ -180,7 +180,7 @@ impl<R> DecodeRecord for Decoder<R>
 where
     R: io::Read,
 {
-    fn decode_record<T: HasRType>(&mut self) -> crate::Result<Option<&T>> {
+    fn decode_record<T: v3::HasRType>(&mut self) -> crate::Result<Option<&T>> {
         self.decoder.decode()
     }
 }
@@ -189,7 +189,7 @@ impl<R> DecodeStream for Decoder<R>
 where
     R: io::Read,
 {
-    fn decode_stream<T: HasRType>(self) -> StreamIterDecoder<Self, T> {
+    fn decode_stream<T: v3::HasRType>(self) -> StreamIterDecoder<Self, T> {
         StreamIterDecoder::new(self)
     }
 }
@@ -311,7 +311,7 @@ where
     ///
     /// If the next record is of a different type than `T`,
     /// this function returns an error of kind `io::ErrorKind::InvalidData`.
-    pub fn decode<T: HasRType>(&mut self) -> crate::Result<Option<&T>> {
+    pub fn decode<T: v3::HasRType>(&mut self) -> crate::Result<Option<&T>> {
         self.decode_ref().and_then(|rec| {
             if let Some(rec) = rec {
                 rec.try_get().map(Some)
@@ -356,7 +356,7 @@ impl<R> DecodeRecord for RecordDecoder<R>
 where
     R: io::Read,
 {
-    fn decode_record<T: HasRType>(&mut self) -> crate::Result<Option<&T>> {
+    fn decode_record<T: v3::HasRType>(&mut self) -> crate::Result<Option<&T>> {
         self.decode()
     }
 }
@@ -647,7 +647,7 @@ mod tests {
     #[case::statistics_v3(3, Schema::Statistics, v3::StatMsg::default())]
     #[case::status_v3(3, Schema::Status, v3::StatusMsg::default())]
     #[cfg(feature = "zstd")]
-    fn test_dbn_identity<R: DbnEncodable + HasRType + PartialEq + Clone>(
+    fn test_dbn_identity<R: DbnEncodable + v3::HasRType + PartialEq + Clone>(
         #[case] version: u8,
         #[case] schema: Schema,
         #[case] _rec: R,
@@ -916,7 +916,7 @@ mod tests {
     #[case::v1_as_is(v1::InstrumentDefMsg::default(), VersionUpgradePolicy::AsIs)]
     #[case::v1_upgrade(v1::InstrumentDefMsg::default(), VersionUpgradePolicy::UpgradeToV2)]
     #[cfg(feature = "zstd")]
-    fn test_decode_multiframe_zst_from_v1<R: HasRType>(
+    fn test_decode_multiframe_zst_from_v1<R: v3::HasRType>(
         #[case] _r: R,
         #[case] upgrade_policy: VersionUpgradePolicy,
     ) {
@@ -1006,7 +1006,7 @@ mod tests {
     #[case::statistics(Schema::Statistics, v3::StatMsg::default())]
     #[case::status(Schema::Status, v3::StatusMsg::default())]
     #[cfg(feature = "zstd")]
-    fn test_decode_buf_iter<R: DbnEncodable + HasRType + PartialEq + Clone>(
+    fn test_decode_buf_iter<R: DbnEncodable + v3::HasRType + PartialEq + Clone>(
         #[case] schema: Schema,
         #[case] _rec: R,
     ) -> Result<()> {

@@ -1,22 +1,29 @@
 //! Core traits for working with DBN records.
 //!
-//! - [`Record`]: read-only access to any record's header fields, size, timestamps, and
-//!   raw bytes.
+//! - [`Record`]: read-only access to any record's header, size, timestamps, and raw bytes.
 //! - [`RecordMut`]: mutable access to the record header.
 //! - [`HasRType`]: implemented by concrete record types (e.g. [`MboMsg`](crate::MboMsg)),
 //!   associates a static `rtype` used for downcasting via [`RecordRef`](crate::RecordRef).
+//! - [`RecordHeaderKind`]: the header layouts a record can begin with, abstracted so
+//!   framing and downcasting work on any DBN version.
 
 use super::ts_to_dt;
 use crate::{Publisher, RType, RecordHeader};
 
-/// Used for polymorphism around types all beginning with a [`RecordHeader`] where
-/// `rtype` is the discriminant used for indicating the type of record.
+/// Used for polymorphism around types all beginning with a record header where `rtype`
+/// is the discriminant used for indicating the type of record. [`Header`](Self::Header)
+/// names which header layout, and so which DBN version.
 ///
 /// All record types are plain old data held in sequential memory, and therefore
 /// implement `AsRef<[u8]>` for simple serialization to bytes.
 ///
 /// [`RecordRef`](crate::RecordRef) acts similar to a `&dyn Record`.
 pub trait Record: AsRef<[u8]> {
+    /// The layout of the record header this type begins with. Ties a record to a DBN
+    /// version so [`RecordRef`](crate::RecordRef) downcasts can't mix a v1-v3 type with
+    /// a v4 header (or vice versa).
+    type Header: RecordHeaderKind;
+
     /// Returns the size of the record in bytes.
     fn record_size(&self) -> usize;
 
@@ -46,8 +53,6 @@ pub trait Record: AsRef<[u8]> {
     fn instrument_id(&self) -> u64;
 
     /// Returns the raw event timestamp from the record header.
-    ///
-    /// Use [`RecordHeader::ts_event()`] for the converted timestamp.
     fn raw_ts_event(&self) -> u64;
 
     /// Returns the raw primary timestamp for the record.
@@ -90,7 +95,45 @@ pub trait RecordMut {
 /// dynamic type.
 ///
 /// While not _dyn compatible_, [`RecordRef`](crate::RecordRef) acts like a `&dyn HasRType`.
-pub trait HasRType: Record + RecordMut {
+pub trait HasRType: Record {
     /// Returns `true` if `rtype` matches the value associated with the implementing type.
-    fn has_rtype(rtype: u8) -> bool;
+    fn has_rtype(rtype: u16) -> bool;
+}
+
+/// Abstracts over the DBN record header layouts so encoders, decoders, and
+/// [`RecordRef`](crate::RecordRef) can frame a record and downcast it without knowing
+/// which DBN version it came from.
+pub trait RecordHeaderKind: private::Sealed + Copy + std::fmt::Debug {
+    /// Returns the size of the whole record in bytes, derived from the header's `length`.
+    fn record_size(&self) -> usize;
+
+    /// Returns the raw record type.
+    fn raw_rtype(&self) -> u16;
+}
+
+impl RecordHeaderKind for RecordHeader {
+    fn record_size(&self) -> usize {
+        RecordHeader::record_size(self)
+    }
+
+    fn raw_rtype(&self) -> u16 {
+        self.rtype as u16
+    }
+}
+
+impl RecordHeaderKind for crate::v4::RecordHeader {
+    fn record_size(&self) -> usize {
+        crate::v4::RecordHeader::record_size(self)
+    }
+
+    fn raw_rtype(&self) -> u16 {
+        self.rtype
+    }
+}
+
+mod private {
+    pub trait Sealed {}
+
+    impl Sealed for super::RecordHeader {}
+    impl Sealed for crate::v4::RecordHeader {}
 }

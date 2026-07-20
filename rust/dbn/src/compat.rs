@@ -42,7 +42,14 @@ pub use crate::record::InstrumentDefMsg as InstrumentDefMsgV3;
 pub use crate::record::StatMsg as StatMsgV3;
 pub use crate::record::SymbolMappingMsg as SymbolMappingMsgV2;
 pub use crate::record::SystemMsg as SystemMsgV2;
-pub use traits::{InstrumentDefRec, StatRec, SymbolMappingRec};
+pub use traits::{HasRTypeV1, InstrumentDefRec, RecordV1, StatRec, SymbolMappingRec};
+
+/// A non-owning immutable reference to a DBN version 1 through 3 record.
+pub type RecordRefV1<'a> = crate::RecordRef<'a, RecordHeader>;
+/// A non-owning mutable reference to a DBN version 1 through 3 record.
+pub type RecordRefMutV1<'a> = crate::RecordRefMut<'a, RecordHeader>;
+/// An owned buffer holding any DBN version 1 through 3 record of a dynamic type.
+pub type RecordBufV1<const CAP: usize = MAX_RECORD_LEN> = crate::RecordBuf<CAP, RecordHeader>;
 
 use std::os::raw::c_char;
 
@@ -53,7 +60,7 @@ use dbn_macros::MockPyo3;
 
 use crate::{
     macros::{dbn_record, CsvSerialize, JsonSerialize},
-    rtype, RecordHeader, SecurityUpdateAction, UserDefinedInstrument,
+    rtype, RecordHeader, SecurityUpdateAction, UserDefinedInstrument, MAX_RECORD_LEN,
 };
 
 // NOTE: Versioned records need to be defined in this file to work with cbindgen.

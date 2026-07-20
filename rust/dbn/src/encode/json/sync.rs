@@ -3,7 +3,7 @@ use std::io;
 use super::serialize::{to_json_in_buf, to_json_with_sym_in_buf};
 use crate::{
     encode::{DbnEncodable, EncodeDbn, EncodeRecord, EncodeRecordRef, EncodeRecordTextExt},
-    rtype_dispatch, Error, HasRType, Metadata, RecordRef, Result,
+    rtype_dispatch, v3, Error, Metadata, RecordRef, Result,
 };
 
 /// Type for encoding files and streams of DBN records in JSON lines.
@@ -163,7 +163,7 @@ where
         res
     }
 
-    fn encode_with_ts_out<R: DbnEncodable + HasRType + Clone>(
+    fn encode_with_ts_out<R: DbnEncodable + v3::HasRType + crate::RecordMut + Clone>(
         &mut self,
         rec: &R,
         ts_out: u64,
