@@ -310,6 +310,8 @@ dependencies = [
  "cbindgen",
  "dbn",
  "libc",
+ "rstest",
+ "time",
 ]
 
 [[package]]

@@ -6,6 +6,8 @@ tab_width = 4
 sys_includes = ["stdio.h"]
 # Affects enum typedefs
 cpp_compat = true
+# Render `usize` and `isize` as `size_t` and `ptrdiff_t` rather than `uintptr_t` and `intptr_t`
+usize_is_size_t = true
 
 [export]
 prefix = "Dbn"

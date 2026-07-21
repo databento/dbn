@@ -17,6 +17,14 @@
   `repr(u8)` with discriminants starting at 1, derives `TryFromPrimitive` and
   `IntoPrimitive`, and in Python gained a `value` property, a `from_int`
   constructor, integer construction, and comparison against integers
+- Added a push-based decoder to the C API, where the caller owns the read loop
+  and any decompression, feeding bytes in and draining decoded metadata and
+  records out
+
+### Breaking changes
+- Replaced the file-descriptor-based `DbnDecoder_*` C API with the new
+  push-based decoder; `DbnDecoder_create` now takes a `DbnDecoderOptions` and
+  reports errors through a `DbnDecoderError` out parameter
 
 ## 0.62.0 - 2026-07-07
 

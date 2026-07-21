@@ -1054,6 +1054,9 @@ impl DbnFsmBuilder {
     }
 
     /// Sets the buffer size.
+    ///
+    /// For the zero-copy [`space`](DbnFsm::space)-[`fill`](DbnFsm::fill) path, this
+    /// must be at least the size of the largest record.
     pub fn buffer_size(mut self, buffer_size: usize) -> Self {
         self.buffer_size = buffer_size;
         self
