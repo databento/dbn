@@ -15,6 +15,8 @@
   aliases to the `v1`, `v2`, and `v3` modules, bound to the v1-v3 `RecordHeader`
 - Added a preliminary `layout` module for describing the fields of DBN version 4
   records
+- Added `DynFieldAccess` and `LayoutIndex` for reading DBN version 4 record fields
+  through a stream's layout
 
 ### Breaking changes
 - Changed `TsSymbolMap::insert()` to take the `start` and `end` of the mapping as UNIX

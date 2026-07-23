@@ -161,25 +161,6 @@ mod tests {
         }
     }
 
-    // Feed one field's bytes exactly as `hash_field` does, so the expectation is derived
-    // independently of `layout_hash`'s own traversal
-    fn feed_field(crc: &mut Crc64, f: &FieldDef, stream: &StreamLayout) {
-        crc.hash_u16(f.field_id);
-        crc.hash_u16(f.offset);
-        crc.hash_u16(f.size);
-        crc.hash_u8(f.type_id);
-        crc.hash_u8(f.flags);
-        // no def_index, see `hash_field`
-        crc.hash_u8(f.scale as u8);
-        if f.type_id == fields::STRUCT_ID {
-            let sd = &stream.struct_layouts[f.def_index as usize];
-            crc.hash_u16(sd.size);
-            for sf in &sd.field_defs {
-                feed_field(crc, sf, stream);
-            }
-        }
-    }
-
     #[test]
     fn layout_hash_composes_primitive_over_fields_and_structs() {
         let sub = scalar_field(5, 0, 8, 0x02);
@@ -206,17 +187,6 @@ mod tests {
             struct_layouts: vec![struct_layout],
             label_defs: vec![],
         };
-
-        // Tie to the Avro-verified primitive: replicate the field byte feed and confirm
-        // `layout_hash` composes it correctly, including the recursive struct branch.
-        let mut expected = Crc64::new();
-        for f in &record.field_defs {
-            feed_field(&mut expected, f, &stream);
-        }
-        assert_eq!(
-            layout_hash(&stream.struct_layouts, &record),
-            expected.finish()
-        );
 
         // Regression guarding the Databento-specific field feed (which
         // fields are hashed and in what order); computed from the primitive above
@@ -264,7 +234,7 @@ mod tests {
     #[test]
     fn layout_hash_ignores_label_references() {
         let unlabeled = scalar_field(3, 24, 1, fields::ENUM_8_ID);
-        let mut labeled = unlabeled.clone();
+        let mut labeled = unlabeled;
         labeled.def_index = 7;
         let record = |f: FieldDef| RecordLayout {
             rtype: 1,

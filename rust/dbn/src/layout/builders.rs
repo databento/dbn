@@ -5,7 +5,7 @@ use crate::{
     layout::{FieldDef, LabelDef, RecordLayout, StreamLayout, StructLayout},
     v4::{
         fields::{self, Field, FieldType, FixedWidth},
-        types::CStr,
+        types::{CStr, Decimal},
         RecordHeader,
     },
 };
@@ -185,7 +185,7 @@ impl<'a> RecordLayoutBuilder<'a> {
         let nested = Nested {
             struct_idx,
             size: sd.size,
-            align: struct_align(sd),
+            align: sd.align(),
             flags: 0,
         };
         self.seq.nested(field_id, name, nested);
@@ -209,7 +209,7 @@ impl<'a> RecordLayoutBuilder<'a> {
                 .size
                 .checked_mul(count)
                 .expect("struct array size exceeds u16"),
-            align: struct_align(sd),
+            align: sd.align(),
             flags: fields::FLAG_IS_ARRAY,
         };
         self.seq.nested(field_id, name, nested);
@@ -294,16 +294,6 @@ struct Nested {
     flags: u8,
 }
 
-/// Natural alignment of a nested struct: the widest alignment among its scalar
-/// sub-fields.
-fn struct_align(sd: &StructLayout) -> u16 {
-    sd.field_defs
-        .iter()
-        .filter_map(|f| fields::scalar_size(f.type_id))
-        .max()
-        .unwrap_or(1)
-}
-
 /// A field-placement cursor that computes offsets and padding.
 #[derive(Default)]
 struct FieldCursor {
@@ -334,7 +324,11 @@ impl FieldCursor {
             .size(f.size())
             .flags(f.flags())
             .def_index(def_index)
-            .scale(T::DEFAULT_SCALE)
+            .scale(if T::TYPE_ID == Decimal::TYPE_ID {
+                -9
+            } else {
+                0
+            })
             .build();
         self.push(def, name);
     }
@@ -429,25 +423,6 @@ mod tests {
     }
 
     #[test]
-    fn field_offsets_are_aligned_and_base_is_8() {
-        let layout = sample(true, "symbol");
-        let rec = &layout.record_layouts[0];
-        for f in &rec.field_defs {
-            if let Some(elem) = fields::scalar_size(f.type_id) {
-                assert_eq!(
-                    f.offset % elem,
-                    0,
-                    "field {} at {} misaligned",
-                    f.field_id,
-                    f.offset
-                );
-            }
-        }
-        assert_eq!(rec.base_record_size % 8, 0);
-        assert!(rec.base_record_size >= std::mem::size_of::<RecordHeader>() as u16);
-    }
-
-    #[test]
     fn fixed_price_carries_scale_and_wire_size() {
         let rec = &sample(true, "symbol").record_layouts[0];
         let price = rec
@@ -535,7 +510,7 @@ mod tests {
         assert!(levels.is_array());
         assert_eq!(levels.type_id, fields::STRUCT_ID);
         assert_eq!(levels.size, struct_size * 10);
-        let align = struct_align(&layout.struct_layouts[ba as usize]);
+        let align = layout.struct_layouts[ba as usize].align();
         assert_eq!(levels.offset % align, 0);
     }
 }

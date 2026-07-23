@@ -2,6 +2,7 @@ use proc_macro::TokenStream;
 
 mod dbn_attr;
 mod debug;
+mod enum_field;
 mod has_rtype;
 mod py_field_desc;
 mod py_repr;
@@ -24,6 +25,16 @@ pub fn derive_mock_pyo3(_item: TokenStream) -> TokenStream {
 #[proc_macro_derive(DbnAttr, attributes(dbn))]
 pub fn dbn_attr(_item: TokenStream) -> TokenStream {
     TokenStream::new()
+}
+
+/// Derive macro for the `EnumField` trait used in DBN v4 dynamic field access.
+///
+/// Emits the `Repr` associated type and `TYPE_ID` const from the enum's
+/// `#[repr(u8)]` / `#[repr(u16)]`. Char-valued enums read as a `u8` but tag as
+/// `ENUM_CHAR_ID`; mark them with the `#[dbn(char)]` helper attribute.
+#[proc_macro_derive(EnumField, attributes(dbn))]
+pub fn derive_enum_field(input: TokenStream) -> TokenStream {
+    enum_field::derive_impl(input)
 }
 
 /// Derive macro for CSV serialization. Supports the following `dbn` attributes:

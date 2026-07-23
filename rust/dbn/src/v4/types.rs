@@ -34,6 +34,35 @@ pub struct OpenEnum<E: EnumField> {
     _marker: PhantomData<E>,
 }
 
+impl<E: EnumField> OpenEnum<E> {
+    /// Wraps a raw representation, keeping non-variant values (the open-enum contract).
+    pub const fn from_raw(raw: E::Repr) -> Self {
+        Self {
+            raw,
+            _marker: PhantomData,
+        }
+    }
+
+    /// The underlying raw representation.
+    pub const fn raw(&self) -> E::Repr {
+        self.raw
+    }
+}
+
+impl<E> OpenEnum<E>
+where
+    E: EnumField + TryFrom<E::Repr>,
+    E::Repr: std::fmt::Display,
+{
+    /// The known variant this wraps, converting via the enum's `TryFrom<Repr>`.
+    ///
+    /// # Errors
+    /// Returns a conversion error if the raw value is not a known variant.
+    pub fn get(&self) -> crate::Result<E> {
+        E::try_from(self.raw).map_err(|_| crate::Error::conversion::<E>(self.raw))
+    }
+}
+
 /// New type wrapper to differentiate between C char and the numeric type it's aliased
 /// to, e.g. `i8` on Linux.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

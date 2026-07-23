@@ -17,6 +17,9 @@ pub enum Error {
     /// An error while decoding from DBN.
     #[error("decoding error: {0}")]
     Decode(String),
+    /// A stream layout failed validation at metadata load.
+    #[error("invalid stream layout: {0}")]
+    Layout(String),
     /// An error with text encoding.
     #[error("encoding error: {0}")]
     Encode(String),
@@ -81,6 +84,11 @@ impl Error {
     /// Creates a new decode [`dbn::Error`](crate::Error).
     pub fn decode(msg: impl ToString) -> Self {
         Self::Decode(msg.to_string())
+    }
+
+    /// Creates a new stream layout [`dbn::Error`](crate::Error).
+    pub fn layout(msg: impl ToString) -> Self {
+        Self::Layout(msg.to_string())
     }
 
     /// Creates a new encode [`dbn::Error`](crate::Error).
