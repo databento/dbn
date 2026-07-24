@@ -272,18 +272,11 @@ mod tests {
     use crate::{
         v4::{
             self, rtype,
-            types::{CStr, Char, Decimal, OpenEnum, TimestampNs},
+            types::{CStr, Char, Decimal},
             MboMsg, RecordHeader,
         },
         Action, FlagSet, Side,
     };
-
-    // Field descriptors for the `MboMsg` tail fields without registry constants yet.
-    const ACTION_FIELD: Field<OpenEnum<Action>> = Field::new(0x12);
-    const SIDE_FIELD: Field<OpenEnum<Side>> = Field::new(0x13);
-    const TS_RECV_FIELD: Field<TimestampNs> = Field::new(0x16);
-    const TS_IN_DELTA_FIELD: Field<i32> = Field::new(0x17);
-    const SEQUENCE_FIELD: Field<u32> = Field::new(0x18);
 
     /// A layout whose single record mirrors `v4::MboMsg`'s field offsets exactly.
     fn mbo_layout() -> StreamLayout {
@@ -295,11 +288,11 @@ mod tests {
                 .field(fields::SIZE, "size")
                 .field(fields::FLAGS, "flags")
                 .field(fields::CHANNEL_ID, "channel_id")
-                .field(ACTION_FIELD, "action")
-                .field(SIDE_FIELD, "side")
-                .field(TS_RECV_FIELD, "ts_recv")
-                .field(TS_IN_DELTA_FIELD, "ts_in_delta")
-                .field(SEQUENCE_FIELD, "sequence");
+                .field(fields::ACTION, "action")
+                .field(fields::SIDE, "side")
+                .field(fields::TS_RECV, "ts_recv")
+                .field(fields::TS_IN_DELTA, "ts_in_delta")
+                .field(fields::SEQUENCE, "sequence");
             r.finish();
         }
         sb.build(8).unwrap()
@@ -376,13 +369,15 @@ mod tests {
             rec.field(&index, fields::FLAGS).map(|f| f.raw()),
             Some(0b1010)
         );
-        assert_eq!(rec.field(&index, TS_RECV_FIELD).map(|t| t.0), Some(222));
-        assert_eq!(rec.field(&index, SEQUENCE_FIELD), Some(88u32));
+        assert_eq!(rec.field(&index, fields::TS_RECV).map(|t| t.0), Some(222));
+        assert_eq!(rec.field(&index, fields::SEQUENCE), Some(88u32));
+        assert_eq!(rec.field(&index, fields::TS_IN_DELTA), Some(9i32));
+        assert!(rec.field(&index, fields::DEPTH).is_none());
         // OpenEnum: raw byte preserved, and it resolves to the known variant.
-        let action = rec.field(&index, ACTION_FIELD).unwrap();
+        let action = rec.field(&index, fields::ACTION).unwrap();
         assert_eq!(action.get().unwrap(), Action::Add);
         assert_eq!(
-            rec.field(&index, SIDE_FIELD).unwrap().get().unwrap(),
+            rec.field(&index, fields::SIDE).unwrap().get().unwrap(),
             Side::Bid
         );
     }

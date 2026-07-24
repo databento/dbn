@@ -7,6 +7,11 @@ use crate::{
     FlagSet,
 };
 
+// The field-ID registry constants (`PRICE`, `ACTION`, ...) are generated from the
+// `[fields]` table in `dbn.toml`; re-exported so they live under `v4::fields`.
+mod registry;
+pub use registry::*;
+
 /// Whether a `type_id` reads its `def_index` as a [`LabelDef`](crate::layout::LabelDef)
 /// index. Every other type pins `def_index` to `0`, except `Struct`, which indexes
 /// `struct_layouts`.
@@ -175,28 +180,6 @@ impl<T: FixedWidth> Field<T> {
 
 /// Field ID for padding fields.
 pub const PADDING: u16 = 0;
-/// Field ID for the record `length`.
-pub const LENGTH: Field<u16> = Field::new(0x01);
-/// Field ID for the record type (`rtype`).
-pub const RTYPE: Field<u16> = Field::new(0x02);
-/// Field ID for `publisher_id`.
-pub const PUBLISHER_ID: Field<u16> = Field::new(0x03);
-/// Field ID for `instrument_id`.
-pub const INSTRUMENT_ID: Field<u64> = Field::new(0x04);
-/// Field ID for `ts_event`.
-pub const TS_EVENT: Field<TimestampNs> = Field::new(0x05);
-/// Field ID for `price`.
-pub const PRICE: Field<Decimal> = Field::new(0x10);
-/// Field ID for `size`.
-pub const SIZE: Field<u32> = Field::new(0x11);
-/// Field ID for `flags`.
-pub const FLAGS: Field<FlagSet> = Field::new(0x14);
-/// Field ID for `order_id`.
-pub const ORDER_ID: Field<u64> = Field::new(0x19);
-/// Field ID for `channel_id`.
-pub const CHANNEL_ID: Field<u8> = Field::new(0x1B);
-/// Field ID for `hd`, the record header.
-pub const HD: u16 = 0x1000;
 
 impl FieldType for u8 {
     const TYPE_ID: u8 = 0x01;
