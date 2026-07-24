@@ -10,6 +10,12 @@
   to call this method on exit. This will ensure compressed output contains the
   end-of-frame block
 
+### Bug fixes
+- Fixed `AsRef<[u8]>` for concrete record types encoding only
+  `size_of::<Self>()` bytes instead of the full `record_size()` from the header
+  length, which dropped appended `ts_out` bytes and corrupted output when
+  re-encoding a typed record decoded from a stream with `ts_out`
+
 ## 0.63.0 - 2026-07-14
 
 ### Enhancements

@@ -78,6 +78,26 @@ pub(crate) unsafe fn as_u8_slice<T: Sized>(data: &T) -> &[u8] {
     slice::from_raw_parts((data as *const T).cast(), mem::size_of::<T>())
 }
 
+/// Aliases `rec` as its raw bytes using the runtime `record_size()` from the
+/// header length, so appended bytes (e.g. `ts_out`) counted in `length` are
+/// included. For a validly-constructed value this equals `size_of::<T>()`.
+///
+/// # Safety
+/// `rec` must be backed by at least `record_size()` bytes.
+///
+/// Public and `#[doc(hidden)]` only so the `dbn_record` macro output can call it
+/// from crates other than `dbn`; not part of the public API.
+#[doc(hidden)]
+pub unsafe fn record_as_u8_slice<T: Record>(rec: &T) -> &[u8] {
+    let len = rec.record_size();
+    debug_assert!(
+        len >= mem::size_of::<T>(),
+        "record length {len} shorter than {}",
+        mem::size_of::<T>()
+    );
+    slice::from_raw_parts((&raw const *rec).cast::<u8>(), len)
+}
+
 /// Provides a _relatively safe_ method for converting a mut reference to a
 /// [`RecordHeader`] to a struct beginning with the header. Because it accepts a reference,
 /// the lifetime of the returned reference is tied to the input.

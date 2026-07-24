@@ -732,7 +732,7 @@ mod tests {
 
     use crate::{
         enums::rtype, v1, v3, ErrorMsg, FlagSet, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg,
-        OhlcvMsg, TradeMsg,
+        OhlcvMsg, TradeMsg, WithTsOut,
     };
 
     use super::*;
@@ -785,6 +785,32 @@ mod tests {
         let byte_slice = target.as_ref();
         assert_eq!(SOURCE_RECORD.record_size(), byte_slice.len());
         assert_eq!(target.record_size(), byte_slice.len());
+    }
+
+    #[test]
+    fn test_as_ref_includes_appended_ts_out() {
+        let ts_out: u64 = 0x0102_0304_0506_0708;
+        let with_ts_out = WithTsOut::new(SOURCE_RECORD, ts_out);
+        let buffer = with_ts_out.as_ref();
+        let rec_ref = unsafe { RecordRef::new(buffer) };
+        let mbo = rec_ref.get::<MboMsg>().unwrap();
+        assert_eq!(mbo.as_ref().len(), mbo.record_size());
+        assert_eq!(
+            mbo.as_ref().len(),
+            mem::size_of::<MboMsg>() + mem::size_of::<u64>()
+        );
+        assert_eq!(
+            &mbo.as_ref()[mem::size_of::<MboMsg>()..],
+            &ts_out.to_le_bytes()
+        );
+    }
+
+    #[test]
+    fn test_as_ref_owned_record_uses_size_of() {
+        // An owned record's typed `AsRef` yields exactly its struct size, which
+        // equals its `record_size()` for a valid record
+        assert_eq!(SOURCE_RECORD.as_ref().len(), mem::size_of::<MboMsg>());
+        assert_eq!(SOURCE_RECORD.as_ref().len(), SOURCE_RECORD.record_size());
     }
 
     #[should_panic]
