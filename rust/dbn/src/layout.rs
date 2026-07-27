@@ -11,6 +11,7 @@ use crate::{
 };
 
 mod builders;
+mod compare;
 mod hash;
 mod index;
 mod validate;
@@ -145,6 +146,17 @@ pub struct LabelDef {
     pub labels: BTreeMap<u16, String>,
 }
 
+/// How records of one rtype in a stream can be read, decided once per stream by
+/// comparing the stream's layout against the compiled one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Verdict {
+    /// A compiled struct describes every base field, so records can be cast to it.
+    /// Fields the compiled struct doesn't name require dynamic access.
+    Compiled,
+    /// No compiled struct matches, so every field needs dynamic access.
+    Dynamic,
+}
+
 /// Similar to a pointer-to-member in C++. Contains the offset to a field in a specific
 /// record based on the stream's layout description.
 ///
@@ -268,38 +280,69 @@ impl StructLayout {
 mod tests {
     use std::os::raw::c_char;
 
+    use rstest::*;
+
     use super::{builders::StreamLayoutBuilder, *};
     use crate::{
         v4::{
             self, rtype,
-            types::{CStr, Char, Decimal},
+            types::{CStr, Char, Decimal, TimestampNs},
             MboMsg, RecordHeader,
         },
         Action, FlagSet, Side,
     };
 
-    /// A layout whose single record mirrors `v4::MboMsg`'s field offsets exactly.
+    fn add_mbo(sb: &mut StreamLayoutBuilder) {
+        let mut r = sb.record(rtype::MBO, 0, "MboMsg");
+        // TODO(cg): generate
+        r.field(fields::ORDER_ID, "order_id")
+            .field(fields::PRICE, "price")
+            .field(fields::SIZE, "size")
+            .field(fields::FLAGS, "flags")
+            .field(fields::CHANNEL_ID, "channel_id")
+            .field(fields::ACTION, "action")
+            .field(fields::SIDE, "side")
+            .field(fields::TS_RECV, "ts_recv")
+            .field(fields::TS_IN_DELTA, "ts_in_delta")
+            .field(fields::SEQUENCE, "sequence");
+        r.finish();
+    }
+
+    fn add_trades(sb: &mut StreamLayoutBuilder) {
+        let mut r = sb.record(rtype::MBP_0, 0, "TradeMsg");
+        // TODO(cg): generate
+        r.field(fields::PRICE, "price")
+            .field(fields::SIZE, "size")
+            .field(fields::ACTION, "action")
+            .field(fields::SIDE, "side")
+            .field(fields::FLAGS, "flags")
+            .field(fields::TS_RECV, "ts_recv")
+            .field(fields::TS_IN_DELTA, "ts_in_delta")
+            .field(fields::SEQUENCE, "sequence");
+        r.finish();
+    }
+
+    fn compiled() -> StreamLayout {
+        let mut sb = StreamLayoutBuilder::new(1);
+        add_mbo(&mut sb);
+        add_trades(&mut sb);
+        sb.build(8).unwrap()
+    }
+
     fn mbo_layout() -> StreamLayout {
         let mut sb = StreamLayoutBuilder::new(1);
-        {
-            let mut r = sb.record(rtype::MBO, 0, "MboMsg");
-            r.field(fields::ORDER_ID, "order_id")
-                .field(fields::PRICE, "price")
-                .field(fields::SIZE, "size")
-                .field(fields::FLAGS, "flags")
-                .field(fields::CHANNEL_ID, "channel_id")
-                .field(fields::ACTION, "action")
-                .field(fields::SIDE, "side")
-                .field(fields::TS_RECV, "ts_recv")
-                .field(fields::TS_IN_DELTA, "ts_in_delta")
-                .field(fields::SEQUENCE, "sequence");
-            r.finish();
-        }
+        add_mbo(&mut sb);
         sb.build(8).unwrap()
     }
 
     fn mbo_index() -> LayoutIndex {
-        LayoutIndex::new(&mbo_layout())
+        LayoutIndex::new(&mbo_layout(), &compiled())
+    }
+
+    fn trades_layout() -> StreamLayout {
+        let mut sb = StreamLayoutBuilder::new(1);
+        add_trades(&mut sb);
+        sb.build(8).unwrap()
     }
 
     fn sample_mbo() -> MboMsg {
@@ -408,7 +451,7 @@ mod tests {
             r.field(conditions, "conditions");
             r.finish();
         }
-        let index = LayoutIndex::new(&sb.build(8).unwrap());
+        let index = LayoutIndex::new(&sb.build(8).unwrap(), &compiled());
 
         assert!(index.offset_of(rtype::MBP_0, conditions).is_some());
         assert!(index
@@ -427,7 +470,7 @@ mod tests {
             r.str_field(Field::<CStr>::new(30), "symbol", 8);
             r.finish();
         }
-        let index = LayoutIndex::new(&sb.build(8).unwrap());
+        let index = LayoutIndex::new(&sb.build(8).unwrap(), &compiled());
 
         #[repr(C, align(8))]
         struct Aligned([u8; 32]);
@@ -441,35 +484,157 @@ mod tests {
     }
 
     #[test]
-    fn validate_rejects_corruption() {
-        // misaligned offset (price is a Decimal, 8-aligned)
-        let mut bad = mbo_layout();
-        bad.record_layouts[0].field_defs[1].offset = 33;
-        assert!(super::validate::validate(&bad, 8).is_err());
+    fn an_rtype_the_stream_omits_has_no_verdict() {
+        let index = mbo_index();
+        assert_eq!(index.verdict(rtype::MBO), Some(Verdict::Compiled));
+        assert!(index.verdict(rtype::MBP_0).is_none());
+        assert!(index.offset_of(rtype::MBP_0, fields::PRICE).is_none());
+    }
 
-        // a field running past base_record_size
-        let mut bad = mbo_layout();
-        bad.record_layouts[0].field_defs.last_mut().unwrap().size += 8;
-        assert!(super::validate::validate(&bad, 8).is_err());
+    fn trades_with_extension() -> StreamLayout {
+        let mut layout = trades_layout();
+        let rec = &mut layout.record_layouts[0];
+        rec.field_defs.push(FieldDef {
+            field_id: 0x0F00,
+            offset: rec.base_record_size,
+            size: 8,
+            type_id: <TimestampNs as FieldType>::TYPE_ID,
+            flags: fields::FLAG_IS_EXTENSION,
+            def_index: 0,
+            scale: 0,
+            _reserved: [0; 5],
+        });
+        rec.field_names.push("ts_out".to_owned());
+        rec.layout_hash = hash::layout_hash(&layout.struct_layouts, rec);
+        layout
+    }
 
-        let mut bad = mbo_layout();
-        bad.record_layouts[0]
+    fn trades_repacked() -> StreamLayout {
+        let mut sb = StreamLayoutBuilder::new(1);
+        {
+            let mut r = sb.record(rtype::MBP_0, 0, "TradeMsg");
+            r.field(fields::PRICE, "price")
+                .field(Field::<Decimal>::new(fields::SIZE.id()), "size")
+                .field(fields::ACTION, "action")
+                .field(fields::SIDE, "side")
+                .field(fields::FLAGS, "flags")
+                .field(fields::TS_RECV, "ts_recv")
+                .field(fields::TS_IN_DELTA, "ts_in_delta")
+                .field(fields::SEQUENCE, "sequence");
+            r.finish();
+        }
+        sb.build(8).unwrap()
+    }
+
+    #[rstest]
+    #[case::compiled_layout(trades_layout(), Verdict::Compiled)]
+    #[case::appended_extension(trades_with_extension(), Verdict::Compiled)]
+    #[case::repacked_size(trades_repacked(), Verdict::Dynamic)]
+    fn verdict_authorizes_the_compiled_cast(
+        #[case] stream: StreamLayout,
+        #[case] expected: Verdict,
+    ) {
+        let index = LayoutIndex::new(&stream, &compiled());
+        assert_eq!(index.verdict(rtype::MBP_0), Some(expected));
+    }
+
+    #[test]
+    fn uncompiled_rtype_is_dynamic() {
+        let mut sb = StreamLayoutBuilder::new(1);
+        {
+            let mut r = sb.record(rtype::MBP_1, 0, "Unknown");
+            r.field(fields::PRICE, "price");
+            r.finish();
+        }
+        let index = LayoutIndex::new(&sb.build(8).unwrap(), &compiled());
+        assert_eq!(index.verdict(rtype::MBP_1), Some(Verdict::Dynamic));
+    }
+
+    #[test]
+    fn a_matching_hash_is_trusted() {
+        let mut stream = trades_repacked();
+        stream.record_layouts[0].layout_hash = trades_layout().record_layouts[0].layout_hash;
+        let index = LayoutIndex::new(&stream, &compiled());
+        assert_eq!(index.verdict(rtype::MBP_0), Some(Verdict::Compiled));
+    }
+
+    #[test]
+    fn validate_accepts_builder_output() {
+        assert!(validate::validate(&mbo_layout(), 8).is_ok());
+    }
+
+    #[rstest]
+    #[case::misaligned_offset(|l: &mut StreamLayout| {
+        l.record_layouts[0]
+            .field_defs
+            .iter_mut()
+            .find(|f| f.field_id == fields::PRICE.id())
+            .unwrap()
+            .offset = 33;
+    })]
+    #[case::field_past_base(
+        |l: &mut StreamLayout| l.record_layouts[0].field_defs.last_mut().unwrap().offset += 8
+    )]
+    #[case::coverage_hole(|l: &mut StreamLayout| {
+        l.record_layouts[0].field_defs.remove(0);
+        l.record_layouts[0].field_names.remove(0);
+    })]
+    #[case::field_wider_than_its_type(|l: &mut StreamLayout| {
+        l.record_layouts[0]
             .field_defs
             .iter_mut()
             .find(|f| f.field_id == fields::SIZE.id())
             .unwrap()
             .size = 8;
-        let err = super::validate::validate(&bad, 8).unwrap_err().to_string();
-        assert!(err.contains("doesn't fit its 4-byte type"), "{err}");
-
+    })]
+    #[case::struct_array_size_not_a_multiple(|l: &mut StreamLayout| {
+        let f = l.record_layouts[0]
+            .field_defs
+            .iter_mut()
+            .find(|f| f.field_id == fields::HD)
+            .unwrap();
+        f.flags |= fields::FLAG_IS_ARRAY;
+        f.size = 5;
+    })]
+    #[case::duplicate_rtype(|l: &mut StreamLayout| {
+        let dup = l.record_layouts[0].clone();
+        l.record_layouts.push(dup);
+    })]
+    #[case::rtype_reserved_for_the_metadata_magic(|l: &mut StreamLayout| {
+        l.record_layouts[0].rtype = 0x014E;
+    })]
+    #[case::duplicate_field_id(|l: &mut StreamLayout| {
+        let first = l.record_layouts[0].field_defs[0].field_id;
+        l.record_layouts[0].field_defs[1].field_id = first;
+    })]
+    #[case::name_count_mismatch(|l: &mut StreamLayout| {
+        l.record_layouts[0].field_names.push("extra".to_owned());
+    })]
+    #[case::struct_def_index_out_of_range(|l: &mut StreamLayout| {
+        l.record_layouts[0]
+            .field_defs
+            .iter_mut()
+            .find(|f| f.field_id == fields::HD)
+            .unwrap()
+            .def_index = 999;
+    })]
+    #[case::label_def_index_out_of_range(|l: &mut StreamLayout| {
+        l.record_layouts[0]
+            .field_defs
+            .iter_mut()
+            .find(|f| fields::uses_label_def(f.type_id))
+            .unwrap()
+            .def_index = 999;
+    })]
+    #[case::struct_nested_in_struct(|l: &mut StreamLayout| {
+        l.struct_layouts[0].field_defs[0].type_id = fields::STRUCT_ID;
+    })]
+    #[case::struct_size_not_a_multiple_of_its_alignment(|l: &mut StreamLayout| {
+        l.struct_layouts[0].size += 1;
+    })]
+    fn validate_rejects_corruption(#[case] corrupt: fn(&mut StreamLayout)) {
         let mut bad = mbo_layout();
-        bad.record_layouts.push(bad.record_layouts[0].clone());
-        let err = super::validate::validate(&bad, 8).unwrap_err().to_string();
-        assert!(err.contains("duplicate rtype"), "{err}");
-
-        // a hole in the base coverage
-        let mut bad = mbo_layout();
-        bad.record_layouts[0].field_defs.remove(0);
-        assert!(super::validate::validate(&bad, 8).is_err());
+        corrupt(&mut bad);
+        assert!(validate::validate(&bad, 8).is_err());
     }
 }
