@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.64.0 - 2026-07-28
+
+### Enhancements
+- Added a push-based decoder to the C API, where the caller owns the read loop
+  and any decompression, feeding bytes in and draining decoded metadata and
+  records out
+- Added a `finish()` method to `DynWriter` to flush data and finalize the
+  output stream. For compressed data this will write the zstandard end-of-frame
+  block
+- Added `finish()` method to the Python `Transcoder` and a context manager
+  to call this method on exit. This will ensure compressed output contains the
+  end-of-frame block
+- Upgraded `time` to 0.3.54
+
+### Breaking changes
+- Replaced the file-descriptor-based `DbnDecoder_*` C API with the new
+  push-based decoder; `DbnDecoder_create` now takes a `DbnDecoderOptions` and
+  reports errors through a `DbnDecoderError` out parameter
+
+### Bug fixes
+- Fixed `AsRef<[u8]>` for concrete record types encoding only
+  `size_of::<Self>()` bytes instead of the full `record_size()` from the header
+  length, which dropped appended `ts_out` bytes and corrupted output when
+  re-encoding a typed record decoded from a stream with `ts_out`
+
 ## 0.63.0 - 2026-07-14
 
 ### Enhancements

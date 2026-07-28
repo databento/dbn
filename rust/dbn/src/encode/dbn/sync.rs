@@ -1123,5 +1123,36 @@ mod tests {
             }
             assert_eq!(decoded_count, count);
         }
+
+        #[test]
+        fn test_encode_record_typed_preserves_appended_ts_out() {
+            use crate::WithTsOut;
+
+            // A typed record decoded from a buffer whose header length includes
+            // an appended `ts_out` must re-encode all of those bytes through the
+            // typed `encode_record` path, matching the `RecordRef` path
+            let ts_out = 1658441851999000000u64;
+            let with_ts_out = WithTsOut::new(make_mbo_msg(100, 1658441851000000000), ts_out);
+            let buffer = with_ts_out.as_ref();
+            let rec_ref = unsafe { RecordRef::new(buffer) };
+            let mbo = rec_ref.get::<MboMsg>().unwrap();
+
+            let mut via_typed = Vec::new();
+            RecordEncoder::new(&mut via_typed)
+                .encode_record(mbo)
+                .unwrap();
+
+            let mut via_ref = Vec::new();
+            RecordEncoder::new(&mut via_ref)
+                .encode_record_ref(rec_ref)
+                .unwrap();
+
+            assert_eq!(via_typed, via_ref);
+            assert_eq!(via_typed.len(), mbo.record_size());
+            assert_eq!(
+                &via_typed[std::mem::size_of::<MboMsg>()..],
+                &ts_out.to_le_bytes()
+            );
+        }
     }
 }

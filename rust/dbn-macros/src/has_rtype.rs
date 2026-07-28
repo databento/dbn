@@ -55,7 +55,7 @@ pub fn attribute_macro_impl(
 
         impl AsRef<[u8]> for #record_type {
             fn as_ref(&self) -> &[u8] {
-                unsafe { ::std::slice::from_raw_parts(self as *const #record_type as *const u8, ::std::mem::size_of::<#record_type>()) }
+                unsafe { #crate_name::record::record_as_u8_slice(self) }
             }
         }
 

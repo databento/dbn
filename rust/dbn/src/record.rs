@@ -26,6 +26,8 @@ use crate::{
 pub(crate) use conv::as_u8_slice;
 #[cfg(feature = "serde")]
 pub(crate) use conv::cstr_serde;
+#[doc(hidden)]
+pub use conv::record_as_u8_slice;
 pub use conv::{
     c_chars_to_str, str_to_c_chars, transmute_header_bytes, transmute_record,
     transmute_record_bytes, transmute_record_mut, ts_to_dt,

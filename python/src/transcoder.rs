@@ -128,8 +128,34 @@ impl Transcoder {
         self.0.lock().unwrap().flush()
     }
 
+    /// Finalize the output stream, writing any epilogue required by the
+    /// compression, i.e. the Zstandard end-of-frame block and checksum.
+    ///
+    /// Calling `finish()` more than once has no effect.
+    /// Writing to or flushing a finished transcoder raises a `ValueError`.
+    fn finish(&mut self) -> PyResult<()> {
+        self.0.lock().unwrap().finish()
+    }
+
     fn buffer<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
         PyBytes::new(py, self.0.lock().unwrap().buffer())
+    }
+
+    fn __enter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    fn __exit__(
+        &mut self,
+        exc_type: Option<&Bound<'_, PyAny>>,
+        _exc_value: Option<&Bound<'_, PyAny>>,
+        _traceback: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<()> {
+        if exc_type.is_none() {
+            self.finish()
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -138,6 +164,8 @@ trait Transcode {
 
     fn flush(&mut self) -> PyResult<()>;
 
+    fn finish(&mut self) -> PyResult<()>;
+
     fn buffer(&self) -> &[u8];
 }
 
@@ -145,6 +173,7 @@ struct Inner<const E: u8> {
     fsm: DbnFsm,
     // wrap in buffered writer to minimize calls to Python
     output: DynWriter<'static, BufWriter<PyFileLike>>,
+    finished: bool,
     use_pretty_px: bool,
     use_pretty_ts: bool,
     map_symbols: bool,
@@ -154,13 +183,33 @@ struct Inner<const E: u8> {
 
 impl<const E: u8> Transcode for Inner<E> {
     fn write(&mut self, bytes: &[u8]) -> PyResult<()> {
+        if self.finished {
+            return Err(PyValueError::new_err(
+                "I/O operation on finished Transcoder",
+            ));
+        }
         self.fsm.write_all(bytes);
         self.encode()
     }
 
     fn flush(&mut self) -> PyResult<()> {
+        if self.finished {
+            return Err(PyValueError::new_err(
+                "I/O operation on finished Transcoder",
+            ));
+        }
         self.encode()?;
         self.output.flush()?;
+        Ok(())
+    }
+
+    fn finish(&mut self) -> PyResult<()> {
+        if self.finished {
+            return Ok(());
+        }
+        self.encode()?;
+        self.output.finish().map_err(PyErr::from)?;
+        self.finished = true;
         Ok(())
     }
 
@@ -216,6 +265,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
         Ok(Self {
             fsm,
             output,
+            finished: false,
             use_pretty_px: pretty_px,
             use_pretty_ts: pretty_ts,
             map_symbols,
@@ -411,6 +461,64 @@ mod tests {
     };
 
     use super::*;
+
+    #[rstest]
+    fn test_zstd_frame_is_finished(_python: ()) {
+        let file = MockPyFile::new();
+        let output_buf = file.inner();
+        let mut transcoder = Python::attach(|py| {
+            Transcoder::new(
+                Py::new(py, file).unwrap().extract(py).unwrap(),
+                Encoding::Dbn,
+                Compression::Zstd,
+                false,
+                false,
+                Some(false),
+                true,
+                false,
+                None,
+                None,
+                Some(DBN_VERSION),
+                VersionUpgradePolicy::default(),
+            )
+            .unwrap()
+        });
+        let mut encoder = DbnEncoder::new(
+            Vec::new(),
+            &MetadataBuilder::new()
+                .dataset(Dataset::XnasItch.to_string())
+                .schema(Some(Schema::Trades))
+                .stype_in(Some(SType::RawSymbol))
+                .stype_out(SType::InstrumentId)
+                .start(0)
+                .build(),
+        )
+        .unwrap();
+        encoder
+            .encode_record(&ErrorMsg::new(
+                1680708278000000000,
+                None,
+                "This is a test",
+                true,
+            ))
+            .unwrap();
+        transcoder.write(encoder.get_ref().as_slice()).unwrap();
+        // flush() alone cannot terminate the zstd frame
+        transcoder.flush().unwrap();
+        let flushed = output_buf.lock().unwrap().get_ref().clone();
+        assert!(zstd::stream::decode_all(flushed.as_slice()).is_err());
+        // finish() writes the end-of-frame block and checksum, making the
+        // output a complete zstd frame
+        transcoder.finish().unwrap();
+        let output = output_buf.lock().unwrap().get_ref().clone();
+        let decompressed = zstd::stream::decode_all(output.as_slice()).unwrap();
+        assert!(!decompressed.is_empty());
+        // finish() is idempotent
+        transcoder.finish().unwrap();
+        // writing to or flushing a finished transcoder raises
+        assert!(transcoder.write(&[0u8; 4]).is_err());
+        assert!(transcoder.flush().is_err());
+    }
 
     #[rstest]
     fn test_partial_metadata_and_records(_python: ()) {
