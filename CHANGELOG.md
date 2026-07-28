@@ -1,14 +1,23 @@
 # Changelog
 
-## 0.63.1 - Upcoming
+## 0.64.0 - 2026-07-28
 
 ### Enhancements
+- Added a push-based decoder to the C API, where the caller owns the read loop
+  and any decompression, feeding bytes in and draining decoded metadata and
+  records out
 - Added a `finish()` method to `DynWriter` to flush data and finalize the
   output stream. For compressed data this will write the zstandard end-of-frame
   block
 - Added `finish()` method to the Python `Transcoder` and a context manager
   to call this method on exit. This will ensure compressed output contains the
   end-of-frame block
+- Upgraded `time` to 0.3.54
+
+### Breaking changes
+- Replaced the file-descriptor-based `DbnDecoder_*` C API with the new
+  push-based decoder; `DbnDecoder_create` now takes a `DbnDecoderOptions` and
+  reports errors through a `DbnDecoderError` out parameter
 
 ### Bug fixes
 - Fixed `AsRef<[u8]>` for concrete record types encoding only
@@ -23,14 +32,6 @@
   `repr(u8)` with discriminants starting at 1, derives `TryFromPrimitive` and
   `IntoPrimitive`, and in Python gained a `value` property, a `from_int`
   constructor, integer construction, and comparison against integers
-- Added a push-based decoder to the C API, where the caller owns the read loop
-  and any decompression, feeding bytes in and draining decoded metadata and
-  records out
-
-### Breaking changes
-- Replaced the file-descriptor-based `DbnDecoder_*` C API with the new
-  push-based decoder; `DbnDecoder_create` now takes a `DbnDecoderOptions` and
-  reports errors through a `DbnDecoderError` out parameter
 
 ## 0.62.0 - 2026-07-07
 
