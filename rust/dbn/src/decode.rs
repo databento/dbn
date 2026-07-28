@@ -6,7 +6,8 @@
 //! to auto-detect from the first few bytes.
 //!
 //! Sync decoders implement the [`DecodeDbn`] trait. With the `async` feature flag,
-//! async variants are also available.
+//! async variants are also available. Zstandard decompression, DBZ, and the `Dyn`
+//! decoders and readers require the `zstd` feature flag, which is enabled by default.
 //!
 //! # Examples
 //!
@@ -41,6 +42,7 @@
 pub mod dbn;
 // Having any tests in a deprecated module emits many warnings that can't be silenced, see
 // https://github.com/rust-lang/rust/issues/47238
+#[cfg(feature = "zstd")]
 #[cfg_attr(
     not(test),
     deprecated(
@@ -49,11 +51,14 @@ pub mod dbn;
     )
 )]
 pub mod dbz;
+#[cfg(feature = "zstd")]
 mod dyn_decoder;
+#[cfg(feature = "zstd")]
 mod dyn_reader;
 mod merge;
 mod stream;
 // used in databento_dbn
+#[cfg(feature = "zstd")]
 #[doc(hidden)]
 pub mod zstd;
 
@@ -61,8 +66,10 @@ pub mod zstd;
 pub use self::dbn::{
     Decoder as DbnDecoder, MetadataDecoder as DbnMetadataDecoder, RecordDecoder as DbnRecordDecoder,
 };
+#[cfg(feature = "zstd")]
 #[doc(inline)]
 pub use dyn_decoder::DynDecoder;
+#[cfg(feature = "zstd")]
 #[doc(inline)]
 pub use dyn_reader::*;
 #[doc(inline)]

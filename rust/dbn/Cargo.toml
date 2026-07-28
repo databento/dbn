@@ -17,12 +17,14 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = []
-async = ["dep:async-compression", "dep:async-stream", "dep:futures-core", "dep:tokio"]
+default = ["zstd"]
+async = ["dep:async-compression", "dep:async-stream", "dep:futures-core", "dep:tokio", "zstd"]
 python = ["dep:pyo3", "dep:strum"]
 serde = ["dep:serde", "time/parsing", "time/serde"]
 # Enables deriving the `Copy` trait for records.
 trivial_copy = []
+# Enables Zstandard. Disabling it leaves the crate with no C dependencies
+zstd = ["dep:zstd"]
 
 [dependencies]
 dbn-macros = { version = "=0.64.0", path = "../dbn-macros" }
@@ -43,7 +45,7 @@ strum = { version = "0.28", features = ["derive"], optional = true }
 thiserror = "2.0"
 time = { workspace = true, features = ["formatting", "macros"] }
 tokio = { version = ">=1.41", features = ["fs", "io-util"], optional = true }
-zstd = { workspace = true }
+zstd = { workspace = true, optional = true }
 
 [dev-dependencies]
 rstest = { workspace = true }

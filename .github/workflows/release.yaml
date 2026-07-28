@@ -386,16 +386,19 @@ jobs:
   build-libdbn-c:
     needs: [tag-release]
     runs-on: ${{ matrix.os }}
-    env:
-      TARGET_FLAGS:
     strategy:
       fail-fast: false
       matrix:
         include:
+        # cross builds Linux targets in an old-glibc container, keeping the glibc
+        # requirement of the published library low. Fall back to cargo on macOS and
+        # Windows
         - os: ubuntu-latest
           target: x86_64-unknown-linux-gnu
+          cross: true
         - os: ubuntu-latest
           target: aarch64-unknown-linux-gnu
+          cross: true
         - os: macos-latest
           target: x86_64-apple-darwin
         - os: macos-latest
@@ -411,23 +414,35 @@ jobs:
       run: rustup toolchain add --profile minimal --target ${{ matrix.target }} stable
 
     - name: Install cross
+      if: matrix.cross
       run: cargo install cross --version 0.2.5 --locked
 
-    - name: Set target variables
-      shell: bash
-      run: echo "TARGET_FLAGS=--target ${{ matrix.target }}" >> $GITHUB_ENV
-
-    - name: Build static library
+    - name: Build libraries
       shell: bash
       run: |
-        cross build --release --package dbn-c ${{ env.TARGET_FLAGS }}
-        if [ "${{ matrix.os }}" = "windows-latest" ]; then
-          lib="target/${{ matrix.target }}/release/dbn_c.lib"
-        else
-          lib="target/${{ matrix.target }}/release/libdbn_c.a"
-        fi
+        set -euo pipefail
+        if [ "${{ matrix.cross }}" = "true" ]; then cargo_cmd=cross; else cargo_cmd=cargo; fi
+        # `--print native-static-libs=<path>` records the linker arguments a consumer of
+        # the static library needs
+        "$cargo_cmd" rustc --release --package dbn-c --target ${{ matrix.target }} \
+          -- --print native-static-libs=native-static-libs.txt
+
+        out="target/${{ matrix.target }}/release"
+        case "${{ runner.os }}" in
+          Windows) lib="$out/dbn_c.lib"; shared="$out/dbn_c.dll" ;;
+          macOS) lib="$out/libdbn_c.a"; shared="$out/libdbn_c.dylib" ;;
+          *) lib="$out/libdbn_c.a"; shared="$out/libdbn_c.so" ;;
+        esac
+        header="target/include/dbn/dbn.h"
         stat "$lib"
+        stat "$shared"
+        stat "$header"
+        stat native-static-libs.txt
+        cat native-static-libs.txt
+
         echo "LIB=$lib" >> $GITHUB_ENV
+        echo "SHARED=$shared" >> $GITHUB_ENV
+        echo "HEADER=$header" >> $GITHUB_ENV
 
     - name: Determine archive name
       shell: bash
@@ -439,29 +454,38 @@ jobs:
     - name: Create directory for archive
       shell: bash
       run: |
-        mkdir -p "$ARCHIVE"/include "$ARCHIVE"/doc
-        cp "$LIB" "$ARCHIVE"/
-        cp c/include/dbn_ffi.h "$ARCHIVE"/include/
+        mkdir -p "$ARCHIVE"/include/dbn "$ARCHIVE"/doc
+        cp "$LIB" "$SHARED" "$ARCHIVE"/
+        cp "$HEADER" "$ARCHIVE"/include/dbn/
+        cp native-static-libs.txt "$ARCHIVE"/
         cp {c/README.md,LICENSE} "$ARCHIVE"/
         cp CHANGELOG.md "$ARCHIVE"/doc/
 
     - name: Build archive (Windows)
       shell: bash
-      if: matrix.os == 'windows-latest'
+      if: runner.os == 'Windows'
       run: |
         7z a "$ARCHIVE.zip" "$ARCHIVE"
-        certutil -hashfile "$ARCHIVE.zip" SHA256 > "$ARCHIVE.zip.sha256"
         echo "ASSET=$ARCHIVE.zip" >> $GITHUB_ENV
-        echo "ASSET_SUM=$ARCHIVE.zip.sha256" >> $GITHUB_ENV
 
     - name: Build archive (Unix)
       shell: bash
-      if: matrix.os != 'windows-latest'
+      if: runner.os != 'Windows'
       run: |
         tar czf "$ARCHIVE.tar.gz" "$ARCHIVE"
-        shasum -a 256 "$ARCHIVE.tar.gz" > "$ARCHIVE.tar.gz.sha256"
         echo "ASSET=$ARCHIVE.tar.gz" >> $GITHUB_ENV
-        echo "ASSET_SUM=$ARCHIVE.tar.gz.sha256" >> $GITHUB_ENV
+
+    - name: Checksum archive
+      shell: bash
+      run: |
+        set -euo pipefail
+        if command -v sha256sum > /dev/null; then
+          sha256sum "$ASSET" > "$ASSET.sha256"
+        else
+          shasum -a 256 "$ASSET" > "$ASSET.sha256"
+        fi
+        cat "$ASSET.sha256"
+        echo "ASSET_SUM=$ASSET.sha256" >> $GITHUB_ENV
 
     - name: Upload release archive
       env:

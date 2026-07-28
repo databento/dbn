@@ -1,5 +1,5 @@
 //! Writes generated C header for DBN functions and symbols to
-//! ${target_directory}/include/dbn/dbn.h
+//! ${target_directory}/include/dbn/dbn.h, or to `$DBN_C_HEADER_DIR` when set
 
 extern crate cbindgen;
 
@@ -23,12 +23,27 @@ fn find_target_dir() -> PathBuf {
     }
 }
 
+fn header_dir() -> PathBuf {
+    if let Some(header_dir) = env::var_os("DBN_C_HEADER_DIR") {
+        return PathBuf::from(header_dir);
+    }
+    find_target_dir().join("include").join("dbn")
+}
+
 fn main() {
+    // Emitting any rerun-if directive opts out of cargo's default of rerunning when any
+    // file in the package changes, so every input has to be declared. cbindgen is
+    // configured with `parse_deps`, which makes the `dbn` crate's sources an input too.
+    println!("cargo:rerun-if-env-changed=DBN_C_HEADER_DIR");
+    println!("cargo:rerun-if-changed=src");
+    println!("cargo:rerun-if-changed=cbindgen.toml");
+    println!("cargo:rerun-if-changed=Cargo.toml");
+    println!("cargo:rerun-if-changed=../rust/dbn/src");
+
     let crate_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
-    let target_dir = find_target_dir();
-    let include_dir = target_dir.join("include").join("dbn");
-    fs::create_dir_all(&include_dir).unwrap();
-    let out_path = include_dir.join("dbn.h");
+    let header_dir = header_dir();
+    fs::create_dir_all(&header_dir).unwrap();
+    let out_path = header_dir.join("dbn.h");
 
     cbindgen::generate(crate_dir)
         .expect("Unable to generate bindings")

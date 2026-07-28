@@ -15,8 +15,8 @@
 //! DBZ files to DBN.
 //!
 //! This crate provides:
-//! - [Decoders](crate::decode) for DBN and DBZ (the precursor to DBN), both
-//!   sync and async, with the `async` feature flag
+//! - [Decoders](crate::decode) for DBN and DBZ (the precursor to DBN, with the `zstd`
+//!   feature flag), both sync and async, with the `async` feature flag
 //! - [Encoders](crate::encode) for CSV, DBN, and JSON, both sync and async,
 //!   with the `async` feature flag
 //! - [Normalized market data struct definitions](crate::record) corresponding to the
@@ -72,6 +72,9 @@
 //! - `python`: enables `pyo3` bindings
 //! - `serde`: enables deriving `serde` traits for types
 //! - `trivial_copy`: enables deriving the `Copy` trait for records
+//! - `zstd` (default): enables Zstandard compression and decompression, DBZ, and the
+//!   `Dyn` readers, writers, decoders, and encoders. Disabling it leaves the crate with
+//!   no C dependencies
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![deny(missing_docs)]

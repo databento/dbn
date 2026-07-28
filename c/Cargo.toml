@@ -11,10 +11,10 @@ repository.workspace = true
 
 [lib]
 name = "dbn_c"
-crate-type = ["staticlib"]
+crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
-dbn = { path = "../rust/dbn", features = [] }
+dbn = { path = "../rust/dbn", default-features = false }
 
 anyhow.workspace = true
 libc = "0.2.189"

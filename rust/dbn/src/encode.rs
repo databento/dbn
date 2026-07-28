@@ -5,7 +5,8 @@
 //! with [`DynEncoderBuilder`].
 //!
 //! Sync encoders implement the [`EncodeDbn`] trait. With the `async` feature flag,
-//! async variants are also available.
+//! async variants are also available. Zstandard compression and the `Dyn` encoders and
+//! writers require the `zstd` feature flag, which is enabled by default.
 //!
 //! # Examples
 //!
@@ -38,13 +39,17 @@
 //! ```
 pub mod csv;
 pub mod dbn;
+#[cfg(feature = "zstd")]
 mod dyn_encoder;
+#[cfg(feature = "zstd")]
 mod dyn_writer;
 mod io_utils;
 pub mod json;
 mod split;
 
-use std::{fmt, io, num::NonZeroU64};
+#[cfg(feature = "zstd")]
+use std::io;
+use std::{fmt, num::NonZeroU64};
 
 use fallible_streaming_iterator::FallibleStreamingIterator;
 
@@ -69,6 +74,7 @@ pub use self::{
     },
     json::AsyncEncoder as AsyncJsonEncoder,
 };
+#[cfg(feature = "zstd")]
 #[doc(inline)]
 pub use self::{
     dyn_encoder::{DynEncoder, DynEncoderBuilder},
@@ -279,10 +285,12 @@ pub trait EncodeRecordTextExt: EncodeRecord + EncodeRecordRef {
 /// The default Zstandard compression level used.
 pub const ZSTD_COMPRESSION_LEVEL: i32 = 0;
 
+#[cfg(feature = "zstd")]
 fn zstd_encoder<'a, W: io::Write>(writer: W) -> Result<zstd::stream::AutoFinishEncoder<'a, W>> {
     zstd_encoder_with_clevel(writer, ZSTD_COMPRESSION_LEVEL)
 }
 
+#[cfg(feature = "zstd")]
 fn zstd_encoder_with_clevel<'a, W: io::Write>(
     writer: W,
     level: i32,
@@ -290,10 +298,12 @@ fn zstd_encoder_with_clevel<'a, W: io::Write>(
     Ok(raw_zstd_encoder_with_clevel(writer, level)?.auto_finish())
 }
 
+#[cfg(feature = "zstd")]
 fn raw_zstd_encoder<'a, W: io::Write>(writer: W) -> Result<zstd::stream::Encoder<'a, W>> {
     raw_zstd_encoder_with_clevel(writer, ZSTD_COMPRESSION_LEVEL)
 }
 
+#[cfg(feature = "zstd")]
 fn raw_zstd_encoder_with_clevel<'a, W: io::Write>(
     writer: W,
     level: i32,
