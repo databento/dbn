@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.65.0 - Upcoming
+
+### Enhancements
+- Added `ReplayDataAgedOut` variant to `ErrorCode` for when the data for a replay
+  subscription is no longer retained and the schema is incompatible with skipping records
+
 ## 0.64.0 - 2026-07-28
 
 ### Enhancements
