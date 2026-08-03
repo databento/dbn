@@ -5,6 +5,7 @@
 ### Enhancements
 - Added `ReplayDataAgedOut` variant to `ErrorCode` for when the data for a replay
   subscription is no longer retained and the schema is incompatible with skipping records
+- Added new publisher values for JPX
 
 ## 0.64.0 - 2026-07-28
 
