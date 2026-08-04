@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.65.0 - Upcoming
+## 0.65.0 - 2026-08-04
 
 ### Enhancements
 - Added `ReplayDataAgedOut` variant to `ErrorCode` for when the data for a replay
@@ -16,6 +16,8 @@
   - Added `native-static-libs.txt` to the C static library release archives, recording
     the linker arguments the static library requires
   - Added a shared library to the `libdbn_c` release archives
+- Upgraded `time` to 0.3.55
+- Upgraded `pyo3` to 0.29.1
 
 ### Bug fixes
 - Fixed `DbnMetadata_end` in the C API returning 0 for an unset query `end` instead of
