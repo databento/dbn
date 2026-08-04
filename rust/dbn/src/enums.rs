@@ -1477,6 +1477,9 @@ pub enum ErrorCode {
     /// A slow client was detected and records were skipped by the gateway to allow catching up.
     #[pyo3(name = "SKIPPED_RECORDS_AFTER_SLOW_READING")]
     SkippedRecordsAfterSlowReading = 7,
+    /// The data for a replay subscription is no longer retained and the schema is incompatible with skipping records.
+    #[pyo3(name = "REPLAY_DATA_AGED_OUT")]
+    ReplayDataAgedOut = 8,
     /// No error code was specified or this record was upgraded from a version 1 struct where the code field didn't exist.
     #[default]
     #[pyo3(name = "UNSET")]
@@ -1495,6 +1498,7 @@ impl std::str::FromStr for ErrorCode {
             "invalid_subscription" => Ok(Self::InvalidSubscription),
             "internal_error" => Ok(Self::InternalError),
             "skipped_records_after_slow_reading" => Ok(Self::SkippedRecordsAfterSlowReading),
+            "replay_data_aged_out" => Ok(Self::ReplayDataAgedOut),
             "unset" => Ok(Self::Unset),
             _ => Err(crate::Error::conversion::<Self>(s.to_owned())),
         }
@@ -1518,6 +1522,7 @@ impl ErrorCode {
             Self::InvalidSubscription => "invalid_subscription",
             Self::InternalError => "internal_error",
             Self::SkippedRecordsAfterSlowReading => "skipped_records_after_slow_reading",
+            Self::ReplayDataAgedOut => "replay_data_aged_out",
             Self::Unset => "unset",
         }
     }

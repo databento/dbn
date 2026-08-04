@@ -1204,6 +1204,8 @@ class ErrorCode(Enum):
         An error occurred in the gateway.
     SKIPPED_RECORDS_AFTER_SLOW_READING
         A slow client was detected and records were skipped by the gateway to allow catching up.
+    REPLAY_DATA_AGED_OUT
+        The data for a replay subscription is no longer retained and the schema is incompatible with skipping records.
     UNSET
         No error code was specified or this record was upgraded from a version 1 struct where the code field didn't exist.
 
@@ -1216,6 +1218,7 @@ class ErrorCode(Enum):
     INVALID_SUBSCRIPTION: int
     INTERNAL_ERROR: int
     SKIPPED_RECORDS_AFTER_SLOW_READING: int
+    REPLAY_DATA_AGED_OUT: int
     UNSET: int
 
     def __init__(self, value: int) -> None: ...

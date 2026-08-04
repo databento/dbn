@@ -12,7 +12,7 @@ use std::{
 use dbn::{
     encode::dbn::MetadataEncoder,
     enums::{SType, Schema},
-    Metadata, MetadataBuilder,
+    Metadata, MetadataBuilder, UNDEF_TIMESTAMP,
 };
 
 /// The byte offset of the `start` field in DBN-encoded Metadata.
@@ -153,7 +153,7 @@ pub unsafe extern "C" fn DbnMetadata_start(metadata: *const Metadata) -> u64 {
     metadata.as_ref().map_or(0, |m| m.start)
 }
 
-/// The UNIX nanosecond query end timestamp, or 0 if unset.
+/// The UNIX nanosecond query end timestamp, or `UNDEF_TIMESTAMP` if unset.
 ///
 /// # Safety
 /// Verifies `metadata` is not null.
@@ -162,7 +162,8 @@ pub unsafe extern "C" fn DbnMetadata_end(metadata: *const Metadata) -> u64 {
     metadata
         .as_ref()
         .and_then(|m| m.end)
-        .map_or(0, |end| end.get())
+        .map(|end| end.get())
+        .unwrap_or(UNDEF_TIMESTAMP)
 }
 
 /// The maximum number of records for the query, or 0 if unset.
@@ -411,30 +412,67 @@ mod tests {
     }
 
     #[test]
+    fn unset_end_and_limit_use_their_wire_sentinels() {
+        let owned = Metadata::builder()
+            .dataset("XNAS.ITCH")
+            .schema(Some(Schema::Trades))
+            .stype_in(Some(SType::RawSymbol))
+            .stype_out(SType::InstrumentId)
+            .start(1)
+            .end(None)
+            .limit(None)
+            .build();
+        let metadata = &raw const owned;
+
+        unsafe {
+            // The sentinels differ between the two fields, so each getter returns
+            // what an encoder would write rather than a shared "unset" value.
+            assert_eq!(DbnMetadata_end(metadata), UNDEF_TIMESTAMP);
+            assert_eq!(DbnMetadata_limit(metadata), 0);
+        }
+    }
+
+    #[test]
+    fn free_accepts_null_and_owned_handles() {
+        unsafe {
+            DbnMetadata_free(std::ptr::null_mut());
+            DbnMetadata_free(Box::into_raw(Box::new(
+                Metadata::builder()
+                    .dataset("XNAS.ITCH")
+                    .schema(Some(Schema::Trades))
+                    .stype_in(Some(SType::RawSymbol))
+                    .stype_out(SType::InstrumentId)
+                    .start(1)
+                    .symbols(vec!["AAPL".to_owned()])
+                    .build(),
+            )));
+        }
+    }
+
+    #[test]
     fn accessors_read_all_fields() {
-        let metadata = Box::into_raw(Box::new(
-            Metadata::builder()
-                .dataset("XNAS.ITCH")
-                .schema(Some(Schema::Trades))
-                .start(1)
-                .end(NonZeroU64::new(2))
-                .limit(NonZeroU64::new(3))
-                .stype_in(Some(SType::RawSymbol))
-                .stype_out(SType::InstrumentId)
-                .ts_out(true)
-                .symbols(vec!["AAPL".to_owned()])
-                .partial(vec!["MSFT".to_owned()])
-                .not_found(vec!["TSLA".to_owned()])
-                .mappings(vec![SymbolMapping {
-                    raw_symbol: "AAPL".to_owned(),
-                    intervals: vec![MappingInterval {
-                        start_date: date!(2023 - 07 - 01),
-                        end_date: date!(2023 - 08 - 01),
-                        symbol: "32".to_owned(),
-                    }],
-                }])
-                .build(),
-        ));
+        let owned = Metadata::builder()
+            .dataset("XNAS.ITCH")
+            .schema(Some(Schema::Trades))
+            .start(1)
+            .end(NonZeroU64::new(2))
+            .limit(NonZeroU64::new(3))
+            .stype_in(Some(SType::RawSymbol))
+            .stype_out(SType::InstrumentId)
+            .ts_out(true)
+            .symbols(vec!["AAPL".to_owned()])
+            .partial(vec!["MSFT".to_owned()])
+            .not_found(vec!["TSLA".to_owned()])
+            .mappings(vec![SymbolMapping {
+                raw_symbol: "AAPL".to_owned(),
+                intervals: vec![MappingInterval {
+                    start_date: date!(2023 - 07 - 01),
+                    end_date: date!(2023 - 08 - 01),
+                    symbol: "32".to_owned(),
+                }],
+            }])
+            .build();
+        let metadata = &raw const owned;
 
         unsafe {
             assert_eq!(DbnMetadata_version(metadata), dbn::DBN_VERSION);
@@ -492,8 +530,6 @@ mod tests {
             assert_eq!(interval.end_date, 20230801);
             assert_eq!(str_ref_to_string(interval.symbol), "32");
             assert!(!DbnMetadata_mapping_interval(metadata, 0, 1, &mut interval));
-
-            DbnMetadata_free(metadata);
         }
     }
 }

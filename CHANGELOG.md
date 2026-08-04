@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.65.0 - 2026-08-04
+
+### Enhancements
+- Added `ReplayDataAgedOut` variant to `ErrorCode` for when the data for a replay
+  subscription is no longer retained and the schema is incompatible with skipping records
+- Added new publisher values for JPX
+- Added a `zstd` feature, enabled by default, gating Zstandard compression and
+  decompression, the DBZ format, and the `Dyn` readers, writers, decoders, and
+  encoders
+- Improved FFI library
+  - The static library no longer bundles Zstandard
+  - Added a `DBN_C_HEADER_DIR` environment variable to control where the generated
+    `dbn.h` is written
+  - Added `native-static-libs.txt` to the C static library release archives, recording
+    the linker arguments the static library requires
+  - Added a shared library to the `libdbn_c` release archives
+- Upgraded `time` to 0.3.55
+- Upgraded `pyo3` to 0.29.1
+
+### Bug fixes
+- Fixed `DbnMetadata_end` in the C API returning 0 for an unset query `end` instead of
+  `UNDEF_TIMESTAMP`, the value it's encoded with on the wire
+
 ## 0.64.0 - 2026-07-28
 
 ### Enhancements

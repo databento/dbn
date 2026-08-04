@@ -7,3 +7,6 @@
 target/
 **/*.rs.bk
 *.sw[po]
+
+# From DBN C release workflow
+native-static-libs.txt

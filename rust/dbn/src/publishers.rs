@@ -149,10 +149,16 @@ pub enum Venue {
     Cgi = 67,
     /// CGIF Definitions
     Def = 68,
+    /// Tokyo Stock Exchange
+    Xtks = 69,
+    /// Tokyo Commodity Exchange
+    Xtkt = 70,
+    /// Osaka Exchange
+    Xose = 71,
 }
 
 /// The number of [`Venue`] variants.
-pub const VENUE_COUNT: usize = 68;
+pub const VENUE_COUNT: usize = 71;
 
 impl Venue {
     /// Converts the venue to its `str` representation.
@@ -226,6 +232,9 @@ impl Venue {
             Self::Cccy => "CCCY",
             Self::Cgi => "CGI",
             Self::Def => "DEF",
+            Self::Xtks => "XTKS",
+            Self::Xtkt => "XTKT",
+            Self::Xose => "XOSE",
         }
     }
 }
@@ -315,6 +324,9 @@ impl std::str::FromStr for Venue {
             "CCCY" => Ok(Self::Cccy),
             "CGI" => Ok(Self::Cgi),
             "DEF" => Ok(Self::Def),
+            "XTKS" => Ok(Self::Xtks),
+            "XTKT" => Ok(Self::Xtkt),
+            "XOSE" => Ok(Self::Xose),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
@@ -427,10 +439,16 @@ pub enum Dataset {
     CccyCgif = 48,
     /// CGIF - CBOE Global Indices
     CgiCgif = 49,
+    /// Arrowhead FLEX
+    XtksFlex = 50,
+    /// JPX JGATE3.0-ITCH
+    XtktItch = 51,
+    /// JPX JGATE3.0-ITCH
+    XoseItch = 52,
 }
 
 /// The number of [`Dataset`] variants.
-pub const DATASET_COUNT: usize = 49;
+pub const DATASET_COUNT: usize = 52;
 
 impl Dataset {
     /// Converts the dataset to its `str` representation.
@@ -487,6 +505,9 @@ impl Dataset {
             Self::MstarCgif => "MSTAR.CGIF",
             Self::CccyCgif => "CCCY.CGIF",
             Self::CgiCgif => "CGI.CGIF",
+            Self::XtksFlex => "XTKS.FLEX",
+            Self::XtktItch => "XTKT.ITCH",
+            Self::XoseItch => "XOSE.ITCH",
         }
     }
 
@@ -647,6 +668,9 @@ impl Dataset {
             Self::MstarCgif => &[Publisher::MstarCgifMstar],
             Self::CccyCgif => &[Publisher::CccyCgifCccy],
             Self::CgiCgif => &[Publisher::CgiCgifCgi],
+            Self::XtksFlex => &[Publisher::XtksFlexXtks],
+            Self::XtktItch => &[Publisher::XtktItchXtkt],
+            Self::XoseItch => &[Publisher::XoseItchXose],
         }
     }
 }
@@ -719,6 +743,9 @@ impl std::str::FromStr for Dataset {
             "MSTAR.CGIF" => Ok(Self::MstarCgif),
             "CCCY.CGIF" => Ok(Self::CccyCgif),
             "CGI.CGIF" => Ok(Self::CgiCgif),
+            "XTKS.FLEX" => Ok(Self::XtksFlex),
+            "XTKT.ITCH" => Ok(Self::XtktItch),
+            "XOSE.ITCH" => Ok(Self::XoseItch),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
@@ -1015,10 +1042,16 @@ pub enum Publisher {
     CgiCgifCgi = 141,
     /// CGIF - Definitions
     MainCgifDef = 142,
+    /// JPX - Tokyo Stock Exchange
+    XtksFlexXtks = 143,
+    /// JPX - Tokyo Commodity Exchange
+    XtktItchXtkt = 144,
+    /// JPX - Osaka Exchange
+    XoseItchXose = 145,
 }
 
 /// The number of [`Publisher`] variants.
-pub const PUBLISHER_COUNT: usize = 142;
+pub const PUBLISHER_COUNT: usize = 145;
 
 impl Publisher {
     /// Converts the publisher to its `str` representation.
@@ -1166,6 +1199,9 @@ impl Publisher {
             Self::CccyCgifCccy => "CCCY.CGIF.CCCY",
             Self::CgiCgifCgi => "CGI.CGIF.CGI",
             Self::MainCgifDef => "MAIN.CGIF.DEF",
+            Self::XtksFlexXtks => "XTKS.FLEX.XTKS",
+            Self::XtktItchXtkt => "XTKT.ITCH.XTKT",
+            Self::XoseItchXose => "XOSE.ITCH.XOSE",
         }
     }
 
@@ -1314,6 +1350,9 @@ impl Publisher {
             Self::CccyCgifCccy => Venue::Cccy,
             Self::CgiCgifCgi => Venue::Cgi,
             Self::MainCgifDef => Venue::Def,
+            Self::XtksFlexXtks => Venue::Xtks,
+            Self::XtktItchXtkt => Venue::Xtkt,
+            Self::XoseItchXose => Venue::Xose,
         }
     }
 
@@ -1462,6 +1501,9 @@ impl Publisher {
             Self::CccyCgifCccy => Dataset::CccyCgif,
             Self::CgiCgifCgi => Dataset::CgiCgif,
             Self::MainCgifDef => Dataset::MainCgif,
+            Self::XtksFlexXtks => Dataset::XtksFlex,
+            Self::XtktItchXtkt => Dataset::XtktItch,
+            Self::XoseItchXose => Dataset::XoseItch,
         }
     }
 
@@ -1613,6 +1655,9 @@ impl Publisher {
             (Dataset::CccyCgif, Venue::Cccy) => Ok(Self::CccyCgifCccy),
             (Dataset::CgiCgif, Venue::Cgi) => Ok(Self::CgiCgifCgi),
             (Dataset::MainCgif, Venue::Def) => Ok(Self::MainCgifDef),
+            (Dataset::XtksFlex, Venue::Xtks) => Ok(Self::XtksFlexXtks),
+            (Dataset::XtktItch, Venue::Xtkt) => Ok(Self::XtktItchXtkt),
+            (Dataset::XoseItch, Venue::Xose) => Ok(Self::XoseItchXose),
             _ => Err(Error::conversion::<Self>(format!("({dataset}, {venue})"))),
         }
     }
@@ -1777,6 +1822,9 @@ impl std::str::FromStr for Publisher {
             "CCCY.CGIF.CCCY" => Ok(Self::CccyCgifCccy),
             "CGI.CGIF.CGI" => Ok(Self::CgiCgifCgi),
             "MAIN.CGIF.DEF" => Ok(Self::MainCgifDef),
+            "XTKS.FLEX.XTKS" => Ok(Self::XtksFlexXtks),
+            "XTKT.ITCH.XTKT" => Ok(Self::XtktItchXtkt),
+            "XOSE.ITCH.XOSE" => Ok(Self::XoseItchXose),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }

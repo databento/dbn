@@ -1,15 +1,13 @@
-use std::{
-    fs::File,
-    io::{self, BufReader},
-    path::Path,
-};
+#[cfg(feature = "zstd")]
+use std::io::BufReader;
+use std::{fs::File, io, path::Path};
 
 use crate::{
     decode::{
         dbn::fsm::{DbnFsm, ProcessResult},
         private::LastRecord,
-        DbnMetadata, DecodeRecord, DecodeRecordRef, DecodeStream, DynReader, SkipBytes,
-        StreamIterDecoder, VersionUpgradePolicy,
+        DbnMetadata, DecodeRecord, DecodeRecordRef, DecodeStream, SkipBytes, StreamIterDecoder,
+        VersionUpgradePolicy,
     },
     HasRType, Metadata, RecordRef, DBN_VERSION,
 };
@@ -87,6 +85,7 @@ where
     }
 }
 
+#[cfg(feature = "zstd")]
 impl<R> Decoder<zstd::stream::Decoder<'_, BufReader<R>>>
 where
     R: io::Read,
@@ -103,6 +102,7 @@ where
     }
 }
 
+#[cfg(feature = "zstd")]
 impl<R> Decoder<zstd::stream::Decoder<'_, R>>
 where
     R: io::BufRead,
@@ -136,6 +136,7 @@ impl Decoder<File> {
     }
 }
 
+#[cfg(feature = "zstd")]
 impl Decoder<zstd::stream::Decoder<'_, BufReader<File>>> {
     /// Creates a DBN [`Decoder`] from the Zstandard-compressed file at `path`.
     ///
@@ -389,7 +390,8 @@ where
     }
 }
 
-impl<'a, R> RecordDecoder<DynReader<'a, R>>
+#[cfg(feature = "zstd")]
+impl<'a, R> RecordDecoder<crate::decode::DynReader<'a, R>>
 where
     R: io::BufRead,
 {
@@ -554,16 +556,24 @@ pub(crate) fn decode_iso8601(raw: u32) -> Result<time::Date, String> {
 mod tests {
     #![allow(clippy::clone_on_copy)]
 
+    #[cfg(feature = "zstd")]
     use std::fs::File;
 
+    #[cfg(feature = "zstd")]
     use rstest::rstest;
 
     use super::*;
     use crate::{
-        decode::{tests::TEST_DATA_PATH, DynReader},
-        encode::{dbn::Encoder, DbnEncodable, DbnRecordEncoder, DynWriter, EncodeRecord},
-        rtype, v1, v2, v3, Compression, Dataset, Error, ErrorMsg, MboMsg, MetadataBuilder,
-        OhlcvMsg, Record, RecordBuf, RecordHeader, Result, SType, Schema, TradeMsg, WithTsOut,
+        decode::tests::TEST_DATA_PATH,
+        encode::{dbn::Encoder, DbnRecordEncoder, EncodeRecord},
+        rtype, Dataset, Error, ErrorMsg, MboMsg, MetadataBuilder, OhlcvMsg, Record, RecordBuf,
+        RecordHeader, Result, SType, Schema, TradeMsg, WithTsOut,
+    };
+    #[cfg(feature = "zstd")]
+    use crate::{
+        decode::DynReader,
+        encode::{DbnEncodable, DynWriter},
+        v1, v2, v3, Compression,
     };
 
     #[test]
@@ -635,6 +645,7 @@ mod tests {
     #[case::imbalance_v3(3, Schema::Imbalance, v3::ImbalanceMsg::default())]
     #[case::statistics_v3(3, Schema::Statistics, v3::StatMsg::default())]
     #[case::status_v3(3, Schema::Status, v3::StatusMsg::default())]
+    #[cfg(feature = "zstd")]
     fn test_dbn_identity<R: DbnEncodable + HasRType + PartialEq + Clone>(
         #[case] version: u8,
         #[case] schema: Schema,
@@ -710,6 +721,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "zstd")]
     fn test_seek_to_compressed_returns_bad_argument() {
         let reader =
             DynReader::from_file(format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst")).unwrap();
@@ -836,6 +848,7 @@ mod tests {
     #[rstest]
     #[case::v1_as_is(v1::InstrumentDefMsg::default(), VersionUpgradePolicy::AsIs)]
     #[case::v1_upgrade(v1::InstrumentDefMsg::default(), VersionUpgradePolicy::UpgradeToV2)]
+    #[cfg(feature = "zstd")]
     fn test_decode_multiframe_zst_from_v1<R: HasRType>(
         #[case] _r: R,
         #[case] upgrade_policy: VersionUpgradePolicy,
@@ -861,6 +874,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "zstd")]
     fn test_decode_upgrade_v2() -> crate::Result<()> {
         let decoder = Decoder::with_upgrade_policy(
             zstd::Decoder::new(
@@ -876,6 +890,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "zstd")]
     fn test_decode_upgrade_v3() -> crate::Result<()> {
         let decoder = Decoder::with_upgrade_policy(
             zstd::Decoder::new(
@@ -923,6 +938,7 @@ mod tests {
     #[case::imbalance(Schema::Imbalance, v3::ImbalanceMsg::default())]
     #[case::statistics(Schema::Statistics, v3::StatMsg::default())]
     #[case::status(Schema::Status, v3::StatusMsg::default())]
+    #[cfg(feature = "zstd")]
     fn test_decode_buf_iter<R: DbnEncodable + HasRType + PartialEq + Clone>(
         #[case] schema: Schema,
         #[case] _rec: R,

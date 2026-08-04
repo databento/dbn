@@ -6,8 +6,7 @@ use std::{
 
 use crate::{
     encode::{
-        io_utils::write_all_vectored, zstd_encoder, DbnEncodable, EncodeDbn, EncodeRecord,
-        EncodeRecordRef,
+        io_utils::write_all_vectored, DbnEncodable, EncodeDbn, EncodeRecord, EncodeRecordRef,
     },
     Error, Metadata, RecordRef, Result, Schema, SymbolMapping, DBN_VERSION, NULL_LIMIT,
     NULL_RECORD_COUNT, NULL_SCHEMA, NULL_STYPE, UNDEF_TIMESTAMP,
@@ -49,6 +48,7 @@ where
     }
 }
 
+#[cfg(feature = "zstd")]
 impl<W> Encoder<zstd::stream::AutoFinishEncoder<'_, W>>
 where
     W: io::Write,
@@ -60,7 +60,7 @@ where
     /// This function will return an error if it fails to encode `metadata` to
     /// `writer`.
     pub fn with_zstd(writer: W, metadata: &Metadata) -> Result<Self> {
-        Encoder::new(zstd_encoder(writer)?, metadata)
+        Encoder::new(crate::encode::zstd_encoder(writer)?, metadata)
     }
 }
 

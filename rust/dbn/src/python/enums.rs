@@ -1485,6 +1485,7 @@ impl ErrorCode {
             Self::InvalidSubscription => "INVALID_SUBSCRIPTION",
             Self::InternalError => "INTERNAL_ERROR",
             Self::SkippedRecordsAfterSlowReading => "SKIPPED_RECORDS_AFTER_SLOW_READING",
+            Self::ReplayDataAgedOut => "REPLAY_DATA_AGED_OUT",
             Self::Unset => "UNSET",
         }
     }
