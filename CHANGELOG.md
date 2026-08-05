@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.66.0 - Upcoming
+
+### Enhancements
+- Improved performance of record field accessors that convert a raw value to an enum, such
+  as `side()`, `action()` and `rtype()`, by no longer copying the description when
+  constructing the conversion error
+- Improved performance of `Record::raw_index_ts()` for records with an unrecognized `rtype`
+
 ## 0.65.0 - 2026-08-04
 
 ### Enhancements

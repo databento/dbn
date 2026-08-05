@@ -232,7 +232,10 @@ impl MetadataDecoder {
         pos += crate::METADATA_DATASET_CSTR_LEN;
         let schema =
             Schema::try_from(u16::from_le_slice(&metadata_buffer[pos..])).map_err(|_| {
-                crate::Error::conversion::<Schema>(format!("{:?}", &metadata_buffer[pos..pos + 2]))
+                crate::Error::conversion::<Schema>(format_args!(
+                    "{:?}",
+                    &metadata_buffer[pos..pos + 2]
+                ))
             })?;
         pos += mem::size_of::<Schema>();
         let start = u64::from_le_slice(&metadata_buffer[pos..]);

@@ -253,7 +253,10 @@ impl InstrumentDefMsg {
     /// contain a valid [`InstrumentClass`].
     pub fn instrument_class(&self) -> crate::Result<InstrumentClass> {
         InstrumentClass::try_from(self.instrument_class as u8).map_err(|_| {
-            Error::conversion::<InstrumentClass>(format!("{:#04X}", self.instrument_class as u8))
+            Error::conversion::<InstrumentClass>(format_args!(
+                "{:#04X}",
+                self.instrument_class as u8
+            ))
         })
     }
 
@@ -275,7 +278,7 @@ impl InstrumentDefMsg {
     /// contain a valid [`MatchAlgorithm`].
     pub fn match_algorithm(&self) -> crate::Result<MatchAlgorithm> {
         MatchAlgorithm::try_from(self.match_algorithm as u8).map_err(|_| {
-            Error::conversion::<MatchAlgorithm>(format!("{:#04X}", self.match_algorithm as u8))
+            Error::conversion::<MatchAlgorithm>(format_args!("{:#04X}", self.match_algorithm as u8))
         })
     }
 }
@@ -316,7 +319,7 @@ impl StatMsg {
     /// contain a valid [`StatType`].
     pub fn stat_type(&self) -> crate::Result<StatType> {
         StatType::try_from(self.stat_type)
-            .map_err(|_| Error::conversion::<StatType>(format!("{:#04X}", self.stat_type)))
+            .map_err(|_| Error::conversion::<StatType>(format_args!("{:#04X}", self.stat_type)))
     }
 
     /// Parses the update action into an enum.
@@ -326,7 +329,7 @@ impl StatMsg {
     /// contain a valid [`StatUpdateAction`].
     pub fn update_action(&self) -> crate::Result<StatUpdateAction> {
         StatUpdateAction::try_from(self.update_action).map_err(|_| {
-            Error::conversion::<StatUpdateAction>(format!("{:#04X}", self.update_action))
+            Error::conversion::<StatUpdateAction>(format_args!("{:#04X}", self.update_action))
         })
     }
 }

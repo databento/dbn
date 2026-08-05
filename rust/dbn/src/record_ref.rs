@@ -5,7 +5,7 @@ use std::{fmt::Debug, hash, io::IoSlice, marker::PhantomData, mem, ptr::NonNull}
 
 use crate::{
     record::{HasRType, Record, RecordHeader},
-    rtype_dispatch, RecordEnum, RecordMut, RecordRefEnum,
+    rtype_dispatch, RType, RecordEnum, RecordMut, RecordRefEnum,
 };
 
 /// A wrapper around a non-owning immutable reference to a DBN record. This wrapper
@@ -239,12 +239,12 @@ impl<'a> RecordRef<'a> {
                 // Safety: checked `rtype` in call to `has()` and size
                 Ok(unsafe { self.ptr.cast::<T>().as_ref() })
             } else {
-                Err(crate::Error::conversion::<T>(format!(
+                Err(crate::Error::conversion::<T>(format_args!(
                     "{self:?} has insufficient length, may be an earlier version of this record"
                 )))
             }
         } else {
-            Err(crate::Error::conversion::<T>(format!(
+            Err(crate::Error::conversion::<T>(format_args!(
                 "{self:?} has incorrect rtype"
             )))
         }
@@ -336,6 +336,11 @@ impl<'a> Record for RecordRef<'a> {
     fn raw_index_ts(&self) -> u64 {
         fn raw_index_ts<T: HasRType>(t: &T) -> u64 {
             t.raw_index_ts()
+        }
+        // An unrecognized rtype falls back to `ts_event`. Checking up front avoids the
+        // conversion error the dispatch allocates for it and this would discard.
+        if RType::try_from(self.header().rtype).is_err() {
+            return self.header().ts_event;
         }
         rtype_dispatch!(self, raw_index_ts()).unwrap_or_else(|_| self.header().ts_event)
     }
@@ -529,12 +534,12 @@ impl<'a> RecordRefMut<'a> {
                 // SAFETY: checked rtype and size.
                 Ok(unsafe { self.ptr.cast::<T>().as_mut() })
             } else {
-                Err(crate::Error::conversion::<T>(format!(
+                Err(crate::Error::conversion::<T>(format_args!(
                     "{self:?} has insufficient length, may be an earlier version of this record"
                 )))
             }
         } else {
-            Err(crate::Error::conversion::<T>(format!(
+            Err(crate::Error::conversion::<T>(format_args!(
                 "{self:?} has incorrect rtype"
             )))
         }
@@ -633,6 +638,11 @@ impl<'a> Record for RecordRefMut<'a> {
     fn raw_index_ts(&self) -> u64 {
         fn raw_index_ts<T: HasRType>(t: &T) -> u64 {
             t.raw_index_ts()
+        }
+        // An unrecognized rtype falls back to `ts_event`. Checking up front avoids the
+        // conversion error the dispatch allocates for it and this would discard.
+        if RType::try_from(self.header().rtype).is_err() {
+            return self.header().ts_event;
         }
         rtype_dispatch!(self, raw_index_ts()).unwrap_or_else(|_| self.header().ts_event)
     }
