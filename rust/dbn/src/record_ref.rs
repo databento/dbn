@@ -5,7 +5,7 @@ use std::{fmt::Debug, hash, io::IoSlice, marker::PhantomData, mem, ptr::NonNull}
 
 use crate::{
     record::{HasRType, Record, RecordHeader},
-    rtype_dispatch, RType, RecordEnum, RecordMut, RecordRefEnum,
+    rtype_dispatch, RType, RecordMut, RecordRefEnum,
 };
 
 /// A wrapper around a non-owning immutable reference to a DBN record. This wrapper
@@ -304,13 +304,13 @@ impl<'a> RecordRef<'a> {
 
 impl<'a, R> From<&'a R> for RecordRef<'a>
 where
-    R: HasRType,
+    R: Record,
 {
     /// Constructs a new reference to a DBN record.
     fn from(rec: &'a R) -> Self {
         Self {
-            // Safety: `R` must be a record because it implements `HasRType`. Casting to `mut`
-            // is required for `NonNull`, but it is never mutated.
+            // Safety: `R` begins with a `RecordHeader` because it implements `Record`.
+            // Casting to `mut` is required for `NonNull`, but it is never mutated.
             ptr: unsafe {
                 NonNull::new_unchecked((rec.header() as *const RecordHeader).cast_mut())
             },
@@ -343,28 +343,6 @@ impl<'a> Record for RecordRef<'a> {
             return self.header().ts_event;
         }
         rtype_dispatch!(self, raw_index_ts()).unwrap_or_else(|_| self.header().ts_event)
-    }
-}
-
-impl<'a> From<&'a RecordEnum> for RecordRef<'a> {
-    fn from(rec_enum: &'a RecordEnum) -> Self {
-        match rec_enum {
-            RecordEnum::Mbo(rec) => Self::from(rec),
-            RecordEnum::Trade(rec) => Self::from(rec),
-            RecordEnum::Mbp1(rec) => Self::from(rec),
-            RecordEnum::Mbp10(rec) => Self::from(rec),
-            RecordEnum::Ohlcv(rec) => Self::from(rec),
-            RecordEnum::Status(rec) => Self::from(rec),
-            RecordEnum::InstrumentDef(rec) => Self::from(rec),
-            RecordEnum::Imbalance(rec) => Self::from(rec),
-            RecordEnum::Stat(rec) => Self::from(rec),
-            RecordEnum::Error(rec) => Self::from(rec),
-            RecordEnum::SymbolMapping(rec) => Self::from(rec),
-            RecordEnum::System(rec) => Self::from(rec),
-            RecordEnum::Cmbp1(rec) => Self::from(rec),
-            RecordEnum::Bbo(rec) => Self::from(rec),
-            RecordEnum::Cbbo(rec) => Self::from(rec),
-        }
     }
 }
 
@@ -663,12 +641,6 @@ impl Debug for RecordRefMut<'_> {
                 &format_args!("{:?} --> {:?}", self.ptr, self.header()),
             )
             .finish()
-    }
-}
-
-impl<'a, const CAP: usize> From<&'a crate::RecordBuf<CAP>> for RecordRef<'a> {
-    fn from(buf: &'a crate::RecordBuf<CAP>) -> Self {
-        buf.as_rec_ref()
     }
 }
 
