@@ -27,7 +27,7 @@ trivial_copy = []
 zstd = ["dep:zstd"]
 
 [dependencies]
-dbn-macros = { version = "=0.65.0", path = "../dbn-macros" }
+dbn-macros = { version = "=0.66.0", path = "../dbn-macros" }
 
 async-compression = { version = "0.4.43", features = ["tokio", "zstd"], optional = true }
 async-stream = { version = "0.3", optional = true }
