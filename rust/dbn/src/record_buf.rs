@@ -22,7 +22,7 @@
 use std::{fmt::Debug, hash, io::IoSlice, mem};
 
 use crate::{
-    rtype_dispatch, HasRType, Record, RecordHeader, RecordMut, RecordRef, RecordRefEnum,
+    rtype_dispatch, HasRType, RType, Record, RecordHeader, RecordMut, RecordRef, RecordRefEnum,
     RecordRefMut, MAX_RECORD_LEN,
 };
 
@@ -267,12 +267,12 @@ impl<const CAP: usize> RecordBuf<CAP> {
                 // SAFETY: checked rtype and size.
                 Ok(unsafe { std::mem::transmute::<&Repr<CAP>, &T>(&self.0) })
             } else {
-                Err(crate::Error::conversion::<T>(format!(
+                Err(crate::Error::conversion::<T>(format_args!(
                     "{self:?} has insufficient length, may be an earlier version of this record"
                 )))
             }
         } else {
-            Err(crate::Error::conversion::<T>(format!(
+            Err(crate::Error::conversion::<T>(format_args!(
                 "{self:?} has incorrect rtype"
             )))
         }
@@ -290,12 +290,12 @@ impl<const CAP: usize> RecordBuf<CAP> {
                 // SAFETY: checked rtype and size.
                 Ok(unsafe { std::mem::transmute::<&mut Repr<CAP>, &mut T>(&mut self.0) })
             } else {
-                Err(crate::Error::conversion::<T>(format!(
+                Err(crate::Error::conversion::<T>(format_args!(
                     "{self:?} has insufficient length, may be an earlier version of this record"
                 )))
             }
         } else {
-            Err(crate::Error::conversion::<T>(format!(
+            Err(crate::Error::conversion::<T>(format_args!(
                 "{self:?} has incorrect rtype"
             )))
         }
@@ -344,6 +344,11 @@ impl<const CAP: usize> Record for RecordBuf<CAP> {
     fn raw_index_ts(&self) -> u64 {
         fn raw_index_ts<T: HasRType>(t: &T) -> u64 {
             t.raw_index_ts()
+        }
+        // An unrecognized rtype falls back to `ts_event`. Checking up front avoids the
+        // conversion error the dispatch allocates for it and this would discard.
+        if RType::try_from(self.header().rtype).is_err() {
+            return self.header().ts_event;
         }
         rtype_dispatch!(self, raw_index_ts()).unwrap_or_else(|_| self.header().ts_event)
     }
@@ -448,7 +453,7 @@ impl<const CAP: usize> TryFrom<RecordRef<'_>> for RecordBuf<CAP> {
     /// Returns an error if the record is too large for the buffer's capacity.
     fn try_from(rec_ref: RecordRef<'_>) -> Result<Self, Self::Error> {
         if rec_ref.record_size() > CAP {
-            Err(crate::Error::conversion::<Self>(format!(
+            Err(crate::Error::conversion::<Self>(format_args!(
                 "{rec_ref:?} is too long for the RecordBuf's capacity"
             )))
         } else {

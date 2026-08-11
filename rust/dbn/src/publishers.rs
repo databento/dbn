@@ -1658,7 +1658,9 @@ impl Publisher {
             (Dataset::XtksFlex, Venue::Xtks) => Ok(Self::XtksFlexXtks),
             (Dataset::XtktItch, Venue::Xtkt) => Ok(Self::XtktItchXtkt),
             (Dataset::XoseItch, Venue::Xose) => Ok(Self::XoseItchXose),
-            _ => Err(Error::conversion::<Self>(format!("({dataset}, {venue})"))),
+            _ => Err(Error::conversion::<Self>(format_args!(
+                "({dataset}, {venue})"
+            ))),
         }
     }
 }

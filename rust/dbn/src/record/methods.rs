@@ -43,7 +43,7 @@ impl RecordHeader {
     /// contain a valid, known [`RType`].
     pub fn rtype(&self) -> crate::Result<RType> {
         RType::try_from(self.rtype)
-            .map_err(|_| Error::conversion::<RType>(format!("{:#04X}", self.rtype)))
+            .map_err(|_| Error::conversion::<RType>(format_args!("{:#04X}", self.rtype)))
     }
 
     /// Tries to convert the raw `publisher_id` into an enum which is useful for
@@ -107,7 +107,7 @@ impl MboMsg {
     /// contain a valid [`Action`].
     pub fn action(&self) -> crate::Result<Action> {
         Action::try_from(self.action as u8)
-            .map_err(|_| Error::conversion::<Action>(format!("{:#04X}", self.action as u8)))
+            .map_err(|_| Error::conversion::<Action>(format_args!("{:#04X}", self.action as u8)))
     }
 
     /// Parses the side that initiates the event into an enum.
@@ -117,7 +117,7 @@ impl MboMsg {
     /// contain a valid [`Side`].
     pub fn side(&self) -> crate::Result<Side> {
         Side::try_from(self.side as u8)
-            .map_err(|_| Error::conversion::<Side>(format!("{:#04X}", self.side as u8)))
+            .map_err(|_| Error::conversion::<Side>(format_args!("{:#04X}", self.side as u8)))
     }
 
     /// Parses the capture-server-received timestamp into a datetime.
@@ -186,7 +186,7 @@ impl ConsolidatedBidAskPair {
     /// contain a valid [`Publisher`].
     pub fn bid_pb(&self) -> crate::Result<Publisher> {
         Publisher::try_from(self.bid_pb)
-            .map_err(|_| Error::conversion::<Publisher>(format!("{:#04X}", self.bid_pb)))
+            .map_err(|_| Error::conversion::<Publisher>(format_args!("{:#04X}", self.bid_pb)))
     }
 
     /// Parses the ask publisher into an enum.
@@ -196,7 +196,7 @@ impl ConsolidatedBidAskPair {
     /// contain a valid [`Publisher`].
     pub fn ask_pb(&self) -> crate::Result<Publisher> {
         Publisher::try_from(self.ask_pb)
-            .map_err(|_| Error::conversion::<Publisher>(format!("{:#04X}", self.ask_pb)))
+            .map_err(|_| Error::conversion::<Publisher>(format_args!("{:#04X}", self.ask_pb)))
     }
 }
 
@@ -219,7 +219,7 @@ impl TradeMsg {
     /// contain a valid [`Action`].
     pub fn action(&self) -> crate::Result<Action> {
         Action::try_from(self.action as u8)
-            .map_err(|_| Error::conversion::<Action>(format!("{:#04X}", self.action as u8)))
+            .map_err(|_| Error::conversion::<Action>(format_args!("{:#04X}", self.action as u8)))
     }
 
     /// Parses the side into an enum.
@@ -229,7 +229,7 @@ impl TradeMsg {
     /// contain a valid [`Side`].
     pub fn side(&self) -> crate::Result<Side> {
         Side::try_from(self.side as u8)
-            .map_err(|_| Error::conversion::<Side>(format!("{:#04X}", self.side as u8)))
+            .map_err(|_| Error::conversion::<Side>(format_args!("{:#04X}", self.side as u8)))
     }
 
     /// Parses the capture-server-received timestamp into a datetime.
@@ -263,7 +263,7 @@ impl Mbp1Msg {
     /// contain a valid [`Action`].
     pub fn action(&self) -> crate::Result<Action> {
         Action::try_from(self.action as u8)
-            .map_err(|_| Error::conversion::<Action>(format!("{:#04X}", self.action as u8)))
+            .map_err(|_| Error::conversion::<Action>(format_args!("{:#04X}", self.action as u8)))
     }
 
     /// Parses the side that initiates the event into an enum.
@@ -273,7 +273,7 @@ impl Mbp1Msg {
     /// contain a valid [`Side`].
     pub fn side(&self) -> crate::Result<Side> {
         Side::try_from(self.side as u8)
-            .map_err(|_| Error::conversion::<Side>(format!("{:#04X}", self.side as u8)))
+            .map_err(|_| Error::conversion::<Side>(format_args!("{:#04X}", self.side as u8)))
     }
 
     /// Parses the capture-server-received timestamp into a datetime.
@@ -307,7 +307,7 @@ impl Mbp10Msg {
     /// contain a valid [`Action`].
     pub fn action(&self) -> crate::Result<Action> {
         Action::try_from(self.action as u8)
-            .map_err(|_| Error::conversion::<Action>(format!("{:#04X}", self.action as u8)))
+            .map_err(|_| Error::conversion::<Action>(format_args!("{:#04X}", self.action as u8)))
     }
 
     /// Parses the side that initiates the event into an enum.
@@ -317,7 +317,7 @@ impl Mbp10Msg {
     /// contain a valid [`Side`].
     pub fn side(&self) -> crate::Result<Side> {
         Side::try_from(self.side as u8)
-            .map_err(|_| Error::conversion::<Side>(format!("{:#04X}", self.side as u8)))
+            .map_err(|_| Error::conversion::<Side>(format_args!("{:#04X}", self.side as u8)))
     }
 
     /// Parses the capture-server-received timestamp into a datetime.
@@ -351,7 +351,7 @@ impl BboMsg {
     /// contain a valid [`Side`].
     pub fn side(&self) -> crate::Result<Side> {
         Side::try_from(self.side as u8)
-            .map_err(|_| Error::conversion::<Side>(format!("{:#04X}", self.side as u8)))
+            .map_err(|_| Error::conversion::<Side>(format_args!("{:#04X}", self.side as u8)))
     }
 
     /// Parses the end timestamp of the interval capture-server-received timestamp into a datetime.
@@ -380,7 +380,7 @@ impl Cmbp1Msg {
     /// contain a valid [`Action`].
     pub fn action(&self) -> crate::Result<Action> {
         Action::try_from(self.action as u8)
-            .map_err(|_| Error::conversion::<Action>(format!("{:#04X}", self.action as u8)))
+            .map_err(|_| Error::conversion::<Action>(format_args!("{:#04X}", self.action as u8)))
     }
 
     /// Parses the side that initiates the event into an enum.
@@ -390,7 +390,7 @@ impl Cmbp1Msg {
     /// contain a valid [`Side`].
     pub fn side(&self) -> crate::Result<Side> {
         Side::try_from(self.side as u8)
-            .map_err(|_| Error::conversion::<Side>(format!("{:#04X}", self.side as u8)))
+            .map_err(|_| Error::conversion::<Side>(format_args!("{:#04X}", self.side as u8)))
     }
 
     /// Parses the capture-server-received timestamp into a datetime.
@@ -424,7 +424,7 @@ impl CbboMsg {
     /// contain a valid [`Side`].
     pub fn side(&self) -> crate::Result<Side> {
         Side::try_from(self.side as u8)
-            .map_err(|_| Error::conversion::<Side>(format!("{:#04X}", self.side as u8)))
+            .map_err(|_| Error::conversion::<Side>(format_args!("{:#04X}", self.side as u8)))
     }
 
     /// Parses the end timestamp of the interval capture-server-received timestamp into a datetime.
@@ -494,7 +494,7 @@ impl StatusMsg {
     /// contain a valid [`StatusAction`].
     pub fn action(&self) -> crate::Result<StatusAction> {
         StatusAction::try_from(self.action)
-            .map_err(|_| Error::conversion::<StatusAction>(format!("{:#04X}", self.action)))
+            .map_err(|_| Error::conversion::<StatusAction>(format_args!("{:#04X}", self.action)))
     }
 
     /// Parses the reason into an enum.
@@ -504,7 +504,7 @@ impl StatusMsg {
     /// contain a valid [`StatusReason`].
     pub fn reason(&self) -> crate::Result<StatusReason> {
         StatusReason::try_from(self.reason)
-            .map_err(|_| Error::conversion::<StatusReason>(format!("{:#04X}", self.reason)))
+            .map_err(|_| Error::conversion::<StatusReason>(format_args!("{:#04X}", self.reason)))
     }
 
     /// Parses the trading event into an enum.
@@ -513,8 +513,9 @@ impl StatusMsg {
     /// This function returns an error if the `trading_event` field does not
     /// contain a valid [`TradingEvent`].
     pub fn trading_event(&self) -> crate::Result<TradingEvent> {
-        TradingEvent::try_from(self.trading_event)
-            .map_err(|_| Error::conversion::<TradingEvent>(format!("{:#04X}", self.trading_event)))
+        TradingEvent::try_from(self.trading_event).map_err(|_| {
+            Error::conversion::<TradingEvent>(format_args!("{:#04X}", self.trading_event))
+        })
     }
 
     /// Parses the trading state into an `Option<bool>` where `None` indicates
@@ -793,7 +794,10 @@ impl InstrumentDefMsg {
     /// contain a valid [`InstrumentClass`].
     pub fn instrument_class(&self) -> crate::Result<InstrumentClass> {
         InstrumentClass::try_from(self.instrument_class as u8).map_err(|_| {
-            Error::conversion::<InstrumentClass>(format!("{:#04X}", self.instrument_class as u8))
+            Error::conversion::<InstrumentClass>(format_args!(
+                "{:#04X}",
+                self.instrument_class as u8
+            ))
         })
     }
 
@@ -804,7 +808,7 @@ impl InstrumentDefMsg {
     /// contain a valid [`MatchAlgorithm`].
     pub fn match_algorithm(&self) -> crate::Result<MatchAlgorithm> {
         MatchAlgorithm::try_from(self.match_algorithm as u8).map_err(|_| {
-            Error::conversion::<MatchAlgorithm>(format!("{:#04X}", self.match_algorithm as u8))
+            Error::conversion::<MatchAlgorithm>(format_args!("{:#04X}", self.match_algorithm as u8))
         })
     }
 
@@ -815,7 +819,7 @@ impl InstrumentDefMsg {
     /// contain a valid [`SecurityUpdateAction`].
     pub fn security_update_action(&self) -> crate::Result<SecurityUpdateAction> {
         SecurityUpdateAction::try_from(self.security_update_action as u8).map_err(|_| {
-            Error::conversion::<SecurityUpdateAction>(format!(
+            Error::conversion::<SecurityUpdateAction>(format_args!(
                 "{:#04X}",
                 self.security_update_action as u8
             ))
@@ -829,7 +833,7 @@ impl InstrumentDefMsg {
     /// contain a valid [`UserDefinedInstrument`].
     pub fn user_defined_instrument(&self) -> crate::Result<UserDefinedInstrument> {
         UserDefinedInstrument::try_from(self.user_defined_instrument as u8).map_err(|_| {
-            Error::conversion::<UserDefinedInstrument>(format!(
+            Error::conversion::<UserDefinedInstrument>(format_args!(
                 "{:#04X}",
                 self.user_defined_instrument as u8
             ))
@@ -843,7 +847,7 @@ impl InstrumentDefMsg {
     /// contain a valid [`InstrumentClass`].
     pub fn leg_instrument_class(&self) -> crate::Result<InstrumentClass> {
         InstrumentClass::try_from(self.leg_instrument_class as u8).map_err(|_| {
-            Error::conversion::<InstrumentClass>(format!(
+            Error::conversion::<InstrumentClass>(format_args!(
                 "{:#04X}",
                 self.leg_instrument_class as u8
             ))
@@ -857,7 +861,7 @@ impl InstrumentDefMsg {
     /// contain a valid [`Side`].
     pub fn leg_side(&self) -> crate::Result<Side> {
         Side::try_from(self.leg_side as u8)
-            .map_err(|_| Error::conversion::<Side>(format!("{:#04X}", self.leg_side as u8)))
+            .map_err(|_| Error::conversion::<Side>(format_args!("{:#04X}", self.leg_side as u8)))
     }
 }
 
@@ -958,7 +962,7 @@ impl ImbalanceMsg {
     /// contain a valid [`Side`].
     pub fn side(&self) -> crate::Result<Side> {
         Side::try_from(self.side as u8)
-            .map_err(|_| Error::conversion::<Side>(format!("{:#04X}", self.side as u8)))
+            .map_err(|_| Error::conversion::<Side>(format_args!("{:#04X}", self.side as u8)))
     }
 
     /// Parses the unpaired side into an enum.
@@ -967,8 +971,9 @@ impl ImbalanceMsg {
     /// This function returns an error if the `unpaired_side` field does not
     /// contain a valid [`Side`].
     pub fn unpaired_side(&self) -> crate::Result<Side> {
-        Side::try_from(self.unpaired_side as u8)
-            .map_err(|_| Error::conversion::<Side>(format!("{:#04X}", self.unpaired_side as u8)))
+        Side::try_from(self.unpaired_side as u8).map_err(|_| {
+            Error::conversion::<Side>(format_args!("{:#04X}", self.unpaired_side as u8))
+        })
     }
 }
 
@@ -1008,7 +1013,7 @@ impl StatMsg {
     /// contain a valid [`StatType`].
     pub fn stat_type(&self) -> crate::Result<StatType> {
         StatType::try_from(self.stat_type)
-            .map_err(|_| Error::conversion::<StatType>(format!("{:#04X}", self.stat_type)))
+            .map_err(|_| Error::conversion::<StatType>(format_args!("{:#04X}", self.stat_type)))
     }
 
     /// Parses the update action into an enum.
@@ -1018,7 +1023,7 @@ impl StatMsg {
     /// contain a valid [`StatUpdateAction`].
     pub fn update_action(&self) -> crate::Result<StatUpdateAction> {
         StatUpdateAction::try_from(self.update_action).map_err(|_| {
-            Error::conversion::<StatUpdateAction>(format!("{:#04X}", self.update_action))
+            Error::conversion::<StatUpdateAction>(format_args!("{:#04X}", self.update_action))
         })
     }
 }
@@ -1056,7 +1061,7 @@ impl ErrorMsg {
     /// contain a valid [`ErrorCode`].
     pub fn code(&self) -> crate::Result<ErrorCode> {
         ErrorCode::try_from(self.code)
-            .map_err(|_| Error::conversion::<ErrorCode>(format!("{:#04X}", self.code)))
+            .map_err(|_| Error::conversion::<ErrorCode>(format_args!("{:#04X}", self.code)))
     }
 }
 
@@ -1096,7 +1101,7 @@ impl SymbolMappingMsg {
     /// contain a valid [`SType`].
     pub fn stype_in(&self) -> crate::Result<SType> {
         SType::try_from(self.stype_in)
-            .map_err(|_| Error::conversion::<SType>(format!("{:#04X}", self.stype_in)))
+            .map_err(|_| Error::conversion::<SType>(format_args!("{:#04X}", self.stype_in)))
     }
 
     /// Parses the input symbol into a `&str`.
@@ -1114,7 +1119,7 @@ impl SymbolMappingMsg {
     /// contain a valid [`SType`].
     pub fn stype_out(&self) -> crate::Result<SType> {
         SType::try_from(self.stype_out)
-            .map_err(|_| Error::conversion::<SType>(format!("{:#04X}", self.stype_out)))
+            .map_err(|_| Error::conversion::<SType>(format_args!("{:#04X}", self.stype_out)))
     }
 
     /// Parses the output symbol into a `&str`.
@@ -1188,6 +1193,6 @@ impl SystemMsg {
     /// contain a valid [`SystemCode`].
     pub fn code(&self) -> crate::Result<SystemCode> {
         SystemCode::try_from(self.code)
-            .map_err(|_| Error::conversion::<SystemCode>(format!("{:#04X}", self.code)))
+            .map_err(|_| Error::conversion::<SystemCode>(format_args!("{:#04X}", self.code)))
     }
 }

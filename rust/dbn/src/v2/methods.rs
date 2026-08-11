@@ -238,7 +238,10 @@ impl InstrumentDefMsg {
     /// contain a valid [`InstrumentClass`].
     pub fn instrument_class(&self) -> crate::Result<InstrumentClass> {
         InstrumentClass::try_from(self.instrument_class as u8).map_err(|_| {
-            Error::conversion::<InstrumentClass>(format!("{:#04X}", self.instrument_class as u8))
+            Error::conversion::<InstrumentClass>(format_args!(
+                "{:#04X}",
+                self.instrument_class as u8
+            ))
         })
     }
 
@@ -249,7 +252,7 @@ impl InstrumentDefMsg {
     /// contain a valid [`MatchAlgorithm`].
     pub fn match_algorithm(&self) -> crate::Result<MatchAlgorithm> {
         MatchAlgorithm::try_from(self.match_algorithm as u8).map_err(|_| {
-            Error::conversion::<MatchAlgorithm>(format!("{:#04X}", self.match_algorithm as u8))
+            Error::conversion::<MatchAlgorithm>(format_args!("{:#04X}", self.match_algorithm as u8))
         })
     }
 
@@ -260,7 +263,7 @@ impl InstrumentDefMsg {
     /// contain a valid [`SecurityUpdateAction`].
     pub fn security_update_action(&self) -> crate::Result<SecurityUpdateAction> {
         SecurityUpdateAction::try_from(self.security_update_action as u8).map_err(|_| {
-            Error::conversion::<SecurityUpdateAction>(format!(
+            Error::conversion::<SecurityUpdateAction>(format_args!(
                 "{:#04X}",
                 self.security_update_action as u8
             ))

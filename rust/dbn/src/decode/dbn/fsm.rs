@@ -608,7 +608,7 @@ impl DbnFsm {
             None
         } else {
             Some(Schema::try_from(raw_schema).map_err(|_| {
-                crate::Error::conversion::<Schema>(format!("{:?}", &buffer[pos..pos + 2]))
+                crate::Error::conversion::<Schema>(format_args!("{:?}", &buffer[pos..pos + 2]))
             })?)
         };
         pos += size_of::<Schema>();
