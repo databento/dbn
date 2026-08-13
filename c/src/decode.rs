@@ -33,9 +33,10 @@ pub struct DecoderOptions {
     pub input_version: u8,
     /// Whether the stream has no metadata header (skip parsing one).
     pub skip_metadata: bool,
-    /// Buffer size in bytes, or 0 to use the default. When non-zero and using the
-    /// `DbnDecoder_space`-`DbnDecoder_fill` path, must be at least the size of the
-    /// largest record.
+    /// Buffer size in bytes, or 0 to use the default. With the
+    /// `DbnDecoder_space`-`DbnDecoder_fill` path the buffer has to be big enough to
+    /// hold the largest record in the stream. `DbnDecoder_write_all`
+    /// grows the buffer as needed.
     pub buffer_size: usize,
 }
 
@@ -177,8 +178,8 @@ pub unsafe extern "C" fn DbnDecoder_write_all(
 ///
 /// On `ReadMore`, `read_more` is set to the minimum additional bytes needed. On
 /// `Metadata`, `metadata` is set to an owned `Metadata` the caller must free with
-/// `DbnMetadata_free`. On `Record`, use `DbnDecoder_last_record`. On `Error`, use
-/// `DbnDecoder_last_error`.
+/// `DbnMetadata_free`, or the decoded metadata is dropped if `metadata` is null. On
+/// `Record`, use `DbnDecoder_last_record`. On `Error`, use `DbnDecoder_last_error`.
 ///
 /// # Safety
 /// Verifies `decoder` is not null. `read_more` and `metadata`, if not null, must be
@@ -256,6 +257,19 @@ pub unsafe extern "C" fn DbnDecoder_last_error(decoder: *const Decoder) -> *cons
         .as_ref()
         .and_then(|d| d.last_error.as_ref())
         .map_or(null(), |err| err.as_ptr())
+}
+
+/// Resets the decoder to expect DBN metadata so the same decoder can be used for
+/// another stream. Any buffered data and the last error are discarded.
+///
+/// # Safety
+/// Verifies `decoder` is not null.
+#[no_mangle]
+pub unsafe extern "C" fn DbnDecoder_reset(decoder: *mut Decoder) {
+    if let Some(decoder) = decoder.as_mut() {
+        decoder.fsm.reset();
+        decoder.last_error = None;
+    }
 }
 
 /// Frees memory associated with the push decoder.

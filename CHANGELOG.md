@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.67.0 - Upcoming
+
+### Enhancements
+- Added `DbnDecoder_reset` to the C API for decoding another stream with the same
+  decoder
+
 ## 0.66.0 - 2026-08-11
 
 ### Enhancements

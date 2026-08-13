@@ -6,13 +6,13 @@ use dbn::{
     ErrorMsg, InstrumentDefMsg, StatMsg, SymbolMappingMsg, SystemMsg,
 };
 
-/// Converts an V1 ErrorMsg to V2.
+/// Converts a V1 ErrorMsg to the record shared by V2 and V3.
 #[no_mangle]
 pub extern "C" fn from_error_v1_to_v2(def_v1: &ErrorMsgV1) -> ErrorMsg {
     ErrorMsg::from(def_v1)
 }
 
-/// Converts an V1 InstrumentDefMsg to V2.
+/// Converts a V1 InstrumentDefMsg to V2.
 #[no_mangle]
 pub extern "C" fn from_instrument_def_v1_to_v2(def_v1: &InstrumentDefMsgV1) -> InstrumentDefMsgV2 {
     InstrumentDefMsgV2::from(def_v1)
@@ -36,13 +36,13 @@ pub extern "C" fn from_stat_v1_to_v3(stat_v1: &StatMsgV1) -> StatMsg {
     StatMsg::from(stat_v1)
 }
 
-/// Converts an V1 SymbolMappingMsg to V2.
+/// Converts a V1 SymbolMappingMsg to the record shared by V2 and V3.
 #[no_mangle]
 pub extern "C" fn from_symbol_mapping_v1_to_v2(def_v1: &SymbolMappingMsgV1) -> SymbolMappingMsg {
     SymbolMappingMsg::from(def_v1)
 }
 
-/// Converts an V1 SystemMsg to V2.
+/// Converts a V1 SystemMsg to the record shared by V2 and V3.
 #[no_mangle]
 pub extern "C" fn from_system_v1_to_v2(def_v1: &SystemMsgV1) -> SystemMsg {
     SystemMsg::from(def_v1)
