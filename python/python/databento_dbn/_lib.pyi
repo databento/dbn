@@ -251,9 +251,11 @@ class RType(Enum):
     A record type sentinel.
 
     MBP_0
-        none
+        Denotes a market-by-price record with a book depth of 0 (used for the
+        `Trades` schema).
     MBP_1
-        none
+        Denotes a market-by-price record with a book depth of 1 (also used for the
+        `Tbbo` schema).
     MBP_10
         Denotes a market-by-price record with a book depth of 10.
     OHLCV_DEPRECATED
@@ -559,7 +561,6 @@ class SecurityUpdateAction(Enum):
     DELETE
         Removal of an instrument definition.
     INVALID
-        none
 
     """
 
