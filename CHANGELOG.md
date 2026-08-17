@@ -2,9 +2,10 @@
 
 ## 0.67.0 - Upcoming
 
-### Enhancements
 - Added `DbnDecoder_reset` to the C API for decoding another stream with the same
   decoder
+- Added `LISTING_ID`, `ISSUER_ID`, and `SECURITY_ID` variants to `SType`, for use
+  with the reference data API
 
 ## 0.66.0 - 2026-08-11
 

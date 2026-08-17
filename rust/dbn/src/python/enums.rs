@@ -648,6 +648,9 @@ impl SType {
             Self::BbgCompTicker => "BBG_COMP_TICKER",
             Self::Figi => "FIGI",
             Self::FigiTicker => "FIGI_TICKER",
+            Self::ListingId => "LISTING_ID",
+            Self::IssuerId => "ISSUER_ID",
+            Self::SecurityId => "SECURITY_ID",
         }
     }
 
