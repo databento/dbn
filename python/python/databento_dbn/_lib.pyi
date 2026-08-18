@@ -251,9 +251,11 @@ class RType(Enum):
     A record type sentinel.
 
     MBP_0
-        none
+        Denotes a market-by-price record with a book depth of 0 (used for the
+        `Trades` schema).
     MBP_1
-        none
+        Denotes a market-by-price record with a book depth of 1 (also used for the
+        `Tbbo` schema).
     MBP_10
         Denotes a market-by-price record with a book depth of 10.
     OHLCV_DEPRECATED
@@ -559,7 +561,6 @@ class SecurityUpdateAction(Enum):
     DELETE
         Removal of an instrument definition.
     INVALID
-        none
 
     """
 
@@ -609,9 +610,15 @@ class SType(Enum):
     BBG_COMP_TICKER
         Symbology using Bloomberg composite tickers.
     FIGI
-        Symbology using Bloomberg FIGI exchange level IDs.
+        Symbology using Bloomberg FIGI exchange-level IDs.
     FIGI_TICKER
-        Symbology using Bloomberg exchange level tickers.
+        Symbology using Bloomberg exchange-level tickers.
+    LISTING_ID
+        Symbology using the Databento-specific listing ID, only available for the reference data API.
+    ISSUER_ID
+        Symbology using the Databento-specific issuer ID, only available for the reference data API.
+    SECURITY_ID
+        Symbology using the Databento-specific security ID, only available for the reference data API.
 
     """
 
@@ -628,6 +635,9 @@ class SType(Enum):
     BBG_COMP_TICKER: str
     FIGI: str
     FIGI_TICKER: str
+    LISTING_ID: str
+    ISSUER_ID: str
+    SECURITY_ID: str
 
     def __init__(self, value: str) -> None: ...
     def __index__(self) -> int: ...

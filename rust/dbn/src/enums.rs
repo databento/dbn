@@ -615,12 +615,21 @@ pub enum SType {
     /// Symbology using Bloomberg composite tickers.
     #[pyo3(name = "BBG_COMP_TICKER")]
     BbgCompTicker = 10,
-    /// Symbology using Bloomberg FIGI exchange level IDs.
+    /// Symbology using Bloomberg FIGI exchange-level IDs.
     #[pyo3(name = "FIGI")]
     Figi = 11,
-    /// Symbology using Bloomberg exchange level tickers.
+    /// Symbology using Bloomberg exchange-level tickers.
     #[pyo3(name = "FIGI_TICKER")]
     FigiTicker = 12,
+    /// Symbology using the Databento-specific listing ID, only available for the reference data API.
+    #[pyo3(name = "LISTING_ID")]
+    ListingId = 13,
+    /// Symbology using the Databento-specific issuer ID, only available for the reference data API.
+    #[pyo3(name = "ISSUER_ID")]
+    IssuerId = 14,
+    /// Symbology using the Databento-specific security ID, only available for the reference data API.
+    #[pyo3(name = "SECURITY_ID")]
+    SecurityId = 15,
 }
 
 impl std::str::FromStr for SType {
@@ -642,6 +651,9 @@ impl std::str::FromStr for SType {
             "bbg_comp_ticker" => Ok(Self::BbgCompTicker),
             "figi" => Ok(Self::Figi),
             "figi_ticker" => Ok(Self::FigiTicker),
+            "listing_id" => Ok(Self::ListingId),
+            "issuer_id" => Ok(Self::IssuerId),
+            "security_id" => Ok(Self::SecurityId),
             _ => Err(crate::Error::conversion::<Self>(s.to_owned())),
         }
     }
@@ -671,6 +683,9 @@ impl SType {
             Self::BbgCompTicker => "bbg_comp_ticker",
             Self::Figi => "figi",
             Self::FigiTicker => "figi_ticker",
+            Self::ListingId => "listing_id",
+            Self::IssuerId => "issuer_id",
+            Self::SecurityId => "security_id",
         }
     }
 }
