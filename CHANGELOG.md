@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.68.0 - Upcoming
+
+### Enhancements
+- Improved documentation for the `min_price_increment_amount` and `inst_attrib_value`
+  fields
+
 ## 0.67.0 - 2026-08-18
 
 ### Enhancements

@@ -5425,8 +5425,8 @@ class InstrumentDefMsg:
         """
     min_price_increment_amount: int
     """
-    The value currently under development by the venue where every 1 unit corresponds to 1e-9,
-    i.e. 1/1,000,000,000 or 0.000000001.
+    The minimum price increment amount disseminated by the venue where every 1 unit
+    corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 
     See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
@@ -5536,7 +5536,9 @@ class InstrumentDefMsg:
 
     inst_attrib_value: int
     """
-    A bitmap of instrument eligibility attributes.
+    Venue-specific instrument attributes.
+
+    Refer to the [venue-specific documentation](https://databento.com/docs/venues-and-datasets).
 
     """
 
@@ -7904,8 +7906,8 @@ class InstrumentDefMsgV1:
         """
     min_price_increment_amount: int
     """
-    The value currently under development by the venue where every 1 unit corresponds to 1e-9,
-    i.e. 1/1,000,000,000 or 0.000000001.
+    The minimum price increment amount disseminated by the venue where every 1 unit
+    corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 
     See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
@@ -7938,7 +7940,9 @@ class InstrumentDefMsgV1:
 
     inst_attrib_value: int
     """
-    A bitmap of instrument eligibility attributes.
+    Venue-specific instrument attributes.
+
+    Refer to the [venue-specific documentation](https://databento.com/docs/venues-and-datasets).
 
     """
 
@@ -9415,8 +9419,8 @@ class InstrumentDefMsgV2:
         """
     min_price_increment_amount: int
     """
-    The value currently under development by the venue where every 1 unit corresponds to 1e-9,
-    i.e. 1/1,000,000,000 or 0.000000001.
+    The minimum price increment amount disseminated by the venue where every 1 unit
+    corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 
     See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
 
@@ -9474,7 +9478,9 @@ class InstrumentDefMsgV2:
 
     inst_attrib_value: int
     """
-    A bitmap of instrument eligibility attributes.
+    Venue-specific instrument attributes.
+
+    Refer to the [venue-specific documentation](https://databento.com/docs/venues-and-datasets).
 
     """
 

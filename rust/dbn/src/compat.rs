@@ -146,8 +146,8 @@ pub struct InstrumentDefMsgV1 {
     /// 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
     #[dbn(fixed_price)]
     pub unit_of_measure_qty: i64,
-    /// The value currently under development by the venue where every 1 unit corresponds to 1e-9,
-    /// i.e. 1/1,000,000,000 or 0.000000001.
+    /// The minimum price increment amount disseminated by the venue where every 1 unit
+    /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
     ///
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
@@ -156,7 +156,9 @@ pub struct InstrumentDefMsgV1 {
     /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
     #[dbn(fixed_price)]
     pub price_ratio: i64,
-    /// A bitmap of instrument eligibility attributes.
+    /// Venue-specific instrument attributes.
+    ///
+    /// Refer to the [venue-specific documentation](https://databento.com/docs/venues-and-datasets).
     #[dbn(fmt_binary)]
     pub inst_attrib_value: i32,
     /// The `instrument_id` of the first underlying instrument.
@@ -494,8 +496,8 @@ pub struct InstrumentDefMsgV2 {
     /// 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
     #[dbn(fixed_price)]
     pub unit_of_measure_qty: i64,
-    /// The value currently under development by the venue where every 1 unit corresponds to 1e-9,
-    /// i.e. 1/1,000,000,000 or 0.000000001.
+    /// The minimum price increment amount disseminated by the venue where every 1 unit
+    /// corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
     ///
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(fixed_price)]
@@ -510,7 +512,9 @@ pub struct InstrumentDefMsgV2 {
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
     #[dbn(encode_order(46), fixed_price)]
     pub strike_price: i64,
-    /// A bitmap of instrument eligibility attributes.
+    /// Venue-specific instrument attributes.
+    ///
+    /// Refer to the [venue-specific documentation](https://databento.com/docs/venues-and-datasets).
     #[dbn(fmt_binary)]
     pub inst_attrib_value: i32,
     /// The `instrument_id` of the first underlying instrument.
