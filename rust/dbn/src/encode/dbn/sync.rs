@@ -142,6 +142,12 @@ where
         Self { writer }
     }
 
+    /// Returns the number of bytes [`Self::encode()`] will write for `metadata`.
+    pub fn encoded_len(metadata: &Metadata) -> usize {
+        // 8 bytes of prefix: the 3-byte magic, the version, and the length itself
+        Self::calc_length(metadata).0 as usize + 8
+    }
+
     /// Encodes `metadata` into DBN.
     ///
     /// # Errors
@@ -341,10 +347,11 @@ where
                 desired_type: "ASCII",
             });
         }
-        if string.len() >= symbol_cstr_len {
-            return Err(Error::encode(
-            format!(
-                "'{string}' is too long to be encoded in DBN; it cannot be longer than {} characters", symbol_cstr_len - 1
+        // last byte of the field is reserved for the null terminator
+        let max_cstr_len = symbol_cstr_len - 1;
+        if string.len() > max_cstr_len {
+            return Err(Error::encode(format!(
+                "'{string}' is too long to be encoded in DBN; it cannot be longer than {max_cstr_len} characters"
             )));
         }
         let cstr_err = |e| Error::io(e, "writing cstr");
@@ -763,6 +770,10 @@ mod tests {
         encoder.encode(&metadata).unwrap();
         // plus 8 for prefix
         assert_eq!(calc_length as usize + 8, buffer.len());
+        assert_eq!(
+            MetadataEncoder::<Vec<u8>>::encoded_len(&metadata),
+            buffer.len()
+        );
         assert_eq!(MetadataEncoder::<Vec<u8>>::MIN_ENCODED_SIZE, buffer.len());
         assert_eq!(end_padding, 0);
     }
@@ -789,6 +800,10 @@ mod tests {
         encoder.encode(&metadata).unwrap();
         // plus 8 for prefix
         assert_eq!(calc_length as usize + 8, buffer.len());
+        assert_eq!(
+            MetadataEncoder::<Vec<u8>>::encoded_len(&metadata),
+            buffer.len()
+        );
         if version < 3 {
             assert_eq!(end_padding, 0);
         } else {
@@ -1154,5 +1169,42 @@ mod tests {
                 &ts_out.to_le_bytes()
             );
         }
+    }
+
+    #[rstest]
+    #[case::longest_that_fits(crate::SYMBOL_CSTR_LEN - 1)]
+    #[case::well_under(4)]
+    fn test_encode_fixed_len_cstr_accepts_up_to_one_less_than_the_field(#[case] len: usize) {
+        let symbol = "A".repeat(len);
+        let mut buffer = Vec::new();
+        MetadataEncoder::new(&mut buffer)
+            .encode_fixed_len_cstr(crate::SYMBOL_CSTR_LEN, &symbol)
+            .unwrap();
+
+        assert_eq!(buffer.len(), crate::SYMBOL_CSTR_LEN);
+        assert_eq!(&buffer[..len], symbol.as_bytes());
+        assert!(buffer[len..].iter().all(|b| *b == 0));
+        let field: [std::ffi::c_char; crate::SYMBOL_CSTR_LEN] =
+            std::array::from_fn(|i| buffer[i] as std::ffi::c_char);
+        assert_eq!(crate::record::c_chars_to_str(&field).unwrap(), symbol);
+    }
+
+    #[rstest]
+    #[case::exactly_field_width(crate::SYMBOL_CSTR_LEN)]
+    #[case::wider_than_field(crate::SYMBOL_CSTR_LEN + 1)]
+    fn test_encode_fixed_len_cstr_rejects_a_symbol_with_no_room_to_terminate(#[case] len: usize) {
+        let mut buffer = Vec::new();
+        let err = MetadataEncoder::new(&mut buffer)
+            .encode_fixed_len_cstr(crate::SYMBOL_CSTR_LEN, &"A".repeat(len))
+            .unwrap_err();
+        assert!(
+            matches!(err, Error::Encode(_)),
+            "expected an encode error, got {err:?}"
+        );
+        assert!(
+            err.to_string()
+                .contains(&format!("longer than {}", crate::SYMBOL_CSTR_LEN - 1)),
+            "message should name the real limit: {err}"
+        );
     }
 }

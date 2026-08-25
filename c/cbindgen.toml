@@ -12,6 +12,9 @@ usize_is_size_t = true
 [export]
 prefix = "Dbn"
 renaming_overrides_prefixing = true
+# `MetadataRef` carries symbology types as `u8` discriminants, so `SType` is not
+# reachable from any signature and would otherwise be left out of the header
+include = ["SType"]
 
 [export.rename]
 "FILE" = "FILE"

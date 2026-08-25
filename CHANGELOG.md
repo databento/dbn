@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.68.0 - 2026-08-25
+
+### Enhancements
+- Added `MetadataEncoder::encoded_len()` for the number of bytes `encode()` will write
+- Added `DbnMetadata_encode` and `DbnMetadata_encoded_size` to the C API for encoding
+  metadata, including symbols, symbol mappings, and every symbology field
+- Added `SType` to the generated C header
+- Improved documentation for the `min_price_increment_amount` and `inst_attrib_value`
+  fields
+
+### Breaking changes
+- Removed `encode_metadata` from the C API. Use `DbnMetadata_encode`, which takes a
+  `DbnMetadataRef` describing the full metadata rather than only the dataset, schema,
+  and start
+
 ## 0.67.0 - 2026-08-18
 
 ### Enhancements

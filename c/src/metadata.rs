@@ -1,73 +1,10 @@
-//! DBN `Metadata` over the C FFI: `encode_metadata` writes `Metadata` to a
-//! caller buffer, while the `DbnMetadata_*` accessors read the opaque
-//! `Metadata` handle returned by `DbnDecoder_process`. That handle is not a
-//! C-compatible layout (it holds `String`s and `Vec`s), so a consumer rebuilds
-//! its own representation from these getters.
+//! The opaque DBN `Metadata` handle over the C FFI.
 
-use std::{
-    ffi::{c_char, CStr},
-    io, slice,
-};
+use std::ffi::c_char;
 
-use dbn::{
-    encode::dbn::MetadataEncoder,
-    enums::{SType, Schema},
-    Metadata, MetadataBuilder, UNDEF_TIMESTAMP,
-};
+use dbn::{Metadata, UNDEF_TIMESTAMP};
 
-/// The byte offset of the `start` field in DBN-encoded Metadata.
-pub const METADATA_START_OFFSET: usize = 26;
-/// The minimum buffer size in bytes for encoding DBN Metadata.
-pub const METADATA_MIN_ENCODED_SIZE: usize = 128;
-
-/// Encodes DBN metadata to the given buffer. Returns the number of bytes written.
-///
-/// # Errors
-/// - Returns -1 if `buffer` is null.
-/// - Returns -2 if `dataset` cannot be parsed.
-/// - Returns -3 if the metadata cannot be encoded.
-/// - Returns -4 if the version is invalid.
-///
-/// # Safety
-/// This function assumes `dataset` is a valid pointer and `buffer` is of size
-/// `length`.
-#[no_mangle]
-pub unsafe extern "C" fn encode_metadata(
-    buffer: *mut c_char,
-    length: libc::size_t,
-    version: u8,
-    dataset: *const c_char,
-    schema: Schema,
-    start: u64,
-) -> libc::c_int {
-    let buffer = if let Some(buffer) = (buffer as *mut u8).as_mut() {
-        slice::from_raw_parts_mut(buffer, length)
-    } else {
-        return -1;
-    };
-    let dataset = match CStr::from_ptr(dataset).to_str() {
-        Ok(dataset) => dataset.to_owned(),
-        Err(_) => {
-            return -2;
-        }
-    };
-    if version == 0 || version > dbn::DBN_VERSION {
-        return -4;
-    }
-    let metadata = MetadataBuilder::new()
-        .version(version)
-        .dataset(dataset)
-        .start(start)
-        .stype_in(Some(SType::InstrumentId))
-        .stype_out(SType::InstrumentId)
-        .schema(Some(schema))
-        .build();
-    let mut cursor = io::Cursor::new(buffer);
-    match MetadataEncoder::new(&mut cursor).encode(&metadata) {
-        Ok(()) => cursor.position() as i32,
-        Err(_) => -3,
-    }
-}
+use crate::encode::{build_metadata, write_error, EncodeError, MetadataRef};
 
 /// A borrowed, non-null-terminated string: `data` points to `len` bytes valid
 /// for the lifetime of the `Metadata` handle it came from.
@@ -86,7 +23,7 @@ impl StrRef {
         }
     }
 
-    fn null() -> Self {
+    pub(crate) fn null() -> Self {
         Self {
             data: std::ptr::null(),
             len: 0,
@@ -113,7 +50,7 @@ fn date_to_yyyymmdd(date: time::Date) -> u32 {
 /// Verifies `metadata` is not null.
 #[no_mangle]
 pub unsafe extern "C" fn DbnMetadata_version(metadata: *const Metadata) -> u8 {
-    metadata.as_ref().map_or(0, |m| m.version)
+    metadata.as_ref().map(|m| m.version).unwrap_or(0)
 }
 
 /// The dataset code.
@@ -124,7 +61,8 @@ pub unsafe extern "C" fn DbnMetadata_version(metadata: *const Metadata) -> u8 {
 pub unsafe extern "C" fn DbnMetadata_dataset(metadata: *const Metadata) -> StrRef {
     metadata
         .as_ref()
-        .map_or_else(StrRef::null, |m| StrRef::from_str(&m.dataset))
+        .map(|m| StrRef::from_str(&m.dataset))
+        .unwrap_or_else(StrRef::null)
 }
 
 /// The record schema as a `Schema` discriminant. Returns `true` and sets
@@ -150,7 +88,7 @@ pub unsafe extern "C" fn DbnMetadata_schema(metadata: *const Metadata, schema: *
 /// Verifies `metadata` is not null.
 #[no_mangle]
 pub unsafe extern "C" fn DbnMetadata_start(metadata: *const Metadata) -> u64 {
-    metadata.as_ref().map_or(0, |m| m.start)
+    metadata.as_ref().map(|m| m.start).unwrap_or(0)
 }
 
 /// The UNIX nanosecond query end timestamp, or `UNDEF_TIMESTAMP` if unset.
@@ -175,7 +113,8 @@ pub unsafe extern "C" fn DbnMetadata_limit(metadata: *const Metadata) -> u64 {
     metadata
         .as_ref()
         .and_then(|m| m.limit)
-        .map_or(0, |limit| limit.get())
+        .map(|limit| limit.get())
+        .unwrap_or(0)
 }
 
 /// The input symbology type as an `SType` discriminant. Returns `true` and sets
@@ -206,7 +145,7 @@ pub unsafe extern "C" fn DbnMetadata_stype_in(
 /// Verifies `metadata` is not null.
 #[no_mangle]
 pub unsafe extern "C" fn DbnMetadata_stype_out(metadata: *const Metadata) -> u8 {
-    metadata.as_ref().map_or(0, |m| m.stype_out as u8)
+    metadata.as_ref().map(|m| m.stype_out as u8).unwrap_or(0)
 }
 
 /// Whether records have send timestamps (`ts_out`) appended.
@@ -225,7 +164,7 @@ pub unsafe extern "C" fn DbnMetadata_ts_out(metadata: *const Metadata) -> bool {
 /// Verifies `metadata` is not null.
 #[no_mangle]
 pub unsafe extern "C" fn DbnMetadata_symbol_cstr_len(metadata: *const Metadata) -> usize {
-    metadata.as_ref().map_or(0, |m| m.symbol_cstr_len)
+    metadata.as_ref().map(|m| m.symbol_cstr_len).unwrap_or(0)
 }
 
 /// The number of requested symbols.
@@ -234,7 +173,7 @@ pub unsafe extern "C" fn DbnMetadata_symbol_cstr_len(metadata: *const Metadata) 
 /// Verifies `metadata` is not null.
 #[no_mangle]
 pub unsafe extern "C" fn DbnMetadata_symbols_count(metadata: *const Metadata) -> usize {
-    metadata.as_ref().map_or(0, |m| m.symbols.len())
+    metadata.as_ref().map(|m| m.symbols.len()).unwrap_or(0)
 }
 
 /// The requested symbol at `index`, or a null `StrRef` if out of bounds.
@@ -249,7 +188,8 @@ pub unsafe extern "C" fn DbnMetadata_symbols_get(
     metadata
         .as_ref()
         .and_then(|m| m.symbols.get(index))
-        .map_or_else(StrRef::null, |s| StrRef::from_str(s))
+        .map(|s| StrRef::from_str(s))
+        .unwrap_or_else(StrRef::null)
 }
 
 /// The number of symbols that couldn't be fully resolved.
@@ -258,7 +198,7 @@ pub unsafe extern "C" fn DbnMetadata_symbols_get(
 /// Verifies `metadata` is not null.
 #[no_mangle]
 pub unsafe extern "C" fn DbnMetadata_partial_count(metadata: *const Metadata) -> usize {
-    metadata.as_ref().map_or(0, |m| m.partial.len())
+    metadata.as_ref().map(|m| m.partial.len()).unwrap_or(0)
 }
 
 /// The partially resolved symbol at `index`, or a null `StrRef` if out of
@@ -274,7 +214,8 @@ pub unsafe extern "C" fn DbnMetadata_partial_get(
     metadata
         .as_ref()
         .and_then(|m| m.partial.get(index))
-        .map_or_else(StrRef::null, |s| StrRef::from_str(s))
+        .map(|s| StrRef::from_str(s))
+        .unwrap_or_else(StrRef::null)
 }
 
 /// The number of symbols that couldn't be resolved.
@@ -283,7 +224,7 @@ pub unsafe extern "C" fn DbnMetadata_partial_get(
 /// Verifies `metadata` is not null.
 #[no_mangle]
 pub unsafe extern "C" fn DbnMetadata_not_found_count(metadata: *const Metadata) -> usize {
-    metadata.as_ref().map_or(0, |m| m.not_found.len())
+    metadata.as_ref().map(|m| m.not_found.len()).unwrap_or(0)
 }
 
 /// The unresolved symbol at `index`, or a null `StrRef` if out of bounds.
@@ -298,7 +239,8 @@ pub unsafe extern "C" fn DbnMetadata_not_found_get(
     metadata
         .as_ref()
         .and_then(|m| m.not_found.get(index))
-        .map_or_else(StrRef::null, |s| StrRef::from_str(s))
+        .map(|s| StrRef::from_str(s))
+        .unwrap_or_else(StrRef::null)
 }
 
 /// The number of symbol mappings.
@@ -307,7 +249,7 @@ pub unsafe extern "C" fn DbnMetadata_not_found_get(
 /// Verifies `metadata` is not null.
 #[no_mangle]
 pub unsafe extern "C" fn DbnMetadata_mappings_count(metadata: *const Metadata) -> usize {
-    metadata.as_ref().map_or(0, |m| m.mappings.len())
+    metadata.as_ref().map(|m| m.mappings.len()).unwrap_or(0)
 }
 
 /// The raw symbol of the mapping at `index`, or a null `StrRef` if out of
@@ -323,9 +265,8 @@ pub unsafe extern "C" fn DbnMetadata_mapping_raw_symbol(
     metadata
         .as_ref()
         .and_then(|m| m.mappings.get(index))
-        .map_or_else(StrRef::null, |mapping| {
-            StrRef::from_str(&mapping.raw_symbol)
-        })
+        .map(|mapping| StrRef::from_str(&mapping.raw_symbol))
+        .unwrap_or_else(StrRef::null)
 }
 
 /// The number of intervals in the mapping at `index`.
@@ -340,7 +281,8 @@ pub unsafe extern "C" fn DbnMetadata_mapping_intervals_count(
     metadata
         .as_ref()
         .and_then(|m| m.mappings.get(index))
-        .map_or(0, |mapping| mapping.intervals.len())
+        .map(|mapping| mapping.intervals.len())
+        .unwrap_or(0)
 }
 
 /// The interval `interval_index` of the mapping at `mapping_index`. Returns
@@ -372,11 +314,33 @@ pub unsafe extern "C" fn DbnMetadata_mapping_interval(
     }
 }
 
-/// Frees a `Metadata` handle obtained from `DbnDecoder_process`.
+/// Converts a `DbnMetadataRef` into a handle for the `DbnMetadata_*` getters and
+/// `DbnMetadata_encode`, or null on error, writing the reason to `error` when it is
+/// non-null.
 ///
 /// # Safety
-/// `metadata` must have come from `DbnDecoder_process` and not been freed
-/// already. It must not be used after this call.
+/// `metadata` must be a valid pointer to a `DbnMetadataRef` whose own pointers are
+/// valid for the duration of the call. `error`, if not null, must be a valid pointer.
+/// The returned handle must be freed with `DbnMetadata_free`.
+#[no_mangle]
+pub unsafe extern "C" fn DbnMetadata_from_ref(
+    metadata: *const MetadataRef,
+    error: *mut EncodeError,
+) -> *mut Metadata {
+    match build_metadata(metadata) {
+        Ok(metadata) => Box::into_raw(Box::new(metadata)),
+        Err(err) => {
+            write_error(error, err);
+            std::ptr::null_mut()
+        }
+    }
+}
+
+/// Frees a `Metadata` handle.
+///
+/// # Safety
+/// `metadata` must have come from `DbnDecoder_process` or `DbnMetadata_from_ref` and
+/// not been freed already. It must not be used after this call.
 #[no_mangle]
 pub unsafe extern "C" fn DbnMetadata_free(metadata: *mut Metadata) {
     if !metadata.is_null() {
@@ -388,49 +352,14 @@ pub unsafe extern "C" fn DbnMetadata_free(metadata: *mut Metadata) {
 mod tests {
     use std::num::NonZeroU64;
 
-    use dbn::{MappingInterval, SymbolMapping};
+    use dbn::{
+        enums::{SType, Schema},
+        MappingInterval, SymbolMapping,
+    };
     use time::macros::date;
 
     use super::*;
-
-    // cbindgen doesn't support constants defined with expressions, so we test the equality here
-    #[test]
-    fn const_checks() {
-        assert_eq!(
-            METADATA_START_OFFSET,
-            MetadataEncoder::<Vec<u8>>::START_OFFSET
-        );
-        assert_eq!(
-            METADATA_MIN_ENCODED_SIZE,
-            MetadataEncoder::<Vec<u8>>::MIN_ENCODED_SIZE
-        );
-    }
-
-    unsafe fn str_ref_to_string(s: StrRef) -> String {
-        let bytes = std::slice::from_raw_parts(s.data as *const u8, s.len);
-        String::from_utf8(bytes.to_vec()).unwrap()
-    }
-
-    #[test]
-    fn unset_end_and_limit_use_their_wire_sentinels() {
-        let owned = Metadata::builder()
-            .dataset("XNAS.ITCH")
-            .schema(Some(Schema::Trades))
-            .stype_in(Some(SType::RawSymbol))
-            .stype_out(SType::InstrumentId)
-            .start(1)
-            .end(None)
-            .limit(None)
-            .build();
-        let metadata = &raw const owned;
-
-        unsafe {
-            // The sentinels differ between the two fields, so each getter returns
-            // what an encoder would write rather than a shared "unset" value.
-            assert_eq!(DbnMetadata_end(metadata), UNDEF_TIMESTAMP);
-            assert_eq!(DbnMetadata_limit(metadata), 0);
-        }
-    }
+    use crate::test_utils::str_ref_to_string;
 
     #[test]
     fn free_accepts_null_and_owned_handles() {

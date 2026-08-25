@@ -1,13 +1,16 @@
 # dbn-c
 
-Work-in-progress C FFI bindings for the DBN crate, using [cbindgen](https://github.com/eqrion/cbindgen).
+C FFI bindings for the DBN crate, using [cbindgen](https://github.com/eqrion/cbindgen).
 
-It currently supports:
+It supports:
 - decoding DBN data with a push-based decoder for streaming or buffered input
 - encoding DBN metadata
 - CSV and JSON serialization of records
 
-Decompression is left to the caller, so this crate builds `dbn` without its `zstd` feature.
+Records need no encoder: a DBN record is its wire representation, so writing one is
+`fwrite(&record, record.length * 4, 1, file)`.
+
+Compression is left to the caller.
 
 ## Generated header
 
