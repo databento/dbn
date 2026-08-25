@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.68.0 - Upcoming
+## 0.68.0 - 2026-08-25
 
 ### Enhancements
 - Added `MetadataEncoder::encoded_len()` for the number of bytes `encode()` will write
