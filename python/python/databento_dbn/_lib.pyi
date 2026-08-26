@@ -1256,6 +1256,8 @@ class SystemCode(Enum):
         Indicates a replay subscription has caught up with real-time data.
     END_OF_INTERVAL
         Signals that all records for interval-based schemas have been published for the given timestamp.
+    UNSUBSCRIBE_ACK
+        An acknowledgement of an unsubscribe request.
     UNSET
         No system code was specified or this record was upgraded from a version 1 struct where
         the code field didn't exist.
@@ -1267,6 +1269,7 @@ class SystemCode(Enum):
     SLOW_READER_WARNING: int
     REPLAY_COMPLETED: int
     END_OF_INTERVAL: int
+    UNSUBSCRIBE_ACK: int
     UNSET: int
 
     def __init__(self, value: int) -> None: ...
