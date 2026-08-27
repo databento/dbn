@@ -364,9 +364,9 @@ impl<const CAP: usize> RecordMut for RecordBuf<CAP> {
 impl<const CAP: usize> AsRef<[u8]> for RecordBuf<CAP> {
     fn as_ref(&self) -> &[u8] {
         // SAFETY: `buf` is always fully initialized (every constructor writes all bytes).
-        // `record_size()` is derived from the header `length` field set on construction,
-        // and is always <= CAP.
-        unsafe { std::slice::from_raw_parts(self.0.buf.as_ptr(), self.record_size()) }
+        // `record_size()` comes from the header `length` field, which `raw_buf_mut()` lets
+        // safe code set beyond the buffer, so it's clamped to `CAP`.
+        unsafe { std::slice::from_raw_parts(self.0.buf.as_ptr(), self.record_size().min(CAP)) }
     }
 }
 
@@ -689,5 +689,13 @@ mod tests {
         buf.set(SOURCE_RECORD);
         let record_size = buf.record_size();
         assert!(buf.raw_buf_mut()[record_size..].iter().all(|&b| b == 0));
+    }
+
+    #[test]
+    fn as_ref_clamps_length_beyond_capacity() {
+        let mut buf: Buf = RecordBuf::from(SOURCE_RECORD);
+        buf.raw_buf_mut()[0] = u8::MAX;
+        assert!(buf.record_size() > MAX_RECORD_LEN);
+        assert!(buf.as_ref().len() <= MAX_RECORD_LEN);
     }
 }

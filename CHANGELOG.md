@@ -5,6 +5,10 @@
 ### Enhancements
 - Added `UnsubscribeAck` to the `SystemCode` enum for acknowledging unsubscribe requests
 
+### Bug fixes
+- Fixed unsound `AsRef<[u8]>` for `RecordBuf`, which produced a slice longer than the
+  buffer when the header `length` written through `raw_buf_mut()` exceeded the capacity
+
 ## 0.68.0 - 2026-08-25
 
 ### Enhancements
