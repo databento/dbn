@@ -9,6 +9,7 @@ use tokio::{
 use crate::{
     decode::{
         dbn::fsm::{DbnFsm, ProcessResult},
+        private::LastRecord,
         zstd::zstd_decoder,
         AsyncDecodeRecord, AsyncDecodeRecordRef, AsyncDynReader, AsyncSkipBytes, DbnMetadata,
         VersionUpgradePolicy, ZSTD_FILE_BUFFER_CAPACITY,
@@ -259,6 +260,15 @@ where
     }
 }
 
+impl<R> LastRecord for Decoder<R>
+where
+    R: io::AsyncReadExt + Unpin,
+{
+    fn last_record(&self) -> Option<RecordRef<'_>> {
+        self.decoder.last_record()
+    }
+}
+
 /// An async decoder for files and streams of Databento Binary Encoding (DBN) records.
 pub struct RecordDecoder<R>
 where
@@ -455,6 +465,15 @@ where
 {
     async fn decode_record<'a, T: HasRType + 'a>(&'a mut self) -> crate::Result<Option<&'a T>> {
         self.decode().await
+    }
+}
+
+impl<R> LastRecord for RecordDecoder<R>
+where
+    R: io::AsyncReadExt + Unpin,
+{
+    fn last_record(&self) -> Option<RecordRef<'_>> {
+        self.fsm.last_record()
     }
 }
 
