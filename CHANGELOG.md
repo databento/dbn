@@ -8,6 +8,8 @@
 ### Bug fixes
 - Fixed unsound `AsRef<[u8]>` for `RecordBuf`, which produced a slice longer than the
   buffer when the header `length` written through `raw_buf_mut()` exceeded the capacity
+- Fixed incorrect count in DBN metadata causing decoding to read into the start of
+  records
 
 ## 0.68.0 - 2026-08-25
 
