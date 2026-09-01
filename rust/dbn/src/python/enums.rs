@@ -1567,6 +1567,7 @@ impl SystemCode {
             Self::SlowReaderWarning => "SLOW_READER_WARNING",
             Self::ReplayCompleted => "REPLAY_COMPLETED",
             Self::EndOfInterval => "END_OF_INTERVAL",
+            Self::UnsubscribeAck => "UNSUBSCRIBE_ACK",
             Self::Unset => "UNSET",
         }
     }

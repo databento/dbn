@@ -580,9 +580,12 @@ impl DbnFsm {
     }
 
     fn decode_metadata(&mut self, length: u32) -> Result<Metadata> {
+        // `length` is the end of the metadata. Bound the parse to protect against an
+        // overstated count reading on into the first records
+        let metadata_bytes = &self.buffer.data()[..length as usize];
         // Okay to unwrap because decoding the prelude always sets `input_dbn_version`
-        let mut metadata =
-            Self::decode_metadata_impl(self.input_dbn_version.unwrap().0, self.buffer.data())?;
+        let input_dbn_version = self.input_dbn_version.unwrap().0;
+        let mut metadata = Self::decode_metadata_impl(input_dbn_version, metadata_bytes)?;
         metadata.upgrade(self.upgrade_policy);
         self.ts_out = metadata.ts_out;
         self.buffer.consume(length as usize);
@@ -686,6 +689,21 @@ impl DbnFsm {
         })
     }
 
+    fn checked_count(
+        ctx: std::fmt::Arguments<'_>,
+        count: usize,
+        min_item_size: usize,
+        remaining: usize,
+    ) -> crate::Result<usize> {
+        let capacity = remaining.checked_div(min_item_size).unwrap_or(0);
+        if count > capacity {
+            return Err(crate::Error::decode(format!(
+                "{ctx} declares {count} but only {capacity} fit in the remaining {remaining} bytes"
+            )));
+        }
+        Ok(count)
+    }
+
     fn decode_metadata_repeated_symbol_cstr(
         symbol_cstr_len: usize,
         buffer: &[u8],
@@ -698,12 +716,12 @@ impl DbnFsm {
         }
         let count = u32::from_le_slice(&buffer[*pos..]) as usize;
         *pos += Self::U32_SIZE;
-        let read_size = count * symbol_cstr_len;
-        if *pos + read_size > buffer.len() {
-            return Err(crate::Error::decode(
-                "unexpected end of metadata buffer in symbol cstr",
-            ));
-        }
+        let count = Self::checked_count(
+            format_args!("symbol list count"),
+            count,
+            symbol_cstr_len,
+            buffer.len() - *pos,
+        )?;
         let mut res = Vec::with_capacity(count);
         for i in 0..count {
             res.push(
@@ -726,6 +744,13 @@ impl DbnFsm {
         }
         let count = u32::from_le_slice(&buffer[*pos..]) as usize;
         *pos += Self::U32_SIZE;
+        let count = Self::checked_count(
+            format_args!("symbol mapping count"),
+            count,
+            // A mapping is at least a symbol and interval count
+            symbol_cstr_len + Self::U32_SIZE,
+            buffer.len() - *pos,
+        )?;
         let mut res = Vec::with_capacity(count);
         // Because each `SymbolMapping` itself is of a variable length, decoding it requires frequent bounds checks
         for i in 0..count {
@@ -756,14 +781,12 @@ impl DbnFsm {
             .map_err(|e| crate::Error::utf8(e, "parsing raw symbol"))?;
         let interval_count = u32::from_le_slice(&buffer[*pos..]) as usize;
         *pos += Self::U32_SIZE;
-        let read_size = interval_count * mapping_interval_encoded_len;
-        if *pos + read_size > buffer.len() {
-            return Err(crate::Error::decode(format!(
-                "symbol mapping at index {idx} with `interval_count` {interval_count} doesn't match size of buffer \
-                which only contains space for {} intervals",
-                (buffer.len() - *pos) / mapping_interval_encoded_len
-            )));
-        }
+        let interval_count = Self::checked_count(
+            format_args!("interval count of symbol mapping at index {idx}"),
+            interval_count,
+            mapping_interval_encoded_len,
+            buffer.len() - *pos,
+        )?;
         let mut intervals = Vec::with_capacity(interval_count);
         for i in 0..interval_count {
             let raw_start_date = u32::from_le_slice(&buffer[*pos..]);
@@ -1510,7 +1533,6 @@ mod tests {
         }
         assert_eq!(rec_count, 10_000);
     }
-
     #[rstest]
     fn test_decode_ts_out_set_in_metadata() -> crate::Result<()> {
         let metadata = Metadata::builder()
@@ -1730,5 +1752,62 @@ mod tests {
             MAX_RECORD_LEN,
             "compat_buffer must not grow when each upgrade fits in the existing capacity",
         );
+    }
+
+    #[rstest]
+    #[case::symbols(0)]
+    #[case::partial(1)]
+    #[case::not_found(2)]
+    #[case::mappings(3)]
+    fn test_no_count_sizes_an_allocation_on_its_own(#[case] which: usize) -> crate::Result<()> {
+        let metadata = Metadata::builder()
+            .dataset(Dataset::GlbxMdp3)
+            .schema(Some(Schema::Trades))
+            .start(1)
+            .end(None)
+            .stype_in(Some(SType::RawSymbol))
+            .stype_out(SType::InstrumentId)
+            .build();
+        let mut buf = Vec::new();
+        DbnEncoder::new(&mut buf, &metadata)?;
+
+        // with every list empty, the four counts sit back to back past `layout_length`
+        let counts = DbnFsm::METADATA_PRELUDE_LEN + crate::METADATA_FIXED_LEN + size_of::<u32>();
+        let at = counts + which * size_of::<u32>();
+        assert_eq!(u32::from_le_slice(&buf[at..]), 0, "the list is empty");
+        buf[at..at + size_of::<u32>()].copy_from_slice(&u32::MAX.to_le_bytes());
+
+        let mut target = DbnFsm::default();
+        target.write_all(&buf);
+        assert!(matches!(target.process(), ProcessResult::Err(_)));
+        Ok(())
+    }
+
+    #[test]
+    fn test_a_section_cannot_read_past_the_metadata_length() -> crate::Result<()> {
+        let metadata = Metadata::builder()
+            .dataset(Dataset::GlbxMdp3)
+            .schema(Some(Schema::Trades))
+            .start(1)
+            .end(None)
+            .stype_in(Some(SType::RawSymbol))
+            .stype_out(SType::InstrumentId)
+            .symbols(vec!["ESH4".to_owned()])
+            .build();
+        let mut buf = Vec::new();
+        let mut encoder = DbnEncoder::new(&mut buf, &metadata)?;
+        // enough trailing records that an overstated symbol count would find bytes to read
+        for _ in 0..8 {
+            encoder.encode_record(&SystemMsg::heartbeat(2))?;
+        }
+        // the symbols count follows the prelude, the fixed fields, and `layout_length`
+        let at = DbnFsm::METADATA_PRELUDE_LEN + crate::METADATA_FIXED_LEN + size_of::<u32>();
+        assert_eq!(u32::from_le_slice(&buf[at..]), 1, "one symbol was encoded");
+        buf[at..at + size_of::<u32>()].copy_from_slice(&9u32.to_le_bytes());
+
+        let mut target = DbnFsm::default();
+        target.write_all(&buf);
+        assert!(matches!(target.process(), ProcessResult::Err(_)));
+        Ok(())
     }
 }

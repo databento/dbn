@@ -1589,6 +1589,9 @@ pub enum SystemCode {
     /// Signals that all records for interval-based schemas have been published for the given timestamp.
     #[pyo3(name = "END_OF_INTERVAL")]
     EndOfInterval = 4,
+    /// An acknowledgement of an unsubscribe request.
+    #[pyo3(name = "UNSUBSCRIBE_ACK")]
+    UnsubscribeAck = 5,
     /// No system code was specified or this record was upgraded from a version 1 struct where
     /// the code field didn't exist.
     #[default]
@@ -1606,6 +1609,7 @@ impl std::str::FromStr for SystemCode {
             "slow_reader_warning" => Ok(Self::SlowReaderWarning),
             "replay_completed" => Ok(Self::ReplayCompleted),
             "end_of_interval" => Ok(Self::EndOfInterval),
+            "unsubscribe_ack" => Ok(Self::UnsubscribeAck),
             "unset" => Ok(Self::Unset),
             _ => Err(crate::Error::conversion::<Self>(s.to_owned())),
         }
@@ -1627,6 +1631,7 @@ impl SystemCode {
             Self::SlowReaderWarning => "slow_reader_warning",
             Self::ReplayCompleted => "replay_completed",
             Self::EndOfInterval => "end_of_interval",
+            Self::UnsubscribeAck => "unsubscribe_ack",
             Self::Unset => "unset",
         }
     }
