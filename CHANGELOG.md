@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.69.1 - Upcoming
+
+### Bug fixes
+- Fixed unsound `RecordRefMut` accessors, which returned references outliving the borrow
+  of `self` and let safe code hold two mutable references to the same record, or a
+  shared reference aliasing a mutable one. `get_mut()` and `get_mut_unchecked()` now
+  take `&mut self`
+
 ## 0.69.0 - 2026-09-01
 
 ### Enhancements

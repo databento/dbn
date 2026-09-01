@@ -58,7 +58,7 @@
 //!
 //! // Mutate through RecordRefMut
 //! let mut mbo = MboMsg::default();
-//! let rec_mut = RecordRefMut::from(&mut mbo);
+//! let mut rec_mut = RecordRefMut::from(&mut mbo);
 //! rec_mut.get_mut::<MboMsg>().unwrap().price = 5_000_000_000;
 //! assert_eq!(mbo.price, 5_000_000_000);
 //!

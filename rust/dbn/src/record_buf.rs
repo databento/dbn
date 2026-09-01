@@ -88,7 +88,7 @@ impl<const CAP: usize> RecordBuf<CAP> {
     /// use dbn::{MboMsg, RecordBuf, RecordRefMut};
     ///
     /// let mut buf: RecordBuf = RecordBuf::from(MboMsg::default());
-    /// let rec_mut: RecordRefMut = buf.as_rec_ref_mut();
+    /// let mut rec_mut: RecordRefMut = buf.as_rec_ref_mut();
     /// rec_mut.get_mut::<MboMsg>().unwrap().order_id = 99;
     /// assert_eq!(buf.get::<MboMsg>().unwrap().order_id, 99);
     /// ```

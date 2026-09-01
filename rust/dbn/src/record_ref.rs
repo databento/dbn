@@ -61,7 +61,7 @@ pub struct RecordRef<'a> {
 /// use dbn::{MboMsg, RecordRefMut};
 ///
 /// let mut mbo = MboMsg::default();
-/// let rec = RecordRefMut::from(&mut mbo);
+/// let mut rec = RecordRefMut::from(&mut mbo);
 ///
 /// // Downcast to the concrete type and mutate
 /// if let Some(inner) = rec.get_mut::<MboMsg>() {
@@ -85,7 +85,8 @@ unsafe impl Send for RecordRef<'_> {}
 unsafe impl Sync for RecordRef<'_> {}
 
 // Safety: RecordRefMut exhibits mutable reference semantics similar to &mut T.
-// It should be safe to send it across threads (unique ownership of the referent).
+// It should be safe to send it across threads (unique ownership of the referent) and
+// to share it, because mutation requires `&mut self`.
 unsafe impl Send for RecordRefMut<'_> {}
 unsafe impl Sync for RecordRefMut<'_> {}
 
@@ -436,7 +437,18 @@ impl<'a> RecordRefMut<'a> {
     /// This function will panic if the rtype indicates it's of type `T` but the encoded
     /// length of the record is less than the size of `T`. Use [`try_get()`](Self::try_get)
     /// to handle this gracefully.
-    pub fn get<T: HasRType>(&self) -> Option<&'a T> {
+    ///
+    /// The returned reference borrows `self`, so it cannot coexist with a mutable one.
+    /// ```compile_fail
+    /// use dbn::{MboMsg, RecordRefMut};
+    ///
+    /// let mut mbo = MboMsg::default();
+    /// let mut rec = RecordRefMut::from(&mut mbo);
+    /// let shared = rec.get::<MboMsg>().unwrap();
+    /// rec.get_mut::<MboMsg>().unwrap().order_id = 9;
+    /// assert_eq!(shared.order_id, 9);
+    /// ```
+    pub fn get<T: HasRType>(&self) -> Option<&T> {
         self.as_rec_ref().get()
     }
 
@@ -446,7 +458,7 @@ impl<'a> RecordRefMut<'a> {
     /// # Errors
     /// This function returns an error if the buffer doesn't hold a `T`, or if the rtype
     /// matches but the length is too short.
-    pub fn try_get<T: HasRType>(&self) -> crate::Result<&'a T> {
+    pub fn try_get<T: HasRType>(&self) -> crate::Result<&T> {
         self.as_rec_ref().try_get()
     }
 
@@ -463,7 +475,7 @@ impl<'a> RecordRefMut<'a> {
     /// use dbn::{MboMsg, RecordRefMut, TradeMsg};
     ///
     /// let mut mbo = MboMsg::default();
-    /// let rec = RecordRefMut::from(&mut mbo);
+    /// let mut rec = RecordRefMut::from(&mut mbo);
     ///
     /// // Wrong type returns None
     /// assert!(rec.get_mut::<TradeMsg>().is_none());
@@ -472,7 +484,19 @@ impl<'a> RecordRefMut<'a> {
     /// rec.get_mut::<MboMsg>().unwrap().order_id = 42;
     /// assert_eq!(mbo.order_id, 42);
     /// ```
-    pub fn get_mut<T: HasRType>(&self) -> Option<&'a mut T> {
+    ///
+    /// Two mutable references to the same record cannot coexist.
+    /// ```compile_fail
+    /// use dbn::{MboMsg, RecordRefMut};
+    ///
+    /// let mut mbo = MboMsg::default();
+    /// let mut rec = RecordRefMut::from(&mut mbo);
+    /// let a = rec.get_mut::<MboMsg>().unwrap();
+    /// let b = rec.get_mut::<MboMsg>().unwrap();
+    /// a.order_id = 1;
+    /// b.order_id = 2;
+    /// ```
+    pub fn get_mut<T: HasRType>(&mut self) -> Option<&mut T> {
         if self.has::<T>() {
             assert!(
                 self.record_size() >= mem::size_of::<T>(),
@@ -506,7 +530,7 @@ impl<'a> RecordRefMut<'a> {
     /// inner.price = 1_500_000_000;
     /// assert_eq!(mbo.price, 1_500_000_000);
     /// ```
-    pub fn try_get_mut<T: HasRType>(&mut self) -> crate::Result<&'a mut T> {
+    pub fn try_get_mut<T: HasRType>(&mut self) -> crate::Result<&mut T> {
         if self.has::<T>() {
             if self.record_size() >= mem::size_of::<T>() {
                 // SAFETY: checked rtype and size.
@@ -530,7 +554,7 @@ impl<'a> RecordRefMut<'a> {
     ///
     /// # Safety
     /// The caller needs to validate this object points to a `T`.
-    pub unsafe fn get_unchecked<T: HasRType>(&self) -> &'a T {
+    pub unsafe fn get_unchecked<T: HasRType>(&self) -> &T {
         debug_assert!(self.record_size() >= mem::size_of::<T>());
         self.ptr.cast::<T>().as_ref()
     }
@@ -542,7 +566,7 @@ impl<'a> RecordRefMut<'a> {
     ///
     /// # Safety
     /// The caller needs to validate this object points to a `T`.
-    pub unsafe fn get_mut_unchecked<T: HasRType>(&mut self) -> &'a mut T {
+    pub unsafe fn get_mut_unchecked<T: HasRType>(&mut self) -> &mut T {
         debug_assert!(self.record_size() >= mem::size_of::<T>());
         self.ptr.cast::<T>().as_mut()
     }
@@ -574,7 +598,7 @@ impl<'a> RecordRefMut<'a> {
     /// let rec_ref: RecordRef = rec_mut.as_rec_ref();
     /// assert!(rec_ref.has::<MboMsg>());
     /// ```
-    pub fn as_rec_ref(&self) -> RecordRef<'a> {
+    pub fn as_rec_ref(&self) -> RecordRef<'_> {
         RecordRef {
             ptr: self.ptr,
             _marker: PhantomData,
@@ -600,7 +624,7 @@ where
 }
 
 impl<'a> AsRef<[u8]> for RecordRefMut<'a> {
-    fn as_ref(&self) -> &'a [u8] {
+    fn as_ref(&self) -> &[u8] {
         // # Safety
         // Assumes the encoded record length is correct.
         unsafe { std::slice::from_raw_parts(self.ptr.as_ptr() as *const u8, self.record_size()) }
@@ -608,7 +632,7 @@ impl<'a> AsRef<[u8]> for RecordRefMut<'a> {
 }
 
 impl<'a> Record for RecordRefMut<'a> {
-    fn header(&self) -> &'a RecordHeader {
+    fn header(&self) -> &RecordHeader {
         // Safety: assumes `ptr` points to a `RecordHeader`.
         unsafe { self.ptr.as_ref() }
     }
@@ -652,7 +676,10 @@ impl<'a, const CAP: usize> From<&'a mut crate::RecordBuf<CAP>> for RecordRefMut<
 
 impl<'a> From<RecordRefMut<'a>> for RecordRef<'a> {
     fn from(ref_mut: RecordRefMut<'a>) -> Self {
-        ref_mut.as_rec_ref()
+        Self {
+            ptr: ref_mut.ptr,
+            _marker: PhantomData,
+        }
     }
 }
 
@@ -870,7 +897,7 @@ mod tests {
     #[test]
     fn test_record_ref_mut_get_mut() {
         let mut mbo = SOURCE_RECORD;
-        let target = RecordRefMut::from(&mut mbo);
+        let mut target = RecordRefMut::from(&mut mbo);
         let rec = target.get_mut::<MboMsg>().unwrap();
         rec.size = 99;
         assert_eq!(mbo.size, 99);
