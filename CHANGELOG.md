@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.69.0 - Upcoming
+## 0.69.0 - 2026-09-01
 
 ### Enhancements
 - Added `UnsubscribeAck` to the `SystemCode` enum for acknowledging unsubscribe requests
