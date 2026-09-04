@@ -59,15 +59,20 @@ enum State {
         length: u32,
     },
     Record,
-    /// Advance internal buffer state. Gets around mutability requirements.
-    Consume {
+    /// Advance internal buffer state after `process()` decoded one record.
+    /// Gets around mutability requirements.
+    ConsumeOne {
         /// Bytes read from `buffer`.
         read: usize,
         /// Bytes read from `compat_buffer`.
         compat: usize,
-        /// Bytes written to `compat_buffer`. Used for process_records where the
-        /// compat_buffer can't be modified at all.
-        compat_fill: usize,
+    },
+    /// Advance internal buffer state after a batch call decoded its records.
+    ConsumeBatch {
+        /// Bytes read from `buffer`.
+        read: usize,
+        /// Bytes read from and written to `compat_buffer`.
+        compat: usize,
         /// `compat_buffer` capacity should be expanded
         expand_compat: bool,
     },
@@ -189,15 +194,17 @@ impl DbnFsm {
     pub fn last_record(&self) -> Option<RecordRef<'_>> {
         match self.state {
             State::Prelude | State::Metadata { .. } | State::Record => None,
-            // `process_records` is incompatible with this method as there
-            // are multiple records to be read
-            State::Consume { compat_fill, .. } if compat_fill > 0 => None,
-            State::Consume { compat, .. } if compat > 0 => {
+            // A batch leaves its compat fill to `consume`, so the upgraded records
+            // aren't readable yet
+            State::ConsumeBatch { compat, .. } if compat > 0 => None,
+            State::ConsumeOne { compat, .. } if compat > 0 => {
                 // SAFETY: previously validated as record
                 Some(unsafe { RecordRef::new(self.compat_buffer.data()) })
             }
             // SAFETY: previously validated as record
-            State::Consume { .. } => Some(unsafe { RecordRef::new(self.buffer.data()) }),
+            State::ConsumeOne { .. } | State::ConsumeBatch { .. } => {
+                Some(unsafe { RecordRef::new(self.buffer.data()) })
+            }
         }
     }
 
@@ -205,13 +212,13 @@ impl DbnFsm {
     pub fn last_record_mut(&mut self) -> Option<crate::RecordRefMut<'_>> {
         match self.state {
             State::Prelude | State::Metadata { .. } | State::Record => None,
-            State::Consume { compat_fill, .. } if compat_fill > 0 => None,
-            State::Consume { compat, .. } if compat > 0 => {
+            State::ConsumeBatch { compat, .. } if compat > 0 => None,
+            State::ConsumeOne { compat, .. } if compat > 0 => {
                 // SAFETY: previously validated as record
                 Some(unsafe { crate::RecordRefMut::new(self.compat_buffer.data_mut()) })
             }
             // SAFETY: previously validated as record
-            State::Consume { .. } => {
+            State::ConsumeOne { .. } | State::ConsumeBatch { .. } => {
                 Some(unsafe { crate::RecordRefMut::new(self.buffer.data_mut()) })
             }
         }
@@ -220,7 +227,9 @@ impl DbnFsm {
     /// Returns the unprocessed data in the buffer.
     pub fn data(&self) -> &[u8] {
         match self.state {
-            State::Consume { read, .. } => &self.buffer.data()[read..],
+            State::ConsumeOne { read, .. } | State::ConsumeBatch { read, .. } => {
+                &self.buffer.data()[read..]
+            }
             _ => self.buffer.data(),
         }
     }
@@ -245,15 +254,7 @@ impl DbnFsm {
     /// Copies the given `bytes` to the internal buffer.
     pub fn write_all(&mut self, bytes: &[u8]) {
         if self.buffer.available_space() < bytes.len() {
-            if let State::Consume {
-                read,
-                compat,
-                compat_fill,
-                expand_compat,
-            } = self.state
-            {
-                self.consume(read, compat, compat_fill, expand_compat);
-            }
+            self.consume();
             self.buffer.shift_for_space(bytes.len());
             if self.buffer.available_space() < bytes.len() {
                 let new_size =
@@ -274,7 +275,10 @@ impl DbnFsm {
 
     /// Returns `true` if DBN metadata has been decoded or it was skipped.
     pub fn has_decoded_metadata(&self) -> bool {
-        matches!(self.state, State::Record | State::Consume { .. })
+        matches!(
+            self.state,
+            State::Record | State::ConsumeOne { .. } | State::ConsumeBatch { .. }
+        )
     }
 
     /// Resets the state machine to expect DBN metadata.
@@ -301,18 +305,8 @@ impl DbnFsm {
     /// Writable space is not reclaimed until the next call to
     /// [`space()`](Self::space).
     pub fn skip(&mut self, nbytes: usize) -> usize {
-        match self.state {
-            State::Consume {
-                read,
-                compat,
-                compat_fill,
-                expand_compat,
-            } => {
-                self.consume(read, compat, compat_fill, expand_compat);
-                self.buffer.consume(nbytes)
-            }
-            _ => self.buffer.consume(nbytes),
-        }
+        self.consume();
+        self.buffer.consume(nbytes)
     }
 
     /// Process some data if available. This method should be called repeatedly until
@@ -323,79 +317,91 @@ impl DbnFsm {
     /// record.
     pub fn process(&mut self) -> ProcessResult<()> {
         loop {
+            if let Some(res) = self.advance_to_record() {
+                return res;
+            }
             let available_data = self.buffer.available_data();
-            let data = self.buffer.data();
+            if available_data < Self::HEADER_LEN {
+                return ProcessResult::ReadMore(Self::record_shortfall(&self.buffer));
+            }
+            let length = self.buffer.data()[0] as usize * RecordHeader::LENGTH_MULTIPLIER;
+            if length < Self::HEADER_LEN {
+                return ProcessResult::Err(Error::decode(format!(
+                    "invalid record with impossible length {length} which is shorter than the header"
+                )));
+            }
+            if length > available_data {
+                return ProcessResult::ReadMore(Self::record_shortfall(&self.buffer));
+            }
+            if !self.needs_upgrade {
+                self.state = State::ConsumeOne {
+                    read: length,
+                    compat: 0,
+                };
+                return ProcessResult::Record(());
+            }
+            let prev_compat_cap = self.compat_buffer.available_space();
+            let (rem_compat_buffer, rec) = unsafe {
+                Self::upgrade_record(
+                    &mut self.input_dbn_version,
+                    self.upgrade_policy,
+                    self.ts_out,
+                    self.buffer.data(),
+                    self.compat_buffer.space(),
+                )
+            };
+            if rec.is_none() {
+                self.double_compat_buffer();
+                continue;
+            };
+            let compat_bytes = prev_compat_cap - rem_compat_buffer.len();
+            self.compat_buffer.fill(compat_bytes);
+            self.state = State::ConsumeOne {
+                read: length,
+                compat: compat_bytes,
+            };
+            return ProcessResult::Record(());
+        }
+    }
+
+    /// Advances through the states preceding a record. Returns `Some` with the result
+    /// the caller should return, or `None` once in [`State::Record`].
+    fn advance_to_record<R>(&mut self) -> Option<ProcessResult<R>> {
+        loop {
+            let available_data = self.buffer.available_data();
             match self.state {
+                State::Record => return None,
                 State::Prelude if available_data < Self::METADATA_PRELUDE_LEN => {
-                    return ProcessResult::ReadMore(Self::METADATA_PRELUDE_LEN - available_data);
+                    return Some(ProcessResult::ReadMore(
+                        Self::METADATA_PRELUDE_LEN - available_data,
+                    ));
                 }
                 State::Prelude => {
                     if let Err(err) = self.decode_prelude() {
-                        return ProcessResult::Err(err);
+                        return Some(ProcessResult::Err(err));
                     }
                 }
                 State::Metadata { length } if available_data < length as usize => {
-                    return ProcessResult::ReadMore(length as usize - available_data);
+                    return Some(ProcessResult::ReadMore(length as usize - available_data));
                 }
                 State::Metadata { length } => {
-                    return match self.decode_metadata(length) {
+                    return Some(match self.decode_metadata(length) {
                         Ok(metadata) => ProcessResult::Metadata(metadata),
                         Err(err) => ProcessResult::Err(err),
-                    };
+                    });
                 }
-                State::Record if available_data < Self::HEADER_LEN => {
-                    return ProcessResult::ReadMore(Self::HEADER_LEN - available_data)
-                }
-                State::Record => {
-                    let length = data[0] as usize * RecordHeader::LENGTH_MULTIPLIER;
-                    if length < Self::HEADER_LEN {
-                        return ProcessResult::Err(Error::decode(format!(
-                            "invalid record with impossible length {length} which is shorter than the header"
-                        )));
-                    }
-                    if length > available_data {
-                        return ProcessResult::ReadMore(length - available_data);
-                    }
-                    if !self.needs_upgrade {
-                        self.state = State::Consume {
-                            read: length,
-                            compat: 0,
-                            compat_fill: 0,
-                            expand_compat: false,
-                        };
-                        return ProcessResult::Record(());
-                    }
-                    let prev_compat_cap = self.compat_buffer.available_space();
-                    let (rem_compat_buffer, rec) = unsafe {
-                        Self::upgrade_record(
-                            &mut self.input_dbn_version,
-                            self.upgrade_policy,
-                            self.ts_out,
-                            self.buffer.data(),
-                            self.compat_buffer.space(),
-                        )
-                    };
-                    if rec.is_none() {
-                        self.double_compat_buffer();
-                        continue;
-                    };
-                    let compat_bytes = prev_compat_cap - rem_compat_buffer.len();
-                    self.compat_buffer.fill(compat_bytes);
-                    self.state = State::Consume {
-                        read: length,
-                        compat: compat_bytes,
-                        compat_fill: 0,
-                        expand_compat: false,
-                    };
-                    return ProcessResult::Record(());
-                }
-                State::Consume {
-                    read,
-                    compat,
-                    compat_fill,
-                    expand_compat,
-                } => self.consume(read, compat, compat_fill, expand_compat),
+                State::ConsumeOne { .. } | State::ConsumeBatch { .. } => self.consume(),
             }
+        }
+    }
+
+    /// Bytes still needed to buffer the next complete record.
+    fn record_shortfall(buffer: &AlignedBuffer) -> usize {
+        let available_data = buffer.available_data();
+        if available_data < Self::HEADER_LEN {
+            Self::HEADER_LEN - available_data
+        } else {
+            buffer.data()[0] as usize * RecordHeader::LENGTH_MULTIPLIER - available_data
         }
     }
 
@@ -419,7 +425,10 @@ impl DbnFsm {
         rec_refs: &mut Vec<RecordRef<'a>>,
         limit: Option<NonZeroU64>,
     ) -> ProcessResult<u64> {
-        self.process_multiple((rec_refs, limit))
+        self.process_multiple(VecRecRefBuf {
+            recs: rec_refs,
+            limit,
+        })
     }
 
     /// Reads available records into the given `rec_refs` slice until the internal
@@ -463,51 +472,25 @@ impl DbnFsm {
     where
         B: RecRefBuf<'a>,
     {
-        // Loop to get to `Record` state
-        loop {
-            let available_data = self.buffer.available_data();
-            // Get through non-`Record` states
-            match self.state {
-                State::Record => break,
-                State::Prelude if available_data < Self::METADATA_PRELUDE_LEN => {
-                    return ProcessResult::ReadMore(Self::METADATA_PRELUDE_LEN - available_data);
-                }
-                State::Prelude => {
-                    if let Err(err) = self.decode_prelude() {
-                        return ProcessResult::Err(err);
-                    }
-                }
-                State::Metadata { length } if available_data < length as usize => {
-                    return ProcessResult::ReadMore(length as usize - available_data);
-                }
-                State::Metadata { length } => {
-                    return match self.decode_metadata(length) {
-                        Ok(metadata) => ProcessResult::Metadata(metadata),
-                        Err(err) => ProcessResult::Err(err),
-                    };
-                }
-                State::Consume {
-                    read,
-                    compat,
-                    compat_fill,
-                    expand_compat,
-                } => self.consume(read, compat, compat_fill, expand_compat),
-            }
+        if let Some(res) = self.advance_to_record() {
+            return res;
         }
-        // Ensure an upgrade can't run out of compat space mid-batch
+        // Guarantee room for the first record, so the batch never comes up empty for
+        // lack of compat space. `expand_compat` covers the later ones
         debug_assert!(self.compat_buffer.is_empty());
         if self.needs_upgrade && self.compat_buffer.available_space() < MAX_RECORD_LEN {
             // `consume` leaves the compat buffer empty, so one doubling is always
             // sufficient
             self.double_compat_buffer();
         }
+        let available_data = self.buffer.available_data();
         let mut record_count = 0;
         let mut read_bytes = 0;
         let mut compat_bytes = 0;
         let mut remaining_compat = self.compat_buffer.space();
         let mut expand_compat = false;
         while rec_ref_buf.has_capacity(record_count)
-            && read_bytes + Self::HEADER_LEN <= self.buffer.available_data()
+            && read_bytes + Self::HEADER_LEN <= available_data
         {
             let remaining_data = &self.buffer.data()[read_bytes..];
 
@@ -542,7 +525,8 @@ impl DbnFsm {
                 )
             };
             let Some(rec) = rec else {
-                // Insufficient remaining compat space
+                // Insufficient remaining compat space. Growing reallocates and would
+                // dangle the records already decoded, so `consume` does it
                 expand_compat = true;
                 break;
             };
@@ -555,29 +539,35 @@ impl DbnFsm {
         }
         if record_count == 0 && rec_ref_buf.has_capacity(0) {
             debug_assert!(!expand_compat);
-            let available_data = self.buffer.available_data();
-            return ProcessResult::ReadMore(if available_data < Self::HEADER_LEN {
-                Self::HEADER_LEN - available_data
-            } else {
-                self.buffer.data()[0] as usize * RecordHeader::LENGTH_MULTIPLIER - available_data
-            });
+            return ProcessResult::ReadMore(Self::record_shortfall(&self.buffer));
         }
-        self.state = State::Consume {
+        self.state = State::ConsumeBatch {
             read: read_bytes,
             compat: compat_bytes,
-            compat_fill: compat_bytes,
             expand_compat,
         };
         ProcessResult::Record(rec_ref_buf.finalize(record_count))
     }
 
-    fn consume(&mut self, read: usize, compat: usize, compat_fill: usize, expand_compat: bool) {
+    /// Advances the buffers past the data decoded by the previous call. No-op otherwise.
+    fn consume(&mut self) {
+        let (read, compat, expand_compat) = match self.state {
+            State::ConsumeOne { read, compat } => (read, compat, false),
+            State::ConsumeBatch {
+                read,
+                compat,
+                expand_compat,
+            } => {
+                // A batch defers its compat fill to here, since the records it returns
+                // borrow `compat_buffer` for the whole call
+                self.compat_buffer.fill(compat);
+                (read, compat, expand_compat)
+            }
+            _ => return,
+        };
         self.buffer.consume(read);
-        if compat_fill > 0 {
-            self.compat_buffer.fill(compat_fill);
-        }
         if compat > 0 {
-            // After `fill(compat_fill)` + `consume(compat)`, position == end
+            // After the fill and `consume(compat)`, position == end
             // (both process paths keep them in lockstep), so reset is
             // equivalent to a full shift and avoids the conditional memmove.
             self.compat_buffer.consume(compat);
@@ -1143,15 +1133,20 @@ trait RecRefBuf<'a> {
     fn finalize(self, record_count: usize) -> Self::Return;
 }
 
-impl<'a> RecRefBuf<'a> for (&mut Vec<RecordRef<'a>>, Option<NonZeroU64>) {
+struct VecRecRefBuf<'v, 'a> {
+    recs: &'v mut Vec<RecordRef<'a>>,
+    limit: Option<NonZeroU64>,
+}
+
+impl<'a> RecRefBuf<'a> for VecRecRefBuf<'_, 'a> {
     type Return = u64;
 
     fn has_capacity(&self, record_count: usize) -> bool {
-        self.1.is_none_or(|l| l.get() > record_count as u64)
+        self.limit.is_none_or(|l| l.get() > record_count as u64)
     }
 
     fn push(&mut self, _: usize, rec_ref: RecordRef<'a>) {
-        self.0.push(rec_ref);
+        self.recs.push(rec_ref);
     }
 
     fn finalize(self, record_count: usize) -> Self::Return {
