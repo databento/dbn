@@ -1657,7 +1657,7 @@ mod tests {
         );
         assert_eq!(upgraded.record_size(), size_of_val(upgraded));
         // used compat buffer
-        assert!(std::ptr::addr_eq(upgraded.header(), compat_buffer.as_ptr()));
+        assert!(std::ptr::addr_eq(&upgraded.rec.hd, compat_buffer.as_ptr()));
         Ok(())
     }
 
@@ -1686,7 +1686,7 @@ mod tests {
         assert_eq!(rem_compat.len(), MAX_RECORD_LEN);
         let upgraded = res.get::<WithTsOut<Mbp1Msg>>().unwrap();
         // compat buffer unused and pointer unchanged
-        assert!(std::ptr::eq(orig.header(), upgraded.header()));
+        assert!(std::ptr::eq(&orig.rec.hd, &upgraded.rec.hd));
         Ok(())
     }
 

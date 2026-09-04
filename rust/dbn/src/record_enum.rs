@@ -360,25 +360,56 @@ impl<'a> From<&'a CbboMsg> for RecordRefEnum<'a> {
     }
 }
 
-impl Record for RecordEnum {
-    fn header(&self) -> &crate::RecordHeader {
+impl RecordEnum {
+    /// Returns a reference to the common record header at the start of every record.
+    pub fn header(&self) -> &crate::RecordHeader {
         match self {
-            RecordEnum::Mbo(rec) => rec.header(),
-            RecordEnum::Trade(rec) => rec.header(),
-            RecordEnum::Mbp1(rec) => rec.header(),
-            RecordEnum::Mbp10(rec) => rec.header(),
-            RecordEnum::Ohlcv(rec) => rec.header(),
-            RecordEnum::Status(rec) => rec.header(),
-            RecordEnum::InstrumentDef(rec) => rec.header(),
-            RecordEnum::Imbalance(rec) => rec.header(),
-            RecordEnum::Stat(rec) => rec.header(),
-            RecordEnum::Error(rec) => rec.header(),
-            RecordEnum::SymbolMapping(rec) => rec.header(),
-            RecordEnum::System(rec) => rec.header(),
-            RecordEnum::Cmbp1(rec) => rec.header(),
-            RecordEnum::Bbo(rec) => rec.header(),
-            RecordEnum::Cbbo(rec) => rec.header(),
+            Self::Mbo(rec) => &rec.hd,
+            Self::Trade(rec) => &rec.hd,
+            Self::Mbp1(rec) => &rec.hd,
+            Self::Mbp10(rec) => &rec.hd,
+            Self::Ohlcv(rec) => &rec.hd,
+            Self::Status(rec) => &rec.hd,
+            Self::InstrumentDef(rec) => &rec.hd,
+            Self::Imbalance(rec) => &rec.hd,
+            Self::Stat(rec) => &rec.hd,
+            Self::Error(rec) => &rec.hd,
+            Self::SymbolMapping(rec) => &rec.hd,
+            Self::System(rec) => &rec.hd,
+            Self::Cmbp1(rec) => &rec.hd,
+            Self::Bbo(rec) => &rec.hd,
+            Self::Cbbo(rec) => &rec.hd,
         }
+    }
+}
+
+impl Record for RecordEnum {
+    fn record_size(&self) -> usize {
+        self.header().record_size()
+    }
+
+    fn rtype(&self) -> crate::Result<crate::RType> {
+        self.header().rtype()
+    }
+
+    fn raw_rtype(&self) -> u16 {
+        self.header().rtype as u16
+    }
+
+    fn publisher_id(&self) -> u16 {
+        self.header().publisher_id
+    }
+
+    fn publisher(&self) -> crate::Result<crate::Publisher> {
+        self.header().publisher()
+    }
+
+    fn instrument_id(&self) -> u64 {
+        self.header().instrument_id as u64
+    }
+
+    fn raw_ts_event(&self) -> u64 {
+        self.header().ts_event
     }
 
     fn raw_index_ts(&self) -> u64 {
@@ -446,25 +477,56 @@ impl RecordMut for RecordEnum {
     }
 }
 
-impl Record for RecordRefEnum<'_> {
-    fn header(&self) -> &crate::RecordHeader {
+impl RecordRefEnum<'_> {
+    /// Returns a reference to the common record header at the start of every record.
+    pub fn header(&self) -> &crate::RecordHeader {
         match self {
-            RecordRefEnum::Mbo(rec) => rec.header(),
-            RecordRefEnum::Trade(rec) => rec.header(),
-            RecordRefEnum::Mbp1(rec) => rec.header(),
-            RecordRefEnum::Mbp10(rec) => rec.header(),
-            RecordRefEnum::Ohlcv(rec) => rec.header(),
-            RecordRefEnum::Status(rec) => rec.header(),
-            RecordRefEnum::InstrumentDef(rec) => rec.header(),
-            RecordRefEnum::Imbalance(rec) => rec.header(),
-            RecordRefEnum::Stat(rec) => rec.header(),
-            RecordRefEnum::Error(rec) => rec.header(),
-            RecordRefEnum::SymbolMapping(rec) => rec.header(),
-            RecordRefEnum::System(rec) => rec.header(),
-            RecordRefEnum::Cmbp1(rec) => rec.header(),
-            RecordRefEnum::Bbo(rec) => rec.header(),
-            RecordRefEnum::Cbbo(rec) => rec.header(),
+            Self::Mbo(rec) => &rec.hd,
+            Self::Trade(rec) => &rec.hd,
+            Self::Mbp1(rec) => &rec.hd,
+            Self::Mbp10(rec) => &rec.hd,
+            Self::Ohlcv(rec) => &rec.hd,
+            Self::Status(rec) => &rec.hd,
+            Self::InstrumentDef(rec) => &rec.hd,
+            Self::Imbalance(rec) => &rec.hd,
+            Self::Stat(rec) => &rec.hd,
+            Self::Error(rec) => &rec.hd,
+            Self::SymbolMapping(rec) => &rec.hd,
+            Self::System(rec) => &rec.hd,
+            Self::Cmbp1(rec) => &rec.hd,
+            Self::Bbo(rec) => &rec.hd,
+            Self::Cbbo(rec) => &rec.hd,
         }
+    }
+}
+
+impl Record for RecordRefEnum<'_> {
+    fn record_size(&self) -> usize {
+        self.header().record_size()
+    }
+
+    fn rtype(&self) -> crate::Result<crate::RType> {
+        self.header().rtype()
+    }
+
+    fn raw_rtype(&self) -> u16 {
+        self.header().rtype as u16
+    }
+
+    fn publisher_id(&self) -> u16 {
+        self.header().publisher_id
+    }
+
+    fn publisher(&self) -> crate::Result<crate::Publisher> {
+        self.header().publisher()
+    }
+
+    fn instrument_id(&self) -> u64 {
+        self.header().instrument_id as u64
+    }
+
+    fn raw_ts_event(&self) -> u64 {
+        self.header().ts_event
     }
 
     fn raw_index_ts(&self) -> u64 {

@@ -2,7 +2,7 @@ use std::num::NonZeroU64;
 
 use dbn::{
     decode::{DbnMetadata, DecodeRecordRef},
-    RType, Record, RecordRef, Schema,
+    RType, RecordRef, Schema,
 };
 
 #[derive(Debug)]

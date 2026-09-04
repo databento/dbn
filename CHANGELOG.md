@@ -1,6 +1,17 @@
 # Changelog
 
-## 0.69.1 - Upcoming
+## 0.70.0 - Upcoming
+
+### Breaking changes
+- Replaced `Record::header()` with a method per header field: `raw_rtype()`,
+  `publisher_id()`, `instrument_id()`, and `raw_ts_event()`, joining the existing
+  `record_size()`, `rtype()`, and `publisher()`. `RecordRef`, `RecordRefMut`,
+  `RecordBuf`, `RecordEnum`, and `RecordRefEnum` keep a `header()` method of their own,
+  and concrete record types keep their `hd` field
+- `Record::raw_rtype()` returns `u16` and `Record::instrument_id()` returns `u64`, wider
+  than the corresponding `RecordHeader` fields, which are unchanged
+- `RType::try_into_schema()` takes a `u16` and returns `None` for values outside the
+  range of the `RecordHeader` `rtype` field
 
 ### Bug fixes
 - Fixed `DbnFsm::process_all()` and `DbnFsm::process_many()` returning `Record` with no
@@ -8,7 +19,10 @@
 - Fixed unsound `RecordRefMut` accessors, which returned references outliving the borrow
   of `self` and let safe code hold two mutable references to the same record, or a
   shared reference aliasing a mutable one. `get_mut()` and `get_mut_unchecked()` now
-  take `&mut self`
+  take `&mut self`, and `header()` returns a reference borrowing `self`
+- Fixed undefined behavior when mutating a record through a `RecordRefMut`, where the
+  write went through a pointer that permitted only reads, or that did not span the
+  whole record
 
 ## 0.69.0 - 2026-09-01
 

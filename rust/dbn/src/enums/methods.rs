@@ -57,8 +57,9 @@ impl RType {
     ///
     /// Returns `None` if there's no corresponding `Schema` for the given rtype or
     /// in the case of `OHLCV_DEPRECATED`, it doesn't map to a single `Schema`.
-    pub fn try_into_schema(rtype: u8) -> Option<Schema> {
+    pub fn try_into_schema(rtype: u16) -> Option<Schema> {
         use crate::enums::rtype::*;
+        let rtype = u8::try_from(rtype).ok()?;
         match rtype {
             MBP_0 => Some(Schema::Trades),
             MBP_1 => Some(Schema::Mbp1),

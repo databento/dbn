@@ -10,7 +10,7 @@ use std::{
 
 use dbn::{
     decode::dbn::fsm::{DbnFsm, ProcessResult},
-    Metadata, Record, RecordHeader, VersionUpgradePolicy,
+    Metadata, RecordHeader, VersionUpgradePolicy,
 };
 
 /// A push-based DBN decoder. Create with `DbnDecoder_create`, feed bytes with

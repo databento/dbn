@@ -3,8 +3,32 @@ use std::mem;
 use crate::{record::as_u8_slice, HasRType, Record, RecordHeader, RecordMut, WithTsOut};
 
 impl<T: HasRType> Record for WithTsOut<T> {
-    fn header(&self) -> &RecordHeader {
-        self.rec.header()
+    fn record_size(&self) -> usize {
+        self.rec.record_size()
+    }
+
+    fn rtype(&self) -> crate::Result<crate::RType> {
+        self.rec.rtype()
+    }
+
+    fn raw_rtype(&self) -> u16 {
+        self.rec.raw_rtype()
+    }
+
+    fn publisher_id(&self) -> u16 {
+        self.rec.publisher_id()
+    }
+
+    fn publisher(&self) -> crate::Result<crate::Publisher> {
+        self.rec.publisher()
+    }
+
+    fn instrument_id(&self) -> u64 {
+        self.rec.instrument_id()
+    }
+
+    fn raw_ts_event(&self) -> u64 {
+        self.rec.raw_ts_event()
     }
 
     fn raw_index_ts(&self) -> u64 {

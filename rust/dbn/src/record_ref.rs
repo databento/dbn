@@ -91,6 +91,12 @@ unsafe impl Send for RecordRefMut<'_> {}
 unsafe impl Sync for RecordRefMut<'_> {}
 
 impl<'a> RecordRef<'a> {
+    /// Returns a reference to the common record header at the start of every record.
+    pub fn header(&self) -> &'a RecordHeader {
+        // Safety: assumes `ptr` passes to a `RecordHeader`.
+        unsafe { self.ptr.as_ref() }
+    }
+
     /// Constructs a new reference to the DBN record in `buffer`.
     ///
     /// # Safety
@@ -310,10 +316,11 @@ where
     /// Constructs a new reference to a DBN record.
     fn from(rec: &'a R) -> Self {
         Self {
-            // Safety: `R` begins with a `RecordHeader` because it implements `Record`.
-            // Casting to `mut` is required for `NonNull`, but it is never mutated.
+            // Safety: `R` begins with a `RecordHeader` because it implements `Record`, so
+            // its byte slice starts at that header. Casting to `mut` is required for
+            // `NonNull`, but it is never mutated.
             ptr: unsafe {
-                NonNull::new_unchecked((rec.header() as *const RecordHeader).cast_mut())
+                NonNull::new_unchecked(rec.as_ref().as_ptr().cast::<RecordHeader>().cast_mut())
             },
             _marker: PhantomData,
         }
@@ -329,9 +336,32 @@ impl<'a> AsRef<[u8]> for RecordRef<'a> {
 }
 
 impl<'a> Record for RecordRef<'a> {
-    fn header(&self) -> &'a RecordHeader {
-        // Safety: assumes `ptr` passes to a `RecordHeader`.
-        unsafe { self.ptr.as_ref() }
+    fn record_size(&self) -> usize {
+        self.header().record_size()
+    }
+
+    fn rtype(&self) -> crate::Result<RType> {
+        self.header().rtype()
+    }
+
+    fn raw_rtype(&self) -> u16 {
+        self.header().rtype as u16
+    }
+
+    fn publisher_id(&self) -> u16 {
+        self.header().publisher_id
+    }
+
+    fn publisher(&self) -> crate::Result<crate::Publisher> {
+        self.header().publisher()
+    }
+
+    fn instrument_id(&self) -> u64 {
+        self.header().instrument_id as u64
+    }
+
+    fn raw_ts_event(&self) -> u64 {
+        self.header().ts_event
     }
 
     fn raw_index_ts(&self) -> u64 {
@@ -390,6 +420,23 @@ impl Debug for RecordRef<'_> {
 }
 
 impl<'a> RecordRefMut<'a> {
+    /// Returns a reference to the common record header at the start of every record.
+    ///
+    /// The returned reference borrows `self`, so it cannot coexist with a mutable one.
+    /// ```compile_fail
+    /// use dbn::{MboMsg, RecordRefMut};
+    ///
+    /// let mut mbo = MboMsg::default();
+    /// let mut rec = RecordRefMut::from(&mut mbo);
+    /// let hd = rec.header();
+    /// rec.get_mut::<MboMsg>().unwrap().hd.instrument_id = 9;
+    /// assert_eq!(hd.instrument_id, 9);
+    /// ```
+    pub fn header(&self) -> &RecordHeader {
+        // Safety: assumes `ptr` points to a `RecordHeader`.
+        unsafe { self.ptr.as_ref() }
+    }
+
     /// Constructs a new reference to the DBN record in `buffer`.
     ///
     /// # Safety
@@ -398,15 +445,12 @@ impl<'a> RecordRefMut<'a> {
     pub unsafe fn new(buffer: &'a mut [u8]) -> Self {
         debug_assert!(buffer.len() >= mem::size_of::<RecordHeader>());
 
-        // Safety: casting to `*mut` to use `NonNull`, but `ptr` is still treated internally
-        // as an immutable reference
-        let raw_ptr = buffer.as_ptr() as *mut RecordHeader;
+        // Safety: derived from a mutable borrow, so the pointer carries write
+        // provenance for all of `'a`. `as_ptr` would only grant read access.
+        let raw_ptr = buffer.as_mut_ptr() as *mut RecordHeader;
 
         // Check if alignment of pointer matches that of header (and all records)
-        debug_assert_eq!(
-            raw_ptr.align_offset(std::mem::align_of::<RecordHeader>()),
-            0
-        );
+        debug_assert_eq!(raw_ptr.addr() % std::mem::align_of::<RecordHeader>(), 0);
         let ptr = NonNull::new_unchecked(raw_ptr.cast::<RecordHeader>());
         Self {
             ptr,
@@ -613,11 +657,10 @@ where
     /// Constructs a new reference to a DBN record.
     fn from(rec: &'a mut R) -> Self {
         Self {
-            // Safety: `R` must be a record because it implements `HasRType`. Casting to `mut`
-            // is required for `NonNull`, but it is never mutated.
-            ptr: unsafe {
-                NonNull::new_unchecked((rec.header() as *const RecordHeader).cast_mut())
-            },
+            // Safety: `R` begins with a `RecordHeader` because it implements
+            // `HasRType`. Derived from the whole record so the pointer covers every
+            // byte `get_mut` may reach, which a `header_mut` borrow would not.
+            ptr: NonNull::from(rec).cast::<RecordHeader>(),
             _marker: PhantomData,
         }
     }
@@ -632,9 +675,32 @@ impl<'a> AsRef<[u8]> for RecordRefMut<'a> {
 }
 
 impl<'a> Record for RecordRefMut<'a> {
-    fn header(&self) -> &RecordHeader {
-        // Safety: assumes `ptr` points to a `RecordHeader`.
-        unsafe { self.ptr.as_ref() }
+    fn record_size(&self) -> usize {
+        self.header().record_size()
+    }
+
+    fn rtype(&self) -> crate::Result<RType> {
+        self.header().rtype()
+    }
+
+    fn raw_rtype(&self) -> u16 {
+        self.header().rtype as u16
+    }
+
+    fn publisher_id(&self) -> u16 {
+        self.header().publisher_id
+    }
+
+    fn publisher(&self) -> crate::Result<crate::Publisher> {
+        self.header().publisher()
+    }
+
+    fn instrument_id(&self) -> u64 {
+        self.header().instrument_id as u64
+    }
+
+    fn raw_ts_event(&self) -> u64 {
+        self.header().ts_event
     }
 
     fn raw_index_ts(&self) -> u64 {
