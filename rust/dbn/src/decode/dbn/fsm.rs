@@ -421,9 +421,11 @@ impl DbnFsm {
         self.process_multiple((rec_refs, limit))
     }
 
-    /// Reads available records into the given `rec_refs` slice until the internal buffer is exhausted or the slice is filled. Returns a mutable slice to the records that have been decoded.
+    /// Reads available records into the given `rec_refs` slice until the internal
+    /// buffer is exhausted or the slice is filled. Returns a mutable slice to the records that
+    /// have been decoded, or `ReadMore` when no complete record is buffered.
     ///
-    /// This method can be  used for batch processing of records that's not possible
+    /// This method can be used for batch processing of records that's not possible
     /// with repeated calls to `process` due to mutable lifetimes. Unlike `process_all()`
     /// it can populate `rec_refs` on the stack.
     ///
@@ -472,6 +474,13 @@ impl DbnFsm {
                 } => self.consume(read, compat, compat_fill, expand_compat),
             }
         }
+        // Ensure an upgrade can't run out of compat space mid-batch
+        debug_assert!(self.compat_buffer.is_empty());
+        if self.needs_upgrade && self.compat_buffer.available_space() < MAX_RECORD_LEN {
+            // `consume` leaves the compat buffer empty, so one doubling is always
+            // sufficient
+            self.double_compat_buffer();
+        }
         let mut record_count = 0;
         let mut read_bytes = 0;
         let mut compat_bytes = 0;
@@ -518,6 +527,15 @@ impl DbnFsm {
             // Update compat buffer with split borrow
             remaining_compat = new_rem_compat;
             compat_bytes += prev_compat_cap - remaining_compat.len();
+        }
+        if record_count == 0 && rec_ref_buf.has_capacity(0) {
+            debug_assert!(!expand_compat);
+            let available_data = self.buffer.available_data();
+            return ProcessResult::ReadMore(if available_data < Self::HEADER_LEN {
+                Self::HEADER_LEN - available_data
+            } else {
+                self.buffer.data()[0] as usize * RecordHeader::LENGTH_MULTIPLIER - available_data
+            });
         }
         self.state = State::Consume {
             read: read_bytes,
@@ -1394,15 +1412,14 @@ mod tests {
             let mut recs = Vec::new();
             let res = target.process_all(&mut recs, limit);
             dbg!(&res);
-            if let ProcessResult::Record(processed_count) = res {
-                if processed_count == 0 {
-                    break;
+            match res {
+                ProcessResult::ReadMore(_) => break,
+                ProcessResult::Record(processed_count) => {
+                    assert!(limit.is_none_or(|l| l.get() >= processed_count));
+                    assert_eq!(processed_count, recs.len() as u64);
+                    rec_count += recs.len();
                 }
-                assert!(limit.is_none_or(|l| l.get() >= processed_count));
-                assert_eq!(processed_count, recs.len() as u64);
-                rec_count += recs.len();
-            } else {
-                panic!("unexpected result after writing all input");
+                _ => panic!("unexpected result after writing all input"),
             }
         }
         assert_eq!(rec_count, 10_000);
@@ -1522,17 +1539,55 @@ mod tests {
             let mut recs = [const { None }; 64];
             let res = target.process_many(&mut recs);
             dbg!(&res);
-            if let ProcessResult::Record(recs) = res {
-                if recs.is_empty() {
-                    break;
-                }
-                rec_count += recs.len();
-            } else {
-                panic!("unexpected result after writing all input");
+            match res {
+                ProcessResult::ReadMore(_) => break,
+                ProcessResult::Record(recs) => rec_count += recs.len(),
+                _ => panic!("unexpected result after writing all input"),
             }
         }
         assert_eq!(rec_count, 10_000);
     }
+
+    #[test]
+    fn test_process_multiple_returns_read_more_without_a_complete_record() {
+        let mut data = Vec::new();
+        DbnRecordEncoder::new(&mut data)
+            .encode_record(&TradeMsg::default())
+            .unwrap();
+        let mut target = DbnFsm::builder()
+            .skip_metadata(true)
+            .input_dbn_version(Some(crate::DBN_VERSION))
+            .unwrap()
+            .upgrade_policy(VersionUpgradePolicy::AsIs)
+            .build()
+            .unwrap();
+
+        let mut slice_buf = [const { None }; 4];
+        assert!(matches!(
+            target.process_many(&mut slice_buf),
+            ProcessResult::ReadMore(n) if n == DbnFsm::HEADER_LEN
+        ));
+        let mut vec_buf = Vec::new();
+        assert!(matches!(
+            target.process_all(&mut vec_buf, None),
+            ProcessResult::ReadMore(n) if n == DbnFsm::HEADER_LEN
+        ));
+
+        target.write_all(&data[..data.len() - 4]);
+        let mut slice_buf = [const { None }; 4];
+        assert!(matches!(
+            target.process_many(&mut slice_buf),
+            ProcessResult::ReadMore(4)
+        ));
+
+        target.write_all(&data[data.len() - 4..]);
+        let mut slice_buf = [const { None }; 4];
+        assert!(matches!(
+            target.process_many(&mut slice_buf),
+            ProcessResult::Record(recs) if recs.len() == 1
+        ));
+    }
+
     #[rstest]
     fn test_decode_ts_out_set_in_metadata() -> crate::Result<()> {
         let metadata = Metadata::builder()

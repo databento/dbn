@@ -3,6 +3,8 @@
 ## 0.69.1 - Upcoming
 
 ### Bug fixes
+- Fixed `DbnFsm::process_all()` and `DbnFsm::process_many()` returning `Record` with no
+  records instead of `ReadMore` when the buffer held no complete record
 - Fixed unsound `RecordRefMut` accessors, which returned references outliving the borrow
   of `self` and let safe code hold two mutable references to the same record, or a
   shared reference aliasing a mutable one. `get_mut()` and `get_mut_unchecked()` now
