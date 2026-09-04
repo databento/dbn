@@ -155,3 +155,38 @@ jobs:
         run: scripts/lint.sh
       - name: Test
         run: scripts/test.sh
+
+  miri:
+    name: miri - soundness (x86_64 linux)
+    runs-on: ubuntu-latest
+    env:
+      # pinned so a nightly change doesn't break CI
+      MIRI_TOOLCHAIN: nightly-2026-09-02
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Rust
+        run: rustup toolchain add --profile minimal "$MIRI_TOOLCHAIN" --component miri,rust-src
+
+      # Cargo setup
+      - name: Set up Cargo cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-miri-cargo-${{ hashFiles('Cargo.lock') }}
+
+      # Only the soundness target: Miri cannot execute zstd's C code or I/O.
+      # Both aliasing models run because they detect different things
+      - name: Miri - stacked borrows
+        run: cargo "+$MIRI_TOOLCHAIN" miri test --manifest-path rust/dbn/Cargo.toml --test soundness
+        env:
+          MIRIFLAGS: -Zmiri-strict-provenance
+      - name: Miri - tree borrows
+        run: cargo "+$MIRI_TOOLCHAIN" miri test --manifest-path rust/dbn/Cargo.toml --test soundness
+        env:
+          MIRIFLAGS: -Zmiri-strict-provenance -Zmiri-tree-borrows
