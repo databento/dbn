@@ -340,14 +340,13 @@ mod tests {
         assert!(!decoder.is_null());
         crate::decode::DbnDecoder_write_all(decoder, bytes.as_ptr(), bytes.len());
 
-        let mut read_more = 0;
-        let mut decoded: *mut Metadata = std::ptr::null_mut();
-        match crate::decode::DbnDecoder_process(decoder, &mut read_more, &mut decoded) {
+        match crate::decode::DbnDecoder_process(decoder) {
             crate::decode::ProcessStatus::Metadata => {}
             crate::decode::ProcessStatus::ReadMore => panic!("ran out of bytes"),
             crate::decode::ProcessStatus::Record => panic!("record before metadata"),
             crate::decode::ProcessStatus::Error => panic!("decode error"),
         }
+        let decoded = crate::decode::DbnDecoder_take_metadata(decoder);
         crate::decode::DbnDecoder_free(decoder);
         assert!(!decoded.is_null());
         decoded

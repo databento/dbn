@@ -2,7 +2,7 @@
 //! sync and async decoders.
 
 use std::{
-    mem::{size_of, size_of_val, transmute},
+    mem::{size_of, size_of_val, transmute, MaybeUninit},
     num::NonZeroU64,
     str::Utf8Error,
 };
@@ -407,12 +407,13 @@ impl DbnFsm {
     /// Reads all available records into the given `rec_refs` vec or until the optional
     /// `limit` is reached, returning the number of records read.
     ///
-    /// This method can be  used for batch processing of records  that's not possible
-    ///with repeated calls to `process` due to mutable lifetimes.
+    /// This method can be used for batch processing of records that's not possible
+    /// with repeated calls to `process` due to mutable lifetimes.
     ///
     /// # Errors
     /// This function returns an error if it encounters invalid metadata or an invalid
-    /// record.
+    /// record. Records decoded before an invalid record are returned first, and the
+    /// error is returned by the following call.
     pub fn process_all<'a>(
         &'a mut self,
         rec_refs: &mut Vec<RecordRef<'a>>,
@@ -431,12 +432,31 @@ impl DbnFsm {
     ///
     /// # Errors
     /// This function returns an error if it encounters invalid metadata or an invalid
-    /// record.
+    /// record. Records decoded before an invalid record are returned first, and the
+    /// error is returned by the following call.
     pub fn process_many<'a>(
         &'a mut self,
         rec_refs: &'a mut [Option<RecordRef<'a>>],
     ) -> ProcessResult<&'a mut [RecordRef<'a>]> {
         self.process_multiple(rec_refs)
+    }
+
+    /// Reads available records into `rec_ptrs` as record header pointers until the
+    /// internal buffer is exhausted or the slice is filled. Returns the number of records
+    /// decoded.
+    ///
+    /// The decoded records carry no lifetime, which makes this method suitable for FFI
+    /// The pointers are valid until the next call that modifies the internal buffers.
+    ///
+    /// # Errors
+    /// This function returns an error if it encounters invalid metadata or an invalid
+    /// record. Records decoded before an invalid record are returned first, and the
+    /// error is returned by the following call.
+    pub fn process_many_raw(
+        &mut self,
+        rec_ptrs: &mut [MaybeUninit<*const RecordHeader>],
+    ) -> ProcessResult<usize> {
+        self.process_multiple(rec_ptrs)
     }
 
     fn process_multiple<'a, B>(&'a mut self, mut rec_ref_buf: B) -> ProcessResult<B::Return>
@@ -486,11 +506,16 @@ impl DbnFsm {
         let mut compat_bytes = 0;
         let mut remaining_compat = self.compat_buffer.space();
         let mut expand_compat = false;
-        while rec_ref_buf.has_capacity(record_count) && read_bytes < self.buffer.available_data() {
+        while rec_ref_buf.has_capacity(record_count)
+            && read_bytes + Self::HEADER_LEN <= self.buffer.available_data()
+        {
             let remaining_data = &self.buffer.data()[read_bytes..];
 
             let length = remaining_data[0] as usize * RecordHeader::LENGTH_MULTIPLIER;
             if length < Self::HEADER_LEN {
+                if record_count > 0 {
+                    break;
+                }
                 return ProcessResult::Err(Error::decode(format!(
                     "invalid record with impossible length {length} which is shorter than the header"
                 )));
@@ -1154,6 +1179,22 @@ impl<'a> RecRefBuf<'a> for &'a mut [Option<RecordRef<'a>>] {
     }
 }
 
+impl<'a> RecRefBuf<'a> for &mut [MaybeUninit<*const RecordHeader>] {
+    type Return = usize;
+
+    fn has_capacity(&self, record_count: usize) -> bool {
+        record_count < self.len()
+    }
+
+    fn push(&mut self, record_count: usize, rec_ref: RecordRef<'a>) {
+        self[record_count] = MaybeUninit::new(rec_ref.header());
+    }
+
+    fn finalize(self, record_count: usize) -> Self::Return {
+        record_count
+    }
+}
+
 unsafe fn upgrade_record<'a, T, U>(
     ts_out: bool,
     compat_buffer: &'a mut [u8],
@@ -1166,7 +1207,7 @@ where
     if ts_out {
         let rec = input.get::<WithTsOut<T>>().unwrap();
         let upgraded = WithTsOut::new(U::from(&rec.rec), rec.ts_out);
-        if size_of_val(&upgraded) >= compat_buffer.len() {
+        if size_of_val(&upgraded) > compat_buffer.len() {
             return (compat_buffer, None);
         };
         // Split at to have multiple mutable borrows to the same buffer, each
@@ -1176,7 +1217,7 @@ where
         (rem_compat, Some(RecordRef::new(record_compat)))
     } else {
         let upgraded = U::from(input.get::<T>().unwrap());
-        if size_of_val(&upgraded) >= compat_buffer.len() {
+        if size_of_val(&upgraded) > compat_buffer.len() {
             return (compat_buffer, None);
         };
         let (record_compat, rem_compat) = compat_buffer.split_at_mut(size_of_val(&upgraded));
@@ -1548,6 +1589,69 @@ mod tests {
         assert_eq!(rec_count, 10_000);
     }
 
+    #[rstest]
+    #[case::asis_trades(DBN_VERSION, VersionUpgradePolicy::AsIs, false)]
+    #[case::upgrade_defs_v1_to_v3(1, VersionUpgradePolicy::UpgradeToV3, true)]
+    fn test_process_many_raw(
+        #[case] input_version: u8,
+        #[case] upgrade_policy: VersionUpgradePolicy,
+        #[case] defs: bool,
+        #[values(7, 16_384)] chunk_size: usize,
+        #[values(1, 32, 512)] batch_size: usize,
+    ) {
+        const REC_COUNT: usize = 1_000;
+        let mut data = Vec::new();
+        let mut encoder = DbnRecordEncoder::new(&mut data);
+        for _ in 0..REC_COUNT {
+            if defs {
+                encoder
+                    .encode_record(&v1::InstrumentDefMsg::default())
+                    .unwrap();
+            } else {
+                encoder.encode_record(&TradeMsg::default()).unwrap();
+            }
+        }
+        let expected_size = if defs {
+            size_of::<v3::InstrumentDefMsg>()
+        } else {
+            size_of::<TradeMsg>()
+        };
+        let mut target = DbnFsm::builder()
+            .skip_metadata(true)
+            .input_dbn_version(Some(input_version))
+            .unwrap()
+            .upgrade_policy(upgrade_policy)
+            .build()
+            .unwrap();
+        let mut rec_ptrs = vec![MaybeUninit::uninit(); batch_size];
+        let mut rec_count = 0;
+        for slice in data.chunks(chunk_size) {
+            target.write_all(slice);
+            loop {
+                match target.process_many_raw(&mut rec_ptrs) {
+                    ProcessResult::ReadMore(_) => break,
+                    ProcessResult::Record(count) => {
+                        assert!(count > 0);
+                        assert!(count <= batch_size);
+                        for rec_ptr in &rec_ptrs[..count] {
+                            // SAFETY: `count` pointers were populated by the call above and
+                            // the buffers haven't been mutated since
+                            let header = unsafe { &*rec_ptr.assume_init() };
+                            assert_eq!(
+                                header.length as usize * RecordHeader::LENGTH_MULTIPLIER,
+                                expected_size
+                            );
+                        }
+                        rec_count += count;
+                    }
+                    ProcessResult::Metadata(_) => panic!("metadata was skipped"),
+                    ProcessResult::Err(error) => panic!("unexpected error {error}"),
+                }
+            }
+        }
+        assert_eq!(rec_count, REC_COUNT);
+    }
+
     #[test]
     fn test_process_multiple_returns_read_more_without_a_complete_record() {
         let mut data = Vec::new();
@@ -1586,6 +1690,148 @@ mod tests {
             target.process_many(&mut slice_buf),
             ProcessResult::Record(recs) if recs.len() == 1
         ));
+    }
+
+    fn no_metadata_fsm() -> DbnFsm {
+        DbnFsm::builder()
+            .skip_metadata(true)
+            .input_dbn_version(Some(DBN_VERSION))
+            .unwrap()
+            .upgrade_policy(VersionUpgradePolicy::AsIs)
+            .build()
+            .unwrap()
+    }
+
+    fn three_trades_then_invalid_record() -> Vec<u8> {
+        const LENGTH_BYTE_SHORTER_THAN_HEADER: u8 =
+            (DbnFsm::HEADER_LEN / RecordHeader::LENGTH_MULTIPLIER) as u8 - 1;
+        let mut data = Vec::new();
+        let mut trade = TradeMsg::default();
+        let mut encoder = DbnRecordEncoder::new(&mut data);
+        for instrument_id in 1..=3 {
+            trade.hd.instrument_id = instrument_id;
+            encoder.encode_record(&trade).unwrap();
+        }
+        data.extend_from_slice(&[LENGTH_BYTE_SHORTER_THAN_HEADER; DbnFsm::HEADER_LEN]);
+        data
+    }
+
+    #[test]
+    fn test_process_all_delivers_records_before_error() {
+        let data = three_trades_then_invalid_record();
+        let mut target = no_metadata_fsm();
+        target.write_all(&data);
+
+        let instrument_ids = {
+            let mut recs = Vec::new();
+            assert!(matches!(
+                target.process_all(&mut recs, None),
+                ProcessResult::Record(3)
+            ));
+            recs.iter()
+                .map(|rec| rec.header().instrument_id)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(instrument_ids, vec![1, 2, 3]);
+        assert!(matches!(
+            target.process_all(&mut Vec::new(), None),
+            ProcessResult::Err(_)
+        ));
+        assert!(
+            matches!(
+                target.process_all(&mut Vec::new(), None),
+                ProcessResult::Err(_)
+            ),
+            "the invalid record stays buffered, so the error repeats"
+        );
+    }
+
+    #[test]
+    fn test_process_many_delivers_records_before_error() {
+        let data = three_trades_then_invalid_record();
+        let mut target = no_metadata_fsm();
+        target.write_all(&data);
+
+        let instrument_ids = {
+            let mut slice_buf = [const { None }; 8];
+            let ProcessResult::Record(recs) = target.process_many(&mut slice_buf) else {
+                panic!("expected the records decoded before the invalid one");
+            };
+            recs.iter()
+                .map(|rec| rec.header().instrument_id)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(instrument_ids, vec![1, 2, 3]);
+        let mut slice_buf = [const { None }; 8];
+        assert!(matches!(
+            target.process_many(&mut slice_buf),
+            ProcessResult::Err(_)
+        ));
+        let mut slice_buf = [const { None }; 8];
+        assert!(
+            matches!(target.process_many(&mut slice_buf), ProcessResult::Err(_)),
+            "the invalid record stays buffered, so the error repeats"
+        );
+    }
+
+    #[test]
+    fn test_process_multiple_short_tail_matches_process() {
+        let mut data = Vec::new();
+        DbnRecordEncoder::new(&mut data)
+            .encode_record(&TradeMsg::default())
+            .unwrap();
+        data.extend_from_slice(&[0; 3]);
+
+        let mut batched = no_metadata_fsm();
+        batched.write_all(&data);
+        {
+            let mut recs = Vec::new();
+            assert!(matches!(
+                batched.process_all(&mut recs, None),
+                ProcessResult::Record(1)
+            ));
+        }
+        let batched_tail = batched.process_all(&mut Vec::new(), None);
+
+        let mut single = no_metadata_fsm();
+        single.write_all(&data);
+        assert!(matches!(single.process(), ProcessResult::Record(())));
+        let single_tail = single.process();
+
+        assert!(matches!(
+            (batched_tail, single_tail),
+            (ProcessResult::ReadMore(batched), ProcessResult::ReadMore(single))
+                if batched == single && batched == DbnFsm::HEADER_LEN - 3
+        ));
+    }
+
+    #[rstest]
+    fn test_process_multiple_upgrades_record_that_fills_compat_buffer(
+        #[values(0, MAX_RECORD_LEN)] compat_size: usize,
+    ) {
+        assert_eq!(size_of::<WithTsOut<v3::InstrumentDefMsg>>(), MAX_RECORD_LEN);
+        let mut data = Vec::new();
+        DbnRecordEncoder::new(&mut data)
+            .encode_record(&WithTsOut::new(v1::InstrumentDefMsg::default(), 1))
+            .unwrap();
+        let mut target = DbnFsm::builder()
+            .compat_size(compat_size)
+            .skip_metadata(true)
+            .input_dbn_version(Some(1))
+            .unwrap()
+            .upgrade_policy(VersionUpgradePolicy::UpgradeToV3)
+            .ts_out(true)
+            .build()
+            .unwrap();
+        target.write_all(&data);
+
+        let mut recs = Vec::new();
+        assert!(matches!(
+            target.process_all(&mut recs, None),
+            ProcessResult::Record(1)
+        ));
+        assert_eq!(recs.len(), 1);
+        assert_eq!(recs[0].record_size(), MAX_RECORD_LEN);
     }
 
     #[rstest]

@@ -4,6 +4,7 @@
 
 use std::{
     ffi::{c_char, CString},
+    mem::MaybeUninit,
     ptr::{null, null_mut},
     slice,
 };
@@ -19,6 +20,7 @@ use dbn::{
 pub struct Decoder {
     fsm: DbnFsm,
     last_error: Option<CString>,
+    decoded_metadata: Option<Box<Metadata>>,
 }
 
 /// Options for creating a [`Decoder`].
@@ -54,18 +56,35 @@ pub enum DecoderError {
     IncompatiblePolicyAndVersion,
 }
 
-/// The outcome of a call to `DbnDecoder_process`.
+/// The outcome of a DBN decoding call.
 #[repr(C)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ProcessStatus {
-    /// More data should be read into `DbnDecoder_space` before processing again.
+    /// More data should be read into `DbnDecoder_space` before processing again. The
+    /// decoder makes progress on any amount of new data.
     ReadMore,
-    /// Decoded the metadata header. Ownership of the `Metadata` out-pointer is
-    /// transferred to the caller, who must free it with `DbnMetadata_free`.
+    /// Decoded the metadata header, which `DbnDecoder_take_metadata` returns.
     Metadata,
     /// Decoded a record, accessible via `DbnDecoder_last_record`.
     Record,
     /// Failed to decode. The message is available via `DbnDecoder_last_error`.
     Error,
+}
+
+/// The outcome of a call to `DbnDecoder_process_many`.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct ProcessManyOutcome {
+    /// The outcome of the call.
+    pub status: ProcessStatus,
+    /// The decoded record count.
+    pub count: u32,
+}
+
+impl ProcessManyOutcome {
+    fn new(status: ProcessStatus) -> Self {
+        Self { status, count: 0 }
+    }
 }
 
 /// Creates a push decoder from `options`. Returns null on error, writing the reason to
@@ -113,6 +132,7 @@ pub unsafe extern "C" fn DbnDecoder_create(
         Ok(fsm) => Box::into_raw(Box::new(Decoder {
             fsm,
             last_error: None,
+            decoded_metadata: None,
         })),
         Err(_) => {
             if let Some(error) = error.as_mut() {
@@ -176,34 +196,21 @@ pub unsafe extern "C" fn DbnDecoder_write_all(
 /// Processes buffered data, returning the outcome. Should be called repeatedly until
 /// `ReadMore` is returned, at which point more data should be read in.
 ///
-/// On `ReadMore`, `read_more` is set to the minimum additional bytes needed. On
-/// `Metadata`, `metadata` is set to an owned `Metadata` the caller must free with
-/// `DbnMetadata_free`, or the decoded metadata is dropped if `metadata` is null. On
-/// `Record`, use `DbnDecoder_last_record`. On `Error`, use `DbnDecoder_last_error`.
+/// - On `Metadata`, use `DbnDecoder_take_metadata`
+/// - On `Record`, use `DbnDecoder_last_record`
+/// - On `Error`, use `DbnDecoder_last_error`
 ///
 /// # Safety
-/// Verifies `decoder` is not null. `read_more` and `metadata`, if not null, must be
-/// valid pointers.
+/// Verifies `decoder` is not null.
 #[no_mangle]
-pub unsafe extern "C" fn DbnDecoder_process(
-    decoder: *mut Decoder,
-    read_more: *mut usize,
-    metadata: *mut *mut Metadata,
-) -> ProcessStatus {
+pub unsafe extern "C" fn DbnDecoder_process(decoder: *mut Decoder) -> ProcessStatus {
     let Some(decoder) = decoder.as_mut() else {
         return ProcessStatus::Error;
     };
     match decoder.fsm.process() {
-        ProcessResult::ReadMore(nbytes) => {
-            if let Some(read_more) = read_more.as_mut() {
-                *read_more = nbytes;
-            }
-            ProcessStatus::ReadMore
-        }
-        ProcessResult::Metadata(m) => {
-            if let Some(metadata) = metadata.as_mut() {
-                *metadata = Box::into_raw(Box::new(m));
-            }
+        ProcessResult::ReadMore(_) => ProcessStatus::ReadMore,
+        ProcessResult::Metadata(metadata) => {
+            decoder.decoded_metadata = Some(Box::new(metadata));
             ProcessStatus::Metadata
         }
         ProcessResult::Record(()) => ProcessStatus::Record,
@@ -212,6 +219,69 @@ pub unsafe extern "C" fn DbnDecoder_process(
             ProcessStatus::Error
         }
     }
+}
+
+/// Processes buffered data, writing up to `capacity` record header pointers into
+/// `records`. Should be called repeatedly until `ReadMore` is returned, at which point
+/// more data should be read in.
+///
+/// - On `Record`, `count` pointers were written to `records`. They stay valid until the
+///   next call to `DbnDecoder_process`, `DbnDecoder_process_many`, `DbnDecoder_space`,
+///   `DbnDecoder_fill`, or `DbnDecoder_write_all`. `count` is 0 only when `capacity`
+///   is 0
+/// - On `Metadata`, use `DbnDecoder_take_metadata`
+/// - On `Error`, use `DbnDecoder_last_error`
+///
+/// Prefer this over `DbnDecoder_process` for bulk decoding. It decodes a batch without
+/// returning to the caller between records.
+///
+/// # Safety
+/// Verifies `decoder` and `records` are not null. `records` must point to space for
+/// `capacity` pointers, which need not be initialized.
+#[no_mangle]
+pub unsafe extern "C" fn DbnDecoder_process_many(
+    decoder: *mut Decoder,
+    records: *mut *const RecordHeader,
+    capacity: u32,
+) -> ProcessManyOutcome {
+    let Some(decoder) = decoder.as_mut() else {
+        return ProcessManyOutcome::new(ProcessStatus::Error);
+    };
+    if records.is_null() {
+        return ProcessManyOutcome::new(ProcessStatus::Error);
+    }
+    let records = slice::from_raw_parts_mut(
+        records.cast::<MaybeUninit<*const RecordHeader>>(),
+        capacity as usize,
+    );
+    match decoder.fsm.process_many_raw(records) {
+        ProcessResult::ReadMore(_) => ProcessManyOutcome::new(ProcessStatus::ReadMore),
+        ProcessResult::Metadata(metadata) => {
+            decoder.decoded_metadata = Some(Box::new(metadata));
+            ProcessManyOutcome::new(ProcessStatus::Metadata)
+        }
+        ProcessResult::Record(count) => ProcessManyOutcome {
+            status: ProcessStatus::Record,
+            count: count as u32,
+        },
+        ProcessResult::Err(err) => {
+            decoder.last_error = CString::new(err.to_string()).ok();
+            ProcessManyOutcome::new(ProcessStatus::Error)
+        }
+    }
+}
+
+/// Transfers ownership of the metadata from the most recent `Metadata` result, or returns
+/// null if there is none. The caller must free it with `DbnMetadata_free`.
+///
+/// # Safety
+/// Verifies `decoder` is not null.
+#[no_mangle]
+pub unsafe extern "C" fn DbnDecoder_take_metadata(decoder: *mut Decoder) -> *mut Metadata {
+    decoder
+        .as_mut()
+        .and_then(|d| d.decoded_metadata.take())
+        .map_or(null_mut(), Box::into_raw)
 }
 
 /// Returns a pointer to the most recently decoded record's header, or null if there is
@@ -260,7 +330,7 @@ pub unsafe extern "C" fn DbnDecoder_last_error(decoder: *const Decoder) -> *cons
 }
 
 /// Resets the decoder to expect DBN metadata so the same decoder can be used for
-/// another stream. Any buffered data and the last error are discarded.
+/// another stream. Any buffered data and other state are discarded.
 ///
 /// # Safety
 /// Verifies `decoder` is not null.
@@ -269,6 +339,7 @@ pub unsafe extern "C" fn DbnDecoder_reset(decoder: *mut Decoder) {
     if let Some(decoder) = decoder.as_mut() {
         decoder.fsm.reset();
         decoder.last_error = None;
+        decoder.decoded_metadata = None;
     }
 }
 
@@ -292,6 +363,7 @@ mod tests {
     use rstest::rstest;
 
     use super::*;
+    use crate::metadata::DbnMetadata_free;
 
     fn sample_stream() -> (Vec<u8>, Vec<u32>) {
         let metadata = Metadata::builder()
@@ -337,13 +409,14 @@ mod tests {
         unsafe {
             loop {
                 loop {
-                    let mut read_more = 0;
-                    let mut metadata: *mut Metadata = null_mut();
-                    match DbnDecoder_process(decoder, &mut read_more, &mut metadata) {
+                    match DbnDecoder_process(decoder) {
                         ProcessStatus::ReadMore => break,
                         ProcessStatus::Metadata => {
+                            let metadata = DbnDecoder_take_metadata(decoder);
+                            assert!(!metadata.is_null());
                             got_dataset = Some((*metadata).dataset.clone());
-                            drop(Box::from_raw(metadata));
+                            DbnMetadata_free(metadata);
+                            assert!(DbnDecoder_take_metadata(decoder).is_null());
                         }
                         ProcessStatus::Record => {
                             let header = DbnDecoder_last_record(decoder);
@@ -381,6 +454,75 @@ mod tests {
         assert_eq!(decoded_ids, expected_ids);
     }
 
+    #[rstest]
+    fn process_many_round_trips_in_chunks(#[values(1, 2, 32)] capacity: u32) {
+        let (buffer, expected_ids) = sample_stream();
+        let options = options(VersionUpgradePolicy::AsIs as u8, 0);
+        let decoder = unsafe { DbnDecoder_create(&options, null_mut()) };
+        assert!(!decoder.is_null());
+
+        let mut got_dataset = None;
+        let mut decoded_ids = Vec::new();
+        let mut records: Vec<*const RecordHeader> = Vec::with_capacity(capacity as usize);
+        let mut remaining = buffer.as_slice();
+        unsafe {
+            loop {
+                loop {
+                    let outcome = DbnDecoder_process_many(decoder, records.as_mut_ptr(), capacity);
+                    match outcome.status {
+                        ProcessStatus::ReadMore => {
+                            assert_eq!(outcome.count, 0);
+                            break;
+                        }
+                        ProcessStatus::Metadata => {
+                            assert_eq!(outcome.count, 0);
+                            let metadata = DbnDecoder_take_metadata(decoder);
+                            assert!(!metadata.is_null());
+                            got_dataset = Some((*metadata).dataset.clone());
+                            DbnMetadata_free(metadata);
+                        }
+                        ProcessStatus::Record => {
+                            assert!(outcome.count <= capacity);
+                            records.set_len(outcome.count as usize);
+                            decoded_ids
+                                .extend(records.iter().map(|header| (**header).instrument_id));
+                            records.set_len(0);
+                        }
+                        ProcessStatus::Error => panic!("decode error: unexpected"),
+                    }
+                }
+                if remaining.is_empty() {
+                    break;
+                }
+                let n = remaining.len().min(13);
+                DbnDecoder_write_all(decoder, remaining.as_ptr(), n);
+                remaining = &remaining[n..];
+            }
+            let mut data_len = 1;
+            DbnDecoder_data(decoder, &mut data_len);
+            assert_eq!(data_len, 0);
+            DbnDecoder_free(decoder);
+        }
+
+        assert_eq!(got_dataset.as_deref(), Some("GLBX.MDP3"));
+        assert_eq!(decoded_ids, expected_ids);
+    }
+
+    #[test]
+    fn process_many_rejects_null_arguments() {
+        let options = options(VersionUpgradePolicy::AsIs as u8, 0);
+        let mut records: [*const RecordHeader; 4] = [null(); 4];
+        unsafe {
+            let outcome = DbnDecoder_process_many(null_mut(), records.as_mut_ptr(), 4);
+            assert_eq!(outcome.status, ProcessStatus::Error);
+
+            let decoder = DbnDecoder_create(&options, null_mut());
+            let outcome = DbnDecoder_process_many(decoder, null_mut(), 4);
+            assert_eq!(outcome.status, ProcessStatus::Error);
+            DbnDecoder_free(decoder);
+        }
+    }
+
     #[test]
     fn data_reports_truncated_tail() {
         let (mut buffer, _) = sample_stream();
@@ -391,11 +533,11 @@ mod tests {
             assert!(!decoder.is_null());
             DbnDecoder_write_all(decoder, buffer.as_ptr(), buffer.len());
             loop {
-                let mut read_more = 0;
-                let mut metadata: *mut Metadata = null_mut();
-                match DbnDecoder_process(decoder, &mut read_more, &mut metadata) {
+                match DbnDecoder_process(decoder) {
                     ProcessStatus::ReadMore => break,
-                    ProcessStatus::Metadata => drop(Box::from_raw(metadata)),
+                    ProcessStatus::Metadata => {
+                        DbnMetadata_free(DbnDecoder_take_metadata(decoder));
+                    }
                     ProcessStatus::Record => {}
                     ProcessStatus::Error => panic!("decode error: unexpected"),
                 }
