@@ -28,6 +28,7 @@ pub struct DbnFsm {
     state: State,
     buffer: AlignedBuffer,
     compat_buffer: AlignedBuffer,
+    batch: RecordBatch,
 }
 
 impl std::fmt::Debug for DbnFsm {
@@ -47,6 +48,7 @@ impl std::fmt::Debug for DbnFsm {
             .field("buffer_available_data", &self.buffer.available_data())
             .field("buffer_capacity", &self.buffer.capacity())
             .field("compat_buffer_capacity", &self.compat_buffer.capacity())
+            .field("batch", &self.batch)
             .finish_non_exhaustive()
     }
 }
@@ -77,7 +79,6 @@ enum State {
         expand_compat: bool,
     },
 }
-
 /// The decoding result from a call to [`DbnFsm::process()`], [`DbnFsm::process_all()`],
 /// and [`DbnFsm::process_many()`].
 #[derive(Debug)]
@@ -95,6 +96,18 @@ pub enum ProcessResult<R> {
     Err(Error),
 }
 
+impl<R> ProcessResult<R> {
+    /// Maps a [`Record`](Self::Record) payload, passing the other variants through.
+    fn map<U>(self, f: impl FnOnce(R) -> U) -> ProcessResult<U> {
+        match self {
+            Self::Record(rec) => ProcessResult::Record(f(rec)),
+            Self::ReadMore(nbytes) => ProcessResult::ReadMore(nbytes),
+            Self::Metadata(metadata) => ProcessResult::Metadata(metadata),
+            Self::Err(err) => ProcessResult::Err(err),
+        }
+    }
+}
+
 /// Helper for configuring the state machine.
 pub struct DbnFsmBuilder {
     input_dbn_version: Option<DbnVersion>,
@@ -108,6 +121,8 @@ pub struct DbnFsmBuilder {
 impl DbnFsm {
     /// The default internal buffer size: 64 KiB.
     pub const DEFAULT_BUF_SIZE: usize = 64 * (1 << 10);
+    /// The most records `process_batch()` decodes at once.
+    const BATCH_LEN: usize = 16;
     const METADATA_PRELUDE_LEN: usize = 8;
     const HEADER_LEN: usize = size_of::<RecordHeader>();
     const U32_SIZE: usize = size_of::<u32>();
@@ -124,6 +139,7 @@ impl DbnFsm {
             state: State::default(),
             buffer: AlignedBuffer::with_capacity(buffer_size),
             compat_buffer: AlignedBuffer::with_capacity(compat_size),
+            batch: RecordBatch::default(),
         }
     }
 
@@ -191,6 +207,7 @@ impl DbnFsm {
     }
 
     /// Returns an immutable reference to the most recently decoded record, or `None`.
+    #[inline]
     pub fn last_record(&self) -> Option<RecordRef<'_>> {
         match self.state {
             State::Prelude | State::Metadata { .. } | State::Record => None,
@@ -202,8 +219,10 @@ impl DbnFsm {
                 Some(unsafe { RecordRef::new(self.compat_buffer.data()) })
             }
             // SAFETY: previously validated as record
-            State::ConsumeOne { .. } | State::ConsumeBatch { .. } => {
-                Some(unsafe { RecordRef::new(self.buffer.data()) })
+            State::ConsumeOne { .. } => Some(unsafe { RecordRef::new(self.buffer.data()) }),
+            // SAFETY: previously validated as record
+            State::ConsumeBatch { .. } => {
+                Some(unsafe { RecordRef::new(&self.buffer.data()[self.batch.current..]) })
             }
         }
     }
@@ -218,8 +237,13 @@ impl DbnFsm {
                 Some(unsafe { crate::RecordRefMut::new(self.compat_buffer.data_mut()) })
             }
             // SAFETY: previously validated as record
-            State::ConsumeOne { .. } | State::ConsumeBatch { .. } => {
+            State::ConsumeOne { .. } => {
                 Some(unsafe { crate::RecordRefMut::new(self.buffer.data_mut()) })
+            }
+            State::ConsumeBatch { .. } => {
+                let offset = self.batch.current;
+                // SAFETY: previously validated as record
+                Some(unsafe { crate::RecordRefMut::new(&mut self.buffer.data_mut()[offset..]) })
             }
         }
     }
@@ -241,6 +265,7 @@ impl DbnFsm {
     /// buffer is that large).
     #[inline]
     pub fn space(&mut self) -> &mut [u8] {
+        self.drop_batch();
         self.buffer.shift_for_space(MAX_RECORD_LEN);
         self.buffer.space()
     }
@@ -253,6 +278,7 @@ impl DbnFsm {
 
     /// Copies the given `bytes` to the internal buffer.
     pub fn write_all(&mut self, bytes: &[u8]) {
+        self.drop_batch();
         if self.buffer.available_space() < bytes.len() {
             self.consume();
             self.buffer.shift_for_space(bytes.len());
@@ -285,6 +311,7 @@ impl DbnFsm {
     ///
     /// If decoding streams with no metadata, it's not necessary to reset the state.
     pub fn reset(&mut self) {
+        self.batch.clear();
         self.state = State::Prelude;
         self.buffer.reset();
         self.compat_buffer.reset();
@@ -295,6 +322,7 @@ impl DbnFsm {
     /// Resets buffered record state after seeking while preserving decoder
     /// configuration.
     pub(crate) fn reset_for_seek(&mut self) {
+        self.batch.clear();
         self.state = State::Record;
         self.buffer.reset();
         self.compat_buffer.reset();
@@ -324,12 +352,10 @@ impl DbnFsm {
             if available_data < Self::HEADER_LEN {
                 return ProcessResult::ReadMore(Self::record_shortfall(&self.buffer));
             }
-            let length = self.buffer.data()[0] as usize * RecordHeader::LENGTH_MULTIPLIER;
-            if length < Self::HEADER_LEN {
-                return ProcessResult::Err(Error::decode(format!(
-                    "invalid record with impossible length {length} which is shorter than the header"
-                )));
-            }
+            let length = match Self::record_length(self.buffer.data()) {
+                Ok(length) => length,
+                Err(err) => return ProcessResult::Err(err),
+            };
             if length > available_data {
                 return ProcessResult::ReadMore(Self::record_shortfall(&self.buffer));
             }
@@ -393,6 +419,20 @@ impl DbnFsm {
                 State::ConsumeOne { .. } | State::ConsumeBatch { .. } => self.consume(),
             }
         }
+    }
+
+    /// Reads the length of the record at the start of `data`.
+    ///
+    /// # Errors
+    /// This function returns an error if the length can't describe a record.
+    fn record_length(data: &[u8]) -> Result<usize> {
+        let length = data[0] as usize * RecordHeader::LENGTH_MULTIPLIER;
+        if length < Self::HEADER_LEN {
+            return Err(Error::decode(format!(
+                "invalid record with impossible length {length} which is shorter than the header"
+            )));
+        }
+        Ok(length)
     }
 
     /// Bytes still needed to buffer the next complete record.
@@ -468,6 +508,52 @@ impl DbnFsm {
         self.process_multiple(rec_ptrs)
     }
 
+    /// Decodes a batch of records, returning how many became
+    /// available through [`next_buffered_record()`](Self::next_buffered_record).
+    ///
+    /// This amortizes the per-record state transitions over the batch. Unlike
+    /// [`process_many()`](Self::process_many) the records are held by the state machine
+    /// so a caller can own the loop without naming their lifetimes.
+    ///
+    /// # Errors
+    /// This function returns an error if it encounters invalid metadata or an invalid
+    /// record. Records decoded before an invalid record are returned first, and the
+    /// error is returned by the following call.
+    pub fn process_batch(&mut self) -> ProcessResult<usize> {
+        if self.needs_upgrade {
+            // An upgraded record lives in `compat_buffer`, which a `buffer` offset
+            // can't name, so fall back to decoding it one at a time
+            return self.process().map(|()| {
+                self.batch = RecordBatch::new(1);
+                1
+            });
+        }
+        self.process_multiple(BatchRecRefBuf).map(|count| {
+            self.batch = RecordBatch::new(count);
+            count
+        })
+    }
+
+    /// Returns `true` if [`next_buffered_record()`](Self::next_buffered_record) will
+    /// return a record.
+    ///
+    /// Checking this instead of matching on the record itself keeps the borrow of
+    /// `self` out of the condition, so a caller can refill the buffer the same loop.
+    #[inline]
+    pub fn has_buffered_record(&self) -> bool {
+        self.batch.has_next()
+    }
+
+    /// Returns the next record decoded by
+    /// [`process_batch()`](Self::process_batch), or `None` once the batch is drained.
+    #[inline]
+    pub fn next_buffered_record(&mut self) -> Option<RecordRef<'_>> {
+        if !self.batch.advance(self.buffer.data()) {
+            return None;
+        }
+        self.last_record()
+    }
+
     fn process_multiple<'a, B>(&'a mut self, mut rec_ref_buf: B) -> ProcessResult<B::Return>
     where
         B: RecRefBuf<'a>,
@@ -494,15 +580,12 @@ impl DbnFsm {
         {
             let remaining_data = &self.buffer.data()[read_bytes..];
 
-            let length = remaining_data[0] as usize * RecordHeader::LENGTH_MULTIPLIER;
-            if length < Self::HEADER_LEN {
-                if record_count > 0 {
-                    break;
-                }
-                return ProcessResult::Err(Error::decode(format!(
-                    "invalid record with impossible length {length} which is shorter than the header"
-                )));
-            }
+            let length = match Self::record_length(remaining_data) {
+                Ok(length) => length,
+                // Deliver what's already decoded; the next call repeats the error
+                Err(_) if record_count > 0 => break,
+                Err(err) => return ProcessResult::Err(err),
+            };
             if length > remaining_data.len() {
                 break;
             }
@@ -549,6 +632,15 @@ impl DbnFsm {
         ProcessResult::Record(rec_ref_buf.finalize(record_count))
     }
 
+    fn drop_batch(&mut self) {
+        if let Some(undrained) = self.batch.undrained_offset() {
+            if let State::ConsumeBatch { read, .. } = &mut self.state {
+                *read = undrained;
+            }
+        }
+        self.batch.clear();
+    }
+
     /// Advances the buffers past the data decoded by the previous call. No-op otherwise.
     fn consume(&mut self) {
         let (read, compat, expand_compat) = match self.state {
@@ -561,10 +653,17 @@ impl DbnFsm {
                 // A batch defers its compat fill to here, since the records it returns
                 // borrow `compat_buffer` for the whole call
                 self.compat_buffer.fill(compat);
-                (read, compat, expand_compat)
+                // Records the caller never took stay buffered for the next batch
+                debug_assert!(compat == 0 || !self.batch.has_next());
+                (
+                    self.batch.undrained_offset().unwrap_or(read),
+                    compat,
+                    expand_compat,
+                )
             }
             _ => return,
         };
+        self.batch.clear();
         self.buffer.consume(read);
         if compat > 0 {
             // After the fill and `consume(compat)`, position == end
@@ -1073,6 +1172,7 @@ impl DbnFsmBuilder {
                     0
                 }
             })),
+            batch: RecordBatch::default(),
         })
     }
 
@@ -1125,12 +1225,75 @@ impl DbnFsmBuilder {
     }
 }
 
+/// The caller's progress through the records decoded by [`DbnFsm::process_batch()`].
+#[derive(Debug, Default)]
+struct RecordBatch {
+    /// Offset of the record last returned by [`Self::advance()`].
+    current: usize,
+    /// Offset one past that record.
+    drained: usize,
+    /// Records decoded but not yet returned.
+    remaining: usize,
+}
+
+impl RecordBatch {
+    fn new(remaining: usize) -> Self {
+        Self {
+            current: 0,
+            drained: 0,
+            remaining,
+        }
+    }
+
+    fn clear(&mut self) {
+        *self = Self::default();
+    }
+
+    fn has_next(&self) -> bool {
+        self.remaining > 0
+    }
+
+    /// Advances to the next record in `data`. Returns `false` once the batch is
+    /// drained.
+    fn advance(&mut self, data: &[u8]) -> bool {
+        if !self.has_next() {
+            return false;
+        }
+        self.current = self.drained;
+        // Validated when the batch decoded this record
+        self.drained += data[self.current] as usize * RecordHeader::LENGTH_MULTIPLIER;
+        self.remaining -= 1;
+        true
+    }
+
+    /// The offset of the first record the caller hasn't taken yet.
+    fn undrained_offset(&self) -> Option<usize> {
+        self.has_next().then_some(self.drained)
+    }
+}
+
 trait RecRefBuf<'a> {
     type Return;
 
     fn has_capacity(&self, record_count: usize) -> bool;
     fn push(&mut self, record_count: usize, rec_ref: RecordRef<'a>);
     fn finalize(self, record_count: usize) -> Self::Return;
+}
+
+struct BatchRecRefBuf;
+
+impl<'a> RecRefBuf<'a> for BatchRecRefBuf {
+    type Return = usize;
+
+    fn has_capacity(&self, record_count: usize) -> bool {
+        record_count < DbnFsm::BATCH_LEN
+    }
+
+    fn push(&mut self, _: usize, _: RecordRef<'a>) {}
+
+    fn finalize(self, record_count: usize) -> Self::Return {
+        record_count
+    }
 }
 
 struct VecRecRefBuf<'v, 'a> {
@@ -1232,6 +1395,7 @@ impl Default for DbnFsm {
             state: State::default(),
             buffer: AlignedBuffer::with_capacity(Self::DEFAULT_BUF_SIZE),
             compat_buffer: AlignedBuffer::with_capacity(0),
+            batch: RecordBatch::default(),
         }
     }
 }
@@ -1695,6 +1859,133 @@ mod tests {
             .upgrade_policy(VersionUpgradePolicy::AsIs)
             .build()
             .unwrap()
+    }
+
+    #[test]
+    fn test_process_batch_matches_process() {
+        const REC_COUNT: u32 = 40;
+        let mut data = Vec::new();
+        let mut trade = TradeMsg::default();
+        let mut encoder = DbnRecordEncoder::new(&mut data);
+        for instrument_id in 1..=REC_COUNT {
+            trade.hd.instrument_id = instrument_id;
+            encoder.encode_record(&trade).unwrap();
+        }
+
+        let mut batched = no_metadata_fsm();
+        batched.write_all(&data);
+        let mut batched_ids = Vec::new();
+        loop {
+            if batched.has_buffered_record() {
+                let rec = batched.next_buffered_record().unwrap();
+                batched_ids.push(rec.header().instrument_id);
+                continue;
+            }
+            match batched.process_batch() {
+                ProcessResult::Record(count) => {
+                    assert!((1..=DbnFsm::BATCH_LEN).contains(&count));
+                }
+                ProcessResult::ReadMore(_) => break,
+                res => panic!("unexpected {res:?}"),
+            }
+        }
+
+        let mut single = no_metadata_fsm();
+        single.write_all(&data);
+        let mut single_ids = Vec::new();
+        loop {
+            match single.process() {
+                ProcessResult::Record(()) => {
+                    single_ids.push(single.last_record().unwrap().header().instrument_id);
+                }
+                ProcessResult::ReadMore(_) => break,
+                res => panic!("unexpected {res:?}"),
+            }
+        }
+
+        assert_eq!(batched_ids.len(), REC_COUNT as usize);
+        assert_eq!(batched_ids, single_ids);
+    }
+
+    #[test]
+    fn test_process_batch_upgrades_records() {
+        let mut data = Vec::new();
+        let mut encoder = DbnRecordEncoder::new(&mut data);
+        for _ in 0..3 {
+            encoder
+                .encode_record(&v1::InstrumentDefMsg::default())
+                .unwrap();
+        }
+        let mut target = DbnFsm::builder()
+            .skip_metadata(true)
+            .input_dbn_version(Some(1))
+            .unwrap()
+            .upgrade_policy(VersionUpgradePolicy::UpgradeToV3)
+            .build()
+            .unwrap();
+        target.write_all(&data);
+
+        let mut count = 0;
+        loop {
+            if target.has_buffered_record() {
+                let rec = target.next_buffered_record().unwrap();
+                assert!(rec.get::<v3::InstrumentDefMsg>().is_some());
+                count += 1;
+                continue;
+            }
+            match target.process_batch() {
+                // Upgraded records go through the compat buffer one at a time
+                ProcessResult::Record(count) => assert_eq!(count, 1),
+                ProcessResult::ReadMore(_) => break,
+                res => panic!("unexpected {res:?}"),
+            }
+        }
+        assert_eq!(count, 3);
+    }
+
+    #[test]
+    fn test_processing_one_record_keeps_undrained_batch_records() {
+        let data = two_trades();
+        let mut target = no_metadata_fsm();
+        target.write_all(&data);
+        assert!(matches!(target.process_batch(), ProcessResult::Record(2)));
+        assert_eq!(instrument_id(target.next_buffered_record().unwrap()), 1);
+
+        // `process` consumes only through the record the caller took
+        assert!(matches!(target.process(), ProcessResult::Record(())));
+        assert_eq!(instrument_id(target.last_record().unwrap()), 2);
+    }
+
+    #[test]
+    fn test_buffering_more_data_keeps_undrained_batch_records() {
+        let data = two_trades();
+        let mut target = no_metadata_fsm();
+        target.write_all(&data);
+        assert!(matches!(target.process_batch(), ProcessResult::Record(2)));
+        assert_eq!(instrument_id(target.next_buffered_record().unwrap()), 1);
+        assert!(target.has_buffered_record());
+
+        // The batch holds offsets into the read buffer, which this may shift, but the
+        // record the caller hasn't taken is decoded again
+        target.write_all(&data);
+        assert!(!target.has_buffered_record());
+        assert!(matches!(target.process_batch(), ProcessResult::Record(3)));
+        assert_eq!(instrument_id(target.next_buffered_record().unwrap()), 2);
+    }
+
+    fn instrument_id(rec: RecordRef) -> u32 {
+        rec.header().instrument_id
+    }
+
+    fn two_trades() -> Vec<u8> {
+        let mut data = Vec::new();
+        let mut trade = TradeMsg::default();
+        let mut encoder = DbnRecordEncoder::new(&mut data);
+        for instrument_id in 1..=2 {
+            trade.hd.instrument_id = instrument_id;
+            encoder.encode_record(&trade).unwrap();
+        }
+        data
     }
 
     fn three_trades_then_invalid_record() -> Vec<u8> {

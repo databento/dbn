@@ -8,6 +8,11 @@
   record
 - Added `DbnDecoder_take_metadata` to the C API for taking ownership of the metadata
   after a `Metadata` result
+- Sped up `decode_ref()` and `decode_record_ref()` on the sync and async record
+  decoders, which now decode records in batches
+- Added `DbnFsm::process_batch()` for decoding a batch of records in a single call,
+  along with `has_buffered_record()` and `next_buffered_record()` for draining the
+  batch
 
 ### Breaking changes
 - Replaced `Record::header()` with a method per header field: `raw_rtype()`,

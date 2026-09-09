@@ -412,8 +412,8 @@ where
     /// This method is cancel safe. It can be used within a `tokio::select!` statement
     /// without the potential for corrupting the input stream.
     pub async fn decode_ref(&mut self) -> Result<Option<RecordRef<'_>>> {
-        loop {
-            match self.fsm.process() {
+        while !self.fsm.has_buffered_record() {
+            match self.fsm.process_batch() {
                 ProcessResult::ReadMore(_) => match self.reader.read(self.fsm.space()).await {
                     Ok(0) => return Ok(None),
                     Ok(nbytes) => {
@@ -426,11 +426,12 @@ where
                         return Err(crate::Error::io(err, "decoding record reference"));
                     }
                 },
-                ProcessResult::Record(_) => return Ok(self.fsm.last_record()),
+                ProcessResult::Record(_) => (),
                 ProcessResult::Err(error) => return Err(error),
                 ProcessResult::Metadata(_) => unreachable!("skipped metadata"),
             }
         }
+        Ok(self.fsm.next_buffered_record())
     }
 
     /// Returns a mutable reference to the inner reader.
@@ -847,6 +848,39 @@ mod tests {
             .unwrap();
         assert!(decoder.decode_record::<MboMsg>().await.unwrap().is_some());
         assert!(decoder.decode_record::<MboMsg>().await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn test_last_record_matches_decode_ref() {
+        use crate::decode::private::LastRecord;
+
+        // More than one batch worth of records
+        const REC_COUNT: u32 = 40;
+        let mut buffer = Vec::new();
+        for instrument_id in 1..=REC_COUNT {
+            let trade = TradeMsg {
+                hd: RecordHeader::new::<TradeMsg>(rtype::MBP_0, 1, instrument_id, 0),
+                ..Default::default()
+            };
+            buffer.extend_from_slice(trade.as_ref());
+        }
+
+        let mut decoder = RecordDecoder::new(std::io::Cursor::new(buffer));
+        for instrument_id in 1..=REC_COUNT {
+            let decoded = *decoder
+                .decode_ref()
+                .await
+                .unwrap()
+                .unwrap()
+                .get::<TradeMsg>()
+                .unwrap();
+            assert_eq!(decoded.hd.instrument_id, instrument_id);
+            assert_eq!(
+                decoded,
+                *decoder.last_record().unwrap().get::<TradeMsg>().unwrap()
+            );
+        }
+        assert!(decoder.decode_ref().await.unwrap().is_none());
     }
 
     #[tokio::test]
