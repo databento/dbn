@@ -13,6 +13,7 @@
 - Added `DbnFsm::process_batch()` for decoding a batch of records in a single call,
   along with `has_buffered_record()` and `next_buffered_record()` for draining the
   batch
+- Added new venue, dataset, and publishers for Databento Core Indices
 
 ### Breaking changes
 - Replaced `Record::header()` with a method per header field: `raw_rtype()`,
