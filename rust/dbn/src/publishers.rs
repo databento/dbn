@@ -148,7 +148,7 @@ pub enum Venue {
     /// CGIF CBOE Global Indices
     Cgi = 67,
     /// CGIF Definitions
-    Def = 68,
+    Cdef = 68,
     /// Tokyo Stock Exchange
     Xtks = 69,
     /// Tokyo Commodity Exchange
@@ -233,7 +233,7 @@ impl Venue {
             Self::Mstar => "MSTAR",
             Self::Cccy => "CCCY",
             Self::Cgi => "CGI",
-            Self::Def => "DEF",
+            Self::Cdef => "CDEF",
             Self::Xtks => "XTKS",
             Self::Xtkt => "XTKT",
             Self::Xose => "XOSE",
@@ -326,7 +326,7 @@ impl std::str::FromStr for Venue {
             "MSTAR" => Ok(Self::Mstar),
             "CCCY" => Ok(Self::Cccy),
             "CGI" => Ok(Self::Cgi),
-            "DEF" => Ok(Self::Def),
+            "CDEF" => Ok(Self::Cdef),
             "XTKS" => Ok(Self::Xtks),
             "XTKT" => Ok(Self::Xtkt),
             "XOSE" => Ok(Self::Xose),
@@ -641,7 +641,7 @@ impl Dataset {
             Self::XeeeEobi => &[Publisher::XeeeEobiXeee, Publisher::XeeeEobiXoff],
             Self::XcbfPitch => &[Publisher::XcbfPitchXcbf, Publisher::XcbfPitchXoff],
             Self::OceaMemoir => &[Publisher::OceaMemoirOcea],
-            Self::MainCgif => &[Publisher::MainCgifMain, Publisher::MainCgifDef],
+            Self::MainCgif => &[Publisher::MainCgifMain, Publisher::MainCgifCdef],
             Self::EqusSip => &[
                 Publisher::EqusSipXase,
                 Publisher::EqusSipXbos,
@@ -686,6 +686,7 @@ impl Dataset {
                 Publisher::DbixCoreMstar,
                 Publisher::DbixCoreCccy,
                 Publisher::DbixCoreCgi,
+                Publisher::DbixCoreCdef,
             ],
         }
     }
@@ -1058,7 +1059,7 @@ pub enum Publisher {
     /// CGIF - CBOE Global Indices
     CgiCgifCgi = 141,
     /// CGIF - Definitions
-    MainCgifDef = 142,
+    MainCgifCdef = 142,
     /// JPX - Tokyo Stock Exchange
     XtksFlexXtks = 143,
     /// JPX - Tokyo Commodity Exchange
@@ -1079,10 +1080,12 @@ pub enum Publisher {
     DbixCoreCccy = 151,
     /// CGIF - CBOE Global Indices
     DbixCoreCgi = 152,
+    /// CGIF - Definitions
+    DbixCoreCdef = 153,
 }
 
 /// The number of [`Publisher`] variants.
-pub const PUBLISHER_COUNT: usize = 152;
+pub const PUBLISHER_COUNT: usize = 153;
 
 impl Publisher {
     /// Converts the publisher to its `str` representation.
@@ -1229,7 +1232,7 @@ impl Publisher {
             Self::MstarCgifMstar => "MSTAR.CGIF.MSTAR",
             Self::CccyCgifCccy => "CCCY.CGIF.CCCY",
             Self::CgiCgifCgi => "CGI.CGIF.CGI",
-            Self::MainCgifDef => "MAIN.CGIF.DEF",
+            Self::MainCgifCdef => "MAIN.CGIF.CDEF",
             Self::XtksFlexXtks => "XTKS.FLEX.XTKS",
             Self::XtktItchXtkt => "XTKT.ITCH.XTKT",
             Self::XoseItchXose => "XOSE.ITCH.XOSE",
@@ -1240,6 +1243,7 @@ impl Publisher {
             Self::DbixCoreMstar => "DBIX.CORE.MSTAR",
             Self::DbixCoreCccy => "DBIX.CORE.CCCY",
             Self::DbixCoreCgi => "DBIX.CORE.CGI",
+            Self::DbixCoreCdef => "DBIX.CORE.CDEF",
         }
     }
 
@@ -1387,7 +1391,7 @@ impl Publisher {
             Self::MstarCgifMstar => Venue::Mstar,
             Self::CccyCgifCccy => Venue::Cccy,
             Self::CgiCgifCgi => Venue::Cgi,
-            Self::MainCgifDef => Venue::Def,
+            Self::MainCgifCdef => Venue::Cdef,
             Self::XtksFlexXtks => Venue::Xtks,
             Self::XtktItchXtkt => Venue::Xtkt,
             Self::XoseItchXose => Venue::Xose,
@@ -1398,6 +1402,7 @@ impl Publisher {
             Self::DbixCoreMstar => Venue::Mstar,
             Self::DbixCoreCccy => Venue::Cccy,
             Self::DbixCoreCgi => Venue::Cgi,
+            Self::DbixCoreCdef => Venue::Cdef,
         }
     }
 
@@ -1545,7 +1550,7 @@ impl Publisher {
             Self::MstarCgifMstar => Dataset::MstarCgif,
             Self::CccyCgifCccy => Dataset::CccyCgif,
             Self::CgiCgifCgi => Dataset::CgiCgif,
-            Self::MainCgifDef => Dataset::MainCgif,
+            Self::MainCgifCdef => Dataset::MainCgif,
             Self::XtksFlexXtks => Dataset::XtksFlex,
             Self::XtktItchXtkt => Dataset::XtktItch,
             Self::XoseItchXose => Dataset::XoseItch,
@@ -1556,6 +1561,7 @@ impl Publisher {
             Self::DbixCoreMstar => Dataset::DbixCore,
             Self::DbixCoreCccy => Dataset::DbixCore,
             Self::DbixCoreCgi => Dataset::DbixCore,
+            Self::DbixCoreCdef => Dataset::DbixCore,
         }
     }
 
@@ -1706,7 +1712,7 @@ impl Publisher {
             (Dataset::MstarCgif, Venue::Mstar) => Ok(Self::MstarCgifMstar),
             (Dataset::CccyCgif, Venue::Cccy) => Ok(Self::CccyCgifCccy),
             (Dataset::CgiCgif, Venue::Cgi) => Ok(Self::CgiCgifCgi),
-            (Dataset::MainCgif, Venue::Def) => Ok(Self::MainCgifDef),
+            (Dataset::MainCgif, Venue::Cdef) => Ok(Self::MainCgifCdef),
             (Dataset::XtksFlex, Venue::Xtks) => Ok(Self::XtksFlexXtks),
             (Dataset::XtktItch, Venue::Xtkt) => Ok(Self::XtktItchXtkt),
             (Dataset::XoseItch, Venue::Xose) => Ok(Self::XoseItchXose),
@@ -1717,6 +1723,7 @@ impl Publisher {
             (Dataset::DbixCore, Venue::Mstar) => Ok(Self::DbixCoreMstar),
             (Dataset::DbixCore, Venue::Cccy) => Ok(Self::DbixCoreCccy),
             (Dataset::DbixCore, Venue::Cgi) => Ok(Self::DbixCoreCgi),
+            (Dataset::DbixCore, Venue::Cdef) => Ok(Self::DbixCoreCdef),
             _ => Err(Error::conversion::<Self>(format_args!(
                 "({dataset}, {venue})"
             ))),
@@ -1882,7 +1889,7 @@ impl std::str::FromStr for Publisher {
             "MSTAR.CGIF.MSTAR" => Ok(Self::MstarCgifMstar),
             "CCCY.CGIF.CCCY" => Ok(Self::CccyCgifCccy),
             "CGI.CGIF.CGI" => Ok(Self::CgiCgifCgi),
-            "MAIN.CGIF.DEF" => Ok(Self::MainCgifDef),
+            "MAIN.CGIF.CDEF" => Ok(Self::MainCgifCdef),
             "XTKS.FLEX.XTKS" => Ok(Self::XtksFlexXtks),
             "XTKT.ITCH.XTKT" => Ok(Self::XtktItchXtkt),
             "XOSE.ITCH.XOSE" => Ok(Self::XoseItchXose),
@@ -1893,6 +1900,7 @@ impl std::str::FromStr for Publisher {
             "DBIX.CORE.MSTAR" => Ok(Self::DbixCoreMstar),
             "DBIX.CORE.CCCY" => Ok(Self::DbixCoreCccy),
             "DBIX.CORE.CGI" => Ok(Self::DbixCoreCgi),
+            "DBIX.CORE.CDEF" => Ok(Self::DbixCoreCdef),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
