@@ -166,7 +166,7 @@ impl SymbolIndex for TsSymbolMap {
     fn get_for_rec<R: Record>(&self, record: &R) -> Option<&String> {
         record
             .index_date()
-            .and_then(|date| self.get(date, record.header().instrument_id))
+            .and_then(|date| self.get(date, record.instrument_id() as u32))
     }
 }
 
@@ -297,7 +297,7 @@ impl PitSymbolMap {
     ) -> crate::Result<()> {
         let stype_out_symbol = symbol_mapping.stype_out_symbol()?;
         self.0.insert(
-            symbol_mapping.header().instrument_id,
+            symbol_mapping.instrument_id() as u32,
             stype_out_symbol.to_owned(),
         );
         Ok(())
@@ -313,7 +313,7 @@ impl PitSymbolMap {
     ) -> crate::Result<()> {
         let raw_symbol = instrument_def.raw_symbol()?;
         self.0
-            .insert(instrument_def.header().instrument_id, raw_symbol.to_owned());
+            .insert(instrument_def.instrument_id() as u32, raw_symbol.to_owned());
         Ok(())
     }
 
@@ -335,7 +335,7 @@ impl PitSymbolMap {
 
 impl SymbolIndex for PitSymbolMap {
     fn get_for_rec<R: Record>(&self, record: &R) -> Option<&String> {
-        self.get(record.header().instrument_id)
+        self.get(record.instrument_id() as u32)
     }
 }
 

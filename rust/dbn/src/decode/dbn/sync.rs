@@ -329,8 +329,8 @@ where
     /// error of a kind other than `io::ErrorKind::UnexpectedEof` upon reading.
     /// It will also return an error if it encounters an invalid record.
     pub fn decode_ref(&mut self) -> crate::Result<Option<RecordRef<'_>>> {
-        loop {
-            match self.fsm.process() {
+        while !self.fsm.has_buffered_record() {
+            match self.fsm.process_batch() {
                 ProcessResult::ReadMore(_) => match self.reader.read(self.fsm.space()) {
                     Ok(0) => return Ok(None),
                     Ok(nbytes) => {
@@ -343,11 +343,12 @@ where
                         return Err(crate::Error::io(err, "decoding record reference"));
                     }
                 },
-                ProcessResult::Record(_) => return Ok(self.fsm.last_record()),
+                ProcessResult::Record(_) => (),
                 ProcessResult::Err(error) => return Err(error),
                 ProcessResult::Metadata(_) => unreachable!("skipped metadata"),
             }
         }
+        Ok(self.fsm.next_buffered_record())
     }
 }
 
@@ -773,6 +774,71 @@ mod tests {
         assert_eq!(rec1.rec, res1_without);
         assert_eq!(rec2.rec, res2_without);
         Ok(())
+    }
+
+    #[test]
+    fn test_last_record_matches_decode_ref() {
+        use crate::decode::private::LastRecord;
+
+        // More than one batch worth of records
+        const REC_COUNT: u32 = 40;
+        let mut buffer = Vec::new();
+        let mut encoder = DbnRecordEncoder::new(&mut buffer);
+        for instrument_id in 1..=REC_COUNT {
+            encoder
+                .encode_record(&TradeMsg {
+                    hd: RecordHeader::new::<TradeMsg>(rtype::MBP_0, 1, instrument_id, 0),
+                    ..Default::default()
+                })
+                .unwrap();
+        }
+
+        let mut decoder = RecordDecoder::new(buffer.as_slice());
+        for instrument_id in 1..=REC_COUNT {
+            let decoded = *decoder
+                .decode_ref()
+                .unwrap()
+                .unwrap()
+                .get::<TradeMsg>()
+                .unwrap();
+            assert_eq!(decoded.hd.instrument_id, instrument_id);
+            let last = *decoder.last_record().unwrap().get::<TradeMsg>().unwrap();
+            assert_eq!(decoded, last);
+        }
+        assert!(decoder.decode_ref().unwrap().is_none());
+    }
+
+    #[test]
+    fn test_skip_bytes_between_records() {
+        const REC_COUNT: u32 = 8;
+        // Padding that decodes as a record of its own length, so it lands in the batch
+        const PAD: [u8; size_of::<TradeMsg>()] = [(size_of::<TradeMsg>()
+            / RecordHeader::LENGTH_MULTIPLIER)
+            as u8; size_of::<TradeMsg>()];
+        let mut buffer = Vec::new();
+        let mut encoder = DbnRecordEncoder::new(&mut buffer);
+        for instrument_id in 1..=REC_COUNT {
+            encoder
+                .encode_record(&TradeMsg {
+                    hd: RecordHeader::new::<TradeMsg>(rtype::MBP_0, 1, instrument_id, 0),
+                    ..Default::default()
+                })
+                .unwrap();
+            encoder.get_mut().extend_from_slice(&PAD);
+        }
+
+        let mut decoder = RecordDecoder::new(std::io::Cursor::new(buffer));
+        for instrument_id in 1..=REC_COUNT {
+            let decoded = *decoder
+                .decode_ref()
+                .unwrap()
+                .unwrap()
+                .get::<TradeMsg>()
+                .unwrap();
+            assert_eq!(decoded.hd.instrument_id, instrument_id);
+            decoder.skip_bytes(PAD.len()).unwrap();
+        }
+        assert!(decoder.decode_ref().unwrap().is_none());
     }
 
     #[test]

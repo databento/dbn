@@ -462,7 +462,7 @@ where
             .ok_or_else(|| {
                 crate::Error::encode(format!(
                     "no symbol mapping for instrument_id {} at {index_ts:?}",
-                    record.header().instrument_id
+                    record.instrument_id()
                 ))
             })?
             .clone();
@@ -525,17 +525,17 @@ where
     {
         use std::collections::hash_map::Entry;
 
-        let Some(schema) = RType::try_into_schema(record.header().rtype) else {
+        let Some(schema) = RType::try_into_schema(record.raw_rtype()) else {
             return match self.no_schema_behavior {
                 NoSchemaBehavior::Skip => Ok(None),
                 NoSchemaBehavior::Error => Err(crate::Error::encode(format!(
                     "rtype {} has no corresponding schema",
-                    record.header().rtype
+                    record.raw_rtype()
                 ))),
                 NoSchemaBehavior::Broadcast => {
                     let rec_ref =
                     // SAFETY: `record` is a valid DBN record: it satisfies `R: Record`.
-                        unsafe { RecordRef::unchecked_from_header(record.header() as *const _) };
+                        unsafe { RecordRef::unchecked_from_header(record.as_ref().as_ptr().cast()) };
                     for encoder in self.encoders.values_mut() {
                         // Have to use `encode_record_ref` here because `SplitEncoder` supports
                         // both `EncodeRecord` and `EncodeRecordRef`
@@ -616,7 +616,7 @@ mod tests {
     impl EncodeRecord for TestEncoder {
         fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> crate::Result<()> {
             self.records
-                .push((record.header().ts_event, record.header().instrument_id));
+                .push((record.raw_ts_event(), record.instrument_id() as u32));
             Ok(())
         }
 

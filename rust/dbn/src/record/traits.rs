@@ -1,6 +1,7 @@
 //! Core traits for working with DBN records.
 //!
-//! - [`Record`]: read-only access to any record's header, size, timestamps, and raw bytes.
+//! - [`Record`]: read-only access to any record's header fields, size, timestamps, and
+//!   raw bytes.
 //! - [`RecordMut`]: mutable access to the record header.
 //! - [`HasRType`]: implemented by concrete record types (e.g. [`MboMsg`](crate::MboMsg)),
 //!   associates a static `rtype` used for downcasting via [`RecordRef`](crate::RecordRef).
@@ -16,14 +17,8 @@ use crate::{Publisher, RType, RecordHeader};
 ///
 /// [`RecordRef`](crate::RecordRef) acts similar to a `&dyn Record`.
 pub trait Record: AsRef<[u8]> {
-    /// Returns a reference to the `RecordHeader` that comes at the beginning of all
-    /// record types.
-    fn header(&self) -> &RecordHeader;
-
     /// Returns the size of the record in bytes.
-    fn record_size(&self) -> usize {
-        self.header().record_size()
-    }
+    fn record_size(&self) -> usize;
 
     /// Tries to convert the raw record type into an enum which is useful for exhaustive
     /// pattern matching.
@@ -31,9 +26,13 @@ pub trait Record: AsRef<[u8]> {
     /// # Errors
     /// This function returns an error if the `rtype` field does not
     /// contain a valid, known [`RType`].
-    fn rtype(&self) -> crate::Result<RType> {
-        self.header().rtype()
-    }
+    fn rtype(&self) -> crate::Result<RType>;
+
+    /// Returns the raw record type.
+    fn raw_rtype(&self) -> u16;
+
+    /// Returns the record's publisher ID.
+    fn publisher_id(&self) -> u16;
 
     /// Tries to convert the raw `publisher_id` into an enum which is useful for
     /// exhaustive pattern matching.
@@ -41,16 +40,22 @@ pub trait Record: AsRef<[u8]> {
     /// # Errors
     /// This function returns an error if the `publisher_id` does not correspond with
     /// any known [`Publisher`].
-    fn publisher(&self) -> crate::Result<Publisher> {
-        self.header().publisher()
-    }
+    fn publisher(&self) -> crate::Result<Publisher>;
+
+    /// Returns the record's instrument ID.
+    fn instrument_id(&self) -> u64;
+
+    /// Returns the raw event timestamp from the record header.
+    ///
+    /// Use [`RecordHeader::ts_event()`] for the converted timestamp.
+    fn raw_ts_event(&self) -> u64;
 
     /// Returns the raw primary timestamp for the record.
     ///
     /// This timestamp should be used for sorting records as well as indexing into any
     /// symbology data structure.
     fn raw_index_ts(&self) -> u64 {
-        self.header().ts_event
+        self.raw_ts_event()
     }
 
     /// Returns the primary timestamp for the record. Returns `None` if the primary

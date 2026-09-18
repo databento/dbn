@@ -687,7 +687,7 @@ mod tests {
         },
         enums::rtype,
         record::{MboMsg, RecordHeader, TradeMsg},
-        Dataset, FlagSet, MappingInterval, MetadataBuilder, Record, SType, Schema,
+        Dataset, FlagSet, MappingInterval, MetadataBuilder, SType, Schema,
     };
 
     #[tokio::test]
@@ -911,16 +911,16 @@ mod tests {
         let mut decoder = crate::decode::dbn::RecordDecoder::new(&buffer[..]);
 
         let decoded = decoder.decode_record_ref().unwrap().unwrap();
-        assert_eq!(decoded.header(), mbo1.header());
+        assert_eq!(decoded.header(), &mbo1.hd);
 
         let decoded = decoder.decode_record_ref().unwrap().unwrap();
-        assert_eq!(decoded.header(), trade1.header());
+        assert_eq!(decoded.header(), &trade1.hd);
 
         let decoded = decoder.decode_record_ref().unwrap().unwrap();
-        assert_eq!(decoded.header(), mbo2.header());
+        assert_eq!(decoded.header(), &mbo2.hd);
 
         let decoded = decoder.decode_record_ref().unwrap().unwrap();
-        assert_eq!(decoded.header(), trade2.header());
+        assert_eq!(decoded.header(), &trade2.hd);
 
         assert!(decoder.decode_record_ref().unwrap().is_none());
     }

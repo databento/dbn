@@ -34,9 +34,34 @@ pub fn attribute_macro_impl(
         #input_struct
 
         impl #crate_name::record::Record for #record_type {
-            fn header(&self) -> &#crate_name::record::RecordHeader {
-                &self.hd
+            fn record_size(&self) -> usize {
+                self.hd.record_size()
             }
+
+            fn rtype(&self) -> #crate_name::Result<#crate_name::RType> {
+                self.hd.rtype()
+            }
+
+            fn raw_rtype(&self) -> u16 {
+                self.hd.rtype as u16
+            }
+
+            fn publisher_id(&self) -> u16 {
+                self.hd.publisher_id
+            }
+
+            fn publisher(&self) -> #crate_name::Result<#crate_name::Publisher> {
+                self.hd.publisher()
+            }
+
+            fn instrument_id(&self) -> u64 {
+                self.hd.instrument_id as u64
+            }
+
+            fn raw_ts_event(&self) -> u64 {
+                self.hd.ts_event
+            }
+
             #raw_index_ts
         }
 

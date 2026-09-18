@@ -88,7 +88,7 @@ impl<const CAP: usize> RecordBuf<CAP> {
     /// use dbn::{MboMsg, RecordBuf, RecordRefMut};
     ///
     /// let mut buf: RecordBuf = RecordBuf::from(MboMsg::default());
-    /// let rec_mut: RecordRefMut = buf.as_rec_ref_mut();
+    /// let mut rec_mut: RecordRefMut = buf.as_rec_ref_mut();
     /// rec_mut.get_mut::<MboMsg>().unwrap().order_id = 99;
     /// assert_eq!(buf.get::<MboMsg>().unwrap().order_id, 99);
     /// ```
@@ -166,6 +166,13 @@ impl<const CAP: usize> RecordBuf<CAP> {
             self.0.buf[..size].copy_from_slice(other.as_ref());
             self.0.buf[size..].fill(0);
         }
+    }
+
+    /// Returns a reference to the common record header at the start of every record.
+    pub fn header(&self) -> &RecordHeader {
+        // SAFETY: `RecordBuf` always holds a valid record. The `hd` field of the union
+        // is always valid because every record starts with a `RecordHeader`.
+        unsafe { &self.0.hd }
     }
 
     /// Returns `true` if the buffer holds a record of type `T`.
@@ -335,10 +342,32 @@ impl<const CAP: usize> RecordBuf<CAP> {
 }
 
 impl<const CAP: usize> Record for RecordBuf<CAP> {
-    fn header(&self) -> &RecordHeader {
-        // SAFETY: `RecordBuf` always holds a valid record. The `hd` field of the union
-        // is always valid because every record starts with a `RecordHeader`.
-        unsafe { &self.0.hd }
+    fn record_size(&self) -> usize {
+        self.header().record_size()
+    }
+
+    fn rtype(&self) -> crate::Result<RType> {
+        self.header().rtype()
+    }
+
+    fn raw_rtype(&self) -> u16 {
+        self.header().rtype as u16
+    }
+
+    fn publisher_id(&self) -> u16 {
+        self.header().publisher_id
+    }
+
+    fn publisher(&self) -> crate::Result<crate::Publisher> {
+        self.header().publisher()
+    }
+
+    fn instrument_id(&self) -> u64 {
+        self.header().instrument_id as u64
+    }
+
+    fn raw_ts_event(&self) -> u64 {
+        self.header().ts_event
     }
 
     fn raw_index_ts(&self) -> u64 {

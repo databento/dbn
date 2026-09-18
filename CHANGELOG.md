@@ -1,5 +1,48 @@
 # Changelog
 
+## 0.70.0 - 2026-09-18
+
+### Enhancements
+- Added `DbnDecoder_process_many` to the C API for decoding a batch of records in a
+  single call, which is significantly faster than calling `DbnDecoder_process` for each
+  record
+- Added `DbnDecoder_take_metadata` to the C API for taking ownership of the metadata
+  after a `Metadata` result
+- Sped up `decode_ref()` and `decode_record_ref()` on the sync and async record
+  decoders, which now decode records in batches
+- Added `DbnFsm::process_batch()` for decoding a batch of records in a single call,
+  along with `has_buffered_record()` and `next_buffered_record()` for draining the
+  batch
+- Added new venue, dataset, and publishers for Databento Core Indices
+- Upgraded async-compression to 0.4.44
+
+### Breaking changes
+- Replaced `Record::header()` with a method per header field: `raw_rtype()`,
+  `publisher_id()`, `instrument_id()`, and `raw_ts_event()`, joining the existing
+  `record_size()`, `rtype()`, and `publisher()`. `RecordRef`, `RecordRefMut`,
+  `RecordBuf`, `RecordEnum`, and `RecordRefEnum` keep a `header()` method of their own,
+  and concrete record types keep their `hd` field
+- `Record::raw_rtype()` returns `u16` and `Record::instrument_id()` returns `u64`, wider
+  than the corresponding `RecordHeader` fields, which are unchanged
+- `RType::try_into_schema()` takes a `u16` and returns `None` for values outside the
+  range of the `RecordHeader` `rtype` field
+- Removed the `read_more` and `metadata` out parameters from `DbnDecoder_process`. Call
+  `DbnDecoder_take_metadata` after a `Metadata` result
+
+### Bug fixes
+- Fixed `DbnFsm::process_all()` and `DbnFsm::process_many()` returning `Record` with no
+  records instead of `ReadMore` when the buffer held no complete record
+- Fixed unsound `RecordRefMut` accessors, which returned references outliving the borrow
+  of `self` and let safe code hold two mutable references to the same record, or a
+  shared reference aliasing a mutable one. `get_mut()` and `get_mut_unchecked()` now
+  take `&mut self`, and `header()` returns a reference borrowing `self`
+- Fixed undefined behavior when mutating a record through a `RecordRefMut`, where the
+  write went through a pointer that permitted only reads, or that did not span the
+  whole record
+- Fixed `DbnFsm::process_all()` and `DbnFsm::process_many()` discarding the records
+  decoded before an invalid record. They now return those records and the error on the
+  following call, matching `DbnFsm::process()`
+
 ## 0.69.0 - 2026-09-01
 
 ### Enhancements
