@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.70.0 - Upcoming
+## 0.70.0 - 2026-09-18
 
 ### Enhancements
 - Added `DbnDecoder_process_many` to the C API for decoding a batch of records in a
@@ -14,6 +14,7 @@
   along with `has_buffered_record()` and `next_buffered_record()` for draining the
   batch
 - Added new venue, dataset, and publishers for Databento Core Indices
+- Upgraded async-compression to 0.4.44
 
 ### Breaking changes
 - Replaced `Record::header()` with a method per header field: `raw_rtype()`,
