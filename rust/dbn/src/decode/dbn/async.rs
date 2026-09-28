@@ -867,13 +867,14 @@ mod tests {
 
         let mut decoder = RecordDecoder::new(std::io::Cursor::new(buffer));
         for instrument_id in 1..=REC_COUNT {
-            let decoded = *decoder
+            let decoded = decoder
                 .decode_ref()
                 .await
                 .unwrap()
                 .unwrap()
                 .get::<TradeMsg>()
-                .unwrap();
+                .unwrap()
+                .clone();
             assert_eq!(decoded.hd.instrument_id, instrument_id);
             assert_eq!(
                 decoded,

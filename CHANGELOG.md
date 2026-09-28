@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.70.1 - Upcoming
+
+### Bug fixes
+- Fixed build with some feature combinations, including `cargo test` with default
+  features
+
 ## 0.70.0 - 2026-09-18
 
 ### Enhancements

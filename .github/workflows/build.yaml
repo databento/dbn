@@ -156,6 +156,33 @@ jobs:
       - name: Test
         run: scripts/test.sh
 
+  features:
+    name: features - powerset (x86_64 linux)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Rust
+        run: rustup toolchain add --profile minimal stable
+
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
+
+      # Cargo setup
+      - name: Set up Cargo cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-features-cargo-${{ hashFiles('Cargo.lock') }}
+
+      - name: Check feature powerset
+        run: cargo hack check --feature-powerset --all-targets -p dbn
+
   miri:
     name: miri - soundness (x86_64 linux)
     runs-on: ubuntu-latest
