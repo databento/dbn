@@ -739,6 +739,7 @@ where
 /// # Panics
 /// This function will panic if it encounters DBN metadata. The caller must ensure
 /// the metadata has already been decoded.
+#[deprecated(since = "0.71.0", note = "Use DbnFsm directly.")]
 pub async fn decode_record_ref_with_fsm<'a, R>(
     mut reader: R,
     fsm: &'a mut DbnFsm,

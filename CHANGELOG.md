@@ -1,6 +1,10 @@
 # Changelog
 
-## 0.70.1 - Upcoming
+## 0.71.0 - Upcoming
+
+### Deprecations
+- Deprecated `dbn::decode::dbn::async_decode_record_ref_with_fsm`; `DbnFsm` can be
+  used directly
 
 ### Bug fixes
 - Fixed build with some feature combinations, including `cargo test` with default
