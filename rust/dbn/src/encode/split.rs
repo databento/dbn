@@ -573,12 +573,13 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
     use time::macros::{date, datetime};
 
     use super::*;
-    use crate::{rtype, MboMsg, Mbp1Msg, RecordHeader, TradeMsg, TsSymbolMap, UNDEF_TIMESTAMP};
+    use crate::{
+        rtype, symbol_map::date_to_ts, MboMsg, Mbp1Msg, RecordHeader, TradeMsg, TsSymbolMap,
+        UNDEF_TIMESTAMP,
+    };
 
     /// Helper to create an MboMsg with a specific timestamp and instrument_id
     fn mbo_msg(ts: u64, instrument_id: u32) -> MboMsg {
@@ -798,30 +799,11 @@ mod tests {
     #[test]
     fn test_symbol_splitter_multiple_symbols() {
         let mut symbol_map = TsSymbolMap::new();
-        symbol_map
-            .insert(
-                100,
-                date!(2023 - 07 - 01),
-                date!(2023 - 08 - 01),
-                Arc::new("AAPL".to_owned()),
-            )
-            .unwrap();
-        symbol_map
-            .insert(
-                101,
-                date!(2023 - 07 - 01),
-                date!(2023 - 08 - 01),
-                Arc::new("TSLA".to_owned()),
-            )
-            .unwrap();
-        symbol_map
-            .insert(
-                102,
-                date!(2023 - 07 - 01),
-                date!(2023 - 08 - 01),
-                Arc::new("MSFT".to_owned()),
-            )
-            .unwrap();
+        let start_ts = date_to_ts(date!(2023 - 07 - 01));
+        let end_ts = date_to_ts(date!(2023 - 08 - 01));
+        symbol_map.insert(100, start_ts, end_ts, "AAPL").unwrap();
+        symbol_map.insert(101, start_ts, end_ts, "TSLA").unwrap();
+        symbol_map.insert(102, start_ts, end_ts, "MSFT").unwrap();
 
         let build_encoder = |_symbol: &str, _metadata: Option<Metadata>| Ok(TestEncoder::default());
         let mut splitter = SymbolSplitter::new(build_encoder, symbol_map);
@@ -845,14 +827,9 @@ mod tests {
     #[test]
     fn test_symbol_splitter_same_symbol_multiple_records() {
         let mut symbol_map = TsSymbolMap::new();
-        symbol_map
-            .insert(
-                100,
-                date!(2023 - 07 - 01),
-                date!(2023 - 08 - 01),
-                Arc::new("AAPL".to_owned()),
-            )
-            .unwrap();
+        let start_ts = date_to_ts(date!(2023 - 07 - 01));
+        let end_ts = date_to_ts(date!(2023 - 08 - 01));
+        symbol_map.insert(100, start_ts, end_ts, "AAPL").unwrap();
 
         let build_encoder = |_symbol: &str, _metadata: Option<Metadata>| Ok(TestEncoder::default());
         let mut splitter = SymbolSplitter::new(build_encoder, symbol_map);
@@ -875,14 +852,9 @@ mod tests {
     #[test]
     fn test_symbol_splitter_unknown_instrument() {
         let mut symbol_map = TsSymbolMap::new();
-        symbol_map
-            .insert(
-                100,
-                date!(2023 - 07 - 01),
-                date!(2023 - 08 - 01),
-                Arc::new("AAPL".to_owned()),
-            )
-            .unwrap();
+        let start_ts = date_to_ts(date!(2023 - 07 - 01));
+        let end_ts = date_to_ts(date!(2023 - 08 - 01));
+        symbol_map.insert(100, start_ts, end_ts, "AAPL").unwrap();
 
         let build_encoder = |_symbol: &str, _metadata: Option<Metadata>| Ok(TestEncoder::default());
         let mut splitter = SymbolSplitter::new(build_encoder, symbol_map);

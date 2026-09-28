@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.72.0 - Upcoming
+
+### Enhancements
+- Reduced the memory usage of `TsSymbolMap` for requests spanning many days
+- Added `TsSymbolMap::get_for_ts()` for looking up a mapping by UNIX timestamp
+- Added `TsSymbolMap::on_record()` and `TsSymbolMap::on_symbol_mapping()` for building a
+  `TsSymbolMap` from live `SymbolMappingMsg` records
+
+### Breaking changes
+- Changed `TsSymbolMap::insert()` to take the `start` and `end` of the mapping as UNIX
+  timestamps instead of dates
+
+### Deprecations
+- Deprecated `TsSymbolMap::get()` in favor of `get_for_ts()`
+
 ## 0.71.0 - 2026-09-29
 
 ### Enhancements
