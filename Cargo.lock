@@ -84,9 +84,9 @@ dependencies = [
 
 [[package]]
 name = "async-compression"
-version = "0.4.44"
+version = "0.4.48"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "515a1f282e33d55983c499d7e9e87082e81cbc32974825bf9032f928392d5844"
+checksum = "fb61aea1a7def73ee7c350a184f0e70b32c182344e2e75bf70c9b621b83417fd"
 dependencies = [
  "compression-codecs",
  "compression-core",
@@ -230,9 +230,9 @@ checksum = "1d07550c9036bf2ae0c684c4297d503f838287c83c53686d05370d0e139ae570"
 
 [[package]]
 name = "compression-codecs"
-version = "0.4.39"
+version = "0.4.43"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2fe67f2944eef52fc7b106b8c9450d243a88701a0c065f7f57235e76abaed7df"
+checksum = "bef16c47ba2797aa6a909cc37d39911f3a6743811fe7408ac0b0cc0276b656e9"
 dependencies = [
  "compression-core",
  "zstd",
@@ -268,7 +268,7 @@ dependencies = [
 
 [[package]]
 name = "databento-dbn"
-version = "0.70.0"
+version = "0.71.0"
 dependencies = [
  "dbn",
  "pyo3",
@@ -280,7 +280,7 @@ dependencies = [
 
 [[package]]
 name = "dbn"
-version = "0.70.0"
+version = "0.71.0"
 dependencies = [
  "async-compression",
  "async-stream",
@@ -304,7 +304,7 @@ dependencies = [
 
 [[package]]
 name = "dbn-c"
-version = "0.70.0"
+version = "0.71.0"
 dependencies = [
  "anyhow",
  "cbindgen",
@@ -316,7 +316,7 @@ dependencies = [
 
 [[package]]
 name = "dbn-cli"
-version = "0.70.0"
+version = "0.71.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -332,7 +332,7 @@ dependencies = [
 
 [[package]]
 name = "dbn-macros"
-version = "0.70.0"
+version = "0.71.0"
 dependencies = [
  "csv",
  "dbn",
@@ -1264,18 +1264,18 @@ checksum = "b8848ee67ecc8aedbaf3e4122217aff892639231befc6a1b58d29fff4c2cabaa"
 
 [[package]]
 name = "zstd"
-version = "0.13.3"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e91ee311a569c327171651566e07972200e76fcfe2242a4fa446149a3881c08a"
+checksum = "bf06bd8162af0734b344780deb55b42a2429ae430870d13fcc12f238e880fe6e"
 dependencies = [
  "zstd-safe",
 ]
 
 [[package]]
 name = "zstd-safe"
-version = "7.2.4"
+version = "8.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f49c4d5f0abb602a93fb8736af2a4f4dd9512e36f7f570d66e65ff867ed3b9d"
+checksum = "ae42c0555055784c70058d19ba8e275528e8a99a706684868ace5da4e716a4ab"
 dependencies = [
  "zstd-sys",
 ]

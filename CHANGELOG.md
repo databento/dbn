@@ -1,14 +1,18 @@
 # Changelog
 
-## 0.71.0 - Upcoming
+## 0.71.0 - 2026-09-29
 
-### Deprecations
-- Deprecated `dbn::decode::dbn::async_decode_record_ref_with_fsm`; `DbnFsm` can be
-  used directly
+### Enhancements
+- Upgraded async-compression to 0.4.48
+- Upgraded zstd to 0.14
 
 ### Bug fixes
 - Fixed build with some feature combinations, including `cargo test` with default
   features
+
+### Deprecations
+- Deprecated `dbn::decode::dbn::async_decode_record_ref_with_fsm`; `DbnFsm` can be
+  used directly
 
 ## 0.70.0 - 2026-09-18
 
