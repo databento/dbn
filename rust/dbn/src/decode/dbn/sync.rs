@@ -795,15 +795,16 @@ mod tests {
 
         let mut decoder = RecordDecoder::new(buffer.as_slice());
         for instrument_id in 1..=REC_COUNT {
-            let decoded = *decoder
+            let decoded = decoder
                 .decode_ref()
                 .unwrap()
                 .unwrap()
                 .get::<TradeMsg>()
-                .unwrap();
+                .unwrap()
+                .clone();
             assert_eq!(decoded.hd.instrument_id, instrument_id);
-            let last = *decoder.last_record().unwrap().get::<TradeMsg>().unwrap();
-            assert_eq!(decoded, last);
+            let last = decoder.last_record().unwrap().get::<TradeMsg>().unwrap();
+            assert_eq!(&decoded, last);
         }
         assert!(decoder.decode_ref().unwrap().is_none());
     }
@@ -829,7 +830,7 @@ mod tests {
 
         let mut decoder = RecordDecoder::new(std::io::Cursor::new(buffer));
         for instrument_id in 1..=REC_COUNT {
-            let decoded = *decoder
+            let decoded = decoder
                 .decode_ref()
                 .unwrap()
                 .unwrap()

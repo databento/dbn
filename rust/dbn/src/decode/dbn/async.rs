@@ -739,6 +739,7 @@ where
 /// # Panics
 /// This function will panic if it encounters DBN metadata. The caller must ensure
 /// the metadata has already been decoded.
+#[deprecated(since = "0.71.0", note = "Use DbnFsm directly.")]
 pub async fn decode_record_ref_with_fsm<'a, R>(
     mut reader: R,
     fsm: &'a mut DbnFsm,
@@ -867,13 +868,14 @@ mod tests {
 
         let mut decoder = RecordDecoder::new(std::io::Cursor::new(buffer));
         for instrument_id in 1..=REC_COUNT {
-            let decoded = *decoder
+            let decoded = decoder
                 .decode_ref()
                 .await
                 .unwrap()
                 .unwrap()
                 .get::<TradeMsg>()
-                .unwrap();
+                .unwrap()
+                .clone();
             assert_eq!(decoded.hd.instrument_id, instrument_id);
             assert_eq!(
                 decoded,

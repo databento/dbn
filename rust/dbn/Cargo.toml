@@ -19,7 +19,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 default = ["zstd"]
 async = ["dep:async-compression", "dep:async-stream", "dep:futures-core", "dep:tokio", "zstd"]
-python = ["dep:pyo3", "dep:strum"]
+python = ["dep:pyo3", "dep:strum", "zstd"]
 serde = ["dep:serde", "time/parsing", "time/serde"]
 # Enables deriving the `Copy` trait for records.
 trivial_copy = []
@@ -27,9 +27,9 @@ trivial_copy = []
 zstd = ["dep:zstd"]
 
 [dependencies]
-dbn-macros = { version = "=0.70.0", path = "../dbn-macros" }
+dbn-macros = { version = "=0.71.0", path = "../dbn-macros" }
 
-async-compression = { version = "0.4.44", features = ["tokio", "zstd"], optional = true }
+async-compression = { version = "0.4.48", features = ["tokio", "zstd"], optional = true }
 async-stream = { version = "0.3", optional = true }
 futures-core = { version = "0.3", optional = true }
 csv = { workspace = true }

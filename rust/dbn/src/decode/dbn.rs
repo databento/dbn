@@ -17,8 +17,10 @@ pub mod fsm;
 #[cfg(feature = "async")]
 mod r#async;
 #[cfg(feature = "async")]
+#[expect(deprecated)]
+pub use r#async::decode_record_ref_with_fsm as async_decode_record_ref_with_fsm;
+#[cfg(feature = "async")]
 pub use r#async::{
-    decode_metadata_with_fsm as async_decode_metadata_with_fsm,
-    decode_record_ref_with_fsm as async_decode_record_ref_with_fsm, Decoder as AsyncDecoder,
+    decode_metadata_with_fsm as async_decode_metadata_with_fsm, Decoder as AsyncDecoder,
     MetadataDecoder as AsyncMetadataDecoder, RecordDecoder as AsyncRecordDecoder,
 };
