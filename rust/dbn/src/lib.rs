@@ -88,6 +88,7 @@ pub mod enums;
 pub mod error;
 pub mod flags;
 mod json_writer;
+pub mod layout;
 pub mod macros;
 pub mod metadata;
 pub mod pretty;

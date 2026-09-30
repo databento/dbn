@@ -12,6 +12,9 @@ use crate::{
     FlagSet, Publisher, RType,
 };
 
+pub mod fields;
+pub mod types;
+
 /// A non-owning immutable reference to a DBN version 4 record.
 pub type RecordRef<'a> = crate::RecordRef<'a, RecordHeader>;
 /// A non-owning mutable reference to a DBN version 4 record.
@@ -69,6 +72,31 @@ impl RecordHeader {
             instrument_id,
             ts_event,
         }
+    }
+
+    /// A header whose `length` covers `record_size` total bytes, for a record whose
+    /// size comes from its stream's layout rather than from a compiled struct.
+    ///
+    /// # Errors
+    /// Returns an error if `record_size` cannot hold the header, or overflows `length`.
+    pub fn for_record_size(rtype: u16, record_size: usize) -> crate::Result<Self> {
+        let body = record_size
+            .checked_sub(std::mem::size_of::<Self>())
+            .ok_or_else(|| {
+                crate::Error::encode(format!(
+                    "record size {record_size} is shorter than the header"
+                ))
+            })?;
+        Ok(Self {
+            length: u16::try_from(body).map_err(|_| {
+                crate::Error::encode(format!("record size {record_size} overflows `length`"))
+            })?,
+            rtype,
+            publisher_id: 0,
+            _reserved: [0; 2],
+            instrument_id: 0,
+            ts_event: crate::UNDEF_TIMESTAMP,
+        })
     }
 
     /// Returns the size of the **entire** record in bytes. Unlike the v1-v3 header, the

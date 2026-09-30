@@ -13,6 +13,8 @@
 - Added `RecordHeaderKind` trait to abstract over different `RecordHeader`s
 - Added `HasRType` and `Record` traits and `RecordRef`, `RecordRefMut`, and `RecordBuf`
   aliases to the `v1`, `v2`, and `v3` modules, bound to the v1-v3 `RecordHeader`
+- Added a preliminary `layout` module for describing the fields of DBN version 4
+  records
 
 ### Breaking changes
 - Changed `TsSymbolMap::insert()` to take the `start` and `end` of the mapping as UNIX
@@ -34,6 +36,7 @@
 - Removed `From<&RecordEnum>` and `From<&RecordBuf>` for `RecordRef`, and `From<&mut
   RecordBuf>` for `RecordRefMut`. The blanket `From<&R> for RecordRef` covers every
   `Record`, including these
+- Added `layout` field to `Metadata` for the record layouts of a DBN version 4 stream
 
 ### Deprecations
 - Deprecated `TsSymbolMap::get()` in favor of `get_for_ts()`

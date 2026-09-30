@@ -269,13 +269,13 @@ impl MetadataDecoder {
             .read_to_end(&mut var_buffer)
             .map_err(|e| crate::Error::io(e, "reading variable-length metadata"))?;
         pos = 0;
-        let schema_definition_length = u32::from_le_slice(&var_buffer[pos..]);
-        if schema_definition_length != 0 {
+        let layout_length = u32::from_le_slice(&var_buffer[pos..]);
+        if layout_length != 0 {
             return Err(crate::Error::decode(
                 "DBZ doesn't support schema definitions",
             ));
         }
-        pos += Self::U32_SIZE + (schema_definition_length as usize);
+        pos += Self::U32_SIZE + (layout_length as usize);
         let symbols = Self::decode_repeated_symbol_cstr(var_buffer.as_slice(), &mut pos)?;
         let partial = Self::decode_repeated_symbol_cstr(var_buffer.as_slice(), &mut pos)?;
         let not_found = Self::decode_repeated_symbol_cstr(var_buffer.as_slice(), &mut pos)?;
@@ -296,6 +296,7 @@ impl MetadataDecoder {
             not_found,
             mappings,
             symbol_cstr_len: crate::compat::SYMBOL_CSTR_LEN_V1,
+            layout: None,
         })
     }
 

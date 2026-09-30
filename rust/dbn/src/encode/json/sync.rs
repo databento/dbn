@@ -670,6 +670,7 @@ mod tests {
         let metadata = Metadata {
             version: 1,
             dataset: Dataset::GlbxMdp3.to_string(),
+            layout: None,
             schema: Some(Schema::Ohlcv1H),
             start: 1662734705128748281,
             end: NonZeroU64::new(1662734720914876944),

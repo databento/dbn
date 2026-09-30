@@ -83,6 +83,9 @@ enum State {
 /// and [`DbnFsm::process_many()`].
 #[derive(Debug)]
 #[must_use = "this `ProcessResult` may be an `Err` variant, which should be handled"]
+// `Metadata` is large (it carries the optional `SchemaDef`), but it's produced at most
+// once per stream, so the size difference isn't worth boxing on the decode path.
+#[allow(clippy::large_enum_variant)]
 pub enum ProcessResult<R> {
     /// More data should be read into `space()`.
     ReadMore(usize),
@@ -784,13 +787,13 @@ impl DbnFsm {
         } else {
             crate::METADATA_RESERVED_LEN
         };
-        let schema_definition_length = u32::from_le_slice(&buffer[pos..]);
-        if schema_definition_length != 0 {
+        let layout_length = u32::from_le_slice(&buffer[pos..]);
+        if layout_length != 0 {
             return Err(crate::Error::decode(
                 "this version of dbn can't parse schema definitions",
             ));
         }
-        pos += Self::U32_SIZE + (schema_definition_length as usize);
+        pos += Self::U32_SIZE + (layout_length as usize);
         let symbols =
             Self::decode_metadata_repeated_symbol_cstr(symbol_cstr_len, buffer, &mut pos)?;
         let partial =
@@ -818,6 +821,7 @@ impl DbnFsm {
             partial,
             not_found,
             mappings,
+            layout: None,
         })
     }
 

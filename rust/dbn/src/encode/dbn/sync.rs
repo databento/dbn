@@ -201,7 +201,7 @@ where
                 &[0; crate::METADATA_RESERVED_LEN]
             })
             .map_err(metadata_err)?;
-        // schema_definition_length
+        // layout_length
         self.writer
             .write_all(0u32.to_le_bytes().as_slice())
             .map_err(metadata_err)?;
@@ -222,7 +222,7 @@ where
 
     pub(super) fn calc_length(metadata: &Metadata) -> (u32, u32) {
         let mapping_interval_len = mem::size_of::<u32>() * 2 + metadata.symbol_cstr_len;
-        // schema_definition_length, symbols_count, partial_count, not_found_count, mappings_count
+        // layout_length, symbols_count, partial_count, not_found_count, mappings_count
         let var_len_counts_size = mem::size_of::<u32>() * 5;
 
         let c_str_count =
@@ -573,6 +573,7 @@ mod tests {
         let metadata = Metadata {
             version: crate::DBN_VERSION,
             dataset: Dataset::GlbxMdp3.to_string(),
+            layout: None,
             schema: Some(Schema::Mbp10),
             stype_in: Some(SType::RawSymbol),
             stype_out: SType::InstrumentId,
@@ -691,6 +692,7 @@ mod tests {
         let orig_metadata = Metadata {
             version,
             dataset: Dataset::GlbxMdp3.to_string(),
+            layout: None,
             schema: Some(Schema::Mbo),
             stype_in: Some(SType::Parent),
             stype_out: SType::RawSymbol,

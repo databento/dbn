@@ -481,7 +481,7 @@ where
             })
             .await
             .map_err(metadata_err)?;
-        // schema_definition_length
+        // layout_length
         self.writer.write_u32_le(0).await.map_err(metadata_err)?;
         self.encode_repeated_symbol_cstr(metadata.symbol_cstr_len, &metadata.symbols)
             .await?;
@@ -695,6 +695,7 @@ mod tests {
         let metadata = Metadata {
             version: crate::DBN_VERSION,
             dataset: Dataset::GlbxMdp3.to_string(),
+            layout: None,
             schema: Some(Schema::Mbp10),
             stype_in: Some(SType::RawSymbol),
             stype_out: SType::InstrumentId,
