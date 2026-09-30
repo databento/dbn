@@ -7,6 +7,8 @@
 - Added `TsSymbolMap::get_for_ts()` for looking up a mapping by UNIX timestamp
 - Added `TsSymbolMap::on_record()` and `TsSymbolMap::on_symbol_mapping()` for building a
   `TsSymbolMap` from live `SymbolMappingMsg` records
+- Added `interval()` methods to `Schema` and `RType` in the Python bindings, which return
+  the subsampling interval as a `datetime.timedelta` or `None`
 
 ### Breaking changes
 - Changed `TsSymbolMap::insert()` to take the `start` and `end` of the mapping as UNIX

@@ -115,6 +115,11 @@ impl RType {
             .map_err(to_py_err)?;
         Ok(Self::from(schema))
     }
+
+    #[pyo3(name = "interval")]
+    fn py_interval(&self) -> Option<time::Duration> {
+        self.interval()
+    }
 }
 
 impl WritePyRepr for RType {
@@ -777,6 +782,11 @@ impl Schema {
     fn py_from_int(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
         let value: u16 = value.extract().map_err(to_py_err)?;
         Self::try_from(value).map_err(to_py_err)
+    }
+
+    #[pyo3(name = "interval")]
+    fn py_interval(&self) -> Option<time::Duration> {
+        self.interval()
     }
 }
 

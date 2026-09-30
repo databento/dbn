@@ -332,6 +332,17 @@ class RType(Enum):
 
     def __init__(self, value: int) -> None: ...
     def __index__(self) -> int: ...
+    def interval(self) -> dt.timedelta | None:
+        """
+        Return the interval of the subsampled record type, or `None` if it isn't
+        subsampled.
+
+        Returns
+        -------
+        datetime.timedelta | None
+
+        """
+
     @classmethod
     def from_str(cls, value: str) -> RType: ...
     @classmethod
@@ -728,6 +739,17 @@ class Schema(Enum):
 
     def __init__(self, value: str) -> None: ...
     def __index__(self) -> int: ...
+    def interval(self) -> dt.timedelta | None:
+        """
+        Return the interval of the subsampled schema, or `None` if it isn't
+        subsampled.
+
+        Returns
+        -------
+        datetime.timedelta | None
+
+        """
+
     @classmethod
     def from_str(cls, value: str) -> Schema: ...
     @classmethod

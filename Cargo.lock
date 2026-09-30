@@ -272,7 +272,6 @@ version = "0.71.0"
 dependencies = [
  "dbn",
  "pyo3",
- "pyo3-build-config",
  "rstest",
  "time",
  "zstd",
@@ -686,6 +685,7 @@ dependencies = [
  "pyo3-build-config",
  "pyo3-ffi",
  "pyo3-macros",
+ "time",
 ]
 
 [[package]]
