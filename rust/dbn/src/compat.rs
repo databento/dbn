@@ -83,6 +83,8 @@ pub struct ErrorMsgV1 {
     pub err: [c_char; 64],
 }
 
+const _: () = assert!(std::mem::size_of::<ErrorMsgV1>() == 80);
+
 /// A definition of an instrument in DBN version 1. The record of the
 /// [`Definition`](crate::Schema::Definition) schema.
 #[repr(C)]
@@ -322,6 +324,8 @@ pub struct InstrumentDefMsgV1 {
     pub _dummy: [u8; 3],
 }
 
+const _: () = assert!(std::mem::size_of::<InstrumentDefMsgV1>() == 360);
+
 /// A statistics message. A catchall for various data disseminated by publishers. The
 /// [`stat_type`](Self::stat_type) indicates the statistic contained in the message.
 #[repr(C)]
@@ -381,6 +385,8 @@ pub struct StatMsgV1 {
     pub _reserved: [u8; 6],
 }
 
+const _: () = assert!(std::mem::size_of::<StatMsgV1>() == 64);
+
 /// A symbol mapping message from the live API in DBN version 1.
 #[repr(C)]
 #[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
@@ -414,6 +420,8 @@ pub struct SymbolMappingMsgV1 {
     pub end_ts: u64,
 }
 
+const _: () = assert!(std::mem::size_of::<SymbolMappingMsgV1>() == 80);
+
 /// A non-error message from the Databento Live Subscription Gateway (LSG) in DBN version 1.
 /// Also used for heartbeating.
 #[repr(C)]
@@ -432,6 +440,8 @@ pub struct SystemMsgV1 {
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub msg: [c_char; 64],
 }
+
+const _: () = assert!(std::mem::size_of::<SystemMsgV1>() == 80);
 
 /// A definition of an instrument in DBN version 2. The record of the
 /// [`Definition`](crate::Schema::Definition) schema.
@@ -659,6 +669,8 @@ pub struct InstrumentDefMsgV2 {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub _reserved: [u8; 10],
 }
+
+const _: () = assert!(std::mem::size_of::<InstrumentDefMsgV2>() == 400);
 
 #[cfg(all(test, feature = "python"))]
 mod tests {

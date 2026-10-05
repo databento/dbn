@@ -17,6 +17,8 @@
   records
 - Added `DynFieldAccess` and `LayoutIndex` for reading DBN version 4 record fields
   through a stream's layout
+- Added `Tbbo` variant to `RType` for TBBO records in DBN version 4. Existing versions
+  will continue to use the `Mbp1` rtype
 
 ### Breaking changes
 - Changed `TsSymbolMap::insert()` to take the `start` and `end` of the mapping as UNIX
@@ -28,6 +30,8 @@
 - `RecordRef::new()`, `RecordRefMut::new()`, and their `unchecked_from_header()`
   constructors need the header specified
 - `HasRType::has_rtype()` takes a `u16`, and `HasRType` no longer requires `RecordMut`
+- The `RecordMut` trait now requires `Record` and `RecordMut::header_mut()` returns `&mut Self::Header`.
+  Generic code for version 1-3 that uses `header_mut()` will need a `v3::HasRType` bound
 - `DecodeRecord`, `DecodeStream`, and `AsyncDecodeRecord` decode v1-v3 records, so their
   generic methods require `T: v3::HasRType`
 - `WithTsOut`, `transmute_record()`, `transmute_record_bytes()`, and

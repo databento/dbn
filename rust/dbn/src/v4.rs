@@ -5,15 +5,14 @@
 
 pub mod rtype;
 
-use std::os::raw::c_char;
-
-use crate::{
-    record::{HasRType, Record},
-    FlagSet, Publisher, RType,
-};
+use crate::{record::HasRType, Publisher, RType};
 
 pub mod fields;
+mod methods;
+mod records;
 pub mod types;
+
+pub use records::*;
 
 /// A non-owning immutable reference to a DBN version 4 record.
 pub type RecordRef<'a> = crate::RecordRef<'a, RecordHeader>;
@@ -130,105 +129,17 @@ impl RecordHeader {
     }
 }
 
-/// A market-by-order message.
-#[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct MboMsg {
-    /// The common header.
-    pub hd: RecordHeader,
-    /// The order ID assigned at the venue.
-    pub order_id: u64,
-    /// The order price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or
-    /// 0.000000001.
-    ///
-    /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
-    pub price: i64,
-    /// The order quantity.
-    pub size: u32,
-    /// A bit field indicating event end, message characteristics, and data quality.
-    /// See [`flags`](crate::flags) for possible values.
-    pub flags: FlagSet,
-    /// The channel ID assigned by Databento as an incrementing integer starting at zero.
-    pub channel_id: u8,
-    /// The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R** book, **T**rade, **F**ill, or **N**one.
-    ///
-    /// See [Action](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#action).
-    pub action: c_char,
-    /// The side that initiates the event. Can be **A**sk for a sell order (or sell aggressor in
-    /// a trade), **B**id for a buy order (or buy aggressor in a trade), or **N**one where no side is specified.
-    ///
-    /// See [Side](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#side).
-    pub side: c_char,
-    /// The capture-server-received timestamp expressed as the number of nanoseconds
-    /// since the UNIX epoch.
-    ///
-    /// See [ts_recv](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-recv).
-    pub ts_recv: u64,
-    /// The matching-engine-sending timestamp expressed as the number of nanoseconds before
-    /// `ts_recv`.
-    ///
-    /// See [ts_in_delta](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#ts-in-delta).
-    pub ts_in_delta: i32,
-    /// The message sequence number assigned at the venue.
-    pub sequence: u32,
-}
-
-impl AsRef<[u8]> for MboMsg {
-    fn as_ref(&self) -> &[u8] {
-        unsafe { crate::record::record_as_u8_slice(self) }
-    }
-}
-
-impl Record for MboMsg {
-    type Header = RecordHeader;
-
-    fn record_size(&self) -> usize {
-        self.hd.record_size()
-    }
-
-    fn rtype(&self) -> crate::Result<RType> {
-        self.hd.rtype()
-    }
-
-    fn raw_rtype(&self) -> u16 {
-        self.hd.rtype
-    }
-
-    fn publisher_id(&self) -> u16 {
-        self.hd.publisher_id
-    }
-
-    fn publisher(&self) -> crate::Result<Publisher> {
-        self.hd.publisher()
-    }
-
-    fn instrument_id(&self) -> u64 {
-        self.hd.instrument_id
-    }
-
-    fn raw_ts_event(&self) -> u64 {
-        self.hd.ts_event
-    }
-
-    fn raw_index_ts(&self) -> u64 {
-        self.ts_recv
-    }
-}
-
-impl HasRType for MboMsg {
-    fn has_rtype(rtype: u16) -> bool {
-        rtype == rtype::MBO
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use std::mem::{align_of, offset_of, size_of};
+    use std::{
+        mem::{align_of, offset_of, size_of},
+        os::raw::c_char,
+    };
 
     use rstest::rstest;
 
     use super::*;
-    use crate::{RecordRef, RecordRefMut};
+    use crate::{FlagSet, Record, RecordRef, RecordRefMut};
 
     fn mbo() -> MboMsg {
         MboMsg {
@@ -294,9 +205,8 @@ mod tests {
 
     #[test]
     fn record_buf_round_trips() {
-        let mbo = mbo();
-        let buf = RecordBuf::<{ MAX_RECORD_LEN }>::from(mbo);
+        let buf = RecordBuf::<{ MAX_RECORD_LEN }>::from(mbo());
         assert_eq!(buf.header().record_size(), size_of::<MboMsg>());
-        assert_eq!(buf.get::<MboMsg>(), Some(&mbo));
+        assert_eq!(buf.get::<MboMsg>(), Some(&mbo()));
     }
 }

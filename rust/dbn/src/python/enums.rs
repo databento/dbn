@@ -71,6 +71,7 @@ impl RType {
             Self::Tcbbo => "TCBBO",
             Self::Bbo1S => "BBO_1S",
             Self::Bbo1M => "BBO_1M",
+            Self::Tbbo => "TBBO",
         }
     }
 

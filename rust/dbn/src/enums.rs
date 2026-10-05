@@ -119,6 +119,10 @@ pub enum RType {
     /// Denotes a best bid and offer record subsampled on a one-minute interval.
     #[pyo3(name = "BBO_1M")]
     Bbo1M = 0xC4,
+    /// Denotes a market-by-price record with a book depth of 1 accompanying a trade.
+    /// Version 4 onward; earlier versions carry these records under `MBP_1`.
+    #[pyo3(name = "TBBO")]
+    Tbbo = 0xC5,
 }
 
 /// Record types, possible values for [`RecordHeader::rtype`][crate::RecordHeader::rtype].
@@ -177,6 +181,9 @@ pub mod rtype {
     pub const BBO_1S: u8 = RType::Bbo1S as u8;
     /// Denotes a best bid and offer record subsampled on a one-minute interval.
     pub const BBO_1M: u8 = RType::Bbo1M as u8;
+    /// Denotes a market-by-price record with a book depth of 1 accompanying a trade.
+    /// Version 4 onward; earlier versions carry these records under `MBP_1`.
+    pub const TBBO: u8 = RType::Tbbo as u8;
 }
 
 impl std::str::FromStr for RType {
@@ -208,6 +215,7 @@ impl std::str::FromStr for RType {
             "tcbbo" => Ok(Self::Tcbbo),
             "bbo-1s" => Ok(Self::Bbo1S),
             "bbo-1m" => Ok(Self::Bbo1M),
+            "tbbo" => Ok(Self::Tbbo),
             _ => Err(crate::Error::conversion::<Self>(s.to_owned())),
         }
     }
@@ -247,6 +255,7 @@ impl RType {
             Self::Tcbbo => "tcbbo",
             Self::Bbo1S => "bbo-1s",
             Self::Bbo1M => "bbo-1m",
+            Self::Tbbo => "tbbo",
         }
     }
 }

@@ -18,7 +18,7 @@ macro_rules! rtype_dispatch_base {
         use $crate::record::*;
         match $rec_ref.rtype() {
             Ok(RType::Mbp0) => Ok($handler!(TradeMsg)),
-            Ok(RType::Mbp1) => Ok($handler!(Mbp1Msg)),
+            Ok(RType::Mbp1) | Ok(RType::Tbbo) => Ok($handler!(Mbp1Msg)),
             Ok(RType::Mbp10) => Ok($handler!(Mbp10Msg)),
             #[allow(deprecated)]
             Ok(RType::OhlcvDeprecated)

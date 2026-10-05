@@ -303,6 +303,9 @@ class RType(Enum):
         Denotes a best bid and offer record subsampled on a one-second interval.
     BBO_1M
         Denotes a best bid and offer record subsampled on a one-minute interval.
+    TBBO
+        Denotes a market-by-price record with a book depth of 1 accompanying a trade.
+        Version 4 onward; earlier versions carry these records under `MBP_1`.
 
     """  # noqa: D405, D411
 
@@ -329,6 +332,7 @@ class RType(Enum):
     TCBBO: int
     BBO_1S: int
     BBO_1M: int
+    TBBO: int
 
     def __init__(self, value: int) -> None: ...
     def __index__(self) -> int: ...

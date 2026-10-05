@@ -179,7 +179,7 @@ impl<'a> TryFrom<RecordRef<'a>> for RecordRefEnum<'a> {
             match rec_ref.rtype()? {
                 RType::Mbo => RecordRefEnum::Mbo(rec_ref.get_unchecked()),
                 RType::Mbp0 => RecordRefEnum::Trade(rec_ref.get_unchecked()),
-                RType::Mbp1 => RecordRefEnum::Mbp1(rec_ref.get_unchecked()),
+                RType::Mbp1 | RType::Tbbo => RecordRefEnum::Mbp1(rec_ref.get_unchecked()),
                 RType::Bbo1S | RType::Bbo1M => RecordRefEnum::Bbo(rec_ref.get_unchecked()),
                 RType::Mbp10 => RecordRefEnum::Mbp10(rec_ref.get_unchecked()),
                 RType::OhlcvDeprecated

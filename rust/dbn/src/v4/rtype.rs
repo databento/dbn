@@ -51,3 +51,5 @@ pub const TCBBO: u16 = crate::rtype::TCBBO as u16;
 pub const BBO_1S: u16 = crate::rtype::BBO_1S as u16;
 /// See [`crate::rtype::BBO_1M`].
 pub const BBO_1M: u16 = crate::rtype::BBO_1M as u16;
+/// See [`crate::rtype::TBBO`].
+pub const TBBO: u16 = crate::rtype::TBBO as u16;

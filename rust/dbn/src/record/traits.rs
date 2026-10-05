@@ -80,11 +80,11 @@ pub trait Record: AsRef<[u8]> {
     }
 }
 
-/// Used for polymorphism around mutable types beginning with a [`RecordHeader`].
-pub trait RecordMut {
-    /// Returns a mutable reference to the `RecordHeader` that comes at the beginning of
-    /// all record types.
-    fn header_mut(&mut self) -> &mut RecordHeader;
+/// Used for polymorphism around mutable types beginning with a record header.
+pub trait RecordMut: Record {
+    /// Returns a mutable reference to the header that comes at the beginning of all
+    /// record types.
+    fn header_mut(&mut self) -> &mut Self::Header;
 }
 
 /// An extension of the [`Record`] trait for types with a static [`RType`]. Used for
