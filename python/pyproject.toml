@@ -3,7 +3,7 @@ name = "databento-dbn"
 version = "0.71.0"
 description = "Python bindings for encoding and decoding Databento Binary Encoding (DBN)"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.15"
 license = "Apache-2.0"
 authors = [{ name = "Databento", email = "support@databento.com" }]
 classifiers = [
@@ -18,14 +18,8 @@ Documentation = "https://databento.com/docs"
 Repository = "https://github.com/databento/dbn"
 "Bug Tracker" = "https://github.com/databento/dbn/issues"
 
-[tool.poetry]
-requires-poetry = ">=2.0"
-
-[tool.poetry.dependencies]
-python = ">=3.10,<3.15"
-
-[tool.poetry.group.dev.dependencies]
-maturin = ">=1.0"
+[dependency-groups]
+dev = ["maturin>=1.0"]
 
 [build-system]
 requires = ["maturin>=1.0"]
