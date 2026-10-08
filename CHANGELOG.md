@@ -19,6 +19,7 @@
   through a stream's layout
 - Added `Tbbo` variant to `RType` for TBBO records in DBN version 4. Existing versions
   will continue to use the `Mbp1` rtype
+- Upgraded `pyo3` to 0.29.3
 
 ### Breaking changes
 - Changed `TsSymbolMap::insert()` to take the `start` and `end` of the mapping as UNIX
