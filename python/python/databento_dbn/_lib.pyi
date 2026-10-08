@@ -1281,7 +1281,7 @@ class SystemCode(Enum):
     REPLAY_COMPLETED
         Indicates a replay subscription has caught up with real-time data.
     END_OF_INTERVAL
-        Signals that all records for interval-based schemas have been published for the given timestamp.
+        Signals that all records for an interval-based schema have been published for the interval ending at `ts_event`.
     UNSUBSCRIBE_ACK
         An acknowledgement of an unsubscribe request.
     UNSET

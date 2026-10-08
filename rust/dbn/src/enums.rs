@@ -1686,7 +1686,7 @@ pub enum SystemCode {
     /// Indicates a replay subscription has caught up with real-time data.
     #[pyo3(name = "REPLAY_COMPLETED")]
     ReplayCompleted = 3,
-    /// Signals that all records for interval-based schemas have been published for the given timestamp.
+    /// Signals that all records for an interval-based schema have been published for the interval ending at `ts_event`.
     #[pyo3(name = "END_OF_INTERVAL")]
     EndOfInterval = 4,
     /// An acknowledgement of an unsubscribe request.
