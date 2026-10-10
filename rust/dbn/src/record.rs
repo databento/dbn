@@ -18,7 +18,7 @@ use dbn_macros::MockPyo3;
 
 use crate::{
     enums::rtype,
-    macros::{dbn_record, CsvSerialize, JsonSerialize, RecordDebug},
+    macros::{dbn_record, CsvSerialize, JsonSerialize, RecordDebug, StructLayoutDesc},
     Action, Error, FlagSet, InstrumentClass, MatchAlgorithm, Publisher, RType, Result,
     SecurityUpdateAction, Side, StatUpdateAction, UserDefinedInstrument, ASSET_CSTR_LEN,
     SYMBOL_CSTR_LEN,
@@ -124,7 +124,7 @@ const _: () = assert!(std::mem::size_of::<MboMsg>() == 56);
 
 /// A price level.
 #[repr(C)]
-#[derive(Clone, JsonSerialize, RecordDebug, PartialEq, Eq, Hash)]
+#[derive(Clone, JsonSerialize, RecordDebug, StructLayoutDesc, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
@@ -167,7 +167,7 @@ const _: () = assert!(std::mem::size_of::<BidAskPair>() == 32);
 
 /// A price level consolidated from multiple venues.
 #[repr(C)]
-#[derive(Clone, JsonSerialize, RecordDebug, PartialEq, Eq, Hash)]
+#[derive(Clone, JsonSerialize, RecordDebug, StructLayoutDesc, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(

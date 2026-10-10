@@ -19,6 +19,10 @@
   through a stream's layout
 - Added `Tbbo` variant to `RType` for TBBO records in DBN version 4. Existing versions
   will continue to use the `Mbp1` rtype
+- Added `RecordLayoutDesc` and `StructLayoutDesc` traits and derive macros,
+  `StreamLayoutBuilder`, `RecordLayoutBuilder`, `StructLayoutBuilder`,
+  `v4::types::Symbol`, and `v4::layouts::default_layout()` for building DBN version 4
+  layouts from record structs
 - Upgraded `pyo3` to 0.29.3
 
 ### Breaking changes

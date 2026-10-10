@@ -8,7 +8,7 @@ use syn::{
     ExprPath, ItemStruct, Token,
 };
 
-use crate::dbn_attr::{find_dbn_attr_args, get_sorted_fields, INDEX_TS_ATTR};
+use crate::dbn_attr::{get_sorted_fields, DbnFieldAttrs, INDEX_TS_ATTR};
 
 pub fn attribute_macro_impl(
     attr: proc_macro::TokenStream,
@@ -151,7 +151,8 @@ fn get_header_type(input_struct: &ItemStruct) -> syn::Result<&syn::Type> {
 fn get_raw_index_ts(input_struct: &ItemStruct) -> syn::Result<TokenStream> {
     let mut index_ts_fields = Vec::new();
     for field in input_struct.fields.iter() {
-        if find_dbn_attr_args(field)?
+        if DbnFieldAttrs::parse(field)?
+            .flags
             .iter()
             .any(|id| id == INDEX_TS_ATTR)
         {

@@ -8,6 +8,9 @@ pub mod rtype;
 use crate::{record::HasRType, Publisher, RType};
 
 pub mod fields;
+pub mod layouts;
+#[cfg(test)]
+mod layouts_tests;
 mod methods;
 mod records;
 pub mod types;

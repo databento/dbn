@@ -20,8 +20,11 @@ pub struct Decimal {
 
 /// An enum that can be stored in a record field.
 pub trait EnumField: Copy {
-    /// The integer or character type the enum is stored as.
+    /// The integer type the enum's raw value is read as.
     type Repr: Copy;
+    /// The type a compiled record struct stores the enum as, which is `c_char` for a
+    /// character enum.
+    type Storage: Copy;
     /// The field registry type ID for this enum.
     const TYPE_ID: u8;
 }
@@ -72,3 +75,7 @@ pub struct Char(pub c_char);
 /// Marker for null-terminated string fields. Uninhabited as it's only
 /// used as a type parameter. Width is declared in the `FieldDef`.
 pub enum CStr {}
+
+/// Marker for null-terminated symbol fields. Uninhabited as it's only used as a type
+/// parameter. Every symbol field in a stream has the stream's symbol width.
+pub enum Symbol {}

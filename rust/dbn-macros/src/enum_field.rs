@@ -24,15 +24,15 @@ fn expand(input: &DeriveInput) -> syn::Result<TokenStream> {
     let ident = &input.ident;
     let crate_name = crate_name();
 
-    // `Repr` and `TYPE_ID`: char-valued enums read as a `u8` but tag as `ENUM_CHAR_ID`
-    // (they can't be told apart from a numeric `u8` enum by the repr alone), so a
-    // `#[dbn(char)]` marker distinguishes them. Everything else keys off `#[repr(..)]`.
-    let (repr_ty, type_id) = if has_char_attr(input)? {
-        (quote!(u8), quote!(ENUM_CHAR_ID))
+    // `Repr`, `Storage`, and `TYPE_ID`: char-valued enums read as a `u8`, are stored as a
+    // `c_char`, and tag as `ENUM_CHAR_ID` (they can't be told apart from a numeric `u8`
+    // enum by the repr alone), so a `#[dbn(char)]` marker distinguishes them.
+    let (repr_ty, storage_ty, type_id) = if has_char_attr(input)? {
+        (quote!(u8), quote!(::std::ffi::c_char), quote!(ENUM_CHAR_ID))
     } else {
         match repr_ident(input)?.as_deref() {
-            Some("u8") => (quote!(u8), quote!(ENUM_8_ID)),
-            Some("u16") => (quote!(u16), quote!(ENUM_16_ID)),
+            Some("u8") => (quote!(u8), quote!(u8), quote!(ENUM_8_ID)),
+            Some("u16") => (quote!(u16), quote!(u16), quote!(ENUM_16_ID)),
             _ => return Err(syn::Error::new(
                 input.span(),
                 "EnumField requires `#[repr(u8)]` or `#[repr(u16)]`, or the `#[dbn(char)]` marker",
@@ -43,6 +43,7 @@ fn expand(input: &DeriveInput) -> syn::Result<TokenStream> {
     Ok(quote! {
         impl #crate_name::v4::types::EnumField for #ident {
             type Repr = #repr_ty;
+            type Storage = #storage_ty;
             const TYPE_ID: u8 = #crate_name::v4::fields::#type_id;
         }
     })

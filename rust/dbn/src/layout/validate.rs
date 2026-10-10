@@ -7,7 +7,7 @@ use crate::{
 
 /// Validates a [`StreamLayout`] before any field access, rejecting a malformed table
 /// as a decode error.
-pub(crate) fn validate(layout: &StreamLayout, _symbol_cstr_len: u16) -> crate::Result<()> {
+pub(crate) fn validate(layout: &StreamLayout, symbol_cstr_len: u16) -> crate::Result<()> {
     for sd in &layout.struct_layouts {
         let align = sd.align();
         if !sd.size.is_multiple_of(align) {
@@ -26,6 +26,7 @@ pub(crate) fn validate(layout: &StreamLayout, _symbol_cstr_len: u16) -> crate::R
             sd.size,
             false,
             layout,
+            symbol_cstr_len,
         )?;
     }
     let header_size = std::mem::size_of::<RecordHeader>() as u16;
@@ -61,6 +62,7 @@ pub(crate) fn validate(layout: &StreamLayout, _symbol_cstr_len: u16) -> crate::R
             rec.base_record_size,
             true,
             layout,
+            symbol_cstr_len,
         )?;
     }
     Ok(())
@@ -77,6 +79,7 @@ fn check_fields(
     base: u16,
     is_record: bool,
     layout: &StreamLayout,
+    symbol_cstr_len: u16,
 ) -> crate::Result<()> {
     if defs.len() != names.len() {
         return Err(err(
@@ -104,6 +107,15 @@ fn check_fields(
             ));
         }
         check_size(ctx, f, nested)?;
+        if f.type_id == fields::SYMBOL_ID && f.size != symbol_cstr_len {
+            return Err(err(
+                ctx,
+                &format!(
+                    "symbol field {} size {} differs from the stream's symbol width {symbol_cstr_len}",
+                    f.field_id, f.size
+                ),
+            ));
+        }
         let end = f.offset.checked_add(f.size).ok_or_else(|| {
             err(
                 ctx,

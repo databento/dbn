@@ -1,13 +1,14 @@
-// TODO: remove
-#![allow(dead_code)]
-
 use crate::{
-    layout::{FieldDef, LabelDef, RecordLayout, StreamLayout, StructLayout},
+    layout::{
+        FieldDef, LabelDef, RecordLayout, RecordLayoutDesc, StreamLayout, StructLayout,
+        StructLayoutDesc,
+    },
     v4::{
         fields::{self, Field, FieldType, FixedWidth},
-        types::{CStr, Decimal},
+        types::{CStr, Decimal, Symbol},
         RecordHeader,
     },
+    RType,
 };
 
 use super::{hash::layout_hash, validate::validate};
@@ -87,13 +88,17 @@ impl FieldDefBuilder {
     }
 }
 
+/// Assembles a [`StreamLayout`] computing offsets and padding.
 pub struct StreamLayoutBuilder {
     version: u16,
+    symbol_cstr_len: u16,
     struct_layouts: Vec<StructLayout>,
     label_defs: Vec<LabelDef>,
     records: Vec<RecordLayout>,
 }
 
+/// Places the fields of one [`RecordLayout`] after its header. Created by
+/// [`StreamLayoutBuilder::record`].
 pub struct RecordLayoutBuilder<'a> {
     parent: &'a mut StreamLayoutBuilder,
     rtype: u16,
@@ -102,6 +107,8 @@ pub struct RecordLayoutBuilder<'a> {
     seq: FieldCursor,
 }
 
+/// Places the fields of one [`StructLayout`]. Created by
+/// [`StreamLayoutBuilder::struct_layout`].
 pub struct StructLayoutBuilder<'a> {
     parent: &'a mut StreamLayoutBuilder,
     name: String,
@@ -109,40 +116,66 @@ pub struct StructLayoutBuilder<'a> {
 }
 
 impl StreamLayoutBuilder {
-    pub fn new(version: u16) -> Self {
+    /// Creates a builder for a stream with layout revision `version` whose symbol fields
+    /// are `symbol_cstr_len` bytes wide.
+    pub fn new(version: u16, symbol_cstr_len: u16) -> Self {
         Self {
             version,
+            symbol_cstr_len,
             struct_layouts: vec![record_header_struct()],
             label_defs: vec![],
             records: vec![],
         }
     }
 
+    /// Appends a [`LabelDef`] and returns its `label_defs` index.
     pub fn label(&mut self, def: LabelDef) -> u16 {
         self.label_defs.push(def);
         u16::try_from(self.label_defs.len() - 1).expect("exceeded maximum number of label defs")
     }
 
+    /// Opens a record layout for `rtype`, starting with the header.
     pub fn record(&mut self, rtype: u16, schema: u16, name: &str) -> RecordLayoutBuilder<'_> {
         RecordLayoutBuilder::new(self, rtype, schema, name)
     }
 
+    /// Adds the layout of the compiled record struct `R` for `rtype`.
+    pub fn record_of<R: RecordLayoutDesc>(&mut self, rtype: u16) -> &mut Self {
+        let schema = RType::try_into_schema(rtype).map_or(crate::NULL_SCHEMA, |s| s as u16);
+        let mut rec = self.record(rtype, schema, R::NAME);
+        R::add_fields(&mut rec);
+        R::add_required_fields(&mut rec);
+        rec.finish();
+        self
+    }
+
+    /// Opens a struct layout for a struct nested in records.
     pub fn struct_layout(&mut self, name: &str) -> StructLayoutBuilder<'_> {
         StructLayoutBuilder::new(self, name)
+    }
+
+    /// The `struct_layouts` index of `S`, describing it on first use.
+    fn struct_index_of<S: StructLayoutDesc>(&mut self) -> u16 {
+        if let Some(idx) = self.struct_layouts.iter().position(|s| s.name == S::NAME) {
+            return u16::try_from(idx).expect("exceeded maximum number of struct layouts");
+        }
+        let mut s = self.struct_layout(S::NAME);
+        S::add_fields(&mut s);
+        s.finish()
     }
 
     /// Validates the assembled layout and stamps each record's `layout_hash`.
     ///
     /// # Errors
     /// Returns an error if the layout violates any of the stream layout invariants.
-    pub fn build(self, symbol_cstr_len: u16) -> crate::Result<StreamLayout> {
+    pub fn build(self) -> crate::Result<StreamLayout> {
         let mut layout = StreamLayout {
             stream_layout_version: self.version,
             record_layouts: self.records,
             struct_layouts: self.struct_layouts,
             label_defs: self.label_defs,
         };
-        validate(&layout, symbol_cstr_len)?;
+        validate(&layout, self.symbol_cstr_len)?;
         let hashes: Vec<u64> = layout
             .record_layouts
             .iter()
@@ -166,20 +199,38 @@ impl<'a> RecordLayoutBuilder<'a> {
         };
         // The header is one `STRUCT_ID` field referencing the shared
         // `RecordHeader` layout at `struct_layouts[0]`
-        rec.struct_field(fields::HD, "hd", HEADER_STRUCT_IDX);
+        rec.struct_field(fields::HD.id(), "hd", HEADER_STRUCT_IDX);
         rec
     }
 
+    /// Moves the cursor to `offset`, filling any gap with padding.
+    ///
+    /// # Panics
+    /// Panics if `offset` is behind the cursor, i.e. it overlaps a placed field.
+    pub fn at(&mut self, offset: usize) -> &mut Self {
+        self.seq.at(offset);
+        self
+    }
+
+    /// Places a fixed-width field at the cursor, after any alignment padding.
     pub fn field<T: FixedWidth>(&mut self, f: Field<T>, name: &str) -> &mut Self {
         self.seq.scalar(f, name);
         self
     }
 
+    /// Places a C string field `width` bytes wide at the cursor.
     pub fn str_field(&mut self, f: Field<CStr>, name: &str, width: u16) -> &mut Self {
-        self.seq.cstr(f, name, width);
+        self.seq.string(f, name, width);
         self
     }
 
+    /// Places a symbol field of the stream's symbol width at the cursor.
+    pub fn symbol_field(&mut self, f: Field<Symbol>, name: &str) -> &mut Self {
+        self.seq.string(f, name, self.parent.symbol_cstr_len);
+        self
+    }
+
+    /// Places a nested struct field referencing `struct_layouts[struct_idx]`.
     pub fn struct_field(&mut self, field_id: u16, name: &str, struct_idx: u16) -> &mut Self {
         let sd = &self.parent.struct_layouts[struct_idx as usize];
         let nested = Nested {
@@ -192,16 +243,19 @@ impl<'a> RecordLayoutBuilder<'a> {
         self
     }
 
-    /// A fixed-count array of a nested struct, e.g. `Mbp10Msg`'s `[BidAskPair; 10]`
-    /// book levels. `size` spans all `count` elements; the array flag lets a reader
-    /// recover the count as `size / struct.size`.
-    pub fn struct_array_field(
+    /// A fixed-count array of the struct `S`, e.g. `Mbp10Msg`'s `[BidAskPair; 10]` book
+    /// levels, adding `S`'s layout to the stream if absent. `size` spans all `N`
+    /// elements; the array flag lets a reader recover the count as `size / struct.size`.
+    pub fn struct_array_of<S: StructLayoutDesc, const N: usize>(
         &mut self,
-        field_id: u16,
+        f: Field<[S; N]>,
         name: &str,
-        struct_idx: u16,
-        count: u16,
-    ) -> &mut Self {
+    ) -> &mut Self
+    where
+        [S; N]: FieldType,
+    {
+        let struct_idx = self.parent.struct_index_of::<S>();
+        let count = u16::try_from(N).expect("struct array count exceeds u16");
         let sd = &self.parent.struct_layouts[struct_idx as usize];
         let nested = Nested {
             struct_idx,
@@ -212,10 +266,11 @@ impl<'a> RecordLayoutBuilder<'a> {
             align: sd.align(),
             flags: fields::FLAG_IS_ARRAY,
         };
-        self.seq.nested(field_id, name, nested);
+        self.seq.nested(f.id(), name, nested);
         self
     }
 
+    /// Pads the record to its 8-byte aligned size and appends it to the stream.
     pub fn finish(self) {
         let mut seq = self.seq;
         let base = seq.finish_base();
@@ -241,6 +296,16 @@ impl<'a> StructLayoutBuilder<'a> {
         }
     }
 
+    /// Moves the cursor to `offset`, filling any gap with padding.
+    ///
+    /// # Panics
+    /// Panics if `offset` is behind the cursor, i.e. it overlaps a placed field.
+    pub fn at(&mut self, offset: usize) -> &mut Self {
+        self.seq.at(offset);
+        self
+    }
+
+    /// Places a fixed-width field at the cursor, after any alignment padding.
     pub fn field<T: FixedWidth>(&mut self, f: Field<T>, name: &str) -> &mut Self {
         self.seq.scalar(f, name);
         self
@@ -333,9 +398,9 @@ impl FieldCursor {
         self.push(def, name);
     }
 
-    fn cstr(&mut self, f: Field<CStr>, name: &str, width: u16) {
-        // cstrs are 1-byte aligned, so no padding
-        let def = FieldDefBuilder::new(f.id(), CStr::TYPE_ID)
+    fn string<T: FieldType>(&mut self, f: Field<T>, name: &str, width: u16) {
+        // strings are 1-byte aligned, so no padding
+        let def = FieldDefBuilder::new(f.id(), T::TYPE_ID)
             .offset(self.cursor)
             .size(width)
             .flags(f.flags())
@@ -354,11 +419,24 @@ impl FieldCursor {
         self.push(def, name);
     }
 
+    fn at(&mut self, offset: usize) {
+        let offset = u16::try_from(offset).expect("record layout exceeds u16 bytes");
+        assert!(
+            offset >= self.cursor,
+            "offset {offset} overlaps the field ending at {}",
+            self.cursor
+        );
+        self.pad_to(offset);
+    }
+
     fn align_to(&mut self, align: u16) {
-        let aligned = align_up(self.cursor, align);
-        if aligned > self.cursor {
+        self.pad_to(align_up(self.cursor, align));
+    }
+
+    fn pad_to(&mut self, offset: u16) {
+        if offset > self.cursor {
             self.push(
-                FieldDefBuilder::padding(self.cursor, aligned - self.cursor),
+                FieldDefBuilder::padding(self.cursor, offset - self.cursor),
                 "",
             );
         }
@@ -403,7 +481,7 @@ mod tests {
 
     /// A one-record stream.
     fn sample(fixed_price: bool, sym_name: &str) -> StreamLayout {
-        let mut sb = StreamLayoutBuilder::new(1);
+        let mut sb = StreamLayoutBuilder::new(1, 8);
         let ba = bid_ask(&mut sb);
         {
             let mut r = sb.record(rtype::MBP_1, 0, "Sample");
@@ -419,7 +497,7 @@ mod tests {
             r.struct_field(40, "levels", ba);
             r.finish();
         }
-        sb.build(8).unwrap()
+        sb.build().unwrap()
     }
 
     #[test]
@@ -473,13 +551,13 @@ mod tests {
 
     #[test]
     fn scalar_array_field_carries_size_and_array_flag() {
-        let mut sb = StreamLayoutBuilder::new(1);
+        let mut sb = StreamLayoutBuilder::new(1, 8);
         {
             let mut r = sb.record(rtype::MBP_0, 0, "WithConditions");
             r.field(Field::<[Char; 4]>::new(0x1A), "conditions");
             r.finish();
         }
-        let layout = sb.build(8).unwrap();
+        let layout = sb.build().unwrap();
         let cond = layout.record_layouts[0]
             .field_defs
             .iter()
@@ -491,26 +569,49 @@ mod tests {
     }
 
     #[test]
-    fn struct_array_field_spans_all_elements() {
-        let mut sb = StreamLayoutBuilder::new(1);
-        let ba = bid_ask(&mut sb);
-        let struct_size = sb.struct_layouts[ba as usize].size;
+    fn at_pads_a_gap() {
+        let mut sb = StreamLayoutBuilder::new(1, 8);
+        {
+            let mut r = sb.record(rtype::MBP_0, 0, "Gapped");
+            r.at(28).field(fields::SIZE, "size");
+            r.finish();
+        }
+        let rec = &sb.build().unwrap().record_layouts[0];
+        let gap = rec.field_defs[1];
+        assert!(gap.is_padding());
+        assert_eq!((gap.offset, gap.size), (24, 4));
+        assert_eq!(rec.field_defs[2].offset, 28);
+    }
+
+    #[test]
+    #[should_panic(expected = "overlaps")]
+    fn at_rejects_an_overlap() {
+        let mut sb = StreamLayoutBuilder::new(1, 8);
+        let mut r = sb.record(rtype::MBP_0, 0, "Overlapping");
+        r.field(fields::ORDER_ID, "order_id").at(28);
+    }
+
+    #[test]
+    fn struct_array_of_spans_all_elements() {
+        let mut sb = StreamLayoutBuilder::new(1, 8);
         {
             let mut r = sb.record(rtype::MBP_10, 0, "Mbp10");
             r.field(fields::ORDER_ID, "order_id");
-            r.struct_array_field(40, "levels", ba, 10);
+            r.struct_array_of(fields::LEVELS_10, "levels");
             r.finish();
         }
-        let layout = sb.build(8).unwrap();
+        let layout = sb.build().unwrap();
         let levels = layout.record_layouts[0]
             .field_defs
             .iter()
-            .find(|f| f.field_id == 40)
+            .find(|f| f.field_id == fields::LEVELS_10.id())
             .unwrap();
+        let ba = &layout.struct_layouts[levels.def_index as usize];
+        assert_eq!(ba.name, "BidAskPair");
         assert!(levels.is_array());
         assert_eq!(levels.type_id, fields::STRUCT_ID);
-        assert_eq!(levels.size, struct_size * 10);
-        let align = layout.struct_layouts[ba as usize].align();
+        assert_eq!(levels.size, ba.size * 10);
+        let align = ba.align();
         assert_eq!(levels.offset % align, 0);
     }
 }

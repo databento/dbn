@@ -4,6 +4,7 @@ mod dbn_attr;
 mod debug;
 mod enum_field;
 mod has_rtype;
+mod layout_desc;
 mod py_field_desc;
 mod py_repr;
 mod serialize;
@@ -35,6 +36,37 @@ pub fn dbn_attr(_item: TokenStream) -> TokenStream {
 #[proc_macro_derive(EnumField, attributes(dbn))]
 pub fn derive_enum_field(input: TokenStream) -> TokenStream {
     enum_field::derive_impl(input)
+}
+
+/// Derive macro for the `RecordLayoutDesc` trait, for a record struct starting with an
+/// `hd` header field.
+///
+/// Places each field after the header at its `offset_of!` offset under the `v4::fields`
+/// registry constant named after it, so the layout matches the compiled struct.
+///
+/// Supports the following `dbn` attributes:
+/// - `field_id = IDENT`: on a field, uses the registry entry `IDENT` instead of the one
+///   named after the field
+/// - `required(name, ...)`: on the struct, the symbol fields every layout of the record
+///   declares but the struct doesn't hold, appended by `add_required_fields`
+#[proc_macro_derive(RecordLayoutDesc, attributes(dbn))]
+pub fn derive_record_layout_desc(input: TokenStream) -> TokenStream {
+    layout_desc::derive_record_impl(input)
+}
+
+/// Derive macro for the `StructLayoutDesc` trait, for a struct nested in records like
+/// `BidAskPair`.
+///
+/// Places each fixed-width field at its `offset_of!` offset under the `v4::fields`
+/// registry constant named after it. Fields beginning with `_` become padding. Also
+/// implements `FieldType` for the struct and arrays of it, so registry constants can
+/// name them.
+///
+/// Supports the `field_id = IDENT` field attribute, which uses the registry entry
+/// `IDENT` instead of the one named after the field.
+#[proc_macro_derive(StructLayoutDesc, attributes(dbn))]
+pub fn derive_struct_layout_desc(input: TokenStream) -> TokenStream {
+    layout_desc::derive_struct_impl(input)
 }
 
 /// Derive macro for CSV serialization. Supports the following `dbn` attributes:

@@ -16,7 +16,36 @@ mod hash;
 mod index;
 mod validate;
 
+pub use builders::{RecordLayoutBuilder, StreamLayoutBuilder, StructLayoutBuilder};
 pub use index::LayoutIndex;
+#[cfg(test)]
+pub(crate) use validate::validate;
+
+/// The layout description of a record struct, used to build its [`RecordLayout`].
+///
+/// Usually derived with [`RecordLayoutDesc`](crate::macros::RecordLayoutDesc).
+pub trait RecordLayoutDesc {
+    /// The display name of the record.
+    const NAME: &'static str;
+
+    /// Adds the fields the struct holds, after the header.
+    fn add_fields(r: &mut RecordLayoutBuilder<'_>);
+
+    /// Adds the fields every layout of this record declares but no struct holds.
+    fn add_required_fields(_r: &mut RecordLayoutBuilder<'_>) {}
+}
+
+/// The layout description of a struct nested in records, used to build its
+/// [`StructLayout`].
+///
+/// Usually derived with [`StructLayoutDesc`](crate::macros::StructLayoutDesc).
+pub trait StructLayoutDesc {
+    /// The display name of the struct.
+    const NAME: &'static str;
+
+    /// Adds the fields of the struct.
+    fn add_fields(s: &mut StructLayoutBuilder<'_>);
+}
 
 /// The layout descriptions for all records in a DBN stream.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -282,67 +311,32 @@ mod tests {
 
     use rstest::*;
 
-    use super::{builders::StreamLayoutBuilder, *};
+    use super::*;
     use crate::{
         v4::{
-            self, rtype,
+            self,
+            layouts::default_layout,
+            rtype,
             types::{CStr, Char, Decimal, TimestampNs},
-            MboMsg, RecordHeader,
+            MboMsg, RecordHeader, TradeMsg,
         },
         Action, FlagSet, Side,
     };
 
-    fn add_mbo(sb: &mut StreamLayoutBuilder) {
-        let mut r = sb.record(rtype::MBO, 0, "MboMsg");
-        // TODO(cg): generate
-        r.field(fields::ORDER_ID, "order_id")
-            .field(fields::PRICE, "price")
-            .field(fields::SIZE, "size")
-            .field(fields::FLAGS, "flags")
-            .field(fields::CHANNEL_ID, "channel_id")
-            .field(fields::ACTION, "action")
-            .field(fields::SIDE, "side")
-            .field(fields::TS_RECV, "ts_recv")
-            .field(fields::TS_IN_DELTA, "ts_in_delta")
-            .field(fields::SEQUENCE, "sequence");
-        r.finish();
-    }
-
-    fn add_trades(sb: &mut StreamLayoutBuilder) {
-        let mut r = sb.record(rtype::MBP_0, 0, "TradeMsg");
-        // TODO(cg): generate
-        r.field(fields::PRICE, "price")
-            .field(fields::SIZE, "size")
-            .field(fields::ACTION, "action")
-            .field(fields::SIDE, "side")
-            .field(fields::FLAGS, "flags")
-            .field(fields::TS_RECV, "ts_recv")
-            .field(fields::TS_IN_DELTA, "ts_in_delta")
-            .field(fields::SEQUENCE, "sequence");
-        r.finish();
-    }
-
-    fn compiled() -> StreamLayout {
-        let mut sb = StreamLayoutBuilder::new(1);
-        add_mbo(&mut sb);
-        add_trades(&mut sb);
-        sb.build(8).unwrap()
-    }
-
     fn mbo_layout() -> StreamLayout {
-        let mut sb = StreamLayoutBuilder::new(1);
-        add_mbo(&mut sb);
-        sb.build(8).unwrap()
+        let mut sb = StreamLayoutBuilder::new(1, 8);
+        sb.record_of::<MboMsg>(rtype::MBO);
+        sb.build().unwrap()
     }
 
     fn mbo_index() -> LayoutIndex {
-        LayoutIndex::new(&mbo_layout(), &compiled())
+        LayoutIndex::new(&mbo_layout(), default_layout())
     }
 
     fn trades_layout() -> StreamLayout {
-        let mut sb = StreamLayoutBuilder::new(1);
-        add_trades(&mut sb);
-        sb.build(8).unwrap()
+        let mut sb = StreamLayoutBuilder::new(1, 8);
+        sb.record_of::<TradeMsg>(rtype::MBP_0);
+        sb.build().unwrap()
     }
 
     fn sample_mbo() -> MboMsg {
@@ -445,13 +439,13 @@ mod tests {
     #[test]
     fn offset_of_rejects_array_shape_mismatch() {
         let conditions = Field::<[Char; 4]>::new(0x1A);
-        let mut sb = StreamLayoutBuilder::new(1);
+        let mut sb = StreamLayoutBuilder::new(1, 8);
         {
             let mut r = sb.record(rtype::MBP_0, 0, "WithConditions");
             r.field(conditions, "conditions");
             r.finish();
         }
-        let index = LayoutIndex::new(&sb.build(8).unwrap(), &compiled());
+        let index = LayoutIndex::new(&sb.build().unwrap(), default_layout());
 
         assert!(index.offset_of(rtype::MBP_0, conditions).is_some());
         assert!(index
@@ -464,13 +458,13 @@ mod tests {
 
     #[test]
     fn reads_string_field() {
-        let mut sb = StreamLayoutBuilder::new(1);
+        let mut sb = StreamLayoutBuilder::new(1, 8);
         {
             let mut r = sb.record(rtype::MBP_1, 0, "SymRec");
             r.str_field(Field::<CStr>::new(30), "symbol", 8);
             r.finish();
         }
-        let index = LayoutIndex::new(&sb.build(8).unwrap(), &compiled());
+        let index = LayoutIndex::new(&sb.build().unwrap(), default_layout());
 
         #[repr(C, align(8))]
         struct Aligned([u8; 32]);
@@ -510,7 +504,7 @@ mod tests {
     }
 
     fn trades_repacked() -> StreamLayout {
-        let mut sb = StreamLayoutBuilder::new(1);
+        let mut sb = StreamLayoutBuilder::new(1, 8);
         {
             let mut r = sb.record(rtype::MBP_0, 0, "TradeMsg");
             r.field(fields::PRICE, "price")
@@ -523,7 +517,7 @@ mod tests {
                 .field(fields::SEQUENCE, "sequence");
             r.finish();
         }
-        sb.build(8).unwrap()
+        sb.build().unwrap()
     }
 
     #[rstest]
@@ -534,27 +528,28 @@ mod tests {
         #[case] stream: StreamLayout,
         #[case] expected: Verdict,
     ) {
-        let index = LayoutIndex::new(&stream, &compiled());
+        let index = LayoutIndex::new(&stream, default_layout());
         assert_eq!(index.verdict(rtype::MBP_0), Some(expected));
     }
 
     #[test]
     fn uncompiled_rtype_is_dynamic() {
-        let mut sb = StreamLayoutBuilder::new(1);
+        let uncompiled = 0x9999;
+        let mut sb = StreamLayoutBuilder::new(1, 8);
         {
-            let mut r = sb.record(rtype::MBP_1, 0, "Unknown");
+            let mut r = sb.record(uncompiled, 0, "Unknown");
             r.field(fields::PRICE, "price");
             r.finish();
         }
-        let index = LayoutIndex::new(&sb.build(8).unwrap(), &compiled());
-        assert_eq!(index.verdict(rtype::MBP_1), Some(Verdict::Dynamic));
+        let index = LayoutIndex::new(&sb.build().unwrap(), default_layout());
+        assert_eq!(index.verdict(uncompiled), Some(Verdict::Dynamic));
     }
 
     #[test]
     fn a_matching_hash_is_trusted() {
         let mut stream = trades_repacked();
         stream.record_layouts[0].layout_hash = trades_layout().record_layouts[0].layout_hash;
-        let index = LayoutIndex::new(&stream, &compiled());
+        let index = LayoutIndex::new(&stream, default_layout());
         assert_eq!(index.verdict(rtype::MBP_0), Some(Verdict::Compiled));
     }
 
@@ -591,7 +586,7 @@ mod tests {
         let f = l.record_layouts[0]
             .field_defs
             .iter_mut()
-            .find(|f| f.field_id == fields::HD)
+            .find(|f| f.field_id == fields::HD.id())
             .unwrap();
         f.flags |= fields::FLAG_IS_ARRAY;
         f.size = 5;
@@ -614,7 +609,7 @@ mod tests {
         l.record_layouts[0]
             .field_defs
             .iter_mut()
-            .find(|f| f.field_id == fields::HD)
+            .find(|f| f.field_id == fields::HD.id())
             .unwrap()
             .def_index = 999;
     })]
@@ -631,6 +626,21 @@ mod tests {
     })]
     #[case::struct_size_not_a_multiple_of_its_alignment(|l: &mut StreamLayout| {
         l.struct_layouts[0].size += 1;
+    })]
+    #[case::symbol_wider_than_the_stream_declares(|l: &mut StreamLayout| {
+        let rec = &mut l.record_layouts[0];
+        rec.field_defs.push(FieldDef {
+            field_id: fields::RAW_SYMBOL.id(),
+            offset: rec.base_record_size,
+            size: 16,
+            type_id: fields::SYMBOL_ID,
+            flags: 0,
+            def_index: 0,
+            scale: 0,
+            _reserved: [0; 5],
+        });
+        rec.field_names.push("raw_symbol".to_owned());
+        rec.base_record_size += 16;
     })]
     fn validate_rejects_corruption(#[case] corrupt: fn(&mut StreamLayout)) {
         let mut bad = mbo_layout();

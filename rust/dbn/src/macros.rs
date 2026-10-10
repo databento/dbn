@@ -2,7 +2,8 @@
 
 // Re-export
 pub use dbn_macros::{
-    dbn_record, CsvSerialize, DbnAttr, JsonSerialize, PyFieldDesc, RecordDebug, WritePyRepr,
+    dbn_record, CsvSerialize, DbnAttr, JsonSerialize, PyFieldDesc, RecordDebug, RecordLayoutDesc,
+    StructLayoutDesc, WritePyRepr,
 };
 
 /// Base macro for type dispatch based on rtype.
