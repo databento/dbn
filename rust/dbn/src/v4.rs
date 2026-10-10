@@ -17,6 +17,9 @@ pub mod types;
 
 pub use records::*;
 
+/// The DBN version of this module.
+pub const DBN_VERSION: u8 = 4;
+
 /// A non-owning immutable reference to a DBN version 4 record.
 pub type RecordRef<'a> = crate::RecordRef<'a, RecordHeader>;
 /// A non-owning mutable reference to a DBN version 4 record.

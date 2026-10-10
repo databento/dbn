@@ -6,7 +6,10 @@
 use std::{collections::BTreeMap, marker::PhantomData};
 
 use crate::{
-    v4::fields::{self, DecodeField, Field, FieldType},
+    v4::{
+        fields::{self, DecodeField, Field, FieldType},
+        types::Symbol,
+    },
     Record,
 };
 
@@ -15,11 +18,13 @@ mod compare;
 mod hash;
 mod index;
 mod validate;
+pub mod wire;
 
 pub use builders::{RecordLayoutBuilder, StreamLayoutBuilder, StructLayoutBuilder};
 pub use index::LayoutIndex;
 #[cfg(test)]
 pub(crate) use validate::validate;
+pub(crate) use validate::validate_for_metadata;
 
 /// The layout description of a record struct, used to build its [`RecordLayout`].
 ///
@@ -31,8 +36,8 @@ pub trait RecordLayoutDesc {
     /// Adds the fields the struct holds, after the header.
     fn add_fields(r: &mut RecordLayoutBuilder<'_>);
 
-    /// Adds the fields every layout of this record declares but no struct holds.
-    fn add_required_fields(_r: &mut RecordLayoutBuilder<'_>) {}
+    /// The symbol fields every layout of this record declares but no struct holds.
+    const REQUIRED_FIELDS: &'static [(Field<Symbol>, &'static str)] = &[];
 }
 
 /// The layout description of a struct nested in records, used to build its
@@ -89,6 +94,13 @@ impl RecordLayout {
             .max()
             .unwrap_or(self.base_record_size)
             .max(self.base_record_size)
+    }
+
+    /// Returns `true` if the layout declares `f` with `f`'s type.
+    pub fn has_field<T: FieldType>(&self, f: Field<T>) -> bool {
+        self.field_defs
+            .iter()
+            .any(|def| def.field_id == f.id() && def.type_id == f.type_id())
     }
 }
 
@@ -317,7 +329,7 @@ mod tests {
             self,
             layouts::default_layout,
             rtype,
-            types::{CStr, Char, Decimal, TimestampNs},
+            types::{CStr, Char, Decimal},
             MboMsg, RecordHeader, TradeMsg,
         },
         Action, FlagSet, Side,
@@ -485,22 +497,60 @@ mod tests {
         assert!(index.offset_of(rtype::MBP_0, fields::PRICE).is_none());
     }
 
-    fn trades_with_extension() -> StreamLayout {
-        let mut layout = trades_layout();
-        let rec = &mut layout.record_layouts[0];
-        rec.field_defs.push(FieldDef {
-            field_id: 0x0F00,
-            offset: rec.base_record_size,
-            size: 8,
-            type_id: <TimestampNs as FieldType>::TYPE_ID,
-            flags: fields::FLAG_IS_EXTENSION,
-            def_index: 0,
-            scale: 0,
-            _reserved: [0; 5],
-        });
-        rec.field_names.push("ts_out".to_owned());
-        rec.layout_hash = hash::layout_hash(&layout.struct_layouts, rec);
-        layout
+    fn trades_with_tail(declare: impl FnOnce(&mut RecordLayoutBuilder<'_>)) -> StreamLayout {
+        let mut sb = StreamLayoutBuilder::new(1, 8);
+        {
+            let mut r = sb.record(rtype::MBP_0, 0, "TradeMsg");
+            TradeMsg::add_fields(&mut r);
+            declare(&mut r);
+            r.finish();
+        }
+        sb.build().unwrap()
+    }
+
+    fn trades_with_ts_out() -> StreamLayout {
+        trades_with_tail(|r| {
+            r.ext_field(fields::TS_OUT, "ts_out");
+        })
+    }
+
+    fn trades_opra_conditions() -> StreamLayout {
+        trades_with_tail(|r| {
+            r.ext_field(conditions::<Char>(), "conditions");
+        })
+    }
+
+    fn trades_sip_conditions() -> StreamLayout {
+        trades_with_tail(|r| {
+            r.ext_field(conditions::<[Char; 4]>(), "conditions");
+        })
+    }
+
+    fn conditions<T: FieldType>() -> Field<T> {
+        Field::new(fields::CONDITIONS.id())
+    }
+
+    fn sample_trade() -> v4::TradeMsg {
+        v4::TradeMsg {
+            hd: RecordHeader::new::<v4::TradeMsg>(rtype::MBP_0, 1, 555, 111),
+            price: 123_000_000_000,
+            size: 7,
+            action: b'T' as c_char,
+            side: b'B' as c_char,
+            flags: FlagSet::new(0b1010),
+            _reserved: 0,
+            ts_recv: 222,
+            ts_in_delta: 9,
+            sequence: 88,
+        }
+    }
+
+    fn trade_with_tail<const TOTAL: usize>(tail: &[u8]) -> v4::RecordBuf<TOTAL> {
+        let mut buf = v4::RecordBuf::<TOTAL>::from(sample_trade());
+        let raw = buf.raw_buf_mut();
+        raw[size_of::<v4::TradeMsg>()..][..tail.len()].copy_from_slice(tail);
+        raw[..2].copy_from_slice(&((TOTAL - size_of::<RecordHeader>()) as u16).to_le_bytes());
+        buf
     }
 
     fn trades_repacked() -> StreamLayout {
@@ -522,7 +572,7 @@ mod tests {
 
     #[rstest]
     #[case::compiled_layout(trades_layout(), Verdict::Compiled)]
-    #[case::appended_extension(trades_with_extension(), Verdict::Compiled)]
+    #[case::appended_extension(trades_with_ts_out(), Verdict::Compiled)]
     #[case::repacked_size(trades_repacked(), Verdict::Dynamic)]
     fn verdict_authorizes_the_compiled_cast(
         #[case] stream: StreamLayout,
@@ -554,11 +604,92 @@ mod tests {
     }
 
     #[test]
+    fn ts_out_reads_from_the_extension_tail() {
+        let index = LayoutIndex::new(&trades_with_ts_out(), default_layout());
+        let rec = trade_with_tail::<64>(&777u64.to_le_bytes());
+
+        assert_eq!(rec.record_size(), 64);
+        assert_eq!(rec.get::<v4::TradeMsg>().unwrap().price, 123_000_000_000);
+        assert_eq!(rec.field(&index, fields::TS_OUT).map(|t| t.0), Some(777));
+    }
+
+    #[test]
+    fn absent_extension_reads_as_none() {
+        let index = LayoutIndex::new(&trades_with_ts_out(), default_layout());
+        let trade = sample_trade();
+        let rec = crate::RecordRef::from(&trade);
+
+        assert!(rec.field(&index, fields::TS_OUT).is_none());
+        assert!(index.offset_of(rtype::MBP_0, fields::TS_OUT).is_some());
+    }
+
+    #[test]
+    fn conditions_read_at_each_datasets_type() {
+        let opra_idx = LayoutIndex::new(&trades_opra_conditions(), default_layout());
+        let rec = trade_with_tail::<64>(b"@");
+        assert_eq!(
+            rec.field(&opra_idx, conditions::<Char>()),
+            Some(Char(b'@' as c_char))
+        );
+
+        let sip_idx = LayoutIndex::new(&trades_sip_conditions(), default_layout());
+        let rec = trade_with_tail::<64>(b"@ TI");
+        assert_eq!(
+            rec.field(&sip_idx, conditions::<[Char; 4]>()),
+            Some((*b"@ TI").map(|b| Char(b as c_char)))
+        );
+        assert!(rec.field(&sip_idx, conditions::<Char>()).is_none());
+        assert!(rec.field(&opra_idx, conditions::<[Char; 4]>()).is_none());
+    }
+
+    #[rstest]
+    #[case::opra(trades_opra_conditions(), 1)]
+    #[case::sip(trades_sip_conditions(), 4)]
+    fn conditions_layouts_stay_castable(#[case] stream: StreamLayout, #[case] size: u16) {
+        let index = LayoutIndex::new(&stream, default_layout());
+        assert_eq!(index.verdict(rtype::MBP_0), Some(Verdict::Compiled));
+
+        let rec = stream.record_layout(rtype::MBP_0).unwrap();
+        assert_eq!(usize::from(rec.base_record_size), size_of::<v4::TradeMsg>());
+        let cond = rec
+            .field_defs
+            .iter()
+            .find(|f| f.field_id == fields::CONDITIONS.id())
+            .unwrap();
+        assert_eq!(cond.type_id, <Char as FieldType>::TYPE_ID);
+        assert_eq!(cond.size, size);
+        assert!(cond.is_extension());
+        assert_eq!(cond.is_array(), size > 1);
+    }
+
+    #[rstest]
+    #[case::ts_out(trades_with_ts_out())]
+    #[case::opra(trades_opra_conditions())]
+    #[case::sip(trades_sip_conditions())]
+    fn extension_tail_is_8_aligned(#[case] stream: StreamLayout) {
+        let rec = stream.record_layout(rtype::MBP_0).unwrap();
+        assert_eq!(
+            rec.record_size() % 8,
+            0,
+            "tail ends at {}",
+            rec.record_size()
+        );
+    }
+
+    #[test]
     fn validate_accepts_builder_output() {
         assert!(validate::validate(&mbo_layout(), 8).is_ok());
     }
 
     #[rstest]
+    #[case::extension_flag_within_base(|l: &mut StreamLayout| {
+        l.record_layouts[0]
+            .field_defs
+            .iter_mut()
+            .find(|f| f.field_id == fields::PRICE.id())
+            .unwrap()
+            .flags |= fields::FLAG_IS_EXTENSION;
+    })]
     #[case::misaligned_offset(|l: &mut StreamLayout| {
         l.record_layouts[0]
             .field_defs

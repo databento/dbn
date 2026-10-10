@@ -141,6 +141,8 @@ pub const ASSET_CSTR_LEN: usize = v3::ASSET_CSTR_LEN;
 
 const METADATA_DATASET_CSTR_LEN: usize = 16;
 const METADATA_RESERVED_LEN: usize = 53;
+
+const METADATA_PRELUDE_LEN: usize = 8;
 /// Excludes magic string, version, and length.
 const METADATA_FIXED_LEN: usize = 100;
 const NULL_LIMIT: u64 = 0;

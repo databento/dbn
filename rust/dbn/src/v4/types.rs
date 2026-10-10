@@ -74,8 +74,10 @@ pub struct Char(pub c_char);
 
 /// Marker for null-terminated string fields. Uninhabited as it's only
 /// used as a type parameter. Width is declared in the `FieldDef`.
+#[derive(Clone, Copy)]
 pub enum CStr {}
 
 /// Marker for null-terminated symbol fields. Uninhabited as it's only used as a type
 /// parameter. Every symbol field in a stream has the stream's symbol width.
+#[derive(Clone, Copy)]
 pub enum Symbol {}

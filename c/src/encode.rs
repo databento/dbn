@@ -10,7 +10,7 @@ use dbn::{
 
 use crate::metadata::{MappingIntervalRef, StrRef};
 
-/// The byte offset of the `start` field in DBN-encoded Metadata.
+/// The byte offset of the `start` field in DBN version 1 to 3 encoded Metadata.
 pub const METADATA_START_OFFSET: usize = 26;
 /// The minimum buffer size in bytes for encoding DBN Metadata.
 pub const METADATA_MIN_ENCODED_SIZE: usize = 128;

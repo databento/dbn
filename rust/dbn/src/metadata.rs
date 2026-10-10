@@ -1,9 +1,12 @@
 //! Contains [`Metadata`] struct which comes at the beginning of any DBN file or
 //! stream and [`MetadataBuilder`] for creating a [`Metadata`] with defaults.
 
+mod lengths;
 mod merge;
 
 use std::num::NonZeroU64;
+
+pub(crate) use lengths::MetadataLengths;
 
 // Dummy derive macro to get around `cfg_attr` incompatibility of several
 // of pyo3's attribute macros. See https://github.com/PyO3/pyo3/issues/780
@@ -218,6 +221,7 @@ pub struct MetadataBuilder<D, Sch, Start, StIn, StOut> {
     stype_in: StIn,
     stype_out: StOut,
     ts_out: bool,
+    layout: Option<StreamLayout>,
     symbols: Vec<String>,
     partial: Vec<String>,
     not_found: Vec<String>,
@@ -262,6 +266,7 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
             stype_in: self.stype_in,
             stype_out: self.stype_out,
             ts_out: self.ts_out,
+            layout: self.layout,
             symbols: self.symbols,
             partial: self.partial,
             not_found: self.not_found,
@@ -284,6 +289,7 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
             stype_in: self.stype_in,
             stype_out: self.stype_out,
             ts_out: self.ts_out,
+            layout: self.layout,
             symbols: self.symbols,
             partial: self.partial,
             not_found: self.not_found,
@@ -302,6 +308,7 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
             limit: self.limit,
             stype_in: self.stype_in,
             stype_out: self.stype_out,
+            layout: self.layout,
             symbols: self.symbols,
             ts_out: self.ts_out,
             partial: self.partial,
@@ -337,6 +344,7 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
             stype_in,
             stype_out: self.stype_out,
             ts_out: self.ts_out,
+            layout: self.layout,
             symbols: self.symbols,
             partial: self.partial,
             not_found: self.not_found,
@@ -356,6 +364,7 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
             stype_in: self.stype_in,
             stype_out,
             ts_out: self.ts_out,
+            layout: self.layout,
             symbols: self.symbols,
             partial: self.partial,
             not_found: self.not_found,
@@ -366,6 +375,12 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
     /// Sets [`ts_out`](Metadata::ts_out) and returns the builder.
     pub fn ts_out(mut self, ts_out: bool) -> Self {
         self.ts_out = ts_out;
+        self
+    }
+
+    /// Sets the [`layout`](Metadata::layout) and returns the builder.
+    pub fn layout(mut self, layout: StreamLayout) -> Self {
+        self.layout = Some(layout);
         self
     }
 
@@ -413,7 +428,9 @@ impl MetadataBuilder<String, Option<Schema>, u64, Option<SType>, SType> {
             not_found: self.not_found,
             mappings: self.mappings,
             symbol_cstr_len: version_symbol_cstr_len(self.version),
-            layout: None,
+            // TODO(cg): look at making this method fallible and validating v4 metadata
+            // has non-None `layout`. Currently validated in `MetadataEncoder`
+            layout: self.layout,
         }
     }
 }
@@ -430,6 +447,7 @@ impl Default for MetadataBuilder<Unset, Unset, Unset, Unset, Unset> {
             stype_in: Unset {},
             stype_out: Unset {},
             ts_out: false,
+            layout: None,
             symbols: vec![],
             partial: vec![],
             not_found: vec![],

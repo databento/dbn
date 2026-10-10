@@ -122,23 +122,20 @@ fn check_fields(
                 &format!("field {} offset+size overflows u16", f.field_id),
             )
         })?;
-        // non-extension fields fit within the base; extensions start at or past it.
-        if f.is_extension() {
-            if !is_record {
-                return Err(err(
-                    ctx,
-                    &format!("field {} may not be an extension", f.field_id),
-                ));
-            }
-            if f.offset < base {
-                return Err(err(
-                    ctx,
-                    &format!(
-                        "extension field {} at {} precedes base {base}",
-                        f.field_id, f.offset
-                    ),
-                ));
-            }
+        let in_tail = is_record && f.offset >= base;
+        if !f.is_padding() && f.is_extension() != in_tail {
+            return Err(err(
+                ctx,
+                &format!(
+                    "field {} at {} is {}flagged an extension but {}base {base}",
+                    f.field_id,
+                    f.offset,
+                    if f.is_extension() { "" } else { "not " },
+                    if in_tail { "sits past " } else { "is within " },
+                ),
+            ));
+        }
+        if in_tail {
             ext_spans.push((f.offset, end));
         } else {
             if end > base {
@@ -251,6 +248,103 @@ fn field_align(f: &FieldDef, nested: Option<&StructLayout>) -> u16 {
     fields::scalar_size(f.type_id).unwrap_or(1)
 }
 
+pub(crate) fn validate_for_metadata(
+    layout: &StreamLayout,
+    symbol_cstr_len: u16,
+    ts_out: bool,
+) -> crate::Result<()> {
+    validate(layout, symbol_cstr_len)?;
+    for rec in &layout.record_layouts {
+        for &(f, name) in crate::v4::layouts::required_fields(rec.rtype) {
+            if !rec.has_field(f) {
+                return Err(err(
+                    &rec.name,
+                    &format!("missing required field `{name}` ({:#06X})", f.id()),
+                ));
+            }
+        }
+        if rec.has_field(fields::TS_OUT) != ts_out {
+            return Err(err(
+                &rec.name,
+                &format!(
+                    "{} a `ts_out` field, but the metadata has ts_out {ts_out}",
+                    if ts_out { "lacks" } else { "declares" }
+                ),
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn err(ctx: &str, msg: &str) -> crate::Error {
     crate::Error::layout(format!("record `{ctx}`: {msg}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use rstest::rstest;
+
+    use super::*;
+    use crate::{
+        layout::{RecordLayoutDesc, StreamLayoutBuilder},
+        v4::{rtype, InstrumentDefMsg, MboMsg},
+        Schema,
+    };
+
+    const SYMBOL_WIDTH: u16 = 71;
+
+    fn definition_layout(symbol_width: u16) -> StreamLayout {
+        let mut sb = StreamLayoutBuilder::new(1, symbol_width);
+        sb.record_of::<InstrumentDefMsg>(rtype::INSTRUMENT_DEF);
+        sb.build().unwrap()
+    }
+
+    #[test]
+    fn a_layout_with_required_fields_is_valid() {
+        validate_for_metadata(&definition_layout(SYMBOL_WIDTH), SYMBOL_WIDTH, false).unwrap();
+    }
+
+    #[test]
+    fn symbol_width_must_match_the_metadata() {
+        assert!(validate_for_metadata(&definition_layout(22), SYMBOL_WIDTH, false).is_err());
+    }
+
+    #[test]
+    fn required_fields_must_be_declared() {
+        let mut sb = StreamLayoutBuilder::new(1, SYMBOL_WIDTH);
+        {
+            let mut r = sb.record(
+                rtype::INSTRUMENT_DEF,
+                Schema::Definition as u16,
+                InstrumentDefMsg::NAME,
+            );
+            InstrumentDefMsg::add_fields(&mut r);
+            r.finish();
+        }
+        let err = validate_for_metadata(&sb.build().unwrap(), SYMBOL_WIDTH, false).unwrap_err();
+        assert!(err.to_string().contains("raw_symbol"), "{err}");
+    }
+
+    #[rstest]
+    #[case::both(true, true, true)]
+    #[case::neither(false, false, true)]
+    #[case::only_metadata(true, false, false)]
+    #[case::only_layout(false, true, false)]
+    fn ts_out_must_match_the_layout(
+        #[case] ts_out: bool,
+        #[case] declared: bool,
+        #[case] valid: bool,
+    ) {
+        let mut sb = StreamLayoutBuilder::new(1, SYMBOL_WIDTH);
+        {
+            let mut r = sb.record(rtype::MBO, Schema::Mbo as u16, MboMsg::NAME);
+            MboMsg::add_fields(&mut r);
+            if declared {
+                r.ext_field(fields::TS_OUT, "ts_out");
+            }
+            r.finish();
+        }
+        let res = validate_for_metadata(&sb.build().unwrap(), SYMBOL_WIDTH, ts_out);
+        assert_eq!(res.is_ok(), valid, "{res:?}");
+    }
 }

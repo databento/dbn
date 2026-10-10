@@ -48,7 +48,7 @@ pub fn derive_enum_field(input: TokenStream) -> TokenStream {
 /// - `field_id = IDENT`: on a field, uses the registry entry `IDENT` instead of the one
 ///   named after the field
 /// - `required(name, ...)`: on the struct, the symbol fields every layout of the record
-///   declares but the struct doesn't hold, appended by `add_required_fields`
+///   declares but the struct doesn't hold, listed in `REQUIRED_FIELDS`
 #[proc_macro_derive(RecordLayoutDesc, attributes(dbn))]
 pub fn derive_record_layout_desc(input: TokenStream) -> TokenStream {
     layout_desc::derive_record_impl(input)

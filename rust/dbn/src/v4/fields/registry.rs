@@ -35,6 +35,8 @@ pub const TS_IN_DELTA: Field<i32> = Field::new(0x17);
 pub const SEQUENCE: Field<u32> = Field::new(0x18);
 /// Field ID for `order_id`.
 pub const ORDER_ID: Field<u64> = Field::new(0x19);
+/// Field ID for `conditions`.
+pub const CONDITIONS: Field<crate::v4::types::Char> = Field::new(0x1A);
 /// Field ID for `channel_id`.
 pub const CHANNEL_ID: Field<u8> = Field::new(0x1B);
 /// Field ID for `bid_px`.
@@ -144,11 +146,13 @@ pub const STYPE_OUT_SYMBOL: Field<crate::v4::types::Symbol> = Field::new(0x4C);
 pub const START_TS: Field<crate::v4::types::TimestampNs> = Field::new(0x4D);
 /// Field ID for `end_ts`.
 pub const END_TS: Field<crate::v4::types::TimestampNs> = Field::new(0x4E);
+/// Field ID for `ts_out`.
+pub const TS_OUT: Field<crate::v4::types::TimestampNs> = Field::new(0x4F);
 /// Field ID for `hd`, the record header.
-pub const HD: Field<crate::v4::RecordHeader> = Field::new(0x1000);
+pub const HD: Field<crate::v4::RecordHeader> = Field::new(0x50);
 /// Field ID for `levels` with a depth of 1, an array of [`BidAskPair`](crate::BidAskPair).
-pub const LEVELS_1: Field<[crate::BidAskPair; 1]> = Field::new(0x1001);
+pub const LEVELS_1: Field<[crate::BidAskPair; 1]> = Field::new(0x51);
 /// Field ID for `levels` with a depth of 10, an array of [`BidAskPair`](crate::BidAskPair).
-pub const LEVELS_10: Field<[crate::BidAskPair; 10]> = Field::new(0x1001);
+pub const LEVELS_10: Field<[crate::BidAskPair; 10]> = Field::new(0x51);
 /// Field ID for `consolidated_levels` with a depth of 1, an array of [`ConsolidatedBidAskPair`](crate::ConsolidatedBidAskPair).
-pub const CONSOLIDATED_LEVELS_1: Field<[crate::ConsolidatedBidAskPair; 1]> = Field::new(0x1002);
+pub const CONSOLIDATED_LEVELS_1: Field<[crate::ConsolidatedBidAskPair; 1]> = Field::new(0x52);

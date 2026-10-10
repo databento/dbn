@@ -58,6 +58,13 @@ pub trait FieldType: Sized {
 ///     Field::<CStr>::new(0x0030).size()
 /// }
 /// ```
+///
+/// ```compile_fail,E0277
+/// use dbn::{layout::RecordLayoutBuilder, v4::{fields::Field, types::CStr}};
+/// fn bad(b: &mut RecordLayoutBuilder) {
+///     b.field(Field::<CStr>::new(0x0030), "raw_symbol");
+/// }
+/// ```
 pub trait FixedWidth: FieldType {
     /// The field's wire size in bytes, which is its type ID's width.
     const WIRE_SIZE: u16 = match scalar_size(Self::TYPE_ID) {
@@ -146,8 +153,20 @@ where
         Some(OpenEnum::from_raw(E::Repr::decode(bytes, scale)?))
     }
 }
-// Array (`[T; N]` -> `&'a [T]`) and `Struct` (-> `&'a S`) reads slot in the same way:
-// further `DecodeField` impls with a borrowing `Value<'a>`.
+impl<T, const N: usize> DecodeField for [T; N]
+where
+    T: FixedWidth + for<'x> DecodeField<Value<'x> = T>,
+{
+    type Value<'a> = [T; N];
+    fn decode(bytes: &[u8], scale: i8) -> Option<[T; N]> {
+        let width = usize::from(T::WIRE_SIZE);
+        let mut out: [Option<T>; N] = [const { None }; N];
+        for (i, slot) in out.iter_mut().enumerate() {
+            *slot = Some(T::decode(bytes.get(i * width..(i + 1) * width)?, scale)?);
+        }
+        Some(out.map(Option::unwrap))
+    }
+}
 
 /// A field constant.
 #[derive(Debug, Clone, Copy)]

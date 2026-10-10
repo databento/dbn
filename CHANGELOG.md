@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.73.0 - Upcoming
+
+### Enhancements
+- Added `encode::dbn::v4::Encoder`, `RecordEncoder`, `AsyncEncoder`, and `AsyncRecordEncoder`
+  for writing DBN version 4 streams
+- Increased the maximum dataset code length in version 4 metadata to 37 characters
+
 ## 0.72.0 - 2026-10-13
 
 ### Enhancements

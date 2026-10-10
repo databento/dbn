@@ -36,7 +36,7 @@ fn expand_record(input: &DeriveInput) -> syn::Result<TokenStream> {
         .map(|field| {
             let field_name = field.to_string();
             let field_id = registry_path(&crate_name, &field);
-            quote!(r.symbol_field(#field_id, #field_name);)
+            quote!((#field_id, #field_name))
         });
     Ok(quote! {
         impl #crate_name::layout::RecordLayoutDesc for #ident {
@@ -46,9 +46,10 @@ fn expand_record(input: &DeriveInput) -> syn::Result<TokenStream> {
                 #(#placements)*
             }
 
-            fn add_required_fields(r: &mut #crate_name::layout::RecordLayoutBuilder<'_>) {
-                #(#required)*
-            }
+            const REQUIRED_FIELDS: &'static [(
+                #crate_name::v4::fields::Field<#crate_name::v4::types::Symbol>,
+                &'static str,
+            )] = &[#(#required),*];
         }
     })
 }
@@ -180,7 +181,8 @@ mod tests {
         ":: dbn :: v4 :: fields :: STATUS_ACTION",
         "str_field (:: dbn :: v4 :: fields :: ERR",
         "struct_array_of :: < BidAskPair , 1 > (:: dbn :: v4 :: fields :: LEVELS_1 , \"levels\")",
-        "r . symbol_field (:: dbn :: v4 :: fields :: RAW_SYMBOL , \"raw_symbol\")",
+        "REQUIRED_FIELDS",
+        "(:: dbn :: v4 :: fields :: RAW_SYMBOL , \"raw_symbol\")",
         "r . at (:: std :: mem :: size_of :: < Self > ())",
     ])]
     #[case::nested_struct(expand_struct, quote! {

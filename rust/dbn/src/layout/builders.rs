@@ -27,7 +27,7 @@ pub(crate) struct FieldDefBuilder {
 }
 
 impl FieldDefBuilder {
-    const fn new(field_id: u16, type_id: u8) -> Self {
+    pub(super) const fn new(field_id: u16, type_id: u8) -> Self {
         Self {
             field_id,
             type_id,
@@ -39,33 +39,33 @@ impl FieldDefBuilder {
         }
     }
 
-    const fn offset(mut self, offset: u16) -> Self {
+    pub(super) const fn offset(mut self, offset: u16) -> Self {
         self.offset = offset;
         self
     }
 
-    const fn size(mut self, size: u16) -> Self {
+    pub(super) const fn size(mut self, size: u16) -> Self {
         self.size = size;
         self
     }
 
-    const fn flags(mut self, flags: u8) -> Self {
+    pub(super) const fn flags(mut self, flags: u8) -> Self {
         self.flags = flags;
         self
     }
 
-    const fn def_index(mut self, def_index: u16) -> Self {
+    pub(super) const fn def_index(mut self, def_index: u16) -> Self {
         self.def_index = def_index;
         self
     }
 
-    const fn scale(mut self, scale: i8) -> Self {
+    pub(super) const fn scale(mut self, scale: i8) -> Self {
         self.scale = scale;
         self
     }
 
     /// The only place the [`FieldDef`] struct literal appears.
-    const fn build(self) -> FieldDef {
+    pub(super) const fn build(self) -> FieldDef {
         FieldDef {
             field_id: self.field_id,
             offset: self.offset,
@@ -144,7 +144,9 @@ impl StreamLayoutBuilder {
         let schema = RType::try_into_schema(rtype).map_or(crate::NULL_SCHEMA, |s| s as u16);
         let mut rec = self.record(rtype, schema, R::NAME);
         R::add_fields(&mut rec);
-        R::add_required_fields(&mut rec);
+        for &(f, name) in R::REQUIRED_FIELDS {
+            rec.symbol_field(f, name);
+        }
         rec.finish();
         self
     }
@@ -270,10 +272,19 @@ impl<'a> RecordLayoutBuilder<'a> {
         self
     }
 
-    /// Pads the record to its 8-byte aligned size and appends it to the stream.
+    /// Places a fixed-width extension field past `base_record_size`. Declare every base
+    /// field first.
+    pub fn ext_field<T: FixedWidth>(&mut self, f: Field<T>, name: &str) -> &mut Self {
+        self.seq.seal_base();
+        self.seq.scalar(f, name);
+        self
+    }
+
+    /// Pads the base and any extension tail to 8-byte boundaries and appends the record
+    /// to the stream.
     pub fn finish(self) {
         let mut seq = self.seq;
-        let base = seq.finish_base();
+        let base = seq.finish_record();
         self.parent.records.push(RecordLayout {
             rtype: self.rtype,
             schema: self.schema,
@@ -365,6 +376,7 @@ struct FieldCursor {
     field_defs: Vec<FieldDef>,
     field_names: Vec<String>,
     cursor: u16,
+    base: Option<u16>,
 }
 
 impl FieldCursor {
@@ -442,7 +454,25 @@ impl FieldCursor {
         }
     }
 
-    fn push(&mut self, def: FieldDef, name: &str) {
+    fn seal_base(&mut self) -> u16 {
+        if let Some(base) = self.base {
+            return base;
+        }
+        self.align_to(8);
+        self.base = Some(self.cursor);
+        self.cursor
+    }
+
+    fn finish_record(&mut self) -> u16 {
+        let base = self.seal_base();
+        self.align_to(8);
+        base
+    }
+
+    fn push(&mut self, mut def: FieldDef, name: &str) {
+        if self.base.is_some() && !def.is_padding() {
+            def.flags |= fields::FLAG_IS_EXTENSION;
+        }
         self.cursor = self
             .cursor
             .checked_add(def.size)

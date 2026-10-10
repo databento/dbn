@@ -126,7 +126,6 @@ impl DbnFsm {
     pub const DEFAULT_BUF_SIZE: usize = 64 * (1 << 10);
     /// The most records `process_batch()` decodes at once.
     const BATCH_LEN: usize = 16;
-    const METADATA_PRELUDE_LEN: usize = 8;
     const HEADER_LEN: usize = size_of::<RecordHeader>();
     const U32_SIZE: usize = size_of::<u32>();
 
@@ -400,9 +399,9 @@ impl DbnFsm {
             let available_data = self.buffer.available_data();
             match self.state {
                 State::Record => return None,
-                State::Prelude if available_data < Self::METADATA_PRELUDE_LEN => {
+                State::Prelude if available_data < crate::METADATA_PRELUDE_LEN => {
                     return Some(ProcessResult::ReadMore(
-                        Self::METADATA_PRELUDE_LEN - available_data,
+                        crate::METADATA_PRELUDE_LEN - available_data,
                     ));
                 }
                 State::Prelude => {
@@ -708,9 +707,9 @@ impl DbnFsm {
             self.double_compat_buffer();
         }
         self.state = State::Metadata { length };
-        self.buffer.consume(Self::METADATA_PRELUDE_LEN);
+        self.buffer.consume(crate::METADATA_PRELUDE_LEN);
         self.buffer
-            .grow(length as usize + Self::METADATA_PRELUDE_LEN);
+            .grow(length as usize + crate::METADATA_PRELUDE_LEN);
         Ok(())
     }
 
@@ -2363,7 +2362,7 @@ mod tests {
         DbnEncoder::new(&mut buf, &metadata)?;
 
         // with every list empty, the four counts sit back to back past `layout_length`
-        let counts = DbnFsm::METADATA_PRELUDE_LEN + crate::METADATA_FIXED_LEN + size_of::<u32>();
+        let counts = crate::METADATA_PRELUDE_LEN + crate::METADATA_FIXED_LEN + size_of::<u32>();
         let at = counts + which * size_of::<u32>();
         assert_eq!(u32::from_le_slice(&buf[at..]), 0, "the list is empty");
         buf[at..at + size_of::<u32>()].copy_from_slice(&u32::MAX.to_le_bytes());
@@ -2392,7 +2391,7 @@ mod tests {
             encoder.encode_record(&SystemMsg::heartbeat(2))?;
         }
         // the symbols count follows the prelude, the fixed fields, and `layout_length`
-        let at = DbnFsm::METADATA_PRELUDE_LEN + crate::METADATA_FIXED_LEN + size_of::<u32>();
+        let at = crate::METADATA_PRELUDE_LEN + crate::METADATA_FIXED_LEN + size_of::<u32>();
         assert_eq!(u32::from_le_slice(&buf[at..]), 1, "one symbol was encoded");
         buf[at..at + size_of::<u32>()].copy_from_slice(&9u32.to_le_bytes());
 
