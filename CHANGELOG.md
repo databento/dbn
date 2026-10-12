@@ -23,6 +23,7 @@
   `StreamLayoutBuilder`, `RecordLayoutBuilder`, `StructLayoutBuilder`,
   `v4::types::Symbol`, and `v4::layouts::default_layout()` for building DBN version 4
   layouts from record structs
+- Added support for Python 3.15 to `databento_dbn`
 - Upgraded `pyo3` to 0.29.3
 
 ### Breaking changes

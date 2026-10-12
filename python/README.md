@@ -39,6 +39,13 @@ maturin develop
 ```
 This will install a package named `databento-dbn` in your current Python environment.
 
+Alternatively, [uv](https://docs.astral.sh/uv/) can manage the development environment:
+```sh
+cd python
+uv sync                 # create .venv with maturin and build databento-dbn into it
+uv run maturin develop  # rebuild after editing the Rust sources
+```
+
 ## License
 
 Distributed under the [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0.html).

@@ -8,5 +8,11 @@ target/
 **/*.rs.bk
 *.sw[po]
 
+# Python development environment and maturin editable builds
+.venv/
+uv.lock
+*.so
+*.pyd
+
 # From DBN C release workflow
 native-static-libs.txt

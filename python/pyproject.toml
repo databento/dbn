@@ -19,13 +19,21 @@ Repository = "https://github.com/databento/dbn"
 "Bug Tracker" = "https://github.com/databento/dbn/issues"
 
 [dependency-groups]
-dev = ["maturin>=1.0"]
+dev = ["maturin>=1.14"]
 
 [build-system]
-requires = ["maturin>=1.0"]
+requires = ["maturin>=1.14"]
 build-backend = "maturin"
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
 python-source = "python"
 module-name = "databento_dbn._lib"
+
+[tool.uv]
+cache-keys = [
+    { file = "pyproject.toml" },
+    { file = "Cargo.toml" },
+    { file = "src/**/*.rs" },
+    { file = "../rust/dbn/src/**/*.rs" },
+]
