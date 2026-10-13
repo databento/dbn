@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.72.0 - Upcoming
+## 0.72.0 - 2026-10-13
 
 ### Enhancements
 - Reduced the memory usage of `TsSymbolMap` for requests spanning many days
@@ -9,6 +9,7 @@
   `TsSymbolMap` from live `SymbolMappingMsg` records
 - Added `interval()` methods to `Schema` and `RType` in the Python bindings, which return
   the subsampling interval as a `datetime.timedelta` or `None`
+- Added support for Python 3.15 to `databento_dbn`
 - Added a preliminary `v4` module for the in-development DBN version 4
 - Added `RecordHeaderKind` trait to abstract over different `RecordHeader`s
 - Added `HasRType` and `Record` traits and `RecordRef`, `RecordRefMut`, and `RecordBuf`
@@ -23,8 +24,8 @@
   `StreamLayoutBuilder`, `RecordLayoutBuilder`, `StructLayoutBuilder`,
   `v4::types::Symbol`, and `v4::layouts::default_layout()` for building DBN version 4
   layouts from record structs
-- Added support for Python 3.15 to `databento_dbn`
 - Upgraded `pyo3` to 0.29.3
+- Upgraded async-compression to 0.4.50
 
 ### Breaking changes
 - Changed `TsSymbolMap::insert()` to take the `start` and `end` of the mapping as UNIX
@@ -36,8 +37,9 @@
 - `RecordRef::new()`, `RecordRefMut::new()`, and their `unchecked_from_header()`
   constructors need the header specified
 - `HasRType::has_rtype()` takes a `u16`, and `HasRType` no longer requires `RecordMut`
-- The `RecordMut` trait now requires `Record` and `RecordMut::header_mut()` returns `&mut Self::Header`.
-  Generic code for version 1-3 that uses `header_mut()` will need a `v3::HasRType` bound
+- The `RecordMut` trait now requires `Record` and `RecordMut::header_mut()` returns
+  `&mut Self::Header`. Generic code for version 1-3 that uses `header_mut()` will need a
+  `v3::HasRType` bound
 - `DecodeRecord`, `DecodeStream`, and `AsyncDecodeRecord` decode v1-v3 records, so their
   generic methods require `T: v3::HasRType`
 - `WithTsOut`, `transmute_record()`, `transmute_record_bytes()`, and
