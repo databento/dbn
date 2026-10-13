@@ -1,7 +1,18 @@
-use crate::{HasRType, SecurityUpdateAction, StatType, StatUpdateAction};
+use crate::{HasRType, Record, RecordHeader, SecurityUpdateAction, StatType, StatUpdateAction};
+
+/// A [`Record`] that begins with the [`RecordHeader`] shared by DBN versions 1 through 3.
+pub trait RecordV1: Record<Header = RecordHeader> {}
+
+impl<T: Record<Header = RecordHeader>> RecordV1 for T {}
+
+/// A [`HasRType`] record type that begins with the [`RecordHeader`] shared by DBN
+/// versions 1 through 3.
+pub trait HasRTypeV1: HasRType<Header = RecordHeader> {}
+
+impl<T: HasRType<Header = RecordHeader>> HasRTypeV1 for T {}
 
 /// A trait for compatibility between different versions of symbol mapping records.
-pub trait SymbolMappingRec: HasRType {
+pub trait SymbolMappingRec: HasRTypeV1 {
     /// Returns the input symbol as a `&str`.
     ///
     /// # Errors
@@ -24,7 +35,7 @@ pub trait SymbolMappingRec: HasRType {
 }
 
 /// A trait for compatibility between different versions of definition records.
-pub trait InstrumentDefRec: HasRType {
+pub trait InstrumentDefRec: HasRTypeV1 {
     /// Returns the instrument raw symbol assigned by the publisher as a `&str`.
     ///
     /// # Errors
@@ -58,7 +69,7 @@ pub trait InstrumentDefRec: HasRType {
 }
 
 /// A trait for compatibility between different versions of statistics records.
-pub trait StatRec: HasRType {
+pub trait StatRec: HasRTypeV1 {
     /// The sentinel value for a null `quantity`.
     const UNDEF_STAT_QUANTITY: i64;
 

@@ -3,7 +3,7 @@
 use std::{
     collections::HashMap,
     io::{BufWriter, Write},
-    sync::{Arc, Mutex},
+    sync::Mutex,
 };
 
 use dbn::{
@@ -68,9 +68,15 @@ impl Transcoder {
                     if symbol.is_empty() {
                         continue;
                     }
-                    let start_date = py_to_time_date(&start_date)?;
-                    let end_date = py_to_time_date(&end_date)?;
-                    symbol_map.insert(iid, start_date, end_date, Arc::new(symbol))?;
+                    let start_ts = py_to_time_date(&start_date)?
+                        .midnight()
+                        .assume_utc()
+                        .unix_timestamp_nanos() as u64;
+                    let end_ts = py_to_time_date(&end_date)?
+                        .midnight()
+                        .assume_utc()
+                        .unix_timestamp_nanos() as u64;
+                    symbol_map.insert(iid, start_ts, end_ts, symbol)?;
                 }
             }
             Some(symbol_map)

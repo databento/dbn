@@ -14,7 +14,7 @@ use crate::{
         dbn::{decode_iso8601, DBN_PREFIX, DBN_PREFIX_LEN},
         FromLittleEndianSlice,
     },
-    v1, v2, v3, DbnVersion, Error, HasRType, MappingInterval, Metadata, Record, RecordHeader,
+    v1, v2, v3, DbnVersion, Error, MappingInterval, Metadata, Record, RecordHeader, RecordMut,
     RecordRef, Result, SType, Schema, SymbolMapping, VersionUpgradePolicy, WithTsOut, DBN_VERSION,
     MAX_RECORD_LEN, METADATA_FIXED_LEN, NULL_SCHEMA, NULL_STYPE, UNDEF_TIMESTAMP,
 };
@@ -83,6 +83,9 @@ enum State {
 /// and [`DbnFsm::process_many()`].
 #[derive(Debug)]
 #[must_use = "this `ProcessResult` may be an `Err` variant, which should be handled"]
+// `Metadata` is large (it carries the optional `SchemaDef`), but it's produced at most
+// once per stream, so the size difference isn't worth boxing on the decode path.
+#[allow(clippy::large_enum_variant)]
 pub enum ProcessResult<R> {
     /// More data should be read into `space()`.
     ReadMore(usize),
@@ -784,13 +787,13 @@ impl DbnFsm {
         } else {
             crate::METADATA_RESERVED_LEN
         };
-        let schema_definition_length = u32::from_le_slice(&buffer[pos..]);
-        if schema_definition_length != 0 {
+        let layout_length = u32::from_le_slice(&buffer[pos..]);
+        if layout_length != 0 {
             return Err(crate::Error::decode(
                 "this version of dbn can't parse schema definitions",
             ));
         }
-        pos += Self::U32_SIZE + (schema_definition_length as usize);
+        pos += Self::U32_SIZE + (layout_length as usize);
         let symbols =
             Self::decode_metadata_repeated_symbol_cstr(symbol_cstr_len, buffer, &mut pos)?;
         let partial =
@@ -818,6 +821,7 @@ impl DbnFsm {
             partial,
             not_found,
             mappings,
+            layout: None,
         })
     }
 
@@ -998,7 +1002,7 @@ impl DbnFsm {
     ) -> (&'a mut [u8], Option<RecordRef<'a>>) {
         use crate::{rtype::*, VersionUpgradePolicy::*};
 
-        let rec = RecordRef::new(read_buffer);
+        let rec = RecordRef::<crate::RecordHeader>::new(read_buffer);
         match (version, upgrade_policy, rec.header().rtype) {
             (1, UpgradeToV2, INSTRUMENT_DEF) => {
                 return upgrade_record::<v1::InstrumentDefMsg, v2::InstrumentDefMsg>(
@@ -1059,7 +1063,7 @@ impl DbnFsm {
     ) -> (&'a mut [u8], Option<RecordRef<'a>>) {
         use crate::{rtype::*, VersionUpgradePolicy::*};
 
-        let rec = RecordRef::new(read_buffer);
+        let rec = RecordRef::<crate::RecordHeader>::new(read_buffer);
         let rec_size = rec.record_size();
         match (rec.header().rtype, upgrade_policy) {
             (INSTRUMENT_DEF, UpgradeToV2) if rec_size < size_of::<v2::InstrumentDefMsg>() => {
@@ -1359,8 +1363,8 @@ unsafe fn upgrade_record<'a, T, U>(
     input: RecordRef<'a>,
 ) -> (&'a mut [u8], Option<RecordRef<'a>>)
 where
-    T: HasRType,
-    U: AsRef<[u8]> + HasRType + for<'t> From<&'t T>,
+    T: v3::HasRType,
+    U: AsRef<[u8]> + v3::HasRType + RecordMut + for<'t> From<&'t T>,
 {
     if ts_out {
         let rec = input.get::<WithTsOut<T>>().unwrap();

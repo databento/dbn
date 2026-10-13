@@ -147,6 +147,7 @@ impl MetadataMerger {
             stype_out: self.stype_out,
             ts_out: self.ts_out,
             symbol_cstr_len: self.symbol_cstr_len,
+            layout: None,
             symbols: self.symbols.into_iter().collect(),
             partial: self.partial.into_iter().collect(),
             not_found: self.not_found.into_iter().collect(),

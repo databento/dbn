@@ -42,24 +42,32 @@ impl_write_py_repr_debug! {
     FlagSet,
 }
 
-impl WritePyRepr for RecordHeader {
-    const SHOULD_FLATTEN: bool = true;
+macro_rules! impl_write_py_repr_header {
+    ($($header:ty),+) => {
+        $(
+            impl WritePyRepr for $header {
+                const SHOULD_FLATTEN: bool = true;
 
-    fn write_py_repr(&self, s: &mut String) -> fmt::Result {
-        write!(s, "rtype=")?;
-        match self.rtype() {
-            Ok(rtype) => rtype.write_py_repr(s)?,
-            Err(_) => write!(s, "{}", self.rtype)?,
-        }
-        write!(s, ", publisher_id=")?;
-        match self.publisher() {
-            Ok(p) => p.write_py_repr(s)?,
-            Err(_) => write!(s, "{}", self.publisher_id)?,
-        }
-        write!(s, ", instrument_id={}, ", self.instrument_id)?;
-        fmt_ts(s, "ts_event", self.ts_event)
-    }
+                fn write_py_repr(&self, s: &mut String) -> fmt::Result {
+                    write!(s, "rtype=")?;
+                    match self.rtype() {
+                        Ok(rtype) => rtype.write_py_repr(s)?,
+                        Err(_) => write!(s, "{}", self.rtype)?,
+                    }
+                    write!(s, ", publisher_id=")?;
+                    match self.publisher() {
+                        Ok(p) => p.write_py_repr(s)?,
+                        Err(_) => write!(s, "{}", self.publisher_id)?,
+                    }
+                    write!(s, ", instrument_id={}, ", self.instrument_id)?;
+                    fmt_ts(s, "ts_event", self.ts_event)
+                }
+            }
+        )+
+    };
 }
+
+impl_write_py_repr_header!(RecordHeader, crate::v4::RecordHeader);
 
 impl<const N: usize> WritePyRepr for [c_char; N] {
     fn write_py_repr(&self, s: &mut String) -> fmt::Result {

@@ -18,8 +18,5 @@ pyo3.workspace = true
 time.workspace = true
 zstd.workspace = true
 
-[build-dependencies]
-pyo3-build-config.workspace = true
-
 [dev-dependencies]
 rstest.workspace = true

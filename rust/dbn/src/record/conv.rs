@@ -1,4 +1,5 @@
 use super::*;
+use crate::v3;
 
 /// Provides a _relatively safe_ method for converting a reference to
 /// [`RecordHeader`] to a struct beginning with the header. Because it accepts a
@@ -8,14 +9,14 @@ use super::*;
 /// # Safety
 /// `raw` must contain at least `std::mem::size_of::<T>()` bytes and a valid
 /// [`RecordHeader`] instance.
-pub unsafe fn transmute_record_bytes<T: HasRType>(bytes: &[u8]) -> Option<&T> {
+pub unsafe fn transmute_record_bytes<T: v3::HasRType>(bytes: &[u8]) -> Option<&T> {
     assert!(
         bytes.len() >= mem::size_of::<T>(),
         "Passing a slice smaller than `{}` to `transmute_record_bytes` is invalid",
         std::any::type_name::<T>()
     );
     let non_null = NonNull::new_unchecked(bytes.as_ptr().cast_mut());
-    if T::has_rtype(non_null.cast::<RecordHeader>().as_ref().rtype) {
+    if T::has_rtype(non_null.cast::<RecordHeader>().as_ref().rtype as u16) {
         Some(non_null.cast::<T>().as_ref())
     } else {
         None
@@ -59,8 +60,8 @@ pub unsafe fn transmute_header_bytes(bytes: &[u8]) -> Option<&RecordHeader> {
 /// # Safety
 /// Although this function accepts a reference to a [`RecordHeader`], it's assumed this is
 /// part of a larger `T` struct.
-pub unsafe fn transmute_record<T: HasRType>(header: &RecordHeader) -> Option<&T> {
-    if T::has_rtype(header.rtype) {
+pub unsafe fn transmute_record<T: v3::HasRType>(header: &RecordHeader) -> Option<&T> {
+    if T::has_rtype(header.rtype as u16) {
         // Safety: because it comes from a reference, `header` must not be null. It's ok
         // to cast to `mut` because it's never mutated.
         let non_null = NonNull::from(header);
@@ -105,8 +106,8 @@ pub unsafe fn record_as_u8_slice<T: Record>(rec: &T) -> &[u8] {
 /// # Safety
 /// Although this function accepts a reference to a [`RecordHeader`], it's assumed this is
 /// part of a larger `T` struct.
-pub unsafe fn transmute_record_mut<T: HasRType>(header: &mut RecordHeader) -> Option<&mut T> {
-    if T::has_rtype(header.rtype) {
+pub unsafe fn transmute_record_mut<T: v3::HasRType>(header: &mut RecordHeader) -> Option<&mut T> {
+    if T::has_rtype(header.rtype as u16) {
         // Safety: because it comes from a reference, `header` must not be null.
         let non_null = NonNull::from(header);
         Some(non_null.cast::<T>().as_mut())

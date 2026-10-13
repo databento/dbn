@@ -6,7 +6,7 @@ use std::{
     path::Path,
 };
 
-use crate::{Compression, HasRType, Metadata, RecordRef, VersionUpgradePolicy};
+use crate::{v3, Compression, Metadata, RecordRef, VersionUpgradePolicy};
 
 use super::{
     dbn, dbz, private, zstd, DbnMetadata, DecodeRecord, DecodeRecordRef, DecodeStream,
@@ -186,7 +186,7 @@ impl<R> DecodeRecord for DynDecoder<'_, R>
 where
     R: io::BufRead,
 {
-    fn decode_record<T: HasRType>(&mut self) -> crate::Result<Option<&T>> {
+    fn decode_record<T: v3::HasRType>(&mut self) -> crate::Result<Option<&T>> {
         match &mut self.0 {
             DynDecoderImpl::Dbn(decoder) => decoder.decode_record(),
             DynDecoderImpl::ZstdDbn(decoder) => decoder.decode_record(),
@@ -199,7 +199,7 @@ impl<R> DecodeStream for DynDecoder<'_, R>
 where
     R: io::BufRead,
 {
-    fn decode_stream<T: HasRType>(self) -> StreamIterDecoder<Self, T>
+    fn decode_stream<T: v3::HasRType>(self) -> StreamIterDecoder<Self, T>
     where
         Self: Sized,
     {

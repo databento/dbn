@@ -1,9 +1,9 @@
 [project]
 name = "databento-dbn"
-version = "0.71.0"
+version = "0.72.0"
 description = "Python bindings for encoding and decoding Databento Binary Encoding (DBN)"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.15"
 license = "Apache-2.0"
 authors = [{ name = "Databento", email = "support@databento.com" }]
 classifiers = [
@@ -18,20 +18,22 @@ Documentation = "https://databento.com/docs"
 Repository = "https://github.com/databento/dbn"
 "Bug Tracker" = "https://github.com/databento/dbn/issues"
 
-[tool.poetry]
-requires-poetry = ">=2.0"
-
-[tool.poetry.dependencies]
-python = ">=3.10,<3.15"
-
-[tool.poetry.group.dev.dependencies]
-maturin = ">=1.0"
+[dependency-groups]
+dev = ["maturin>=1.14"]
 
 [build-system]
-requires = ["maturin>=1.0"]
+requires = ["maturin>=1.14"]
 build-backend = "maturin"
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
 python-source = "python"
 module-name = "databento_dbn._lib"
+
+[tool.uv]
+cache-keys = [
+    { file = "pyproject.toml" },
+    { file = "Cargo.toml" },
+    { file = "src/**/*.rs" },
+    { file = "../rust/dbn/src/**/*.rs" },
+]

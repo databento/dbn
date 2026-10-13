@@ -18,7 +18,7 @@ use dbn_macros::MockPyo3;
 
 use crate::{
     enums::rtype,
-    macros::{dbn_record, CsvSerialize, JsonSerialize, RecordDebug},
+    macros::{dbn_record, CsvSerialize, JsonSerialize, RecordDebug, StructLayoutDesc},
     Action, Error, FlagSet, InstrumentClass, MatchAlgorithm, Publisher, RType, Result,
     SecurityUpdateAction, Side, StatUpdateAction, UserDefinedInstrument, ASSET_CSTR_LEN,
     SYMBOL_CSTR_LEN,
@@ -32,7 +32,7 @@ pub use conv::{
     c_chars_to_str, str_to_c_chars, transmute_header_bytes, transmute_record,
     transmute_record_bytes, transmute_record_mut, ts_to_dt,
 };
-pub use traits::{HasRType, Record, RecordMut};
+pub use traits::{HasRType, Record, RecordHeaderKind, RecordMut};
 
 /// Common data for all Databento records. Always found at the beginning of a record
 /// struct.
@@ -120,9 +120,11 @@ pub struct MboMsg {
     pub sequence: u32,
 }
 
+const _: () = assert!(std::mem::size_of::<MboMsg>() == 56);
+
 /// A price level.
 #[repr(C)]
-#[derive(Clone, JsonSerialize, RecordDebug, PartialEq, Eq, Hash)]
+#[derive(Clone, JsonSerialize, RecordDebug, StructLayoutDesc, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
@@ -161,9 +163,11 @@ pub struct BidAskPair {
     pub ask_ct: u32,
 }
 
+const _: () = assert!(std::mem::size_of::<BidAskPair>() == 32);
+
 /// A price level consolidated from multiple venues.
 #[repr(C)]
-#[derive(Clone, JsonSerialize, RecordDebug, PartialEq, Eq, Hash)]
+#[derive(Clone, JsonSerialize, RecordDebug, StructLayoutDesc, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
@@ -214,6 +218,8 @@ pub struct ConsolidatedBidAskPair {
     pub _reserved2: [u8; 2],
 }
 
+const _: () = assert!(std::mem::size_of::<ConsolidatedBidAskPair>() == 32);
+
 /// Market-by-price implementation with a book depth of 0. Equivalent to MBP-0. The record of the [`Trades`](crate::Schema::Trades) schema.
 #[repr(C)]
 #[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
@@ -263,6 +269,8 @@ pub struct TradeMsg {
     /// The message sequence number assigned at the venue.
     pub sequence: u32,
 }
+
+const _: () = assert!(std::mem::size_of::<TradeMsg>() == 48);
 
 /// Market-by-price implementation with a known book depth of 1. The record of the
 /// [`Mbp1`](crate::Schema::Mbp1) schema.
@@ -319,6 +327,8 @@ pub struct Mbp1Msg {
     pub levels: [BidAskPair; 1],
 }
 
+const _: () = assert!(std::mem::size_of::<Mbp1Msg>() == 80);
+
 /// Market-by-price implementation with a known book depth of 10. The record of the
 /// [`Mbp10`](crate::Schema::Mbp10) schema.
 #[repr(C)]
@@ -374,6 +384,8 @@ pub struct Mbp10Msg {
     pub levels: [BidAskPair; 10],
 }
 
+const _: () = assert!(std::mem::size_of::<Mbp10Msg>() == 368);
+
 /// Subsampled market by price with a known book depth of 1. The record of the
 /// [`Bbo1S`](crate::Schema::Bbo1S) and [`Bbo1M`](crate::Schema::Bbo1M) schemas.
 #[repr(C)]
@@ -426,6 +438,8 @@ pub struct BboMsg {
     /// The top of the order book.
     pub levels: [BidAskPair; 1],
 }
+
+const _: () = assert!(std::mem::size_of::<BboMsg>() == 80);
 
 /// Consolidated market-by-price implementation with a known book depth of 1. The record of
 /// the [`Cmbp1`](crate::Schema::Cmbp1) schema.
@@ -483,6 +497,8 @@ pub struct Cmbp1Msg {
     pub levels: [ConsolidatedBidAskPair; 1],
 }
 
+const _: () = assert!(std::mem::size_of::<Cmbp1Msg>() == 80);
+
 /// Subsampled consolidated market by price with a known book depth of 1. The record of the [`Cbbo1S`](crate::Schema::Cbbo1S) and [`Cbbo1M`](crate::Schema::Cbbo1M) schemas.
 #[repr(C)]
 #[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
@@ -532,6 +548,8 @@ pub struct CbboMsg {
     /// The top of the order book.
     pub levels: [ConsolidatedBidAskPair; 1],
 }
+
+const _: () = assert!(std::mem::size_of::<CbboMsg>() == 80);
 
 /// The record of the [`Tbbo`](crate::Schema::Tbbo) schema.
 pub type TbboMsg = Mbp1Msg;
@@ -603,6 +621,8 @@ pub struct OhlcvMsg {
     pub volume: u64,
 }
 
+const _: () = assert!(std::mem::size_of::<OhlcvMsg>() == 56);
+
 /// A trading status update message. The record of the [`Status`](crate::Schema::Status) schema.
 #[repr(C)]
 #[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
@@ -643,6 +663,8 @@ pub struct StatusMsg {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub _reserved: [u8; 7],
 }
+
+const _: () = assert!(std::mem::size_of::<StatusMsg>() == 40);
 
 /// A definition of an instrument. The record of the
 /// [`Definition`](crate::Schema::Definition) schema.
@@ -905,6 +927,8 @@ pub struct InstrumentDefMsg {
     pub _reserved: [u8; 17],
 }
 
+const _: () = assert!(std::mem::size_of::<InstrumentDefMsg>() == 520);
+
 /// An auction imbalance message.
 #[repr(C)]
 #[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
@@ -1022,6 +1046,8 @@ pub struct ImbalanceMsg {
     pub _reserved: [u8; 1],
 }
 
+const _: () = assert!(std::mem::size_of::<ImbalanceMsg>() == 112);
+
 /// A statistics message. A catchall for various data disseminated by publishers. The
 /// [`stat_type`](Self::stat_type) indicates the statistic contained in the message.
 #[repr(C)]
@@ -1081,6 +1107,8 @@ pub struct StatMsg {
     pub _reserved: [u8; 18],
 }
 
+const _: () = assert!(std::mem::size_of::<StatMsg>() == 80);
+
 /// An error message from the Databento Live Subscription Gateway (LSG).
 #[repr(C)]
 #[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
@@ -1105,6 +1133,8 @@ pub struct ErrorMsg {
     /// last error.
     pub is_last: u8,
 }
+
+const _: () = assert!(std::mem::size_of::<ErrorMsg>() == 320);
 
 /// A symbol mapping message from the live API which maps a symbol from one
 /// [`SType`](crate::enums::SType) to another.
@@ -1143,6 +1173,8 @@ pub struct SymbolMappingMsg {
     pub end_ts: u64,
 }
 
+const _: () = assert!(std::mem::size_of::<SymbolMappingMsg>() == 176);
+
 /// A non-error message from the Databento Live Subscription Gateway (LSG). Also used
 /// for heartbeating.
 #[repr(C)]
@@ -1165,6 +1197,8 @@ pub struct SystemMsg {
     #[dbn(fmt_method)]
     pub code: u8,
 }
+
+const _: () = assert!(std::mem::size_of::<SystemMsg>() == 320);
 
 /// Wrapper object for records that include the live gateway send timestamp (`ts_out`).
 #[repr(C)]

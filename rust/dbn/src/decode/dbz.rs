@@ -19,7 +19,7 @@ use crate::{
         DbnMetadata, DecodeRecord, DecodeRecordRef, DecodeStream, FromLittleEndianSlice,
         StreamIterDecoder, VersionUpgradePolicy,
     },
-    Compression, HasRType, MappingInterval, Metadata, RecordRef, SType, Schema, SymbolMapping,
+    v3, Compression, MappingInterval, Metadata, RecordRef, SType, Schema, SymbolMapping,
 };
 
 /// Object for reading, parsing, and serializing a legacy Databento Binary Encoding (DBZ) file.
@@ -139,7 +139,7 @@ impl<R: io::BufRead> DbnMetadata for Decoder<R> {
 }
 
 impl<R: io::BufRead> DecodeRecord for Decoder<R> {
-    fn decode_record<T: HasRType>(&mut self) -> crate::Result<Option<&T>> {
+    fn decode_record<T: v3::HasRType>(&mut self) -> crate::Result<Option<&T>> {
         self.decode_record_ref().and_then(|rec| {
             if let Some(rec) = rec {
                 rec.try_get().map(Some)
@@ -157,7 +157,7 @@ impl<R: io::BufRead> DecodeStream for Decoder<R> {
     /// # Errors
     /// This function will return an error if the zstd portion of the DBZ file
     /// was compressed in an unexpected manner.
-    fn decode_stream<T: HasRType>(self) -> super::StreamIterDecoder<Self, T>
+    fn decode_stream<T: v3::HasRType>(self) -> super::StreamIterDecoder<Self, T>
     where
         Self: Sized,
     {
@@ -269,13 +269,13 @@ impl MetadataDecoder {
             .read_to_end(&mut var_buffer)
             .map_err(|e| crate::Error::io(e, "reading variable-length metadata"))?;
         pos = 0;
-        let schema_definition_length = u32::from_le_slice(&var_buffer[pos..]);
-        if schema_definition_length != 0 {
+        let layout_length = u32::from_le_slice(&var_buffer[pos..]);
+        if layout_length != 0 {
             return Err(crate::Error::decode(
                 "DBZ doesn't support schema definitions",
             ));
         }
-        pos += Self::U32_SIZE + (schema_definition_length as usize);
+        pos += Self::U32_SIZE + (layout_length as usize);
         let symbols = Self::decode_repeated_symbol_cstr(var_buffer.as_slice(), &mut pos)?;
         let partial = Self::decode_repeated_symbol_cstr(var_buffer.as_slice(), &mut pos)?;
         let not_found = Self::decode_repeated_symbol_cstr(var_buffer.as_slice(), &mut pos)?;
@@ -296,6 +296,7 @@ impl MetadataDecoder {
             not_found,
             mappings,
             symbol_cstr_len: crate::compat::SYMBOL_CSTR_LEN_V1,
+            layout: None,
         })
     }
 
@@ -421,7 +422,7 @@ mod tests {
     #[case::tbbo(TbboMsg::default(), Schema::Tbbo, 2)]
     #[case::trades(TradeMsg::default(), Schema::Trades, 2)]
     #[case::definition(InstrumentDefMsgV1::default(), Schema::Definition, 2)]
-    fn test_decode_stream<R: HasRType>(
+    fn test_decode_stream<R: v3::HasRType>(
         #[case] _rec: R,
         #[case] schema: Schema,
         #[case] exp_rec_count: usize,

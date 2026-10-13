@@ -1,15 +1,22 @@
 //! Maps for mapping instrument IDs to human-readable symbols.
 
-use std::{cmp::Ordering, collections::HashMap, ops::Deref, sync::Arc};
+use std::{
+    cmp::Ordering,
+    collections::HashMap,
+    fmt, mem,
+    sync::atomic::{self, AtomicUsize},
+};
 
 use time::{macros::time, PrimitiveDateTime};
 
 use crate::{compat, v1, Error, HasRType, Metadata, Record, RecordRef, SymbolMappingMsg};
 
 /// A timeseries symbol map. Useful for working with historical requests over multiple
-/// days, where the same instrument ID can map to different symbols on different dates.
+/// days, where the same instrument ID can map to different symbols at different times.
 ///
-/// Commonly built with [`Metadata::symbol_map()`].
+/// Commonly built with [`Metadata::symbol_map()`]. For live data, call
+/// [`on_record()`](Self::on_record) with each incoming record to keep the map updated as
+/// symbol mappings arrive.
 ///
 /// # Examples
 /// ```no_run
@@ -32,7 +39,28 @@ use crate::{compat, v1, Error, HasRType, Metadata, Record, RecordRef, SymbolMapp
 /// # Ok::<(), dbn::Error>(())
 /// ```
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct TsSymbolMap(HashMap<(time::Date, u32), Arc<String>>);
+pub struct TsSymbolMap(HashMap<u32, SymbolIntervals>);
+
+/// An instrument ID's intervals within a [`TsSymbolMap`], sorted by start.
+#[derive(Default)]
+pub struct SymbolIntervals {
+    intervals: Vec<SymbolInterval>,
+    // Cached index of the last lookup.
+    hint: AtomicUsize,
+}
+
+/// A symbol and the time range it applies to within a [`TsSymbolMap`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SymbolInterval {
+    /// The start of the interval (inclusive) expressed as the number of nanoseconds
+    /// since the UNIX epoch.
+    pub start_ts: u64,
+    /// The end of the interval (exclusive) expressed as the number of nanoseconds since
+    /// the UNIX epoch.
+    pub end_ts: u64,
+    /// The symbol for the instrument ID during this interval.
+    pub symbol: String,
+}
 
 /// A point-in-time symbol map. Useful for working with live symbology or a
 /// historical request over a single day or other situations where the symbol
@@ -93,9 +121,12 @@ impl TsSymbolMap {
         self.0.is_empty()
     }
 
-    /// Returns the number of symbol mappings in the map.
+    /// Returns the number of intervals in the map.
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.0
+            .values()
+            .map(|intervals| intervals.intervals.len())
+            .sum()
     }
 
     /// Creates a new timeseries symbol map from the metadata.
@@ -108,29 +139,61 @@ impl TsSymbolMap {
         Self::try_from(metadata)
     }
 
-    /// Inserts a new mapping into the symbol map.
+    /// Inserts a new mapping into the symbol map from `start_ts` (inclusive) to `end_ts`
+    /// (exclusive), both expressed as the number of nanoseconds since the UNIX epoch.
     ///
-    /// If the map already had a mapping, the mapping is updated.
+    /// Where the map already had a mapping for `instrument_id` between `start_ts` and
+    /// `end_ts`, the new mapping replaces it.
     ///
     /// # Errors
-    /// This function returns an error if `start_date` comes after `end_date`.
+    /// This function returns an error if `start_ts` comes after `end_ts`.
     pub fn insert(
         &mut self,
         instrument_id: u32,
-        start_date: time::Date,
-        end_date: time::Date,
-        symbol: impl Into<Arc<String>>,
+        start_ts: u64,
+        end_ts: u64,
+        symbol: impl Into<String>,
     ) -> crate::Result<()> {
-        let symbol: Arc<String> = symbol.into();
-        match start_date.cmp(&end_date) {
+        match start_ts.cmp(&end_ts) {
             Ordering::Less => {
-                let mut day = start_date;
-                loop {
-                    self.0.insert((day, instrument_id), symbol.clone());
-                    day = day.next_day().unwrap();
-                    if day >= end_date {
-                        break;
+                let intervals = &mut self.0.entry(instrument_id).or_default().intervals;
+                let new = SymbolInterval {
+                    start_ts,
+                    end_ts,
+                    symbol: symbol.into(),
+                };
+                // Mappings usually arrive in time order, so most inserts append
+                if intervals.last().is_none_or(|last| last.end_ts <= start_ts) {
+                    match intervals.last_mut() {
+                        Some(last) if last.end_ts == start_ts && last.symbol == new.symbol => {
+                            last.end_ts = end_ts;
+                        }
+                        _ => intervals.push(new),
                     }
+                } else {
+                    let old = mem::take(intervals);
+                    let before =
+                        old.iter()
+                            .filter(|i| i.start_ts < start_ts)
+                            .map(|i| SymbolInterval {
+                                end_ts: i.end_ts.min(start_ts),
+                                ..i.clone()
+                            });
+                    let after = old
+                        .iter()
+                        .filter(|i| i.end_ts > end_ts)
+                        .map(|i| SymbolInterval {
+                            start_ts: i.start_ts.max(end_ts),
+                            ..i.clone()
+                        });
+                    *intervals = before.chain([new]).chain(after).collect();
+                    intervals.dedup_by(|next, prev| {
+                        let adjacent = prev.end_ts == next.start_ts && prev.symbol == next.symbol;
+                        if adjacent {
+                            prev.end_ts = next.end_ts;
+                        }
+                        adjacent
+                    });
                 }
                 Ok(())
             }
@@ -139,34 +202,147 @@ impl TsSymbolMap {
                 Ok(())
             }
             Ordering::Greater => Err(Error::BadArgument {
-                param_name: "start_date".to_owned(),
-                desc: "start_date cannot come after end_date".to_owned(),
+                param_name: "start_ts".to_owned(),
+                desc: "start_ts cannot come after end_ts".to_owned(),
             }),
         }
     }
 
-    /// Returns the symbol mapping for the given date and instrument ID. Returns `None`
-    /// if no mapping exists.
-    pub fn get(&self, date: time::Date, instrument_id: u32) -> Option<&String> {
-        self.0.get(&(date, instrument_id)).map(Deref::deref)
+    /// Returns the symbol mapping for the given timestamp, expressed as the number of
+    /// nanoseconds since the UNIX epoch, and instrument ID. Returns `None` if no mapping
+    /// exists.
+    pub fn get_for_ts(&self, ts: u64, instrument_id: u32) -> Option<&String> {
+        let SymbolIntervals { intervals, hint } = self.0.get(&instrument_id)?;
+        // helper to check the interval at index `i` for `ts`
+        let includes_ts = |i: usize| {
+            intervals
+                .get(i)
+                .is_some_and(|interval| interval.start_ts <= ts && ts < interval.end_ts)
+        };
+        let hint_idx = hint.load(atomic::Ordering::Relaxed);
+        let idx = if includes_ts(hint_idx) {
+            hint_idx
+        } else {
+            let idx = if includes_ts(hint_idx + 1) {
+                hint_idx + 1
+            } else {
+                intervals
+                    .partition_point(|i| i.start_ts <= ts)
+                    .checked_sub(1)?
+            };
+            hint.store(idx, atomic::Ordering::Relaxed);
+            idx
+        };
+        let interval = &intervals[idx];
+        (ts < interval.end_ts).then_some(&interval.symbol)
     }
 
-    /// Returns a reference to the inner map.
-    pub fn inner(&self) -> &HashMap<(time::Date, u32), Arc<String>> {
+    /// Returns the symbol mapping for the start of the given UTC date and instrument ID.
+    /// Returns `None` if no mapping exists.
+    #[deprecated(since = "0.72.0", note = "Use `get_for_ts()` instead")]
+    pub fn get(&self, date: time::Date, instrument_id: u32) -> Option<&String> {
+        self.get_for_ts(date_to_ts(date), instrument_id)
+    }
+
+    /// Handles updating the mappings (if required) for a generic record.
+    ///
+    /// # Errors
+    /// This function returns an error when `record` contains a symbol mapping
+    /// with invalid UTF-8.
+    pub fn on_record(&mut self, record: RecordRef) -> crate::Result<()> {
+        if let Ok(symbol_mapping) = record.try_get::<SymbolMappingMsg>() {
+            self.on_symbol_mapping(symbol_mapping)
+        } else if let Ok(symbol_mapping) = record.try_get::<v1::SymbolMappingMsg>() {
+            self.on_symbol_mapping(symbol_mapping)
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Handles updating the mappings from a symbol mapping record. A mapping without a
+    /// start applies from the UNIX epoch and one without an end applies indefinitely.
+    ///
+    /// # Errors
+    /// This function returns an error if the symbol contains invalid UTF-8 or the
+    /// mapping starts after it ends.
+    pub fn on_symbol_mapping<S: compat::SymbolMappingRec>(
+        &mut self,
+        symbol_mapping: &S,
+    ) -> crate::Result<()> {
+        let start_ts = symbol_mapping
+            .start_ts()
+            .map(|start| start.unix_timestamp_nanos() as u64)
+            .unwrap_or(0);
+        let end_ts = symbol_mapping
+            .end_ts()
+            .map(|end| end.unix_timestamp_nanos() as u64)
+            .unwrap_or(u64::MAX);
+        self.insert(
+            symbol_mapping.instrument_id() as u32,
+            start_ts,
+            end_ts,
+            symbol_mapping.stype_out_symbol()?,
+        )
+    }
+
+    /// Returns a reference to the inner map of each instrument ID's intervals.
+    pub fn inner(&self) -> &HashMap<u32, SymbolIntervals> {
         &self.0
     }
 
-    /// Returns a mutable reference to the inner map.
-    pub fn inner_mut(&mut self) -> &mut HashMap<(time::Date, u32), Arc<String>> {
+    /// Returns a mutable reference to the inner map of each instrument ID's intervals.
+    ///
+    /// [`get_for_ts()`](Self::get_for_ts) and [`insert()`](Self::insert) rely on
+    /// each instrument ID's intervals being non-empty, sorted by start, and
+    /// non-overlapping, and
+    /// equality relies on adjacent intervals having different symbols. Modifications
+    /// must preserve this.
+    pub fn inner_mut(&mut self) -> &mut HashMap<u32, SymbolIntervals> {
         &mut self.0
+    }
+}
+
+impl SymbolIntervals {
+    /// Returns the intervals, sorted by start.
+    pub fn intervals(&self) -> &[SymbolInterval] {
+        &self.intervals
+    }
+
+    /// Returns a mutable reference to the intervals.
+    ///
+    /// See [`TsSymbolMap::inner_mut()`] for the invariants modifications must preserve.
+    pub fn intervals_mut(&mut self) -> &mut Vec<SymbolInterval> {
+        &mut self.intervals
+    }
+}
+
+impl Clone for SymbolIntervals {
+    fn clone(&self) -> Self {
+        Self {
+            intervals: self.intervals.clone(),
+            hint: AtomicUsize::new(self.hint.load(atomic::Ordering::Relaxed)),
+        }
+    }
+}
+
+impl PartialEq for SymbolIntervals {
+    fn eq(&self, other: &Self) -> bool {
+        self.intervals == other.intervals
+    }
+}
+
+impl Eq for SymbolIntervals {}
+
+impl fmt::Debug for SymbolIntervals {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.intervals.fmt(f)
     }
 }
 
 impl SymbolIndex for TsSymbolMap {
     fn get_for_rec<R: Record>(&self, record: &R) -> Option<&String> {
-        record
-            .index_date()
-            .and_then(|date| self.get(date, record.instrument_id() as u32))
+        // A null timestamp is `u64::MAX`, which no half-open interval contains
+        self.get_for_ts(record.raw_index_ts(), record.instrument_id() as u32)
     }
 }
 
@@ -186,13 +362,16 @@ impl TryFrom<&Metadata> for TsSymbolMap {
                     if interval.symbol.is_empty() {
                         continue;
                     }
-                    let symbol = Arc::new(interval.symbol.clone());
-                    res.insert(iid, interval.start_date, interval.end_date, symbol)?;
+                    res.insert(
+                        iid,
+                        date_to_ts(interval.start_date),
+                        date_to_ts(interval.end_date),
+                        interval.symbol.clone(),
+                    )?;
                 }
             }
         } else {
             for mapping in metadata.mappings.iter() {
-                let symbol = Arc::new(mapping.raw_symbol.clone());
                 for interval in mapping.intervals.iter() {
                     // handle old symbology format
                     if interval.symbol.is_empty() {
@@ -202,7 +381,12 @@ impl TryFrom<&Metadata> for TsSymbolMap {
                         .symbol
                         .parse()
                         .map_err(|_| crate::Error::conversion::<u32>(interval.symbol.clone()))?;
-                    res.insert(iid, interval.start_date, interval.end_date, symbol.clone())?;
+                    res.insert(
+                        iid,
+                        date_to_ts(interval.start_date),
+                        date_to_ts(interval.end_date),
+                        mapping.raw_symbol.clone(),
+                    )?;
                 }
             }
         }
@@ -351,7 +535,7 @@ impl std::ops::Index<&(time::Date, u32)> for TsSymbolMap {
     type Output = String;
 
     fn index(&self, index: &(time::Date, u32)) -> &Self::Output {
-        self.get(index.0, index.1)
+        self.get_for_ts(date_to_ts(index.0), index.1)
             .expect("symbol mapping for date and instrument ID")
     }
 }
@@ -371,6 +555,10 @@ impl std::ops::Index<u32> for PitSymbolMap {
         self.get(instrument_id)
             .expect("symbol mapping for instrument ID")
     }
+}
+
+pub(crate) fn date_to_ts(date: time::Date) -> u64 {
+    date.midnight().assume_utc().unix_timestamp_nanos() as u64
 }
 
 #[cfg(test)]
@@ -896,9 +1084,13 @@ pub(crate) mod tests {
         assert_eq!(symbol_map[&(date!(2023 - 07 - 02), 32)], "AAPL");
         assert_eq!(symbol_map[&(date!(2023 - 07 - 30), 32)], "AAPL");
         assert_eq!(symbol_map[&(date!(2023 - 07 - 31), 32)], "AAPL");
-        assert!(!symbol_map.0.contains_key(&(date!(2023 - 08 - 01), 32)));
+        assert!(symbol_map
+            .get_for_ts(date_to_ts(date!(2023 - 08 - 01)), 32)
+            .is_none());
         assert_eq!(symbol_map[&(date!(2023 - 07 - 08), 8029)], "PLTR");
-        assert!(!symbol_map.0.contains_key(&(date!(2023 - 07 - 10), 8029)));
+        assert!(symbol_map
+            .get_for_ts(date_to_ts(date!(2023 - 07 - 10)), 8029)
+            .is_none());
         assert_eq!(symbol_map[&(date!(2023 - 07 - 10), 8022)], "PLTR");
         assert_eq!(symbol_map[&(date!(2023 - 07 - 20), 10184)], "TSLA");
         assert_eq!(symbol_map[&(date!(2023 - 07 - 21), 10181)], "TSLA");
@@ -1053,20 +1245,155 @@ pub(crate) mod tests {
         Ok(())
     }
 
-    // start_date == end_date is generally invalid and
+    // start_ts == end_ts is generally invalid and
     // previously caused a panic
     #[test]
-    fn test_insert_start_end_date_same() {
+    fn test_insert_start_end_ts_same() {
         let mut target = TsSymbolMap::new();
-        target
-            .insert(
-                1,
-                date!(2023 - 12 - 03),
-                date!(2023 - 12 - 03),
-                Arc::new("test".to_owned()),
-            )
-            .unwrap();
+        let ts = date_to_ts(date!(2023 - 12 - 03));
+        target.insert(1, ts, ts, "test").unwrap();
         // should have no effect
         assert!(target.is_empty());
+    }
+
+    #[test]
+    fn test_insert_matches_per_hour() {
+        const HOUR: u64 = 3_600_000_000_000;
+        let base = date_to_ts(date!(2026 - 09 - 01));
+        let symbols = ["ESU6", "ESZ6", "ESH7"];
+        let mut state = 0x9e37_79b9_7f4a_7c15_u64;
+        let mut next = |n: u64| {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state % n
+        };
+        let mut target = TsSymbolMap::new();
+        let mut per_hour = HashMap::new();
+        for _ in 0..500 {
+            let iid = next(3) as u32;
+            let start_hour = next(400);
+            let end_hour = start_hour + 1 + next(120);
+            let symbol = symbols[next(3) as usize];
+            target
+                .insert(
+                    iid,
+                    base + start_hour * HOUR,
+                    base + end_hour * HOUR,
+                    symbol,
+                )
+                .unwrap();
+            for hour in start_hour..end_hour {
+                per_hour.insert((hour, iid), symbol);
+            }
+
+            let mut hour_by_hour = TsSymbolMap::new();
+            for iid in 0..3 {
+                for hour in 0..540 {
+                    let expected = per_hour.get(&(hour, iid)).copied();
+                    let ts = base + hour * HOUR;
+                    assert_eq!(target.get_for_ts(ts, iid).map(String::as_str), expected);
+                    assert_eq!(
+                        target.get_for_ts(ts + HOUR - 1, iid).map(String::as_str),
+                        expected
+                    );
+                    if let Some(symbol) = expected {
+                        hour_by_hour.insert(iid, ts, ts + HOUR, symbol).unwrap();
+                    }
+                }
+            }
+            assert_eq!(target, hour_by_hour);
+        }
+    }
+
+    #[test]
+    fn test_ts_on_symbol_mapping() -> crate::Result<()> {
+        let remap_ts = datetime!(2026-09-16 13:30 UTC).unix_timestamp_nanos() as u64;
+        let mut target = TsSymbolMap::new();
+        target.on_symbol_mapping(&SymbolMappingMsg::new(
+            42140870,
+            2,
+            SType::Continuous,
+            "ES.v.0",
+            SType::RawSymbol,
+            "ESU6",
+            UNDEF_TIMESTAMP,
+            UNDEF_TIMESTAMP,
+        )?)?;
+        target.on_symbol_mapping(&SymbolMappingMsg::new(
+            42140870,
+            2,
+            SType::Continuous,
+            "ES.v.0",
+            SType::RawSymbol,
+            "ESZ6",
+            remap_ts,
+            UNDEF_TIMESTAMP,
+        )?)?;
+        assert_eq!(target.len(), 2);
+        assert_eq!(target.get_for_ts(0, 42140870).unwrap(), "ESU6");
+        assert_eq!(target.get_for_ts(remap_ts - 1, 42140870).unwrap(), "ESU6");
+        assert_eq!(target.get_for_ts(remap_ts, 42140870).unwrap(), "ESZ6");
+        assert_eq!(target.get_for_ts(u64::MAX - 1, 42140870).unwrap(), "ESZ6");
+        assert!(target.get_for_ts(UNDEF_TIMESTAMP, 42140870).is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn test_overlapping_continuous_mappings() {
+        let metadata = Metadata::builder()
+            .dataset(Dataset::GlbxMdp3.as_str().to_owned())
+            .schema(Some(Schema::Ohlcv1D))
+            .stype_in(Some(SType::Continuous))
+            .stype_out(SType::InstrumentId)
+            .start(datetime!(2026-09-01 00:00 UTC).unix_timestamp_nanos() as u64)
+            .end(NonZeroU64::new(
+                datetime!(2026-09-26 00:00 UTC).unix_timestamp_nanos() as u64,
+            ))
+            .mappings(vec![
+                SymbolMapping {
+                    raw_symbol: "ES.c.0".to_owned(),
+                    intervals: vec![
+                        MappingInterval {
+                            start_date: date!(2026 - 09 - 01),
+                            end_date: date!(2026 - 09 - 20),
+                            symbol: "42140870".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2026 - 09 - 20),
+                            end_date: date!(2026 - 09 - 26),
+                            symbol: "10252".to_owned(),
+                        },
+                    ],
+                },
+                SymbolMapping {
+                    raw_symbol: "ES.v.0".to_owned(),
+                    intervals: vec![
+                        MappingInterval {
+                            start_date: date!(2026 - 09 - 01),
+                            end_date: date!(2026 - 09 - 16),
+                            symbol: "42140870".to_owned(),
+                        },
+                        MappingInterval {
+                            start_date: date!(2026 - 09 - 16),
+                            end_date: date!(2026 - 09 - 26),
+                            symbol: "10252".to_owned(),
+                        },
+                    ],
+                },
+            ])
+            .build();
+        let target = metadata.symbol_map().unwrap();
+        assert_eq!(target.len(), 3);
+        assert_eq!(target[&(date!(2026 - 09 - 10), 42140870)], "ES.v.0");
+        assert_eq!(target[&(date!(2026 - 09 - 17), 42140870)], "ES.c.0");
+        assert!(target
+            .get_for_ts(date_to_ts(date!(2026 - 09 - 20)), 42140870)
+            .is_none());
+        assert!(target
+            .get_for_ts(date_to_ts(date!(2026 - 09 - 15)), 10252)
+            .is_none());
+        assert_eq!(target[&(date!(2026 - 09 - 17), 10252)], "ES.v.0");
+        assert_eq!(target[&(date!(2026 - 09 - 22), 10252)], "ES.v.0");
     }
 }

@@ -3,10 +3,11 @@
 
 pub(crate) use crate::compat::METADATA_RESERVED_LEN_V1 as METADATA_RESERVED_LEN;
 pub use crate::compat::{
-    ErrorMsgV1 as ErrorMsg, InstrumentDefMsgV1 as InstrumentDefMsg, StatMsgV1 as StatMsg,
-    SymbolMappingMsgV1 as SymbolMappingMsg, SystemMsgV1 as SystemMsg,
-    ASSET_CSTR_LEN_V1 as ASSET_CSTR_LEN, SYMBOL_CSTR_LEN_V1 as SYMBOL_CSTR_LEN,
-    UNDEF_STAT_QUANTITY_V1 as UNDEF_STAT_QUANTITY,
+    ErrorMsgV1 as ErrorMsg, HasRTypeV1 as HasRType, InstrumentDefMsgV1 as InstrumentDefMsg,
+    RecordBufV1 as RecordBuf, RecordRefMutV1 as RecordRefMut, RecordRefV1 as RecordRef,
+    RecordV1 as Record, StatMsgV1 as StatMsg, SymbolMappingMsgV1 as SymbolMappingMsg,
+    SystemMsgV1 as SystemMsg, ASSET_CSTR_LEN_V1 as ASSET_CSTR_LEN,
+    SYMBOL_CSTR_LEN_V1 as SYMBOL_CSTR_LEN, UNDEF_STAT_QUANTITY_V1 as UNDEF_STAT_QUANTITY,
 };
 pub use crate::record::{
     Bbo1MMsg, Bbo1SMsg, BboMsg, Cbbo1MMsg, Cbbo1SMsg, CbboMsg, Cmbp1Msg, ImbalanceMsg, MboMsg,

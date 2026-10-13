@@ -42,7 +42,14 @@ pub use crate::record::InstrumentDefMsg as InstrumentDefMsgV3;
 pub use crate::record::StatMsg as StatMsgV3;
 pub use crate::record::SymbolMappingMsg as SymbolMappingMsgV2;
 pub use crate::record::SystemMsg as SystemMsgV2;
-pub use traits::{InstrumentDefRec, StatRec, SymbolMappingRec};
+pub use traits::{HasRTypeV1, InstrumentDefRec, RecordV1, StatRec, SymbolMappingRec};
+
+/// A non-owning immutable reference to a DBN version 1 through 3 record.
+pub type RecordRefV1<'a> = crate::RecordRef<'a, RecordHeader>;
+/// A non-owning mutable reference to a DBN version 1 through 3 record.
+pub type RecordRefMutV1<'a> = crate::RecordRefMut<'a, RecordHeader>;
+/// An owned buffer holding any DBN version 1 through 3 record of a dynamic type.
+pub type RecordBufV1<const CAP: usize = MAX_RECORD_LEN> = crate::RecordBuf<CAP, RecordHeader>;
 
 use std::os::raw::c_char;
 
@@ -53,7 +60,7 @@ use dbn_macros::MockPyo3;
 
 use crate::{
     macros::{dbn_record, CsvSerialize, JsonSerialize},
-    rtype, RecordHeader, SecurityUpdateAction, UserDefinedInstrument,
+    rtype, RecordHeader, SecurityUpdateAction, UserDefinedInstrument, MAX_RECORD_LEN,
 };
 
 // NOTE: Versioned records need to be defined in this file to work with cbindgen.
@@ -75,6 +82,8 @@ pub struct ErrorMsgV1 {
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub err: [c_char; 64],
 }
+
+const _: () = assert!(std::mem::size_of::<ErrorMsgV1>() == 80);
 
 /// A definition of an instrument in DBN version 1. The record of the
 /// [`Definition`](crate::Schema::Definition) schema.
@@ -315,6 +324,8 @@ pub struct InstrumentDefMsgV1 {
     pub _dummy: [u8; 3],
 }
 
+const _: () = assert!(std::mem::size_of::<InstrumentDefMsgV1>() == 360);
+
 /// A statistics message. A catchall for various data disseminated by publishers. The
 /// [`stat_type`](Self::stat_type) indicates the statistic contained in the message.
 #[repr(C)]
@@ -374,6 +385,8 @@ pub struct StatMsgV1 {
     pub _reserved: [u8; 6],
 }
 
+const _: () = assert!(std::mem::size_of::<StatMsgV1>() == 64);
+
 /// A symbol mapping message from the live API in DBN version 1.
 #[repr(C)]
 #[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
@@ -407,6 +420,8 @@ pub struct SymbolMappingMsgV1 {
     pub end_ts: u64,
 }
 
+const _: () = assert!(std::mem::size_of::<SymbolMappingMsgV1>() == 80);
+
 /// A non-error message from the Databento Live Subscription Gateway (LSG) in DBN version 1.
 /// Also used for heartbeating.
 #[repr(C)]
@@ -425,6 +440,8 @@ pub struct SystemMsgV1 {
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub msg: [c_char; 64],
 }
+
+const _: () = assert!(std::mem::size_of::<SystemMsgV1>() == 80);
 
 /// A definition of an instrument in DBN version 2. The record of the
 /// [`Definition`](crate::Schema::Definition) schema.
@@ -652,6 +669,8 @@ pub struct InstrumentDefMsgV2 {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub _reserved: [u8; 10],
 }
+
+const _: () = assert!(std::mem::size_of::<InstrumentDefMsgV2>() == 400);
 
 #[cfg(all(test, feature = "python"))]
 mod tests {

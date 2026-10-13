@@ -1,5 +1,60 @@
 # Changelog
 
+## 0.72.0 - 2026-10-13
+
+### Enhancements
+- Reduced the memory usage of `TsSymbolMap` for requests spanning many days
+- Added `TsSymbolMap::get_for_ts()` for looking up a mapping by UNIX timestamp
+- Added `TsSymbolMap::on_record()` and `TsSymbolMap::on_symbol_mapping()` for building a
+  `TsSymbolMap` from live `SymbolMappingMsg` records
+- Added `interval()` methods to `Schema` and `RType` in the Python bindings, which return
+  the subsampling interval as a `datetime.timedelta` or `None`
+- Added support for Python 3.15 to `databento_dbn`
+- Added a preliminary `v4` module for the in-development DBN version 4
+- Added `RecordHeaderKind` trait to abstract over different `RecordHeader`s
+- Added `HasRType` and `Record` traits and `RecordRef`, `RecordRefMut`, and `RecordBuf`
+  aliases to the `v1`, `v2`, and `v3` modules, bound to the v1-v3 `RecordHeader`
+- Added a preliminary `layout` module for describing the fields of DBN version 4
+  records
+- Added `DynFieldAccess` and `LayoutIndex` for reading DBN version 4 record fields
+  through a stream's layout
+- Added `Tbbo` variant to `RType` for TBBO records in DBN version 4. Existing versions
+  will continue to use the `Mbp1` rtype
+- Added `RecordLayoutDesc` and `StructLayoutDesc` traits and derive macros,
+  `StreamLayoutBuilder`, `RecordLayoutBuilder`, `StructLayoutBuilder`,
+  `v4::types::Symbol`, and `v4::layouts::default_layout()` for building DBN version 4
+  layouts from record structs
+- Upgraded `pyo3` to 0.29.3
+- Upgraded async-compression to 0.4.50
+
+### Breaking changes
+- Changed `TsSymbolMap::insert()` to take the `start` and `end` of the mapping as UNIX
+  timestamps instead of dates
+- `RecordRef`, `RecordRefMut`, and `RecordBuf` are generic over the record header
+  layout, which defaults to the v1-v3 `RecordHeader`. `Record` has a new `Header`
+  associated type naming the layout a record begins with. Generic code bounded on `T:
+  HasRType` that downcasts a `RecordRef` or builds a `RecordBuf` needs `T: v3::HasRType`
+- `RecordRef::new()`, `RecordRefMut::new()`, and their `unchecked_from_header()`
+  constructors need the header specified
+- `HasRType::has_rtype()` takes a `u16`, and `HasRType` no longer requires `RecordMut`
+- The `RecordMut` trait now requires `Record` and `RecordMut::header_mut()` returns
+  `&mut Self::Header`. Generic code for version 1-3 that uses `header_mut()` will need a
+  `v3::HasRType` bound
+- `DecodeRecord`, `DecodeStream`, and `AsyncDecodeRecord` decode v1-v3 records, so their
+  generic methods require `T: v3::HasRType`
+- `WithTsOut`, `transmute_record()`, `transmute_record_bytes()`, and
+  `transmute_record_mut()` accept only v1-v3 records, and `InstrumentDefRec`,
+  `StatRec`, and `SymbolMappingRec` extend `v3::HasRType`
+- `dyn Record` requires naming the header, e.g. `dyn v3::Record`, which can also hold v1
+  and v2 records since they share the same header
+- Removed `From<&RecordEnum>` and `From<&RecordBuf>` for `RecordRef`, and `From<&mut
+  RecordBuf>` for `RecordRefMut`. The blanket `From<&R> for RecordRef` covers every
+  `Record`, including these
+- Added `layout` field to `Metadata` for the record layouts of a DBN version 4 stream
+
+### Deprecations
+- Deprecated `TsSymbolMap::get()` in favor of `get_for_ts()`
+
 ## 0.71.0 - 2026-09-29
 
 ### Enhancements

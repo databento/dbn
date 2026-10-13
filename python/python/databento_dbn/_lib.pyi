@@ -303,6 +303,9 @@ class RType(Enum):
         Denotes a best bid and offer record subsampled on a one-second interval.
     BBO_1M
         Denotes a best bid and offer record subsampled on a one-minute interval.
+    TBBO
+        Denotes a market-by-price record with a book depth of 1 accompanying a trade.
+        Version 4 onward; earlier versions carry these records under `MBP_1`.
 
     """  # noqa: D405, D411
 
@@ -329,9 +332,21 @@ class RType(Enum):
     TCBBO: int
     BBO_1S: int
     BBO_1M: int
+    TBBO: int
 
     def __init__(self, value: int) -> None: ...
     def __index__(self) -> int: ...
+    def interval(self) -> dt.timedelta | None:
+        """
+        Return the interval of the subsampled record type, or `None` if it isn't
+        subsampled.
+
+        Returns
+        -------
+        datetime.timedelta | None
+
+        """
+
     @classmethod
     def from_str(cls, value: str) -> RType: ...
     @classmethod
@@ -728,6 +743,17 @@ class Schema(Enum):
 
     def __init__(self, value: str) -> None: ...
     def __index__(self) -> int: ...
+    def interval(self) -> dt.timedelta | None:
+        """
+        Return the interval of the subsampled schema, or `None` if it isn't
+        subsampled.
+
+        Returns
+        -------
+        datetime.timedelta | None
+
+        """
+
     @classmethod
     def from_str(cls, value: str) -> Schema: ...
     @classmethod
@@ -1255,7 +1281,7 @@ class SystemCode(Enum):
     REPLAY_COMPLETED
         Indicates a replay subscription has caught up with real-time data.
     END_OF_INTERVAL
-        Signals that all records for interval-based schemas have been published for the given timestamp.
+        Signals that all records for an interval-based schema have been published for the interval ending at `ts_event`.
     UNSUBSCRIBE_ACK
         An acknowledgement of an unsubscribe request.
     UNSET

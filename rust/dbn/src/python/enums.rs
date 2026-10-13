@@ -71,6 +71,7 @@ impl RType {
             Self::Tcbbo => "TCBBO",
             Self::Bbo1S => "BBO_1S",
             Self::Bbo1M => "BBO_1M",
+            Self::Tbbo => "TBBO",
         }
     }
 
@@ -114,6 +115,11 @@ impl RType {
             .or_else(|_| Schema::py_from_str(&Schema::type_object(pytype.py()), value))
             .map_err(to_py_err)?;
         Ok(Self::from(schema))
+    }
+
+    #[pyo3(name = "interval")]
+    fn py_interval(&self) -> Option<time::Duration> {
+        self.interval()
     }
 }
 
@@ -777,6 +783,11 @@ impl Schema {
     fn py_from_int(_: &Bound<PyType>, value: &Bound<PyAny>) -> PyResult<Self> {
         let value: u16 = value.extract().map_err(to_py_err)?;
         Self::try_from(value).map_err(to_py_err)
+    }
+
+    #[pyo3(name = "interval")]
+    fn py_interval(&self) -> Option<time::Duration> {
+        self.interval()
     }
 }
 

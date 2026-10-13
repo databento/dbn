@@ -63,6 +63,7 @@ impl RType {
         match rtype {
             MBP_0 => Some(Schema::Trades),
             MBP_1 => Some(Schema::Mbp1),
+            TBBO => Some(Schema::Tbbo),
             MBP_10 => Some(Schema::Mbp10),
             OHLCV_1S => Some(Schema::Ohlcv1S),
             OHLCV_1M => Some(Schema::Ohlcv1M),

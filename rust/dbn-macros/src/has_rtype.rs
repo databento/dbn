@@ -8,7 +8,7 @@ use syn::{
     ExprPath, ItemStruct, Token,
 };
 
-use crate::dbn_attr::{find_dbn_attr_args, get_sorted_fields, INDEX_TS_ATTR};
+use crate::dbn_attr::{get_sorted_fields, DbnFieldAttrs, INDEX_TS_ATTR};
 
 pub fn attribute_macro_impl(
     attr: proc_macro::TokenStream,
@@ -25,6 +25,10 @@ pub fn attribute_macro_impl(
     }
     let input_struct = parse_macro_input!(input as ItemStruct);
     let record_type = &input_struct.ident;
+    let header = match get_header_type(&input_struct) {
+        Ok(header) => header,
+        Err(e) => return e.into_compile_error().into(),
+    };
     let raw_index_ts = get_raw_index_ts(&input_struct).unwrap_or_else(|e| e.into_compile_error());
     let rtypes = args.args.iter();
     let crate_name = crate::utils::crate_name();
@@ -34,6 +38,8 @@ pub fn attribute_macro_impl(
         #input_struct
 
         impl #crate_name::record::Record for #record_type {
+            type Header = #header;
+
             fn record_size(&self) -> usize {
                 self.hd.record_size()
             }
@@ -43,7 +49,7 @@ pub fn attribute_macro_impl(
             }
 
             fn raw_rtype(&self) -> u16 {
-                self.hd.rtype as u16
+                u16::from(self.hd.rtype)
             }
 
             fn publisher_id(&self) -> u16 {
@@ -55,7 +61,7 @@ pub fn attribute_macro_impl(
             }
 
             fn instrument_id(&self) -> u64 {
-                self.hd.instrument_id as u64
+                u64::from(self.hd.instrument_id)
             }
 
             fn raw_ts_event(&self) -> u64 {
@@ -66,15 +72,15 @@ pub fn attribute_macro_impl(
         }
 
         impl #crate_name::record::RecordMut for #record_type {
-            fn header_mut(&mut self) -> &mut #crate_name::record::RecordHeader {
+            fn header_mut(&mut self) -> &mut #header {
                 &mut self.hd
             }
         }
 
         impl #crate_name::record::HasRType for #record_type {
             #[allow(deprecated)]
-            fn has_rtype(rtype: u8) -> bool {
-                matches!(rtype, #(#rtypes)|*)
+            fn has_rtype(rtype: u16) -> bool {
+                #(rtype == u16::from(#rtypes))||*
             }
         }
 
@@ -132,10 +138,21 @@ impl Parse for Args {
     }
 }
 
+/// The header type a record begins with, which is the type of its `hd` field.
+fn get_header_type(input_struct: &ItemStruct) -> syn::Result<&syn::Type> {
+    input_struct
+        .fields
+        .iter()
+        .find(|f| f.ident.as_ref().is_some_and(|i| i == "hd"))
+        .map(|f| &f.ty)
+        .ok_or_else(|| syn::Error::new(input_struct.span(), "A record needs an `hd` header field"))
+}
+
 fn get_raw_index_ts(input_struct: &ItemStruct) -> syn::Result<TokenStream> {
     let mut index_ts_fields = Vec::new();
     for field in input_struct.fields.iter() {
-        if find_dbn_attr_args(field)?
+        if DbnFieldAttrs::parse(field)?
+            .flags
             .iter()
             .any(|id| id == INDEX_TS_ATTR)
         {

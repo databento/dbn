@@ -15,8 +15,8 @@ use merge::MetadataMerger;
 use serde::Deserialize;
 
 use crate::{
-    compat::version_symbol_cstr_len, record::as_u8_slice, PitSymbolMap, SType, Schema, TsSymbolMap,
-    VersionUpgradePolicy,
+    compat::version_symbol_cstr_len, layout::StreamLayout, record::as_u8_slice, PitSymbolMap,
+    SType, Schema, TsSymbolMap, VersionUpgradePolicy,
 };
 
 /// Information about the data contained in a DBN file or stream. DBN requires the
@@ -65,6 +65,8 @@ pub struct Metadata {
     /// byte.
     #[pyo3(get)]
     pub symbol_cstr_len: usize,
+    /// The layout of every record type in the stream. `None` for DBN versions 1-3.
+    pub layout: Option<StreamLayout>,
     /// The original query input symbols from the request.
     #[pyo3(get)]
     pub symbols: Vec<String>,
@@ -411,6 +413,7 @@ impl MetadataBuilder<String, Option<Schema>, u64, Option<SType>, SType> {
             not_found: self.not_found,
             mappings: self.mappings,
             symbol_cstr_len: version_symbol_cstr_len(self.version),
+            layout: None,
         }
     }
 }
