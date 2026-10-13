@@ -18,8 +18,10 @@ use merge::MetadataMerger;
 use serde::Deserialize;
 
 use crate::{
-    compat::version_symbol_cstr_len, layout::StreamLayout, record::as_u8_slice, PitSymbolMap,
-    SType, Schema, TsSymbolMap, VersionUpgradePolicy,
+    compat::version_symbol_cstr_len,
+    layout::{LayoutIndex, StreamLayout},
+    record::as_u8_slice,
+    PitSymbolMap, SType, Schema, TsSymbolMap, VersionUpgradePolicy,
 };
 
 /// Information about the data contained in a DBN file or stream. DBN requires the
@@ -62,6 +64,9 @@ pub struct Metadata {
     pub stype_out: SType,
     /// `true` if this store contains live data with send timestamps appended to each
     /// record.
+    ///
+    /// In version 4, this field is superseded by whether `layout` specifies a `ts_out`
+    /// extension field.
     #[pyo3(get)]
     pub ts_out: bool,
     /// The length in bytes of fixed-length symbol strings, including a null terminator
@@ -89,6 +94,14 @@ impl Metadata {
     /// required fields. Finally call `.build()` to create the `Metadata` instance.
     pub fn builder() -> MetadataBuilder<Unset, Unset, Unset, Unset, Unset> {
         MetadataBuilder::default()
+    }
+
+    /// An index over this stream's layout, for resolving fields the compiled structs
+    /// don't hold. `None` for DBN versions 1-3, which carry no layout.
+    pub fn layout_index(&self) -> Option<LayoutIndex> {
+        self.layout
+            .as_ref()
+            .map(|layout| LayoutIndex::new(layout, crate::v4::layouts::default_layout()))
     }
 
     /// Parses the raw query start into a datetime.

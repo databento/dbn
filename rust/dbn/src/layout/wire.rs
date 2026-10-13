@@ -107,7 +107,7 @@ pub fn decode(bytes: &[u8], symbol_cstr_len: u16) -> crate::Result<StreamLayout>
 
 fn check_layout_hashes(layout: &StreamLayout) -> crate::Result<()> {
     for rec in &layout.record_layouts {
-        let computed = super::hash::layout_hash(&layout.struct_layouts, rec);
+        let computed = rec.layout_hash(&layout.struct_layouts);
         if rec.layout_hash != computed {
             return Err(Error::layout(format!(
                 "record `{}`: declared layout_hash {:#018x} does not match the field table ({computed:#018x})",
@@ -299,38 +299,48 @@ fn encode_count(out: &mut Vec<u8>, ctx: &str, n: usize) -> crate::Result<()> {
     Ok(())
 }
 
-struct ByteReader<'a> {
+pub(crate) struct ByteReader<'a> {
     buf: &'a [u8],
     pos: usize,
 }
 
 impl<'a> ByteReader<'a> {
-    fn new(buf: &'a [u8]) -> Self {
+    pub fn new(buf: &'a [u8]) -> Self {
         Self { buf, pos: 0 }
     }
 
-    fn take(&mut self, ctx: &str, n: usize) -> crate::Result<&'a [u8]> {
+    pub fn take(&mut self, ctx: &str, n: usize) -> crate::Result<&'a [u8]> {
         let end = self.pos.checked_add(n).ok_or_else(|| truncated(ctx))?;
         let out = self.buf.get(self.pos..end).ok_or_else(|| truncated(ctx))?;
         self.pos = end;
         Ok(out)
     }
 
-    fn u8(&mut self, ctx: &str) -> crate::Result<u8> {
+    pub fn remaining(&self) -> &'a [u8] {
+        &self.buf[self.pos..]
+    }
+
+    pub fn u8(&mut self, ctx: &str) -> crate::Result<u8> {
         Ok(self.take(ctx, 1)?[0])
     }
 
-    fn i8(&mut self, ctx: &str) -> crate::Result<i8> {
+    pub fn i8(&mut self, ctx: &str) -> crate::Result<i8> {
         Ok(self.u8(ctx)? as i8)
     }
 
-    fn u16(&mut self, ctx: &str) -> crate::Result<u16> {
+    pub fn u16(&mut self, ctx: &str) -> crate::Result<u16> {
         let mut bytes = [0; 2];
         bytes.copy_from_slice(self.take(ctx, 2)?);
         Ok(u16::from_le_bytes(bytes))
     }
 
-    fn u64(&mut self, ctx: &str) -> crate::Result<u64> {
+    pub fn u32(&mut self, ctx: &str) -> crate::Result<u32> {
+        let mut bytes = [0; 4];
+        bytes.copy_from_slice(self.take(ctx, 4)?);
+        Ok(u32::from_le_bytes(bytes))
+    }
+
+    pub fn u64(&mut self, ctx: &str) -> crate::Result<u64> {
         let mut bytes = [0; 8];
         bytes.copy_from_slice(self.take(ctx, 8)?);
         Ok(u64::from_le_bytes(bytes))

@@ -8,8 +8,8 @@ pub use crate::compat::{
 };
 pub use crate::record::{
     Bbo1MMsg, Bbo1SMsg, BboMsg, Cbbo1MMsg, Cbbo1SMsg, CbboMsg, Cmbp1Msg, ErrorMsg, ImbalanceMsg,
-    InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatMsg, StatusMsg, SymbolMappingMsg,
-    SystemMsg, TbboMsg, TcbboMsg, TradeMsg, WithTsOut,
+    InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader, StatMsg, StatusMsg,
+    SymbolMappingMsg, SystemMsg, TbboMsg, TcbboMsg, TradeMsg, WithTsOut,
 };
 
 use crate::compat::{InstrumentDefRec, StatRec};

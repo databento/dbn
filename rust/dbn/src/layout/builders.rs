@@ -11,7 +11,7 @@ use crate::{
     RType,
 };
 
-use super::{hash::layout_hash, validate::validate};
+use super::validate::validate;
 
 /// Assembles a [`FieldDef`] through named setters so its many same-width fields
 /// can't be transposed. The [`FieldDef`] struct literal lives only in
@@ -178,13 +178,8 @@ impl StreamLayoutBuilder {
             label_defs: self.label_defs,
         };
         validate(&layout, self.symbol_cstr_len)?;
-        let hashes: Vec<u64> = layout
-            .record_layouts
-            .iter()
-            .map(|rec| layout_hash(&layout.struct_layouts, rec))
-            .collect();
-        for (rec, hash) in layout.record_layouts.iter_mut().zip(hashes) {
-            rec.layout_hash = hash;
+        for rec in &mut layout.record_layouts {
+            rec.layout_hash = rec.layout_hash(&layout.struct_layouts);
         }
         Ok(layout)
     }

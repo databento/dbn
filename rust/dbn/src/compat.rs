@@ -27,8 +27,6 @@ pub const UNDEF_STAT_QUANTITY_V2: i32 = UNDEF_STAT_QUANTITY_V1;
 /// version).
 pub const UNDEF_STAT_QUANTITY_V3: i64 = i64::MAX;
 
-pub(crate) const METADATA_RESERVED_LEN_V1: usize = 47;
-
 /// Returns the length of symbol fields in the given DBN version
 pub const fn version_symbol_cstr_len(version: u8) -> usize {
     if version < 2 {

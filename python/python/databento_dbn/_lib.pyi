@@ -1199,8 +1199,8 @@ class VersionUpgradePolicy(Enum):
     How to handle decoding DBN data from other versions.
 
     AS_IS
-        Decode data from all supported versions (less than or equal to
-        `DBN_VERSION`) as-is.
+        Decode data from all supported versions as-is, without converting
+        between them.
     UPGRADE_TO_V2
         Decode and convert data from DBN versions prior to version 2 to that version.
         Attempting to decode data from newer versions will fail.

@@ -179,6 +179,7 @@ impl MetadataDecoder {
     const FIXED_METADATA_LEN: usize = 96;
     const SCHEMA_VERSION: u8 = 1;
     const VERSION_CSTR_LEN: usize = 4;
+    const DATASET_CSTR_LEN: usize = 16;
     const RESERVED_LEN: usize = 39;
     const DBZ_PREFIX: &'static [u8] = b"DBZ";
 
@@ -223,13 +224,11 @@ impl MetadataDecoder {
             ));
         }
         pos += Self::VERSION_CSTR_LEN;
-        let dataset =
-            std::str::from_utf8(&metadata_buffer[pos..pos + crate::METADATA_DATASET_CSTR_LEN])
-                .map_err(|e| crate::Error::utf8(e, "reading dataset from metadata"))?
-                // remove null bytes
-                .trim_end_matches('\0')
-                .to_owned();
-        pos += crate::METADATA_DATASET_CSTR_LEN;
+        let dataset = std::str::from_utf8(&metadata_buffer[pos..pos + Self::DATASET_CSTR_LEN])
+            .map_err(|e| crate::Error::utf8(e, "reading dataset from metadata"))?
+            .trim_end_matches('\0')
+            .to_owned();
+        pos += Self::DATASET_CSTR_LEN;
         let schema =
             Schema::try_from(u16::from_le_slice(&metadata_buffer[pos..])).map_err(|_| {
                 crate::Error::conversion::<Schema>(format_args!(

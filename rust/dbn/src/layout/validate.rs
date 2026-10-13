@@ -64,6 +64,14 @@ pub(crate) fn validate(layout: &StreamLayout, symbol_cstr_len: u16) -> crate::Re
             layout,
             symbol_cstr_len,
         )?;
+        for &(f, name) in crate::v4::layouts::required_fields(rec.rtype) {
+            if !rec.has_field(f) {
+                return Err(err(
+                    &rec.name,
+                    &format!("missing required field `{name}` ({:#06X})", f.id()),
+                ));
+            }
+        }
     }
     Ok(())
 }
@@ -255,14 +263,6 @@ pub(crate) fn validate_for_metadata(
 ) -> crate::Result<()> {
     validate(layout, symbol_cstr_len)?;
     for rec in &layout.record_layouts {
-        for &(f, name) in crate::v4::layouts::required_fields(rec.rtype) {
-            if !rec.has_field(f) {
-                return Err(err(
-                    &rec.name,
-                    &format!("missing required field `{name}` ({:#06X})", f.id()),
-                ));
-            }
-        }
         if rec.has_field(fields::TS_OUT) != ts_out {
             return Err(err(
                 &rec.name,
@@ -321,7 +321,7 @@ mod tests {
             InstrumentDefMsg::add_fields(&mut r);
             r.finish();
         }
-        let err = validate_for_metadata(&sb.build().unwrap(), SYMBOL_WIDTH, false).unwrap_err();
+        let err = sb.build().unwrap_err();
         assert!(err.to_string().contains("raw_symbol"), "{err}");
     }
 

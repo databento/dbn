@@ -1530,8 +1530,8 @@ impl From<TriState> for char {
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
 #[repr(u8)]
 pub enum VersionUpgradePolicy {
-    /// Decode data from all supported versions (less than or equal to
-    /// [`DBN_VERSION`](crate::DBN_VERSION)) as-is.
+    /// Decode data from all supported versions as-is, without converting
+    /// between them.
     #[pyo3(name = "AS_IS")]
     AsIs = 1,
     /// Decode and convert data from DBN versions prior to version 2 to that version.

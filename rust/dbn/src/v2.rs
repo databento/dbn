@@ -9,8 +9,8 @@ pub use crate::compat::{
 };
 pub use crate::record::{
     Bbo1MMsg, Bbo1SMsg, BboMsg, Cbbo1MMsg, Cbbo1SMsg, CbboMsg, Cmbp1Msg, ErrorMsg, ImbalanceMsg,
-    MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, SymbolMappingMsg, SystemMsg, TbboMsg, TcbboMsg,
-    TradeMsg, WithTsOut,
+    MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader, StatusMsg, SymbolMappingMsg, SystemMsg,
+    TbboMsg, TcbboMsg, TradeMsg, WithTsOut,
 };
 
 mod impl_default;
@@ -20,7 +20,7 @@ use std::os::raw::c_char;
 
 use crate::{
     compat::{InstrumentDefRec, SymbolMappingRec},
-    rtype, v1, ErrorCode, RecordHeader, SystemCode,
+    rtype, v1, ErrorCode, SystemCode,
 };
 
 /// The DBN version of this module.

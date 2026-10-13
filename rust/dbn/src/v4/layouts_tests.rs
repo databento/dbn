@@ -324,3 +324,158 @@ fn required_symbols_follow_the_struct(
     let err = crate::layout::validate(default_layout(), width + 1).unwrap_err();
     assert!(err.to_string().contains("symbol width"), "{err}");
 }
+
+mod decoded_layout {
+    use std::os::raw::c_char;
+
+    use rstest::*;
+
+    use crate::{
+        decode::{
+            dbn::{fsm::DbnFsm, Decoder},
+            DbnMetadata,
+        },
+        encode::dbn::v4::Encoder,
+        layout::{
+            DynFieldAccess, RecordLayoutBuilder, RecordLayoutDesc, StreamLayout,
+            StreamLayoutBuilder, Verdict,
+        },
+        v4::{
+            fields::{self, Field, FieldType},
+            rtype,
+            types::Char,
+            RecordBuf, RecordHeader, TradeMsg,
+        },
+        Dataset, FlagSet, Metadata, SType, Schema, SYMBOL_CSTR_LEN,
+    };
+
+    const SYM_LEN: u16 = SYMBOL_CSTR_LEN as u16;
+    const TS_RECV: u64 = 1_609_160_400_000_000_000;
+    const TS_OUT: u64 = TS_RECV + 1_000;
+
+    fn conditions<T: FieldType>() -> Field<T> {
+        Field::new(fields::CONDITIONS.id())
+    }
+
+    fn trades_with_tail(declare: impl FnOnce(&mut RecordLayoutBuilder<'_>)) -> StreamLayout {
+        let mut sb = StreamLayoutBuilder::new(1, SYM_LEN);
+        {
+            let mut r = sb.record(rtype::MBP_0, Schema::Trades as u16, "TradeMsg");
+            TradeMsg::add_fields(&mut r);
+            declare(&mut r);
+            r.finish();
+        }
+        sb.build().unwrap()
+    }
+
+    fn metadata(layout: StreamLayout, ts_out: bool) -> Metadata {
+        let mut metadata = Metadata::builder()
+            .version(crate::v4::DBN_VERSION)
+            .dataset(Dataset::GlbxMdp3)
+            .schema(Some(Schema::Trades))
+            .start(TS_RECV)
+            .end(None)
+            .stype_in(Some(SType::RawSymbol))
+            .stype_out(SType::InstrumentId)
+            .ts_out(ts_out)
+            .build();
+        metadata.symbol_cstr_len = SYM_LEN as usize;
+        metadata.layout = Some(layout);
+        metadata
+    }
+
+    fn trade() -> TradeMsg {
+        TradeMsg {
+            hd: RecordHeader::new::<TradeMsg>(rtype::MBP_0, 1, 555, TS_RECV - 100),
+            price: 123_000_000_000,
+            size: 7,
+            action: b'T' as c_char,
+            side: b'B' as c_char,
+            flags: FlagSet::new(0b1010),
+            _reserved: 0,
+            ts_recv: TS_RECV,
+            ts_in_delta: 9,
+            sequence: 88,
+        }
+    }
+
+    fn trade_with_tail(layout: &StreamLayout, tail: &[u8]) -> RecordBuf<128> {
+        let total = layout.record_layout(rtype::MBP_0).unwrap().record_size() as usize;
+        let mut buf = RecordBuf::<128>::from(trade());
+        let raw = buf.raw_buf_mut();
+        raw[size_of::<TradeMsg>()..][..tail.len()].copy_from_slice(tail);
+        raw[..2].copy_from_slice(&((total - size_of::<RecordHeader>()) as u16).to_le_bytes());
+        buf
+    }
+
+    #[rstest]
+    #[case::opra_conditions(
+        trades_with_tail(|r| { r.ext_field(conditions::<Char>(), "conditions"); }),
+        false,
+        b"@".to_vec()
+    )]
+    #[case::sip_conditions(
+        trades_with_tail(|r| { r.ext_field(conditions::<[Char; 4]>(), "conditions"); }),
+        false,
+        b"@ TI".to_vec()
+    )]
+    #[case::ts_out(
+        trades_with_tail(|r| { r.ext_field(fields::TS_OUT, "ts_out"); }),
+        true,
+        TS_OUT.to_le_bytes().to_vec()
+    )]
+    fn extension_resolves_from_the_decoded_layout(
+        #[case] layout: StreamLayout,
+        #[case] ts_out: bool,
+        #[case] tail: Vec<u8>,
+    ) -> crate::Result<()> {
+        let metadata = metadata(layout.clone(), ts_out);
+        let sent = trade_with_tail(&layout, &tail);
+        let mut encoded = Vec::new();
+        Encoder::new(&mut encoded, &metadata)?.encode_ref(sent.as_rec_ref())?;
+
+        let fsm = DbnFsm::builder().header::<RecordHeader>().build()?;
+        let mut decoder = Decoder::with_fsm(encoded.as_slice(), fsm)?;
+        assert_eq!(decoder.metadata().layout.as_ref(), Some(&layout));
+        let index = decoder
+            .metadata()
+            .layout_index()
+            .expect("version 4 carries a layout");
+        assert_eq!(index.verdict(rtype::MBP_0), Some(Verdict::Compiled));
+        let rec = decoder.decode_ref()?.expect("one trade record");
+
+        assert_eq!(rec.as_ref(), sent.as_rec_ref().as_ref());
+        match tail.len() {
+            1 => assert_eq!(
+                rec.field(&index, conditions::<Char>()),
+                Some(Char(b'@' as c_char))
+            ),
+            4 => assert_eq!(
+                rec.field(&index, conditions::<[Char; 4]>()),
+                Some((*b"@ TI").map(|b| Char(b as c_char)))
+            ),
+            _ => assert_eq!(rec.field(&index, fields::TS_OUT).map(|t| t.0), Some(TS_OUT)),
+        }
+        if ts_out {
+            assert!(rec.field(&index, conditions::<Char>()).is_none());
+        } else {
+            assert!(rec.field(&index, fields::TS_OUT).is_none());
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn a_record_that_does_not_match_the_layout_is_refused() {
+        let metadata = metadata(
+            trades_with_tail(|r| {
+                r.ext_field(conditions::<[Char; 4]>(), "conditions");
+            }),
+            false,
+        );
+        let mut buf = Vec::new();
+        let mut encoder = Encoder::new(&mut buf, &metadata).unwrap();
+
+        let err = encoder.encode(&trade()).unwrap_err().to_string();
+        assert!(err.contains("in this stream's layout"), "{err}");
+    }
+}

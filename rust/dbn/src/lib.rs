@@ -134,12 +134,13 @@ pub use crate::{
 /// The current version of the DBN encoding, which is different from the crate version.
 pub const DBN_VERSION: u8 = 3;
 
+pub(crate) const MAX_READ_VERSION: u8 = v4::DBN_VERSION;
+
 /// The length of fixed-length symbol strings.
 pub const SYMBOL_CSTR_LEN: usize = v3::SYMBOL_CSTR_LEN;
 /// The length of the fixed-length asset string.
 pub const ASSET_CSTR_LEN: usize = v3::ASSET_CSTR_LEN;
 
-const METADATA_DATASET_CSTR_LEN: usize = 16;
 const METADATA_RESERVED_LEN: usize = 53;
 
 const METADATA_PRELUDE_LEN: usize = 8;
@@ -172,18 +173,39 @@ impl TryFrom<u8> for DbnVersion {
     type Error = crate::Error;
 
     fn try_from(version: u8) -> crate::Result<Self> {
-        if (1..=DBN_VERSION).contains(&version) {
+        if (1..=MAX_READ_VERSION).contains(&version) {
             Ok(Self(version))
         } else {
             Err(Error::BadArgument {
                 param_name: "version".to_owned(),
-                desc: format!("invalid, must be between 1 and {DBN_VERSION}, inclusive"),
+                desc: format!("invalid, must be between 1 and {MAX_READ_VERSION}, inclusive"),
             })
         }
     }
 }
 
 impl DbnVersion {
+    /// Validates that a decoder for records with header `H` can read `version`.
+    pub(crate) fn for_header<H: RecordHeaderKind>(version: u8) -> crate::Result<Self> {
+        if version > MAX_READ_VERSION {
+            return Err(Error::decode(format!(
+                "can't decode newer version of DBN. Decoder version is {MAX_READ_VERSION}, input version is {version}"
+            )));
+        }
+        if H::DBN_VERSIONS.contains(&version) {
+            return Ok(Self(version));
+        }
+        let (first, last) = (H::DBN_VERSIONS.start(), H::DBN_VERSIONS.end());
+        let readable = if first == last {
+            format!("version {first}")
+        } else {
+            format!("versions {first} to {last}")
+        };
+        Err(Error::decode(format!(
+            "can't decode DBN version {version} with a decoder for DBN {readable}"
+        )))
+    }
+
     /// Returns the version value.
     pub fn get(self) -> u8 {
         self.0
