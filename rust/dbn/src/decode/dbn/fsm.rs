@@ -825,7 +825,7 @@ impl DbnFsm {
         })
     }
 
-    fn checked_count(
+    pub(crate) fn checked_count(
         ctx: std::fmt::Arguments<'_>,
         count: usize,
         min_item_size: usize,

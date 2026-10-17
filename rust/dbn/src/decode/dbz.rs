@@ -328,6 +328,13 @@ impl MetadataDecoder {
         }
         let count = u32::from_le_slice(&buffer[*pos..]) as usize;
         *pos += Self::U32_SIZE;
+        let min_symbol_mapping_encoded_size = crate::compat::SYMBOL_CSTR_LEN_V1 + Self::U32_SIZE;
+        let count = DbnFsm::checked_count(
+            format_args!("symbol mapping count"),
+            count,
+            min_symbol_mapping_encoded_size,
+            buffer.len() - *pos,
+        )?;
         let mut res = Vec::with_capacity(count);
         // Because each `SymbolMapping` itself is of a variable length, decoding it requires frequent bounds checks
         for _ in 0..count {
@@ -452,5 +459,13 @@ mod tests {
         let mut pos = 0;
         let res = MetadataDecoder::decode_symbol(BYTES.as_slice(), &mut pos);
         assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_decode_symbol_mappings_rejects_overstated_count() {
+        let buffer = u32::MAX.to_le_bytes().to_vec();
+        let mut pos = 0;
+        let res = MetadataDecoder::decode_symbol_mappings(&buffer, &mut pos);
+        assert!(matches!(res, Err(crate::Error::Decode(_))));
     }
 }
