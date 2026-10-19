@@ -10,6 +10,7 @@
   `AsyncRecordDecoder`, and `AsyncMetadataDecoder` for reading DBN version 4 streams
 - Implemented `Debug` for the sync and async DBN `Decoder`, `RecordDecoder`, and
   `MetadataDecoder`
+- Improved the performance of `SymbolSplitter` with metadata containing many symbols
 
 ## 0.72.0 - 2026-10-13
 

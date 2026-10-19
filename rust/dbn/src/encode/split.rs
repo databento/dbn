@@ -7,6 +7,7 @@
 use std::{
     collections::{HashMap, HashSet},
     marker::PhantomData,
+    mem,
     num::NonZeroU64,
 };
 
@@ -14,7 +15,7 @@ use time::{Time, Weekday};
 
 use crate::{
     encode::{DbnEncodable, EncodeDbn, EncodeRecord, EncodeRecordRef, EncodeRecordTextExt},
-    Metadata, RType, Record, RecordRef, Schema, SymbolIndex,
+    Metadata, RType, Record, RecordRef, Schema, SymbolIndex, SymbolMapping,
 };
 
 /// A strategy for routing records to different sub-encoders.
@@ -273,6 +274,7 @@ pub struct SymbolSplitter<E, F, M> {
     build_encoder: F,
     encoders: HashMap<String, E>,
     symbol_map: M,
+    symbol_metadata: Option<SymbolMetadata>,
 }
 
 /// How to handle records with an rtype that doesn't map to a schema such as an
@@ -436,6 +438,7 @@ where
             build_encoder,
             encoders: HashMap::new(),
             symbol_map,
+            symbol_metadata: None,
         }
     }
 }
@@ -469,16 +472,13 @@ where
         let encoder = match self.encoders.entry(symbol) {
             Entry::Occupied(entry) => entry.into_mut(),
             Entry::Vacant(entry) => {
-                // Only clone for new symbol
-                let symbol = entry.key().clone();
-                let split_metadata = metadata.cloned().map(|mut m| {
-                    m.symbols.retain(|s| *s == symbol);
-                    m.partial.retain(|s| *s == symbol);
-                    m.mappings
-                        .retain(|sym_mapping| sym_mapping.raw_symbol == symbol);
-                    m
+                let split_metadata = metadata.map(|m| {
+                    self.symbol_metadata
+                        .get_or_insert_with(|| SymbolMetadata::new(m))
+                        .for_symbol(entry.key())
                 });
-                entry.insert((self.build_encoder)(&symbol, split_metadata)?)
+                let encoder = (self.build_encoder)(entry.key(), split_metadata)?;
+                entry.insert(encoder)
             }
         };
         Ok(Some(encoder))
@@ -571,8 +571,61 @@ where
     }
 }
 
+/// Metadata grouped by raw symbol so each symbol's split copies only its own
+/// mappings.
+#[derive(Debug)]
+struct SymbolMetadata {
+    base: Metadata,
+    symbol_counts: HashMap<String, usize>,
+    partial_counts: HashMap<String, usize>,
+    mappings: HashMap<String, Vec<SymbolMapping>>,
+}
+
+impl SymbolMetadata {
+    fn new(metadata: &Metadata) -> Self {
+        fn count(symbols: Vec<String>) -> HashMap<String, usize> {
+            let mut counts = HashMap::new();
+            for symbol in symbols {
+                *counts.entry(symbol).or_default() += 1;
+            }
+            counts
+        }
+
+        let mut base = metadata.clone();
+        let symbol_counts = count(mem::take(&mut base.symbols));
+        let partial_counts = count(mem::take(&mut base.partial));
+        let mut mappings: HashMap<String, Vec<SymbolMapping>> = HashMap::new();
+        for mapping in mem::take(&mut base.mappings) {
+            mappings
+                .entry(mapping.raw_symbol.clone())
+                .or_default()
+                .push(mapping);
+        }
+        Self {
+            base,
+            symbol_counts,
+            partial_counts,
+            mappings,
+        }
+    }
+
+    fn for_symbol(&self, symbol: &str) -> Metadata {
+        let repeat = |counts: &HashMap<String, usize>| {
+            vec![symbol.to_owned(); counts.get(symbol).copied().unwrap_or_default()]
+        };
+        Metadata {
+            symbols: repeat(&self.symbol_counts),
+            partial: repeat(&self.partial_counts),
+            mappings: self.mappings.get(symbol).cloned().unwrap_or_default(),
+            ..self.base.clone()
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use std::cell::RefCell;
+
     use time::macros::{date, datetime};
 
     use super::*;
@@ -867,6 +920,72 @@ mod tests {
         let result = splitter.sub_encoder(None, &rec_unknown);
         assert!(result.is_err());
         assert_eq!(splitter.encoders.len(), 0);
+    }
+
+    #[test]
+    fn test_symbol_splitter_metadata() {
+        use crate::{MappingInterval, MetadataBuilder, SType};
+
+        let mapping = |raw_symbol: &str, start_date, end_date, symbol: &str| SymbolMapping {
+            raw_symbol: raw_symbol.to_owned(),
+            intervals: vec![MappingInterval {
+                start_date,
+                end_date,
+                symbol: symbol.to_owned(),
+            }],
+        };
+        let metadata = MetadataBuilder::new()
+            .dataset("TEST".to_owned())
+            .schema(Some(Schema::Mbo))
+            .stype_in(Some(SType::RawSymbol))
+            .stype_out(SType::InstrumentId)
+            .start(datetime!(2023-07-01 00:00 UTC).unix_timestamp_nanos() as u64)
+            .symbols(vec!["AAPL".to_owned(), "TSLA".to_owned()])
+            .partial(vec!["TSLA".to_owned()])
+            .not_found(vec!["NFLX".to_owned()])
+            .mappings(vec![
+                mapping("AAPL", date!(2023 - 07 - 01), date!(2023 - 07 - 15), "100"),
+                mapping("TSLA", date!(2023 - 07 - 01), date!(2023 - 08 - 01), "101"),
+                mapping("AAPL", date!(2023 - 07 - 15), date!(2023 - 08 - 01), "102"),
+            ])
+            .build();
+        let built = RefCell::new(HashMap::new());
+        let splitter = SymbolSplitter::new(
+            |symbol: &str, metadata: Option<Metadata>| {
+                built
+                    .borrow_mut()
+                    .insert(symbol.to_owned(), metadata.unwrap());
+                Ok(TestEncoder::default())
+            },
+            TsSymbolMap::from_metadata(&metadata).unwrap(),
+        );
+        let mut encoder = SplitEncoder::with_metadata(splitter, metadata.clone());
+
+        let ts = datetime!(2023-07-20 10:00 UTC).unix_timestamp_nanos() as u64;
+        for instrument_id in [102, 101, 102] {
+            encoder.encode_record(&mbo_msg(ts, instrument_id)).unwrap();
+        }
+
+        let built = built.into_inner();
+        assert_eq!(built.len(), 2);
+        assert_eq!(
+            built["AAPL"],
+            Metadata {
+                symbols: vec!["AAPL".to_owned()],
+                partial: vec![],
+                mappings: vec![metadata.mappings[0].clone(), metadata.mappings[2].clone()],
+                ..metadata.clone()
+            }
+        );
+        assert_eq!(
+            built["TSLA"],
+            Metadata {
+                symbols: vec!["TSLA".to_owned()],
+                partial: vec!["TSLA".to_owned()],
+                mappings: vec![metadata.mappings[1].clone()],
+                ..metadata.clone()
+            }
+        );
     }
 
     #[test]
