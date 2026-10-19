@@ -126,12 +126,12 @@ impl Transcoder {
         })))
     }
 
-    fn write(&mut self, bytes: &[u8]) -> PyResult<()> {
-        self.0.lock().unwrap().write(bytes)
+    fn write(&mut self, py: Python<'_>, bytes: &[u8]) -> PyResult<()> {
+        py.detach(|| self.0.lock().unwrap().write(bytes))
     }
 
-    fn flush(&mut self) -> PyResult<()> {
-        self.0.lock().unwrap().flush()
+    fn flush(&mut self, py: Python<'_>) -> PyResult<()> {
+        py.detach(|| self.0.lock().unwrap().flush())
     }
 
     /// Finalize the output stream, writing any epilogue required by the
@@ -139,12 +139,15 @@ impl Transcoder {
     ///
     /// Calling `finish()` more than once has no effect.
     /// Writing to or flushing a finished transcoder raises a `ValueError`.
-    fn finish(&mut self) -> PyResult<()> {
-        self.0.lock().unwrap().finish()
+    fn finish(&mut self, py: Python<'_>) -> PyResult<()> {
+        py.detach(|| self.0.lock().unwrap().finish())
     }
 
     fn buffer<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
-        PyBytes::new(py, self.0.lock().unwrap().buffer())
+        // Copy out without the GIL: a thread holding the lock may be waiting
+        // on the GIL to write to the Python file
+        let buffer = py.detach(|| self.0.lock().unwrap().buffer().to_vec());
+        PyBytes::new(py, &buffer)
     }
 
     fn __enter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
@@ -153,12 +156,13 @@ impl Transcoder {
 
     fn __exit__(
         &mut self,
+        py: Python<'_>,
         exc_type: Option<&Bound<'_, PyAny>>,
         _exc_value: Option<&Bound<'_, PyAny>>,
         _traceback: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<()> {
         if exc_type.is_none() {
-            self.finish()
+            self.finish(py)
         } else {
             Ok(())
         }
@@ -508,22 +512,22 @@ mod tests {
                 true,
             ))
             .unwrap();
-        transcoder.write(encoder.get_ref().as_slice()).unwrap();
+        Python::attach(|py| transcoder.write(py, encoder.get_ref().as_slice())).unwrap();
         // flush() alone cannot terminate the zstd frame
-        transcoder.flush().unwrap();
+        Python::attach(|py| transcoder.flush(py)).unwrap();
         let flushed = output_buf.lock().unwrap().get_ref().clone();
         assert!(zstd::stream::decode_all(flushed.as_slice()).is_err());
         // finish() writes the end-of-frame block and checksum, making the
         // output a complete zstd frame
-        transcoder.finish().unwrap();
+        Python::attach(|py| transcoder.finish(py)).unwrap();
         let output = output_buf.lock().unwrap().get_ref().clone();
         let decompressed = zstd::stream::decode_all(output.as_slice()).unwrap();
         assert!(!decompressed.is_empty());
         // finish() is idempotent
-        transcoder.finish().unwrap();
+        Python::attach(|py| transcoder.finish(py)).unwrap();
         // writing to or flushing a finished transcoder raises
-        assert!(transcoder.write(&[0u8; 4]).is_err());
-        assert!(transcoder.flush().is_err());
+        assert!(Python::attach(|py| transcoder.write(py, &[0u8; 4])).is_err());
+        assert!(Python::attach(|py| transcoder.flush(py)).is_err());
     }
 
     #[rstest]
@@ -559,11 +563,10 @@ mod tests {
         )
         .unwrap();
         let metadata_split = encoder.get_ref().len() / 2;
-        target
-            .write(&encoder.get_ref()[..metadata_split])
+        Python::attach(|py| target.write(py, &encoder.get_ref()[..metadata_split]))
             // no error
             .unwrap();
-        target.write(&encoder.get_ref()[metadata_split..]).unwrap();
+        Python::attach(|py| target.write(py, &encoder.get_ref()[metadata_split..])).unwrap();
         // Metadata doesn't get transcoded for JSON
         assert!(output_buf.lock().unwrap().get_ref().is_empty());
         let metadata_pos = encoder.get_ref().len();
@@ -575,7 +578,7 @@ mod tests {
         let record_pos = encoder.get_ref().len();
         // write record byte by byte
         for i in metadata_pos..record_pos {
-            target.write(&encoder.get_ref()[i..i + 1]).unwrap();
+            Python::attach(|py| target.write(py, &encoder.get_ref()[i..i + 1])).unwrap();
             // wrote last byte
             if i == record_pos - 1 {
                 break;
@@ -590,7 +593,7 @@ mod tests {
             assert!(target.buffer(py).is_empty().unwrap());
         });
         assert_eq!(record_pos - metadata_pos, std::mem::size_of_val(&rec));
-        target.flush().unwrap();
+        Python::attach(|py| target.flush(py)).unwrap();
         let output = output_buf.lock().unwrap();
         let output = std::str::from_utf8(output.get_ref().as_slice()).unwrap();
         assert_eq!(output.chars().filter(|c| *c == '\n').count(), 1);
@@ -629,7 +632,7 @@ mod tests {
                 .build(),
         )
         .unwrap();
-        transcoder.write(encoder.get_ref().as_slice()).unwrap();
+        Python::attach(|py| transcoder.write(py, encoder.get_ref().as_slice())).unwrap();
         let metadata_pos = encoder.get_ref().len();
         let rec1 = ErrorMsg::new(1680708278000000000, None, "This is a test", true);
         let rec2 = OhlcvMsg {
@@ -647,14 +650,11 @@ mod tests {
             assert!(transcoder.buffer(py).is_empty().unwrap());
         });
         // Write first record and part of second
-        transcoder
-            .write(&encoder.get_ref()[metadata_pos..rec1_pos + 4])
+        Python::attach(|py| transcoder.write(py, &encoder.get_ref()[metadata_pos..rec1_pos + 4]))
             .unwrap();
         // Write rest of second record
-        transcoder
-            .write(&encoder.get_ref()[rec1_pos + 4..])
-            .unwrap();
-        transcoder.flush().unwrap();
+        Python::attach(|py| transcoder.write(py, &encoder.get_ref()[rec1_pos + 4..])).unwrap();
+        Python::attach(|py| transcoder.flush(py)).unwrap();
         let output = output_buf.lock().unwrap();
         let output = std::str::from_utf8(output.get_ref().as_slice()).unwrap();
         // header + 1 record, ErrorMsg ignored because of a different schema
@@ -767,8 +767,8 @@ mod tests {
             assert!(transcoder.buffer(py).is_empty().unwrap());
         });
         // Write first record and part of second
-        transcoder.write(encoder.get_ref()).unwrap();
-        transcoder.flush().unwrap();
+        Python::attach(|py| transcoder.write(py, encoder.get_ref())).unwrap();
+        Python::attach(|py| transcoder.flush(py)).unwrap();
         let output = output_buf.lock().unwrap();
         let output = std::str::from_utf8(output.get_ref().as_slice()).unwrap();
         let lines = output.lines().collect::<Vec<_>>();
@@ -897,8 +897,8 @@ mod tests {
             assert!(transcoder.buffer(py).is_empty().unwrap());
         });
         // Write first record and part of second
-        transcoder.write(encoder.get_ref()).unwrap();
-        transcoder.flush().unwrap();
+        Python::attach(|py| transcoder.write(py, encoder.get_ref())).unwrap();
+        Python::attach(|py| transcoder.flush(py)).unwrap();
         let output = output_buf.lock().unwrap();
         let output = std::str::from_utf8(output.get_ref().as_slice()).unwrap();
         let lines = output.lines().collect::<Vec<_>>();
@@ -950,8 +950,8 @@ mod tests {
             .unwrap()
         });
         // Write first record and part of second
-        transcoder.write(&input).unwrap();
-        transcoder.flush().unwrap();
+        Python::attach(|py| transcoder.write(py, &input)).unwrap();
+        Python::attach(|py| transcoder.flush(py)).unwrap();
         let output = output_buf.lock().unwrap();
         let output = std::str::from_utf8(output.get_ref().as_slice()).unwrap();
         let lines = output.lines().collect::<Vec<_>>();
@@ -992,8 +992,8 @@ mod tests {
             .unwrap()
         });
         // Write first record and part of second
-        transcoder.write(&input).unwrap();
-        transcoder.flush().unwrap();
+        Python::attach(|py| transcoder.write(py, &input)).unwrap();
+        Python::attach(|py| transcoder.flush(py)).unwrap();
         let output = output_buf.lock().unwrap();
         let output = std::str::from_utf8(output.get_ref().as_slice()).unwrap();
         let lines = output.lines().collect::<Vec<_>>();

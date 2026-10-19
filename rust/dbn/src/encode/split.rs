@@ -298,6 +298,16 @@ pub struct SchemaSplitter<E, F> {
     no_schema_behavior: NoSchemaBehavior,
 }
 
+/// Splits a stream into sequential parts by encoded size.
+#[derive(Debug)]
+pub struct SizeSplitter<E, F, G> {
+    build_encoder: F,
+    encoded_size: G,
+    max_size: u64,
+    part_index: usize,
+    encoder: Option<E>,
+}
+
 impl<E, F> TimeSplitter<E, F>
 where
     F: Fn(time::Date, Option<Metadata>) -> crate::Result<E>,
@@ -622,16 +632,71 @@ impl SymbolMetadata {
     }
 }
 
+impl<E, F, G> SizeSplitter<E, F, G>
+where
+    F: Fn(usize, Option<Metadata>) -> crate::Result<E>,
+    G: Fn(&E) -> u64,
+{
+    /// Creates a new splitter that will split the input stream into parts of
+    /// roughly `max_size` bytes, creating each part with `build_encoder`.
+    ///
+    /// `encoded_size` returns the size of a part so far. It determines counts
+    /// toward `max_size`.
+    pub fn new(build_encoder: F, encoded_size: G, max_size: u64) -> Self {
+        Self {
+            build_encoder,
+            encoded_size,
+            max_size,
+            part_index: 0,
+            encoder: None,
+        }
+    }
+}
+
+impl<E, F, G> Splitter<E> for SizeSplitter<E, F, G>
+where
+    F: Fn(usize, Option<Metadata>) -> crate::Result<E>,
+    G: Fn(&E) -> u64,
+    E: EncodeRecord,
+{
+    fn sub_encoder<R>(
+        &mut self,
+        metadata: Option<&Metadata>,
+        _record: &R,
+    ) -> crate::Result<Option<&mut E>>
+    where
+        R: Record,
+    {
+        if let Some(encoder) = self.encoder.as_mut() {
+            if (self.encoded_size)(encoder) < self.max_size {
+                return Ok(self.encoder.as_mut());
+            }
+            encoder.flush()?;
+            self.encoder = None;
+            self.part_index += 1;
+        }
+        let encoder = (self.build_encoder)(self.part_index, metadata.cloned())?;
+        Ok(Some(self.encoder.insert(encoder)))
+    }
+
+    fn sub_encoders<'a>(&'a mut self) -> impl Iterator<Item = &'a mut E>
+    where
+        E: 'a,
+    {
+        self.encoder.iter_mut()
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use std::cell::RefCell;
+    use std::{cell::RefCell, io};
 
     use time::macros::{date, datetime};
 
     use super::*;
     use crate::{
-        rtype, symbol_map::date_to_ts, MboMsg, Mbp1Msg, RecordHeader, TradeMsg, TsSymbolMap,
-        UNDEF_TIMESTAMP,
+        encode::DbnRecordEncoder, rtype, symbol_map::date_to_ts, MboMsg, Mbp1Msg, RecordHeader,
+        TradeMsg, TsSymbolMap, UNDEF_TIMESTAMP,
     };
 
     /// Helper to create an MboMsg with a specific timestamp and instrument_id
@@ -1220,5 +1285,123 @@ mod tests {
 
         let rec = mbo_msg(UNDEF_TIMESTAMP, 100);
         splitter.sub_encoder(None, &rec).unwrap_err();
+    }
+
+    type Parts = RefCell<HashMap<(String, usize), Vec<u8>>>;
+
+    /// Writes to a shared map so parts remain inspectable after the splitter drops them
+    struct PartWriter<'a> {
+        parts: &'a Parts,
+        key: (String, usize),
+    }
+
+    impl io::Write for PartWriter<'_> {
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            self.parts
+                .borrow_mut()
+                .entry(self.key.clone())
+                .or_default()
+                .extend_from_slice(buf);
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    fn size_split_encoder<'a>(
+        parts: &'a Parts,
+        symbol: &str,
+        max_size: u64,
+    ) -> impl EncodeRecord + 'a {
+        let symbol = symbol.to_owned();
+        SplitEncoder::records_only(SizeSplitter::new(
+            move |part_index, _metadata| {
+                Ok(DbnRecordEncoder::new(PartWriter {
+                    parts,
+                    key: (symbol.clone(), part_index),
+                }))
+            },
+            move |encoder: &DbnRecordEncoder<PartWriter>| {
+                parts
+                    .borrow()
+                    .get(&encoder.get_ref().key)
+                    .map_or(0, |part| part.len() as u64)
+            },
+            max_size,
+        ))
+    }
+
+    fn part_record_counts(parts: &Parts, symbol: &str) -> Vec<usize> {
+        let parts = parts.borrow();
+        (0..)
+            .map_while(|i| parts.get(&(symbol.to_owned(), i)))
+            .map(|part| part.len() / mem::size_of::<MboMsg>())
+            .collect()
+    }
+
+    #[test]
+    fn test_size_splitter_rotates_once_max_size_reached() {
+        let rec_size = mem::size_of::<MboMsg>();
+        let parts = Parts::default();
+        // 2.5 records, so each part exceeds the limit by half a record
+        let max_size = (rec_size * 5 / 2) as u64;
+        let mut encoder = size_split_encoder(&parts, "", max_size);
+
+        let records: Vec<MboMsg> = (0..10).map(|i| mbo_msg(i, 100)).collect();
+        for rec in &records {
+            encoder.encode_record(rec).unwrap();
+        }
+        encoder.flush().unwrap();
+
+        assert_eq!(part_record_counts(&parts, ""), [3, 3, 3, 1]);
+        let concatenated: Vec<u8> = (0..4)
+            .flat_map(|i| parts.borrow()[&(String::new(), i)].clone())
+            .collect();
+        let expected: Vec<u8> = records
+            .iter()
+            .flat_map(|rec| rec.as_ref().to_vec())
+            .collect();
+        assert_eq!(concatenated, expected);
+    }
+
+    #[test]
+    fn test_size_splitter_record_larger_than_max_size() {
+        let parts = Parts::default();
+        let mut encoder = size_split_encoder(&parts, "", 1);
+
+        for i in 0..3 {
+            encoder.encode_record(&mbo_msg(i, 100)).unwrap();
+        }
+
+        assert_eq!(part_record_counts(&parts, ""), [1, 1, 1]);
+    }
+
+    #[test]
+    fn test_size_splitter_within_symbol_splitter() {
+        let rec_size = mem::size_of::<MboMsg>();
+        let mut symbol_map = TsSymbolMap::new();
+        let start_ts = date_to_ts(date!(2023 - 07 - 01));
+        let end_ts = date_to_ts(date!(2023 - 08 - 01));
+        symbol_map.insert(100, start_ts, end_ts, "AAPL").unwrap();
+        symbol_map.insert(101, start_ts, end_ts, "TSLA").unwrap();
+
+        let parts = Parts::default();
+        let splitter = SymbolSplitter::new(
+            |symbol: &str, _metadata: Option<Metadata>| {
+                Ok(size_split_encoder(&parts, symbol, (rec_size * 2) as u64))
+            },
+            symbol_map,
+        );
+        let mut encoder = SplitEncoder::records_only(splitter);
+
+        let ts = datetime!(2023-07-15 10:00 UTC).unix_timestamp_nanos() as u64;
+        for instrument_id in [100, 101, 100, 100, 101, 100, 101, 100] {
+            encoder.encode_record(&mbo_msg(ts, instrument_id)).unwrap();
+        }
+
+        assert_eq!(part_record_counts(&parts, "AAPL"), [2, 2, 1]);
+        assert_eq!(part_record_counts(&parts, "TSLA"), [2, 1]);
     }
 }

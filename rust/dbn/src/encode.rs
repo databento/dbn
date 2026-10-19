@@ -62,8 +62,8 @@ pub use self::{
     },
     json::Encoder as JsonEncoder,
     split::{
-        NoSchemaBehavior, SchemaSplitter, SplitDuration, SplitEncoder, Splitter, SymbolSplitter,
-        TimeSplitter,
+        NoSchemaBehavior, SchemaSplitter, SizeSplitter, SplitDuration, SplitEncoder, Splitter,
+        SymbolSplitter, TimeSplitter,
     },
 };
 #[cfg(feature = "async")]

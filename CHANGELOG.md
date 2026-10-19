@@ -11,6 +11,9 @@
 - Implemented `Debug` for the sync and async DBN `Decoder`, `RecordDecoder`, and
   `MetadataDecoder`
 - Improved the performance of `SymbolSplitter` with metadata containing many symbols
+- Added `SizeSplitter` for splitting encoded output into parts by size, which can be
+  nested in the other splitters
+- Changed `Transcoder` in the Python bindings to release the GIL while transcoding
 
 ### Bug fixes
 - Fixed legacy DBZ metadata decoding allocating memory for the symbol mapping count
