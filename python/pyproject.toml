@@ -3,7 +3,7 @@ name = "databento-dbn"
 version = "0.72.0"
 description = "Python bindings for encoding and decoding Databento Binary Encoding (DBN)"
 readme = "README.md"
-requires-python = ">=3.10,<3.15"
+requires-python = ">=3.10,<3.16"
 license = "Apache-2.0"
 authors = [{ name = "Databento", email = "support@databento.com" }]
 classifiers = [

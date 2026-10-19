@@ -17,6 +17,8 @@
   before checking it against the input (credit: @Tyagiquamar)
 - Fixed legacy DBZ metadata decoding allocating memory for the metadata length before
   reading the metadata
+- Fixed the `requires-python` metadata of `databento_dbn` which prevented installation on
+  Python 3.15
 
 ## 0.72.0 - 2026-10-13
 
