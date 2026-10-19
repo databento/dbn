@@ -12,6 +12,12 @@
   `MetadataDecoder`
 - Improved the performance of `SymbolSplitter` with metadata containing many symbols
 
+### Bug fixes
+- Fixed legacy DBZ metadata decoding allocating memory for the symbol mapping count
+  before checking it against the input (credit: @Tyagiquamar)
+- Fixed legacy DBZ metadata decoding allocating memory for the metadata length before
+  reading the metadata
+
 ## 0.72.0 - 2026-10-13
 
 ### Enhancements
