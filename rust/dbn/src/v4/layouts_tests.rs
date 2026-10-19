@@ -479,3 +479,55 @@ mod decoded_layout {
         assert!(err.contains("in this stream's layout"), "{err}");
     }
 }
+
+fn v3_csv_header<R: crate::encode::csv::serialize::CsvSerialize>() -> Vec<String> {
+    let mut writer = csv::Writer::from_writer(Vec::new());
+    R::serialize_header(&mut writer).unwrap();
+    writer.write_record(None::<&[u8]>).unwrap();
+    let header = String::from_utf8(writer.into_inner().unwrap()).unwrap();
+    header.trim_end().split(',').map(str::to_owned).collect()
+}
+
+/// Named fields in display order, with non-array nested structs like the header
+/// flattened.
+fn v4_display_names(rtype: u16) -> Vec<String> {
+    let layout = default_layout();
+    let rec = layout.record_layout(rtype).unwrap();
+    let mut names = Vec::new();
+    for (def, name) in rec.field_defs.iter().zip(&rec.field_names) {
+        if def.type_id == fields::STRUCT_ID && !def.is_array() {
+            let nested = &layout.struct_layouts[usize::from(def.def_index)];
+            names.extend(nested.field_names.iter().filter(|n| !n.is_empty()).cloned());
+        } else if !name.is_empty() {
+            names.push(name.clone());
+        }
+    }
+    names
+}
+
+#[rstest]
+#[case::mbo(rtype::MBO, v3_csv_header::<crate::v3::MboMsg>)]
+#[case::trades(rtype::MBP_0, v3_csv_header::<crate::v3::TradeMsg>)]
+#[case::mbp1(rtype::MBP_1, v3_csv_header::<crate::v3::Mbp1Msg>)]
+#[case::mbp10(rtype::MBP_10, v3_csv_header::<crate::v3::Mbp10Msg>)]
+#[case::bbo(rtype::BBO_1S, v3_csv_header::<crate::v3::BboMsg>)]
+#[case::cmbp1(rtype::CMBP_1, v3_csv_header::<crate::v3::Cmbp1Msg>)]
+#[case::cbbo(rtype::CBBO_1S, v3_csv_header::<crate::v3::CbboMsg>)]
+#[case::ohlcv(rtype::OHLCV_1S, v3_csv_header::<crate::v3::OhlcvMsg>)]
+#[case::status(rtype::STATUS, v3_csv_header::<crate::v3::StatusMsg>)]
+#[case::definition(rtype::INSTRUMENT_DEF, v3_csv_header::<crate::v3::InstrumentDefMsg>)]
+#[case::imbalance(rtype::IMBALANCE, v3_csv_header::<crate::v3::ImbalanceMsg>)]
+#[case::statistics(rtype::STATISTICS, v3_csv_header::<crate::v3::StatMsg>)]
+#[case::error(rtype::ERROR, v3_csv_header::<crate::v3::ErrorMsg>)]
+#[case::symbol_mapping(rtype::SYMBOL_MAPPING, v3_csv_header::<crate::v3::SymbolMappingMsg>)]
+#[case::system(rtype::SYSTEM, v3_csv_header::<crate::v3::SystemMsg>)]
+fn default_layout_display_order_matches_v3_csv(
+    #[case] rtype: u16,
+    #[case] v3_header: fn() -> Vec<String>,
+) {
+    let v3 = v3_header();
+    let v4 = v4_display_names(rtype);
+    let shared_v4: Vec<_> = v4.iter().filter(|n| v3.contains(n)).collect();
+    let shared_v3: Vec<_> = v3.iter().filter(|n| v4.contains(n)).collect();
+    assert_eq!(shared_v4, shared_v3);
+}

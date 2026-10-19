@@ -53,7 +53,7 @@ pub(crate) fn validate(layout: &StreamLayout, symbol_cstr_len: u16) -> crate::Re
         if rec.base_record_size % 8 != 0 {
             return Err(err(&rec.name, "base_record_size not a multiple of 8"));
         }
-        // The header is `field_defs[0]`, so a record's coverage starts at 0 like a
+        // The header is one of `field_defs`, so a record's coverage starts at 0 like a
         // struct's rather than past the header.
         check_fields(
             &rec.name,
@@ -113,6 +113,9 @@ fn check_fields(
                     f.field_id, f.offset
                 ),
             ));
+        }
+        if f.size == 0 {
+            return Err(err(ctx, &format!("field {} has size 0", f.field_id)));
         }
         check_size(ctx, f, nested)?;
         if f.type_id == fields::SYMBOL_ID && f.size != symbol_cstr_len {

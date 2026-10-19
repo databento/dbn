@@ -676,6 +676,31 @@ mod tests {
         );
     }
 
+    #[rstest]
+    #[case::record(|l: &mut StreamLayout| {
+        l.record_layouts[0].field_defs.reverse();
+        l.record_layouts[0].field_names.reverse();
+    })]
+    #[case::header(|l: &mut StreamLayout| {
+        l.struct_layouts[0].field_defs.reverse();
+        l.struct_layouts[0].field_names.reverse();
+    })]
+    fn display_order_doesnt_affect_verdict(#[case] reorder: fn(&mut StreamLayout)) {
+        let mut stream = mbo_layout();
+        reorder(&mut stream);
+        let rec = &mut stream.record_layouts[0];
+        rec.layout_hash = rec.layout_hash(&stream.struct_layouts);
+        assert_eq!(
+            rec.layout_hash,
+            default_layout()
+                .record_layout(rtype::MBO)
+                .unwrap()
+                .layout_hash
+        );
+        let index = LayoutIndex::new(&stream, default_layout());
+        assert_eq!(index.verdict(rtype::MBO), Some(Verdict::Compiled));
+    }
+
     #[test]
     fn validate_accepts_builder_output() {
         assert!(validate::validate(&mbo_layout(), 8).is_ok());
@@ -772,6 +797,40 @@ mod tests {
         });
         rec.field_names.push("raw_symbol".to_owned());
         rec.base_record_size += 16;
+    })]
+    #[case::zero_size_struct_array(|l: &mut StreamLayout| {
+        l.struct_layouts.push(StructLayout {
+            size: 0,
+            name: "Empty".to_owned(),
+            field_defs: Vec::new(),
+            field_names: Vec::new(),
+        });
+        let rec = &mut l.record_layouts[0];
+        rec.field_defs.push(FieldDef {
+            field_id: 0x0031,
+            offset: rec.base_record_size,
+            size: 0,
+            type_id: fields::STRUCT_ID,
+            flags: fields::FLAG_IS_ARRAY | fields::FLAG_IS_EXTENSION,
+            def_index: (l.struct_layouts.len() - 1) as u16,
+            scale: 0,
+            _reserved: [0; 5],
+        });
+        rec.field_names.push("empties".to_owned());
+    })]
+    #[case::zero_size_string_array(|l: &mut StreamLayout| {
+        let rec = &mut l.record_layouts[0];
+        rec.field_defs.push(FieldDef {
+            field_id: 0x0030,
+            offset: rec.base_record_size,
+            size: 0,
+            type_id: fields::CSTR_ID,
+            flags: fields::FLAG_IS_ARRAY | fields::FLAG_IS_EXTENSION,
+            def_index: 0,
+            scale: 0,
+            _reserved: [0; 5],
+        });
+        rec.field_names.push("raw_symbols".to_owned());
     })]
     fn validate_rejects_corruption(#[case] corrupt: fn(&mut StreamLayout)) {
         let mut bad = mbo_layout();

@@ -45,6 +45,7 @@ mod dyn_encoder;
 mod dyn_writer;
 mod io_utils;
 pub mod json;
+mod resolved_layout;
 mod split;
 
 #[cfg(feature = "zstd")]

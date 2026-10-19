@@ -479,7 +479,7 @@ const _: () = assert!(std::mem::size_of::<StatusMsg>() == 48);
 #[derive(Clone, DbnAttr, RecordLayoutDesc, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[dbn_record(rtype::INSTRUMENT_DEF)]
-#[dbn(required(raw_symbol))]
+#[dbn(required(raw_symbol = 2))]
 pub struct InstrumentDefMsg {
     /// The common header.
     pub hd: RecordHeader,
@@ -493,33 +493,33 @@ pub struct InstrumentDefMsg {
     /// 1/1,000,000,000 or 0.000000001.
     ///
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
-    #[dbn(encode_order(4), fixed_price)]
+    #[dbn(encode_order(5), fixed_price)]
     pub min_price_increment: i64,
     /// The multiplier to convert the venue's display price to the conventional price where every
     /// 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
-    #[dbn(encode_order(5), fixed_price)]
+    #[dbn(encode_order(6), fixed_price)]
     pub display_factor: i64,
     /// The instrument ID assigned by the publisher. May be the same as `instrument_id`.
     ///
     /// See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers)
-    #[dbn(encode_order(8))]
+    #[dbn(encode_order(7))]
     pub raw_instrument_id: u64,
     /// The minimum quantity required for a round lot of the instrument. Multiples of this
     /// quantity are also round lots.
-    #[dbn(encode_order(6))]
+    #[dbn(encode_order(8))]
     pub min_lot_size_round_lot: i32,
     /// Indicates if the instrument definition has been added, modified, or deleted.
-    #[dbn(c_char, encode_order(2))]
+    #[dbn(c_char, encode_order(3))]
     pub security_update_action: c_char,
     /// The classification of the instrument.
     ///
     /// See [Instrument class](https://databento.com/docs/schemas-and-data-formats/instrument-definitions#instrument-class).
-    #[dbn(c_char, encode_order(3))]
+    #[dbn(c_char, encode_order(4))]
     pub instrument_class: c_char,
     /// The matching algorithm used for the instrument, typically **F**IFO.
     ///
     /// See [Matching algorithm](https://databento.com/docs/schemas-and-data-formats/instrument-definitions#matching-algorithm).
-    #[dbn(c_char, encode_order(7))]
+    #[dbn(c_char, encode_order(10))]
     pub match_algorithm: c_char,
     /// The channel ID assigned by Databento as an incrementing integer starting at zero.
     #[dbn(encode_order(9))]
@@ -664,7 +664,7 @@ pub struct ErrorMsg {
     #[doc(hidden)]
     pub _reserved: [u8; 2],
     /// The error message.
-    #[dbn(fmt_method)]
+    #[dbn(encode_order(1), fmt_method)]
     pub err: [c_char; 302],
 }
 
@@ -676,7 +676,7 @@ const _: () = assert!(std::mem::size_of::<ErrorMsg>() == 336);
 #[derive(Clone, DbnAttr, RecordLayoutDesc, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[dbn_record(rtype::SYMBOL_MAPPING)]
-#[dbn(required(stype_in_symbol, stype_out_symbol))]
+#[dbn(required(stype_in_symbol = 2, stype_out_symbol = 4))]
 pub struct SymbolMappingMsg {
     /// The common header.
     pub hd: RecordHeader,
@@ -689,10 +689,10 @@ pub struct SymbolMappingMsg {
     #[dbn(unix_nanos)]
     pub end_ts: u64,
     /// The input symbology type of `stype_in_symbol`.
-    #[dbn(fmt_method)]
+    #[dbn(encode_order(1), fmt_method)]
     pub stype_in: u8,
     /// The output symbology type of `stype_out_symbol`. Will always be [`RawSymbol`](crate::SType::RawSymbol).
-    #[dbn(fmt_method)]
+    #[dbn(encode_order(3), fmt_method)]
     pub stype_out: u8,
     #[doc(hidden)]
     pub _reserved: [u8; 6],
@@ -721,7 +721,7 @@ pub struct SystemMsg {
     #[doc(hidden)]
     pub _reserved: [u8; 2],
     /// The message from the Databento gateway.
-    #[dbn(fmt_method)]
+    #[dbn(encode_order(1), fmt_method)]
     pub msg: [c_char; 303],
 }
 

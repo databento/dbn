@@ -5,7 +5,7 @@ use quote::{format_ident, quote, quote_spanned};
 use syn::{parse_macro_input, spanned::Spanned, Data, DeriveInput, Field, FieldsNamed, Type};
 
 use crate::{
-    dbn_attr::{is_hidden, DbnFieldAttrs, DbnStructAttrs},
+    dbn_attr::{is_hidden, sort_by_encode_order, DbnFieldAttrs, DbnStructAttrs, RequiredField},
     utils::crate_name,
 };
 
@@ -29,21 +29,22 @@ fn expand_record(input: &DeriveInput) -> syn::Result<TokenStream> {
     let crate_name = crate_name();
     let ident = &input.ident;
     let name = ident.to_string();
-    let placements = field_placements(&crate_name, &quote!(r), named_fields(input)?)?;
-    let required = DbnStructAttrs::parse(&input.attrs)?
-        .required
-        .into_iter()
-        .map(|field| {
-            let field_name = field.to_string();
-            let field_id = registry_path(&crate_name, &field);
-            quote!((#field_id, #field_name))
-        });
+    let fields = named_fields(input)?;
+    let placements = field_placements(&crate_name, &quote!(r), fields)?;
+    let required = DbnStructAttrs::parse(&input.attrs)?.required;
+    let order = field_order(&crate_name, fields, &required)?;
+    let required = required.iter().map(|field| {
+        let field_name = field.ident.to_string();
+        let field_id = registry_path(&crate_name, &field.ident);
+        quote!((#field_id, #field_name))
+    });
     Ok(quote! {
         impl #crate_name::layout::RecordLayoutDesc for #ident {
             const NAME: &'static str = #name;
 
             fn add_fields(r: &mut #crate_name::layout::RecordLayoutBuilder<'_>) {
                 #(#placements)*
+                r.order(&[#(#order),*]);
             }
 
             const REQUIRED_FIELDS: &'static [(
@@ -58,13 +59,16 @@ fn expand_struct(input: &DeriveInput) -> syn::Result<TokenStream> {
     let crate_name = crate_name();
     let ident = &input.ident;
     let name = ident.to_string();
-    let placements = field_placements(&crate_name, &quote!(s), named_fields(input)?)?;
+    let fields = named_fields(input)?;
+    let placements = field_placements(&crate_name, &quote!(s), fields)?;
+    let order = field_order(&crate_name, fields, &[])?;
     Ok(quote! {
         impl #crate_name::layout::StructLayoutDesc for #ident {
             const NAME: &'static str = #name;
 
             fn add_fields(s: &mut #crate_name::layout::StructLayoutBuilder<'_>) {
                 #(#placements)*
+                s.order(&[#(#order),*]);
             }
         }
         impl #crate_name::v4::fields::FieldType for #ident {
@@ -143,6 +147,36 @@ fn field_placements(
     Ok(placements)
 }
 
+/// The field IDs in encode order including `required` fields.
+fn field_order(
+    crate_name: &TokenStream,
+    fields: &FieldsNamed,
+    required: &[RequiredField],
+) -> syn::Result<Vec<TokenStream>> {
+    let mut entries = Vec::new();
+    for field in &fields.named {
+        let entry = if is_hidden(field) {
+            None
+        } else {
+            Some(registry_entry(field)?)
+        };
+        entries.push((DbnFieldAttrs::parse(field)?.encode_order, entry));
+    }
+    entries.extend(
+        required
+            .iter()
+            .map(|field| (field.encode_order, Some(field.ident.clone()))),
+    );
+    Ok(sort_by_encode_order(entries)?
+        .into_iter()
+        .flatten()
+        .map(|entry| {
+            let field_id = registry_path(crate_name, &entry);
+            quote!(#field_id.id())
+        })
+        .collect())
+}
+
 fn registry_entry(field: &Field) -> syn::Result<Ident> {
     Ok(DbnFieldAttrs::parse(field)?
         .field_id
@@ -166,12 +200,13 @@ mod tests {
 
     #[rstest]
     #[case::record(expand_record, quote! {
-        #[dbn(required(raw_symbol))]
+        #[dbn(required(raw_symbol = 1))]
         struct Rec {
             hd: RecordHeader,
             #[dbn(field_id = STATUS_ACTION)]
             action: u16,
             _reserved: [u8; 6],
+            #[dbn(encode_order(0))]
             err: [c_char; 8],
             #[dbn(field_id = LEVELS_1)]
             levels: [BidAskPair; 1],
@@ -184,6 +219,9 @@ mod tests {
         "REQUIRED_FIELDS",
         "(:: dbn :: v4 :: fields :: RAW_SYMBOL , \"raw_symbol\")",
         "r . at (:: std :: mem :: size_of :: < Self > ())",
+        "r . order (& [:: dbn :: v4 :: fields :: ERR . id () , \
+         :: dbn :: v4 :: fields :: RAW_SYMBOL . id () , :: dbn :: v4 :: fields :: HD . id () , \
+         :: dbn :: v4 :: fields :: STATUS_ACTION . id () , :: dbn :: v4 :: fields :: LEVELS_1 . id ()]) ;",
     ])]
     #[case::nested_struct(expand_struct, quote! {
         struct Pair {
@@ -209,6 +247,7 @@ mod tests {
             );
         }
         assert!(!expanded.contains("_reserved"), "{expanded}");
-        assert!(!expanded.contains("fields :: HD"), "{expanded}");
+        // The record builder places the header itself
+        assert!(!expanded.contains("\"hd\""), "{expanded}");
     }
 }

@@ -267,6 +267,13 @@ impl<'a> RecordLayoutBuilder<'a> {
         self
     }
 
+    /// Sets the order CSV and JSON present fields in. `finish` sorts the fields by `ids`
+    /// and puts unlisted fields and padding after them in declaration order.
+    pub fn order(&mut self, ids: &[u16]) -> &mut Self {
+        self.seq.order(ids);
+        self
+    }
+
     /// Places a fixed-width extension field past `base_record_size`. Declare every base
     /// field first.
     pub fn ext_field<T: FixedWidth>(&mut self, f: Field<T>, name: &str) -> &mut Self {
@@ -317,6 +324,13 @@ impl<'a> StructLayoutBuilder<'a> {
         self
     }
 
+    /// Sets the order CSV and JSON present fields in. `finish` sorts the fields by `ids`
+    /// and puts unlisted fields and padding after them in declaration order.
+    pub fn order(&mut self, ids: &[u16]) -> &mut Self {
+        self.seq.order(ids);
+        self
+    }
+
     /// Appends the struct to the stream and returns its `struct_layouts` index.
     pub fn finish(self) -> u16 {
         let mut seq = self.seq;
@@ -345,6 +359,8 @@ fn record_header_struct() -> StructLayout {
     seq.scalar(fields::PUBLISHER_ID, "publisher_id");
     seq.scalar(fields::INSTRUMENT_ID, "instrument_id");
     seq.scalar(fields::TS_EVENT, "ts_event");
+    // Matches the column order of the v1-3 headers
+    seq.order(&[fields::TS_EVENT.id()]);
     let struct_size = seq.finish_base();
     debug_assert_eq!(struct_size as usize, std::mem::size_of::<RecordHeader>());
     StructLayout {
@@ -372,6 +388,8 @@ struct FieldCursor {
     field_names: Vec<String>,
     cursor: u16,
     base: Option<u16>,
+    /// Display order field IDs
+    order: Vec<u16>,
 }
 
 impl FieldCursor {
@@ -426,6 +444,26 @@ impl FieldCursor {
         self.push(def, name);
     }
 
+    fn order(&mut self, ids: &[u16]) {
+        self.order = ids.to_vec();
+    }
+
+    fn sort_by_order(&mut self) {
+        let ids = std::mem::take(&mut self.order);
+        let rank = |def: &FieldDef| {
+            ids.iter()
+                .position(|&id| id == def.field_id && !def.is_padding())
+                .unwrap_or(ids.len())
+        };
+        let mut placed: Vec<_> = self
+            .field_defs
+            .drain(..)
+            .zip(self.field_names.drain(..))
+            .collect();
+        placed.sort_by_key(|(def, _)| rank(def));
+        (self.field_defs, self.field_names) = placed.into_iter().unzip();
+    }
+
     fn at(&mut self, offset: usize) {
         let offset = u16::try_from(offset).expect("record layout exceeds u16 bytes");
         assert!(
@@ -461,6 +499,7 @@ impl FieldCursor {
     fn finish_record(&mut self) -> u16 {
         let base = self.seal_base();
         self.align_to(8);
+        self.sort_by_order();
         base
     }
 
@@ -476,9 +515,11 @@ impl FieldCursor {
         self.field_names.push(name.to_owned());
     }
 
-    /// Round the record or struct up to an 8-byte boundary and return its size.
+    /// Round the record or struct up to an 8-byte boundary, apply the display order, and
+    /// return its size.
     fn finish_base(&mut self) -> u16 {
         self.align_to(8);
+        self.sort_by_order();
         self.cursor
     }
 }
@@ -572,6 +613,16 @@ mod tests {
         assert_eq!(h(&base), h(&sample(true, "other_symbol")));
         // A structural change (price type/scale) does
         assert_ne!(h(&base), h(&sample(false, "symbol")));
+        // Neither does reordering the record's or a struct's fields
+        let mut reordered = base.clone();
+        reordered.record_layouts[0].field_defs.reverse();
+        for sd in &mut reordered.struct_layouts {
+            sd.field_defs.reverse();
+        }
+        assert_eq!(
+            h(&base),
+            reordered.record_layouts[0].layout_hash(&reordered.struct_layouts)
+        );
     }
 
     #[test]

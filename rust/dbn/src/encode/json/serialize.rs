@@ -1,7 +1,9 @@
 use std::ffi::c_char;
 
 use crate::{
-    json_writer::{JsonObjectWriter, NULL},
+    json_writer::{
+        JsonObjectWriter, JsonStringWriter, JsonWriter, JsonWriterValue, Key, Slot, NULL,
+    },
     pretty::{fmt_px_into, fmt_ts},
     record::{c_chars_to_str, ConsolidatedBidAskPair},
     BidAskPair, FlagSet, HasRType, Metadata, RecordHeader, SecurityUpdateAction,
@@ -323,9 +325,19 @@ pub fn write_c_char_field<J: crate::json_writer::JsonWriter>(
     name: &str,
     c: c_char,
 ) {
+    write_c_char(
+        &mut Key {
+            object: writer,
+            key: name,
+        },
+        c,
+    );
+}
+
+pub(crate) fn write_c_char<S: Slot>(slot: &mut S, c: c_char) {
     // Handle NUL byte as null
     if c == 0 {
-        writer.value(name, NULL);
+        NULL.write_json(slot.begin());
     } else {
         let mut buf = [0; 4];
         let mut size = 0;
@@ -333,15 +345,14 @@ pub fn write_c_char_field<J: crate::json_writer::JsonWriter>(
             buf[size] = byte;
             size += 1;
         }
-        writer.write_key(name);
+        let writer = slot.begin();
         // Writing fragment to get around escaping logic since we've already escaped the string.
         // Using `std::ascii::escape_default` to be consistent between CSV and JSON.
-        writer.writer.json_fragment("\"");
+        writer.json_fragment("\"");
         writer
-            .writer
             // SAFETY: [`std::ascii:escape_default`] always returns valid UTF-8
             .json_fragment(unsafe { std::str::from_utf8_unchecked(&buf[..size]) });
-        writer.writer.json_fragment("\"");
+        writer.json_fragment("\"");
     }
 }
 
@@ -350,18 +361,27 @@ pub fn write_px_field<J: crate::json_writer::JsonWriter, const PRETTY_PX: bool>(
     key: &str,
     px: i64,
 ) {
+    write_px::<_, PRETTY_PX>(
+        &mut Key {
+            object: writer,
+            key,
+        },
+        px,
+    );
+}
+
+pub(crate) fn write_px<S: Slot, const PRETTY_PX: bool>(slot: &mut S, px: i64) {
     if PRETTY_PX {
         if px == UNDEF_PRICE {
-            writer.value(key, NULL);
+            NULL.write_json(slot.begin());
         } else {
-            let str_writer = writer.string_writer(key);
-            fmt_px_into(str_writer, px)
+            fmt_px_into(JsonStringWriter::new(slot.begin()), px)
                 // Writing to a string is infallible
                 .unwrap();
         }
     } else {
         // Convert to string to avoid a loss of precision
-        writer.value(key, itoa::Buffer::new().format(px))
+        itoa::Buffer::new().format(px).write_json(slot.begin());
     }
 }
 
@@ -370,14 +390,24 @@ pub fn write_ts_field<J: crate::json_writer::JsonWriter, const PRETTY_TS: bool>(
     key: &str,
     ts: u64,
 ) {
+    write_ts::<_, PRETTY_TS>(
+        &mut Key {
+            object: writer,
+            key,
+        },
+        ts,
+    );
+}
+
+pub(crate) fn write_ts<S: Slot, const PRETTY_TS: bool>(slot: &mut S, ts: u64) {
     if PRETTY_TS {
         match ts {
-            0 | UNDEF_TIMESTAMP => writer.value(key, NULL),
-            ts => writer.value(key, &fmt_ts(ts)),
+            0 | UNDEF_TIMESTAMP => NULL.write_json(slot.begin()),
+            ts => fmt_ts(ts).as_str().write_json(slot.begin()),
         };
     } else {
         // Convert to string to avoid a loss of precision
-        writer.value(key, itoa::Buffer::new().format(ts));
+        itoa::Buffer::new().format(ts).write_json(slot.begin());
     }
 }
 

@@ -27,7 +27,7 @@ pub use r#async::{
 };
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use std::os::raw::c_char;
 
     use crate::{

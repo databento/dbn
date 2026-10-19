@@ -9,11 +9,17 @@ impl RecordLayout {
     /// the result in the `layout_hash` field.
     pub fn layout_hash(&self, struct_layouts: &[StructLayout]) -> u64 {
         let mut crc = Crc64::new();
-        for field_def in self.field_defs.iter() {
+        for field_def in by_offset(&self.field_defs) {
             hash_field(&mut crc, struct_layouts, field_def);
         }
         crc.finish()
     }
+}
+
+pub(crate) fn by_offset(field_defs: &[FieldDef]) -> Vec<&FieldDef> {
+    let mut sorted: Vec<_> = field_defs.iter().collect();
+    sorted.sort_unstable_by_key(|f| f.offset);
+    sorted
 }
 
 fn hash_field(crc: &mut Crc64, struct_layouts: &[StructLayout], field_def: &FieldDef) {
@@ -29,7 +35,7 @@ fn hash_field(crc: &mut Crc64, struct_layouts: &[StructLayout], field_def: &Fiel
     if field_def.type_id == fields::STRUCT_ID {
         if let Some(struct_def) = struct_layouts.get(field_def.def_index as usize) {
             crc.hash_u16(struct_def.size);
-            for sub_field_def in struct_def.field_defs.iter() {
+            for sub_field_def in by_offset(&struct_def.field_defs) {
                 hash_field(crc, struct_layouts, sub_field_def);
             }
         }

@@ -47,8 +47,10 @@ pub fn derive_enum_field(input: TokenStream) -> TokenStream {
 /// Supports the following `dbn` attributes:
 /// - `field_id = IDENT`: on a field, uses the registry entry `IDENT` instead of the one
 ///   named after the field
-/// - `required(name, ...)`: on the struct, the symbol fields every layout of the record
-///   declares but the struct doesn't hold, listed in `REQUIRED_FIELDS`
+/// - `encode_order(N)`: on a field, moves it to position `N` of the display order
+/// - `required(name, name = N, ...)`: on the struct, the symbol fields every layout of the
+///   record declares but the struct doesn't hold, listed in `REQUIRED_FIELDS`. `N`
+///   moves the field like `encode_order`
 #[proc_macro_derive(RecordLayoutDesc, attributes(dbn))]
 pub fn derive_record_layout_desc(input: TokenStream) -> TokenStream {
     layout_desc::derive_record_impl(input)

@@ -1,5 +1,5 @@
 use crate::{
-    layout::{FieldDef, RecordLayout, StreamLayout, StructLayout, Verdict},
+    layout::{hash::by_offset, FieldDef, RecordLayout, StreamLayout, StructLayout, Verdict},
     v4::fields,
 };
 
@@ -69,8 +69,8 @@ fn eq_except_def_index(a: &FieldDef, b: &FieldDef) -> bool {
 fn struct_eq(a: &StructLayout, b: &StructLayout) -> bool {
     a.size == b.size
         && a.field_defs.len() == b.field_defs.len()
-        && a.field_defs
-            .iter()
-            .zip(&b.field_defs)
+        && by_offset(&a.field_defs)
+            .into_iter()
+            .zip(by_offset(&b.field_defs))
             .all(|(x, y)| eq_except_def_index(x, y))
 }

@@ -293,6 +293,7 @@ dependencies = [
  "pyo3",
  "rstest",
  "serde",
+ "serde_json",
  "strum",
  "thiserror",
  "time",
