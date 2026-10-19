@@ -31,6 +31,9 @@
 - Added `SizeSplitter` for splitting encoded output into parts by size, which can be
   nested in the other splitters
 - Changed `Transcoder` in the Python bindings to release the GIL while transcoding
+- Added `UpgradeToV4` and `ExpectV4` variants to `VersionUpgradePolicy`. The version 4
+  decoders default to `UpgradeToV4`, which decodes version 1-3 input into version 4
+  records, and `ExpectV4` returns an error for input older than version 4
 
 ### Breaking changes
 - Added a `'static` bound to the `DbnEncodable` trait. All DBN record types satisfy it,

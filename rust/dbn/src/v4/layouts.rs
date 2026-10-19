@@ -8,7 +8,6 @@ use super::{fields::Field, rtype, types::Symbol};
 
 /// The layout of the compiled v4 record structs, for
 /// [`LayoutIndex::new(layout, compiled)`](crate::layout::LayoutIndex::new).
-#[allow(deprecated)]
 pub fn default_layout() -> &'static StreamLayout {
     static LAYOUT: LazyLock<StreamLayout> = LazyLock::new(|| {
         let mut sb = StreamLayoutBuilder::new(1, crate::compat::SYMBOL_CSTR_LEN_V3 as u16);
@@ -28,7 +27,6 @@ pub fn default_layout() -> &'static StreamLayout {
             .record_of::<super::OhlcvMsg>(rtype::OHLCV_1H)
             .record_of::<super::OhlcvMsg>(rtype::OHLCV_1D)
             .record_of::<super::OhlcvMsg>(rtype::OHLCV_EOD)
-            .record_of::<super::OhlcvMsg>(rtype::OHLCV_DEPRECATED)
             .record_of::<super::StatusMsg>(rtype::STATUS)
             .record_of::<super::InstrumentDefMsg>(rtype::INSTRUMENT_DEF)
             .record_of::<super::ImbalanceMsg>(rtype::IMBALANCE)

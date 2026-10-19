@@ -1208,12 +1208,19 @@ class VersionUpgradePolicy(Enum):
         Decode and convert data from DBN versions prior to version 3 to that version.
         Attempting to decode data from newer versions (when they're introduced) will
         fail.
+    UPGRADE_TO_V4
+        Decode and convert data from DBN versions prior to version 4 to that version.
+        The decoder transforms every record, because version 4 widens the record header.
+    EXPECT_V4
+        Decode only DBN version 4 data and return an error for older input.
 
     """
 
     AS_IS: int
     UPGRADE_TO_V2: int
     UPGRADE_TO_V3: int
+    UPGRADE_TO_V4: int
+    EXPECT_V4: int
 
     def __init__(self, value: int) -> None: ...
     def __index__(self) -> int: ...

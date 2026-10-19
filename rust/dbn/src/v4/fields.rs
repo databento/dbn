@@ -211,6 +211,50 @@ impl<T: FixedWidth> Field<T> {
 /// Field ID for padding fields.
 pub const PADDING: u16 = 0;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum FieldDefault {
+    Max,
+    Value(i64),
+}
+
+pub(crate) fn default_of(field_id: u16, type_id: u8) -> FieldDefault {
+    registry_default(field_id).unwrap_or(
+        if type_id == Decimal::TYPE_ID || type_id == TimestampNs::TYPE_ID {
+            FieldDefault::Max
+        } else {
+            FieldDefault::Value(0)
+        },
+    )
+}
+
+impl FieldDefault {
+    pub(crate) fn write(self, type_id: u8, bytes: &mut [u8]) {
+        match self {
+            Self::Max => {
+                bytes.fill(u8::MAX);
+                let signed = [
+                    i8::TYPE_ID,
+                    i16::TYPE_ID,
+                    i32::TYPE_ID,
+                    i64::TYPE_ID,
+                    Decimal::TYPE_ID,
+                ];
+                if signed.contains(&type_id) {
+                    if let Some(last) = bytes.last_mut() {
+                        *last = i8::MAX as u8;
+                    }
+                }
+            }
+            Self::Value(value) => {
+                let value = value.to_le_bytes();
+                let (head, tail) = bytes.split_at_mut(bytes.len().min(value.len()));
+                head.copy_from_slice(&value[..head.len()]);
+                tail.fill(0);
+            }
+        }
+    }
+}
+
 impl FieldType for u8 {
     const TYPE_ID: u8 = 0x01;
 }
@@ -350,6 +394,10 @@ mod tests {
     use std::collections::HashSet;
 
     use super::*;
+    use crate::{
+        layout::{RecordLayoutDesc, StreamLayoutBuilder},
+        HasRType,
+    };
 
     #[test]
     fn registry_field_ids_are_unique() {
@@ -371,5 +419,81 @@ mod tests {
         for id in ids {
             assert!(seen.insert(id), "duplicate field ID {id:#06X}");
         }
+    }
+
+    fn non_registry_defaults<R: RecordLayoutDesc + HasRType>(
+        rec: R,
+        mut sb: StreamLayoutBuilder,
+    ) -> Vec<String> {
+        sb.record_of::<R>(rec.raw_rtype());
+        let layout = sb.into_unvalidated_record_layouts().pop().unwrap();
+        let bytes = rec.as_ref();
+        layout
+            .field_defs
+            .iter()
+            .zip(&layout.field_names)
+            .filter(|(f, _)| !f.is_padding() && f.field_id != HD.id() && !f.is_array())
+            .filter(|(f, _)| usize::from(f.offset + f.size) <= bytes.len())
+            .filter(|(f, _)| {
+                let mut expected = vec![0; usize::from(f.size)];
+                default_of(f.field_id, f.type_id).write(f.type_id, &mut expected);
+                let start = usize::from(f.offset);
+                bytes[start..start + expected.len()] != expected
+            })
+            .map(|(_, name)| format!("{}.{name}", R::NAME))
+            .collect()
+    }
+
+    macro_rules! non_registry_defaults {
+        ($v:ident, $sb:expr, $mbp1:expr) => {{
+            use crate::$v::*;
+            use crate::Schema;
+            [
+                non_registry_defaults(MboMsg::default(), $sb),
+                non_registry_defaults(TradeMsg::default(), $sb),
+                non_registry_defaults($mbp1, $sb),
+                non_registry_defaults(Mbp10Msg::default(), $sb),
+                non_registry_defaults(BboMsg::default_for_schema(Schema::Bbo1S), $sb),
+                non_registry_defaults(Cmbp1Msg::default_for_schema(Schema::Cmbp1), $sb),
+                non_registry_defaults(CbboMsg::default_for_schema(Schema::Cbbo1S), $sb),
+                non_registry_defaults(OhlcvMsg::default_for_schema(Schema::Ohlcv1S), $sb),
+                non_registry_defaults(StatusMsg::default(), $sb),
+                non_registry_defaults(InstrumentDefMsg::default(), $sb),
+                non_registry_defaults(ImbalanceMsg::default(), $sb),
+                non_registry_defaults(StatMsg::default(), $sb),
+                non_registry_defaults(ErrorMsg::default(), $sb),
+                non_registry_defaults(SymbolMappingMsg::default(), $sb),
+                non_registry_defaults(SystemMsg::default(), $sb),
+            ]
+            .concat()
+        }};
+    }
+
+    #[test]
+    fn record_defaults_match_the_registry() {
+        let mismatched = [
+            non_registry_defaults!(
+                v1,
+                StreamLayoutBuilder::pre_v4(crate::v1::SYMBOL_CSTR_LEN as u16),
+                Mbp1Msg::default()
+            ),
+            non_registry_defaults!(
+                v2,
+                StreamLayoutBuilder::pre_v4(crate::v2::SYMBOL_CSTR_LEN as u16),
+                Mbp1Msg::default()
+            ),
+            non_registry_defaults!(
+                v3,
+                StreamLayoutBuilder::pre_v4(crate::v3::SYMBOL_CSTR_LEN as u16),
+                Mbp1Msg::default()
+            ),
+            non_registry_defaults!(
+                v4,
+                StreamLayoutBuilder::new(DBN_VERSION.into(), crate::SYMBOL_CSTR_LEN as u16),
+                Mbp1Msg::default_for_schema(Schema::Mbp1)
+            ),
+        ]
+        .concat();
+        assert!(mismatched.is_empty(), "{mismatched:?}");
     }
 }

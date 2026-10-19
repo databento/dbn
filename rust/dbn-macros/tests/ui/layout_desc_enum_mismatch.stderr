@@ -1,0 +1,8 @@
+error[E0308]: mismatched types
+  --> tests/ui/layout_desc_enum_mismatch.rs:14:5
+   |
+14 |     security_update_action: Side,
+   |     ^^^^^^^^^^^^^^^^^^^^^^ expected `&SecurityUpdateAction`, found `&Side`
+   |
+   = note: expected reference `&SecurityUpdateAction`
+              found reference `&Side`

@@ -863,7 +863,7 @@ mod tests {
     use super::*;
     use crate::{
         decode::{
-            dbn::tests::{fsm_v4, mbo_v4, metadata_v4, trade_v4, trades_v4},
+            dbn::tests::{fsm_v4, mbo_v4, metadata_v4, trade_v3, trade_v4, trades_v4},
             tests::TEST_DATA_PATH,
             DbnMetadata,
         },
@@ -1392,7 +1392,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_v4_decoder_refuses_v3_input() -> Result<()> {
+    async fn test_v4_decoder_upgrades_v3_input() -> Result<()> {
         let metadata = crate::MetadataBuilder::new()
             .dataset(crate::Dataset::XnasItch)
             .schema(Some(Schema::Trades))
@@ -1403,17 +1403,14 @@ mod tests {
         let mut encoded = Vec::new();
         AsyncEncoder::new(&mut encoded, &metadata)
             .await?
-            .encode_record(&TradeMsg::default())
+            .encode_record(&trade_v3())
             .await?;
 
-        let err = crate::decode::dbn::v4::AsyncDecoder::with_fsm(encoded.as_slice(), fsm_v4()?)
-            .await
-            .unwrap_err();
-        assert!(
-            err.to_string()
-                .contains("can't decode DBN version 3 with a decoder for DBN version 4"),
-            "{err}"
-        );
+        let mut decoder =
+            crate::decode::dbn::v4::AsyncDecoder::with_fsm(encoded.as_slice(), fsm_v4()?).await?;
+        let rec = decoder.decode_record_ref().await?.unwrap();
+        assert_eq!(*rec.try_get::<crate::v4::TradeMsg>()?, trade_v4());
+        assert!(decoder.decode_record_ref().await?.is_none());
         Ok(())
     }
 }

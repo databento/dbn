@@ -1,14 +1,15 @@
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::{
+    parenthesized,
     parse::{Parse, ParseStream},
     parse_macro_input,
     punctuated::Punctuated,
     spanned::Spanned,
-    ExprPath, ItemStruct, Token,
+    token, ExprPath, Ident, ItemStruct, LitBool, Token,
 };
 
-use crate::dbn_attr::{get_sorted_fields, DbnFieldAttrs, INDEX_TS_ATTR};
+use crate::dbn_attr::{get_sorted_fields, DbnFieldAttrs, RequiredField, INDEX_TS_ATTR};
 
 pub fn attribute_macro_impl(
     attr: proc_macro::TokenStream,
@@ -34,6 +35,18 @@ pub fn attribute_macro_impl(
     let crate_name = crate::utils::crate_name();
     let impl_debug = crate::debug::record_debug_impl(&input_struct);
     let impl_py_repr = get_py_repr_impl(&input_struct);
+    let impl_layout = if args.layout {
+        match &input_struct.fields {
+            syn::Fields::Named(fields) => {
+                crate::layout_desc::expand_record(record_type, &args.required, fields)
+                    .unwrap_or_else(|e| e.into_compile_error())
+            }
+            _ => syn::Error::new(input_struct.span(), "A record needs named fields")
+                .into_compile_error(),
+        }
+    } else {
+        quote!()
+    };
     quote! (
         #input_struct
 
@@ -104,6 +117,8 @@ pub fn attribute_macro_impl(
         #impl_debug
 
         #impl_py_repr
+
+        #impl_layout
     )
     .into()
 }
@@ -125,16 +140,61 @@ fn get_py_repr_impl(input_struct: &ItemStruct) -> TokenStream {
 
 pub(crate) struct Args {
     args: Vec<ExprPath>,
+    layout: bool,
+    required: Vec<RequiredField>,
     span: Span,
+}
+
+enum Arg {
+    RType(ExprPath),
+    Layout(LitBool),
+    Required(Punctuated<RequiredField, Token![,]>),
+}
+
+impl Parse for Arg {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        if input.peek(Ident) && (input.peek2(Token![=]) || input.peek2(token::Paren)) {
+            let key: Ident = input.parse()?;
+            if key == "layout" {
+                input.parse::<Token![=]>()?;
+                return Ok(Self::Layout(input.parse()?));
+            }
+            if key == "required" {
+                let content;
+                parenthesized!(content in input);
+                return Ok(Self::Required(Punctuated::parse_terminated(&content)?));
+            }
+            return Err(syn::Error::new(
+                key.span(),
+                "unrecognized dbn_record argument",
+            ));
+        }
+        Ok(Self::RType(input.parse()?))
+    }
 }
 
 impl Parse for Args {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let args = Punctuated::<ExprPath, Token![,]>::parse_terminated(input)?;
-        Ok(Args {
-            args: args.into_iter().collect(),
+        let mut args = Args {
+            args: Vec::new(),
+            layout: true,
+            required: Vec::new(),
             span: input.span(),
-        })
+        };
+        for arg in Punctuated::<Arg, Token![,]>::parse_terminated(input)? {
+            match arg {
+                Arg::RType(rtype) => args.args.push(rtype),
+                Arg::Layout(layout) => args.layout = layout.value,
+                Arg::Required(required) => args.required.extend(required),
+            }
+        }
+        if !args.layout && !args.required.is_empty() {
+            return Err(syn::Error::new(
+                args.required[0].ident.span(),
+                "`required` has no effect with `layout = false`",
+            ));
+        }
+        Ok(args)
     }
 }
 
@@ -199,5 +259,43 @@ mod tests {
         let input = quote!();
         let args = syn::parse2::<Args>(input).unwrap();
         assert!(args.args.is_empty());
+    }
+
+    #[test]
+    fn parse_args_layout() {
+        let args = syn::parse2::<Args>(quote!(rtype::MBO)).unwrap();
+        assert!(args.layout);
+        let args = syn::parse2::<Args>(quote!(rtype::GAP, layout = false)).unwrap();
+        assert_eq!(args.args.len(), 1);
+        assert!(!args.layout);
+        assert!(syn::parse2::<Args>(quote!(rtype::GAP, shape = false)).is_err());
+    }
+
+    #[test]
+    fn parse_args_required() {
+        let args = syn::parse2::<Args>(quote!(
+            rtype::SYMBOL_MAPPING,
+            required(stype_in_symbol = 2, stype_out_symbol)
+        ))
+        .unwrap();
+        assert_eq!(args.args.len(), 1);
+        let required: Vec<_> = args
+            .required
+            .iter()
+            .map(|field| (field.ident.to_string(), field.encode_order))
+            .collect();
+        assert_eq!(
+            required,
+            [
+                ("stype_in_symbol".to_owned(), Some(2)),
+                ("stype_out_symbol".to_owned(), None)
+            ]
+        );
+        assert!(syn::parse2::<Args>(quote!(
+            rtype::INSTRUMENT_DEF,
+            required(raw_symbol),
+            layout = false
+        ))
+        .is_err());
     }
 }

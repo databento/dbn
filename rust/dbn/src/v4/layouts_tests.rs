@@ -1,6 +1,3 @@
-// `OHLCV_DEPRECATED` is still a compiled rtype
-#![allow(deprecated)]
-
 use std::{
     mem::{offset_of, size_of},
     os::raw::c_char,
@@ -40,7 +37,6 @@ macro_rules! expected_fields {
 #[case::ohlcv_1h(rtype::OHLCV_1H, size_of::<OhlcvMsg>())]
 #[case::ohlcv_1d(rtype::OHLCV_1D, size_of::<OhlcvMsg>())]
 #[case::ohlcv_eod(rtype::OHLCV_EOD, size_of::<OhlcvMsg>())]
-#[case::ohlcv_deprecated(rtype::OHLCV_DEPRECATED, size_of::<OhlcvMsg>())]
 #[case::status(rtype::STATUS, size_of::<StatusMsg>())]
 #[case::imbalance(rtype::IMBALANCE, size_of::<ImbalanceMsg>())]
 #[case::statistics(rtype::STATISTICS, size_of::<StatMsg>())]
@@ -53,7 +49,32 @@ fn default_layout_base_matches_struct(#[case] rtype: u16, #[case] size: usize) {
 
 #[test]
 fn default_layout_holds_one_layout_per_rtype() {
-    assert_eq!(default_layout().record_layouts.len(), 24);
+    assert_eq!(default_layout().record_layouts.len(), 23);
+}
+
+#[test]
+fn every_record_references_the_header() {
+    for rec in &default_layout().record_layouts {
+        let i = rec
+            .field_defs
+            .iter()
+            .position(|f| f.field_id == fields::HD.id())
+            .unwrap_or_else(|| panic!("no header in {}", rec.name));
+        let hd = &rec.field_defs[i];
+        assert_eq!(hd.type_id, fields::STRUCT_ID, "{}", rec.name);
+        assert_eq!(hd.offset, 0, "{}", rec.name);
+        assert_eq!(hd.size as usize, size_of::<RecordHeader>(), "{}", rec.name);
+        assert_eq!(hd.def_index, 0, "{}", rec.name);
+        assert_eq!(rec.field_names[i], "hd", "{}", rec.name);
+    }
+}
+
+#[rstest]
+#[case::mbo(rtype::MBO, crate::Schema::Mbo)]
+#[case::trades(rtype::MBP_0, crate::Schema::Trades)]
+fn default_layout_carries_a_schema(#[case] rtype: u16, #[case] expected: crate::Schema) {
+    let rec = default_layout().record_layout(rtype).unwrap();
+    assert_eq!(rec.schema, expected as u16);
 }
 
 #[test]
@@ -107,7 +128,6 @@ fn default_layout_is_compiled_for_every_rtype() {
         rtype::OHLCV_1H,
         rtype::OHLCV_1D,
         rtype::OHLCV_EOD,
-        rtype::OHLCV_DEPRECATED,
     ],
     expected_fields!(OhlcvMsg {
         OPEN: open, HIGH: high, LOW: low, CLOSE: close, VOLUME: volume,

@@ -5,7 +5,12 @@ use std::collections::{HashSet, VecDeque};
 
 use proc_macro2::Ident;
 use quote::ToTokens;
-use syn::{parenthesized, spanned::Spanned, token, Attribute, Field, FieldsNamed, Meta, Token};
+use syn::{
+    parenthesized,
+    parse::{Parse, ParseStream},
+    spanned::Spanned,
+    token, Field, FieldsNamed, Meta, Token,
+};
 
 pub const C_CHAR_ATTR: &str = "c_char";
 pub const ENCODE_ORDER_ATTR: &str = "encode_order";
@@ -14,7 +19,6 @@ pub const FIXED_PRICE_ATTR: &str = "fixed_price";
 pub const FMT_BINARY: &str = "fmt_binary";
 pub const FMT_METHOD: &str = "fmt_method";
 pub const INDEX_TS_ATTR: &str = "index_ts";
-pub const REQUIRED_ATTR: &str = "required";
 pub const SKIP_ATTR: &str = "skip";
 pub const UNIX_NANOS_ATTR: &str = "unix_nanos";
 
@@ -68,11 +72,11 @@ pub fn sort_by_encode_order<T: ToTokens>(
     Ok(items.into_iter().map(|(_, item)| item).collect())
 }
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct DbnFieldAttrs {
     pub flags: Vec<Ident>,
     pub encode_order: Option<usize>,
-    pub field_id: Option<Ident>,
+    pub field_id: Option<syn::Path>,
 }
 
 impl DbnFieldAttrs {
@@ -120,11 +124,6 @@ impl DbnFieldAttrs {
     }
 }
 
-#[derive(Debug, Default)]
-pub struct DbnStructAttrs {
-    pub required: Vec<RequiredField>,
-}
-
 /// A symbol field every layout of the record declares but the struct doesn't hold.
 #[derive(Debug)]
 pub struct RequiredField {
@@ -132,32 +131,20 @@ pub struct RequiredField {
     pub encode_order: Option<usize>,
 }
 
-impl DbnStructAttrs {
-    pub fn parse(attrs: &[Attribute]) -> syn::Result<Self> {
-        let mut parsed = Self::default();
-        for attr in attrs.iter().filter(|attr| attr.path().is_ident("dbn")) {
-            attr.parse_nested_meta(|meta| {
-                if meta.path.is_ident(REQUIRED_ATTR) {
-                    // e.g. `raw_symbol = 1` from `#[dbn(required(raw_symbol = 1, other))]`
-                    meta.parse_nested_meta(|field| {
-                        let ident = field.path.require_ident()?.clone();
-                        let encode_order = if field.input.peek(Token![=]) {
-                            Some(field.value()?.parse::<syn::LitInt>()?.base10_parse()?)
-                        } else {
-                            None
-                        };
-                        parsed.required.push(RequiredField {
-                            ident,
-                            encode_order,
-                        });
-                        Ok(())
-                    })
-                } else {
-                    Err(meta.error("unrecognized dbn attr"))
-                }
-            })?;
-        }
-        Ok(parsed)
+impl Parse for RequiredField {
+    // e.g. `raw_symbol = 1` from `required(raw_symbol = 1, other)`
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let ident = input.parse()?;
+        let encode_order = if input.peek(Token![=]) {
+            input.parse::<Token![=]>()?;
+            Some(input.parse::<syn::LitInt>()?.base10_parse()?)
+        } else {
+            None
+        };
+        Ok(Self {
+            ident,
+            encode_order,
+        })
     }
 }
 
@@ -303,7 +290,7 @@ mod tests {
         let fields = syn::parse2::<FieldsNamed>(input).unwrap();
         let field = fields.named.first().unwrap();
         let attrs = DbnFieldAttrs::parse(field).unwrap();
-        assert_eq!(attrs.field_id.unwrap(), "STATUS_ACTION");
+        assert!(attrs.field_id.unwrap().is_ident("STATUS_ACTION"));
         assert_eq!(attrs.encode_order, Some(1));
         assert_eq!(attrs.flags, [FMT_METHOD]);
     }

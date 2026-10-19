@@ -275,9 +275,10 @@ mod tests {
 
     use super::*;
     use crate::{
-        decode::dbn::tests::{mbo_v4, metadata_v4, trade_v4},
+        decode::dbn::tests::{metadata_v4, trade_v4},
         encode::{json, EncodeRecord},
         layout::{RecordLayoutDesc, StreamLayoutBuilder},
+        test_utils::{mbo_v3, mbo_v4},
         v4::{fields, rtype, types::Char},
         BidAskPair, FlagSet, SType, Schema,
     };
@@ -319,28 +320,6 @@ mod tests {
         // SAFETY: `buf` holds a whole record starting with an aligned v4 header whose
         // `length` covers the rest of `buf`.
         unsafe { RecordRef::unchecked_from_header(buf.as_ptr().cast()) }
-    }
-
-    fn mbo_v3() -> crate::MboMsg {
-        let v4 = mbo_v4();
-        crate::MboMsg {
-            hd: crate::RecordHeader::new::<crate::MboMsg>(
-                crate::rtype::MBO,
-                v4.hd.publisher_id,
-                v4.hd.instrument_id as u32,
-                v4.hd.ts_event,
-            ),
-            order_id: v4.order_id,
-            price: v4.price,
-            size: v4.size,
-            flags: v4.flags,
-            channel_id: v4.channel_id,
-            action: v4.action,
-            side: v4.side,
-            ts_recv: v4.ts_recv,
-            ts_in_delta: v4.ts_in_delta,
-            sequence: v4.sequence,
-        }
     }
 
     fn levels() -> [BidAskPair; 10] {

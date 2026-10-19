@@ -1544,6 +1544,13 @@ pub enum VersionUpgradePolicy {
     #[default]
     #[pyo3(name = "UPGRADE_TO_V3")]
     UpgradeToV3 = 3,
+    /// Decode and convert data from DBN versions prior to version 4 to that version.
+    /// The decoder transforms every record, because version 4 widens the record header.
+    #[pyo3(name = "UPGRADE_TO_V4")]
+    UpgradeToV4 = 4,
+    /// Decode only DBN version 4 data and return an error for older input.
+    #[pyo3(name = "EXPECT_V4")]
+    ExpectV4 = 5,
 }
 
 /// An error code from the live subscription gateway.

@@ -175,6 +175,7 @@ pub struct InstrumentDefMsgV1 {
     /// The instrument ID assigned by the publisher. May be the same as `instrument_id`.
     ///
     /// See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers)
+    #[dbn(field_id = RAW_INSTRUMENT_ID_V1)]
     pub raw_instrument_id: u32,
     /// The implied book depth on the price level data feed.
     pub market_depth_implied: i32,
@@ -215,6 +216,7 @@ pub struct InstrumentDefMsgV1 {
     /// The date at which a contract will begin to decay.
     pub decay_start_date: u16,
     /// The channel ID assigned by Databento as an incrementing integer starting at zero.
+    #[dbn(field_id = CHANNEL_ID_V1)]
     pub channel_id: u16,
     /// The currency used for price fields.
     #[dbn(fmt_method)]
@@ -229,7 +231,7 @@ pub struct InstrumentDefMsgV1 {
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub secsubtype: [c_char; 6],
     /// The instrument raw symbol assigned by the publisher.
-    #[dbn(encode_order(2), fmt_method)]
+    #[dbn(encode_order(2), field_id = RAW_SYMBOL_V1, fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub raw_symbol: [c_char; SYMBOL_CSTR_LEN_V1],
     /// The security group code of the instrument.
@@ -357,6 +359,7 @@ pub struct StatMsgV1 {
     pub price: i64,
     /// The value for non-price statistics. Will be [`UNDEF_STAT_QUANTITY`](crate::UNDEF_STAT_QUANTITY)
     /// when unused.
+    #[dbn(field_id = QUANTITY_V1)]
     pub quantity: i32,
     /// The message sequence number assigned at the venue.
     pub sequence: u32,
@@ -370,6 +373,7 @@ pub struct StatMsgV1 {
     #[dbn(fmt_method)]
     pub stat_type: u16,
     /// The channel ID assigned by Databento as an incrementing integer starting at zero.
+    #[dbn(field_id = CHANNEL_ID_V1)]
     pub channel_id: u16,
     /// Indicates if the statistic is newly added (1) or deleted (2). (Deleted is only
     /// used with some stat types).
@@ -398,11 +402,11 @@ pub struct SymbolMappingMsgV1 {
     /// The common header.
     pub hd: RecordHeader,
     /// The input symbol.
-    #[dbn(fmt_method)]
+    #[dbn(field_id = STYPE_IN_SYMBOL_V1, fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub stype_in_symbol: [c_char; SYMBOL_CSTR_LEN_V1],
     /// The output symbol.
-    #[dbn(fmt_method)]
+    #[dbn(field_id = STYPE_OUT_SYMBOL_V1, fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub stype_out_symbol: [c_char; SYMBOL_CSTR_LEN_V1],
     #[doc(hidden)]
@@ -539,6 +543,7 @@ pub struct InstrumentDefMsgV2 {
     /// The instrument ID assigned by the publisher. May be the same as `instrument_id`.
     ///
     /// See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers)
+    #[dbn(field_id = RAW_INSTRUMENT_ID_V1)]
     pub raw_instrument_id: u32,
     /// The implied book depth on the price level data feed.
     pub market_depth_implied: i32,
@@ -573,6 +578,7 @@ pub struct InstrumentDefMsgV2 {
     /// The date at which a contract will begin to decay.
     pub decay_start_date: u16,
     /// The channel ID assigned by Databento as an incrementing integer starting at zero.
+    #[dbn(field_id = CHANNEL_ID_V1)]
     pub channel_id: u16,
     /// The currency used for price fields.
     #[dbn(fmt_method)]
@@ -587,7 +593,7 @@ pub struct InstrumentDefMsgV2 {
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub secsubtype: [c_char; 6],
     /// The instrument raw symbol assigned by the publisher.
-    #[dbn(encode_order(2), fmt_method)]
+    #[dbn(encode_order(2), field_id = RAW_SYMBOL_V1, fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub raw_symbol: [c_char; SYMBOL_CSTR_LEN_V2],
     /// The security group code of the instrument.

@@ -330,6 +330,7 @@ pub struct Mbp1Msg {
     /// The message sequence number assigned at the venue.
     pub sequence: u32,
     /// The top of the order book.
+    #[dbn(field_id = LEVELS_1)]
     pub levels: [BidAskPair; 1],
 }
 
@@ -387,6 +388,7 @@ pub struct Mbp10Msg {
     /// The message sequence number assigned at the venue.
     pub sequence: u32,
     /// The top 10 levels of the order book.
+    #[dbn(field_id = LEVELS_10)]
     pub levels: [BidAskPair; 10],
 }
 
@@ -442,6 +444,7 @@ pub struct BboMsg {
     /// The message sequence number assigned at the venue of the last update.
     pub sequence: u32,
     /// The top of the order book.
+    #[dbn(field_id = LEVELS_1)]
     pub levels: [BidAskPair; 1],
 }
 
@@ -500,6 +503,7 @@ pub struct Cmbp1Msg {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub _reserved2: [u8; 4],
     /// The top of the order book.
+    #[dbn(field_id = CONSOLIDATED_LEVELS_1)]
     pub levels: [ConsolidatedBidAskPair; 1],
 }
 
@@ -552,6 +556,7 @@ pub struct CbboMsg {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub _reserved3: [u8; 8],
     /// The top of the order book.
+    #[dbn(field_id = CONSOLIDATED_LEVELS_1)]
     pub levels: [ConsolidatedBidAskPair; 1],
 }
 
@@ -648,7 +653,7 @@ pub struct StatusMsg {
     #[dbn(encode_order(0), index_ts, unix_nanos)]
     pub ts_recv: u64,
     /// The type of status change.
-    #[dbn(fmt_method)]
+    #[dbn(field_id = STATUS_ACTION, fmt_method)]
     pub action: u16,
     /// Additional details about the cause of the status change.
     #[dbn(fmt_method)]
@@ -825,6 +830,7 @@ pub struct InstrumentDefMsg {
     /// The date at which a contract will begin to decay.
     pub decay_start_date: u16,
     /// The channel ID assigned by Databento as an incrementing integer starting at zero.
+    #[dbn(field_id = CHANNEL_ID_V1)]
     pub channel_id: u16,
     /// The number of legs in the strategy or spread. Will be 0 for outrights.
     #[dbn(encode_order(158))]
@@ -845,7 +851,7 @@ pub struct InstrumentDefMsg {
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub secsubtype: [c_char; 6],
     /// The instrument raw symbol assigned by the publisher.
-    #[dbn(encode_order(2), fmt_method)]
+    #[dbn(encode_order(2), field_id = RAW_SYMBOL_V1, fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub raw_symbol: [c_char; SYMBOL_CSTR_LEN],
     /// The security group code of the instrument.
@@ -1100,6 +1106,7 @@ pub struct StatMsg {
     #[dbn(fmt_method)]
     pub stat_type: u16,
     /// The channel ID assigned by Databento as an incrementing integer starting at zero.
+    #[dbn(field_id = CHANNEL_ID_V1)]
     pub channel_id: u16,
     /// Indicates if the statistic is newly added (1) or deleted (2). (Deleted is only
     /// used with some stat types).
@@ -1133,7 +1140,7 @@ pub struct ErrorMsg {
     pub err: [c_char; 302],
     /// The error code. See the [`ErrorCode`](crate::enums::ErrorCode) enum
     /// for possible values.
-    #[dbn(fmt_method)]
+    #[dbn(field_id = ERROR_CODE, fmt_method)]
     pub code: u8,
     /// Sometimes multiple errors are sent together. This field will be non-zero for the
     /// last error.
@@ -1159,14 +1166,14 @@ pub struct SymbolMappingMsg {
     #[dbn(fmt_method)]
     pub stype_in: u8,
     /// The input symbol.
-    #[dbn(fmt_method)]
+    #[dbn(field_id = STYPE_IN_SYMBOL_V1, fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub stype_in_symbol: [c_char; SYMBOL_CSTR_LEN],
     /// The output symbology type of `stype_out_symbol`. Will always be [`RawSymbol`](crate::SType::RawSymbol).
     #[dbn(fmt_method)]
     pub stype_out: u8,
     /// The output symbol.
-    #[dbn(fmt_method)]
+    #[dbn(field_id = STYPE_OUT_SYMBOL_V1, fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub stype_out_symbol: [c_char; SYMBOL_CSTR_LEN],
     /// The start of the mapping interval expressed as the number of nanoseconds since
@@ -1200,7 +1207,7 @@ pub struct SystemMsg {
     pub msg: [c_char; 303],
     /// Type of system message. See the [`SystemCode`](crate::enums::SystemCode) enum
     /// for possible values.
-    #[dbn(fmt_method)]
+    #[dbn(field_id = SYSTEM_CODE, fmt_method)]
     pub code: u8,
 }
 

@@ -122,9 +122,26 @@ impl StreamLayoutBuilder {
         Self {
             version,
             symbol_cstr_len,
-            struct_layouts: vec![record_header_struct()],
+            struct_layouts: vec![HeaderFields {
+                length: fields::LENGTH,
+                rtype: fields::RTYPE,
+                instrument_id: fields::INSTRUMENT_ID,
+            }
+            .struct_layout::<RecordHeader>()],
             label_defs: vec![],
             records: vec![],
+        }
+    }
+
+    pub(crate) fn pre_v4(symbol_cstr_len: u16) -> Self {
+        Self {
+            struct_layouts: vec![HeaderFields {
+                length: fields::LENGTH_V1,
+                rtype: fields::RTYPE_V1,
+                instrument_id: fields::INSTRUMENT_ID_V1,
+            }
+            .struct_layout::<crate::RecordHeader>()],
+            ..Self::new(1, symbol_cstr_len)
         }
     }
 
@@ -182,6 +199,10 @@ impl StreamLayoutBuilder {
             rec.layout_hash = rec.layout_hash(&layout.struct_layouts);
         }
         Ok(layout)
+    }
+
+    pub(crate) fn into_unvalidated_record_layouts(self) -> Vec<RecordLayout> {
+        self.records
     }
 }
 
@@ -349,25 +370,32 @@ impl<'a> StructLayoutBuilder<'a> {
 /// The shared `RecordHeader` layout is always first.
 const HEADER_STRUCT_IDX: u16 = 0;
 
-/// The uniform 24-byte record header, built through the cursor like any struct so
-/// there's a single field-construction path. `length` is unnamed (not presented).
-fn record_header_struct() -> StructLayout {
-    let mut seq = FieldCursor::empty();
-    // Length is hidden from CSV and JSON: no encoded name
-    seq.scalar(fields::LENGTH, "");
-    seq.scalar(fields::RTYPE, "rtype");
-    seq.scalar(fields::PUBLISHER_ID, "publisher_id");
-    seq.scalar(fields::INSTRUMENT_ID, "instrument_id");
-    seq.scalar(fields::TS_EVENT, "ts_event");
-    // Matches the column order of the v1-3 headers
-    seq.order(&[fields::TS_EVENT.id()]);
-    let struct_size = seq.finish_base();
-    debug_assert_eq!(struct_size as usize, std::mem::size_of::<RecordHeader>());
-    StructLayout {
-        size: struct_size,
-        name: "RecordHeader".to_owned(),
-        field_defs: seq.field_defs,
-        field_names: seq.field_names,
+/// The record header fields whose widths differ between DBN versions 1-3 and 4.
+struct HeaderFields<L: FixedWidth, R: FixedWidth, I: FixedWidth> {
+    length: Field<L>,
+    rtype: Field<R>,
+    instrument_id: Field<I>,
+}
+
+impl<L: FixedWidth, R: FixedWidth, I: FixedWidth> HeaderFields<L, R, I> {
+    fn struct_layout<H>(self) -> StructLayout {
+        let mut seq = FieldCursor::empty();
+        // Length is hidden from CSV and JSON: no encoded name
+        seq.scalar(self.length, "");
+        seq.scalar(self.rtype, "rtype");
+        seq.scalar(fields::PUBLISHER_ID, "publisher_id");
+        seq.scalar(self.instrument_id, "instrument_id");
+        seq.scalar(fields::TS_EVENT, "ts_event");
+        // Matches the column order of the v1-3 headers
+        seq.order(&[fields::TS_EVENT.id()]);
+        let struct_size = seq.finish_base();
+        debug_assert_eq!(struct_size as usize, std::mem::size_of::<H>());
+        StructLayout {
+            size: struct_size,
+            name: "RecordHeader".to_owned(),
+            field_defs: seq.field_defs,
+            field_names: seq.field_names,
+        }
     }
 }
 

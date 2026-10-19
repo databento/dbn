@@ -185,30 +185,57 @@ impl TryFrom<u8> for DbnVersion {
 }
 
 impl DbnVersion {
-    /// Validates that a decoder for records with header `H` can read `version`.
-    pub(crate) fn for_header<H: RecordHeaderKind>(version: u8) -> crate::Result<Self> {
+    pub(crate) fn for_header<H: decode::dbn::fsm::DecodeHeader>(
+        version: u8,
+        upgrade_policy: VersionUpgradePolicy,
+    ) -> crate::Result<Self> {
         if version > MAX_READ_VERSION {
             return Err(Error::decode(format!(
                 "can't decode newer version of DBN. Decoder version is {MAX_READ_VERSION}, input version is {version}"
             )));
         }
-        if H::DBN_VERSIONS.contains(&version) {
-            return Ok(Self(version));
+        if !H::INPUT_DBN_VERSIONS.contains(&version) {
+            return Err(Error::decode(format!(
+                "can't decode DBN version {version} with a decoder for DBN {}",
+                readable_versions(&H::INPUT_DBN_VERSIONS)
+            )));
         }
-        let (first, last) = (H::DBN_VERSIONS.start(), H::DBN_VERSIONS.end());
-        let readable = if first == last {
-            format!("version {first}")
-        } else {
-            format!("versions {first} to {last}")
-        };
-        Err(Error::decode(format!(
-            "can't decode DBN version {version} with a decoder for DBN {readable}"
-        )))
+        upgrade_policy.validate_compatibility(version)?;
+        Self::validate_policy::<H>(upgrade_policy)?;
+        if !H::DBN_VERSIONS.contains(&upgrade_policy.output_version(version)) {
+            return Err(Error::decode(format!(
+                "`VersionUpgradePolicy::{upgrade_policy:?}` can't decode DBN version {version} with a decoder for DBN {}. Choose `{:?}` to convert it",
+                readable_versions(&H::DBN_VERSIONS),
+                H::DEFAULT_UPGRADE_POLICY
+            )));
+        }
+        Ok(Self(version))
+    }
+
+    pub(crate) fn validate_policy<H: RecordHeaderKind>(
+        upgrade_policy: VersionUpgradePolicy,
+    ) -> crate::Result<()> {
+        match upgrade_policy.target_version() {
+            Some(target) if !H::DBN_VERSIONS.contains(&target) => Err(Error::decode(format!(
+                "can't upgrade to DBN version {target} with a decoder for DBN {}",
+                readable_versions(&H::DBN_VERSIONS)
+            ))),
+            _ => Ok(()),
+        }
     }
 
     /// Returns the version value.
     pub fn get(self) -> u8 {
         self.0
+    }
+}
+
+fn readable_versions(versions: &std::ops::RangeInclusive<u8>) -> String {
+    let (first, last) = (versions.start(), versions.end());
+    if first == last {
+        format!("version {first}")
+    } else {
+        format!("versions {first} to {last}")
     }
 }
 

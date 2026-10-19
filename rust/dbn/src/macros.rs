@@ -3,7 +3,7 @@
 // Re-export
 pub use dbn_macros::{
     dbn_record, ArrowSerialize, CsvSerialize, DbnAttr, JsonSerialize, PyFieldDesc, RecordDebug,
-    RecordLayoutDesc, StructLayoutDesc, WritePyRepr,
+    StructLayoutDesc, WritePyRepr,
 };
 
 /// Base macro for type dispatch based on rtype.
@@ -69,6 +69,45 @@ macro_rules! rtype_dispatch_base {
         }
     }};
 }
+macro_rules! v4_rtype_dispatch {
+    ($rec_ref:expr, $generic_fn:ident($($arg:expr),*)$(,)?) => {{
+        use $crate::enums::RType;
+        use $crate::v4::*;
+        macro_rules! handler {
+            ($r:ty) => {{
+                $rec_ref.try_get::<$r>().ok().map(|r| $generic_fn(r $(, $arg)*))
+            }}
+        }
+        match u8::try_from($rec_ref.raw_rtype())
+            .ok()
+            .and_then(|rtype| RType::try_from(rtype).ok())
+        {
+            Some(RType::Mbo) => handler!(MboMsg),
+            Some(RType::Mbp0) => handler!(TradeMsg),
+            Some(RType::Mbp1) | Some(RType::Tbbo) => handler!(Mbp1Msg),
+            Some(RType::Mbp10) => handler!(Mbp10Msg),
+            Some(RType::Bbo1S) | Some(RType::Bbo1M) => handler!(BboMsg),
+            Some(RType::Cmbp1) | Some(RType::Tcbbo) => handler!(Cmbp1Msg),
+            Some(RType::Cbbo1S) | Some(RType::Cbbo1M) => handler!(CbboMsg),
+            #[allow(deprecated)]
+            Some(RType::OhlcvDeprecated)
+            | Some(RType::Ohlcv1S)
+            | Some(RType::Ohlcv1M)
+            | Some(RType::Ohlcv1H)
+            | Some(RType::Ohlcv1D)
+            | Some(RType::OhlcvEod) => handler!(OhlcvMsg),
+            Some(RType::Status) => handler!(StatusMsg),
+            Some(RType::InstrumentDef) => handler!(InstrumentDefMsg),
+            Some(RType::Imbalance) => handler!(ImbalanceMsg),
+            Some(RType::Statistics) => handler!(StatMsg),
+            Some(RType::Error) => handler!(ErrorMsg),
+            Some(RType::SymbolMapping) => handler!(SymbolMappingMsg),
+            Some(RType::System) => handler!(SystemMsg),
+            None => None,
+        }
+    }};
+}
+pub(crate) use v4_rtype_dispatch;
 
 /// Dispatches to a generic function or method based on `$rtype` and optionally `$ts_out`.
 ///

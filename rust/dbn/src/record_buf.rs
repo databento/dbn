@@ -443,9 +443,10 @@ impl<const CAP: usize> Record for RecordBuf<CAP, crate::v4::RecordHeader> {
     }
 
     fn raw_index_ts(&self) -> u64 {
-        self.get::<crate::v4::MboMsg>()
-            .map(|r| r.raw_index_ts())
-            .unwrap_or_else(|| self.header().ts_event)
+        fn raw_index_ts<T: HasRType>(t: &T) -> u64 {
+            t.raw_index_ts()
+        }
+        crate::macros::v4_rtype_dispatch!(self, raw_index_ts()).unwrap_or(self.header().ts_event)
     }
 }
 
@@ -528,9 +529,12 @@ impl<const CAP: usize> Debug for RecordBuf<CAP, RecordHeader> {
 
 impl<const CAP: usize> Debug for RecordBuf<CAP, crate::v4::RecordHeader> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        fn fmt_rec<T: HasRType + Debug>(t: &T, debug: &mut std::fmt::DebugStruct) {
+            debug.field("buf", &t);
+        }
         let mut debug = f.debug_struct("RecordBuf");
-        match self.get::<crate::v4::MboMsg>() {
-            Some(rec) => debug.field("buf", rec).finish(),
+        match crate::macros::v4_rtype_dispatch!(self, fmt_rec(&mut debug)) {
+            Some(_) => debug.finish(),
             None => debug.field("hd", self.header()).finish_non_exhaustive(),
         }
     }
@@ -561,9 +565,13 @@ impl<const CAP: usize, H: RecordHeaderKind> TryFrom<RecordRef<'_, H>> for Record
 mod tests {
     use std::{ffi::c_char, io::IoSlice};
 
+    use rstest::*;
+
     use crate::{
-        enums::rtype, v1, v3, FlagSet, MboMsg, RecordHeader, RecordRef, RecordRefEnum,
-        RecordRefMut, TradeMsg, MAX_RECORD_LEN,
+        enums::rtype,
+        test_utils::{mbo_v4, trade_v4},
+        v1, v3, FlagSet, MboMsg, RecordHeader, RecordRef, RecordRefEnum, RecordRefMut, TradeMsg,
+        MAX_RECORD_LEN,
     };
 
     use super::*;
@@ -790,5 +798,41 @@ mod tests {
         buf.raw_buf_mut()[0] = u8::MAX;
         assert!(buf.record_size() > MAX_RECORD_LEN);
         assert!(buf.as_ref().len() <= MAX_RECORD_LEN);
+    }
+
+    #[rstest]
+    #[case::mbo(crate::v4::RecordBuf::from(mbo_v4()), mbo_v4().ts_recv)]
+    #[case::trades(crate::v4::RecordBuf::from(trade_v4()), trade_v4().ts_recv)]
+    fn v4_raw_index_ts_dispatches_on_rtype(
+        #[case] buf: crate::v4::RecordBuf,
+        #[case] expected: u64,
+    ) {
+        assert_eq!(buf.raw_index_ts(), expected);
+        assert_eq!(buf.as_rec_ref().raw_index_ts(), expected);
+    }
+
+    #[test]
+    fn v4_raw_index_ts_falls_back_to_ts_event() {
+        let mut buf: crate::v4::RecordBuf = RecordBuf::from(trade_v4());
+        buf.raw_buf_mut()[2..4].copy_from_slice(&0xFFFEu16.to_le_bytes());
+        assert_eq!(buf.raw_index_ts(), trade_v4().hd.ts_event);
+    }
+
+    #[test]
+    fn v4_debug_names_the_record_type() {
+        let buf: crate::v4::RecordBuf = RecordBuf::from(trade_v4());
+        let rendered = format!("{buf:?}");
+        assert!(rendered.contains("TradeMsg"), "{rendered}");
+    }
+
+    #[test]
+    fn v4_dispatch_on_short_record_falls_back() {
+        let mut buf: crate::v4::RecordBuf = RecordBuf::from(trade_v4());
+        buf.raw_buf_mut()[0..2]
+            .copy_from_slice(&((48 - size_of::<crate::v4::RecordHeader>()) as u16).to_le_bytes());
+        assert_eq!(buf.raw_index_ts(), trade_v4().hd.ts_event);
+        assert_eq!(buf.as_rec_ref().raw_index_ts(), trade_v4().hd.ts_event);
+        let rendered = format!("{buf:?}");
+        assert!(!rendered.contains("TradeMsg"), "{rendered}");
     }
 }

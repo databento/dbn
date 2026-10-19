@@ -17,18 +17,21 @@ mod builders;
 mod compare;
 mod hash;
 mod index;
+mod pre_v4;
+mod upgrade;
 mod validate;
 pub mod wire;
 
 pub use builders::{RecordLayoutBuilder, StreamLayoutBuilder, StructLayoutBuilder};
 pub use index::LayoutIndex;
+pub(crate) use upgrade::Upgrader;
 #[cfg(test)]
 pub(crate) use validate::validate;
 pub(crate) use validate::validate_for_metadata;
 
 /// The layout description of a record struct, used to build its [`RecordLayout`].
 ///
-/// Usually derived with [`RecordLayoutDesc`](crate::macros::RecordLayoutDesc).
+/// Usually implemented by [`dbn_record`](crate::macros::dbn_record).
 pub trait RecordLayoutDesc {
     /// The display name of the record.
     const NAME: &'static str;

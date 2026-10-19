@@ -28,55 +28,13 @@ pub use r#async::{
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use std::os::raw::c_char;
-
     use crate::{
         decode::{dbn::fsm::DbnFsm, FromLittleEndianSlice},
         encode::dbn::v4::Encoder,
-        v4, Dataset, FlagSet, Metadata, Result, SType, Schema, METADATA_FIXED_LEN,
-        METADATA_PRELUDE_LEN,
+        v4, Dataset, Metadata, Result, SType, Schema, METADATA_FIXED_LEN, METADATA_PRELUDE_LEN,
     };
 
-    pub fn mbo_v4() -> v4::MboMsg {
-        v4::MboMsg {
-            hd: v4::RecordHeader::new::<v4::MboMsg>(
-                v4::rtype::MBO,
-                1,
-                5482,
-                1_697_240_529_000_000_000,
-            ),
-            order_id: 16,
-            price: 5500,
-            size: 3,
-            flags: FlagSet::empty(),
-            channel_id: 14,
-            action: b'A' as c_char,
-            side: b'B' as c_char,
-            ts_recv: 1_697_240_529_000_000_100,
-            ts_in_delta: 22_000,
-            sequence: 1_002_375,
-        }
-    }
-
-    pub fn trade_v4() -> v4::TradeMsg {
-        v4::TradeMsg {
-            hd: v4::RecordHeader::new::<v4::TradeMsg>(
-                v4::rtype::MBP_0,
-                1,
-                5482,
-                1_697_240_529_000_000_000,
-            ),
-            price: 5500,
-            size: 7,
-            action: b'T' as c_char,
-            side: b'B' as c_char,
-            flags: FlagSet::empty(),
-            _reserved: 0,
-            ts_recv: 1_697_240_529_000_000_100,
-            ts_in_delta: 9,
-            sequence: 88,
-        }
-    }
+    pub use crate::test_utils::{mbo_v4, trade_v3, trade_v4};
 
     pub fn metadata_v4(schema: Schema) -> Metadata {
         Metadata::builder()

@@ -39,24 +39,6 @@ pub fn derive_enum_field(input: TokenStream) -> TokenStream {
     enum_field::derive_impl(input)
 }
 
-/// Derive macro for the `RecordLayoutDesc` trait, for a record struct starting with an
-/// `hd` header field.
-///
-/// Places each field after the header at its `offset_of!` offset under the `v4::fields`
-/// registry constant named after it, so the layout matches the compiled struct.
-///
-/// Supports the following `dbn` attributes:
-/// - `field_id = IDENT`: on a field, uses the registry entry `IDENT` instead of the one
-///   named after the field
-/// - `encode_order(N)`: on a field, moves it to position `N` of the display order
-/// - `required(name, name = N, ...)`: on the struct, the symbol fields every layout of the
-///   record declares but the struct doesn't hold, listed in `REQUIRED_FIELDS`. `N`
-///   moves the field like `encode_order`
-#[proc_macro_derive(RecordLayoutDesc, attributes(dbn))]
-pub fn derive_record_layout_desc(input: TokenStream) -> TokenStream {
-    layout_desc::derive_record_impl(input)
-}
-
 /// Derive macro for the `StructLayoutDesc` trait, for a struct nested in records like
 /// `BidAskPair`.
 ///
@@ -65,8 +47,8 @@ pub fn derive_record_layout_desc(input: TokenStream) -> TokenStream {
 /// implements `FieldType` for the struct and arrays of it, so registry constants can
 /// name them.
 ///
-/// Supports the `field_id = IDENT` field attribute, which uses the registry entry
-/// `IDENT` instead of the one named after the field.
+/// Supports the `field_id = PATH` field attribute, which uses the registry entry
+/// `PATH` instead of the one named after the field.
 #[proc_macro_derive(StructLayoutDesc, attributes(dbn))]
 pub fn derive_struct_layout_desc(input: TokenStream) -> TokenStream {
     layout_desc::derive_struct_impl(input)
@@ -120,18 +102,29 @@ pub fn derive_py_field_desc(input: TokenStream) -> TokenStream {
 }
 
 /// Attribute macro that acts like a derive macro for `Debug` (with customization),
-/// `Record`, `RecordMut`, `HasRType`, `PartialOrd`, and `AsRef<[u8]>`.
+/// `Record`, `RecordMut`, `HasRType`, `PartialOrd`, `AsRef<[u8]>`, and
+/// `RecordLayoutDesc`.
 ///
 /// Expects 1 or more paths to `u8` constants that are the RTypes associated
-/// with this record.
+/// with this record, optionally followed by:
+/// - `layout = false`: skips `RecordLayoutDesc`
+/// - `required(name, name = N, ...)`: the symbol fields every layout of the record
+///   must have, listed in `REQUIRED_FIELDS`. `N` moves the field like `encode_order`
 ///
-/// Supports the following `dbn` attributes:
+/// The layout places each field after the header at its `offset_of!` offset under the
+/// `v4::fields` registry constant named after it, so the layout matches the compiled
+/// struct.
+///
+/// Supports the following `dbn` field attributes:
 /// - `c_char`: format the type as a `char` instead of as a numeric
+/// - `encode_order(N)`: moves the field to position `N` of the layout's display order
+/// - `field_id = PATH`: uses the registry entry `PATH` instead of the one named after
+///   the field. A bare name resolves against `v4::fields`
 /// - `fixed_price`: format the integer as a fixed-precision decimal
 /// - `fmt_binary`: format as a binary
 /// - `fmt_method`: try to format by calling the getter method with the same name as the
-/// - `index_ts`: indicates this field is the primary timestamp for the record
 ///   field. If the getter returns an error, the raw field value will be used
+/// - `index_ts`: indicates this field is the primary timestamp for the record
 /// - `skip`: won't be included in the `Debug` output
 ///
 /// Note: attribute macros don't support helper attributes on their own. If not deriving

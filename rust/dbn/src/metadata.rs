@@ -147,23 +147,18 @@ impl Metadata {
 
     /// Upgrades the metadata according to `upgrade_policy` if necessary.
     pub fn upgrade(&mut self, upgrade_policy: VersionUpgradePolicy) {
+        let target = if upgrade_policy.is_upgrade_situation(self.version) {
+            upgrade_policy.output_version(self.version)
+        } else {
+            self.version
+        };
         if self.version < 2 {
-            match upgrade_policy {
-                VersionUpgradePolicy::AsIs => {
-                    self.symbol_cstr_len = crate::v1::SYMBOL_CSTR_LEN;
-                }
-                VersionUpgradePolicy::UpgradeToV2 => {
-                    self.version = 2;
-                    self.symbol_cstr_len = crate::v2::SYMBOL_CSTR_LEN;
-                }
-                VersionUpgradePolicy::UpgradeToV3 => {
-                    self.version = 3;
-                    self.symbol_cstr_len = crate::v3::SYMBOL_CSTR_LEN;
-                }
-            }
-        } else if self.version == 2 && upgrade_policy == VersionUpgradePolicy::UpgradeToV3 {
-            self.version = 3;
+            self.symbol_cstr_len = version_symbol_cstr_len(target);
         }
+        if target > self.version && target >= crate::v4::DBN_VERSION && self.layout.is_none() {
+            self.layout = Some(crate::v4::layouts::default_layout().clone());
+        }
+        self.version = target;
     }
 
     /// Attempts to merge another metadata into this one. This is useful for merging
@@ -528,24 +523,43 @@ mod tests {
 
     use super::*;
 
-    #[rstest]
-    #[case(VersionUpgradePolicy::AsIs, 1)]
-    #[case(VersionUpgradePolicy::UpgradeToV2, 2)]
-    #[case(VersionUpgradePolicy::UpgradeToV3, 3)]
-    fn test_upgrade_metadata(
-        #[case] upgrade_policy: VersionUpgradePolicy,
-        #[case] exp_version: u8,
-    ) {
-        let mut target = Metadata::builder()
+    fn v1_metadata() -> Metadata {
+        Metadata::builder()
             .version(1)
             .dataset(Dataset::OpraPillar)
             .schema(Some(Schema::Mbp1))
             .start(0)
             .stype_in(None)
             .stype_out(SType::InstrumentId)
-            .build();
+            .build()
+    }
+
+    #[rstest]
+    #[case(VersionUpgradePolicy::AsIs, 1)]
+    #[case(VersionUpgradePolicy::UpgradeToV2, 2)]
+    #[case(VersionUpgradePolicy::UpgradeToV3, 3)]
+    #[case(VersionUpgradePolicy::UpgradeToV4, 4)]
+    #[case(VersionUpgradePolicy::ExpectV4, 1)]
+    fn test_upgrade_metadata(
+        #[case] upgrade_policy: VersionUpgradePolicy,
+        #[case] exp_version: u8,
+    ) {
+        let mut target = v1_metadata();
         assert_eq!(target.version, 1);
         target.upgrade(upgrade_policy);
         assert_eq!(target.version, exp_version);
+    }
+
+    #[test]
+    fn test_upgrade_to_v4_attaches_the_default_layout() {
+        let mut target = v1_metadata();
+        assert!(target.layout.is_none());
+
+        target.upgrade(VersionUpgradePolicy::UpgradeToV4);
+        assert_eq!(
+            target.layout.as_ref(),
+            Some(crate::v4::layouts::default_layout())
+        );
+        assert_eq!(target.symbol_cstr_len, crate::v3::SYMBOL_CSTR_LEN);
     }
 }

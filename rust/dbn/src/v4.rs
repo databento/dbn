@@ -8,6 +8,7 @@ pub mod rtype;
 use crate::{record::HasRType, Publisher, RType};
 
 pub mod fields;
+mod impl_default;
 pub mod layouts;
 #[cfg(test)]
 mod layouts_tests;
@@ -79,12 +80,13 @@ impl RecordHeader {
         }
     }
 
-    /// A header whose `length` covers `record_size` total bytes, for a record whose
-    /// size comes from its stream's layout rather than from a compiled struct.
-    ///
-    /// # Errors
-    /// Returns an error if `record_size` cannot hold the header, or overflows `length`.
-    pub fn for_record_size(rtype: u16, record_size: usize) -> crate::Result<Self> {
+    pub(crate) fn with_record_size(
+        rtype: u16,
+        publisher_id: u16,
+        instrument_id: u64,
+        ts_event: u64,
+        record_size: usize,
+    ) -> crate::Result<Self> {
         let body = record_size
             .checked_sub(std::mem::size_of::<Self>())
             .ok_or_else(|| {
@@ -97,10 +99,10 @@ impl RecordHeader {
                 crate::Error::encode(format!("record size {record_size} overflows `length`"))
             })?,
             rtype,
-            publisher_id: 0,
+            publisher_id,
             _reserved: [0; 2],
-            instrument_id: 0,
-            ts_event: crate::UNDEF_TIMESTAMP,
+            instrument_id,
+            ts_event,
         })
     }
 
@@ -182,6 +184,18 @@ mod tests {
             size_of::<MboMsg>() - size_of::<RecordHeader>()
         );
         assert_eq!(hd.record_size(), size_of::<MboMsg>());
+    }
+
+    #[rstest]
+    #[case::mbo(MboMsg::default().hd, size_of::<MboMsg>(), rtype::MBO)]
+    #[case::trades(TradeMsg::default().hd, size_of::<TradeMsg>(), rtype::MBP_0)]
+    fn default_header_frames_the_record(
+        #[case] hd: RecordHeader,
+        #[case] size: usize,
+        #[case] rtype: u16,
+    ) {
+        assert_eq!(hd.record_size(), size);
+        assert_eq!(hd.rtype, rtype);
     }
 
     #[rstest]
