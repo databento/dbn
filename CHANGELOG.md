@@ -3,6 +3,22 @@
 ## 0.73.0 - Upcoming
 
 ### Enhancements
+- Added Apache Arrow and Apache Parquet encoding support behind the `arrow` and
+  `parquet` feature flags, respectively
+  - Added `ArrowEncoder` and `ParquetEncoder` with builders for the batch size,
+    compression, and `symbol` column
+  - Added `OutputEncoding` enum, a superset of `Encoding` with `Arrow` and `Parquet`
+    variants. `DynEncoder` and `DynEncoderBuilder` accept any `impl Into<OutputEncoding>`,
+    so passing an `Encoding` continues to work
+  - Added `--arrow`/`-A` and `--parquet`/`-P` flags to the `dbn` CLI, which also infers
+    the formats from `.arrow`, `.feather`, and `.parquet` output paths. These formats
+    reject `--omit-header`, `--metadata`, and fragment input
+  - Added `Error::Arrow` and `Error::Parquet` variants
+- Added `DynEncoder::finish()` to flush buffered records and finalize the output, which
+  surfaces errors that dropping the encoder would swallow, and `SplitEncoder::finish()`
+  to do the same for every `DynEncoder` sub-encoder
+- Added a `version` parameter to `schema_dispatch!` for dispatching to the record types
+  of DBN versions 1 and 2
 - Added `encode::dbn::v4::Encoder`, `RecordEncoder`, `AsyncEncoder`, and `AsyncRecordEncoder`
   for writing DBN version 4 streams
 - Added `encode::json::v4::Encoder` for encoding DBN version 4 records as JSON lines
@@ -15,6 +31,21 @@
 - Added `SizeSplitter` for splitting encoded output into parts by size, which can be
   nested in the other splitters
 - Changed `Transcoder` in the Python bindings to release the GIL while transcoding
+
+### Breaking changes
+- Added a `'static` bound to the `DbnEncodable` trait. All DBN record types satisfy it,
+  but generic code that restates the trait's bounds needs to add `'static`
+- Changed `DynEncoder` and `DynEncoderBuilder` to require `W: io::Write + Send`
+  (previously `W: io::Write`). All standard writers (`File`, `BufWriter`, `Vec<u8>`)
+  satisfy this bound
+- The CSV `Encoder` now returns `Error::Encode` when `encode_record` and
+  `encode_record_with_sym` are mismatched against the builder's `with_symbol`
+  setting (previously, mismatches silently produced rows whose column count did
+  not match the header). Existing callers that always pair `with_symbol(true)` with
+  `encode_record_with_sym` and `with_symbol(false)` with `encode_record` are unaffected.
+  The same strictness applies to the new parquet and arrow encoders
+- Added required `into_sub_encoders()` method to the `Splitter` trait, which consumes the
+  splitter and yields every active sub-encoder
 
 ### Bug fixes
 - Fixed legacy DBZ metadata decoding allocating memory for the symbol mapping count

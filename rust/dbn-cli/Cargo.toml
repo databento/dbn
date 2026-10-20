@@ -16,7 +16,7 @@ name = "dbn"
 path = "src/main.rs"
 
 [dependencies]
-dbn = { path = "../dbn", version = "=0.72.0" }
+dbn = { path = "../dbn", version = "=0.72.0", features = ["parquet"] }
 
 anyhow.workspace = true
 clap = { version = "4.6", features = ["derive", "wrap_help"] }
@@ -26,6 +26,8 @@ zstd.workspace = true
 
 [dev-dependencies]
 assert_cmd = "2.2"
+arrow = { workspace = true }
+parquet = { workspace = true, features = ["arrow", "snap", "zstd", "lz4"] }
 predicates = "3.1"
 tempfile = "3.27"
 rstest.workspace = true

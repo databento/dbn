@@ -1,4 +1,4 @@
-//! Encoding DBN records to various formats: DBN binary, CSV, and JSON.
+//! Encoding DBN records to various formats: DBN binary, CSV, JSON, and Apache Parquet.
 //!
 //! Each format has a dedicated encoder ([`DbnEncoder`], [`CsvEncoder`],
 //! [`JsonEncoder`]). When the format is chosen at runtime, use [`DynEncoder`]
@@ -37,6 +37,8 @@
 //! assert_eq!(*rec, MboMsg::default());
 //! # Ok::<(), dbn::Error>(())
 //! ```
+#[cfg(feature = "arrow")]
+pub mod arrow;
 pub mod csv;
 pub mod dbn;
 #[cfg(feature = "zstd")]
@@ -45,6 +47,8 @@ mod dyn_encoder;
 mod dyn_writer;
 mod io_utils;
 pub mod json;
+#[cfg(feature = "parquet")]
+pub mod parquet;
 mod resolved_layout;
 mod split;
 
@@ -67,6 +71,11 @@ pub use self::{
         SymbolSplitter, TimeSplitter,
     },
 };
+
+#[cfg(feature = "arrow")]
+pub use self::arrow::Encoder as ArrowEncoder;
+#[cfg(feature = "parquet")]
+pub use self::parquet::Encoder as ParquetEncoder;
 #[cfg(feature = "async")]
 pub use self::{
     dbn::{
@@ -88,14 +97,35 @@ pub use self::dyn_writer::{DynAsyncBufWriter, DynAsyncWriter};
 
 use crate::{
     decode::{DbnMetadata, DecodeRecordRef},
-    rtype_dispatch, Error, Record, RecordRef, Result,
+    rtype_dispatch, Encoding, Error, Record, RecordRef, Result,
 };
+
+/// An output format this build of the crate can write.
+///
+/// A superset of [`Encoding`], which lists only the encodings the Databento API
+/// serves. Any [`Encoding`] converts into an `OutputEncoding`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum OutputEncoding {
+    /// Databento Binary Encoding.
+    Dbn,
+    /// Comma-separated values.
+    Csv,
+    /// JavaScript object notation.
+    Json,
+    /// Apache Parquet columnar format.
+    #[cfg(feature = "parquet")]
+    Parquet,
+    /// Apache Arrow IPC file format (Feather v2).
+    #[cfg(feature = "arrow")]
+    Arrow,
+}
 
 use self::{csv::serialize::CsvSerialize, json::serialize::JsonSerialize};
 
 /// Trait alias for [`Record`], `CsvSerialize`, [`fmt::Debug`], and `JsonSerialize`.
-pub trait DbnEncodable: Record + CsvSerialize + fmt::Debug + JsonSerialize {}
-impl<T> DbnEncodable for T where T: Record + CsvSerialize + fmt::Debug + JsonSerialize {}
+pub trait DbnEncodable: Record + CsvSerialize + fmt::Debug + JsonSerialize + 'static {}
+impl<T> DbnEncodable for T where T: Record + CsvSerialize + fmt::Debug + JsonSerialize + 'static {}
 
 /// Trait for types that encode a DBN record of a specific type.
 pub trait EncodeRecord {
@@ -547,6 +577,16 @@ pub trait AsyncEncodeRecordTextExt: AsyncEncodeRecord + AsyncEncodeRecordRef {
         symbol: Option<&str>,
     ) -> Result<()> {
         rtype_dispatch!(record, ts_out: ts_out, self.encode_record_with_sym(symbol).await)?
+    }
+}
+
+impl From<Encoding> for OutputEncoding {
+    fn from(encoding: Encoding) -> Self {
+        match encoding {
+            Encoding::Dbn => Self::Dbn,
+            Encoding::Csv => Self::Csv,
+            Encoding::Json => Self::Json,
+        }
     }
 }
 

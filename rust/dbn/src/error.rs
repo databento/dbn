@@ -48,6 +48,26 @@ pub enum Error {
         /// The description of why the argument was invalid.
         desc: String,
     },
+    /// An error from the `arrow` library while encoding columnar data.
+    #[cfg(feature = "arrow")]
+    #[error("Arrow error: {source} while {context}")]
+    Arrow {
+        /// The original error.
+        #[source]
+        source: arrow::error::ArrowError,
+        /// The context in which the error occurred.
+        context: String,
+    },
+    /// An error from the `parquet` library while encoding.
+    #[cfg(feature = "parquet")]
+    #[error("Parquet error: {source} while {context}")]
+    Parquet {
+        /// The original error.
+        #[source]
+        source: parquet::errors::ParquetError,
+        /// The context in which the error occurred.
+        context: String,
+    },
 }
 /// An alias for a `Result` with [`dbn::Error`](crate::Error) as the error type.
 pub type Result<T> = std::result::Result<T, Error>;
@@ -107,6 +127,24 @@ impl Error {
     /// Creates a new UTF-8 [`dbn::Error`](crate::Error).
     pub fn utf8(error: std::str::Utf8Error, context: impl ToString) -> Self {
         Self::Utf8 {
+            source: error,
+            context: context.to_string(),
+        }
+    }
+
+    /// Creates a new Arrow [`dbn::Error`](crate::Error).
+    #[cfg(feature = "arrow")]
+    pub fn arrow(error: arrow::error::ArrowError, context: impl ToString) -> Self {
+        Self::Arrow {
+            source: error,
+            context: context.to_string(),
+        }
+    }
+
+    /// Creates a new Parquet [`dbn::Error`](crate::Error).
+    #[cfg(feature = "parquet")]
+    pub fn parquet(error: parquet::errors::ParquetError, context: impl ToString) -> Self {
+        Self::Parquet {
             source: error,
             context: context.to_string(),
         }

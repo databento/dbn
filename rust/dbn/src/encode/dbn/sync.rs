@@ -345,9 +345,7 @@ where
     }
 
     fn encode_date(&mut self, date: time::Date) -> io::Result<()> {
-        let mut date_int = date.year() as u32 * 10_000;
-        date_int += date.month() as u32 * 100;
-        date_int += date.day() as u32;
+        let date_int = crate::metadata::date_to_yyyymmdd(date);
         self.writer.write_all(date_int.to_le_bytes().as_slice())
     }
 }

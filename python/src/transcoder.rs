@@ -315,6 +315,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
             .use_pretty_px(self.use_pretty_px)
             .use_pretty_ts(self.use_pretty_ts)
             .write_header(false)
+            .with_symbol(self.map_symbols)
             .build()?;
         let rec = self.fsm.last_record().unwrap();
         if self.map_symbols {

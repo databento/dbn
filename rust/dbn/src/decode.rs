@@ -342,6 +342,6 @@ pub use self::dbn::{
 };
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     pub const TEST_DATA_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/data");
 }

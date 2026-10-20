@@ -424,10 +424,7 @@ fn write_date_field<J: crate::json_writer::JsonWriter, const PRETTY_TS: bool>(
                 .unwrap_or_default(),
         );
     } else {
-        let mut date_int = date.year() as u32 * 10_000;
-        date_int += date.month() as u32 * 100;
-        date_int += date.day() as u32;
-        writer.value(key, date_int);
+        writer.value(key, crate::metadata::date_to_yyyymmdd(*date));
     }
 }
 

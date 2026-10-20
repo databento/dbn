@@ -18,7 +18,9 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["zstd"]
+arrow = ["dep:arrow"]
 async = ["dep:async-compression", "dep:async-stream", "dep:futures-core", "dep:tokio", "zstd"]
+parquet = ["arrow", "dep:parquet", "zstd"]
 python = ["dep:pyo3", "dep:strum", "zstd"]
 serde = ["dep:serde", "time/parsing", "time/serde"]
 # Enables deriving the `Copy` trait for records.
@@ -29,6 +31,7 @@ zstd = ["dep:zstd"]
 [dependencies]
 dbn-macros = { version = "=0.72.0", path = "../dbn-macros" }
 
+arrow = { workspace = true, optional = true, features = ["ipc", "ipc_compression"] }
 async-compression = { version = "0.4.50", features = ["tokio", "zstd"], optional = true }
 async-stream = { version = "0.3", optional = true }
 futures-core = { version = "0.3", optional = true }
@@ -37,6 +40,7 @@ fallible-streaming-iterator = { version = "0.1.9", features = ["std"] }
 # Fast integer to string conversion
 itoa = "1.0"
 num_enum = "0.7"
+parquet = { workspace = true, optional = true, features = ["arrow", "zstd"] }
 pyo3 = { workspace = true, features = ["time"], optional = true }
 json-writer = "0.4"
 serde = { workspace = true, features = ["derive"], optional = true }
@@ -48,6 +52,7 @@ tokio = { version = ">=1.47", features = ["fs", "io-util"], optional = true }
 zstd = { workspace = true, optional = true }
 
 [dev-dependencies]
+bytes = "1"
 rstest = { workspace = true }
 serde_json = "1.0"
 strum = { version = "0.28", features = ["derive"] }

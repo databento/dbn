@@ -1,5 +1,6 @@
 use proc_macro::TokenStream;
 
+mod arrow;
 mod dbn_attr;
 mod debug;
 mod enum_field;
@@ -139,6 +140,20 @@ pub fn derive_py_field_desc(input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn dbn_record(attr: TokenStream, input: TokenStream) -> TokenStream {
     has_rtype::attribute_macro_impl(attr, input)
+}
+
+/// Derive macro for Arrow columnar serialization.
+///
+/// Generates an implementation of `ArrowSerialize` for the type, gated behind
+/// `#[cfg(feature = "arrow")]`. Supports the same `dbn` attributes as
+/// `CsvSerialize` and `JsonSerialize`.
+///
+/// Each field's schema entry and column come from one `ArrowField` implementer: the
+/// marker type for the field's `dbn` attribute, if any, otherwise the field's type.
+/// Those impls live in `dbn::encode::arrow::serialize`.
+#[proc_macro_derive(ArrowSerialize, attributes(dbn))]
+pub fn derive_arrow_serialize(input: TokenStream) -> TokenStream {
+    arrow::derive_arrow_serialize_macro_impl(input)
 }
 
 /// Derive macro for Debug representations with the same extensions for DBN records

@@ -18,7 +18,9 @@ license = "Apache-2.0"
 
 [workspace.dependencies]
 anyhow = "1.0.104"
+arrow = { version = "60", default-features = false }
 csv = "1.4"
+parquet = { version = "60", default-features = false }
 pyo3 = "0.29.3"
 rstest = "0.26.1"
 serde = { version = "1.0", features = ["derive"] }

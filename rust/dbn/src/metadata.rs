@@ -505,6 +505,13 @@ pub struct MappingInterval {
 pub const DATE_FORMAT: &[time::format_description::BorrowedFormatItem<'static>] =
     time::macros::format_description!("[year]-[month]-[day]");
 
+/// Encodes `date` as a `YYYYMMDD` integer, the form used in DBN metadata
+/// symbol-mapping intervals (see [`MappingInterval`]) and in the JSON/parquet
+/// metadata representations.
+pub(crate) fn date_to_yyyymmdd(date: time::Date) -> u32 {
+    date.year() as u32 * 10_000 + date.month() as u32 * 100 + date.day() as u32
+}
+
 #[cfg(feature = "serde")]
 fn deserialize_date<'de, D: serde::Deserializer<'de>>(
     deserializer: D,

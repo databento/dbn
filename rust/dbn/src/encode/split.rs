@@ -36,6 +36,9 @@ pub trait Splitter<E> {
     fn sub_encoders<'a>(&'a mut self) -> impl Iterator<Item = &'a mut E>
     where
         E: 'a;
+
+    /// Consumes the splitter, returning all active sub-encoders.
+    fn into_sub_encoders(self) -> impl Iterator<Item = E>;
 }
 
 /// An encoder that routes records to sub-encoders based on a [`Splitter`] strategy.
@@ -72,6 +75,23 @@ impl<S, E> SplitEncoder<S, E> {
             metadata: Some(metadata),
             _encoder: PhantomData,
         }
+    }
+}
+
+#[cfg(feature = "zstd")]
+impl<'a, S, W> SplitEncoder<S, super::DynEncoder<'a, W>>
+where
+    S: Splitter<super::DynEncoder<'a, W>>,
+    W: std::io::Write + Send,
+{
+    /// Finishes every sub-encoder. See [`DynEncoder::finish()`](super::DynEncoder::finish).
+    ///
+    /// # Errors
+    /// This function returns an error if any sub-encoder fails to finish.
+    pub fn finish(self) -> crate::Result<()> {
+        self.splitter
+            .into_sub_encoders()
+            .try_for_each(super::DynEncoder::finish)
     }
 }
 
@@ -431,6 +451,10 @@ where
     {
         self.encoders.values_mut()
     }
+
+    fn into_sub_encoders(self) -> impl Iterator<Item = E> {
+        self.encoders.into_values()
+    }
 }
 
 impl<E, F, M> SymbolSplitter<E, F, M>
@@ -499,6 +523,10 @@ where
         E: 'a,
     {
         self.encoders.values_mut()
+    }
+
+    fn into_sub_encoders(self) -> impl Iterator<Item = E> {
+        self.encoders.into_values()
     }
 }
 
@@ -578,6 +606,10 @@ where
         E: 'a,
     {
         self.encoders.values_mut()
+    }
+
+    fn into_sub_encoders(self) -> impl Iterator<Item = E> {
+        self.encoders.into_values()
     }
 }
 
@@ -684,6 +716,10 @@ where
         E: 'a,
     {
         self.encoder.iter_mut()
+    }
+
+    fn into_sub_encoders(self) -> impl Iterator<Item = E> {
+        self.encoder.into_iter()
     }
 }
 

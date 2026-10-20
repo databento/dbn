@@ -57,7 +57,7 @@ use std::os::raw::c_char;
 use dbn_macros::MockPyo3;
 
 use crate::{
-    macros::{dbn_record, CsvSerialize, JsonSerialize},
+    macros::{dbn_record, ArrowSerialize, CsvSerialize, JsonSerialize},
     rtype, RecordHeader, SecurityUpdateAction, UserDefinedInstrument, MAX_RECORD_LEN,
 };
 
@@ -65,7 +65,7 @@ use crate::{
 
 /// An error message from the Databento Live Subscription Gateway (LSG) in DBN version 1.
 #[repr(C)]
-#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
+#[derive(Clone, ArrowSerialize, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
@@ -86,7 +86,7 @@ const _: () = assert!(std::mem::size_of::<ErrorMsgV1>() == 80);
 /// A definition of an instrument in DBN version 1. The record of the
 /// [`Definition`](crate::Schema::Definition) schema.
 #[repr(C)]
-#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
+#[derive(Clone, ArrowSerialize, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
@@ -327,7 +327,7 @@ const _: () = assert!(std::mem::size_of::<InstrumentDefMsgV1>() == 360);
 /// A statistics message. A catchall for various data disseminated by publishers. The
 /// [`stat_type`](Self::stat_type) indicates the statistic contained in the message.
 #[repr(C)]
-#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
+#[derive(Clone, ArrowSerialize, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
@@ -387,7 +387,7 @@ const _: () = assert!(std::mem::size_of::<StatMsgV1>() == 64);
 
 /// A symbol mapping message from the live API in DBN version 1.
 #[repr(C)]
-#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
+#[derive(Clone, ArrowSerialize, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
@@ -423,7 +423,7 @@ const _: () = assert!(std::mem::size_of::<SymbolMappingMsgV1>() == 80);
 /// A non-error message from the Databento Live Subscription Gateway (LSG) in DBN version 1.
 /// Also used for heartbeating.
 #[repr(C)]
-#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
+#[derive(Clone, ArrowSerialize, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
@@ -444,7 +444,7 @@ const _: () = assert!(std::mem::size_of::<SystemMsgV1>() == 80);
 /// A definition of an instrument in DBN version 2. The record of the
 /// [`Definition`](crate::Schema::Definition) schema.
 #[repr(C)]
-#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
+#[derive(Clone, ArrowSerialize, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]

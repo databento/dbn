@@ -2,8 +2,8 @@
 
 // Re-export
 pub use dbn_macros::{
-    dbn_record, CsvSerialize, DbnAttr, JsonSerialize, PyFieldDesc, RecordDebug, RecordLayoutDesc,
-    StructLayoutDesc, WritePyRepr,
+    dbn_record, ArrowSerialize, CsvSerialize, DbnAttr, JsonSerialize, PyFieldDesc, RecordDebug,
+    RecordLayoutDesc, StructLayoutDesc, WritePyRepr,
 };
 
 /// Base macro for type dispatch based on rtype.
@@ -209,6 +209,15 @@ macro_rules! rtype_dispatch {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! schema_dispatch_base {
+    ($schema:expr, version: $version:expr, $handler:ident) => {{
+        use $crate::enums::Schema;
+        match ($schema, $version) {
+            (Schema::Definition, 1) => $handler!($crate::v1::InstrumentDefMsg),
+            (Schema::Definition, 2) => $handler!($crate::v2::InstrumentDefMsg),
+            (Schema::Statistics, 1 | 2) => $handler!($crate::v1::StatMsg),
+            (schema, _) => $crate::schema_dispatch_base!(schema, $handler),
+        }
+    }};
     ($schema:expr, $handler:ident) => {{
         use $crate::enums::Schema;
         use $crate::record::*;
@@ -239,7 +248,8 @@ macro_rules! schema_dispatch_base {
     }};
 }
 
-/// Dispatches to a generic function or method based on `$schema` and optionally `$ts_out`.
+/// Dispatches to a generic function or method based on `$schema` and optionally the DBN
+/// `$version` and `$ts_out`. Without `$version`, the version 3 record types are used.
 ///
 /// # Errors
 /// This macro returns an error when the generic function or method returns an error.
@@ -332,6 +342,32 @@ macro_rules! schema_dispatch {
             }}
         }
         $crate::schema_dispatch_base!($schema, handler)
+    }};
+    // generic method
+    ($schema:expr, version: $version:expr, ts_out: $ts_out:expr, $this:ident.$generic_method:ident($($arg:expr),*)$(,)?) => {{
+        macro_rules! handler {
+            ($r:ty) => {{
+                if $ts_out {
+                    $this.$generic_method::<$crate::WithTsOut<$r>>($($arg),*)
+                } else {
+                    $this.$generic_method::<$r>($($arg),*)
+                }
+            }}
+        }
+        $crate::schema_dispatch_base!($schema, version: $version, handler)
+    }};
+    // generic function
+    ($schema:expr, version: $version:expr, ts_out: $ts_out:expr, $generic_fn:ident($($arg:expr),*)$(,)?) => {{
+        macro_rules! handler {
+            ($r:ty) => {{
+                if $ts_out {
+                    $generic_fn::<$crate::WithTsOut<$r>>($($arg),*)
+                } else {
+                    $generic_fn::<$r>($($arg),*)
+                }
+            }}
+        }
+        $crate::schema_dispatch_base!($schema, version: $version, handler)
     }};
 }
 
