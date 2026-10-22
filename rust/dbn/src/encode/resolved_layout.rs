@@ -1,9 +1,10 @@
 use crate::{
-    layout::{FieldDef, RecordLayout, StreamLayout},
+    layout::{validate_for_metadata, window, FieldDef, RecordLayout, StreamLayout},
     v4::{
-        fields::{self, FieldType},
-        types::{Char, Decimal, TimestampNs},
+        self,
+        fields::{self, ScalarType, ScalarValue},
     },
+    Error, Metadata, RecordRef, Result,
 };
 
 /// A [`StreamLayout`] resolved for encoding records of any of its rtypes.
@@ -31,40 +32,32 @@ pub(crate) struct ResolvedField {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ResolvedValue {
-    Scalar {
-        kind: ScalarKind,
-        offset: u16,
-        size: u16,
-    },
+    Scalar(ResolvedScalar),
     Struct(Vec<ResolvedField>),
     Array(Vec<ResolvedValue>),
 }
 
-/// How a scalar is read and formatted. Enums and bit sets are their raw unsigned value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ScalarKind {
-    U8,
-    U16,
-    U32,
-    U64,
-    /// The `u64` instrument ID. JSON writes other 64-bit integers as strings, but writes
-    /// this one as a number to match the `u32` instrument ID of v1-3. Parsers that read
-    /// numbers as `f64` lose precision only past 2^53.
-    InstrumentId,
-    I8,
-    I16,
-    I32,
-    I64,
-    F32,
-    F64,
-    Decimal,
-    Timestamp,
-    Char,
-    Str,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ResolvedScalar {
+    ty: ScalarType,
+    pub field_id: u16,
+    offset: u16,
+    size: u16,
 }
 
 impl ResolvedStreamLayout {
-    pub fn new(layout: &StreamLayout) -> Option<Self> {
+    pub fn from_metadata(metadata: &Metadata) -> Result<Self> {
+        let layout = metadata
+            .layout
+            .as_ref()
+            .ok_or_else(|| Error::encode("metadata has no stream layout"))?;
+        validate_for_metadata(layout, metadata.symbol_cstr_len as u16, metadata.ts_out)?;
+        Self::new(layout).ok_or_else(|| {
+            Error::encode("stream layout has a field type the encoder doesn't support")
+        })
+    }
+
+    fn new(layout: &StreamLayout) -> Option<Self> {
         let records = layout
             .record_layouts
             .iter()
@@ -73,15 +66,26 @@ impl ResolvedStreamLayout {
         Some(Self { records })
     }
 
-    pub fn get(&self, rtype: u16) -> Option<&ResolvedLayout> {
-        self.records.iter().find(|rec| rec.rtype == rtype)
+    pub fn get(&self, rtype: u16) -> Result<&ResolvedLayout> {
+        self.records
+            .iter()
+            .find(|rec| rec.rtype == rtype)
+            .ok_or_else(|| Error::encode(format!("no layout for rtype {rtype:#06X}")))
+    }
+
+    pub fn layout_for(&self, record: RecordRef<'_, v4::RecordHeader>) -> Result<&ResolvedLayout> {
+        let layout = self.get(record.header().rtype)?;
+        if record.as_ref().len() < usize::from(layout.record_size) {
+            return Err(Error::encode("record is shorter than its layout"));
+        }
+        Ok(layout)
     }
 }
 
 impl ResolvedLayout {
     /// `layout` must be valid, e.g. through `validate_for_metadata`. Returns `None` if
     /// `rec` contains a field the encoders don't support.
-    pub fn new(layout: &StreamLayout, rec: &RecordLayout) -> Option<Self> {
+    fn new(layout: &StreamLayout, rec: &RecordLayout) -> Option<Self> {
         Some(Self {
             rtype: rec.rtype,
             record_size: rec.record_size(),
@@ -90,31 +94,27 @@ impl ResolvedLayout {
     }
 }
 
-impl ScalarKind {
+impl ResolvedScalar {
     /// `None` for a type the encoders don't support, including fixed-point scales other
     /// than -9.
-    fn new(def: &FieldDef) -> Option<Self> {
-        Some(match def.type_id {
-            <u8 as FieldType>::TYPE_ID | fields::ENUM_8_ID | fields::BIT_SET_8_ID => Self::U8,
-            <u16 as FieldType>::TYPE_ID | fields::ENUM_16_ID | fields::BIT_SET_16_ID => Self::U16,
-            <u32 as FieldType>::TYPE_ID | fields::BIT_SET_32_ID => Self::U32,
-            // Must precede the `u64` arm below
-            <u64 as FieldType>::TYPE_ID if def.field_id == fields::INSTRUMENT_ID.id() => {
-                Self::InstrumentId
-            }
-            <u64 as FieldType>::TYPE_ID | fields::BIT_SET_64_ID => Self::U64,
-            <i8 as FieldType>::TYPE_ID => Self::I8,
-            <i16 as FieldType>::TYPE_ID => Self::I16,
-            <i32 as FieldType>::TYPE_ID => Self::I32,
-            <i64 as FieldType>::TYPE_ID => Self::I64,
-            <f32 as FieldType>::TYPE_ID => Self::F32,
-            <f64 as FieldType>::TYPE_ID => Self::F64,
-            <Decimal as FieldType>::TYPE_ID if def.scale == -9 => Self::Decimal,
-            <TimestampNs as FieldType>::TYPE_ID => Self::Timestamp,
-            <Char as FieldType>::TYPE_ID | fields::ENUM_CHAR_ID => Self::Char,
-            fields::CSTR_ID | fields::SYMBOL_ID => Self::Str,
-            _ => return None,
+    fn new(def: &FieldDef, offset: u16, size: u16) -> Option<Self> {
+        let ty = ScalarType::new(def.type_id)?;
+        (ty != ScalarType::Decimal || def.scale == -9).then_some(Self {
+            ty,
+            field_id: def.field_id,
+            offset,
+            size,
         })
+    }
+
+    /// Decodes the scalar from a record [`ResolvedStreamLayout::layout_for`] accepted.
+    /// `None` only for non-UTF-8 in a string.
+    pub fn read<'a>(&self, record: &'a [u8]) -> Option<ScalarValue<'a>> {
+        // `layout_for` checked the record holds its layout's `record_size`, which bounds
+        // every resolved field
+        let bytes = window(record, self.offset, self.size).unwrap();
+        // `new` only admits a scale of -9
+        self.ty.decode(bytes, -9)
     }
 }
 
@@ -153,11 +153,7 @@ fn resolve_field(
                 &sd.field_names,
                 offset,
             )?),
-            None => ResolvedValue::Scalar {
-                kind: ScalarKind::new(def)?,
-                offset,
-                size: elem_size,
-            },
+            None => ResolvedValue::Scalar(ResolvedScalar::new(def, offset, elem_size)?),
         })
     };
     let value = if def.is_array() {
@@ -184,7 +180,13 @@ mod tests {
     use super::*;
     use crate::{
         layout::StreamLayoutBuilder,
-        v4::{self, layouts::default_layout, rtype},
+        v4::{
+            self,
+            fields::FieldType,
+            layouts::default_layout,
+            rtype,
+            types::{Char, Decimal},
+        },
         BidAskPair,
     };
 
@@ -204,11 +206,15 @@ mod tests {
             .value
     }
 
-    fn scalar(value: &ResolvedValue) -> (ScalarKind, usize, usize) {
-        let ResolvedValue::Scalar { kind, offset, size } = value else {
+    fn scalar(value: &ResolvedValue) -> (ScalarType, usize, usize) {
+        let ResolvedValue::Scalar(scalar) = value else {
             panic!("{value:?} isn't a scalar");
         };
-        (*kind, usize::from(*offset), usize::from(*size))
+        (
+            scalar.ty,
+            usize::from(scalar.offset),
+            usize::from(scalar.size),
+        )
     }
 
     #[test]
@@ -218,7 +224,7 @@ mod tests {
             let resolved = stream.get(rec.rtype).unwrap();
             assert_eq!(resolved.record_size, rec.record_size());
         }
-        assert!(stream.get(0xFFFF).is_none());
+        assert!(stream.get(0xFFFF).is_err());
     }
 
     #[test]
@@ -235,25 +241,22 @@ mod tests {
         assert_eq!(
             scalar(named(fields, "ts_event")),
             (
-                ScalarKind::Timestamp,
+                ScalarType::Timestamp,
                 offset_of!(v4::RecordHeader, ts_event),
                 8,
             )
         );
-        assert_eq!(
-            scalar(named(fields, "instrument_id")).0,
-            ScalarKind::InstrumentId
-        );
+        assert_eq!(scalar(named(fields, "instrument_id")).0, ScalarType::U64);
     }
 
     #[rstest]
-    #[case::price("price", ScalarKind::Decimal, offset_of!(v4::MboMsg, price), 8)]
-    #[case::side("side", ScalarKind::Char, offset_of!(v4::MboMsg, side), 1)]
-    #[case::flags("flags", ScalarKind::U8, offset_of!(v4::MboMsg, flags), 1)]
-    #[case::ts_recv("ts_recv", ScalarKind::Timestamp, offset_of!(v4::MboMsg, ts_recv), 8)]
+    #[case::price("price", ScalarType::Decimal, offset_of!(v4::MboMsg, price), 8)]
+    #[case::side("side", ScalarType::Char, offset_of!(v4::MboMsg, side), 1)]
+    #[case::flags("flags", ScalarType::U8, offset_of!(v4::MboMsg, flags), 1)]
+    #[case::ts_recv("ts_recv", ScalarType::Timestamp, offset_of!(v4::MboMsg, ts_recv), 8)]
     fn scalars_resolve_to_struct_offsets(
         #[case] name: &str,
-        #[case] kind: ScalarKind,
+        #[case] kind: ScalarType,
         #[case] offset: usize,
         #[case] size: usize,
     ) {
@@ -287,7 +290,7 @@ mod tests {
             .unwrap();
         let def = resolved(rtype::INSTRUMENT_DEF);
         let (kind, offset, size) = scalar(named(&def.fields, "raw_symbol"));
-        assert_eq!(kind, ScalarKind::Str);
+        assert_eq!(kind, ScalarType::Str);
         assert_eq!(size, crate::compat::SYMBOL_CSTR_LEN_V3);
         assert!(offset + size <= usize::from(layout.record_size()));
     }
@@ -314,7 +317,7 @@ mod tests {
         let offsets: Vec<_> = elems.iter().map(|e| scalar(e).1).collect();
         let first = offsets[0];
         assert_eq!(offsets, [first, first + 1, first + 2, first + 3]);
-        assert!(elems.iter().all(|e| scalar(e).0 == ScalarKind::Char));
+        assert!(elems.iter().all(|e| scalar(e).0 == ScalarType::Char));
     }
 
     #[test]

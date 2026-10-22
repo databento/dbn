@@ -3,8 +3,11 @@ use std::os::raw::c_char;
 use fallible_streaming_iterator::FallibleStreamingIterator;
 
 use crate::{
-    decode::{private::LastRecord, DecodeRecordRef},
-    v3, v4, Error, FlagSet, RecordRef,
+    decode::{dbn::tests::metadata_v4, private::LastRecord, DecodeRecordRef},
+    layout::{RecordLayoutDesc, StreamLayoutBuilder},
+    v3,
+    v4::{self, fields},
+    BidAskPair, Error, FlagSet, Metadata, RecordRef, SType, Schema,
 };
 
 /// A testing shim to get a streaming iterator from a [`Vec`].
@@ -119,6 +122,123 @@ pub fn trade_v4() -> v4::TradeMsg {
     }
 }
 
+pub fn as_ref(buf: &[u64]) -> RecordRef<'_, v4::RecordHeader> {
+    // SAFETY: `buf` holds a whole record starting with an aligned v4 header whose
+    // `length` covers the rest of `buf`.
+    unsafe { RecordRef::unchecked_from_header(buf.as_ptr().cast()) }
+}
+
+pub fn mbp10_v4() -> v4::Mbp10Msg {
+    v4::Mbp10Msg {
+        hd: v4::RecordHeader::new::<v4::Mbp10Msg>(
+            v4::rtype::MBP_10,
+            1,
+            5482,
+            1_697_240_529_000_000_000,
+        ),
+        price: crate::UNDEF_PRICE,
+        size: 3,
+        action: b'A' as c_char,
+        side: 0,
+        flags: FlagSet::empty().set_last(),
+        depth: 4,
+        ts_recv: crate::UNDEF_TIMESTAMP,
+        ts_in_delta: -5,
+        sequence: 12,
+        levels: levels(),
+    }
+}
+
+pub fn mbp10_v3() -> v3::Mbp10Msg {
+    let v4 = mbp10_v4();
+    v3::Mbp10Msg {
+        hd: v3::RecordHeader::new::<v3::Mbp10Msg>(
+            crate::rtype::MBP_10,
+            1,
+            5482,
+            1_697_240_529_000_000_000,
+        ),
+        price: v4.price,
+        size: v4.size,
+        action: v4.action,
+        side: v4.side,
+        flags: v4.flags,
+        depth: v4.depth,
+        ts_recv: v4.ts_recv,
+        ts_in_delta: v4.ts_in_delta,
+        sequence: v4.sequence,
+        levels: levels(),
+    }
+}
+
+pub fn symbol_mapping_v4() -> Vec<u64> {
+    let mapping = symbol_mapping();
+    let layout = v4::layouts::default_layout();
+    let rec = layout.record_layout(v4::rtype::SYMBOL_MAPPING).unwrap();
+    let mut bytes = vec![0; usize::from(rec.record_size())];
+    bytes[..size_of::<v4::SymbolMappingMsg>()].copy_from_slice(RecordRef::from(&mapping).as_ref());
+    // v4 `length` counts the bytes after the header
+    let length = u16::try_from(bytes.len() - size_of::<v4::RecordHeader>()).unwrap();
+    bytes[..2].copy_from_slice(&length.to_le_bytes());
+    for (field, symbol) in [
+        (fields::STYPE_IN_SYMBOL, "ESZ6"),
+        (fields::STYPE_OUT_SYMBOL, "5482"),
+    ] {
+        let def = rec
+            .field_defs
+            .iter()
+            .find(|f| f.field_id == field.id())
+            .unwrap();
+        let start = usize::from(def.offset);
+        bytes[start..start + symbol.len()].copy_from_slice(symbol.as_bytes());
+    }
+    aligned(&bytes)
+}
+
+pub fn symbol_mapping_v3() -> v3::SymbolMappingMsg {
+    let mapping = symbol_mapping();
+    v3::SymbolMappingMsg::new(
+        5482,
+        7,
+        SType::RawSymbol,
+        "ESZ6",
+        SType::InstrumentId,
+        "5482",
+        mapping.start_ts,
+        mapping.end_ts,
+    )
+    .unwrap()
+}
+
+pub fn trades_with_sale_condition<T: fields::FixedWidth>() -> Metadata {
+    let mut sb = StreamLayoutBuilder::new(1, crate::compat::SYMBOL_CSTR_LEN_V3 as u16);
+    {
+        let mut r = sb.record(v4::rtype::MBP_0, Schema::Trades as u16, v4::TradeMsg::NAME);
+        v4::TradeMsg::add_fields(&mut r);
+        r.finish_base();
+        r.field(
+            fields::Field::<T>::new(fields::SALE_CONDITION.id()),
+            "sale_condition",
+        );
+        r.finish();
+    }
+    let mut metadata = metadata_v4(Schema::Trades);
+    metadata.layout = Some(sb.build().unwrap());
+    metadata
+}
+
+pub fn trade_v4_with_sale_condition(metadata: &Metadata, sale_condition: &[u8]) -> Vec<u64> {
+    let rec = &metadata.layout.as_ref().unwrap().record_layouts[0];
+    let trade = trade_v4();
+    let mut bytes = vec![0; usize::from(rec.record_size())];
+    bytes[..size_of::<v4::TradeMsg>()].copy_from_slice(RecordRef::from(&trade).as_ref());
+    let length = u16::try_from(bytes.len() - size_of::<v4::RecordHeader>()).unwrap();
+    bytes[..2].copy_from_slice(&length.to_le_bytes());
+    let start = size_of::<v4::TradeMsg>();
+    bytes[start..start + sale_condition.len()].copy_from_slice(sale_condition);
+    aligned(&bytes)
+}
+
 pub fn trade_v3() -> v3::TradeMsg {
     let v4 = trade_v4();
     v3::TradeMsg {
@@ -158,4 +278,37 @@ pub fn trade_v3_upgraded() -> v4::TradeMsg {
         .unwrap(),
         ..trade
     }
+}
+
+fn levels() -> [BidAskPair; 10] {
+    std::array::from_fn(|i| BidAskPair {
+        bid_px: 5_000_000_000 - i as i64 * 250_000_000,
+        ask_px: if i == 9 {
+            crate::UNDEF_PRICE
+        } else {
+            5_250_000_000 + i as i64 * 250_000_000
+        },
+        bid_sz: 10 + i as u32,
+        ask_sz: 20 + i as u32,
+        bid_ct: i as u32,
+        ask_ct: 2 * i as u32,
+    })
+}
+
+fn symbol_mapping() -> v4::SymbolMappingMsg {
+    v4::SymbolMappingMsg {
+        hd: v4::RecordHeader::new::<v4::SymbolMappingMsg>(v4::rtype::SYMBOL_MAPPING, 0, 5482, 7),
+        start_ts: 1_697_155_200_000_000_000,
+        end_ts: 1_697_241_600_000_000_000,
+        stype_in: SType::RawSymbol as u8,
+        stype_out: SType::InstrumentId as u8,
+        _reserved: [0; 6],
+    }
+}
+
+fn aligned(bytes: &[u8]) -> Vec<u64> {
+    bytes
+        .chunks(8)
+        .map(|chunk| u64::from_le_bytes(chunk.try_into().unwrap()))
+        .collect()
 }

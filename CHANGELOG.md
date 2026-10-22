@@ -22,6 +22,7 @@
 - Added `encode::dbn::v4::Encoder`, `RecordEncoder`, `AsyncEncoder`, and `AsyncRecordEncoder`
   for writing DBN version 4 streams
 - Added `encode::json::v4::Encoder` for encoding DBN version 4 records as JSON lines
+- Added `encode::csv::v4::Encoder` for encoding DBN version 4 records as CSV or TSV
 - Increased the maximum dataset code length in version 4 metadata to 37 characters
 - Added `decode::dbn::v4::Decoder`, `RecordDecoder`, `MetadataDecoder`, `AsyncDecoder`,
   `AsyncRecordDecoder`, and `AsyncMetadataDecoder` for reading DBN version 4 streams

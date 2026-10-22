@@ -171,6 +171,88 @@ where
     }
 }
 
+/// A scalar field's type read from its `type_id` at runtime. Enums and bit sets read
+/// as their raw unsigned value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ScalarType {
+    U8,
+    U16,
+    U32,
+    U64,
+    I8,
+    I16,
+    I32,
+    I64,
+    F32,
+    F64,
+    Decimal,
+    Timestamp,
+    Char,
+    Str,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) enum ScalarValue<'a> {
+    U8(u8),
+    U16(u16),
+    U32(u32),
+    U64(u64),
+    I8(i8),
+    I16(i16),
+    I32(i32),
+    I64(i64),
+    F32(f32),
+    F64(f64),
+    Decimal(Decimal),
+    Timestamp(TimestampNs),
+    Char(Char),
+    Str(&'a str),
+}
+
+impl ScalarType {
+    /// `None` for a `Struct` or `Padding` tag or an unknown type ID.
+    pub(crate) fn new(type_id: u8) -> Option<Self> {
+        Some(match type_id {
+            <u8 as FieldType>::TYPE_ID | ENUM_8_ID | BIT_SET_8_ID => Self::U8,
+            <u16 as FieldType>::TYPE_ID | ENUM_16_ID | BIT_SET_16_ID => Self::U16,
+            <u32 as FieldType>::TYPE_ID | BIT_SET_32_ID => Self::U32,
+            <u64 as FieldType>::TYPE_ID | BIT_SET_64_ID => Self::U64,
+            <i8 as FieldType>::TYPE_ID => Self::I8,
+            <i16 as FieldType>::TYPE_ID => Self::I16,
+            <i32 as FieldType>::TYPE_ID => Self::I32,
+            <i64 as FieldType>::TYPE_ID => Self::I64,
+            <f32 as FieldType>::TYPE_ID => Self::F32,
+            <f64 as FieldType>::TYPE_ID => Self::F64,
+            <Decimal as FieldType>::TYPE_ID => Self::Decimal,
+            <TimestampNs as FieldType>::TYPE_ID => Self::Timestamp,
+            <Char as FieldType>::TYPE_ID | ENUM_CHAR_ID => Self::Char,
+            CSTR_ID | SYMBOL_ID => Self::Str,
+            _ => return None,
+        })
+    }
+
+    /// Decodes like [`DecodeField::decode`]: `None` for a short window or non-UTF-8 in
+    /// a string.
+    pub(crate) fn decode(self, bytes: &[u8], scale: i8) -> Option<ScalarValue<'_>> {
+        Some(match self {
+            Self::U8 => ScalarValue::U8(u8::decode(bytes, scale)?),
+            Self::U16 => ScalarValue::U16(u16::decode(bytes, scale)?),
+            Self::U32 => ScalarValue::U32(u32::decode(bytes, scale)?),
+            Self::U64 => ScalarValue::U64(u64::decode(bytes, scale)?),
+            Self::I8 => ScalarValue::I8(i8::decode(bytes, scale)?),
+            Self::I16 => ScalarValue::I16(i16::decode(bytes, scale)?),
+            Self::I32 => ScalarValue::I32(i32::decode(bytes, scale)?),
+            Self::I64 => ScalarValue::I64(i64::decode(bytes, scale)?),
+            Self::F32 => ScalarValue::F32(f32::decode(bytes, scale)?),
+            Self::F64 => ScalarValue::F64(f64::decode(bytes, scale)?),
+            Self::Decimal => ScalarValue::Decimal(Decimal::decode(bytes, scale)?),
+            Self::Timestamp => ScalarValue::Timestamp(TimestampNs::decode(bytes, scale)?),
+            Self::Char => ScalarValue::Char(Char::decode(bytes, scale)?),
+            Self::Str => ScalarValue::Str(CStr::decode(bytes, scale)?),
+        })
+    }
+}
+
 /// A field constant.
 #[derive(Debug, Clone, Copy)]
 pub struct Field<T: FieldType> {
@@ -417,11 +499,35 @@ pub(crate) const fn scalar_size(type_id: u8) -> Option<u16> {
 mod tests {
     use std::collections::HashSet;
 
+    use rstest::rstest;
+
     use super::*;
     use crate::{
         layout::{RecordLayoutDesc, StreamLayoutBuilder},
         HasRType,
     };
+
+    #[rstest]
+    #[case::enum_char(ENUM_CHAR_ID, b"B", Some(ScalarValue::Char(Char(b'B' as c_char))))]
+    #[case::bit_set_16(BIT_SET_16_ID, &[0x01, 0x02], Some(ScalarValue::U16(0x0201)))]
+    #[case::price(
+        <Decimal as FieldType>::TYPE_ID,
+        &5_500_000_000_i64.to_le_bytes(),
+        Some(ScalarValue::Decimal(Decimal { raw: 5_500_000_000, scale: -9 }))
+    )]
+    #[case::symbol(SYMBOL_ID, b"ESZ6\0\0\0\0", Some(ScalarValue::Str("ESZ6")))]
+    #[case::non_utf8(CSTR_ID, b"\xFFZ6\0", None)]
+    #[case::short(<u32 as FieldType>::TYPE_ID, &[0x01, 0x02], None)]
+    fn scalar_type_decodes(
+        #[case] type_id: u8,
+        #[case] bytes: &[u8],
+        #[case] expected: Option<ScalarValue<'static>>,
+    ) {
+        assert_eq!(
+            ScalarType::new(type_id).unwrap().decode(bytes, -9),
+            expected
+        );
+    }
 
     #[test]
     fn registry_field_ids_are_unique() {

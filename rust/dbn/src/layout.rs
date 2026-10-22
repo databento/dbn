@@ -428,9 +428,8 @@ impl<T: DecodeField> FieldOffset<T> {
         if rtype != self.rtype {
             return None;
         }
-        let start = self.def.offset as usize;
         T::decode(
-            bytes.get(start..start + self.def.size as usize)?,
+            window(bytes, self.def.offset, self.def.size)?,
             self.def.scale,
         )
     }
@@ -528,6 +527,11 @@ impl StructLayout {
             .max()
             .unwrap_or(1)
     }
+}
+
+pub(crate) fn window(bytes: &[u8], offset: u16, size: u16) -> Option<&[u8]> {
+    let start = offset as usize;
+    bytes.get(start..start + size as usize)
 }
 
 #[cfg(test)]

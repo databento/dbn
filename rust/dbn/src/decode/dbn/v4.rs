@@ -20,6 +20,7 @@
 //! };
 //!
 //! const TS_OUT: u64 = 1_609_160_400_000_013_500;
+//! const PRICE: i64 = 4_215_500_000_000;
 //!
 //! let metadata = Metadata::builder()
 //!     .dataset(Dataset::XnasItch)
@@ -30,7 +31,7 @@
 //!     .ts_out(true)
 //!     .build();
 //! let trade = TradeMsg {
-//!     price: 4_215_500_000_000,
+//!     price: PRICE,
 //!     ..Default::default()
 //! };
 //! let mut encoded = Vec::new();
@@ -42,7 +43,7 @@
 //! let index = decoder.metadata().layout_index().unwrap();
 //! let rec = decoder.decode_ref()?.unwrap();
 //!
-//! assert_eq!(rec.try_get::<v4::TradeMsg>()?.price, trade.price);
+//! assert_eq!(rec.try_get::<v4::TradeMsg>()?.price, PRICE);
 //! assert_eq!(rec.field(&index, fields::TS_OUT).unwrap().0, TS_OUT);
 //! # Ok::<_, dbn::Error>(())
 //! ```

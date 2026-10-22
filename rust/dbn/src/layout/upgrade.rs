@@ -1,6 +1,6 @@
 use super::pre_v4;
 use crate::{
-    layout::{FieldDef, RecordLayout, StreamLayout},
+    layout::{window, FieldDef, RecordLayout, StreamLayout},
     v3,
     v4::{
         self,
@@ -329,11 +329,6 @@ fn coalesce(ops: Vec<Op>, src_base: u16, dst_base: u16) -> Vec<Op> {
         out.push(op);
     }
     out
-}
-
-fn window(bytes: &[u8], offset: u16, size: u16) -> Option<&[u8]> {
-    let start = offset as usize;
-    bytes.get(start..start + size as usize)
 }
 
 #[cfg(test)]
