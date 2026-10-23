@@ -10,11 +10,11 @@ use crate::{
 };
 
 pub(crate) fn upgrade_layout(ts_out: bool) -> StreamLayout {
-    let v3 = pre_v4::record_layouts(3, false);
+    let v3 = pre_v4::stream_layout(3, false);
     v4::layouts::compiled_layout(|rtype, r| {
         r.finish_base();
-        for (f, name) in v3_only_fields(&v3, rtype) {
-            r.copy_field(f, name);
+        for (f, name) in v3_only_fields(&v3.record_layouts, rtype) {
+            r.copy_field(f, name, &v3.label_defs);
         }
         if ts_out {
             r.field(fields::TS_OUT, "ts_out");
@@ -342,7 +342,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        layout::{RecordLayoutBuilder, RecordLayoutDesc, StreamLayoutBuilder},
+        layout::{LayoutIndex, RecordLayoutBuilder, RecordLayoutDesc, StreamLayoutBuilder},
         v4::{
             self,
             fields::{self, Field, FixedWidth},
@@ -595,27 +595,44 @@ mod tests {
         }
     }
 
+    // `def_index` locates a label def in each stream's own table, so compare the label
+    // def's name instead
+    fn named_fields<'a>(
+        layout: &'a StreamLayout,
+        rec: &RecordLayout,
+    ) -> Vec<(FieldDef, Option<&'a str>)> {
+        let mut defs: Vec<_> = rec
+            .field_defs
+            .iter()
+            .map(|&f| {
+                if fields::uses_label_def(f.type_id) && f.has_label_def() {
+                    let label = layout.label_defs[usize::from(f.def_index)].name.as_str();
+                    (FieldDef { def_index: 0, ..f }, Some(label))
+                } else {
+                    (f, None)
+                }
+            })
+            .collect();
+        defs.sort_by_key(|(f, _)| f.offset);
+        defs
+    }
+
     #[test]
     fn the_upgrade_layout_only_adds_extensions() {
         let upgraded = upgrade_layout(false);
         let default = v4::layouts::default_layout();
         assert_eq!(upgraded.struct_layouts, default.struct_layouts);
         assert_eq!(upgraded.record_layouts.len(), default.record_layouts.len());
-        let base = |rec: &RecordLayout| {
-            let mut defs: Vec<_> = rec
-                .field_defs
-                .iter()
-                .filter(|f| f.offset < rec.base_record_size)
-                .cloned()
-                .collect();
-            defs.sort_by_key(|f| f.offset);
-            defs
-        };
         let mut extended = Vec::new();
         for (u, d) in upgraded.record_layouts.iter().zip(&default.record_layouts) {
             assert_eq!(u.base_record_size, d.base_record_size);
-            assert_eq!(base(u), base(d));
-            if u != d {
+            let (u_fields, d_fields) = (named_fields(&upgraded, u), named_fields(default, d));
+            let is_base = |(f, _): &&(FieldDef, Option<&str>)| f.offset < d.base_record_size;
+            assert!(u_fields
+                .iter()
+                .filter(is_base)
+                .eq(d_fields.iter().filter(is_base)));
+            if u_fields != d_fields {
                 extended.push(u.rtype);
             }
         }
@@ -629,6 +646,17 @@ mod tests {
                 rtype::IMBALANCE
             ]
         );
+    }
+
+    #[test]
+    fn the_upgrade_layout_labels_v3_only_fields() {
+        let upgraded = upgrade_layout(false);
+        let index = LayoutIndex::new(&upgraded, v4::layouts::default_layout());
+        let field = index
+            .field_by_name(rtype::INSTRUMENT_DEF, "user_defined_instrument")
+            .unwrap();
+        assert!(field.def().is_extension());
+        assert_eq!(field.label_def().unwrap().name, "UserDefinedInstrument");
     }
 
     fn upgraded_rtype(version: u8, schema: Option<Schema>, src: &[u8]) -> crate::Result<u16> {

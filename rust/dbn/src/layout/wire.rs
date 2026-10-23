@@ -527,10 +527,9 @@ mod tests {
     fn a_duplicate_label_code_errors() {
         let mut buf = Vec::new();
         encode(&mut buf, &dataset_layout()).unwrap();
-        let second = buf
-            .windows(2)
-            .rposition(|w| w == u16::from(b'B').to_le_bytes())
-            .unwrap();
+        // `B` followed by its encoded `BID` label
+        let bid = [b'B', 0, 3, b'B', b'I', b'D', 0];
+        let second = buf.windows(bid.len()).position(|w| w == bid).unwrap();
         buf[second..second + 2].copy_from_slice(&u16::from(b'A').to_le_bytes());
         assert!(decode(&buf, SYM_LEN).is_err());
     }

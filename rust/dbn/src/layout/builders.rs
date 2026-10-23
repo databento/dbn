@@ -175,6 +175,31 @@ impl StreamLayoutBuilder {
         StructLayoutBuilder::new(self, name)
     }
 
+    fn label_index<'l>(
+        &mut self,
+        name: &str,
+        values: impl IntoIterator<Item = (u16, &'l str)>,
+    ) -> u16 {
+        if let Some(idx) = self.label_defs.iter().position(|ld| ld.name == name) {
+            return u16::try_from(idx).expect("exceeded maximum number of label defs");
+        }
+        self.label(LabelDef {
+            name: name.to_owned(),
+            labels: values
+                .into_iter()
+                .map(|(code, label)| (code, label.to_owned()))
+                .collect(),
+        })
+    }
+
+    fn def_index<T: FieldType>(&mut self) -> u16 {
+        match T::LABELS {
+            Some(labels) => self.label_index(labels.name, labels.values.iter().copied()),
+            None if fields::uses_label_def(T::TYPE_ID) => FieldDef::UNDEF_LABEL_DEF,
+            None => 0,
+        }
+    }
+
     /// The `struct_layouts` index of `S`, describing it on first use.
     fn struct_index_of<S: StructLayoutDesc>(&mut self) -> u16 {
         if let Some(idx) = self.struct_layouts.iter().position(|s| s.name == S::NAME) {
@@ -203,8 +228,13 @@ impl StreamLayoutBuilder {
         Ok(layout)
     }
 
-    pub(crate) fn into_unvalidated_record_layouts(self) -> Vec<RecordLayout> {
-        self.records
+    pub(crate) fn into_unvalidated(self) -> StreamLayout {
+        StreamLayout {
+            stream_layout_version: self.version,
+            record_layouts: self.records,
+            struct_layouts: self.struct_layouts,
+            label_defs: self.label_defs,
+        }
     }
 }
 
@@ -234,7 +264,8 @@ impl<'a> RecordLayoutBuilder<'a> {
 
     /// Places a fixed-width field at the cursor, after any alignment padding.
     pub fn field<T: FixedWidth>(&mut self, f: Field<T>, name: &str) -> &mut Self {
-        self.seq.scalar(f, name);
+        let def_index = self.parent.def_index::<T>();
+        self.seq.scalar(f, name, def_index);
         self
     }
 
@@ -305,9 +336,26 @@ impl<'a> RecordLayoutBuilder<'a> {
     }
 
     /// Places a field with the type, size, and scale of `def` from another layout, for
-    /// fields only known at runtime. The offset comes from the cursor.
-    pub(crate) fn copy_field(&mut self, def: &FieldDef, name: &str) -> &mut Self {
-        self.seq.like(def, name);
+    /// fields only known at runtime. The offset comes from the cursor, and a label def
+    /// is copied from the source layout's `label_defs`.
+    pub(crate) fn copy_field(
+        &mut self,
+        def: &FieldDef,
+        name: &str,
+        label_defs: &[LabelDef],
+    ) -> &mut Self {
+        let def_index = if fields::uses_label_def(def.type_id) && def.has_label_def() {
+            let ld = &label_defs[usize::from(def.def_index)];
+            self.parent.label_index(
+                &ld.name,
+                ld.labels
+                    .iter()
+                    .map(|(&code, label)| (code, label.as_str())),
+            )
+        } else {
+            def.def_index
+        };
+        self.seq.like(def, name, def_index);
         self
     }
 
@@ -349,7 +397,8 @@ impl<'a> StructLayoutBuilder<'a> {
 
     /// Places a fixed-width field at the cursor, after any alignment padding.
     pub fn field<T: FixedWidth>(&mut self, f: Field<T>, name: &str) -> &mut Self {
-        self.seq.scalar(f, name);
+        let def_index = self.parent.def_index::<T>();
+        self.seq.scalar(f, name, def_index);
         self
     }
 
@@ -389,11 +438,11 @@ impl<L: FixedWidth, R: FixedWidth, I: FixedWidth> HeaderFields<L, R, I> {
     fn struct_layout<H>(self) -> StructLayout {
         let mut seq = FieldCursor::empty();
         // Length is hidden from CSV and JSON: no encoded name
-        seq.scalar(self.length, "");
-        seq.scalar(self.rtype, "rtype");
-        seq.scalar(fields::PUBLISHER_ID, "publisher_id");
-        seq.scalar(self.instrument_id, "instrument_id");
-        seq.scalar(fields::TS_EVENT, "ts_event");
+        seq.scalar(self.length, "", 0);
+        seq.scalar(self.rtype, "rtype", 0);
+        seq.scalar(fields::PUBLISHER_ID, "publisher_id", 0);
+        seq.scalar(self.instrument_id, "instrument_id", 0);
+        seq.scalar(fields::TS_EVENT, "ts_event", 0);
         // Matches the column order of the v1-3 headers
         seq.order(&[fields::TS_EVENT.id()]);
         let struct_size = seq.finish();
@@ -434,13 +483,7 @@ impl FieldCursor {
         Self::default()
     }
 
-    fn scalar<T: FixedWidth>(&mut self, f: Field<T>, name: &str) {
-        // TODO(cg): unlabeled for now until label defs are wired up
-        let def_index = if fields::uses_label_def(T::TYPE_ID) {
-            FieldDef::UNDEF_LABEL_DEF
-        } else {
-            0
-        };
+    fn scalar<T: FixedWidth>(&mut self, f: Field<T>, name: &str, def_index: u16) {
         // The wire width, not `align_of::<T>()`
         self.align_to(
             fields::scalar_size(T::TYPE_ID).expect("a scalar field has a scalar type_id"),
@@ -469,7 +512,7 @@ impl FieldCursor {
         self.push(def, name);
     }
 
-    fn like(&mut self, def: &FieldDef, name: &str) {
+    fn like(&mut self, def: &FieldDef, name: &str, def_index: u16) {
         assert_ne!(
             def.type_id,
             fields::STRUCT_ID,
@@ -480,7 +523,7 @@ impl FieldCursor {
             .offset(self.cursor)
             .size(def.size)
             .flags(def.flags)
-            .def_index(def.def_index)
+            .def_index(def_index)
             .scale(def.scale)
             .build();
         self.push(def, name);

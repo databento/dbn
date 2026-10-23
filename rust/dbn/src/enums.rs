@@ -6,7 +6,6 @@ mod methods;
 
 use std::fmt::{self, Display, Formatter};
 
-use dbn_macros::EnumField;
 // Dummy derive macro to get around `cfg_attr` incompatibility of several
 // of pyo3's attribute macros. See https://github.com/PyO3/pyo3/issues/780
 #[cfg(not(feature = "python"))]
@@ -19,17 +18,7 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 /// Use in [`RecordHeader`](crate::RecordHeader) to indicate the type of record,
 /// which is useful when working with DBN streams containing multiple record types.
 #[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    TryFromPrimitive,
-    IntoPrimitive,
-    EnumField,
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, TryFromPrimitive, IntoPrimitive,
 )]
 #[cfg_attr(
     feature = "python",
@@ -281,7 +270,6 @@ impl Display for RType {
     Hash,
     TryFromPrimitive,
     IntoPrimitive,
-    EnumField,
 )]
 #[cfg_attr(
     feature = "python",
@@ -290,7 +278,6 @@ impl Display for RType {
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[dbn(char)]
 #[repr(u8)]
 pub enum Side {
     /// A sell order or sell aggressor in a trade.
@@ -328,7 +315,6 @@ impl From<Side> for char {
     Hash,
     TryFromPrimitive,
     IntoPrimitive,
-    EnumField,
 )]
 #[cfg_attr(
     feature = "python",
@@ -337,7 +323,6 @@ impl From<Side> for char {
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[dbn(char)]
 #[repr(u8)]
 pub enum Action {
     /// An existing order was modified: price and/or size.
@@ -375,17 +360,7 @@ impl From<Action> for char {
 /// For example usage see
 /// [Getting options with their underlying](https://databento.com/docs/examples/options/options-and-futures).
 #[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    TryFromPrimitive,
-    IntoPrimitive,
-    EnumField,
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, TryFromPrimitive, IntoPrimitive,
 )]
 #[cfg_attr(
     feature = "python",
@@ -394,7 +369,6 @@ impl From<Action> for char {
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[dbn(char)]
 #[non_exhaustive]
 #[repr(u8)]
 pub enum InstrumentClass {
@@ -452,7 +426,6 @@ impl From<InstrumentClass> for char {
     Hash,
     TryFromPrimitive,
     IntoPrimitive,
-    EnumField,
 )]
 #[cfg_attr(
     feature = "python",
@@ -461,7 +434,6 @@ impl From<InstrumentClass> for char {
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[dbn(char)]
 #[repr(u8)]
 pub enum MatchAlgorithm {
     /// No matching algorithm was specified.
@@ -531,7 +503,6 @@ impl From<MatchAlgorithm> for char {
     Hash,
     TryFromPrimitive,
     IntoPrimitive,
-    EnumField,
 )]
 #[cfg_attr(
     feature = "python",
@@ -540,7 +511,6 @@ impl From<MatchAlgorithm> for char {
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[dbn(char)]
 #[repr(u8)]
 pub enum UserDefinedInstrument {
     /// The instrument is not user-defined.
@@ -571,7 +541,6 @@ impl From<UserDefinedInstrument> for char {
     Hash,
     TryFromPrimitive,
     IntoPrimitive,
-    EnumField,
 )]
 #[cfg_attr(
     feature = "python",
@@ -580,7 +549,6 @@ impl From<UserDefinedInstrument> for char {
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[dbn(char)]
 #[repr(u8)]
 pub enum SecurityUpdateAction {
     /// A new instrument definition.
@@ -609,17 +577,7 @@ impl From<SecurityUpdateAction> for char {
 /// [symbology documentation](https://databento.com/docs/api-reference-historical/basics/symbology)
 /// for more information.
 #[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    TryFromPrimitive,
-    IntoPrimitive,
-    EnumField,
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, TryFromPrimitive, IntoPrimitive,
 )]
 #[cfg_attr(
     feature = "python",
@@ -754,17 +712,7 @@ impl Display for SType {
 /// See [List of supported market data schemas](https://databento.com/docs/schemas-and-data-formats/whats-a-schema)
 /// for an overview of the differences and use cases of each schema.
 #[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    TryFromPrimitive,
-    IntoPrimitive,
-    EnumField,
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, TryFromPrimitive, IntoPrimitive,
 )]
 #[cfg_attr(
     feature = "python",
@@ -916,17 +864,7 @@ impl Display for Schema {
 
 /// A data encoding format.
 #[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    TryFromPrimitive,
-    IntoPrimitive,
-    EnumField,
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, TryFromPrimitive, IntoPrimitive,
 )]
 #[cfg_attr(
     feature = "python",
@@ -985,17 +923,7 @@ impl Display for Encoding {
 
 /// A compression format or none if uncompressed.
 #[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    TryFromPrimitive,
-    IntoPrimitive,
-    EnumField,
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, TryFromPrimitive, IntoPrimitive,
 )]
 #[cfg_attr(
     feature = "python",
@@ -1049,17 +977,7 @@ impl Display for Compression {
 
 /// The type of statistic contained in a [`StatMsg`](crate::record::StatMsg).
 #[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    TryFromPrimitive,
-    IntoPrimitive,
-    EnumField,
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, TryFromPrimitive, IntoPrimitive,
 )]
 #[cfg_attr(
     feature = "python",
@@ -1193,7 +1111,6 @@ pub enum StatType {
     Hash,
     TryFromPrimitive,
     IntoPrimitive,
-    EnumField,
 )]
 #[cfg_attr(
     feature = "python",
@@ -1226,7 +1143,6 @@ pub enum StatUpdateAction {
     Hash,
     TryFromPrimitive,
     IntoPrimitive,
-    EnumField,
 )]
 #[cfg_attr(
     feature = "python",
@@ -1302,7 +1218,6 @@ pub enum StatusAction {
     Hash,
     TryFromPrimitive,
     IntoPrimitive,
-    EnumField,
 )]
 #[cfg_attr(
     feature = "python",
@@ -1434,7 +1349,6 @@ pub enum StatusReason {
     Hash,
     TryFromPrimitive,
     IntoPrimitive,
-    EnumField,
 )]
 #[cfg_attr(
     feature = "python",
@@ -1477,7 +1391,6 @@ pub enum TradingEvent {
     Hash,
     TryFromPrimitive,
     IntoPrimitive,
-    EnumField,
 )]
 #[cfg_attr(
     feature = "python",
@@ -1486,7 +1399,6 @@ pub enum TradingEvent {
 )]
 #[cfg_attr(not(feature = "python"), derive(MockPyo3))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[dbn(char)]
 #[repr(u8)]
 pub enum TriState {
     /// The value is not applicable or not known.
@@ -1520,7 +1432,6 @@ impl From<TriState> for char {
     Hash,
     TryFromPrimitive,
     IntoPrimitive,
-    EnumField,
 )]
 #[cfg_attr(
     feature = "python",
@@ -1566,7 +1477,6 @@ pub enum VersionUpgradePolicy {
     Hash,
     TryFromPrimitive,
     IntoPrimitive,
-    EnumField,
 )]
 #[cfg_attr(
     feature = "python",
@@ -1669,7 +1579,6 @@ impl Display for ErrorCode {
     Hash,
     TryFromPrimitive,
     IntoPrimitive,
-    EnumField,
 )]
 #[cfg_attr(
     feature = "python",

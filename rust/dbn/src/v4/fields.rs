@@ -3,8 +3,9 @@
 use std::{ffi::c_char, marker::PhantomData};
 
 use crate::{
+    flags,
     v4::{
-        types::{CStr, Char, Decimal, EnumField, OpenEnum, Symbol, TimestampNs},
+        types::{CStr, Char, Decimal, EnumField, Labels, OpenEnum, Symbol, TimestampNs},
         RecordHeader,
     },
     FlagSet,
@@ -44,6 +45,8 @@ pub trait FieldType: Sized {
     /// resolver can only check a declared width against the descriptor when the type
     /// fixes it, which arrays do and a per-dataset [`CStr`] does not.
     const ARRAY_WIRE_SIZE: Option<u16> = None;
+    /// The labels of an enum or bit set type, `None` for every other type.
+    const LABELS: Option<Labels> = None;
 }
 
 /// A [`FieldType`] whose wire width comes from the type rather than the dataset.
@@ -307,14 +310,17 @@ impl FieldType for RecordHeader {
 impl<T: FixedWidth, const N: usize> FieldType for [T; N] {
     const TYPE_ID: u8 = T::TYPE_ID;
     const ARRAY_WIRE_SIZE: Option<u16> = Some(T::WIRE_SIZE * N as u16);
+    const LABELS: Option<Labels> = T::LABELS;
 }
 impl<E> FieldType for OpenEnum<E>
 where
     E: EnumField,
 {
-    // TODO: check enum identity through the field's `LabelDef`. Enums of the same
-    // width share a type ID, so the tag alone can't tell `Side` from `Action`.
     const TYPE_ID: u8 = E::TYPE_ID;
+    const LABELS: Option<Labels> = Some(Labels {
+        name: E::NAME,
+        values: E::LABELS,
+    });
 }
 /// Type ID for a C character enum.
 pub const ENUM_CHAR_ID: u8 = 0x20;
@@ -341,6 +347,24 @@ pub const PADDING_ID: u8 = 0xFF;
 
 impl FieldType for FlagSet {
     const TYPE_ID: u8 = BIT_SET_8_ID;
+    const LABELS: Option<Labels> = Some(Labels {
+        name: "FlagSet",
+        values: &[
+            (flags::LAST.trailing_zeros() as u16, "LAST"),
+            (flags::TOB.trailing_zeros() as u16, "TOB"),
+            (flags::SNAPSHOT.trailing_zeros() as u16, "SNAPSHOT"),
+            (flags::MBP.trailing_zeros() as u16, "MBP"),
+            (flags::BAD_TS_RECV.trailing_zeros() as u16, "BAD_TS_RECV"),
+            (
+                flags::MAYBE_BAD_BOOK.trailing_zeros() as u16,
+                "MAYBE_BAD_BOOK",
+            ),
+            (
+                flags::PUBLISHER_SPECIFIC.trailing_zeros() as u16,
+                "PUBLISHER_SPECIFIC",
+            ),
+        ],
+    });
 }
 
 macro_rules! impl_fixed_width {
@@ -426,7 +450,7 @@ mod tests {
         mut sb: StreamLayoutBuilder,
     ) -> Vec<String> {
         sb.layout_of::<R>(rec.raw_rtype()).finish();
-        let layout = sb.into_unvalidated_record_layouts().pop().unwrap();
+        let layout = sb.into_unvalidated().record_layouts.pop().unwrap();
         let bytes = rec.as_ref();
         layout
             .field_defs

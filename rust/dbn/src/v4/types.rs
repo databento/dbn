@@ -18,6 +18,16 @@ pub struct Decimal {
     pub scale: i8,
 }
 
+/// The name and labels of an enum or bit set type, the source of its
+/// [`LabelDef`](crate::layout::LabelDef).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Labels {
+    /// The type's name, e.g. `Side`.
+    pub name: &'static str,
+    /// Each enum value or bit position and its label, e.g. `(65, "ASK")`.
+    pub values: &'static [(u16, &'static str)],
+}
+
 /// An enum that can be stored in a record field.
 pub trait EnumField: Copy {
     /// The integer type the enum's raw value is read as.
@@ -27,6 +37,10 @@ pub trait EnumField: Copy {
     type Storage: Copy;
     /// The field registry type ID for this enum.
     const TYPE_ID: u8;
+    /// The enum's name in its [`LabelDef`](crate::layout::LabelDef), e.g. `Side`.
+    const NAME: &'static str;
+    /// Each variant's raw value and label, e.g. `(65, "ASK")`.
+    const LABELS: &'static [(u16, &'static str)];
 }
 
 /// An enum wrapper that allows carrying non-variant values. Models how

@@ -9,6 +9,7 @@ use crate::{record::HasRType, Publisher, RType};
 
 pub mod fields;
 mod impl_default;
+mod impl_enum_field;
 pub mod layouts;
 #[cfg(test)]
 mod layouts_tests;

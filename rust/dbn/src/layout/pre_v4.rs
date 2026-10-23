@@ -2,16 +2,21 @@
 //! upgrade to DBN version 4.
 
 use crate::{
-    layout::{RecordLayout, RecordLayoutBuilder, StreamLayoutBuilder},
+    layout::{RecordLayout, RecordLayoutBuilder, StreamLayout, StreamLayoutBuilder},
     v4::{fields, rtype},
 };
 
 pub(crate) fn record_layouts(version: u8, ts_out: bool) -> Vec<RecordLayout> {
+    stream_layout(version, ts_out).record_layouts
+}
+
+/// Unvalidated, so records carry no `layout_hash`.
+pub(crate) fn stream_layout(version: u8, ts_out: bool) -> StreamLayout {
     match version {
         1 => version_layouts!(v1, ts_out),
         2 => version_layouts!(v2, ts_out),
         3 => version_layouts!(v3, ts_out),
-        _ => Vec::new(),
+        _ => StreamLayoutBuilder::pre_v4(0).into_unvalidated(),
     }
 }
 
@@ -59,7 +64,7 @@ macro_rules! version_layouts {
         finish_with_ts_out(sb.layout_of::<SystemMsg>(rtype::SYSTEM), $ts_out);
         #[allow(deprecated)]
         finish_with_ts_out(sb.layout_of::<OhlcvMsg>(rtype::OHLCV_DEPRECATED), $ts_out);
-        sb.into_unvalidated_record_layouts()
+        sb.into_unvalidated()
     }};
 }
 use version_layouts;

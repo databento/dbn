@@ -552,3 +552,20 @@ fn default_layout_display_order_matches_v3_csv(
     let shared_v3: Vec<_> = v3.iter().filter(|n| v4.contains(n)).collect();
     assert_eq!(shared_v4, shared_v3);
 }
+
+#[test]
+fn every_label_def_is_used_and_every_enum_labeled() {
+    let layout = default_layout();
+    let mut referenced: Vec<u16> = layout
+        .record_layouts
+        .iter()
+        .flat_map(|rec| &rec.field_defs)
+        .chain(layout.struct_layouts.iter().flat_map(|s| &s.field_defs))
+        .filter(|f| fields::uses_label_def(f.type_id))
+        .map(|f| f.def_index)
+        .collect();
+    referenced.sort_unstable();
+    referenced.dedup();
+    let all: Vec<u16> = (0..layout.label_defs.len() as u16).collect();
+    assert_eq!(referenced, all, "an unused or missing label def");
+}

@@ -215,6 +215,90 @@ pub struct FieldOffset<T> {
     _marker: PhantomData<T>,
 }
 
+/// An untyped handle to a field resolved from a [`LayoutIndex`] by name or ID, for
+/// reading fields without a compiled type, e.g. with
+/// [`enum_at`](DynFieldAccess::enum_at).
+///
+/// # Correctness
+/// Like a [`FieldOffset`], a handle is specific to the stream it was resolved from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DynField<'a> {
+    rtype: u16,
+    def: FieldDef,
+    label_def: Option<&'a LabelDef>,
+}
+
+impl<'a> DynField<'a> {
+    /// Returns the field's definition.
+    pub fn def(&self) -> &FieldDef {
+        &self.def
+    }
+
+    /// Returns the field's [`LabelDef`], or `None` if it isn't a labeled enum or bit
+    /// set.
+    pub fn label_def(&self) -> Option<&'a LabelDef> {
+        self.label_def
+    }
+
+    fn bytes<'r>(&self, record: &'r [u8], rtype: u16) -> Option<&'r [u8]> {
+        if rtype != self.rtype || self.def.is_array() {
+            return None;
+        }
+        let start = usize::from(self.def.offset);
+        record.get(start..start + usize::from(self.def.size))
+    }
+}
+
+/// An enum value read through a [`DynField`], with the [`LabelDef`] naming it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EnumValue<'a> {
+    raw: u16,
+    label_def: Option<&'a LabelDef>,
+}
+
+impl<'a> EnumValue<'a> {
+    /// Returns the raw value, e.g. `65` for `Side::Ask`.
+    pub fn raw(&self) -> u16 {
+        self.raw
+    }
+
+    /// Returns the value's label, e.g. `ASK`, or `None` if the field is unlabeled or
+    /// the value has no label.
+    pub fn label(&self) -> Option<&'a str> {
+        self.label_def?.labels.get(&self.raw).map(String::as_str)
+    }
+
+    /// Returns the enum's name, e.g. `Side`, or `None` if the field is unlabeled.
+    pub fn enum_name(&self) -> Option<&'a str> {
+        self.label_def.map(|ld| ld.name.as_str())
+    }
+}
+
+/// A bit set value read through a [`DynField`], with the [`LabelDef`] naming its bits.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BitSetValue<'a> {
+    raw: u64,
+    label_def: Option<&'a LabelDef>,
+}
+
+impl<'a> BitSetValue<'a> {
+    /// Returns the raw bits.
+    pub fn raw(&self) -> u64 {
+        self.raw
+    }
+
+    /// Returns the labels of the set bits in ascending bit order. Set bits without a
+    /// label are skipped.
+    pub fn labels(&self) -> impl Iterator<Item = &'a str> {
+        let raw = self.raw;
+        self.label_def
+            .into_iter()
+            .flat_map(|ld| &ld.labels)
+            .filter(move |(&bit, _)| bit < u64::BITS as u16 && raw & (1 << bit) != 0)
+            .map(|(_, label)| label.as_str())
+    }
+}
+
 impl StreamLayout {
     /// The layout for records of `rtype`, or `None` if the stream carries no such
     /// record type.
@@ -306,6 +390,38 @@ pub trait DynFieldAccess: Record<Header = crate::v4::RecordHeader> {
     fn field_at<T: DecodeField>(&self, offset: FieldOffset<T>) -> Option<T::Value<'_>> {
         offset.decode(self.as_ref(), self.raw_rtype())
     }
+
+    /// Reads an enum `field` of any width. `None` if `field` was resolved for a
+    /// different rtype, isn't an enum, or is beyond the record's length.
+    fn enum_at<'a>(&self, field: &DynField<'a>) -> Option<EnumValue<'a>> {
+        let bytes = field.bytes(self.as_ref(), self.raw_rtype())?;
+        let raw = match field.def.type_id {
+            fields::ENUM_CHAR_ID | fields::ENUM_8_ID => u16::from(u8::decode(bytes, 0)?),
+            fields::ENUM_16_ID => u16::decode(bytes, 0)?,
+            _ => return None,
+        };
+        Some(EnumValue {
+            raw,
+            label_def: field.label_def,
+        })
+    }
+
+    /// Reads a bit set `field` of any width. `None` if `field` was resolved for a
+    /// different rtype, isn't a bit set, or is beyond the record's length.
+    fn bit_set_at<'a>(&self, field: &DynField<'a>) -> Option<BitSetValue<'a>> {
+        let bytes = field.bytes(self.as_ref(), self.raw_rtype())?;
+        let raw = match field.def.type_id {
+            fields::BIT_SET_8_ID => u64::from(u8::decode(bytes, 0)?),
+            fields::BIT_SET_16_ID => u64::from(u16::decode(bytes, 0)?),
+            fields::BIT_SET_32_ID => u64::from(u32::decode(bytes, 0)?),
+            fields::BIT_SET_64_ID => u64::decode(bytes, 0)?,
+            _ => return None,
+        };
+        Some(BitSetValue {
+            raw,
+            label_def: field.label_def,
+        })
+    }
 }
 
 impl<R: Record<Header = crate::v4::RecordHeader>> DynFieldAccess for R {}
@@ -328,14 +444,15 @@ mod tests {
 
     use super::*;
     use crate::{
+        flags,
         v4::{
             self,
             layouts::default_layout,
             rtype,
-            types::{CStr, Char, Decimal},
-            MboMsg, RecordHeader, TradeMsg,
+            types::{CStr, Char, Decimal, OpenEnum},
+            MboMsg, RecordHeader, StatMsg, TradeMsg,
         },
-        Action, FlagSet, Side,
+        Action, FlagSet, Side, StatType, StatUpdateAction,
     };
 
     fn mbo_layout() -> StreamLayout {
@@ -840,5 +957,87 @@ mod tests {
         let mut bad = mbo_layout();
         corrupt(&mut bad);
         assert!(validate::validate(&bad, 8).is_err());
+    }
+
+    #[test]
+    fn offset_of_checks_enum_identity() {
+        let index = mbo_index();
+        assert!(index.offset_of(rtype::MBO, fields::SIDE).is_some());
+        let side_as_action = Field::<OpenEnum<Action>>::new(fields::SIDE.id());
+        assert!(index.offset_of(rtype::MBO, side_as_action).is_none());
+    }
+
+    #[test]
+    fn field_by_name_and_id_agree() {
+        let index = mbo_index();
+        let side = index.field_by_name(rtype::MBO, "side").unwrap();
+        assert_eq!(index.field_by_id(rtype::MBO, fields::SIDE.id()), Some(side));
+        assert_eq!(side.label_def().unwrap().name, "Side");
+        assert!(index.field_by_name(rtype::MBO, "stat_type").is_none());
+        assert!(index.field_by_name(rtype::MBP_0, "side").is_none());
+    }
+
+    #[rstest]
+    #[case::known(b'B', Some("BID"))]
+    #[case::unknown(b'X', None)]
+    fn enum_at_reads_a_char_enum(#[case] side: u8, #[case] label: Option<&str>) {
+        let index = mbo_index();
+        let mbo = MboMsg {
+            side: side as c_char,
+            ..sample_mbo()
+        };
+        let value = mbo
+            .enum_at(&index.field_by_name(rtype::MBO, "side").unwrap())
+            .unwrap();
+        assert_eq!(value.raw(), u16::from(side));
+        assert_eq!(value.label(), label);
+        assert_eq!(value.enum_name(), Some("Side"));
+    }
+
+    #[rstest]
+    #[case::u16("stat_type", "StatType", "OPEN_INTEREST")]
+    #[case::u8("update_action", "StatUpdateAction", "DELETE")]
+    fn enum_at_reads_numeric_enums(
+        #[case] name: &str,
+        #[case] enum_name: &str,
+        #[case] label: &str,
+    ) {
+        let index = LayoutIndex::new(default_layout(), default_layout());
+        let stat = StatMsg {
+            stat_type: StatType::OpenInterest as u16,
+            update_action: StatUpdateAction::Delete as u8,
+            ..Default::default()
+        };
+        let value = stat
+            .enum_at(&index.field_by_name(rtype::STATISTICS, name).unwrap())
+            .unwrap();
+        assert_eq!(value.enum_name(), Some(enum_name));
+        assert_eq!(value.label(), Some(label));
+    }
+
+    #[test]
+    fn bit_set_at_labels_set_bits() {
+        let index = mbo_index();
+        let mbo = MboMsg {
+            flags: FlagSet::new(flags::LAST | flags::BAD_TS_RECV | 1),
+            ..sample_mbo()
+        };
+        let value = mbo
+            .bit_set_at(&index.field_by_name(rtype::MBO, "flags").unwrap())
+            .unwrap();
+        assert_eq!(value.raw(), 0x89);
+        assert_eq!(value.labels().collect::<Vec<_>>(), ["BAD_TS_RECV", "LAST"]);
+    }
+
+    #[test]
+    fn dyn_reads_reject_the_wrong_kind_and_rtype() {
+        let index = LayoutIndex::new(default_layout(), default_layout());
+        let mbo = sample_mbo();
+        let side = index.field_by_name(rtype::MBO, "side").unwrap();
+        let flags = index.field_by_name(rtype::MBO, "flags").unwrap();
+        assert!(mbo.enum_at(&flags).is_none());
+        assert!(mbo.bit_set_at(&side).is_none());
+        let stat_type = index.field_by_name(rtype::STATISTICS, "stat_type").unwrap();
+        assert!(mbo.enum_at(&stat_type).is_none());
     }
 }
