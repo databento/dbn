@@ -1,5 +1,3 @@
-// TODO(cg): an upgraded definition keeps only the fields of the compiled v4 struct
-
 use super::pre_v4;
 use crate::{
     layout::{FieldDef, RecordLayout, StreamLayout},
@@ -11,25 +9,67 @@ use crate::{
     Schema,
 };
 
+pub(crate) fn upgrade_layout(ts_out: bool) -> StreamLayout {
+    let v3 = pre_v4::record_layouts(3, false);
+    v4::layouts::compiled_layout(|rtype, r| {
+        r.finish_base();
+        for (f, name) in v3_only_fields(&v3, rtype) {
+            r.copy_field(f, name);
+        }
+        if ts_out {
+            r.field(fields::TS_OUT, "ts_out");
+        }
+    })
+}
+
+fn v3_only_fields(v3: &[RecordLayout], rtype: u16) -> Vec<(&FieldDef, &str)> {
+    let (Some(v3), Some(compiled)) = (
+        v3.iter().find(|rec| rec.rtype == rtype),
+        v4::layouts::default_layout().record_layout(rtype),
+    ) else {
+        return Vec::new();
+    };
+    let mut missing: Vec<_> = v3
+        .field_defs
+        .iter()
+        .zip(v3.field_names.iter().map(String::as_str))
+        .filter(|(f, _)| {
+            !f.is_padding() && compiled.field_defs.iter().all(|c| c.field_id != f.field_id)
+        })
+        .collect();
+    missing.sort_by_key(|(f, _)| f.offset);
+    missing
+}
+
 pub struct Upgrader {
-    version: u8,
     plans: Vec<UpgradePlan>,
+    unplanned_rtypes: Vec<u16>,
 }
 
 impl Upgrader {
     pub(crate) fn new(version: u8, dst: &StreamLayout, schema: Option<Schema>) -> Self {
         let schema_rec =
             schema.and_then(|s| dst.record_layouts.iter().find(|rec| rec.schema == s as u16));
-        let plans = pre_v4::record_layouts(version)
+        let ts_out = dst
+            .record_layouts
             .iter()
-            .filter_map(|src| {
-                let to = schema_rec
-                    .filter(|rec| rec.name == src.name)
-                    .or_else(|| dst.record_layout(src.rtype))?;
-                Some(UpgradePlan::new(src, to))
-            })
-            .collect();
-        Self { version, plans }
+            .any(|rec| rec.has_field(fields::TS_OUT));
+        let mut plans = Vec::new();
+        let mut unplanned_rtypes = Vec::new();
+        for src in pre_v4::record_layouts(version, ts_out) {
+            if let Some(to) = schema_rec
+                .filter(|rec| rec.name == src.name)
+                .or_else(|| dst.record_layout(src.rtype))
+            {
+                plans.push(UpgradePlan::new(&src, to))
+            } else {
+                unplanned_rtypes.push(src.rtype)
+            }
+        }
+        Self {
+            plans,
+            unplanned_rtypes,
+        }
     }
 
     // Returns the upgraded record's size, or `None` if `dst` is too short to hold it
@@ -40,7 +80,7 @@ impl Upgrader {
         let src = &src[..hd.record_size()];
         let rtype = u16::from(hd.rtype);
         let plan = self.plans.iter().find(|plan| plan.src_rtype == rtype);
-        if plan.is_none() && pre_v4::record_layout(self.version, rtype).is_some() {
+        if plan.is_none() && self.unplanned_rtypes.contains(&rtype) {
             return Err(crate::Error::decode(format!(
                 "can't upgrade rtype {rtype:#04x} to DBN version 4 without the stream's schema"
             )));
@@ -52,11 +92,12 @@ impl Upgrader {
         let Some(dst) = dst.get_mut(..record_size) else {
             return Ok(None);
         };
-        match plan {
-            Some(plan) => plan.apply(src, dst),
+        if let Some(plan) = plan {
+            plan.apply(src, dst)
+        } else {
             // Without a layout to upgrade from, keep the body as encoded
-            None => dst[size_of::<v4::RecordHeader>()..]
-                .copy_from_slice(&src[size_of::<v3::RecordHeader>()..]),
+            dst[size_of::<v4::RecordHeader>()..]
+                .copy_from_slice(&src[size_of::<v3::RecordHeader>()..])
         }
         let upgraded_hd = v4::RecordHeader::with_record_size(
             plan.map_or(rtype, |plan| plan.rtype),
@@ -516,7 +557,8 @@ mod tests {
     fn an_absent_extension_field_does_not_cost_the_base() {
         let with_ts_out = |r: &mut RecordLayoutBuilder<'_>| {
             v4::MboMsg::add_fields(r);
-            r.ext_field(fields::TS_OUT, "ts_out");
+            r.finish_base();
+            r.field(fields::TS_OUT, "ts_out");
         };
         let src = record_of(with_ts_out);
         let dst = record_of(with_ts_out);
@@ -544,6 +586,49 @@ mod tests {
                 rec.name
             );
         }
+    }
+
+    #[test]
+    fn upgraded_records_fit_a_record_buf() {
+        for rec in &upgrade_layout(true).record_layouts {
+            assert!(usize::from(rec.record_size()) <= crate::MAX_RECORD_LEN);
+        }
+    }
+
+    #[test]
+    fn the_upgrade_layout_only_adds_extensions() {
+        let upgraded = upgrade_layout(false);
+        let default = v4::layouts::default_layout();
+        assert_eq!(upgraded.struct_layouts, default.struct_layouts);
+        assert_eq!(upgraded.record_layouts.len(), default.record_layouts.len());
+        let base = |rec: &RecordLayout| {
+            let mut defs: Vec<_> = rec
+                .field_defs
+                .iter()
+                .filter(|f| f.offset < rec.base_record_size)
+                .cloned()
+                .collect();
+            defs.sort_by_key(|f| f.offset);
+            defs
+        };
+        let mut extended = Vec::new();
+        for (u, d) in upgraded.record_layouts.iter().zip(&default.record_layouts) {
+            assert_eq!(u.base_record_size, d.base_record_size);
+            assert_eq!(base(u), base(d));
+            if u != d {
+                extended.push(u.rtype);
+            }
+        }
+        assert_eq!(
+            extended,
+            [
+                rtype::MBP_0,
+                rtype::MBP_1,
+                rtype::TBBO,
+                rtype::INSTRUMENT_DEF,
+                rtype::IMBALANCE
+            ]
+        );
     }
 
     fn upgraded_rtype(version: u8, schema: Option<Schema>, src: &[u8]) -> crate::Result<u16> {

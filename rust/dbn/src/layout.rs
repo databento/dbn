@@ -24,7 +24,7 @@ pub mod wire;
 
 pub use builders::{RecordLayoutBuilder, StreamLayoutBuilder, StructLayoutBuilder};
 pub use index::LayoutIndex;
-pub(crate) use upgrade::Upgrader;
+pub(crate) use upgrade::{upgrade_layout, Upgrader};
 #[cfg(test)]
 pub(crate) use validate::validate;
 pub(crate) use validate::validate_for_metadata;
@@ -89,7 +89,7 @@ pub struct RecordLayout {
 
 impl RecordLayout {
     /// The only legal size for records of this rtype in this stream: the base plus
-    /// whatever extension tail the layout declares.
+    /// whatever extensions the layout declares.
     pub fn record_size(&self) -> u16 {
         self.field_defs
             .iter()
@@ -150,7 +150,7 @@ impl FieldDef {
         self.flags & fields::FLAG_IS_ARRAY != 0
     }
 
-    /// Whether this field lives past `base_record_size` in the extension tail.
+    /// Whether this field is an extension, placed past `base_record_size`.
     pub const fn is_extension(&self) -> bool {
         self.flags & fields::FLAG_IS_EXTENSION != 0
     }
@@ -340,7 +340,7 @@ mod tests {
 
     fn mbo_layout() -> StreamLayout {
         let mut sb = StreamLayoutBuilder::new(1, 8);
-        sb.record_of::<MboMsg>(rtype::MBO);
+        sb.layout_of::<MboMsg>(rtype::MBO).finish();
         sb.build().unwrap()
     }
 
@@ -350,7 +350,7 @@ mod tests {
 
     fn trades_layout() -> StreamLayout {
         let mut sb = StreamLayoutBuilder::new(1, 8);
-        sb.record_of::<TradeMsg>(rtype::MBP_0);
+        sb.layout_of::<TradeMsg>(rtype::MBP_0).finish();
         sb.build().unwrap()
     }
 
@@ -500,11 +500,12 @@ mod tests {
         assert!(index.offset_of(rtype::MBP_0, fields::PRICE).is_none());
     }
 
-    fn trades_with_tail(declare: impl FnOnce(&mut RecordLayoutBuilder<'_>)) -> StreamLayout {
+    fn trades_with_ext(declare: impl FnOnce(&mut RecordLayoutBuilder<'_>)) -> StreamLayout {
         let mut sb = StreamLayoutBuilder::new(1, 8);
         {
             let mut r = sb.record(rtype::MBP_0, 0, "TradeMsg");
             TradeMsg::add_fields(&mut r);
+            r.finish_base();
             declare(&mut r);
             r.finish();
         }
@@ -512,20 +513,20 @@ mod tests {
     }
 
     fn trades_with_ts_out() -> StreamLayout {
-        trades_with_tail(|r| {
-            r.ext_field(fields::TS_OUT, "ts_out");
+        trades_with_ext(|r| {
+            r.field(fields::TS_OUT, "ts_out");
         })
     }
 
     fn trades_opra_conditions() -> StreamLayout {
-        trades_with_tail(|r| {
-            r.ext_field(conditions::<Char>(), "conditions");
+        trades_with_ext(|r| {
+            r.field(conditions::<Char>(), "conditions");
         })
     }
 
     fn trades_sip_conditions() -> StreamLayout {
-        trades_with_tail(|r| {
-            r.ext_field(conditions::<[Char; 4]>(), "conditions");
+        trades_with_ext(|r| {
+            r.field(conditions::<[Char; 4]>(), "conditions");
         })
     }
 
@@ -548,10 +549,10 @@ mod tests {
         }
     }
 
-    fn trade_with_tail<const TOTAL: usize>(tail: &[u8]) -> v4::RecordBuf<TOTAL> {
+    fn trade_with_ext<const TOTAL: usize>(ext: &[u8]) -> v4::RecordBuf<TOTAL> {
         let mut buf = v4::RecordBuf::<TOTAL>::from(sample_trade());
         let raw = buf.raw_buf_mut();
-        raw[size_of::<v4::TradeMsg>()..][..tail.len()].copy_from_slice(tail);
+        raw[size_of::<v4::TradeMsg>()..][..ext.len()].copy_from_slice(ext);
         raw[..2].copy_from_slice(&((TOTAL - size_of::<RecordHeader>()) as u16).to_le_bytes());
         buf
     }
@@ -607,9 +608,9 @@ mod tests {
     }
 
     #[test]
-    fn ts_out_reads_from_the_extension_tail() {
+    fn ts_out_reads_from_the_extensions() {
         let index = LayoutIndex::new(&trades_with_ts_out(), default_layout());
-        let rec = trade_with_tail::<64>(&777u64.to_le_bytes());
+        let rec = trade_with_ext::<64>(&777u64.to_le_bytes());
 
         assert_eq!(rec.record_size(), 64);
         assert_eq!(rec.get::<v4::TradeMsg>().unwrap().price, 123_000_000_000);
@@ -629,14 +630,14 @@ mod tests {
     #[test]
     fn conditions_read_at_each_datasets_type() {
         let opra_idx = LayoutIndex::new(&trades_opra_conditions(), default_layout());
-        let rec = trade_with_tail::<64>(b"@");
+        let rec = trade_with_ext::<64>(b"@");
         assert_eq!(
             rec.field(&opra_idx, conditions::<Char>()),
             Some(Char(b'@' as c_char))
         );
 
         let sip_idx = LayoutIndex::new(&trades_sip_conditions(), default_layout());
-        let rec = trade_with_tail::<64>(b"@ TI");
+        let rec = trade_with_ext::<64>(b"@ TI");
         assert_eq!(
             rec.field(&sip_idx, conditions::<[Char; 4]>()),
             Some((*b"@ TI").map(|b| Char(b as c_char)))
@@ -669,12 +670,12 @@ mod tests {
     #[case::ts_out(trades_with_ts_out())]
     #[case::opra(trades_opra_conditions())]
     #[case::sip(trades_sip_conditions())]
-    fn extension_tail_is_8_aligned(#[case] stream: StreamLayout) {
+    fn extensions_are_8_aligned(#[case] stream: StreamLayout) {
         let rec = stream.record_layout(rtype::MBP_0).unwrap();
         assert_eq!(
             rec.record_size() % 8,
             0,
-            "tail ends at {}",
+            "extensions end at {}",
             rec.record_size()
         );
     }

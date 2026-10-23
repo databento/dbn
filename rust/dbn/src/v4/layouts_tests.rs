@@ -377,11 +377,12 @@ mod decoded_layout {
         Field::new(fields::CONDITIONS.id())
     }
 
-    fn trades_with_tail(declare: impl FnOnce(&mut RecordLayoutBuilder<'_>)) -> StreamLayout {
+    fn trades_with_ext(declare: impl FnOnce(&mut RecordLayoutBuilder<'_>)) -> StreamLayout {
         let mut sb = StreamLayoutBuilder::new(1, SYM_LEN);
         {
             let mut r = sb.record(rtype::MBP_0, Schema::Trades as u16, "TradeMsg");
             TradeMsg::add_fields(&mut r);
+            r.finish_base();
             declare(&mut r);
             r.finish();
         }
@@ -419,38 +420,38 @@ mod decoded_layout {
         }
     }
 
-    fn trade_with_tail(layout: &StreamLayout, tail: &[u8]) -> RecordBuf<128> {
+    fn trade_with_ext(layout: &StreamLayout, ext: &[u8]) -> RecordBuf<128> {
         let total = layout.record_layout(rtype::MBP_0).unwrap().record_size() as usize;
         let mut buf = RecordBuf::<128>::from(trade());
         let raw = buf.raw_buf_mut();
-        raw[size_of::<TradeMsg>()..][..tail.len()].copy_from_slice(tail);
+        raw[size_of::<TradeMsg>()..][..ext.len()].copy_from_slice(ext);
         raw[..2].copy_from_slice(&((total - size_of::<RecordHeader>()) as u16).to_le_bytes());
         buf
     }
 
     #[rstest]
     #[case::opra_conditions(
-        trades_with_tail(|r| { r.ext_field(conditions::<Char>(), "conditions"); }),
+        trades_with_ext(|r| { r.field(conditions::<Char>(), "conditions"); }),
         false,
         b"@".to_vec()
     )]
     #[case::sip_conditions(
-        trades_with_tail(|r| { r.ext_field(conditions::<[Char; 4]>(), "conditions"); }),
+        trades_with_ext(|r| { r.field(conditions::<[Char; 4]>(), "conditions"); }),
         false,
         b"@ TI".to_vec()
     )]
     #[case::ts_out(
-        trades_with_tail(|r| { r.ext_field(fields::TS_OUT, "ts_out"); }),
+        trades_with_ext(|r| { r.field(fields::TS_OUT, "ts_out"); }),
         true,
         TS_OUT.to_le_bytes().to_vec()
     )]
     fn extension_resolves_from_the_decoded_layout(
         #[case] layout: StreamLayout,
         #[case] ts_out: bool,
-        #[case] tail: Vec<u8>,
+        #[case] ext: Vec<u8>,
     ) -> crate::Result<()> {
         let metadata = metadata(layout.clone(), ts_out);
-        let sent = trade_with_tail(&layout, &tail);
+        let sent = trade_with_ext(&layout, &ext);
         let mut encoded = Vec::new();
         Encoder::new(&mut encoded, &metadata)?.encode_ref(sent.as_rec_ref())?;
 
@@ -465,7 +466,7 @@ mod decoded_layout {
         let rec = decoder.decode_ref()?.expect("one trade record");
 
         assert_eq!(rec.as_ref(), sent.as_rec_ref().as_ref());
-        match tail.len() {
+        match ext.len() {
             1 => assert_eq!(
                 rec.field(&index, conditions::<Char>()),
                 Some(Char(b'@' as c_char))
@@ -487,8 +488,8 @@ mod decoded_layout {
     #[test]
     fn a_record_that_does_not_match_the_layout_is_refused() {
         let metadata = metadata(
-            trades_with_tail(|r| {
-                r.ext_field(conditions::<[Char; 4]>(), "conditions");
+            trades_with_ext(|r| {
+                r.field(conditions::<[Char; 4]>(), "conditions");
             }),
             false,
         );

@@ -98,7 +98,8 @@ pub struct StreamLayoutBuilder {
 }
 
 /// Places the fields of one [`RecordLayout`] after its header. Created by
-/// [`StreamLayoutBuilder::record`].
+/// [`StreamLayoutBuilder::record`] or [`StreamLayoutBuilder::layout_of`].
+#[must_use = "call `finish` to add the record to the stream"]
 pub struct RecordLayoutBuilder<'a> {
     parent: &'a mut StreamLayoutBuilder,
     rtype: u16,
@@ -109,6 +110,7 @@ pub struct RecordLayoutBuilder<'a> {
 
 /// Places the fields of one [`StructLayout`]. Created by
 /// [`StreamLayoutBuilder::struct_layout`].
+#[must_use = "call `finish` to add the struct to the stream"]
 pub struct StructLayoutBuilder<'a> {
     parent: &'a mut StreamLayoutBuilder,
     name: String,
@@ -156,16 +158,16 @@ impl StreamLayoutBuilder {
         RecordLayoutBuilder::new(self, rtype, schema, name)
     }
 
-    /// Adds the layout of the compiled record struct `R` for `rtype`.
-    pub fn record_of<R: RecordLayoutDesc>(&mut self, rtype: u16) -> &mut Self {
+    /// Opens a record layout for `rtype` holding the fields of the compiled record
+    /// struct `R`.
+    pub fn layout_of<R: RecordLayoutDesc>(&mut self, rtype: u16) -> RecordLayoutBuilder<'_> {
         let schema = RType::try_into_schema(rtype).map_or(crate::NULL_SCHEMA, |s| s as u16);
         let mut rec = self.record(rtype, schema, R::NAME);
         R::add_fields(&mut rec);
         for &(f, name) in R::REQUIRED_FIELDS {
             rec.symbol_field(f, name);
         }
-        rec.finish();
-        self
+        rec
     }
 
     /// Opens a struct layout for a struct nested in records.
@@ -288,22 +290,28 @@ impl<'a> RecordLayoutBuilder<'a> {
         self
     }
 
-    /// Sets the order CSV and JSON present fields in. `finish` sorts the fields by `ids`
-    /// and puts unlisted fields and padding after them in declaration order.
+    /// Sets the order CSV and JSON present fields in. `finish` sorts the fields by
+    /// `ids` and puts unlisted fields and padding after them in declaration order.
     pub fn order(&mut self, ids: &[u16]) -> &mut Self {
         self.seq.order(ids);
         self
     }
 
-    /// Places a fixed-width extension field past `base_record_size`. Declare every base
-    /// field first.
-    pub fn ext_field<T: FixedWidth>(&mut self, f: Field<T>, name: &str) -> &mut Self {
-        self.seq.seal_base();
-        self.seq.scalar(f, name);
+    /// Ends the base fields and returns `base_record_size`, padded to an 8-byte
+    /// boundary. Fields placed afterwards are extensions, so declare all base fields
+    /// before.
+    pub fn finish_base(&mut self) -> u16 {
+        self.seq.finish_base()
+    }
+
+    /// Places a field with the type, size, and scale of `def` from another layout, for
+    /// fields only known at runtime. The offset comes from the cursor.
+    pub(crate) fn copy_field(&mut self, def: &FieldDef, name: &str) -> &mut Self {
+        self.seq.like(def, name);
         self
     }
 
-    /// Pads the base and any extension tail to 8-byte boundaries and appends the record
+    /// Pads the base and any extensions to 8-byte boundaries and appends the record
     /// to the stream.
     pub fn finish(self) {
         let mut seq = self.seq;
@@ -355,7 +363,7 @@ impl<'a> StructLayoutBuilder<'a> {
     /// Appends the struct to the stream and returns its `struct_layouts` index.
     pub fn finish(self) -> u16 {
         let mut seq = self.seq;
-        let struct_size = seq.finish_base();
+        let struct_size = seq.finish();
         self.parent.struct_layouts.push(StructLayout {
             size: struct_size,
             name: self.name,
@@ -388,7 +396,7 @@ impl<L: FixedWidth, R: FixedWidth, I: FixedWidth> HeaderFields<L, R, I> {
         seq.scalar(fields::TS_EVENT, "ts_event");
         // Matches the column order of the v1-3 headers
         seq.order(&[fields::TS_EVENT.id()]);
-        let struct_size = seq.finish_base();
+        let struct_size = seq.finish();
         debug_assert_eq!(struct_size as usize, std::mem::size_of::<H>());
         StructLayout {
             size: struct_size,
@@ -461,6 +469,23 @@ impl FieldCursor {
         self.push(def, name);
     }
 
+    fn like(&mut self, def: &FieldDef, name: &str) {
+        assert_ne!(
+            def.type_id,
+            fields::STRUCT_ID,
+            "can't copy nested field {name}"
+        );
+        self.align_to(fields::scalar_size(def.type_id).unwrap_or(1));
+        let def = FieldDefBuilder::new(def.field_id, def.type_id)
+            .offset(self.cursor)
+            .size(def.size)
+            .flags(def.flags)
+            .def_index(def.def_index)
+            .scale(def.scale)
+            .build();
+        self.push(def, name);
+    }
+
     fn nested(&mut self, field_id: u16, name: &str, nested: Nested) {
         self.align_to(nested.align);
         let def = FieldDefBuilder::new(field_id, fields::STRUCT_ID)
@@ -515,7 +540,7 @@ impl FieldCursor {
         }
     }
 
-    fn seal_base(&mut self) -> u16 {
+    fn finish_base(&mut self) -> u16 {
         if let Some(base) = self.base {
             return base;
         }
@@ -525,9 +550,8 @@ impl FieldCursor {
     }
 
     fn finish_record(&mut self) -> u16 {
-        let base = self.seal_base();
-        self.align_to(8);
-        self.sort_by_order();
+        let base = self.finish_base();
+        self.finish();
         base
     }
 
@@ -545,7 +569,7 @@ impl FieldCursor {
 
     /// Round the record or struct up to an 8-byte boundary, apply the display order, and
     /// return its size.
-    fn finish_base(&mut self) -> u16 {
+    fn finish(&mut self) -> u16 {
         self.align_to(8);
         self.sort_by_order();
         self.cursor
@@ -717,5 +741,26 @@ mod tests {
         assert_eq!(levels.size, ba.size * 10);
         let align = ba.align();
         assert_eq!(levels.offset % align, 0);
+    }
+
+    #[test]
+    fn finish_base_starts_string_extensions() {
+        let mut sb = StreamLayoutBuilder::new(1, 22);
+        {
+            let mut r = sb.record(rtype::MBO, 0, "WithCurrency");
+            r.field(fields::ORDER_ID, "order_id");
+            r.symbol_field(fields::RAW_SYMBOL, "raw_symbol");
+            assert_eq!(r.finish_base(), 56);
+            r.str_field(fields::CURRENCY, "currency", 4);
+            r.finish();
+        }
+        let rec = &sb.build().unwrap().record_layouts[0];
+        let find = |id| rec.field_defs.iter().find(|f| f.field_id == id).unwrap();
+        let currency = find(fields::CURRENCY.id());
+        assert_eq!(currency.offset, 56);
+        assert!(currency.is_extension());
+        assert!(!find(fields::RAW_SYMBOL.id()).is_extension());
+        assert_eq!(rec.base_record_size, 56);
+        assert_eq!(rec.record_size(), 64);
     }
 }

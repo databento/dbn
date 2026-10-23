@@ -139,3 +139,23 @@ pub fn trade_v3() -> v3::TradeMsg {
         sequence: v4.sequence,
     }
 }
+
+/// [`trade_v3()`] upgraded to v4, which keeps v3's `depth` as an extension.
+pub fn trade_v3_upgraded() -> v4::TradeMsg {
+    let trade = trade_v4();
+    let record_size = crate::layout::upgrade_layout(false)
+        .record_layout(v4::rtype::MBP_0)
+        .unwrap()
+        .record_size();
+    v4::TradeMsg {
+        hd: v4::RecordHeader::with_record_size(
+            trade.hd.rtype,
+            trade.hd.publisher_id,
+            trade.hd.instrument_id,
+            trade.hd.ts_event,
+            usize::from(record_size),
+        )
+        .unwrap(),
+        ..trade
+    }
+}

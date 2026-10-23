@@ -413,11 +413,12 @@ mod tests {
                 (u16::from(b'B'), "BID".to_owned()),
             ]),
         });
-        sb.record_of::<v4::MboMsg>(rtype::MBO);
+        sb.layout_of::<v4::MboMsg>(rtype::MBO).finish();
         {
             let mut r = sb.record(rtype::MBP_0, Schema::Trades as u16, v4::TradeMsg::NAME);
             v4::TradeMsg::add_fields(&mut r);
-            r.ext_field(fields::TS_OUT, "ts_out");
+            r.finish_base();
+            r.field(fields::TS_OUT, "ts_out");
             r.finish();
         }
         sb.build().unwrap()

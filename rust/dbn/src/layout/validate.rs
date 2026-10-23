@@ -133,8 +133,8 @@ fn check_fields(
                 &format!("field {} offset+size overflows u16", f.field_id),
             )
         })?;
-        let in_tail = is_record && f.offset >= base;
-        if !f.is_padding() && f.is_extension() != in_tail {
+        let in_ext = is_record && f.offset >= base;
+        if !f.is_padding() && f.is_extension() != in_ext {
             return Err(err(
                 ctx,
                 &format!(
@@ -142,11 +142,11 @@ fn check_fields(
                     f.field_id,
                     f.offset,
                     if f.is_extension() { "" } else { "not " },
-                    if in_tail { "sits past " } else { "is within " },
+                    if in_ext { "sits past " } else { "is within " },
                 ),
             ));
         }
-        if in_tail {
+        if in_ext {
             ext_spans.push((f.offset, end));
         } else {
             if end > base {
@@ -298,7 +298,8 @@ mod tests {
 
     fn definition_layout(symbol_width: u16) -> StreamLayout {
         let mut sb = StreamLayoutBuilder::new(1, symbol_width);
-        sb.record_of::<InstrumentDefMsg>(rtype::INSTRUMENT_DEF);
+        sb.layout_of::<InstrumentDefMsg>(rtype::INSTRUMENT_DEF)
+            .finish();
         sb.build().unwrap()
     }
 
@@ -343,7 +344,8 @@ mod tests {
             let mut r = sb.record(rtype::MBO, Schema::Mbo as u16, MboMsg::NAME);
             MboMsg::add_fields(&mut r);
             if declared {
-                r.ext_field(fields::TS_OUT, "ts_out");
+                r.finish_base();
+                r.field(fields::TS_OUT, "ts_out");
             }
             r.finish();
         }

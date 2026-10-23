@@ -863,7 +863,9 @@ mod tests {
     use super::*;
     use crate::{
         decode::{
-            dbn::tests::{fsm_v4, mbo_v4, metadata_v4, trade_v3, trade_v4, trades_v4},
+            dbn::tests::{
+                fsm_v4, mbo_v4, metadata_v4, trade_v3, trade_v3_upgraded, trade_v4, trades_v4,
+            },
             tests::TEST_DATA_PATH,
             DbnMetadata,
         },
@@ -1409,7 +1411,7 @@ mod tests {
         let mut decoder =
             crate::decode::dbn::v4::AsyncDecoder::with_fsm(encoded.as_slice(), fsm_v4()?).await?;
         let rec = decoder.decode_record_ref().await?.unwrap();
-        assert_eq!(*rec.try_get::<crate::v4::TradeMsg>()?, trade_v4());
+        assert_eq!(*rec.try_get::<crate::v4::TradeMsg>()?, trade_v3_upgraded());
         assert!(decoder.decode_record_ref().await?.is_none());
         Ok(())
     }

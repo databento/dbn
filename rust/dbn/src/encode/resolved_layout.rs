@@ -297,7 +297,9 @@ mod tests {
         let mut sb = StreamLayoutBuilder::new(1, 8);
         {
             let mut r = sb.record(rtype::MBP_0, 0, "WithConditions");
-            r.field(fields::PRICE, "price").ext_field(
+            r.field(fields::PRICE, "price");
+            r.finish_base();
+            r.field(
                 fields::Field::<[Char; 4]>::new(fields::CONDITIONS.id()),
                 "conditions",
             );

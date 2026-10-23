@@ -239,7 +239,7 @@ impl<H: DecodeHeader> DbnFsm<H> {
         let version = DbnVersion::for_header::<H>(version, self.upgrade_policy)?;
         self.input_dbn_version = Some(version);
         self.needs_upgrade = H::needs_upgrade(self.upgrade_policy, Some(version));
-        self.upgrader = upgrader_for(self.upgrade_policy, Some(version), self.schema);
+        self.upgrader = upgrader_for(self.upgrade_policy, Some(version), self.schema, self.ts_out);
         Ok(())
     }
 
@@ -251,6 +251,12 @@ impl<H: DecodeHeader> DbnFsm<H> {
     /// Sets whether each record is expected to have `ts_out` appended.
     pub fn set_ts_out(&mut self, ts_out: bool) {
         self.ts_out = ts_out;
+        self.upgrader = upgrader_for(
+            self.upgrade_policy,
+            self.input_dbn_version,
+            self.schema,
+            ts_out,
+        );
     }
 
     /// Returns the current DBN version upgrade policy.
@@ -270,7 +276,12 @@ impl<H: DecodeHeader> DbnFsm<H> {
         }
         self.upgrade_policy = upgrade_policy;
         self.needs_upgrade = H::needs_upgrade(upgrade_policy, self.input_dbn_version);
-        self.upgrader = upgrader_for(upgrade_policy, self.input_dbn_version, self.schema);
+        self.upgrader = upgrader_for(
+            upgrade_policy,
+            self.input_dbn_version,
+            self.schema,
+            self.ts_out,
+        );
         Ok(())
     }
 
@@ -780,7 +791,12 @@ impl<H: DecodeHeader> DbnFsm<H> {
         metadata.upgrade(self.upgrade_policy);
         self.ts_out = metadata.ts_out;
         self.schema = metadata.schema;
-        self.upgrader = upgrader_for(self.upgrade_policy, self.input_dbn_version, self.schema);
+        self.upgrader = upgrader_for(
+            self.upgrade_policy,
+            self.input_dbn_version,
+            self.schema,
+            self.ts_out,
+        );
         self.buffer.consume(length as usize);
         // Need to shift to ensure record alignment
         self.buffer.shift();
@@ -1265,15 +1281,10 @@ impl DecodeHeader for v4::RecordHeader {
         _: &mut Option<DbnVersion>,
         _: VersionUpgradePolicy,
         upgrader: Option<&Upgrader>,
-        ts_out: bool,
+        _: bool,
         read_buffer: &'a [u8],
         compat_buffer: &'a mut [u8],
     ) -> Result<(&'a mut [u8], Option<RecordRef<'a, Self>>)> {
-        if ts_out {
-            return Err(Error::decode(
-                "upgrading records with `ts_out` to DBN version 4 isn't supported",
-            ));
-        }
         let upgrader = upgrader.expect("upgrader is set whenever records need upgrading");
         let Some(record_size) = upgrader.upgrade(read_buffer, compat_buffer)? else {
             return Ok((compat_buffer, None));
@@ -1350,7 +1361,7 @@ impl<H: DecodeHeader> DbnFsmBuilder<H> {
                     0
                 }
             })),
-            upgrader: upgrader_for(upgrade_policy, self.input_dbn_version, None),
+            upgrader: upgrader_for(upgrade_policy, self.input_dbn_version, None, self.ts_out),
             batch: RecordBatch::default(),
             _header: PhantomData,
         })
@@ -1626,13 +1637,18 @@ fn upgrader_for(
     upgrade_policy: VersionUpgradePolicy,
     input_dbn_version: Option<DbnVersion>,
     schema: Option<Schema>,
+    ts_out: bool,
 ) -> Option<Upgrader> {
     match input_dbn_version {
         Some(DbnVersion(v))
             if upgrade_policy.target_version() == Some(v4::DBN_VERSION)
                 && upgrade_policy.is_upgrade_situation(v) =>
         {
-            Some(Upgrader::new(v, v4::layouts::default_layout(), schema))
+            Some(Upgrader::new(
+                v,
+                &crate::layout::upgrade_layout(ts_out),
+                schema,
+            ))
         }
         _ => None,
     }

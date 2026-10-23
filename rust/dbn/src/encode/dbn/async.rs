@@ -609,7 +609,8 @@ mod tests {
             .version(crate::v4::DBN_VERSION)
             .build();
         let mut sb = crate::layout::StreamLayoutBuilder::new(1, metadata.symbol_cstr_len as u16);
-        sb.record_of::<crate::v4::MboMsg>(crate::v4::rtype::MBO);
+        sb.layout_of::<crate::v4::MboMsg>(crate::v4::rtype::MBO)
+            .finish();
         metadata.layout = Some(sb.build().unwrap());
         let mut buffer = Vec::new();
         assert!(Encoder::new(&mut buffer, &metadata).await.is_err());

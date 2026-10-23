@@ -657,7 +657,8 @@ mod tests {
     use crate::{
         decode::{
             dbn::tests::{
-                fsm_v4, mbo_v4, metadata_v4, replace_layout, trade_v3, trade_v4, trades_v4,
+                fsm_v4, mbo_v4, metadata_v4, replace_layout, trade_v3, trade_v3_upgraded, trade_v4,
+                trades_v4,
             },
             tests::TEST_DATA_PATH,
         },
@@ -665,6 +666,16 @@ mod tests {
         rtype, Dataset, Error, ErrorMsg, HasRType, MboMsg, MetadataBuilder, OhlcvMsg, Record,
         RecordBuf, RecordHeader, Result, SType, Schema, TradeMsg, WithTsOut,
     };
+    use crate::{
+        layout::{DynFieldAccess, Verdict},
+        record::str_to_c_chars,
+        v4::{
+            fields,
+            types::{Decimal, TimestampNs},
+        },
+        InstrumentClass, MatchAlgorithm, Side,
+    };
+    use std::ffi::c_char;
 
     #[test]
     fn test_decode_iso8601_valid() {
@@ -918,8 +929,209 @@ mod tests {
         let mut decoder = crate::decode::dbn::v4::Decoder::with_fsm(encoded.as_slice(), fsm_v4()?)?;
         assert_eq!(decoder.metadata().version, crate::v4::DBN_VERSION);
         let rec = decoder.decode_ref()?.unwrap();
-        assert_eq!(*rec.try_get::<crate::v4::TradeMsg>()?, trade_v4());
+        assert_eq!(*rec.try_get::<crate::v4::TradeMsg>()?, trade_v3_upgraded());
         assert!(decoder.decode_ref()?.is_none());
+        Ok(())
+    }
+
+    fn es_call_v3() -> v3::InstrumentDefMsg {
+        v3::InstrumentDefMsg {
+            hd: RecordHeader::new::<v3::InstrumentDefMsg>(
+                rtype::INSTRUMENT_DEF,
+                1,
+                42_005_804,
+                1_757_970_000_000_000_000,
+            ),
+            ts_recv: 1_757_970_000_000_000_100,
+            min_price_increment: 250_000_000,
+            display_factor: 1_000_000_000,
+            expiration: 1_766_154_600_000_000_000,
+            strike_price: 6_800_000_000_000,
+            raw_instrument_id: 42_005_804,
+            min_lot_size_round_lot: 1,
+            channel_id: 13,
+            currency: str_to_c_chars("USD").unwrap(),
+            raw_symbol: str_to_c_chars("ESZ5 C6800").unwrap(),
+            exchange: str_to_c_chars("XCME").unwrap(),
+            asset: str_to_c_chars("ES").unwrap(),
+            underlying: str_to_c_chars("ESZ5").unwrap(),
+            instrument_class: InstrumentClass::Call as c_char,
+            match_algorithm: MatchAlgorithm::Fifo as c_char,
+            ..Default::default()
+        }
+    }
+
+    fn es_call_v1() -> crate::v1::InstrumentDefMsg {
+        let v3 = es_call_v3();
+        crate::v1::InstrumentDefMsg {
+            hd: v3.hd,
+            ts_recv: v3.ts_recv,
+            min_price_increment: v3.min_price_increment,
+            display_factor: v3.display_factor,
+            expiration: v3.expiration,
+            strike_price: v3.strike_price,
+            raw_instrument_id: 42_005_804,
+            min_lot_size_round_lot: v3.min_lot_size_round_lot,
+            channel_id: v3.channel_id,
+            currency: v3.currency,
+            raw_symbol: str_to_c_chars("ESZ5 C6800").unwrap(),
+            exchange: v3.exchange,
+            asset: str_to_c_chars("ES").unwrap(),
+            underlying: v3.underlying,
+            instrument_class: v3.instrument_class,
+            match_algorithm: v3.match_algorithm,
+            ..Default::default()
+        }
+    }
+
+    fn definitions<R: crate::encode::DbnEncodable>(version: u8, recs: &[R]) -> Vec<u8> {
+        let metadata = MetadataBuilder::new()
+            .version(version)
+            .dataset(Dataset::GlbxMdp3)
+            .schema(Some(Schema::Definition))
+            .start(1_757_970_000_000_000_000)
+            .stype_in(Some(SType::RawSymbol))
+            .stype_out(SType::InstrumentId)
+            .build();
+        let mut encoded = Vec::new();
+        let mut encoder = Encoder::new(&mut encoded, &metadata).unwrap();
+        for rec in recs {
+            encoder.encode_record(rec).unwrap();
+        }
+        encoded
+    }
+
+    #[rstest]
+    #[case::v1(definitions(1, &[es_call_v1()]))]
+    #[case::v3(definitions(3, &[es_call_v3()]))]
+    fn test_v4_decoder_keeps_every_definition_field(#[case] encoded: Vec<u8>) {
+        let mut decoder =
+            crate::decode::dbn::v4::Decoder::with_fsm(encoded.as_slice(), fsm_v4().unwrap())
+                .unwrap();
+        let metadata = decoder.metadata().clone();
+        let index = metadata.layout_index().unwrap();
+        assert_eq!(
+            index.verdict(crate::v4::rtype::INSTRUMENT_DEF),
+            Some(Verdict::Compiled)
+        );
+        let rec = decoder.decode_ref().unwrap().unwrap();
+
+        let def = rec.try_get::<crate::v4::InstrumentDefMsg>().unwrap();
+        assert_eq!(def.hd.instrument_id, 42_005_804);
+        assert_eq!(def.raw_instrument_id, 42_005_804);
+        assert_eq!(def.min_price_increment, 250_000_000);
+        assert_eq!(def.instrument_class, InstrumentClass::Call as c_char);
+        assert_eq!(def.channel_id, 13);
+        assert_eq!(rec.field(&index, fields::RAW_SYMBOL), Some("ESZ5 C6800"));
+        assert_eq!(
+            rec.field(&index, fields::STRIKE_PRICE),
+            Some(Decimal {
+                raw: 6_800_000_000_000,
+                scale: -9
+            })
+        );
+        assert_eq!(
+            rec.field(&index, fields::EXPIRATION),
+            Some(TimestampNs(1_766_154_600_000_000_000))
+        );
+        assert_eq!(rec.field(&index, fields::CURRENCY), Some("USD"));
+        assert_eq!(rec.field(&index, fields::EXCHANGE), Some("XCME"));
+        assert_eq!(rec.field(&index, fields::ASSET), Some("ES"));
+        assert_eq!(rec.field(&index, fields::UNDERLYING), Some("ESZ5"));
+        assert_eq!(rec.field(&index, fields::LEG_COUNT), Some(0));
+        assert_eq!(rec.field(&index, fields::LEG_RAW_SYMBOL), Some(""));
+
+        let mut json = Vec::new();
+        let mut encoder =
+            crate::encode::json::v4::Encoder::new(&mut json, &metadata, false, false, false)
+                .unwrap();
+        encoder.encode_record_ref(rec).unwrap();
+        let json = String::from_utf8(json).unwrap();
+        assert!(json.contains(r#""currency":"USD""#), "{json}");
+        assert!(json.contains(r#""underlying":"ESZ5""#), "{json}");
+    }
+
+    #[test]
+    fn test_v4_decoder_keeps_v3_definition_legs() {
+        let spread_leg = v3::InstrumentDefMsg {
+            hd: RecordHeader::new::<v3::InstrumentDefMsg>(
+                rtype::INSTRUMENT_DEF,
+                1,
+                42_140_878,
+                1_757_970_000_000_000_000,
+            ),
+            raw_instrument_id: 42_140_878,
+            raw_symbol: str_to_c_chars("UD:1V: VT 0915976518").unwrap(),
+            instrument_class: InstrumentClass::OptionSpread as c_char,
+            leg_count: 2,
+            leg_index: 1,
+            leg_instrument_id: 42_005_804,
+            leg_raw_symbol: str_to_c_chars("ESZ5 C6800").unwrap(),
+            leg_instrument_class: InstrumentClass::Call as c_char,
+            leg_side: Side::Ask as c_char,
+            leg_ratio_qty_numerator: 1,
+            leg_ratio_qty_denominator: 1,
+            ..es_call_v3()
+        };
+        let encoded = definitions(3, &[spread_leg]);
+        let mut decoder =
+            crate::decode::dbn::v4::Decoder::with_fsm(encoded.as_slice(), fsm_v4().unwrap())
+                .unwrap();
+        let index = decoder.metadata().layout_index().unwrap();
+        let rec = decoder.decode_ref().unwrap().unwrap();
+
+        assert_eq!(rec.field(&index, fields::LEG_COUNT), Some(2));
+        assert_eq!(rec.field(&index, fields::LEG_INDEX), Some(1));
+        assert_eq!(
+            rec.field(&index, fields::LEG_INSTRUMENT_ID),
+            Some(42_005_804)
+        );
+        assert_eq!(
+            rec.field(&index, fields::LEG_RAW_SYMBOL),
+            Some("ESZ5 C6800")
+        );
+        assert_eq!(
+            rec.field(&index, fields::LEG_SIDE).unwrap().get().unwrap(),
+            Side::Ask
+        );
+    }
+
+    #[test]
+    fn test_v4_decoder_upgrades_v3_ts_out() -> Result<()> {
+        const TS_OUT: u64 = 1_697_240_529_000_000_200;
+        let mut metadata = trades_v3_metadata();
+        metadata.ts_out = true;
+        let mut encoded = Vec::new();
+        Encoder::new(&mut encoded, &metadata)?
+            .encode_record(&WithTsOut::new(trade_v3(), TS_OUT))?;
+        let mut decoder = crate::decode::dbn::v4::Decoder::with_fsm(encoded.as_slice(), fsm_v4()?)?;
+        let index = decoder.metadata().layout_index().unwrap();
+        let rec = decoder.decode_ref()?.unwrap();
+
+        let trade = rec.try_get::<crate::v4::TradeMsg>()?;
+        assert_eq!(trade.price, trade_v4().price);
+        assert_eq!(rec.field(&index, fields::TS_OUT), Some(TimestampNs(TS_OUT)));
+        Ok(())
+    }
+
+    #[test]
+    fn test_v4_record_decoder_upgrades_v3_ts_out_fragment() -> Result<()> {
+        const TS_OUT: u64 = 1_697_240_529_000_000_200;
+        let fsm = DbnFsm::builder()
+            .header::<crate::v4::RecordHeader>()
+            .skip_metadata(true)
+            .input_dbn_version(Some(3))?
+            .ts_out(true)
+            .build()?;
+        let trade = WithTsOut::new(trade_v3(), TS_OUT);
+        let mut decoder = crate::decode::dbn::v4::RecordDecoder::with_fsm(trade.as_ref(), fsm);
+        let rec = decoder.decode_ref()?.unwrap();
+        let index = crate::layout::LayoutIndex::new(
+            &crate::layout::upgrade_layout(true),
+            crate::v4::layouts::default_layout(),
+        );
+
+        assert_eq!(rec.field(&index, fields::TS_OUT), Some(TimestampNs(TS_OUT)));
         Ok(())
     }
 
@@ -933,23 +1145,8 @@ mod tests {
         let trade = trade_v3();
         let mut decoder = crate::decode::dbn::v4::RecordDecoder::with_fsm(trade.as_ref(), fsm);
         let rec = decoder.decode_ref()?.unwrap();
-        assert_eq!(*rec.try_get::<crate::v4::TradeMsg>()?, trade_v4());
+        assert_eq!(*rec.try_get::<crate::v4::TradeMsg>()?, trade_v3_upgraded());
         assert!(decoder.decode_ref()?.is_none());
-        Ok(())
-    }
-
-    #[test]
-    fn test_v4_decoder_refuses_to_upgrade_ts_out() -> Result<()> {
-        let mut encoded = Vec::new();
-        let metadata = Metadata {
-            ts_out: true,
-            ..trades_v3_metadata()
-        };
-        Encoder::new(&mut encoded, &metadata)?.encode_record(&WithTsOut::new(trade_v3(), 1))?;
-
-        let mut decoder = crate::decode::dbn::v4::Decoder::with_fsm(encoded.as_slice(), fsm_v4()?)?;
-        let err = decoder.decode_ref().unwrap_err();
-        assert!(err.to_string().contains("`ts_out`"), "{err}");
         Ok(())
     }
 

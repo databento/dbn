@@ -34,7 +34,7 @@ pub(crate) mod tests {
         v4, Dataset, Metadata, Result, SType, Schema, METADATA_FIXED_LEN, METADATA_PRELUDE_LEN,
     };
 
-    pub use crate::test_utils::{mbo_v4, trade_v3, trade_v4};
+    pub use crate::test_utils::{mbo_v4, trade_v3, trade_v3_upgraded, trade_v4};
 
     pub fn metadata_v4(schema: Schema) -> Metadata {
         Metadata::builder()

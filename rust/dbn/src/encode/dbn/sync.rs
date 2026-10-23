@@ -856,7 +856,8 @@ mod tests {
 
     fn mbo_layout(symbol_cstr_len: u16) -> crate::layout::StreamLayout {
         let mut sb = crate::layout::StreamLayoutBuilder::new(1, symbol_cstr_len);
-        sb.record_of::<crate::v4::MboMsg>(crate::v4::rtype::MBO);
+        sb.layout_of::<crate::v4::MboMsg>(crate::v4::rtype::MBO)
+            .finish();
         sb.build().unwrap()
     }
 

@@ -425,7 +425,7 @@ mod tests {
         rec: R,
         mut sb: StreamLayoutBuilder,
     ) -> Vec<String> {
-        sb.record_of::<R>(rec.raw_rtype());
+        sb.layout_of::<R>(rec.raw_rtype()).finish();
         let layout = sb.into_unvalidated_record_layouts().pop().unwrap();
         let bytes = rec.as_ref();
         layout

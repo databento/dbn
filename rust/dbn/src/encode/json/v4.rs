@@ -489,7 +489,8 @@ mod tests {
         {
             let mut r = sb.record(rtype::MBP_0, Schema::Trades as u16, v4::TradeMsg::NAME);
             v4::TradeMsg::add_fields(&mut r);
-            r.ext_field(
+            r.finish_base();
+            r.field(
                 fields::Field::<T>::new(fields::CONDITIONS.id()),
                 "conditions",
             );

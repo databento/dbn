@@ -156,7 +156,7 @@ impl Metadata {
             self.symbol_cstr_len = version_symbol_cstr_len(target);
         }
         if target > self.version && target >= crate::v4::DBN_VERSION && self.layout.is_none() {
-            self.layout = Some(crate::v4::layouts::default_layout().clone());
+            self.layout = Some(crate::layout::upgrade_layout(self.ts_out));
         }
         self.version = target;
     }
@@ -551,14 +551,14 @@ mod tests {
     }
 
     #[test]
-    fn test_upgrade_to_v4_attaches_the_default_layout() {
+    fn test_upgrade_to_v4_attaches_the_upgrade_layout() {
         let mut target = v1_metadata();
         assert!(target.layout.is_none());
 
         target.upgrade(VersionUpgradePolicy::UpgradeToV4);
         assert_eq!(
             target.layout.as_ref(),
-            Some(crate::v4::layouts::default_layout())
+            Some(&crate::layout::upgrade_layout(false))
         );
         assert_eq!(target.symbol_cstr_len, crate::v3::SYMBOL_CSTR_LEN);
     }

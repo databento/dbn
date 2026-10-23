@@ -506,8 +506,8 @@ mod tests {
             .stype_out(SType::InstrumentId)
             .build();
         let mut sb = StreamLayoutBuilder::new(1, metadata.symbol_cstr_len as u16);
-        sb.record_of::<v4::MboMsg>(rtype::MBO)
-            .record_of::<v4::TradeMsg>(rtype::MBP_0);
+        sb.layout_of::<v4::MboMsg>(rtype::MBO).finish();
+        sb.layout_of::<v4::TradeMsg>(rtype::MBP_0).finish();
         metadata.layout = Some(sb.build().unwrap());
         metadata
     }
@@ -643,7 +643,8 @@ mod tests {
         {
             let mut r = sb.record(rtype::MBP_0, Schema::Trades as u16, v4::TradeMsg::NAME);
             v4::TradeMsg::add_fields(&mut r);
-            r.ext_field(fields::TS_OUT, "ts_out");
+            r.finish_base();
+            r.field(fields::TS_OUT, "ts_out");
             r.finish();
         }
         metadata.layout = Some(sb.build().unwrap());
@@ -673,7 +674,7 @@ mod tests {
     }
 
     #[test]
-    fn an_extension_tail_goes_through_encode_ref() {
+    fn an_extension_goes_through_encode_ref() {
         let mut encoder = Encoder::new(Vec::new(), &ts_out_metadata()).unwrap();
         let metadata_len = encoder.get_ref().len();
         assert!(encoder.encode(&trade()).is_err());
