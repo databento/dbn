@@ -491,7 +491,7 @@ mod tests {
             v4::TradeMsg::add_fields(&mut r);
             r.finish_base();
             r.field(
-                fields::Field::<T>::new(fields::CONDITIONS.id()),
+                fields::Field::<T>::new(fields::SALE_CONDITION.id()),
                 "conditions",
             );
             r.finish();

@@ -446,8 +446,8 @@ mod tests {
 
     #[rstest]
     #[case::narrowed_cstr(
-        |r: &mut RecordLayoutBuilder<'_>| { r.str_field(Field::new(fields::CONDITIONS.id()), "symbol", 71); },
-        |r: &mut RecordLayoutBuilder<'_>| { r.str_field(Field::new(fields::CONDITIONS.id()), "symbol", crate::compat::SYMBOL_CSTR_LEN_V1 as u16); },
+        |r: &mut RecordLayoutBuilder<'_>| { r.str_field(Field::new(fields::SALE_CONDITION.id()), "symbol", 71); },
+        |r: &mut RecordLayoutBuilder<'_>| { r.str_field(Field::new(fields::SALE_CONDITION.id()), "symbol", crate::compat::SYMBOL_CSTR_LEN_V1 as u16); },
     )]
     #[case::rescaled(
         |r: &mut RecordLayoutBuilder<'_>| { r.field(fields::SIZE, "size"); },

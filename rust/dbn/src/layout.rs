@@ -531,7 +531,7 @@ mod tests {
     }
 
     fn conditions<T: FieldType>() -> Field<T> {
-        Field::new(fields::CONDITIONS.id())
+        Field::new(fields::SALE_CONDITION.id())
     }
 
     fn sample_trade() -> v4::TradeMsg {
@@ -658,7 +658,7 @@ mod tests {
         let cond = rec
             .field_defs
             .iter()
-            .find(|f| f.field_id == fields::CONDITIONS.id())
+            .find(|f| f.field_id == fields::SALE_CONDITION.id())
             .unwrap();
         assert_eq!(cond.type_id, <Char as FieldType>::TYPE_ID);
         assert_eq!(cond.size, size);

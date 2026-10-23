@@ -374,7 +374,7 @@ mod decoded_layout {
     const TS_OUT: u64 = TS_RECV + 1_000;
 
     fn conditions<T: FieldType>() -> Field<T> {
-        Field::new(fields::CONDITIONS.id())
+        Field::new(fields::SALE_CONDITION.id())
     }
 
     fn trades_with_ext(declare: impl FnOnce(&mut RecordLayoutBuilder<'_>)) -> StreamLayout {

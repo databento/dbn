@@ -300,7 +300,7 @@ mod tests {
             r.field(fields::PRICE, "price");
             r.finish_base();
             r.field(
-                fields::Field::<[Char; 4]>::new(fields::CONDITIONS.id()),
+                fields::Field::<[Char; 4]>::new(fields::SALE_CONDITION.id()),
                 "conditions",
             );
             r.finish();

@@ -35,8 +35,8 @@ pub const TS_IN_DELTA: Field<i32> = Field::new(0x17);
 pub const SEQUENCE: Field<u32> = Field::new(0x18);
 /// Field ID for `order_id`.
 pub const ORDER_ID: Field<u64> = Field::new(0x19);
-/// Field ID for `conditions`.
-pub const CONDITIONS: Field<crate::v4::types::Char> = Field::new(0x1A);
+/// Field ID for `sale_condition`.
+pub const SALE_CONDITION: Field<crate::v4::types::Char> = Field::new(0x1A);
 /// Field ID for `channel_id`.
 pub const CHANNEL_ID: Field<u8> = Field::new(0x1B);
 /// Field ID for `bid_px`.
@@ -308,6 +308,8 @@ pub const NUM_EXTENSIONS: Field<u8> = Field::new(0x9B);
 pub const UNPAIRED_SIDE: Field<crate::v4::types::OpenEnum<crate::Side>> = Field::new(0x9C);
 /// Field ID for `significant_imbalance`.
 pub const SIGNIFICANT_IMBALANCE: Field<crate::v4::types::Char> = Field::new(0x9D);
+/// Field ID for `trade_id`.
+pub const TRADE_ID: Field<u32> = Field::new(0x9E);
 /// Field ID for `length_v1`.
 pub const LENGTH_V1: Field<u8> = Field::new(0x01);
 /// Field ID for `rtype_v1`.
