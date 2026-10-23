@@ -14,7 +14,7 @@ use crate::{
         AsyncDecodeRecord, AsyncDecodeRecordRef, AsyncDynReader, AsyncSkipBytes, DbnMetadata,
         VersionUpgradePolicy, ZSTD_FILE_BUFFER_CAPACITY,
     },
-    v3, Metadata, RecordRef, Result, DBN_VERSION,
+    v3, HasRType, Metadata, RecordRef, Result, DBN_VERSION,
 };
 
 /// An async decoder for Databento Binary Encoding (DBN), both metadata and records.
@@ -102,6 +102,25 @@ where
     /// partially decoded records will be lost and the stream may be corrupted.
     pub async fn decode_records<T: v3::HasRType + Clone>(&mut self) -> Result<Vec<T>> {
         self.decoder.decode_records().await
+    }
+}
+
+impl<R> Decoder<R, crate::v4::RecordHeader>
+where
+    R: io::AsyncReadExt + Unpin,
+{
+    /// Tries to decode the next record of type `T`. Returns `Ok(None)` if the reader
+    /// is exhausted.
+    ///
+    /// # Errors
+    /// This function returns an error if reading fails or the next record isn't a `T`.
+    ///
+    /// # Cancel safety
+    /// This method is cancel safe.
+    pub async fn decode_record<'a, T: HasRType<Header = crate::v4::RecordHeader> + 'a>(
+        &'a mut self,
+    ) -> Result<Option<&'a T>> {
+        self.decoder.decode().await
     }
 }
 
@@ -270,29 +289,34 @@ where
     }
 }
 
-impl<R> AsyncDecodeRecordRef for Decoder<R>
+impl<R, H> AsyncDecodeRecordRef<H> for Decoder<R, H>
 where
     R: io::AsyncReadExt + Unpin,
+    H: DecodeHeader,
 {
-    async fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef<'_>>> {
+    async fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef<'_, H>>> {
         self.decoder.decode_ref().await
     }
 }
 
-impl<R> AsyncDecodeRecord for Decoder<R>
+impl<R, H> AsyncDecodeRecord<H> for Decoder<R, H>
 where
     R: io::AsyncReadExt + Unpin,
+    H: DecodeHeader,
 {
-    async fn decode_record<'a, T: v3::HasRType + 'a>(&'a mut self) -> crate::Result<Option<&'a T>> {
-        self.decoder.decode().await
+    async fn decode_record<'a, T: HasRType<Header = H> + 'a>(
+        &'a mut self,
+    ) -> crate::Result<Option<&'a T>> {
+        self.decoder.decode_record().await
     }
 }
 
-impl<R> LastRecord for Decoder<R>
+impl<R, H> LastRecord<H> for Decoder<R, H>
 where
     R: io::AsyncReadExt + Unpin,
+    H: DecodeHeader,
 {
-    fn last_record(&self) -> Option<RecordRef<'_>> {
+    fn last_record(&self) -> Option<RecordRef<'_, H>> {
         self.decoder.last_record()
     }
 }
@@ -411,6 +435,25 @@ where
     }
 }
 
+impl<R> RecordDecoder<R, crate::v4::RecordHeader>
+where
+    R: io::AsyncReadExt + Unpin,
+{
+    /// Tries to decode the next record of type `T`. Returns `Ok(None)` if the reader
+    /// is exhausted.
+    ///
+    /// # Errors
+    /// This function returns an error if reading fails or the next record isn't a `T`.
+    ///
+    /// # Cancel safety
+    /// This method is cancel safe.
+    pub async fn decode<'a, T: HasRType<Header = crate::v4::RecordHeader> + 'a>(
+        &'a mut self,
+    ) -> Result<Option<&'a T>> {
+        self.decode_record().await
+    }
+}
+
 impl<R, H> RecordDecoder<R, H>
 where
     R: io::AsyncReadExt + Unpin,
@@ -500,29 +543,40 @@ where
     }
 }
 
-impl<R> AsyncDecodeRecordRef for RecordDecoder<R>
+impl<R, H> AsyncDecodeRecordRef<H> for RecordDecoder<R, H>
 where
     R: io::AsyncReadExt + Unpin,
+    H: DecodeHeader,
 {
-    async fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef<'_>>> {
+    async fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef<'_, H>>> {
         self.decode_ref().await
     }
 }
 
-impl<R> AsyncDecodeRecord for RecordDecoder<R>
+impl<R, H> AsyncDecodeRecord<H> for RecordDecoder<R, H>
 where
     R: io::AsyncReadExt + Unpin,
+    H: DecodeHeader,
 {
-    async fn decode_record<'a, T: v3::HasRType + 'a>(&'a mut self) -> crate::Result<Option<&'a T>> {
-        self.decode().await
+    async fn decode_record<'a, T: HasRType<Header = H> + 'a>(
+        &'a mut self,
+    ) -> crate::Result<Option<&'a T>> {
+        self.decode_ref().await.and_then(|rec| {
+            if let Some(rec) = rec {
+                rec.try_get().map(Some)
+            } else {
+                Ok(None)
+            }
+        })
     }
 }
 
-impl<R> LastRecord for RecordDecoder<R>
+impl<R, H> LastRecord<H> for RecordDecoder<R, H>
 where
     R: io::AsyncReadExt + Unpin,
+    H: DecodeHeader,
 {
-    fn last_record(&self) -> Option<RecordRef<'_>> {
+    fn last_record(&self) -> Option<RecordRef<'_, H>> {
         self.fsm.last_record()
     }
 }
@@ -1413,6 +1467,25 @@ mod tests {
         let rec = decoder.decode_record_ref().await?.unwrap();
         assert_eq!(*rec.try_get::<crate::v4::TradeMsg>()?, trade_v3_upgraded());
         assert!(decoder.decode_record_ref().await?.is_none());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_v4_decoder_decode_record() -> Result<()> {
+        let encoded = trades_v4()?;
+        let mut decoder =
+            crate::decode::dbn::v4::AsyncDecoder::with_fsm(encoded.as_slice(), fsm_v4()?).await?;
+        for _ in 0..3 {
+            let rec = decoder
+                .decode_record::<crate::v4::TradeMsg>()
+                .await?
+                .unwrap();
+            assert_eq!(*rec, trade_v4());
+        }
+        assert!(decoder
+            .decode_record::<crate::v4::TradeMsg>()
+            .await?
+            .is_none());
         Ok(())
     }
 }

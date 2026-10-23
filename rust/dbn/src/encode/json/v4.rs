@@ -491,11 +491,7 @@ mod tests {
             v4::TradeMsg::add_fields(&mut r);
             r.finish_base();
             r.field(
-<<<<<<< HEAD
                 fields::Field::<T>::new(fields::SALE_CONDITION.id()),
-=======
-                fields::Field::<T>::new(fields::CONDITIONS.id()),
->>>>>>> 83bbd10854 (ADD: Keep all v3 fields in v4 upgrades)
                 "conditions",
             );
             r.finish();

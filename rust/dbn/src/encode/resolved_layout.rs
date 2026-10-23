@@ -300,11 +300,7 @@ mod tests {
             r.field(fields::PRICE, "price");
             r.finish_base();
             r.field(
-<<<<<<< HEAD
                 fields::Field::<[Char; 4]>::new(fields::SALE_CONDITION.id()),
-=======
-                fields::Field::<[Char; 4]>::new(fields::CONDITIONS.id()),
->>>>>>> 83bbd10854 (ADD: Keep all v3 fields in v4 upgrades)
                 "conditions",
             );
             r.finish();

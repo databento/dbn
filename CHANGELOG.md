@@ -34,11 +34,10 @@
 - Added `UpgradeToV4` and `ExpectV4` variants to `VersionUpgradePolicy`. The version 4
   decoders default to `UpgradeToV4`, which decodes version 1-3 input into version 4
   records, and `ExpectV4` returns an error for input older than version 4
-- Added enum and bit set labels to DBN version 4 stream layouts, along with
-  `LayoutIndex::field_by_name()`, `LayoutIndex::field_by_id()`,
-  `DynFieldAccess::enum_at()`, and `DynFieldAccess::bit_set_at()` for reading these
-  fields without a compiled type. `LayoutIndex::offset_of()` now returns `None` for an
-  enum field requested as a different enum
+- Added a record header type parameter to `DecodeRecordRef`, `DecodeRecord`,
+  `DecodeStream`, `DecodeDbn`, `AsyncDecodeRecordRef`, and `AsyncDecodeRecord`,
+  defaulting to the version 3 `RecordHeader`, and implemented them for the version 4
+  decoders. `MergeDecoder` and `MergeRecordDecoder` can merge version 4 decoders
 
 ### Breaking changes
 - Added a `'static` bound to the `DbnEncodable` trait. All DBN record types satisfy it,

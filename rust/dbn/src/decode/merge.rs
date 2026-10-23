@@ -1,6 +1,6 @@
 use std::{cmp::Reverse, collections::BinaryHeap};
 
-use crate::{v3, Error, Metadata, Record, RecordRef};
+use crate::{Error, HasRType, Metadata, Record, RecordHeaderKind, RecordRef};
 
 use super::{private, DbnMetadata, DecodeRecord, DecodeRecordRef, DecodeStream, StreamIterDecoder};
 
@@ -13,7 +13,7 @@ pub struct Decoder<D> {
 
 impl<D> Decoder<D>
 where
-    D: DbnMetadata + DecodeRecordRef,
+    D: DbnMetadata,
 {
     /// Creates a new merge decoder from the given `decoders`. Both the DBN metadata and
     /// the records will be merged.
@@ -52,38 +52,45 @@ impl<D> DbnMetadata for Decoder<D> {
     }
 }
 
-impl<D> DecodeRecordRef for Decoder<D>
+impl<D, H> DecodeRecordRef<H> for Decoder<D>
 where
-    D: private::LastRecord + DecodeRecordRef,
+    D: private::LastRecord<H> + DecodeRecordRef<H>,
+    H: RecordHeaderKind,
+    for<'a> RecordRef<'a, H>: Record,
 {
-    fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef<'_>>> {
+    fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef<'_, H>>> {
         self.decoder.decode_record_ref()
     }
 }
 
-impl<D> DecodeRecord for Decoder<D>
+impl<D, H> DecodeRecord<H> for Decoder<D>
 where
-    D: private::LastRecord + DecodeRecordRef,
+    D: private::LastRecord<H> + DecodeRecordRef<H>,
+    H: RecordHeaderKind,
+    for<'a> RecordRef<'a, H>: Record,
 {
-    fn decode_record<T: v3::HasRType>(&mut self) -> crate::Result<Option<&T>> {
+    fn decode_record<T: HasRType<Header = H>>(&mut self) -> crate::Result<Option<&T>> {
         self.decoder.decode_record()
     }
 }
 
-impl<D> private::LastRecord for Decoder<D>
+impl<D, H> private::LastRecord<H> for Decoder<D>
 where
-    D: private::LastRecord,
+    D: private::LastRecord<H>,
+    H: RecordHeaderKind,
 {
-    fn last_record(&self) -> Option<RecordRef<'_>> {
+    fn last_record(&self) -> Option<RecordRef<'_, H>> {
         self.decoder.last_record()
     }
 }
 
-impl<D> DecodeStream for Decoder<D>
+impl<D, H> DecodeStream<H> for Decoder<D>
 where
-    D: private::LastRecord + DecodeRecordRef,
+    D: private::LastRecord<H> + DecodeRecordRef<H>,
+    H: RecordHeaderKind,
+    for<'a> RecordRef<'a, H>: Record,
 {
-    fn decode_stream<T: v3::HasRType>(self) -> StreamIterDecoder<Self, T>
+    fn decode_stream<T: HasRType<Header = H>>(self) -> StreamIterDecoder<Self, T>
     where
         Self: Sized,
     {
@@ -134,17 +141,19 @@ impl Ord for IndexTs {
     }
 }
 
-impl<D> RecordDecoder<D>
-where
-    D: DecodeRecordRef,
-{
+impl<D> RecordDecoder<D> {
     /// Creates a new record-stream merging decoder.
     ///
     /// # Errors
     /// This function returns an error if `decoders` is empty. It will also return an
     /// error if one of the inner decoders returns an error while decoding the first
     /// record. A decoder returning `Ok(None)` does not result in a failure.
-    pub fn new(mut decoders: Vec<D>) -> crate::Result<Self> {
+    pub fn new<H>(mut decoders: Vec<D>) -> crate::Result<Self>
+    where
+        D: DecodeRecordRef<H>,
+        H: RecordHeaderKind,
+        for<'a> RecordRef<'a, H>: Record,
+    {
         if decoders.is_empty() {
             return Err(Error::BadArgument {
                 param_name: "decoders".to_owned(),
@@ -220,12 +229,14 @@ impl<D> RecordDecoder<D> {
     }
 }
 
-impl<D> RecordDecoder<D>
-where
-    D: DecodeRecordRef,
-{
+impl<D> RecordDecoder<D> {
     // handles hints
-    fn next_decoder_idx(&mut self) -> crate::Result<Option<usize>> {
+    fn next_decoder_idx<H>(&mut self) -> crate::Result<Option<usize>>
+    where
+        D: DecodeRecordRef<H>,
+        H: RecordHeaderKind,
+        for<'a> RecordRef<'a, H>: Record,
+    {
         loop {
             let Some(Reverse(StreamHead {
                 index_ts,
@@ -250,11 +261,13 @@ where
     }
 }
 
-impl<D> DecodeRecordRef for RecordDecoder<D>
+impl<D, H> DecodeRecordRef<H> for RecordDecoder<D>
 where
-    D: private::LastRecord + DecodeRecordRef,
+    D: private::LastRecord<H> + DecodeRecordRef<H>,
+    H: RecordHeaderKind,
+    for<'a> RecordRef<'a, H>: Record,
 {
-    fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef<'_>>> {
+    fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef<'_, H>>> {
         if self.is_first {
             self.is_first = false;
         } else {
@@ -273,18 +286,20 @@ where
                 }));
             }
         }
-        let Some(decoder_idx) = self.next_decoder_idx()? else {
+        let Some(decoder_idx) = self.next_decoder_idx::<H>()? else {
             return Ok(None);
         };
         Ok(self.decoders[decoder_idx].last_record())
     }
 }
 
-impl<D> DecodeRecord for RecordDecoder<D>
+impl<D, H> DecodeRecord<H> for RecordDecoder<D>
 where
-    D: private::LastRecord + DecodeRecordRef,
+    D: private::LastRecord<H> + DecodeRecordRef<H>,
+    H: RecordHeaderKind,
+    for<'a> RecordRef<'a, H>: Record,
 {
-    fn decode_record<T: v3::HasRType>(&mut self) -> crate::Result<Option<&T>> {
+    fn decode_record<T: HasRType<Header = H>>(&mut self) -> crate::Result<Option<&T>> {
         self.decode_record_ref().and_then(|rec| {
             if let Some(rec) = rec {
                 rec.try_get().map(Some)
@@ -295,11 +310,12 @@ where
     }
 }
 
-impl<D> private::LastRecord for RecordDecoder<D>
+impl<D, H> private::LastRecord<H> for RecordDecoder<D>
 where
-    D: private::LastRecord,
+    D: private::LastRecord<H>,
+    H: RecordHeaderKind,
 {
-    fn last_record(&self) -> Option<RecordRef<'_>> {
+    fn last_record(&self) -> Option<RecordRef<'_, H>> {
         let Some(decoder_idx) = self.peek_decoder_idx() else {
             return self.decoders[0].last_record();
         };
@@ -307,11 +323,13 @@ where
     }
 }
 
-impl<D> DecodeStream for RecordDecoder<D>
+impl<D, H> DecodeStream<H> for RecordDecoder<D>
 where
-    D: private::LastRecord + DecodeRecordRef,
+    D: private::LastRecord<H> + DecodeRecordRef<H>,
+    H: RecordHeaderKind,
+    for<'a> RecordRef<'a, H>: Record,
 {
-    fn decode_stream<T: v3::HasRType>(self) -> super::StreamIterDecoder<Self, T>
+    fn decode_stream<T: HasRType<Header = H>>(self) -> super::StreamIterDecoder<Self, T>
     where
         Self: Sized,
     {
@@ -411,5 +429,43 @@ mod tests {
             timestamps.push(*ts);
         }
         assert_eq!(timestamps, vec![1, 10, 11, 12, 13, 14, 15, 50, 100]);
+    }
+
+    #[test]
+    #[cfg(feature = "zstd")]
+    fn merges_v4_decoders() -> crate::Result<()> {
+        use crate::decode::{
+            dbn::{tests::fsm_v4, v4},
+            tests::TEST_DATA_PATH,
+            DynReader,
+        };
+
+        let open = |version: u8| {
+            v4::Decoder::with_fsm(
+                DynReader::from_file(format!(
+                    "{TEST_DATA_PATH}/test_data.tbbo.v{version}.dbn.zst"
+                ))?,
+                fsm_v4()?,
+            )
+        };
+        let mut expected_count = 0;
+        for version in 1..=3 {
+            let mut decoder = open(version)?;
+            while decoder.decode_record_ref()?.is_some() {
+                expected_count += 1;
+            }
+        }
+
+        let target = Decoder::new(vec![open(1)?, open(2)?, open(3)?])?;
+        assert_eq!(target.metadata().version, crate::v4::DBN_VERSION);
+        let mut timestamps = Vec::new();
+        let mut stream = target.decode_stream::<crate::v4::TbboMsg>();
+        while let Some(rec) = stream.next()? {
+            assert_eq!(rec.hd.rtype, crate::v4::rtype::TBBO);
+            timestamps.push(rec.raw_index_ts());
+        }
+        assert_eq!(timestamps.len(), expected_count);
+        assert!(timestamps.is_sorted());
+        Ok(())
     }
 }

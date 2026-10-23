@@ -105,7 +105,7 @@ pub trait HasRType: Record {
 /// Abstracts over the DBN record header layouts so encoders, decoders, and
 /// [`RecordRef`](crate::RecordRef) can frame a record and downcast it without knowing
 /// which DBN version it came from.
-pub trait RecordHeaderKind: private::Sealed + Copy + std::fmt::Debug {
+pub trait RecordHeaderKind: private::Sealed + Copy + std::fmt::Debug + 'static {
     /// The width of the header in bytes.
     const HEADER_LEN: usize = size_of::<Self>();
 

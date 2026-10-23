@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use fallible_streaming_iterator::FallibleStreamingIterator;
 
 use super::{DbnMetadata, DecodeStream};
-use crate::{v3, Error, HasRType, Result};
+use crate::{Error, HasRType, Result};
 
 /// A consuming iterator wrapping a [`DecodeRecord`](super::DecodeRecord). Lazily
 /// decodes the contents of the file or other input stream.
@@ -40,8 +40,8 @@ where
 
 impl<D, T> FallibleStreamingIterator for StreamIterDecoder<D, T>
 where
-    D: DecodeStream,
-    T: v3::HasRType,
+    D: DecodeStream<T::Header>,
+    T: HasRType,
 {
     type Error = Error;
     type Item = T;
