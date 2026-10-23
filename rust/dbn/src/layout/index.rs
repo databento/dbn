@@ -46,6 +46,33 @@ impl LayoutIndex {
     /// A typed handle to `field` within `rtype`'s records. `None` if the field is
     /// absent for `rtype` or declared with a different type than `T`, including a
     /// different enum or bit set.
+    ///
+    /// # Examples
+    /// Resolve a field once, then read it from each record with
+    /// [`field_at`](crate::layout::DynFieldAccess::field_at):
+    ///
+    /// ```
+    /// use dbn::{
+    ///     layout::{DynFieldAccess, LayoutIndex},
+    ///     v4::{fields, layouts::default_layout, rtype, MboMsg, TradeMsg},
+    /// };
+    ///
+    /// let index = LayoutIndex::new(default_layout(), default_layout());
+    /// let price = index.offset_of(rtype::MBP_0, fields::PRICE).unwrap();
+    /// for raw in [4_215_500_000_000, 4_215_750_000_000] {
+    ///     let trade = TradeMsg {
+    ///         price: raw,
+    ///         ..Default::default()
+    ///     };
+    ///     assert_eq!(trade.field_at(price).unwrap().raw, raw);
+    /// }
+    ///
+    /// // `MboMsg` holds its price at a different offset, and the handle's rtype keeps it
+    /// // from misreading one
+    /// let mbo = MboMsg::default();
+    /// assert_ne!(index.offset_of(rtype::MBO, fields::PRICE).unwrap().offset(), price.offset());
+    /// assert!(mbo.field_at(price).is_none());
+    /// ```
     pub fn offset_of<T: FieldType>(&self, rtype: u16, field: Field<T>) -> Option<FieldOffset<T>> {
         let def = *self.fields.get(&(rtype, field.id()))?;
         if let Some(labels) = T::LABELS {

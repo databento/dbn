@@ -1,8 +1,12 @@
 use std::collections::HashSet;
 
 use crate::{
-    layout::{FieldDef, StreamLayout, StructLayout},
-    v4::{fields, RecordHeader},
+    layout::{compare, FieldDef, StreamLayout, StructLayout, Verdict},
+    v4::{
+        fields::{self, FieldType},
+        types::Decimal,
+        RecordHeader,
+    },
 };
 
 /// Validates a [`StreamLayout`] before any field access, rejecting a malformed table
@@ -118,6 +122,15 @@ fn check_fields(
             return Err(err(ctx, &format!("field {} has size 0", f.field_id)));
         }
         check_size(ctx, f, nested)?;
+        if f.type_id == <Decimal as FieldType>::TYPE_ID && f.scale != -9 {
+            return Err(err(
+                ctx,
+                &format!(
+                    "field {} scale {} is unsupported, only -9 is currently supported",
+                    f.field_id, f.scale
+                ),
+            ));
+        }
         if f.type_id == fields::SYMBOL_ID && f.size != symbol_cstr_len {
             return Err(err(
                 ctx,
@@ -265,6 +278,7 @@ pub(crate) fn validate_for_metadata(
     ts_out: bool,
 ) -> crate::Result<()> {
     validate(layout, symbol_cstr_len)?;
+    check_compiled_rtypes(layout)?;
     for rec in &layout.record_layouts {
         if rec.has_field(fields::TS_OUT) != ts_out {
             return Err(err(
@@ -272,6 +286,28 @@ pub(crate) fn validate_for_metadata(
                 &format!(
                     "{} a `ts_out` field, but the metadata has ts_out {ts_out}",
                     if ts_out { "lacks" } else { "declares" }
+                ),
+            ));
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn check_compiled_rtypes(layout: &StreamLayout) -> crate::Result<()> {
+    let compiled = crate::v4::layouts::default_layout();
+    for rec in &layout.record_layouts {
+        let Some(compiled_rec) = compiled.record_layout(rec.rtype) else {
+            continue;
+        };
+        if rec.base_record_size >= compiled_rec.base_record_size
+            && compare::verdict(layout, rec, compiled) == Verdict::Dynamic
+        {
+            return Err(err(
+                &rec.name,
+                &format!(
+                    "repacks the base of rtype {:#06X}'s compiled `{}` layout; a repacked \
+                     layout requires a new rtype",
+                    rec.rtype, compiled_rec.name
                 ),
             ));
         }
@@ -290,7 +326,7 @@ mod tests {
     use super::*;
     use crate::{
         layout::{RecordLayoutDesc, StreamLayoutBuilder},
-        v4::{rtype, InstrumentDefMsg, MboMsg},
+        v4::{fields::Field, rtype, types::Decimal, InstrumentDefMsg, MboMsg, TradeMsg},
         Schema,
     };
 
@@ -351,5 +387,72 @@ mod tests {
         }
         let res = validate_for_metadata(&sb.build().unwrap(), SYMBOL_WIDTH, ts_out);
         assert_eq!(res.is_ok(), valid, "{res:?}");
+    }
+
+    fn repacked_trades_layout() -> StreamLayout {
+        let mut sb = StreamLayoutBuilder::new(1, SYMBOL_WIDTH);
+        let mut r = sb.record(rtype::MBP_0, Schema::Trades as u16, TradeMsg::NAME);
+        r.field(fields::PRICE, "price")
+            .field(Field::<Decimal>::new(fields::SIZE.id()), "size")
+            .field(fields::ACTION, "action")
+            .field(fields::SIDE, "side")
+            .field(fields::FLAGS, "flags")
+            .field(fields::TS_RECV, "ts_recv")
+            .field(fields::TS_IN_DELTA, "ts_in_delta")
+            .field(fields::SEQUENCE, "sequence");
+        r.finish();
+        sb.build().unwrap()
+    }
+
+    fn grown_trades_layout() -> StreamLayout {
+        let mut sb = StreamLayoutBuilder::new(1, SYMBOL_WIDTH);
+        let mut r = sb.layout_of::<TradeMsg>(rtype::MBP_0);
+        r.field(fields::CHANNEL_ID, "channel_id");
+        r.finish();
+        sb.build().unwrap()
+    }
+
+    fn older_trades_layout() -> StreamLayout {
+        let mut sb = StreamLayoutBuilder::new(1, SYMBOL_WIDTH);
+        let mut r = sb.record(rtype::MBP_0, Schema::Trades as u16, TradeMsg::NAME);
+        r.field(fields::PRICE, "price")
+            .field(fields::SIZE, "size")
+            .field(fields::ACTION, "action")
+            .field(fields::SIDE, "side")
+            .field(fields::FLAGS, "flags");
+        r.finish();
+        sb.build().unwrap()
+    }
+
+    fn custom_rtype_layout() -> StreamLayout {
+        let mut sb = StreamLayoutBuilder::new(1, SYMBOL_WIDTH);
+        let mut r = sb.record(0x01A0, Schema::Trades as u16, "FractionalTradeMsg");
+        r.field(fields::PRICE, "price")
+            .field(Field::<Decimal>::new(fields::SIZE.id()), "size");
+        r.finish();
+        sb.build().unwrap()
+    }
+
+    #[rstest]
+    #[case::repacked(repacked_trades_layout(), false)]
+    #[case::grown_base(grown_trades_layout(), true)]
+    #[case::older_base(older_trades_layout(), true)]
+    #[case::custom_rtype(custom_rtype_layout(), true)]
+    fn a_compiled_rtype_keeps_its_field_offsets(#[case] layout: StreamLayout, #[case] valid: bool) {
+        let res = validate_for_metadata(&layout, SYMBOL_WIDTH, false);
+        assert_eq!(res.is_ok(), valid, "{res:?}");
+    }
+
+    #[test]
+    fn a_scale_other_than_nanos_is_unsupported() {
+        let mut layout = grown_trades_layout();
+        let price = layout.record_layouts[0]
+            .field_defs
+            .iter_mut()
+            .find(|f| f.field_id == fields::PRICE.id())
+            .unwrap();
+        price.scale = -4;
+        let err = validate_for_metadata(&layout, SYMBOL_WIDTH, false).unwrap_err();
+        assert!(err.to_string().contains("unsupported"), "{err}");
     }
 }

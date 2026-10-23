@@ -724,15 +724,18 @@ mod tests {
     fn scalar_array_field_carries_size_and_array_flag() {
         let mut sb = StreamLayoutBuilder::new(1, 8);
         {
-            let mut r = sb.record(rtype::MBP_0, 0, "WithConditions");
-            r.field(Field::<[Char; 4]>::new(0x1A), "conditions");
+            let mut r = sb.record(rtype::MBP_0, 0, "TradeMsg");
+            r.field(
+                Field::<[Char; 4]>::new(fields::SALE_CONDITION.id()),
+                "sale_condition",
+            );
             r.finish();
         }
         let layout = sb.build().unwrap();
         let cond = layout.record_layouts[0]
             .field_defs
             .iter()
-            .find(|f| f.field_id == 0x1A)
+            .find(|f| f.field_id == fields::SALE_CONDITION.id())
             .unwrap();
         assert!(cond.is_array());
         assert_eq!(cond.type_id, Char::TYPE_ID);

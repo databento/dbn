@@ -373,7 +373,7 @@ mod decoded_layout {
     const TS_RECV: u64 = 1_609_160_400_000_000_000;
     const TS_OUT: u64 = TS_RECV + 1_000;
 
-    fn conditions<T: FieldType>() -> Field<T> {
+    fn sale_condition<T: FieldType>() -> Field<T> {
         Field::new(fields::SALE_CONDITION.id())
     }
 
@@ -430,13 +430,13 @@ mod decoded_layout {
     }
 
     #[rstest]
-    #[case::opra_conditions(
-        trades_with_ext(|r| { r.field(conditions::<Char>(), "conditions"); }),
+    #[case::opra_sale_condition(
+        trades_with_ext(|r| { r.field(sale_condition::<Char>(), "sale_condition"); }),
         false,
         b"@".to_vec()
     )]
-    #[case::sip_conditions(
-        trades_with_ext(|r| { r.field(conditions::<[Char; 4]>(), "conditions"); }),
+    #[case::sip_sale_condition(
+        trades_with_ext(|r| { r.field(sale_condition::<[Char; 4]>(), "sale_condition"); }),
         false,
         b"@ TI".to_vec()
     )]
@@ -468,17 +468,17 @@ mod decoded_layout {
         assert_eq!(rec.as_ref(), sent.as_rec_ref().as_ref());
         match ext.len() {
             1 => assert_eq!(
-                rec.field(&index, conditions::<Char>()),
+                rec.field(&index, sale_condition::<Char>()),
                 Some(Char(b'@' as c_char))
             ),
             4 => assert_eq!(
-                rec.field(&index, conditions::<[Char; 4]>()),
+                rec.field(&index, sale_condition::<[Char; 4]>()),
                 Some((*b"@ TI").map(|b| Char(b as c_char)))
             ),
             _ => assert_eq!(rec.field(&index, fields::TS_OUT).map(|t| t.0), Some(TS_OUT)),
         }
         if ts_out {
-            assert!(rec.field(&index, conditions::<Char>()).is_none());
+            assert!(rec.field(&index, sale_condition::<Char>()).is_none());
         } else {
             assert!(rec.field(&index, fields::TS_OUT).is_none());
         }
@@ -489,7 +489,7 @@ mod decoded_layout {
     fn a_record_that_does_not_match_the_layout_is_refused() {
         let metadata = metadata(
             trades_with_ext(|r| {
-                r.field(conditions::<[Char; 4]>(), "conditions");
+                r.field(sale_condition::<[Char; 4]>(), "sale_condition");
             }),
             false,
         );

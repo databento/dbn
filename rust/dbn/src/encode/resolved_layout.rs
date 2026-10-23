@@ -296,20 +296,20 @@ mod tests {
     fn scalar_arrays_resolve_per_element() {
         let mut sb = StreamLayoutBuilder::new(1, 8);
         {
-            let mut r = sb.record(rtype::MBP_0, 0, "WithConditions");
+            let mut r = sb.record(rtype::MBP_0, 0, "TradeMsg");
             r.field(fields::PRICE, "price");
             r.finish_base();
             r.field(
                 fields::Field::<[Char; 4]>::new(fields::SALE_CONDITION.id()),
-                "conditions",
+                "sale_condition",
             );
             r.finish();
         }
         let layout = sb.build().unwrap();
         let rec = ResolvedStreamLayout::new(&layout).unwrap();
         let rec = rec.get(rtype::MBP_0).unwrap();
-        let ResolvedValue::Array(elems) = named(&rec.fields, "conditions") else {
-            panic!("`conditions` isn't an array");
+        let ResolvedValue::Array(elems) = named(&rec.fields, "sale_condition") else {
+            panic!("`sale_condition` isn't an array");
         };
         let offsets: Vec<_> = elems.iter().map(|e| scalar(e).1).collect();
         let first = offsets[0];

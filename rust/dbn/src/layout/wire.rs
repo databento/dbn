@@ -2,7 +2,10 @@
 
 use std::collections::BTreeMap;
 
-use super::{builders::FieldDefBuilder, validate::validate};
+use super::{
+    builders::FieldDefBuilder,
+    validate::{check_compiled_rtypes, validate},
+};
 use crate::{
     layout::{FieldDef, LabelDef, RecordLayout, StreamLayout, StructLayout},
     Error,
@@ -78,7 +81,7 @@ pub(crate) fn encoded_len(layout: &StreamLayout) -> usize {
 /// # Errors
 /// Returns [`Error::Layout`] on a malformed table: a length or count running past its
 /// enclosing section, a name that isn't NUL-terminated UTF-8, a duplicate label code,
-/// or any violation the `validate` invariants catch.
+/// a repacked base under a compiled record's rtype, or any other validation error.
 pub fn decode(bytes: &[u8], symbol_cstr_len: u16) -> crate::Result<StreamLayout> {
     let mut cur = ByteReader::new(bytes);
     let stream_layout_version = cur.u16("stream layout")?;
@@ -102,6 +105,7 @@ pub fn decode(bytes: &[u8], symbol_cstr_len: u16) -> crate::Result<StreamLayout>
     };
     validate(&layout, symbol_cstr_len)?;
     check_layout_hashes(&layout)?;
+    check_compiled_rtypes(&layout)?;
     Ok(layout)
 }
 
@@ -383,7 +387,13 @@ mod tests {
     use super::*;
     use crate::{
         layout::{RecordLayoutDesc, StreamLayoutBuilder},
-        v4::{self, fields, layouts::default_layout, rtype},
+        v4::{
+            self,
+            fields::{self, Field},
+            layouts::default_layout,
+            rtype,
+            types::Decimal,
+        },
         Schema,
     };
 
@@ -521,6 +531,23 @@ mod tests {
         let mut buf = encoded_default();
         buf[FIRST_HASH] ^= 1;
         assert!(decode(&buf, SYM_LEN).is_err());
+    }
+
+    #[test]
+    fn a_repacked_compiled_rtype_errors() {
+        let mut sb = StreamLayoutBuilder::new(1, SYM_LEN);
+        let mut r = sb.record(rtype::MBP_0, Schema::Trades as u16, "TradeMsg");
+        r.field(fields::PRICE, "price")
+            .field(Field::<Decimal>::new(fields::SIZE.id()), "size")
+            .field(fields::TS_RECV, "ts_recv")
+            .field(fields::TS_IN_DELTA, "ts_in_delta")
+            .field(fields::SEQUENCE, "sequence");
+        r.finish();
+        let mut encoded = Vec::new();
+        encode(&mut encoded, &sb.build().unwrap()).unwrap();
+
+        let err = decode(&encoded, SYM_LEN).unwrap_err();
+        assert!(err.to_string().contains("repacked"), "{err}");
     }
 
     #[test]

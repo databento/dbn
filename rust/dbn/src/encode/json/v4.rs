@@ -484,7 +484,7 @@ mod tests {
         assert_eq!(v4_json, v3_json);
     }
 
-    fn trades_with_conditions<T: fields::FixedWidth>() -> Metadata {
+    fn trades_with_sale_condition<T: fields::FixedWidth>() -> Metadata {
         let mut sb = StreamLayoutBuilder::new(1, SYMBOL_LEN as u16);
         {
             let mut r = sb.record(rtype::MBP_0, Schema::Trades as u16, v4::TradeMsg::NAME);
@@ -492,7 +492,7 @@ mod tests {
             r.finish_base();
             r.field(
                 fields::Field::<T>::new(fields::SALE_CONDITION.id()),
-                "conditions",
+                "sale_condition",
             );
             r.finish();
         }
@@ -502,11 +502,11 @@ mod tests {
     }
 
     #[rstest]
-    #[case::sip(trades_with_conditions::<[Char; 4]>(), b"@\0T\t", r#"["@",null,"T","\t"]"#)]
-    #[case::opra(trades_with_conditions::<Char>(), b"I", r#""I""#)]
-    fn conditions_follow_compiled_fields(
+    #[case::sip(trades_with_sale_condition::<[Char; 4]>(), b"@\0T\t", r#"["@",null,"T","\t"]"#)]
+    #[case::opra(trades_with_sale_condition::<Char>(), b"I", r#""I""#)]
+    fn sale_condition_follows_compiled_fields(
         #[case] metadata: Metadata,
-        #[case] conditions: &[u8],
+        #[case] sale_condition: &[u8],
         #[case] expected: &str,
     ) {
         let rec = metadata.layout.as_ref().unwrap().record_layouts[0].clone();
@@ -516,12 +516,14 @@ mod tests {
         let length = u16::try_from(bytes.len() - size_of::<v4::RecordHeader>()).unwrap();
         bytes[..2].copy_from_slice(&length.to_le_bytes());
         let start = size_of::<v4::TradeMsg>();
-        bytes[start..start + conditions.len()].copy_from_slice(conditions);
+        bytes[start..start + sale_condition.len()].copy_from_slice(sale_condition);
         let buf = aligned(&bytes);
 
         let json = encode_v4(&metadata, as_ref(&buf), (false, false, false)).unwrap();
         assert!(
-            json.ends_with(&format!("\"sequence\":88,\"conditions\":{expected}}}\n")),
+            json.ends_with(&format!(
+                "\"sequence\":88,\"sale_condition\":{expected}}}\n"
+            )),
             "{json}"
         );
         assert!(
@@ -534,7 +536,7 @@ mod tests {
     fn short_record_errors() {
         let trade = trade_v4();
         let res = encode_v4(
-            &trades_with_conditions::<[Char; 4]>(),
+            &trades_with_sale_condition::<[Char; 4]>(),
             RecordRef::from(&trade),
             (false, false, false),
         );
@@ -592,7 +594,7 @@ mod tests {
         price.scale = -4;
         assert!(matches!(
             Encoder::new(Vec::new(), &metadata, false, false, false),
-            Err(Error::Encode(_))
+            Err(Error::Layout(_))
         ));
     }
 

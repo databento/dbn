@@ -2,6 +2,51 @@
 //!
 //! [`StreamLayout`] is a table containing: one [`RecordLayout`] per rtype, plus the
 //! nested [`StructLayout`]s and [`LabelDef`]s its fields reference.
+//!
+//! # Examples
+//! Records whose layout matches a compiled struct cast to it, and any field the stream
+//! declares reads through its [`LayoutIndex`]:
+//!
+//! ```
+//! use dbn::{
+//!     decode::{
+//!         dbn::{fsm::DbnFsm, v4::Decoder},
+//!         DbnMetadata,
+//!     },
+//!     encode::dbn::v4::Encoder,
+//!     layout::DynFieldAccess,
+//!     v4::{self, fields, layouts::default_layout, TradeMsg},
+//!     Dataset, Metadata, SType, Schema,
+//! };
+//!
+//! let metadata = Metadata::builder()
+//!     .version(v4::DBN_VERSION)
+//!     .dataset(Dataset::XnasItch)
+//!     .schema(Some(Schema::Trades))
+//!     .start(1_609_160_400_000_000_000)
+//!     .stype_in(Some(SType::RawSymbol))
+//!     .stype_out(SType::InstrumentId)
+//!     .layout(default_layout().clone())
+//!     .build();
+//! let trade = TradeMsg {
+//!     price: 4_215_500_000_000,
+//!     size: 7,
+//!     ..Default::default()
+//! };
+//! let mut encoded = Vec::new();
+//! Encoder::new(&mut encoded, &metadata)?.encode(&trade)?;
+//!
+//! let fsm = DbnFsm::builder().header::<v4::RecordHeader>().build()?;
+//! let mut decoder = Decoder::with_fsm(encoded.as_slice(), fsm)?;
+//! let index = decoder.metadata().layout_index().unwrap();
+//! let rec = decoder.decode_ref()?.unwrap();
+//!
+//! assert_eq!(rec.try_get::<TradeMsg>()?.size, 7);
+//! assert_eq!(rec.field(&index, fields::PRICE).unwrap().raw, trade.price);
+//! // This stream's trades declare no `sale_condition`
+//! assert!(rec.field(&index, fields::SALE_CONDITION).is_none());
+//! # Ok::<_, dbn::Error>(())
+//! ```
 
 use std::{collections::BTreeMap, marker::PhantomData};
 
@@ -192,6 +237,35 @@ pub struct LabelDef {
 
 /// How records of one rtype in a stream can be read, decided once per stream by
 /// comparing the stream's layout against the compiled one.
+///
+/// # Examples
+/// ```
+/// use dbn::{
+///     layout::{LayoutIndex, StreamLayoutBuilder, Verdict},
+///     v4::{fields, layouts::default_layout, rtype, TradeMsg},
+///     Schema,
+/// };
+///
+/// const RTYPE_CUSTOM_TRADES: u16 = 0x01A0;
+///
+/// let mut sb = StreamLayoutBuilder::new(1, dbn::SYMBOL_CSTR_LEN as u16);
+/// let mut trades = sb.layout_of::<TradeMsg>(rtype::MBP_0);
+/// trades.finish_base();
+/// trades.field(fields::SALE_CONDITION, "sale_condition");
+/// trades.finish();
+/// let mut custom = sb.record(RTYPE_CUSTOM_TRADES, Schema::Trades as u16, "CustomTradeMsg");
+/// custom.field(fields::PRICE, "price");
+/// custom.finish();
+/// let index = LayoutIndex::new(&sb.build()?, default_layout());
+///
+/// // Extension fields leave the base, and with it the cast, unchanged
+/// assert_eq!(index.verdict(rtype::MBP_0), Some(Verdict::Compiled));
+/// // No compiled struct exists for this rtype
+/// assert_eq!(index.verdict(RTYPE_CUSTOM_TRADES), Some(Verdict::Dynamic));
+/// // The stream carries no MBO records
+/// assert_eq!(index.verdict(rtype::MBO), None);
+/// # Ok::<_, dbn::Error>(())
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Verdict {
     /// A compiled struct describes every base field, so records can be cast to it.
@@ -393,6 +467,26 @@ pub trait DynFieldAccess: Record<Header = crate::v4::RecordHeader> {
 
     /// Reads an enum `field` of any width. `None` if `field` was resolved for a
     /// different rtype, isn't an enum, or is beyond the record's length.
+    ///
+    /// # Examples
+    /// ```
+    /// use dbn::{
+    ///     layout::{DynFieldAccess, LayoutIndex},
+    ///     v4::{layouts::default_layout, rtype, MboMsg},
+    ///     Side,
+    /// };
+    ///
+    /// let index = LayoutIndex::new(default_layout(), default_layout());
+    /// let side = index.field_by_name(rtype::MBO, "side").unwrap();
+    /// let mbo = MboMsg {
+    ///     side: Side::Ask as std::ffi::c_char,
+    ///     ..Default::default()
+    /// };
+    ///
+    /// let value = mbo.enum_at(&side).unwrap();
+    /// assert_eq!(value.enum_name(), Some("Side"));
+    /// assert_eq!(value.label(), Some("ASK"));
+    /// ```
     fn enum_at<'a>(&self, field: &DynField<'a>) -> Option<EnumValue<'a>> {
         let bytes = field.bytes(self.as_ref(), self.raw_rtype())?;
         let raw = match field.def.type_id {
@@ -570,21 +664,22 @@ mod tests {
 
     #[test]
     fn offset_of_rejects_array_shape_mismatch() {
-        let conditions = Field::<[Char; 4]>::new(0x1A);
         let mut sb = StreamLayoutBuilder::new(1, 8);
         {
-            let mut r = sb.record(rtype::MBP_0, 0, "WithConditions");
-            r.field(conditions, "conditions");
+            let mut r = sb.record(rtype::MBP_0, 0, "TradeMsg");
+            r.field(sale_condition::<[Char; 4]>(), "sale_condition");
             r.finish();
         }
         let index = LayoutIndex::new(&sb.build().unwrap(), default_layout());
 
-        assert!(index.offset_of(rtype::MBP_0, conditions).is_some());
         assert!(index
-            .offset_of(rtype::MBP_0, Field::<Char>::new(conditions.id()))
+            .offset_of(rtype::MBP_0, sale_condition::<[Char; 4]>())
+            .is_some());
+        assert!(index
+            .offset_of(rtype::MBP_0, fields::SALE_CONDITION)
             .is_none());
         assert!(index
-            .offset_of(rtype::MBP_0, Field::<[Char; 8]>::new(conditions.id()))
+            .offset_of(rtype::MBP_0, sale_condition::<[Char; 8]>())
             .is_none());
     }
 
@@ -635,19 +730,19 @@ mod tests {
         })
     }
 
-    fn trades_opra_conditions() -> StreamLayout {
+    fn trades_opra_sale_condition() -> StreamLayout {
         trades_with_ext(|r| {
-            r.field(conditions::<Char>(), "conditions");
+            r.field(sale_condition::<Char>(), "sale_condition");
         })
     }
 
-    fn trades_sip_conditions() -> StreamLayout {
+    fn trades_sip_sale_condition() -> StreamLayout {
         trades_with_ext(|r| {
-            r.field(conditions::<[Char; 4]>(), "conditions");
+            r.field(sale_condition::<[Char; 4]>(), "sale_condition");
         })
     }
 
-    fn conditions<T: FieldType>() -> Field<T> {
+    fn sale_condition<T: FieldType>() -> Field<T> {
         Field::new(fields::SALE_CONDITION.id())
     }
 
@@ -745,28 +840,30 @@ mod tests {
     }
 
     #[test]
-    fn conditions_read_at_each_datasets_type() {
-        let opra_idx = LayoutIndex::new(&trades_opra_conditions(), default_layout());
+    fn sale_condition_reads_at_each_datasets_type() {
+        let opra_idx = LayoutIndex::new(&trades_opra_sale_condition(), default_layout());
         let rec = trade_with_ext::<64>(b"@");
         assert_eq!(
-            rec.field(&opra_idx, conditions::<Char>()),
+            rec.field(&opra_idx, sale_condition::<Char>()),
             Some(Char(b'@' as c_char))
         );
 
-        let sip_idx = LayoutIndex::new(&trades_sip_conditions(), default_layout());
+        let sip_idx = LayoutIndex::new(&trades_sip_sale_condition(), default_layout());
         let rec = trade_with_ext::<64>(b"@ TI");
         assert_eq!(
-            rec.field(&sip_idx, conditions::<[Char; 4]>()),
+            rec.field(&sip_idx, sale_condition::<[Char; 4]>()),
             Some((*b"@ TI").map(|b| Char(b as c_char)))
         );
-        assert!(rec.field(&sip_idx, conditions::<Char>()).is_none());
-        assert!(rec.field(&opra_idx, conditions::<[Char; 4]>()).is_none());
+        assert!(rec.field(&sip_idx, sale_condition::<Char>()).is_none());
+        assert!(rec
+            .field(&opra_idx, sale_condition::<[Char; 4]>())
+            .is_none());
     }
 
     #[rstest]
-    #[case::opra(trades_opra_conditions(), 1)]
-    #[case::sip(trades_sip_conditions(), 4)]
-    fn conditions_layouts_stay_castable(#[case] stream: StreamLayout, #[case] size: u16) {
+    #[case::opra(trades_opra_sale_condition(), 1)]
+    #[case::sip(trades_sip_sale_condition(), 4)]
+    fn sale_condition_layouts_stay_castable(#[case] stream: StreamLayout, #[case] size: u16) {
         let index = LayoutIndex::new(&stream, default_layout());
         assert_eq!(index.verdict(rtype::MBP_0), Some(Verdict::Compiled));
 
@@ -785,8 +882,8 @@ mod tests {
 
     #[rstest]
     #[case::ts_out(trades_with_ts_out())]
-    #[case::opra(trades_opra_conditions())]
-    #[case::sip(trades_sip_conditions())]
+    #[case::opra(trades_opra_sale_condition())]
+    #[case::sip(trades_sip_sale_condition())]
     fn extensions_are_8_aligned(#[case] stream: StreamLayout) {
         let rec = stream.record_layout(rtype::MBP_0).unwrap();
         assert_eq!(
