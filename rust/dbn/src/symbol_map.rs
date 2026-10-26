@@ -9,7 +9,7 @@ use std::{
 
 use time::{macros::time, PrimitiveDateTime};
 
-use crate::{compat, v1, Error, HasRType, Metadata, Record, RecordRef, SymbolMappingMsg};
+use crate::{compat, metadata, v1, Error, HasRType, Metadata, Record, RecordRef, SymbolMappingMsg};
 
 /// A timeseries symbol map. Useful for working with historical requests over multiple
 /// days, where the same instrument ID can map to different symbols at different times.
@@ -351,7 +351,12 @@ impl TryFrom<&Metadata> for TsSymbolMap {
 
     fn try_from(metadata: &Metadata) -> Result<Self, Error> {
         let mut res = Self::new();
-        if metadata.is_inverse()? {
+        let is_inverse = metadata.is_inverse()?;
+        for interval in metadata.intervals.iter() {
+            let (iid, symbol) = interval_entry(interval, is_inverse)?;
+            res.insert(iid, interval.start_ts, interval.end_ts, symbol)?;
+        }
+        if is_inverse {
             for mapping in metadata.mappings.iter() {
                 let iid = mapping
                     .raw_symbol
@@ -429,6 +434,15 @@ impl PitSymbolMap {
             });
         }
         let mut res = HashMap::new();
+        let ts = date_to_ts(date);
+        for interval in metadata
+            .intervals
+            .iter()
+            .filter(|interval| interval.start_ts <= ts && ts < interval.end_ts)
+        {
+            let (iid, symbol) = interval_entry(interval, is_inverse)?;
+            res.insert(iid, symbol.to_owned());
+        }
         for mapping in metadata.mappings.iter() {
             if let Some(interval) = mapping
                 .intervals
@@ -557,6 +571,21 @@ impl std::ops::Index<u32> for PitSymbolMap {
     }
 }
 
+/// Returns the instrument ID and symbol a symbol map stores for `interval`.
+fn interval_entry(
+    interval: &metadata::SymbolInterval,
+    is_inverse: bool,
+) -> crate::Result<(u32, &str)> {
+    let iid = u32::try_from(interval.instrument_id)
+        .map_err(|_| Error::conversion::<u32>(interval.instrument_id))?;
+    let symbol = if is_inverse {
+        &interval.stype_out_symbol
+    } else {
+        &interval.stype_in_symbol
+    };
+    Ok((iid, symbol))
+}
+
 pub(crate) fn date_to_ts(date: time::Date) -> u64 {
     date.midnight().assume_utc().unix_timestamp_nanos() as u64
 }
@@ -571,7 +600,8 @@ pub(crate) mod tests {
     use crate::{
         compat::{SymbolMappingMsgV1, SymbolMappingRec},
         publishers::Dataset,
-        MappingInterval, Metadata, SType, Schema, SymbolMapping, UNDEF_TIMESTAMP,
+        MappingInterval, Metadata, SType, Schema, SymbolMapping, VersionUpgradePolicy,
+        UNDEF_TIMESTAMP,
     };
 
     use super::*;
@@ -1099,6 +1129,22 @@ pub(crate) mod tests {
 
         let inverse_target = metadata_w_inverse_mappings();
         assert_eq!(symbol_map, inverse_target.symbol_map().unwrap());
+    }
+
+    #[rstest]
+    fn test_v4_symbol_maps_match_v3(
+        #[values(metadata_w_mappings(), metadata_w_inverse_mappings())] target: Metadata,
+    ) {
+        let mut upgraded = target.clone();
+        upgraded.upgrade(VersionUpgradePolicy::UpgradeToV4);
+        assert!(upgraded.mappings.is_empty());
+        assert_eq!(upgraded.symbol_map().unwrap(), target.symbol_map().unwrap());
+        for date in [date!(2023 - 07 - 03), date!(2023 - 07 - 31)] {
+            assert_eq!(
+                upgraded.symbol_map_for_date(date).unwrap(),
+                target.symbol_map_for_date(date).unwrap()
+            );
+        }
     }
 
     #[test]

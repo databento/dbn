@@ -16,12 +16,15 @@ use crate::{
         dbn::{decode_iso8601, DBN_PREFIX, DBN_PREFIX_LEN},
         FromLittleEndianSlice,
     },
-    layout::{wire::ByteReader, Upgrader},
+    layout::{
+        wire::{str_len, ByteReader},
+        Upgrader,
+    },
     metadata::MetadataLengths,
     record::RecordHeaderKind,
     v1, v2, v3, v4, DbnVersion, Error, MappingInterval, Metadata, Record, RecordMut, RecordRef,
-    Result, SType, Schema, SymbolMapping, VersionUpgradePolicy, WithTsOut, DBN_VERSION,
-    MAX_RECORD_LEN, METADATA_FIXED_LEN, NULL_SCHEMA, NULL_STYPE, UNDEF_TIMESTAMP,
+    Result, SType, Schema, SymbolInterval, SymbolMapping, VersionUpgradePolicy, WithTsOut,
+    DBN_VERSION, MAX_RECORD_LEN, METADATA_FIXED_LEN, NULL_SCHEMA, NULL_STYPE, UNDEF_TIMESTAMP,
 };
 
 /// State machine for decoding DBN with bring your own I/O.
@@ -884,15 +887,15 @@ impl<H: DecodeHeader> DbnFsm<H> {
                 symbol_cstr_len as u16,
             )?)
         };
-        let symbology = if lengths.has_layout {
+        let symbology = if lengths.has_symbol_intervals {
             let declared = tail.u32("symbology length")? as usize;
-            let section = tail.take("symbology", declared)?;
-            let mut sec_pos = 0;
-            let symbology =
-                Self::decode_metadata_symbology(symbol_cstr_len, section, &mut sec_pos)?;
-            if sec_pos != declared {
+            let mut section = ByteReader::new(tail.take("symbology", declared)?);
+            let symbology = Self::decode_v4_symbology(&mut section)?;
+            let trailing = section.remaining().len();
+            if trailing != 0 {
                 return Err(crate::Error::decode(format!(
-                    "symbology section declares {declared} bytes but its contents span {sec_pos}"
+                    "symbology section declares {declared} bytes but its contents span {}",
+                    declared - trailing
                 )));
             }
             symbology
@@ -904,6 +907,7 @@ impl<H: DecodeHeader> DbnFsm<H> {
             partial,
             not_found,
             mappings,
+            intervals,
         } = symbology;
 
         Ok(Metadata {
@@ -925,6 +929,7 @@ impl<H: DecodeHeader> DbnFsm<H> {
             partial,
             not_found,
             mappings,
+            intervals,
             layout,
         })
     }
@@ -939,7 +944,51 @@ impl<H: DecodeHeader> DbnFsm<H> {
             partial: Self::decode_metadata_repeated_symbol_cstr(symbol_cstr_len, buffer, pos)?,
             not_found: Self::decode_metadata_repeated_symbol_cstr(symbol_cstr_len, buffer, pos)?,
             mappings: Self::decode_metadata_symbol_mappings(symbol_cstr_len, buffer, pos)?,
+            intervals: Vec::new(),
         })
+    }
+
+    fn decode_v4_symbology(cur: &mut ByteReader<'_>) -> crate::Result<MetadataSymbology> {
+        let symbols = Self::decode_str_list(cur, "symbols")?;
+        let partial = Self::decode_str_list(cur, "partial")?;
+        let not_found = Self::decode_str_list(cur, "not_found")?;
+        const CTX: &str = "symbol interval";
+        let count = cur.u32(CTX)? as usize;
+        let min_interval_len = size_of::<u64>() * 3 + str_len("") * 2;
+        let count = Self::checked_count(
+            format_args!("symbol interval count"),
+            count,
+            min_interval_len,
+            cur.remaining().len(),
+        )?;
+        let mut intervals = Vec::with_capacity(count);
+        for _ in 0..count {
+            intervals.push(SymbolInterval {
+                start_ts: cur.u64(CTX)?,
+                end_ts: cur.u64(CTX)?,
+                instrument_id: cur.u64(CTX)?,
+                stype_in_symbol: cur.str(CTX)?,
+                stype_out_symbol: cur.str(CTX)?,
+            });
+        }
+        Ok(MetadataSymbology {
+            symbols,
+            partial,
+            not_found,
+            mappings: Vec::new(),
+            intervals,
+        })
+    }
+
+    fn decode_str_list(cur: &mut ByteReader<'_>, ctx: &str) -> crate::Result<Vec<String>> {
+        let count = cur.u32(ctx)? as usize;
+        let count = Self::checked_count(
+            format_args!("{ctx} count"),
+            count,
+            str_len(""),
+            cur.remaining().len(),
+        )?;
+        (0..count).map(|_| cur.str(ctx)).collect()
     }
 
     pub(crate) fn checked_count(
@@ -1299,6 +1348,7 @@ struct MetadataSymbology {
     partial: Vec<String>,
     not_found: Vec<String>,
     mappings: Vec<SymbolMapping>,
+    intervals: Vec<SymbolInterval>,
 }
 
 impl Default for DbnFsmBuilder {
@@ -2674,6 +2724,93 @@ mod tests {
         buf[at..at + size_of::<u32>()].copy_from_slice(&9u32.to_le_bytes());
 
         let mut target = DbnFsm::default();
+        target.write_all(&buf);
+        assert!(matches!(target.process(), ProcessResult::Err(_)));
+        Ok(())
+    }
+
+    fn v4_symbology_metadata() -> Metadata {
+        let mut metadata = crate::decode::dbn::tests::metadata_v4(Schema::Trades);
+        metadata.symbols = vec!["ES.c.0".to_owned(), "SPX".to_owned()];
+        metadata.partial = vec!["ESZ6".to_owned()];
+        metadata.not_found = vec!["NOPE".to_owned()];
+        metadata.intervals = vec![
+            SymbolInterval {
+                start_ts: 1_771_459_200_000_000_000,
+                end_ts: 1_771_511_400_000_000_000,
+                instrument_id: 12345,
+                stype_in_symbol: "ES.c.0".to_owned(),
+                stype_out_symbol: "12345".to_owned(),
+            },
+            SymbolInterval {
+                start_ts: 1_771_511_400_000_000_000,
+                end_ts: crate::UNDEF_TIMESTAMP,
+                instrument_id: 12346,
+                stype_in_symbol: "ES.c.0".to_owned(),
+                stype_out_symbol: "12346".to_owned(),
+            },
+        ];
+        metadata
+    }
+
+    fn encode_v4_metadata(metadata: &Metadata) -> crate::Result<Vec<u8>> {
+        let mut buf = Vec::new();
+        DbnMetadataEncoder::new(&mut buf).encode(metadata)?;
+        Ok(buf)
+    }
+
+    #[rstest]
+    fn test_v4_symbology_round_trips(#[values(2, 4_000)] interval_count: u64) -> crate::Result<()> {
+        let mut metadata = v4_symbology_metadata();
+        let template = metadata.intervals[0].clone();
+        metadata.intervals = (0..interval_count)
+            .map(|i| SymbolInterval {
+                instrument_id: i,
+                stype_out_symbol: i.to_string(),
+                ..template.clone()
+            })
+            .collect();
+        let mut target = crate::decode::dbn::tests::fsm_v4()?;
+        target.write_all(&encode_v4_metadata(&metadata)?);
+        let ProcessResult::Metadata(decoded) = target.process() else {
+            panic!("expected metadata");
+        };
+        assert_eq!(decoded, metadata);
+        Ok(())
+    }
+
+    #[rstest]
+    #[case::symbols(0)]
+    #[case::partial(1)]
+    #[case::not_found(2)]
+    #[case::intervals(3)]
+    fn test_v4_no_count_sizes_an_allocation_on_its_own(#[case] which: usize) -> crate::Result<()> {
+        let metadata = crate::decode::dbn::tests::metadata_v4(Schema::Trades);
+        let mut buf = encode_v4_metadata(&metadata)?;
+        let layout_len_at = crate::METADATA_PRELUDE_LEN + crate::METADATA_FIXED_LEN;
+        let layout_len = u32::from_le_slice(&buf[layout_len_at..]) as usize;
+        // with every list empty, the four counts sit back to back past the symbology length
+        let counts = layout_len_at + size_of::<u32>() + layout_len + size_of::<u32>();
+        let at = counts + which * size_of::<u32>();
+        assert_eq!(u32::from_le_slice(&buf[at..]), 0, "the list is empty");
+        buf[at..at + size_of::<u32>()].copy_from_slice(&u32::MAX.to_le_bytes());
+
+        let mut target = crate::decode::dbn::tests::fsm_v4()?;
+        target.write_all(&buf);
+        assert!(matches!(target.process(), ProcessResult::Err(_)));
+        Ok(())
+    }
+
+    #[test]
+    fn test_v4_symbology_must_fill_its_declared_length() -> crate::Result<()> {
+        let mut buf = encode_v4_metadata(&v4_symbology_metadata())?;
+        let layout_len_at = crate::METADATA_PRELUDE_LEN + crate::METADATA_FIXED_LEN;
+        let layout_len = u32::from_le_slice(&buf[layout_len_at..]) as usize;
+        let at = layout_len_at + size_of::<u32>() + layout_len;
+        let declared = u32::from_le_slice(&buf[at..]);
+        buf[at..at + size_of::<u32>()].copy_from_slice(&(declared - 1).to_le_bytes());
+
+        let mut target = crate::decode::dbn::tests::fsm_v4()?;
         target.write_all(&buf);
         assert!(matches!(target.process(), ProcessResult::Err(_)));
         Ok(())

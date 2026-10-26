@@ -505,6 +505,7 @@ mod tests {
             symbols: vec!["ES".to_owned(), "NG".to_owned()],
             partial: vec!["ESM2".to_owned()],
             not_found: vec!["QQQQQ".to_owned()],
+            intervals: vec![],
             mappings: vec![
                 SymbolMapping {
                     raw_symbol: "ES.0".to_owned(),

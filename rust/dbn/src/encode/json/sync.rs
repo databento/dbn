@@ -266,7 +266,7 @@ mod tests {
             OhlcvMsg, RecordHeader, StatMsg, StatusMsg, TradeMsg, WithTsOut,
         },
         test_utils::VecStream,
-        Dataset, MappingInterval, RecordRef, SymbolMapping, FIXED_PRICE_SCALE,
+        Dataset, MappingInterval, RecordRef, SymbolInterval, SymbolMapping, FIXED_PRICE_SCALE,
     };
 
     fn write_json_to_string<R>(
@@ -682,6 +682,7 @@ mod tests {
             symbols: vec!["ESZ2".to_owned()],
             partial: Vec::new(),
             not_found: Vec::new(),
+            intervals: vec![],
             mappings: vec![SymbolMapping {
                 raw_symbol: "ESZ2".to_owned(),
                 intervals: vec![MappingInterval {
@@ -701,7 +702,36 @@ mod tests {
             \"stype_in\":\"instrument_id\",\"stype_out\":\"raw_symbol\",\"ts_out\":false,\"symbol_cstr_len\":22,\"symbols\"\
             :[\"ESZ2\"],\"partial\":[],\"not_found\":[],\"mappings\":[{\"raw_symbol\":\"ESZ2\",\
             \"intervals\":[{\"start_date\":\"2022-09-09\",\"end_date\":\"2022-09-10\",\"symbol\":\
-            \"ESH2\"}]}]}\n"
+            \"ESH2\"}]}],\"intervals\":[]}\n"
+        );
+    }
+
+    #[test]
+    fn test_v4_metadata_write_json() {
+        let metadata = Metadata::builder()
+            .version(4)
+            .dataset(Dataset::GlbxMdp3)
+            .schema(Some(Schema::Ohlcv1H))
+            .start(1662734705128748281)
+            .stype_in(Some(SType::Continuous))
+            .stype_out(SType::InstrumentId)
+            .symbols(vec!["ES.c.0".to_owned()])
+            .intervals(vec![SymbolInterval {
+                start_ts: 1662734705128748281,
+                end_ts: 1662734720914876944,
+                instrument_id: 3403,
+                stype_in_symbol: "ES.c.0".to_owned(),
+                stype_out_symbol: "3403".to_owned(),
+            }])
+            .build();
+        let res = write_json_metadata_to_string(&metadata, false);
+        assert!(
+            res.ends_with(
+                "\"mappings\":[],\"intervals\":[{\"start_ts\":\"2022-09-09T14:45:05.128748281Z\",\
+                \"end_ts\":\"2022-09-09T14:45:20.914876944Z\",\"instrument_id\":3403,\
+                \"stype_in_symbol\":\"ES.c.0\",\"stype_out_symbol\":\"3403\"}]}\n"
+            ),
+            "{res}"
         );
     }
 

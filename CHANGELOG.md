@@ -7,6 +7,14 @@
   `encoding="arrow"` and `encoding="parquet"`
 - Added `get_ref` and `get_mut` to `ArrowEncoder` and `ParquetEncoder` for accessing
   the underlying writer
+- Added nanosecond-precision symbology intervals to DBN version 4 metadata to support
+  intraday symbology changes
+  - Added `SymbolInterval` and `MetadataBuilder::intervals()`
+  - Added `intervals` field to `Metadata`
+  - `Metadata::upgrade()` to version 4 converts `mappings` into `intervals`
+
+### Breaking changes
+- Added `intervals` field to `Metadata` for the symbology of a DBN version 4 stream
 
 ## 0.73.0 - 2026-10-27
 

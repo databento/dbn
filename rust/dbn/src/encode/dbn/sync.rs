@@ -8,6 +8,7 @@ use crate::{
     encode::{
         io_utils::write_all_vectored, DbnEncodable, EncodeDbn, EncodeRecord, EncodeRecordRef,
     },
+    layout::wire::encode_str,
     metadata::MetadataLengths,
     Error, Metadata, RecordRef, Result, SymbolMapping, NULL_LIMIT, NULL_RECORD_COUNT, NULL_SCHEMA,
     NULL_STYPE, UNDEF_TIMESTAMP,
@@ -167,6 +168,7 @@ where
     /// `metadata` is from a newer DBN version than is supported.
     pub fn encode(&mut self, metadata: &Metadata) -> Result<()> {
         let lengths = super::metadata_lengths(metadata.version)?;
+        super::check_symbology(lengths, metadata)?;
         let layout = super::encode_layout(lengths, metadata)?;
         let metadata_err = |e| Error::io(e, "writing DBN metadata");
         self.writer.write_all(b"DBN").map_err(metadata_err)?;
@@ -207,20 +209,24 @@ where
             .write_all((layout.len() as u32).to_le_bytes().as_slice())
             .map_err(metadata_err)?;
         self.writer.write_all(&layout).map_err(metadata_err)?;
-        if lengths.has_layout {
+        if lengths.has_symbol_intervals {
             self.writer
                 .write_all(
-                    (super::symbology_length(metadata) as u32)
+                    (super::symbology_length(lengths, metadata) as u32)
                         .to_le_bytes()
                         .as_slice(),
                 )
                 .map_err(metadata_err)?;
         }
 
-        self.encode_repeated_symbol_cstr(metadata.symbol_cstr_len, metadata.symbols.as_slice())?;
-        self.encode_repeated_symbol_cstr(metadata.symbol_cstr_len, metadata.partial.as_slice())?;
-        self.encode_repeated_symbol_cstr(metadata.symbol_cstr_len, metadata.not_found.as_slice())?;
-        self.encode_symbol_mappings(metadata.symbol_cstr_len, metadata.mappings.as_slice())?;
+        if lengths.has_symbol_intervals {
+            self.encode_v4_symbology(metadata)?;
+        } else {
+            self.encode_repeated_symbol_cstr(metadata.symbol_cstr_len, &metadata.symbols)?;
+            self.encode_repeated_symbol_cstr(metadata.symbol_cstr_len, &metadata.partial)?;
+            self.encode_repeated_symbol_cstr(metadata.symbol_cstr_len, &metadata.not_found)?;
+            self.encode_symbol_mappings(metadata.symbol_cstr_len, &metadata.mappings)?;
+        }
         if end_padding > 0 {
             let padding = [0; 7];
             self.writer
@@ -265,6 +271,45 @@ where
                 .map_err(metadata_err)?;
         }
         Ok(())
+    }
+
+    /// Writes the symbol lists and intervals in bounded chunks, since OPRA symbology
+    /// can run to gigabytes.
+    fn encode_v4_symbology(&mut self, metadata: &Metadata) -> Result<()> {
+        const CHUNK_LEN: usize = 1 << 16;
+        let mut buf = Vec::with_capacity(CHUNK_LEN);
+        let write_full_chunk = |writer: &mut W, buf: &mut Vec<u8>| -> Result<()> {
+            if buf.len() >= CHUNK_LEN {
+                writer
+                    .write_all(buf)
+                    .map_err(|e| Error::io(e, "writing symbology"))?;
+                buf.clear();
+            }
+            Ok(())
+        };
+        for (ctx, strs) in [
+            ("symbols", &metadata.symbols),
+            ("partial", &metadata.partial),
+            ("not_found", &metadata.not_found),
+        ] {
+            buf.extend_from_slice(&(strs.len() as u32).to_le_bytes());
+            for s in strs {
+                encode_str(&mut buf, ctx, s)?;
+                write_full_chunk(&mut self.writer, &mut buf)?;
+            }
+        }
+        buf.extend_from_slice(&(metadata.intervals.len() as u32).to_le_bytes());
+        for interval in &metadata.intervals {
+            buf.extend_from_slice(&interval.start_ts.to_le_bytes());
+            buf.extend_from_slice(&interval.end_ts.to_le_bytes());
+            buf.extend_from_slice(&interval.instrument_id.to_le_bytes());
+            encode_str(&mut buf, "stype_in_symbol", &interval.stype_in_symbol)?;
+            encode_str(&mut buf, "stype_out_symbol", &interval.stype_out_symbol)?;
+            write_full_chunk(&mut self.writer, &mut buf)?;
+        }
+        self.writer
+            .write_all(&buf)
+            .map_err(|e| Error::io(e, "writing symbology"))
     }
 
     fn encode_repeated_symbol_cstr(
@@ -530,7 +575,8 @@ mod tests {
     use crate::{
         compat::version_symbol_cstr_len,
         decode::{dbn::MetadataDecoder, FromLittleEndianSlice},
-        Dataset, MappingInterval, MetadataBuilder, SType, Schema, VersionUpgradePolicy,
+        Dataset, MappingInterval, MetadataBuilder, SType, Schema, SymbolInterval,
+        VersionUpgradePolicy,
     };
 
     #[test]
@@ -550,6 +596,7 @@ mod tests {
             symbols: vec!["ES".to_owned(), "NG".to_owned()],
             partial: vec!["ESM2".to_owned()],
             not_found: vec!["QQQQQ".to_owned()],
+            intervals: vec![],
             mappings: vec![
                 SymbolMapping {
                     raw_symbol: "ES.0".to_owned(),
@@ -724,6 +771,7 @@ mod tests {
             symbols: vec![],
             partial: vec![],
             not_found: vec![],
+            intervals: vec![],
             mappings: vec![],
         };
         let mut buffer = Vec::new();
@@ -895,13 +943,12 @@ mod tests {
         metadata.symbols = vec!["AAPL".to_owned(), "MSFT".to_owned()];
         metadata.partial = vec!["TSLA".to_owned()];
         metadata.not_found = vec!["NOPE".to_owned()];
-        metadata.mappings = vec![SymbolMapping {
-            raw_symbol: "ES.0".to_owned(),
-            intervals: vec![MappingInterval {
-                start_date: time::Date::from_calendar_date(2022, time::Month::July, 26).unwrap(),
-                end_date: time::Date::from_calendar_date(2022, time::Month::September, 1).unwrap(),
-                symbol: "ESU2".to_owned(),
-            }],
+        metadata.intervals = vec![SymbolInterval {
+            start_ts: 1658793600000000000,
+            end_ts: 1661990400000000000,
+            instrument_id: 3403,
+            stype_in_symbol: "ES.c.0".to_owned(),
+            stype_out_symbol: "3403".to_owned(),
         }];
 
         let lengths = MetadataLengths::for_version(metadata.version).unwrap();
@@ -914,6 +961,39 @@ mod tests {
         let declared = u32::from_le_slice(&buffer[at..]) as usize;
         let body = at + mem::size_of::<u32>();
         assert_eq!(declared, buffer.len() - body - end_padding as usize);
+    }
+
+    #[rstest]
+    #[case::v4_with_mappings(crate::v4::DBN_VERSION)]
+    #[case::v3_with_intervals(3)]
+    fn test_symbology_must_match_the_version(#[case] version: u8) {
+        let mut metadata = v4_metadata();
+        metadata.version = version;
+        if version >= crate::v4::DBN_VERSION {
+            metadata.mappings = vec![SymbolMapping {
+                raw_symbol: "ES.c.0".to_owned(),
+                intervals: vec![MappingInterval {
+                    start_date: time::Date::from_calendar_date(2022, time::Month::July, 26)
+                        .unwrap(),
+                    end_date: time::Date::from_calendar_date(2022, time::Month::September, 1)
+                        .unwrap(),
+                    symbol: "3403".to_owned(),
+                }],
+            }];
+        } else {
+            metadata.layout = None;
+            metadata.intervals = vec![SymbolInterval {
+                start_ts: 1658793600000000000,
+                end_ts: 1661990400000000000,
+                instrument_id: 3403,
+                stype_in_symbol: "ES.c.0".to_owned(),
+                stype_out_symbol: "3403".to_owned(),
+            }];
+        }
+        assert!(matches!(
+            MetadataEncoder::new(Vec::new()).encode(&metadata),
+            Err(Error::Encode(_))
+        ));
     }
 
     #[rstest]

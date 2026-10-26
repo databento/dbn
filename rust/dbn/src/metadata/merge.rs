@@ -5,7 +5,7 @@ use std::{
 
 use crate::{Error, SType, Schema};
 
-use super::{MappingInterval, Metadata, SymbolMapping};
+use super::{MappingInterval, Metadata, SymbolInterval, SymbolMapping};
 
 pub struct MetadataMerger {
     version: u8,
@@ -22,6 +22,7 @@ pub struct MetadataMerger {
     partial: HashSet<String>,
     not_found: HashSet<String>,
     mappings: HashMap<String, Vec<MappingInterval>>,
+    intervals: Vec<SymbolInterval>,
 }
 
 impl MetadataMerger {
@@ -45,6 +46,7 @@ impl MetadataMerger {
                 .into_iter()
                 .map(|mapping| (mapping.raw_symbol, mapping.intervals))
                 .collect(),
+            intervals: original.intervals,
         }
     }
 
@@ -92,6 +94,7 @@ impl MetadataMerger {
             let orig_intervals = std::mem::take(intervals);
             *intervals = Self::merge_intervals(orig_intervals, add_mapping.intervals)?;
         }
+        self.intervals.extend(additional.intervals);
 
         Ok(self)
     }
@@ -135,7 +138,9 @@ impl MetadataMerger {
         }
     }
 
-    pub fn finalize(self) -> Metadata {
+    pub fn finalize(mut self) -> Metadata {
+        self.intervals.sort_unstable();
+        self.intervals.dedup();
         Metadata {
             version: self.version,
             dataset: self.dataset,
@@ -148,6 +153,7 @@ impl MetadataMerger {
             ts_out: self.ts_out,
             symbol_cstr_len: self.symbol_cstr_len,
             layout: None,
+            intervals: self.intervals,
             symbols: self.symbols.into_iter().collect(),
             partial: self.partial.into_iter().collect(),
             not_found: self.not_found.into_iter().collect(),
@@ -361,6 +367,28 @@ mod tests {
             assert_eq!(merge_mapping, orig_mapping);
         }
         merged.symbol_map().unwrap();
+    }
+
+    #[test]
+    fn test_merge_v4_intervals() {
+        let mut target = metadata_w_mappings();
+        target.upgrade(crate::VersionUpgradePolicy::UpgradeToV4);
+        let extra = SymbolInterval {
+            start_ts: datetime!(2023-07-31 14:30 UTC).unix_timestamp_nanos() as u64,
+            end_ts: datetime!(2023-08-01 00:00 UTC).unix_timestamp_nanos() as u64,
+            instrument_id: 33,
+            stype_in_symbol: "AAPL".to_owned(),
+            stype_out_symbol: "33".to_owned(),
+        };
+        let mut other = target.clone();
+        other.intervals.push(extra.clone());
+
+        let merged = target.clone().merge([other]).unwrap();
+        let mut expected = target.intervals;
+        expected.push(extra);
+        expected.sort();
+        assert_eq!(merged.intervals, expected);
+        assert!(merged.mappings.is_empty());
     }
 
     #[fixture]

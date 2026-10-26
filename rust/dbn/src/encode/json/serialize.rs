@@ -136,6 +136,16 @@ impl JsonSerialize for Metadata {
                 interval_writer.value("symbol", &interval.symbol);
             }
         }
+        drop(mappings_writer);
+        let mut intervals_writer = writer.array("intervals");
+        for interval in self.intervals.iter() {
+            let mut interval_writer = intervals_writer.object();
+            write_ts_field::<J, PRETTY_TS>(&mut interval_writer, "start_ts", interval.start_ts);
+            write_ts_field::<J, PRETTY_TS>(&mut interval_writer, "end_ts", interval.end_ts);
+            interval_writer.value("instrument_id", interval.instrument_id);
+            interval_writer.value("stype_in_symbol", &interval.stype_in_symbol);
+            interval_writer.value("stype_out_symbol", &interval.stype_out_symbol);
+        }
     }
 }
 

@@ -15,7 +15,7 @@ use time::{Time, Weekday};
 
 use crate::{
     encode::{DbnEncodable, EncodeDbn, EncodeRecord, EncodeRecordRef, EncodeRecordTextExt},
-    Metadata, RType, Record, RecordRef, Schema, SymbolIndex, SymbolMapping,
+    Metadata, RType, Record, RecordRef, Schema, SymbolIndex, SymbolInterval, SymbolMapping,
 };
 
 /// A strategy for routing records to different sub-encoders.
@@ -393,10 +393,17 @@ where
             });
             !mapping.intervals.is_empty()
         });
+        let (start_ts, end_ts) = (metadata.start, metadata.end.unwrap().get());
+        metadata.intervals.retain_mut(|interval| {
+            interval.start_ts = interval.start_ts.max(start_ts);
+            interval.end_ts = interval.end_ts.min(end_ts);
+            interval.start_ts < interval.end_ts
+        });
         let symbols = metadata
             .mappings
             .iter()
             .map(|m| &m.raw_symbol)
+            .chain(metadata.intervals.iter().map(|i| &i.stype_in_symbol))
             .collect::<HashSet<_>>();
         metadata.symbols.retain(|s| symbols.contains(s));
         metadata.partial.retain(|s| symbols.contains(s));
@@ -621,6 +628,7 @@ struct SymbolMetadata {
     symbol_counts: HashMap<String, usize>,
     partial_counts: HashMap<String, usize>,
     mappings: HashMap<String, Vec<SymbolMapping>>,
+    intervals: HashMap<String, Vec<SymbolInterval>>,
 }
 
 impl SymbolMetadata {
@@ -643,11 +651,19 @@ impl SymbolMetadata {
                 .or_default()
                 .push(mapping);
         }
+        let mut intervals: HashMap<String, Vec<SymbolInterval>> = HashMap::new();
+        for interval in mem::take(&mut base.intervals) {
+            intervals
+                .entry(interval.stype_in_symbol.clone())
+                .or_default()
+                .push(interval);
+        }
         Self {
             base,
             symbol_counts,
             partial_counts,
             mappings,
+            intervals,
         }
     }
 
@@ -659,6 +675,7 @@ impl SymbolMetadata {
             symbols: repeat(&self.symbol_counts),
             partial: repeat(&self.partial_counts),
             mappings: self.mappings.get(symbol).cloned().unwrap_or_default(),
+            intervals: self.intervals.get(symbol).cloned().unwrap_or_default(),
             ..self.base.clone()
         }
     }
@@ -727,12 +744,13 @@ where
 mod tests {
     use std::{cell::RefCell, io};
 
+    use rstest::*;
     use time::macros::{date, datetime};
 
     use super::*;
     use crate::{
         encode::DbnRecordEncoder, rtype, symbol_map::date_to_ts, MboMsg, Mbp1Msg, RecordHeader,
-        TradeMsg, TsSymbolMap, UNDEF_TIMESTAMP,
+        TradeMsg, TsSymbolMap, VersionUpgradePolicy, UNDEF_TIMESTAMP,
     };
 
     /// Helper to create an MboMsg with a specific timestamp and instrument_id
@@ -1023,8 +1041,8 @@ mod tests {
         assert_eq!(splitter.encoders.len(), 0);
     }
 
-    #[test]
-    fn test_symbol_splitter_metadata() {
+    #[rstest]
+    fn test_symbol_splitter_metadata(#[values(false, true)] is_v4: bool) {
         use crate::{MappingInterval, MetadataBuilder, SType};
 
         let mapping = |raw_symbol: &str, start_date, end_date, symbol: &str| SymbolMapping {
@@ -1050,6 +1068,12 @@ mod tests {
                 mapping("AAPL", date!(2023 - 07 - 15), date!(2023 - 08 - 01), "102"),
             ])
             .build();
+        let upgrade = |mut metadata: Metadata| {
+            if is_v4 {
+                metadata.upgrade(VersionUpgradePolicy::UpgradeToV4);
+            }
+            metadata
+        };
         let built = RefCell::new(HashMap::new());
         let splitter = SymbolSplitter::new(
             |symbol: &str, metadata: Option<Metadata>| {
@@ -1060,7 +1084,7 @@ mod tests {
             },
             TsSymbolMap::from_metadata(&metadata).unwrap(),
         );
-        let mut encoder = SplitEncoder::with_metadata(splitter, metadata.clone());
+        let mut encoder = SplitEncoder::with_metadata(splitter, upgrade(metadata.clone()));
 
         let ts = datetime!(2023-07-20 10:00 UTC).unix_timestamp_nanos() as u64;
         for instrument_id in [102, 101, 102] {
@@ -1071,21 +1095,21 @@ mod tests {
         assert_eq!(built.len(), 2);
         assert_eq!(
             built["AAPL"],
-            Metadata {
+            upgrade(Metadata {
                 symbols: vec!["AAPL".to_owned()],
                 partial: vec![],
                 mappings: vec![metadata.mappings[0].clone(), metadata.mappings[2].clone()],
                 ..metadata.clone()
-            }
+            })
         );
         assert_eq!(
             built["TSLA"],
-            Metadata {
+            upgrade(Metadata {
                 symbols: vec!["TSLA".to_owned()],
                 partial: vec!["TSLA".to_owned()],
                 mappings: vec![metadata.mappings[1].clone()],
                 ..metadata.clone()
-            }
+            })
         );
     }
 
@@ -1203,6 +1227,50 @@ mod tests {
             split_meta.end.unwrap().get(),
             datetime!(2023-07-06 00:00 UTC).unix_timestamp_nanos() as u64
         );
+    }
+
+    #[test]
+    fn test_split_v4_metadata_by_day() {
+        use crate::{MappingInterval, MetadataBuilder, SType, Schema, SymbolMapping};
+        use std::num::NonZeroU64;
+
+        let mapping = |raw_symbol: &str, start_date, end_date, symbol: &str| SymbolMapping {
+            raw_symbol: raw_symbol.to_owned(),
+            intervals: vec![MappingInterval {
+                start_date,
+                end_date,
+                symbol: symbol.to_owned(),
+            }],
+        };
+        let mut metadata = MetadataBuilder::new()
+            .dataset("TEST".to_owned())
+            .schema(Some(Schema::Mbo))
+            .stype_in(Some(SType::RawSymbol))
+            .stype_out(SType::InstrumentId)
+            .start(datetime!(2023-07-01 00:00 UTC).unix_timestamp_nanos() as u64)
+            .end(NonZeroU64::new(
+                datetime!(2023-07-10 00:00 UTC).unix_timestamp_nanos() as u64,
+            ))
+            .symbols(vec!["AAPL".to_owned(), "TSLA".to_owned()])
+            .mappings(vec![
+                mapping("AAPL", date!(2023 - 07 - 01), date!(2023 - 07 - 10), "100"),
+                mapping("TSLA", date!(2023 - 07 - 01), date!(2023 - 07 - 03), "101"),
+            ])
+            .build();
+        let mut expected = TestTimeSplitter::split_metadata(
+            SplitDuration::Day,
+            metadata.clone(),
+            date!(2023 - 07 - 05),
+        );
+        expected.upgrade(VersionUpgradePolicy::UpgradeToV4);
+        metadata.upgrade(VersionUpgradePolicy::UpgradeToV4);
+
+        let split_meta =
+            TestTimeSplitter::split_metadata(SplitDuration::Day, metadata, date!(2023 - 07 - 05));
+
+        assert_eq!(split_meta, expected);
+        assert_eq!(split_meta.symbols, ["AAPL"]);
+        assert_eq!(split_meta.intervals.len(), 1);
     }
 
     #[test]

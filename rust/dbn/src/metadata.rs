@@ -4,7 +4,7 @@
 mod lengths;
 mod merge;
 
-use std::num::NonZeroU64;
+use std::{mem, num::NonZeroU64};
 
 pub(crate) use lengths::MetadataLengths;
 
@@ -21,6 +21,7 @@ use crate::{
     compat::version_symbol_cstr_len,
     layout::{LayoutIndex, StreamLayout},
     record::as_u8_slice,
+    symbol_map::date_to_ts,
     PitSymbolMap, SType, Schema, TsSymbolMap, VersionUpgradePolicy,
 };
 
@@ -84,8 +85,11 @@ pub struct Metadata {
     /// Symbols that did not resolve for _any_ day in the query time range.
     #[pyo3(get)]
     pub not_found: Vec<String>,
-    /// Symbol mappings containing a raw symbol and its mapping intervals.
+    /// Symbol mappings containing a raw symbol and its mapping intervals. Only used in
+    /// DBN versions 1-3.
     pub mappings: Vec<SymbolMapping>,
+    /// Symbol mappings with nanosecond-precision intervals. Only used in DBN version 4.
+    pub intervals: Vec<SymbolInterval>,
 }
 
 impl Metadata {
@@ -158,7 +162,36 @@ impl Metadata {
         if target > self.version && target >= crate::v4::DBN_VERSION && self.layout.is_none() {
             self.layout = Some(crate::layout::upgrade_layout(self.ts_out));
         }
+        if target >= crate::v4::DBN_VERSION {
+            self.upgrade_mappings();
+        }
         self.version = target;
+    }
+
+    /// Converts version 1-3 `mappings` into version 4 `intervals`. Where neither `stype_in`
+    /// nor `stype_out` is [`SType::InstrumentId`], `instrument_id` is `u64::MAX`.
+    fn upgrade_mappings(&mut self) {
+        let is_inverse = self.is_inverse().ok();
+        for mapping in mem::take(&mut self.mappings) {
+            for interval in mapping.intervals {
+                // handle old symbology format
+                if interval.symbol.is_empty() {
+                    continue;
+                }
+                let instrument_id = match is_inverse {
+                    Some(false) => interval.symbol.parse().ok(),
+                    Some(true) => mapping.raw_symbol.parse().ok(),
+                    None => None,
+                };
+                self.intervals.push(SymbolInterval {
+                    start_ts: date_to_ts(interval.start_date),
+                    end_ts: date_to_ts(interval.end_date),
+                    instrument_id: instrument_id.unwrap_or(u64::MAX),
+                    stype_in_symbol: mapping.raw_symbol.clone(),
+                    stype_out_symbol: interval.symbol,
+                });
+            }
+        }
     }
 
     /// Attempts to merge another metadata into this one. This is useful for merging
@@ -234,6 +267,7 @@ pub struct MetadataBuilder<D, Sch, Start, StIn, StOut> {
     partial: Vec<String>,
     not_found: Vec<String>,
     mappings: Vec<SymbolMapping>,
+    intervals: Vec<SymbolInterval>,
 }
 
 /// Sentinel type for a required field that has not yet been set.
@@ -279,6 +313,7 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
             partial: self.partial,
             not_found: self.not_found,
             mappings: self.mappings,
+            intervals: self.intervals,
         }
     }
 
@@ -302,6 +337,7 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
             partial: self.partial,
             not_found: self.not_found,
             mappings: self.mappings,
+            intervals: self.intervals,
         }
     }
 
@@ -322,6 +358,7 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
             partial: self.partial,
             not_found: self.not_found,
             mappings: self.mappings,
+            intervals: self.intervals,
         }
     }
 
@@ -357,6 +394,7 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
             partial: self.partial,
             not_found: self.not_found,
             mappings: self.mappings,
+            intervals: self.intervals,
         }
     }
 
@@ -377,6 +415,7 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
             partial: self.partial,
             not_found: self.not_found,
             mappings: self.mappings,
+            intervals: self.intervals,
         }
     }
 
@@ -415,6 +454,12 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
         self.mappings = mappings;
         self
     }
+
+    /// Sets [`intervals`](Metadata::intervals) and returns the builder.
+    pub fn intervals(mut self, intervals: Vec<SymbolInterval>) -> Self {
+        self.intervals = intervals;
+        self
+    }
 }
 
 impl MetadataBuilder<String, Option<Schema>, u64, Option<SType>, SType> {
@@ -435,6 +480,7 @@ impl MetadataBuilder<String, Option<Schema>, u64, Option<SType>, SType> {
             partial: self.partial,
             not_found: self.not_found,
             mappings: self.mappings,
+            intervals: self.intervals,
             symbol_cstr_len: version_symbol_cstr_len(self.version),
             // TODO(cg): look at making this method fallible and validating v4 metadata
             // has non-None `layout`. Currently validated in `MetadataEncoder`
@@ -460,6 +506,7 @@ impl Default for MetadataBuilder<Unset, Unset, Unset, Unset, Unset> {
             partial: vec![],
             not_found: vec![],
             mappings: vec![],
+            intervals: vec![],
         }
     }
 }
@@ -494,6 +541,24 @@ pub struct MappingInterval {
     /// The resolved symbol for this interval (in `stype_out`).
     #[cfg_attr(feature = "serde", serde(rename = "s"))]
     pub symbol: String,
+}
+
+/// A symbol mapping over a nanosecond-precision time range. The form of symbology in
+/// DBN version 4.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct SymbolInterval {
+    /// The start of the interval (inclusive) expressed as the number of nanoseconds
+    /// since the UNIX epoch.
+    pub start_ts: u64,
+    /// The end of the interval (exclusive) expressed as the number of nanoseconds since
+    /// the UNIX epoch. [`UNDEF_TIMESTAMP`](crate::UNDEF_TIMESTAMP) if open-ended.
+    pub end_ts: u64,
+    /// The numeric instrument ID.
+    pub instrument_id: u64,
+    /// The symbol in `stype_in`.
+    pub stype_in_symbol: String,
+    /// The symbol in `stype_out`.
+    pub stype_out_symbol: String,
 }
 
 /// The date format used for date strings when serializing [`Metadata`].
@@ -561,5 +626,37 @@ mod tests {
             Some(&crate::layout::upgrade_layout(false))
         );
         assert_eq!(target.symbol_cstr_len, crate::v3::SYMBOL_CSTR_LEN);
+    }
+
+    #[test]
+    fn test_upgrade_to_v4_without_instrument_ids() {
+        let mut target = Metadata::builder()
+            .version(3)
+            .dataset(Dataset::GlbxMdp3)
+            .schema(Some(Schema::Trades))
+            .start(0)
+            .stype_in(Some(SType::Continuous))
+            .stype_out(SType::RawSymbol)
+            .mappings(vec![SymbolMapping {
+                raw_symbol: "ES.c.0".to_owned(),
+                intervals: vec![MappingInterval {
+                    start_date: time::macros::date!(2023 - 12 - 01),
+                    end_date: time::macros::date!(2023 - 12 - 02),
+                    symbol: "ESZ3".to_owned(),
+                }],
+            }])
+            .build();
+        target.upgrade(VersionUpgradePolicy::UpgradeToV4);
+        assert!(target.mappings.is_empty());
+        assert_eq!(
+            target.intervals,
+            [SymbolInterval {
+                start_ts: 1701388800000000000,
+                end_ts: 1701475200000000000,
+                instrument_id: u64::MAX,
+                stype_in_symbol: "ES.c.0".to_owned(),
+                stype_out_symbol: "ESZ3".to_owned(),
+            }]
+        );
     }
 }

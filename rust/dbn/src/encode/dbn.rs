@@ -104,8 +104,42 @@ fn encode_layout(lengths: &MetadataLengths, metadata: &crate::Metadata) -> crate
     Ok(buf)
 }
 
-fn symbology_length(metadata: &crate::Metadata) -> usize {
+fn check_symbology(lengths: &MetadataLengths, metadata: &crate::Metadata) -> crate::Result<()> {
+    if lengths.has_symbol_intervals && !metadata.mappings.is_empty() {
+        return Err(crate::Error::encode(format!(
+            "DBN version {} carries symbology in `intervals`, not `mappings`",
+            metadata.version
+        )));
+    }
+    if !lengths.has_symbol_intervals && !metadata.intervals.is_empty() {
+        return Err(crate::Error::encode(format!(
+            "DBN version {} carries symbology in `mappings`, not `intervals`",
+            metadata.version
+        )));
+    }
+    Ok(())
+}
+
+fn symbology_length(lengths: &MetadataLengths, metadata: &crate::Metadata) -> usize {
     const COUNT_LEN: usize = std::mem::size_of::<u32>();
+    if lengths.has_symbol_intervals {
+        let ids_len = std::mem::size_of::<u64>() * 3;
+        let strs_len = |strs: &[String]| COUNT_LEN + crate::layout::wire::strs_len(strs);
+        let intervals_len = COUNT_LEN
+            + metadata
+                .intervals
+                .iter()
+                .map(|i| {
+                    ids_len
+                        + crate::layout::wire::str_len(&i.stype_in_symbol)
+                        + crate::layout::wire::str_len(&i.stype_out_symbol)
+                })
+                .sum::<usize>();
+        return strs_len(&metadata.symbols)
+            + strs_len(&metadata.partial)
+            + strs_len(&metadata.not_found)
+            + intervals_len;
+    }
     let symbol_len = metadata.symbol_cstr_len;
     let cstrs_len = |cstrs: &[String]| COUNT_LEN + cstrs.len() * symbol_len;
     let interval_len = std::mem::size_of::<u32>() * 2 + symbol_len;
@@ -126,10 +160,12 @@ fn calc_length(
     metadata: &crate::Metadata,
     layout_len: usize,
 ) -> (u32, u32) {
-    let length_prefixes = std::mem::size_of::<u32>() * if lengths.has_layout { 2 } else { 1 };
-    let needed_len =
-        (crate::METADATA_FIXED_LEN + length_prefixes + layout_len + symbology_length(metadata))
-            as u32;
+    let length_prefixes =
+        std::mem::size_of::<u32>() * if lengths.has_symbol_intervals { 2 } else { 1 };
+    let needed_len = (crate::METADATA_FIXED_LEN
+        + length_prefixes
+        + layout_len
+        + symbology_length(lengths, metadata)) as u32;
     let rem = needed_len % 8;
     if !lengths.should_pad_to_8 || rem == 0 {
         (needed_len, 0)

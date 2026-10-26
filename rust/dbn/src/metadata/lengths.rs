@@ -7,6 +7,7 @@ pub(crate) struct MetadataLengths {
     pub has_record_count: bool,
     pub has_symbol_cstr_len: bool,
     pub has_layout: bool,
+    pub has_symbol_intervals: bool,
     pub should_pad_to_8: bool,
 }
 
@@ -17,6 +18,7 @@ impl MetadataLengths {
         has_record_count: true,
         has_symbol_cstr_len: false,
         has_layout: false,
+        has_symbol_intervals: false,
         should_pad_to_8: false,
     };
     const V2: Self = Self {
@@ -33,6 +35,7 @@ impl MetadataLengths {
         dataset_cstr_len: 38,
         reserved_len: 31,
         has_layout: true,
+        has_symbol_intervals: true,
         ..Self::V3
     };
 

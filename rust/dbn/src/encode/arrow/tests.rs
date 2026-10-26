@@ -139,6 +139,7 @@ fn test_metadata() -> Metadata {
         symbols: vec!["ESM4".to_owned()],
         partial: vec![],
         not_found: vec![],
+        intervals: vec![],
         mappings: vec![SymbolMapping {
             raw_symbol: "ESM4".to_owned(),
             intervals: vec![MappingInterval {

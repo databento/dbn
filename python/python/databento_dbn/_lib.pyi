@@ -12,6 +12,8 @@ from typing import TextIO
 
 from databento_dbn import DBNRecord
 from databento_dbn.metadata import MappingIntervalDict
+from databento_dbn.metadata import SymbolInterval
+from databento_dbn.metadata import SymbolIntervalDict
 from databento_dbn.metadata import SymbolMapping
 
 DBN_VERSION: int
@@ -58,6 +60,7 @@ class Metadata:
         limit: int | None = None,
         ts_out: bool | None = None,
         version: int | None = None,
+        intervals: Sequence[SymbolInterval] | None = None,
     ) -> None: ...
     def __bytes__(self) -> bytes: ...
     @property
@@ -205,6 +208,17 @@ class Metadata:
         Returns
         -------
         dict[str, list[dict[str, Any]]]:
+
+        """
+
+    @property
+    def intervals(self) -> list[SymbolIntervalDict]:
+        """
+        Symbol mappings with nanosecond-precision intervals. Only used in DBN version 4.
+
+        Returns
+        -------
+        list[SymbolIntervalDict]
 
         """
 

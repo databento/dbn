@@ -117,7 +117,7 @@ pub use crate::{
     },
     error::{Error, Result},
     flags::FlagSet,
-    metadata::{MappingInterval, Metadata, MetadataBuilder, SymbolMapping},
+    metadata::{MappingInterval, Metadata, MetadataBuilder, SymbolInterval, SymbolMapping},
     publishers::{Dataset, Publisher, Venue},
     record::{
         Bbo1MMsg, Bbo1SMsg, BboMsg, BidAskPair, Cbbo1MMsg, Cbbo1SMsg, CbboMsg, Cmbp1Msg,
