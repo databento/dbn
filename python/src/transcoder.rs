@@ -3,14 +3,14 @@
 use std::{
     collections::HashMap,
     io::{BufWriter, Write},
-    sync::Mutex,
+    mem,
 };
 
 use dbn::{
     decode::dbn::fsm::{DbnFsm, ProcessResult},
     encode::{
-        CsvEncoder, DbnMetadataEncoder, DbnRecordEncoder, DynWriter, EncodeRecordRef,
-        EncodeRecordTextExt, JsonEncoder,
+        CsvEncoder, DbnMetadataEncoder, DbnRecordEncoder, DynEncoder, DynWriter, EncodeRecord,
+        EncodeRecordRef, EncodeRecordTextExt, JsonEncoder, OutputEncoding,
     },
     python::{py_to_time_date, to_py_err},
     Compression, Encoding, Metadata, PitSymbolMap, RType, Record, RecordRef, Schema, SymbolIndex,
@@ -21,11 +21,12 @@ use pyo3::{
     prelude::*,
     types::{PyBytes, PyDate},
 };
+use sync_wrapper::SyncWrapper;
 
 use crate::encode::PyFileLike;
 
 #[pyclass(module = "databento_dbn")]
-pub struct Transcoder(Mutex<Box<dyn Transcode + Send>>);
+pub struct Transcoder(SyncWrapper<Box<dyn Transcode + Send>>);
 
 pub type PySymbolIntervalMap<'py> =
     HashMap<u32, Vec<(Bound<'py, PyDate>, Bound<'py, PyDate>, String)>>;
@@ -49,7 +50,7 @@ impl Transcoder {
     ))]
     fn new(
         file: PyFileLike,
-        encoding: Encoding,
+        encoding: EncodingArg,
         compression: Compression,
         pretty_px: bool,
         pretty_ts: bool,
@@ -83,8 +84,9 @@ impl Transcoder {
         } else {
             None
         };
-        Ok(Self(Mutex::new(match encoding {
-            Encoding::Dbn => Box::new(Inner::<{ Encoding::Dbn as u8 }>::new(
+        let encoding = OutputEncoding::try_from(encoding)?;
+        Ok(Self(SyncWrapper::new(match encoding {
+            OutputEncoding::Dbn => Box::new(Inner::<{ Encoding::Dbn as u8 }>::new(
                 file,
                 compression,
                 pretty_px,
@@ -97,7 +99,7 @@ impl Transcoder {
                 input_version,
                 upgrade_policy,
             )?),
-            Encoding::Csv => Box::new(Inner::<{ Encoding::Csv as u8 }>::new(
+            OutputEncoding::Csv => Box::new(Inner::<{ Encoding::Csv as u8 }>::new(
                 file,
                 compression,
                 pretty_px,
@@ -110,7 +112,7 @@ impl Transcoder {
                 input_version,
                 upgrade_policy,
             )?),
-            Encoding::Json => Box::new(Inner::<{ Encoding::Json as u8 }>::new(
+            OutputEncoding::Json => Box::new(Inner::<{ Encoding::Json as u8 }>::new(
                 file,
                 compression,
                 pretty_px,
@@ -118,6 +120,18 @@ impl Transcoder {
                 map_symbols,
                 has_metadata,
                 ts_out,
+                symbol_map,
+                schema,
+                input_version,
+                upgrade_policy,
+            )?),
+            encoding => Box::new(ColumnarInner::new(
+                file,
+                encoding,
+                compression,
+                pretty_px,
+                map_symbols,
+                has_metadata,
                 symbol_map,
                 schema,
                 input_version,
@@ -127,11 +141,11 @@ impl Transcoder {
     }
 
     fn write(&mut self, py: Python<'_>, bytes: &[u8]) -> PyResult<()> {
-        py.detach(|| self.0.lock().unwrap().write(bytes))
+        py.detach(|| self.0.get_mut().write(bytes))
     }
 
     fn flush(&mut self, py: Python<'_>) -> PyResult<()> {
-        py.detach(|| self.0.lock().unwrap().flush())
+        py.detach(|| self.0.get_mut().flush())
     }
 
     /// Finalize the output stream, writing any epilogue required by the
@@ -140,14 +154,11 @@ impl Transcoder {
     /// Calling `finish()` more than once has no effect.
     /// Writing to or flushing a finished transcoder raises a `ValueError`.
     fn finish(&mut self, py: Python<'_>) -> PyResult<()> {
-        py.detach(|| self.0.lock().unwrap().finish())
+        py.detach(|| self.0.get_mut().finish())
     }
 
-    fn buffer<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
-        // Copy out without the GIL: a thread holding the lock may be waiting
-        // on the GIL to write to the Python file
-        let buffer = py.detach(|| self.0.lock().unwrap().buffer().to_vec());
-        PyBytes::new(py, &buffer)
+    fn buffer<'py>(&mut self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        PyBytes::new(py, self.0.get_mut().buffer())
     }
 
     fn __enter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
@@ -194,9 +205,7 @@ struct Inner<const E: u8> {
 impl<const E: u8> Transcode for Inner<E> {
     fn write(&mut self, bytes: &[u8]) -> PyResult<()> {
         if self.finished {
-            return Err(PyValueError::new_err(
-                "I/O operation on finished Transcoder",
-            ));
+            return Err(finished_err());
         }
         self.fsm.write_all(bytes);
         self.encode()
@@ -204,9 +213,7 @@ impl<const E: u8> Transcode for Inner<E> {
 
     fn flush(&mut self) -> PyResult<()> {
         if self.finished {
-            return Err(PyValueError::new_err(
-                "I/O operation on finished Transcoder",
-            ));
+            return Err(finished_err());
         }
         self.encode()?;
         self.output.flush()?;
@@ -328,12 +335,8 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
             .map(|rtype| rtype == RType::from(self.schema.unwrap()))
             .unwrap_or(false)
         {
-            if self.map_symbols {
-                let symbol = self.symbol_map.get_for_rec(&rec).map(|s| s.as_str());
-                unsafe { encoder.encode_ref_ts_out_with_sym(rec, self.fsm.ts_out(), symbol) }
-            } else {
-                unsafe { encoder.encode_record_ref_ts_out(rec, self.fsm.ts_out()) }
-            }?;
+            let symbol_map = self.map_symbols.then_some(&self.symbol_map);
+            unsafe { encode_with_symbol(&mut encoder, symbol_map, rec, self.fsm.ts_out()) }?;
         }
         Ok(())
     }
@@ -346,11 +349,9 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
         let rec = self.fsm.last_record().unwrap();
         if self.map_symbols {
             self.symbol_map.update_live(rec);
-            let symbol = self.symbol_map.get_for_rec(&rec).map(|s| s.as_str());
-            unsafe { encoder.encode_ref_ts_out_with_sym(rec, self.fsm.ts_out(), symbol) }
-        } else {
-            unsafe { encoder.encode_record_ref_ts_out(rec, self.fsm.ts_out()) }
         }
+        let symbol_map = self.map_symbols.then_some(&self.symbol_map);
+        unsafe { encode_with_symbol(&mut encoder, symbol_map, rec, self.fsm.ts_out()) }
     }
 
     // returns `false` if more data is required to decode the metadata
@@ -362,17 +363,7 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
             DbnMetadataEncoder::new(&mut self.output).encode(&metadata)?;
         // CSV or JSON
         } else if self.map_symbols {
-            if metadata.schema.is_some() {
-                // historical
-                // only read from metadata mappings if symbol_map is unpopulated,
-                // i.e. no `symbol_map` was passed in
-                if self.symbol_map.is_empty() {
-                    self.symbol_map = metadata.symbol_map().map(SymbolMap::Historical)?;
-                }
-            } else {
-                // live
-                self.symbol_map = SymbolMap::Live(Default::default());
-            }
+            self.symbol_map.init_from_metadata(&metadata)?;
         }
         // decoding metadata and the header are both done once at the beginning
         Self::encode_header_if_csv(
@@ -416,6 +407,181 @@ impl<const OUTPUT_ENC: u8> Inner<OUTPUT_ENC> {
     }
 }
 
+#[derive(FromPyObject)]
+enum EncodingArg {
+    Encoding(Encoding),
+    Columnar(String),
+}
+
+impl TryFrom<EncodingArg> for OutputEncoding {
+    type Error = PyErr;
+
+    fn try_from(arg: EncodingArg) -> PyResult<Self> {
+        match arg {
+            EncodingArg::Encoding(encoding) => Ok(encoding.into()),
+            EncodingArg::Columnar(name) => match name.as_str() {
+                "arrow" => Ok(Self::Arrow),
+                "parquet" => Ok(Self::Parquet),
+                _ => Err(PyValueError::new_err(format!(
+                    "unknown encoding '{name}', expected an Encoding, 'arrow', or 'parquet'"
+                ))),
+            },
+        }
+    }
+}
+
+struct ColumnarInner {
+    fsm: DbnFsm,
+    state: ColumnarState,
+    encoding: OutputEncoding,
+    compression: Compression,
+    use_pretty_px: bool,
+    map_symbols: bool,
+    symbol_map: SymbolMap,
+    schema: Option<Schema>,
+}
+
+enum ColumnarState {
+    AwaitingMetadata(BufWriter<PyFileLike>),
+    Encoding {
+        encoder: Box<DynEncoder<'static, BufWriter<PyFileLike>>>,
+        rtype: RType,
+    },
+    Finished,
+}
+
+impl Transcode for ColumnarInner {
+    fn write(&mut self, bytes: &[u8]) -> PyResult<()> {
+        if matches!(self.state, ColumnarState::Finished) {
+            return Err(finished_err());
+        }
+        self.fsm.write_all(bytes);
+        self.encode()
+    }
+
+    fn flush(&mut self) -> PyResult<()> {
+        if matches!(self.state, ColumnarState::Finished) {
+            return Err(finished_err());
+        }
+        self.encode()?;
+        if let ColumnarState::Encoding { encoder, .. } = &mut self.state {
+            encoder.flush().map_err(to_py_err)?;
+        }
+        Ok(())
+    }
+
+    fn finish(&mut self) -> PyResult<()> {
+        if matches!(self.state, ColumnarState::Finished) {
+            return Ok(());
+        }
+        self.encode()?;
+        match mem::replace(&mut self.state, ColumnarState::Finished) {
+            ColumnarState::AwaitingMetadata(mut writer) => writer.flush()?,
+            ColumnarState::Encoding { encoder, .. } => encoder.finish().map_err(to_py_err)?,
+            ColumnarState::Finished => {}
+        }
+        Ok(())
+    }
+
+    fn buffer(&self) -> &[u8] {
+        self.fsm.data()
+    }
+}
+
+impl ColumnarInner {
+    fn new(
+        file: PyFileLike,
+        encoding: OutputEncoding,
+        compression: Compression,
+        pretty_px: bool,
+        map_symbols: Option<bool>,
+        has_metadata: bool,
+        symbol_map: Option<TsSymbolMap>,
+        schema: Option<Schema>,
+        input_version: Option<u8>,
+        upgrade_policy: VersionUpgradePolicy,
+    ) -> PyResult<Self> {
+        if !has_metadata {
+            return Err(PyValueError::new_err(
+                "has_metadata=False is incompatible with Parquet and Arrow encodings",
+            ));
+        }
+        let fsm = DbnFsm::builder()
+            .input_dbn_version(input_version)
+            .map_err(to_py_err)?
+            .upgrade_policy(upgrade_policy)
+            .build()
+            .map_err(to_py_err)?;
+        Ok(Self {
+            fsm,
+            state: ColumnarState::AwaitingMetadata(BufWriter::new(file)),
+            encoding,
+            compression,
+            use_pretty_px: pretty_px,
+            map_symbols: map_symbols.unwrap_or(true),
+            symbol_map: symbol_map.map(SymbolMap::Historical).unwrap_or_default(),
+            schema,
+        })
+    }
+
+    fn encode(&mut self) -> PyResult<()> {
+        loop {
+            match self.fsm.process() {
+                ProcessResult::ReadMore(_) => return Ok(()),
+                ProcessResult::Err(e) => return Err(PyErr::from(e)),
+                ProcessResult::Metadata(metadata) => self.build_encoder(metadata)?,
+                ProcessResult::Record(_) => self.encode_record().map_err(to_py_err)?,
+            }
+        }
+    }
+
+    fn build_encoder(&mut self, mut metadata: Metadata) -> PyResult<()> {
+        if self.map_symbols {
+            self.symbol_map.init_from_metadata(&metadata)?;
+        }
+        if self.schema.is_some() {
+            metadata.schema = self.schema;
+        }
+        let Some(schema) = metadata.schema else {
+            return Err(PyValueError::new_err(
+                "A schema must be specified when transcoding mixed schema DBN to Parquet or Arrow",
+            ));
+        };
+        let ColumnarState::AwaitingMetadata(writer) =
+            mem::replace(&mut self.state, ColumnarState::Finished)
+        else {
+            return Err(PyValueError::new_err(
+                "Transcoder received a second DBN metadata header",
+            ));
+        };
+        let encoder = DynEncoder::builder(writer, self.encoding, self.compression, &metadata)
+            .use_pretty_px(self.use_pretty_px)
+            .with_symbol(self.map_symbols)
+            .build()
+            .map_err(to_py_err)?;
+        self.state = ColumnarState::Encoding {
+            encoder: Box::new(encoder),
+            rtype: RType::from(schema),
+        };
+        Ok(())
+    }
+
+    fn encode_record(&mut self) -> dbn::Result<()> {
+        let ColumnarState::Encoding { encoder, rtype } = &mut self.state else {
+            return Err(dbn::Error::encode("received a record before DBN metadata"));
+        };
+        let rec = self.fsm.last_record().unwrap();
+        if self.map_symbols {
+            self.symbol_map.update_live(rec);
+        }
+        if rec.rtype().is_ok_and(|r| r == *rtype) {
+            let symbol_map = self.map_symbols.then_some(&self.symbol_map);
+            unsafe { encode_with_symbol(encoder.as_mut(), symbol_map, rec, self.fsm.ts_out()) }?;
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug)]
 enum SymbolMap {
     Historical(TsSymbolMap),
@@ -439,6 +605,21 @@ impl SymbolMap {
         }
     }
 
+    fn init_from_metadata(&mut self, metadata: &Metadata) -> PyResult<()> {
+        if metadata.schema.is_some() {
+            // historical
+            // only read from metadata mappings if symbol_map is unpopulated,
+            // i.e. no `symbol_map` was passed in
+            if self.is_empty() {
+                *self = metadata.symbol_map().map(SymbolMap::Historical)?;
+            }
+        } else {
+            // live
+            *self = SymbolMap::Live(Default::default());
+        }
+        Ok(())
+    }
+
     fn update_live(&mut self, rec: RecordRef) {
         let SymbolMap::Live(ref mut symbol_map) = self else {
             return;
@@ -454,15 +635,40 @@ impl Default for SymbolMap {
     }
 }
 
+unsafe fn encode_with_symbol(
+    encoder: &mut impl EncodeRecordTextExt,
+    symbol_map: Option<&SymbolMap>,
+    rec: RecordRef,
+    ts_out: bool,
+) -> dbn::Result<()> {
+    if let Some(symbol_map) = symbol_map {
+        let symbol = symbol_map.get_for_rec(&rec).map(|s| s.as_str());
+        unsafe { encoder.encode_ref_ts_out_with_sym(rec, ts_out, symbol) }
+    } else {
+        unsafe { encoder.encode_record_ref_ts_out(rec, ts_out) }
+    }
+}
+
+fn finished_err() -> PyErr {
+    PyValueError::new_err("I/O operation on finished Transcoder")
+}
+
 #[cfg(test)]
 mod tests {
     use std::{io::Read, num::NonZeroU64};
+
+    use arrow::{
+        array::{AsArray, RecordBatch},
+        datatypes::{Float64Type, TimestampNanosecondType},
+        ipc::reader::FileReader,
+    };
 
     use dbn::{
         encode::{DbnEncoder, EncodeRecord},
         rtype, Dataset, ErrorMsg, MappingInterval, MetadataBuilder, OhlcvMsg, RecordHeader, SType,
         Schema, SymbolMapping, SymbolMappingMsg, WithTsOut, DBN_VERSION, UNDEF_TIMESTAMP,
     };
+    use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
     use rstest::*;
     use time::macros::{date, datetime};
 
@@ -480,7 +686,7 @@ mod tests {
         let mut transcoder = Python::attach(|py| {
             Transcoder::new(
                 Py::new(py, file).unwrap().extract(py).unwrap(),
-                Encoding::Dbn,
+                EncodingArg::Encoding(Encoding::Dbn),
                 Compression::Zstd,
                 false,
                 false,
@@ -538,7 +744,7 @@ mod tests {
         let mut target = Python::attach(|py| {
             Transcoder::new(
                 Py::new(py, file).unwrap().extract(py).unwrap(),
-                Encoding::Json,
+                EncodingArg::Encoding(Encoding::Json),
                 Compression::None,
                 true,
                 true,
@@ -607,7 +813,7 @@ mod tests {
         let mut transcoder = Python::attach(|py| {
             Transcoder::new(
                 Py::new(py, file).unwrap().extract(py).unwrap(),
-                Encoding::Csv,
+                EncodingArg::Encoding(Encoding::Csv),
                 Compression::None,
                 true,
                 true,
@@ -678,7 +884,7 @@ mod tests {
         let mut transcoder = Python::attach(|py| {
             Transcoder::new(
                 Py::new(py, file).unwrap().extract(py).unwrap(),
-                encoding,
+                EncodingArg::Encoding(encoding),
                 Compression::None,
                 true,
                 false,
@@ -805,7 +1011,7 @@ mod tests {
         let mut transcoder = Python::attach(|py| {
             Transcoder::new(
                 Py::new(py, file).unwrap().extract(py).unwrap(),
-                encoding,
+                EncodingArg::Encoding(encoding),
                 Compression::None,
                 true,
                 true,
@@ -936,7 +1142,7 @@ mod tests {
         let mut transcoder = Python::attach(|py| {
             Transcoder::new(
                 Py::new(py, file).unwrap().extract(py).unwrap(),
-                encoding,
+                EncodingArg::Encoding(encoding),
                 Compression::None,
                 true,
                 true,
@@ -978,7 +1184,7 @@ mod tests {
         let mut transcoder = Python::attach(|py| {
             Transcoder::new(
                 Py::new(py, file).unwrap().extract(py).unwrap(),
-                Encoding::Csv,
+                EncodingArg::Encoding(Encoding::Csv),
                 Compression::None,
                 true,
                 true,
@@ -1003,5 +1209,244 @@ mod tests {
         // ends an empty field because there was no metadata and no symbol map was provided
         assert!(lines[1].ends_with(','));
         assert!(lines[2].ends_with(','));
+    }
+
+    #[rstest]
+    fn test_columnar_historical(
+        _python: (),
+        #[values("arrow", "parquet")] name: &str,
+        #[values(false, true)] ts_out: bool,
+        #[values(Compression::None, Compression::Zstd)] compression: Compression,
+    ) {
+        let file = MockPyFile::new();
+        let output_buf = file.inner();
+        let mut transcoder = Python::attach(|py| {
+            Transcoder::new(
+                Py::new(py, file).unwrap().extract(py).unwrap(),
+                EncodingArg::Columnar(name.to_owned()),
+                compression,
+                true,
+                true,
+                None,
+                true,
+                false,
+                None,
+                None,
+                None,
+                VersionUpgradePolicy::default(),
+            )
+            .unwrap()
+        });
+        Python::attach(|py| transcoder.write(py, &ohlcv_dbn(ts_out))).unwrap();
+        Python::attach(|py| transcoder.finish(py)).unwrap();
+        let output = output_buf.lock().unwrap().get_ref().clone();
+        let (metadata, batches) = read_file(name, output).unwrap();
+        assert_eq!(batches.len(), 1);
+        let batch = &batches[0];
+        assert_eq!(batch.num_rows(), 2);
+        let open = batch
+            .column_by_name("open")
+            .unwrap()
+            .as_primitive::<Float64Type>();
+        assert_eq!(open.values(), &[376.93, 357.39]);
+        let symbol = batch.column_by_name("symbol").unwrap().as_string::<i32>();
+        assert_eq!(symbol.value(0), "NFLX");
+        assert_eq!(symbol.value(1), "QQQ");
+        if ts_out {
+            let ts_out = batch
+                .column_by_name("ts_out")
+                .unwrap()
+                .as_primitive::<TimestampNanosecondType>();
+            assert_eq!(ts_out.values(), &[1, 2]);
+        } else {
+            assert!(batch.column_by_name("ts_out").is_none());
+        }
+        assert!(metadata["databento:metadata"].contains("\"dataset\":\"XNAS.ITCH\""));
+    }
+
+    #[rstest]
+    #[case::arrow("arrow", b"ARROW1".as_slice())]
+    #[case::parquet("parquet", b"PAR1".as_slice())]
+    fn test_columnar_footer_written_on_finish(
+        _python: (),
+        #[case] name: &str,
+        #[case] magic: &[u8],
+    ) {
+        let file = MockPyFile::new();
+        let output_buf = file.inner();
+        let mut transcoder = Python::attach(|py| {
+            Transcoder::new(
+                Py::new(py, file).unwrap().extract(py).unwrap(),
+                EncodingArg::Columnar(name.to_owned()),
+                Compression::None,
+                true,
+                true,
+                None,
+                true,
+                false,
+                None,
+                None,
+                None,
+                VersionUpgradePolicy::default(),
+            )
+            .unwrap()
+        });
+        Python::attach(|py| transcoder.write(py, &ohlcv_dbn(false))).unwrap();
+        Python::attach(|py| transcoder.flush(py)).unwrap();
+        let flushed = output_buf.lock().unwrap().get_ref().clone();
+        assert!(read_file(name, flushed).is_none());
+        Python::attach(|py| transcoder.finish(py)).unwrap();
+        let finished = output_buf.lock().unwrap().get_ref().clone();
+        assert!(finished.ends_with(magic));
+        assert!(read_file(name, finished.clone()).is_some());
+        Python::attach(|py| transcoder.finish(py)).unwrap();
+        assert_eq!(output_buf.lock().unwrap().get_ref().len(), finished.len());
+        assert!(Python::attach(|py| transcoder.write(py, &[0u8; 4])).is_err());
+        assert!(Python::attach(|py| transcoder.flush(py)).is_err());
+    }
+
+    #[rstest]
+    fn test_columnar_requires_metadata(_python: (), #[values("arrow", "parquet")] name: &str) {
+        Python::attach(|py| {
+            let err = Transcoder::new(
+                Py::new(py, MockPyFile::new()).unwrap().extract(py).unwrap(),
+                EncodingArg::Columnar(name.to_owned()),
+                Compression::None,
+                true,
+                true,
+                None,
+                false,
+                false,
+                None,
+                Some(Schema::Ohlcv1S),
+                Some(DBN_VERSION),
+                VersionUpgradePolicy::default(),
+            )
+            .err()
+            .unwrap();
+            assert!(err.is_instance_of::<PyValueError>(py));
+            assert!(err.to_string().contains("has_metadata=False"));
+        });
+    }
+
+    #[rstest]
+    fn test_unknown_encoding_name(_python: ()) {
+        Python::attach(|py| {
+            let err = Transcoder::new(
+                Py::new(py, MockPyFile::new()).unwrap().extract(py).unwrap(),
+                EncodingArg::Columnar("feather".to_owned()),
+                Compression::None,
+                true,
+                true,
+                None,
+                true,
+                false,
+                None,
+                None,
+                None,
+                VersionUpgradePolicy::default(),
+            )
+            .err()
+            .unwrap();
+            assert!(err.is_instance_of::<PyValueError>(py));
+            assert!(err.to_string().contains("'feather'"));
+        });
+    }
+
+    fn ohlcv_dbn(ts_out: bool) -> Vec<u8> {
+        const QQQ: &str = "QQQ";
+        const QQQ_ID: u32 = 48933;
+        const NFLX: &str = "NFLX";
+        const NFLX_ID: u32 = 58501;
+        let mut encoder = DbnEncoder::new(
+            Vec::new(),
+            &MetadataBuilder::new()
+                .dataset(Dataset::XnasItch.to_string())
+                .schema(Some(Schema::Ohlcv1S))
+                .stype_in(Some(SType::RawSymbol))
+                .stype_out(SType::InstrumentId)
+                .ts_out(ts_out)
+                .start(datetime!(2023-09-27 00:00:00 UTC).unix_timestamp_nanos() as u64)
+                .end(NonZeroU64::new(
+                    datetime!(2023-09-29 00:00:00 UTC).unix_timestamp_nanos() as u64,
+                ))
+                .mappings(vec![
+                    SymbolMapping {
+                        raw_symbol: QQQ.to_owned(),
+                        intervals: vec![MappingInterval {
+                            start_date: date!(2023 - 09 - 27),
+                            end_date: date!(2023 - 09 - 29),
+                            symbol: format!("{QQQ_ID}"),
+                        }],
+                    },
+                    SymbolMapping {
+                        raw_symbol: NFLX.to_owned(),
+                        intervals: vec![MappingInterval {
+                            start_date: date!(2023 - 09 - 27),
+                            end_date: date!(2023 - 09 - 29),
+                            symbol: format!("{NFLX_ID}"),
+                        }],
+                    },
+                ])
+                .build(),
+        )
+        .unwrap();
+        let recs = [
+            OhlcvMsg {
+                hd: RecordHeader::new::<OhlcvMsg>(
+                    rtype::OHLCV_1S,
+                    1,
+                    NFLX_ID,
+                    datetime!(2023-09-27 13:30:01 UTC).unix_timestamp_nanos() as u64,
+                ),
+                open: 376_930_000_000,
+                high: 377_050_000_000,
+                low: 376_900_000_000,
+                close: 377_010_000_000,
+                volume: 1_204,
+            },
+            OhlcvMsg {
+                hd: RecordHeader::new::<OhlcvMsg>(
+                    rtype::OHLCV_1S,
+                    1,
+                    QQQ_ID,
+                    datetime!(2023-09-27 13:30:01 UTC).unix_timestamp_nanos() as u64,
+                ),
+                open: 357_390_000_000,
+                high: 357_460_000_000,
+                low: 357_350_000_000,
+                close: 357_420_000_000,
+                volume: 18_530,
+            },
+        ];
+        for (ts_out_val, rec) in (1..).zip(recs) {
+            if ts_out {
+                encoder
+                    .encode_record(&WithTsOut::new(rec, ts_out_val))
+                    .unwrap();
+            } else {
+                encoder.encode_record(&rec).unwrap();
+            }
+        }
+        encoder.get_ref().clone()
+    }
+
+    // `None` if the file is incomplete
+    fn read_file(
+        name: &str,
+        output: Vec<u8>,
+    ) -> Option<(HashMap<String, String>, Vec<RecordBatch>)> {
+        if name == "parquet" {
+            let builder =
+                ParquetRecordBatchReaderBuilder::try_new(bytes::Bytes::from(output)).ok()?;
+            // The builder's schema carries the key-value metadata; the reader's doesn't
+            let metadata = builder.schema().metadata().clone().into();
+            let batches = builder.build().unwrap().map(Result::unwrap).collect();
+            Some((metadata, batches))
+        } else {
+            let reader = FileReader::try_new(std::io::Cursor::new(output), None).ok()?;
+            let metadata = reader.schema().metadata().clone().into();
+            Some((metadata, reader.map(Result::unwrap).collect()))
+        }
     }
 }

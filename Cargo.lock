@@ -546,9 +546,13 @@ dependencies = [
 name = "databento-dbn"
 version = "0.73.0"
 dependencies = [
+ "arrow",
+ "bytes",
  "dbn",
+ "parquet",
  "pyo3",
  "rstest",
+ "sync_wrapper",
  "time",
  "zstd",
 ]
@@ -1483,6 +1487,12 @@ dependencies = [
  "quote",
  "unicode-ident",
 ]
+
+[[package]]
+name = "sync_wrapper"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0bf256ce5efdfa370213c1dabab5935a12e49f2c58d15e9eac2870d3b4f27263"
 
 [[package]]
 name = "target-lexicon"

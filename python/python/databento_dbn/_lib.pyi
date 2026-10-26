@@ -7,6 +7,7 @@ from collections.abc import Sequence
 from enum import Enum
 from typing import BinaryIO
 from typing import ClassVar
+from typing import Literal
 from typing import TextIO
 
 from databento_dbn import DBNRecord
@@ -9998,20 +9999,25 @@ class Transcoder:
     ----------
     file : BinaryIO | TextIO
         The file-like object to write the transcoded output to.
-    encoding : Encoding
+    encoding : Encoding | Literal["arrow", "parquet"]
         The encoding for the output.
+        The "arrow" encoding is the Arrow IPC file format, also called Feather v2.
+        The "arrow" and "parquet" encodings are experimental. They require metadata
+        and write their footer on `finish()`.
     compression : Compression
         The compression for the output.
+        With the "arrow" and "parquet" encodings, the compression applies to the data
+        within the file.
     pretty_px : bool, default True
-        Whether to serialize fixed-precision prices as decimal strings. Only applicable
-        to CSV and JSON.
+        Whether to serialize fixed-precision prices as decimal strings for CSV and JSON,
+        or as floats for the "arrow" and "parquet" encodings. Not applicable to DBN.
     pretty_ts : bool, default True | None
         Whether to serialize nanosecond UNIX timestamps as ISO8601 datetime strings.
         Only applicable to CSV and JSON.
     map_symbols : bool, default None
         If symbology mappings from the metadata should be used to create
         a 'symbol' field, mapping the instrument ID to its requested symbol for
-        every record. Defaults to True for text encodings and False for DBN.
+        every record. Defaults to False for DBN and True for the other encodings.
     has_metadata : bool, default True
         Whether the input bytes begin with DBN metadata. Pass False to transcode
         individual records or a fragment of a DBN stream.
@@ -10034,7 +10040,7 @@ class Transcoder:
     def __init__(
         self,
         file: BinaryIO | TextIO,
-        encoding: Encoding,
+        encoding: Encoding | Literal["arrow", "parquet"],
         compression: Compression,
         pretty_px: bool = True,
         pretty_ts: bool = True,

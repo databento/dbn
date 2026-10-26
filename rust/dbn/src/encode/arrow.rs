@@ -78,9 +78,17 @@ impl<W: Write + Send> ColumnarWriter for IpcFile<W> {
             .map_err(|e| Error::io(e, "flushing Arrow IPC writer"))
     }
 
-    fn close(mut self) -> Result<()> {
+    fn close(&mut self) -> Result<()> {
         self.0
             .finish()
             .map_err(|e| Error::arrow(e, "finishing Arrow IPC file"))
+    }
+
+    fn get_ref(&self) -> &W {
+        self.0.get_ref()
+    }
+
+    fn get_mut(&mut self) -> &mut W {
+        self.0.get_mut()
     }
 }

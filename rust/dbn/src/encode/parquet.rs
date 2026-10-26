@@ -49,14 +49,25 @@ impl<W: Write + Send> ColumnarWriter for ParquetFile<W> {
     fn flush(&mut self) -> Result<()> {
         self.0
             .flush()
-            .map_err(|e| Error::parquet(e, "flushing Parquet writer"))
+            .map_err(|e| Error::parquet(e, "flushing Parquet writer"))?;
+        self.0
+            .sync()
+            .map_err(|e| Error::io(e, "flushing Parquet writer"))
     }
 
-    fn close(self) -> Result<()> {
+    fn close(&mut self) -> Result<()> {
         self.0
-            .close()
+            .finish()
             .map(|_| ())
             .map_err(|e| Error::parquet(e, "closing Parquet writer"))
+    }
+
+    fn get_ref(&self) -> &W {
+        self.0.inner()
+    }
+
+    fn get_mut(&mut self) -> &mut W {
+        self.0.inner_mut()
     }
 }
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.74.0 - Upcoming
+
+### Enhancements
+- Added experimental Arrow IPC and Parquet encodings to the Python `Transcoder` with
+  `encoding="arrow"` and `encoding="parquet"`
+- Added `get_ref` and `get_mut` to `ArrowEncoder` and `ParquetEncoder` for accessing
+  the underlying writer
+
 ## 0.73.0 - 2026-10-27
 
 This version adds Apache Arrow and Apache Parquet encoding to the `dbn` crate and CLI.
