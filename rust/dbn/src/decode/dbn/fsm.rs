@@ -292,6 +292,15 @@ impl<H: DecodeHeader> DbnFsm<H> {
         Ok(())
     }
 
+    pub(crate) fn set_skip_framing_records(&mut self, skip_framing_records: bool) {
+        self.skip_framing_records = skip_framing_records;
+    }
+
+    pub(crate) fn last_framing_record(&self) -> Option<RecordRef<'_, H>> {
+        self.last_record()
+            .filter(|rec| is_framing::<H>(self.input_dbn_version, rec.as_ref()))
+    }
+
     /// Returns an immutable reference to the most recently decoded record, or `None`.
     #[inline]
     pub fn last_record(&self) -> Option<RecordRef<'_, H>> {
@@ -989,24 +998,11 @@ impl<H: DecodeHeader> DbnFsm<H> {
         let symbols = Self::decode_str_list(cur, "symbols")?;
         let partial = Self::decode_str_list(cur, "partial")?;
         let not_found = Self::decode_str_list(cur, "not_found")?;
-        const CTX: &str = "symbol interval";
-        let count = cur.u32(CTX)? as usize;
-        let min_interval_len = size_of::<u64>() * 3 + str_len("") * 2;
-        let count = Self::checked_count(
-            format_args!("symbol interval count"),
-            count,
-            min_interval_len,
-            cur.remaining().len(),
-        )?;
-        let mut intervals = Vec::with_capacity(count);
-        for _ in 0..count {
-            intervals.push(SymbolInterval {
-                start_ts: cur.u64(CTX)?,
-                end_ts: cur.u64(CTX)?,
-                instrument_id: cur.u64(CTX)?,
-                stype_in_symbol: cur.str(CTX)?,
-                stype_out_symbol: cur.str(CTX)?,
-            });
+        let count = cur.u32("symbol interval")?;
+        let decoded = decode_symbol_intervals(cur, count)?;
+        let mut intervals = Vec::with_capacity(decoded.len());
+        for interval in decoded {
+            intervals.push(interval?);
         }
         Ok(MetadataSymbology {
             symbols,
@@ -1729,6 +1725,29 @@ fn input_frame_len<H: RecordHeaderKind>(
         Some(DbnVersion(v)) if v < v4::DBN_VERSION => v3::RecordHeader::frame_len(data),
         _ => H::frame_len(data),
     }
+}
+
+pub(crate) fn decode_symbol_intervals<'a, 'b>(
+    cur: &'a mut ByteReader<'b>,
+    count: u32,
+) -> Result<impl ExactSizeIterator<Item = Result<SymbolInterval>> + use<'a, 'b>> {
+    const CTX: &str = "symbol interval";
+    let min_interval_len = size_of::<u64>() * 3 + str_len("") * 2;
+    let count = <DbnFsm>::checked_count(
+        format_args!("symbol interval count"),
+        count as usize,
+        min_interval_len,
+        cur.remaining().len(),
+    )?;
+    Ok((0..count).map(move |_| {
+        Ok(SymbolInterval {
+            start_ts: cur.u64(CTX)?,
+            end_ts: cur.u64(CTX)?,
+            instrument_id: cur.u64(CTX)?,
+            stype_in_symbol: cur.str(CTX)?,
+            stype_out_symbol: cur.str(CTX)?,
+        })
+    }))
 }
 
 fn is_framing<H: RecordHeaderKind>(input_dbn_version: Option<DbnVersion>, data: &[u8]) -> bool {

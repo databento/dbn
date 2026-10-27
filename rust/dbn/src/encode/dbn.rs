@@ -10,6 +10,10 @@ use crate::metadata::MetadataLengths;
 /// Maximum number of `IoSlice`s to use in a single vectored write call.
 const MAX_SLICES: usize = 128;
 
+/// Bytes of symbology to buffer before writing, since OPRA symbology can run to
+/// gigabytes.
+const SYMBOLOGY_CHUNK_LEN: usize = 1 << 16;
+
 /// Increment added to a record's header `length` field (in `LENGTH_MULTIPLIER` units)
 /// when appending a `ts_out` timestamp.
 const TS_OUT_LEN: u8 = (std::mem::size_of::<u64>() / crate::RecordHeader::LENGTH_MULTIPLIER) as u8;
@@ -123,17 +127,12 @@ fn check_symbology(lengths: &MetadataLengths, metadata: &crate::Metadata) -> cra
 fn symbology_length(lengths: &MetadataLengths, metadata: &crate::Metadata) -> usize {
     const COUNT_LEN: usize = std::mem::size_of::<u32>();
     if lengths.has_symbol_intervals {
-        let ids_len = std::mem::size_of::<u64>() * 3;
         let strs_len = |strs: &[String]| COUNT_LEN + crate::layout::wire::strs_len(strs);
         let intervals_len = COUNT_LEN
             + metadata
                 .intervals
                 .iter()
-                .map(|i| {
-                    ids_len
-                        + crate::layout::wire::str_len(&i.stype_in_symbol)
-                        + crate::layout::wire::str_len(&i.stype_out_symbol)
-                })
+                .map(symbol_interval_len)
                 .sum::<usize>();
         return strs_len(&metadata.symbols)
             + strs_len(&metadata.partial)
@@ -153,6 +152,34 @@ fn symbology_length(lengths: &MetadataLengths, metadata: &crate::Metadata) -> us
         + cstrs_len(&metadata.partial)
         + cstrs_len(&metadata.not_found)
         + mappings_len
+}
+
+fn symbol_interval_len(interval: &crate::SymbolInterval) -> usize {
+    std::mem::size_of::<u64>() * 3
+        + crate::layout::wire::str_len(&interval.stype_in_symbol)
+        + crate::layout::wire::str_len(&interval.stype_out_symbol)
+}
+
+fn encode_symbol_intervals(
+    writer: &mut impl Write,
+    intervals: &[crate::SymbolInterval],
+) -> crate::Result<()> {
+    let write = |writer: &mut _, buf: &[u8]| {
+        Write::write_all(writer, buf).map_err(|e| crate::Error::io(e, "writing symbol intervals"))
+    };
+    let mut buf = Vec::with_capacity(SYMBOLOGY_CHUNK_LEN);
+    for interval in intervals {
+        buf.extend_from_slice(&interval.start_ts.to_le_bytes());
+        buf.extend_from_slice(&interval.end_ts.to_le_bytes());
+        buf.extend_from_slice(&interval.instrument_id.to_le_bytes());
+        crate::layout::wire::encode_str(&mut buf, "stype_in_symbol", &interval.stype_in_symbol)?;
+        crate::layout::wire::encode_str(&mut buf, "stype_out_symbol", &interval.stype_out_symbol)?;
+        if buf.len() >= SYMBOLOGY_CHUNK_LEN {
+            write(writer, &buf)?;
+            buf.clear();
+        }
+    }
+    write(writer, &buf)
 }
 
 fn calc_length(

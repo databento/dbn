@@ -9,15 +9,18 @@ use crate::{
         DbnMetadata, DecodeRecord, DecodeRecordRef, DecodeStream, SkipBytes, StreamIterDecoder,
         VersionUpgradePolicy,
     },
-    v3, HasRType, Metadata, RecordRef, DBN_VERSION,
+    symbol_map::SymbolIndex,
+    v3, HasRType, Metadata, Record, RecordRef, TsSymbolMap, DBN_VERSION,
 };
 
 /// Type for decoding files and streams in Databento Binary Encoding (DBN), both metadata and records.
 ///
-/// `H` is the record header type to decode. See [`DbnFsm`].
-pub struct Decoder<R, H: DecodeHeader = v3::RecordHeader> {
+/// `H` is the record header type to decode. See [`DbnFsm`]. `SYMBOL_MAP` is whether the
+/// decoder maintains a symbol map. See [`with_symbol_map()`](Self::with_symbol_map).
+pub struct Decoder<R, H: DecodeHeader = v3::RecordHeader, const SYMBOL_MAP: bool = false> {
     metadata: Metadata,
     decoder: RecordDecoder<R, H>,
+    symbol_map: TsSymbolMap,
 }
 
 impl<R> Decoder<R>
@@ -36,6 +39,7 @@ where
         Ok(Self {
             decoder: RecordDecoder::from(metadata_decoder),
             metadata,
+            symbol_map: TsSymbolMap::new(),
         })
     }
 
@@ -54,6 +58,7 @@ where
         Ok(Self {
             decoder: RecordDecoder::from(metadata_decoder),
             metadata,
+            symbol_map: TsSymbolMap::new(),
         })
     }
 }
@@ -75,9 +80,40 @@ where
         Ok(Self {
             decoder: RecordDecoder::from(metadata_decoder),
             metadata,
+            symbol_map: TsSymbolMap::new(),
         })
     }
 
+    /// Converts the decoder into one that maintains a symbol map.
+    ///
+    /// The map starts with the metadata's symbology and updates with each record
+    /// group's symbology. Call this before decoding any records.
+    ///
+    /// # Errors
+    /// This function returns an error if neither `stype_in` nor `stype_out` in the
+    /// metadata is [`SType::InstrumentId`](crate::SType::InstrumentId) or the
+    /// metadata's symbology is invalid.
+    pub fn with_symbol_map(self) -> crate::Result<Decoder<R, H, true>> {
+        let symbol_map = TsSymbolMap::from_metadata(&self.metadata)?;
+        let Self {
+            metadata,
+            mut decoder,
+            ..
+        } = self;
+        decoder.fsm.set_skip_framing_records(false);
+        Ok(Decoder {
+            metadata,
+            decoder,
+            symbol_map,
+        })
+    }
+}
+
+impl<R, H, const SYMBOL_MAP: bool> Decoder<R, H, SYMBOL_MAP>
+where
+    R: io::Read,
+    H: DecodeHeader,
+{
     /// Returns a mutable reference to the inner reader.
     pub fn get_mut(&mut self) -> &mut R {
         self.decoder.get_mut()
@@ -115,7 +151,56 @@ where
     /// error of a kind other than `io::ErrorKind::UnexpectedEof` upon reading.
     /// It will also return an error if it encounters an invalid record.
     pub fn decode_ref(&mut self) -> crate::Result<Option<RecordRef<'_, H>>> {
-        self.decoder.decode_ref()
+        if !SYMBOL_MAP {
+            return self.decoder.decode_ref();
+        }
+        Ok(if self.advance_to_data_record()? {
+            self.decoder.last_record()
+        } else {
+            None
+        })
+    }
+
+    fn advance_to_data_record(&mut self) -> crate::Result<bool> {
+        while self.decoder.decode_ref()?.is_some() {
+            let Some(framing) = self.decoder.fsm.last_framing_record() else {
+                return Ok(true);
+            };
+            super::update_symbol_map(&self.metadata, &mut self.symbol_map, framing)?;
+        }
+        Ok(false)
+    }
+}
+
+impl<R, H> Decoder<R, H, true>
+where
+    R: io::Read,
+    H: DecodeHeader,
+    for<'a> RecordRef<'a, H>: Record,
+{
+    /// Tries to decode a generic reference to a record along with its symbol from the
+    /// symbol map. Returns `Ok(None)` if the reader is exhausted.
+    ///
+    /// # Errors
+    /// This function returns an error if the underlying reader returns an
+    /// error of a kind other than `io::ErrorKind::UnexpectedEof` upon reading.
+    /// It will also return an error if it encounters an invalid record or invalid
+    /// record group symbology.
+    pub fn decode_ref_with_symbol(
+        &mut self,
+    ) -> crate::Result<Option<(RecordRef<'_, H>, Option<&str>)>> {
+        if !self.advance_to_data_record()? {
+            return Ok(None);
+        }
+        Ok(self.decoder.last_record().map(|rec| {
+            let symbol = self.symbol_map.get_for_rec(&rec).map(String::as_str);
+            (rec, symbol)
+        }))
+    }
+
+    /// Returns the symbol map as of the most recently decoded record.
+    pub fn symbol_map(&self) -> &TsSymbolMap {
+        &self.symbol_map
     }
 }
 
@@ -191,17 +276,17 @@ impl Decoder<zstd::stream::Decoder<'_, BufReader<File>>> {
     }
 }
 
-impl<R, H> DecodeRecordRef<H> for Decoder<R, H>
+impl<R, H, const SYMBOL_MAP: bool> DecodeRecordRef<H> for Decoder<R, H, SYMBOL_MAP>
 where
     R: io::Read,
     H: DecodeHeader,
 {
     fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef<'_, H>>> {
-        self.decoder.decode_record_ref()
+        self.decode_ref()
     }
 }
 
-impl<R, H: DecodeHeader> DbnMetadata for Decoder<R, H> {
+impl<R, H: DecodeHeader, const SYMBOL_MAP: bool> DbnMetadata for Decoder<R, H, SYMBOL_MAP> {
     fn metadata(&self) -> &Metadata {
         &self.metadata
     }
@@ -211,17 +296,18 @@ impl<R, H: DecodeHeader> DbnMetadata for Decoder<R, H> {
     }
 }
 
-impl<R, H> DecodeRecord<H> for Decoder<R, H>
+impl<R, H, const SYMBOL_MAP: bool> DecodeRecord<H> for Decoder<R, H, SYMBOL_MAP>
 where
     R: io::Read,
     H: DecodeHeader,
 {
     fn decode_record<T: HasRType<Header = H>>(&mut self) -> crate::Result<Option<&T>> {
-        self.decoder.decode_record()
+        self.decode_ref()
+            .and_then(|rec| rec.map(|rec| rec.try_get()).transpose())
     }
 }
 
-impl<R, H> DecodeStream<H> for Decoder<R, H>
+impl<R, H, const SYMBOL_MAP: bool> DecodeStream<H> for Decoder<R, H, SYMBOL_MAP>
 where
     R: io::Read,
     H: DecodeHeader,
@@ -231,7 +317,7 @@ where
     }
 }
 
-impl<R, H> LastRecord<H> for Decoder<R, H>
+impl<R, H, const SYMBOL_MAP: bool> LastRecord<H> for Decoder<R, H, SYMBOL_MAP>
 where
     R: io::Read,
     H: DecodeHeader,
@@ -241,11 +327,12 @@ where
     }
 }
 
-impl<R, H: DecodeHeader> std::fmt::Debug for Decoder<R, H> {
+impl<R, H: DecodeHeader, const SYMBOL_MAP: bool> std::fmt::Debug for Decoder<R, H, SYMBOL_MAP> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Decoder")
             .field("metadata", &self.metadata)
             .field("decoder", &self.decoder)
+            .field("symbol_map", &self.symbol_map)
             .finish()
     }
 }
@@ -677,6 +764,7 @@ mod tests {
     use rstest::rstest;
 
     use super::*;
+    use crate::v4::framing::{RecordGroupHeader, RecordGroupHeaderMsg};
     #[cfg(feature = "zstd")]
     use crate::{
         decode::DynReader,
@@ -686,8 +774,8 @@ mod tests {
     use crate::{
         decode::{
             dbn::tests::{
-                fsm_v4, mbo_v4, metadata_v4, replace_layout, trade_v3, trade_v3_upgraded, trade_v4,
-                trades_v4,
+                fsm_v4, mbo_v4, metadata_v4, record_group_stream, replace_layout, trade_v3,
+                trade_v3_upgraded, trade_v4, trades_v4,
             },
             tests::TEST_DATA_PATH,
         },
@@ -1194,6 +1282,90 @@ mod tests {
             trade_v4()
         );
         assert!(decoder.decode::<crate::v4::TradeMsg>()?.is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn test_v4_decoder_skips_record_groups() -> Result<()> {
+        let stream = record_group_stream()?;
+        let mut decoder =
+            crate::decode::dbn::v4::Decoder::with_fsm(stream.encoded.as_slice(), fsm_v4()?)?;
+        for (trade, _) in &stream.trades_with_symbols {
+            assert_eq!(decoder.decode_record::<crate::v4::TradeMsg>()?, Some(trade));
+        }
+        assert!(decoder.decode_ref()?.is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn test_v4_decoder_with_symbol_map() -> Result<()> {
+        let stream = record_group_stream()?;
+        let mut decoder =
+            crate::decode::dbn::v4::Decoder::with_fsm(stream.encoded.as_slice(), fsm_v4()?)?
+                .with_symbol_map()?;
+        for (trade, symbol) in &stream.trades_with_symbols {
+            let (rec, rec_symbol) = decoder.decode_ref_with_symbol()?.unwrap();
+            assert_eq!(rec.try_get::<crate::v4::TradeMsg>()?, trade);
+            assert_eq!(rec_symbol, *symbol);
+        }
+        assert!(decoder.decode_ref_with_symbol()?.is_none());
+        assert_eq!(decoder.symbol_map().len(), 2);
+        Ok(())
+    }
+
+    #[test]
+    fn test_v4_decoder_with_symbol_map_through_traits() -> Result<()> {
+        let stream = record_group_stream()?;
+        let mut decoder =
+            crate::decode::dbn::v4::Decoder::with_fsm(stream.encoded.as_slice(), fsm_v4()?)?
+                .with_symbol_map()?;
+        for (trade, _) in &stream.trades_with_symbols {
+            assert_eq!(decoder.decode_record::<crate::v4::TradeMsg>()?, Some(trade));
+        }
+        assert!(decoder.decode_record_ref()?.is_none());
+        assert_eq!(decoder.symbol_map().len(), 2);
+        Ok(())
+    }
+
+    #[test]
+    fn test_v4_decoder_with_symbol_map_skips_unknown_framing_records() -> Result<()> {
+        let mut unknown = vec![0; 40];
+        unknown[..2].copy_from_slice(&8u16.to_le_bytes());
+        unknown[2..4].copy_from_slice(&0xF5u16.to_le_bytes());
+        unknown[4..8].copy_from_slice(&8u32.to_le_bytes());
+        let stream = record_group_stream()?;
+        let mut encoded = stream.encoded[..stream.second_group_pos].to_vec();
+        encoded.extend_from_slice(&unknown);
+        encoded.extend_from_slice(&stream.encoded[stream.second_group_pos..]);
+        let mut decoder = crate::decode::dbn::v4::Decoder::with_fsm(encoded.as_slice(), fsm_v4()?)?
+            .with_symbol_map()?;
+        for (trade, symbol) in &stream.trades_with_symbols {
+            let (rec, rec_symbol) = decoder.decode_ref_with_symbol()?.unwrap();
+            assert_eq!(rec.try_get::<crate::v4::TradeMsg>()?, trade);
+            assert_eq!(rec_symbol, *symbol);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_v4_record_group_padding_must_be_zero() -> Result<()> {
+        let stream = record_group_stream()?;
+        let mut encoded = stream.encoded;
+        let header = RecordGroupHeader::parse(&encoded[stream.second_group_pos..])?;
+        assert_eq!(header.msg.interval_count, 2);
+        let last_padding = stream.second_group_pos
+            + size_of::<RecordGroupHeaderMsg>()
+            + header.msg.trailer_length as usize
+            - 1;
+        assert_eq!(encoded[last_padding], 0);
+        encoded[last_padding] = 1;
+        let mut decoder = crate::decode::dbn::v4::Decoder::with_fsm(encoded.as_slice(), fsm_v4()?)?
+            .with_symbol_map()?;
+        assert!(decoder.decode_ref_with_symbol()?.is_some());
+        assert!(matches!(
+            decoder.decode_ref_with_symbol(),
+            Err(Error::Decode(msg)) if msg.contains("zero padding")
+        ));
         Ok(())
     }
 

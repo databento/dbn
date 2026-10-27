@@ -208,6 +208,25 @@ impl TsSymbolMap {
         }
     }
 
+    pub(crate) fn insert_interval(
+        &mut self,
+        interval: &metadata::SymbolInterval,
+        is_inverse: bool,
+    ) -> crate::Result<()> {
+        let (iid, symbol) = interval_entry(interval, is_inverse)?;
+        self.insert(iid, interval.start_ts, interval.end_ts, symbol)
+    }
+
+    /// Removes the intervals that end at or before `ts`, expressed as the number of
+    /// nanoseconds since the UNIX epoch.
+    pub fn retain_from(&mut self, ts: u64) {
+        self.0.retain(|_, SymbolIntervals { intervals, hint }| {
+            intervals.drain(..intervals.partition_point(|i| i.end_ts <= ts));
+            *hint.get_mut() = 0;
+            !intervals.is_empty()
+        });
+    }
+
     /// Returns the symbol mapping for the given timestamp, expressed as the number of
     /// nanoseconds since the UNIX epoch, and instrument ID. Returns `None` if no mapping
     /// exists.
@@ -353,8 +372,7 @@ impl TryFrom<&Metadata> for TsSymbolMap {
         let mut res = Self::new();
         let is_inverse = metadata.is_inverse()?;
         for interval in metadata.intervals.iter() {
-            let (iid, symbol) = interval_entry(interval, is_inverse)?;
-            res.insert(iid, interval.start_ts, interval.end_ts, symbol)?;
+            res.insert_interval(interval, is_inverse)?;
         }
         if is_inverse {
             for mapping in metadata.mappings.iter() {
@@ -1300,6 +1318,30 @@ pub(crate) mod tests {
         target.insert(1, ts, ts, "test").unwrap();
         // should have no effect
         assert!(target.is_empty());
+    }
+
+    #[test]
+    fn test_retain_from() {
+        let [d1, d2, d3, d4] = [
+            date!(2026 - 09 - 01),
+            date!(2026 - 09 - 02),
+            date!(2026 - 09 - 03),
+            date!(2026 - 09 - 04),
+        ]
+        .map(date_to_ts);
+        let mut target = TsSymbolMap::new();
+        target.insert(1, d1, d2, "ESU6").unwrap();
+        target.insert(1, d2, d4, "ESZ6").unwrap();
+        target.insert(2, d1, d2, "NQU6").unwrap();
+        target.insert(3, d1, u64::MAX, "CLV6").unwrap();
+        assert_eq!(target.get_for_ts(d1, 1).unwrap(), "ESU6");
+
+        target.retain_from(d2);
+        assert_eq!(target.len(), 2);
+        assert!(target.get_for_ts(d1, 1).is_none());
+        assert_eq!(target.get_for_ts(d3, 1).unwrap(), "ESZ6");
+        assert!(!target.inner().contains_key(&2));
+        assert_eq!(target.get_for_ts(d3, 3).unwrap(), "CLV6");
     }
 
     #[test]

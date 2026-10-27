@@ -14,7 +14,7 @@ use crate::{
     NULL_STYPE, UNDEF_TIMESTAMP,
 };
 
-use super::{MAX_SLICES, TS_OUT_LEN};
+use super::{encode_symbol_intervals, MAX_SLICES, SYMBOLOGY_CHUNK_LEN, TS_OUT_LEN};
 
 /// Type for encoding files and streams in Databento Binary Encoding (DBN).
 pub struct Encoder<W>
@@ -273,13 +273,10 @@ where
         Ok(())
     }
 
-    /// Writes the symbol lists and intervals in bounded chunks, since OPRA symbology
-    /// can run to gigabytes.
     fn encode_v4_symbology(&mut self, metadata: &Metadata) -> Result<()> {
-        const CHUNK_LEN: usize = 1 << 16;
-        let mut buf = Vec::with_capacity(CHUNK_LEN);
+        let mut buf = Vec::with_capacity(SYMBOLOGY_CHUNK_LEN);
         let write_full_chunk = |writer: &mut W, buf: &mut Vec<u8>| -> Result<()> {
-            if buf.len() >= CHUNK_LEN {
+            if buf.len() >= SYMBOLOGY_CHUNK_LEN {
                 writer
                     .write_all(buf)
                     .map_err(|e| Error::io(e, "writing symbology"))?;
@@ -299,17 +296,10 @@ where
             }
         }
         buf.extend_from_slice(&(metadata.intervals.len() as u32).to_le_bytes());
-        for interval in &metadata.intervals {
-            buf.extend_from_slice(&interval.start_ts.to_le_bytes());
-            buf.extend_from_slice(&interval.end_ts.to_le_bytes());
-            buf.extend_from_slice(&interval.instrument_id.to_le_bytes());
-            encode_str(&mut buf, "stype_in_symbol", &interval.stype_in_symbol)?;
-            encode_str(&mut buf, "stype_out_symbol", &interval.stype_out_symbol)?;
-            write_full_chunk(&mut self.writer, &mut buf)?;
-        }
         self.writer
             .write_all(&buf)
-            .map_err(|e| Error::io(e, "writing symbology"))
+            .map_err(|e| Error::io(e, "writing symbology"))?;
+        encode_symbol_intervals(&mut self.writer, &metadata.intervals)
     }
 
     fn encode_repeated_symbol_cstr(

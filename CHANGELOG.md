@@ -12,6 +12,15 @@
   - Added `SymbolInterval` and `MetadataBuilder::intervals()`
   - Added `intervals` field to `Metadata`
   - `Metadata::upgrade()` to version 4 converts `mappings` into `intervals`
+- Added record group symbology to DBN version 4 for symbology changes mid-stream
+  - Added `encode_record_group_header()` to the version 4 `Encoder`, `RecordEncoder`,
+    `AsyncEncoder`, and `AsyncRecordEncoder`
+  - Added `with_symbol_map()` to the sync and async DBN `Decoder` for maintaining a
+    `TsSymbolMap` from the metadata and record group symbology, which the decoder
+    exposes through `symbol_map()`, `decode_ref_with_symbol()`, and the async
+    `decode_record_ref_with_symbol()`
+- Added `TsSymbolMap::retain_from()` for removing intervals that end at or before a
+  timestamp
 
 ### Breaking changes
 - Added `intervals` field to `Metadata` for the symbology of a DBN version 4 stream
