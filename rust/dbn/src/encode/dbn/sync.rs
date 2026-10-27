@@ -1,6 +1,6 @@
 use std::{
     io::{self, IoSlice, SeekFrom},
-    mem::{self, transmute, MaybeUninit},
+    mem::{transmute, MaybeUninit},
     num::NonZeroU64,
 };
 
@@ -8,8 +8,9 @@ use crate::{
     encode::{
         io_utils::write_all_vectored, DbnEncodable, EncodeDbn, EncodeRecord, EncodeRecordRef,
     },
-    Error, Metadata, RecordRef, Result, Schema, SymbolMapping, DBN_VERSION, NULL_LIMIT,
-    NULL_RECORD_COUNT, NULL_SCHEMA, NULL_STYPE, UNDEF_TIMESTAMP,
+    metadata::MetadataLengths,
+    Error, Metadata, RecordRef, Result, SymbolMapping, NULL_LIMIT, NULL_RECORD_COUNT, NULL_SCHEMA,
+    NULL_STYPE, UNDEF_TIMESTAMP,
 };
 
 use super::{MAX_SLICES, TS_OUT_LEN};
@@ -29,9 +30,10 @@ where
     /// Creates a new DBN [`Encoder`] that will write to `writer`.
     ///
     /// # Errors
-    /// This function will return an error if it fails to encode `metadata` to
-    /// `writer`.
+    /// This function will return an error if `metadata` is version 4 or later, or if
+    /// it fails to encode `metadata` to `writer`.
     pub fn new(mut writer: W, metadata: &Metadata) -> Result<Self> {
+        super::check_pre_v4(metadata)?;
         MetadataEncoder::new(&mut writer).encode(metadata)?;
         let record_encoder = RecordEncoder::new(writer);
         Ok(Self { record_encoder })
@@ -133,19 +135,29 @@ where
 {
     /// The minimum size in bytes of encoded metadata.
     pub const MIN_ENCODED_SIZE: usize = 128;
-    /// The offset of `start` in encoded metadata.
-    pub const START_OFFSET: usize =
-        (8 + crate::METADATA_DATASET_CSTR_LEN + mem::size_of::<Schema>());
+    /// The offset of `start` in encoded version 1 to 3 metadata.
+    pub const START_OFFSET: usize = match MetadataLengths::for_version(crate::DBN_VERSION) {
+        Some(lengths) => lengths.start_offset(),
+        None => unreachable!(),
+    };
 
     /// Creates a new [`MetadataEncoder`] that will write to `writer`.
     pub fn new(writer: W) -> Self {
         Self { writer }
     }
 
-    /// Returns the number of bytes [`Self::encode()`] will write for `metadata`.
+    /// Returns the number of bytes [`Self::encode()`] will write for `metadata` if it
+    /// succeeds, or 0 if `metadata` is from a newer DBN version than is supported.
     pub fn encoded_len(metadata: &Metadata) -> usize {
-        // 8 bytes of prefix: the 3-byte magic, the version, and the length itself
-        Self::calc_length(metadata).0 as usize + 8
+        let Some(lengths) = MetadataLengths::for_version(metadata.version) else {
+            return 0;
+        };
+        let layout_len = metadata
+            .layout
+            .as_ref()
+            .filter(|_| lengths.has_layout)
+            .map_or(0, crate::layout::wire::encoded_len);
+        super::calc_length(lengths, metadata, layout_len).0 as usize + crate::METADATA_PRELUDE_LEN
     }
 
     /// Encodes `metadata` into DBN.
@@ -154,20 +166,19 @@ where
     /// This function returns an error if it fails to write to the underlying writer or
     /// `metadata` is from a newer DBN version than is supported.
     pub fn encode(&mut self, metadata: &Metadata) -> Result<()> {
+        let lengths = super::metadata_lengths(metadata.version)?;
+        let layout = super::encode_layout(lengths, metadata)?;
         let metadata_err = |e| Error::io(e, "writing DBN metadata");
         self.writer.write_all(b"DBN").map_err(metadata_err)?;
-        if metadata.version > DBN_VERSION {
-            return Err(Error::encode(format!("can't encode Metadata with version {} which is greater than the maximum supported version {DBN_VERSION}", metadata.version)));
-        }
         self.writer
             // Never write version=0, which denotes legacy DBZ files
             .write_all(&[metadata.version.max(1)])
             .map_err(metadata_err)?;
-        let (length, end_padding) = Self::calc_length(metadata);
+        let (length, end_padding) = super::calc_length(lengths, metadata, layout.len());
         self.writer
             .write_all(length.to_le_bytes().as_slice())
             .map_err(metadata_err)?;
-        self.encode_fixed_len_cstr(crate::METADATA_DATASET_CSTR_LEN, &metadata.dataset)?;
+        self.encode_fixed_len_cstr(lengths.dataset_cstr_len, &metadata.dataset)?;
         self.writer
             .write_all(
                 (metadata.schema.map(|s| s as u16).unwrap_or(NULL_SCHEMA))
@@ -175,12 +186,7 @@ where
                     .as_slice(),
             )
             .map_err(metadata_err)?;
-        self.encode_range_and_counts(
-            metadata.version,
-            metadata.start,
-            metadata.end,
-            metadata.limit,
-        )?;
+        self.encode_range_and_counts(lengths, metadata.start, metadata.end, metadata.limit)?;
         self.writer
             .write_all(&[
                 metadata.stype_in.map(|s| s as u8).unwrap_or(NULL_STYPE),
@@ -188,23 +194,28 @@ where
                 metadata.ts_out as u8,
             ])
             .map_err(metadata_err)?;
-        if metadata.version > 1 {
+        if lengths.has_symbol_cstr_len {
             self.writer
                 .write_all(&(metadata.symbol_cstr_len as u16).to_le_bytes())
                 .map_err(metadata_err)?;
         }
         // padding
         self.writer
-            .write_all(if metadata.version == 1 {
-                &[0; crate::compat::METADATA_RESERVED_LEN_V1]
-            } else {
-                &[0; crate::METADATA_RESERVED_LEN]
-            })
+            .write_all(&[0; crate::METADATA_RESERVED_LEN][..lengths.reserved_len])
             .map_err(metadata_err)?;
-        // layout_length
         self.writer
-            .write_all(0u32.to_le_bytes().as_slice())
+            .write_all((layout.len() as u32).to_le_bytes().as_slice())
             .map_err(metadata_err)?;
+        self.writer.write_all(&layout).map_err(metadata_err)?;
+        if lengths.has_layout {
+            self.writer
+                .write_all(
+                    (super::symbology_length(metadata) as u32)
+                        .to_le_bytes()
+                        .as_slice(),
+                )
+                .map_err(metadata_err)?;
+        }
 
         self.encode_repeated_symbol_cstr(metadata.symbol_cstr_len, metadata.symbols.as_slice())?;
         self.encode_repeated_symbol_cstr(metadata.symbol_cstr_len, metadata.partial.as_slice())?;
@@ -220,38 +231,9 @@ where
         Ok(())
     }
 
-    pub(super) fn calc_length(metadata: &Metadata) -> (u32, u32) {
-        let mapping_interval_len = mem::size_of::<u32>() * 2 + metadata.symbol_cstr_len;
-        // layout_length, symbols_count, partial_count, not_found_count, mappings_count
-        let var_len_counts_size = mem::size_of::<u32>() * 5;
-
-        let c_str_count =
-            metadata.symbols.len() + metadata.partial.len() + metadata.not_found.len();
-        let needed_len = (crate::METADATA_FIXED_LEN
-            + var_len_counts_size
-            + c_str_count * metadata.symbol_cstr_len
-            + metadata
-                .mappings
-                .iter()
-                .map(|m| {
-                    metadata.symbol_cstr_len
-                        + mem::size_of::<u32>()
-                        + m.intervals.len() * mapping_interval_len
-                })
-                .sum::<usize>()) as u32;
-        let rem = needed_len % 8;
-        if metadata.version < 3 || rem == 0 {
-            (needed_len, 0)
-        } else {
-            let end_padding = 8 - rem;
-            // round up size to keep 8-byte alignment
-            (needed_len + end_padding, end_padding)
-        }
-    }
-
     fn encode_range_and_counts(
         &mut self,
-        version: u8,
+        lengths: &MetadataLengths,
         start: u64,
         end: Option<NonZeroU64>,
         limit: Option<NonZeroU64>,
@@ -277,8 +259,7 @@ where
                     .as_slice(),
             )
             .map_err(metadata_err)?;
-        if version == 1 {
-            // backwards compatibility for record_count
+        if lengths.has_record_count {
             self.writer
                 .write_all(NULL_RECORD_COUNT.to_le_bytes().as_slice())
                 .map_err(metadata_err)?;
@@ -364,9 +345,7 @@ where
     }
 
     fn encode_date(&mut self, date: time::Date) -> io::Result<()> {
-        let mut date_int = date.year() as u32 * 10_000;
-        date_int += date.month() as u32 * 100;
-        date_int += date.day() as u32;
+        let date_int = crate::metadata::date_to_yyyymmdd(date);
         self.writer.write_all(date_int.to_le_bytes().as_slice())
     }
 }
@@ -387,14 +366,11 @@ where
         end: Option<NonZeroU64>,
         limit: Option<NonZeroU64>,
     ) -> Result<()> {
-        /// Byte position of the field `start`
-        const START_SEEK_FROM: SeekFrom =
-            SeekFrom::Start(MetadataEncoder::<Vec<u8>>::START_OFFSET as u64);
-
+        let lengths = super::metadata_lengths(version)?;
         self.writer
-            .seek(START_SEEK_FROM)
+            .seek(SeekFrom::Start(lengths.start_offset() as u64))
             .map_err(|e| Error::io(e, "seeking to write position"))?;
-        self.encode_range_and_counts(version, start, end, limit)?;
+        self.encode_range_and_counts(lengths, start, end, limit)?;
         self.writer
             .seek(SeekFrom::End(0))
             .map_err(|e| Error::io(e, "seeking back to end"))?;
@@ -468,19 +444,8 @@ where
     }
 
     fn encode_record_refs(&mut self, records: &[RecordRef]) -> Result<()> {
-        let mut slices = [const { MaybeUninit::uninit() }; MAX_SLICES];
-        for record_chunk in records.chunks(MAX_SLICES) {
-            for (elem, rec) in slices.iter_mut().zip(record_chunk.iter()) {
-                elem.write(IoSlice::from(*rec));
-            }
-            let slices =
-                // SAFETY: Every element up to `record_chunk.len()` has been initialized
-                unsafe { transmute::<&mut [MaybeUninit<IoSlice<'_>>], &mut [IoSlice<'_>]>(&mut slices[..record_chunk.len()]) };
-            write_all_vectored(&mut self.writer, slices).map_err(|e| {
-                Error::io(e, format!("failed to encode {} RecordRefs", records.len()))
-            })?;
-        }
-        Ok(())
+        super::write_records(&mut self.writer, records)
+            .map_err(|e| Error::io(e, format!("failed to encode {} RecordRefs", records.len())))
     }
 
     /// Encodes a single DBN record.
@@ -688,6 +653,61 @@ mod tests {
     }
 
     #[rstest]
+    #[case::v3_at_its_limit(3, 15, true)]
+    #[case::v3_too_long(3, 16, false)]
+    #[case::v4_at_its_limit(4, 37, true)]
+    #[case::v4_too_long(4, 38, false)]
+    fn test_dataset_width_by_version(#[case] version: u8, #[case] len: usize, #[case] fits: bool) {
+        let mut metadata = MetadataBuilder::new()
+            .version(version)
+            .dataset("X".repeat(len))
+            .schema(Some(Schema::Mbo))
+            .start(0)
+            .stype_in(Some(SType::RawSymbol))
+            .stype_out(SType::InstrumentId)
+            .build();
+        metadata = with_layout_for_version(metadata);
+        let mut buffer = Vec::new();
+        let res = MetadataEncoder::new(&mut buffer).encode(&metadata);
+        assert_eq!(res.is_ok(), fits, "{res:?}");
+    }
+
+    #[test]
+    fn test_v4_start_is_8_aligned_past_the_dataset() {
+        let metadata = v4_metadata();
+        let mut buffer = Vec::new();
+        MetadataEncoder::new(&mut buffer).encode(&metadata).unwrap();
+
+        assert_eq!(
+            MetadataLengths::for_version(crate::v4::DBN_VERSION)
+                .unwrap()
+                .start_offset(),
+            48
+        );
+        assert_eq!(
+            &buffer[8..8 + metadata.dataset.len()],
+            metadata.dataset.as_bytes()
+        );
+        assert_eq!(&buffer[48..56], metadata.start.to_le_bytes());
+    }
+
+    #[test]
+    fn test_update_encoded_v4() {
+        let mut buffer = Vec::new();
+        MetadataEncoder::new(&mut buffer)
+            .encode(&v4_metadata())
+            .unwrap();
+        let len = buffer.len();
+        let new_start = 1_700_000_000_000_000_000;
+        MetadataEncoder::new(io::Cursor::new(&mut buffer))
+            .update_encoded(crate::v4::DBN_VERSION, new_start, None, None)
+            .unwrap();
+
+        assert_eq!(buffer.len(), len);
+        assert_eq!(&buffer[48..56], new_start.to_le_bytes());
+    }
+
+    #[rstest]
     fn test_update_encoded(#[values(1, 2, 3)] version: u8) {
         let orig_metadata = Metadata {
             version,
@@ -757,7 +777,7 @@ mod tests {
     }
 
     #[rstest]
-    fn test_metadata_min_encoded_size(#[values(1, 2, 3)] version: u8) {
+    fn test_metadata_min_encoded_size(#[values(1, 2, 3, 4)] version: u8) {
         let metadata = MetadataBuilder::new()
             .version(version)
             .dataset(Dataset::XnasItch)
@@ -766,7 +786,11 @@ mod tests {
             .stype_in(Some(SType::RawSymbol))
             .stype_out(SType::InstrumentId)
             .build();
-        let (calc_length, end_padding) = MetadataEncoder::<Vec<u8>>::calc_length(&metadata);
+        let metadata = with_layout_for_version(metadata);
+        let lengths = MetadataLengths::for_version(metadata.version).unwrap();
+        let layout = super::super::encode_layout(lengths, &metadata).unwrap();
+        let (calc_length, end_padding) =
+            super::super::calc_length(lengths, &metadata, layout.len());
         let mut buffer = Vec::new();
         let mut encoder = MetadataEncoder::new(&mut buffer);
         encoder.encode(&metadata).unwrap();
@@ -776,12 +800,18 @@ mod tests {
             MetadataEncoder::<Vec<u8>>::encoded_len(&metadata),
             buffer.len()
         );
-        assert_eq!(MetadataEncoder::<Vec<u8>>::MIN_ENCODED_SIZE, buffer.len());
-        assert_eq!(end_padding, 0);
+        if version < crate::v4::DBN_VERSION {
+            assert_eq!(MetadataEncoder::<Vec<u8>>::MIN_ENCODED_SIZE, buffer.len());
+        }
+        if version < 3 {
+            assert_eq!(end_padding, 0);
+        } else {
+            assert_eq!(buffer.len() % 8, 0);
+        }
     }
 
     #[rstest]
-    fn test_metadata_calc_size_unconventional_length(#[values(1, 2, 3)] version: u8) {
+    fn test_metadata_calc_size_unconventional_length(#[values(1, 2, 3, 4)] version: u8) {
         let mut metadata = MetadataBuilder::new()
             .version(version)
             .dataset(Dataset::XnasItch)
@@ -796,7 +826,11 @@ mod tests {
             ])
             .build();
         metadata.symbol_cstr_len = 50;
-        let (calc_length, end_padding) = MetadataEncoder::<Vec<u8>>::calc_length(&metadata);
+        let metadata = with_layout_for_version(metadata);
+        let lengths = MetadataLengths::for_version(metadata.version).unwrap();
+        let layout = super::super::encode_layout(lengths, &metadata).unwrap();
+        let (calc_length, end_padding) =
+            super::super::calc_length(lengths, &metadata, layout.len());
         let mut buffer = Vec::new();
         let mut encoder = MetadataEncoder::new(&mut buffer);
         encoder.encode(&metadata).unwrap();
@@ -813,6 +847,93 @@ mod tests {
         }
     }
 
+    fn with_layout_for_version(mut metadata: Metadata) -> Metadata {
+        if metadata.version >= crate::v4::DBN_VERSION {
+            metadata.layout = Some(mbo_layout(metadata.symbol_cstr_len as u16));
+        }
+        metadata
+    }
+
+    fn mbo_layout(symbol_cstr_len: u16) -> crate::layout::StreamLayout {
+        let mut sb = crate::layout::StreamLayoutBuilder::new(1, symbol_cstr_len);
+        sb.layout_of::<crate::v4::MboMsg>(crate::v4::rtype::MBO)
+            .finish();
+        sb.build().unwrap()
+    }
+
+    fn v4_metadata() -> Metadata {
+        let mut metadata = MetadataBuilder::new()
+            .version(crate::v4::DBN_VERSION)
+            .dataset(Dataset::XnasItch)
+            .schema(Some(Schema::Mbo))
+            .start(1697240529000000000)
+            .stype_in(Some(SType::RawSymbol))
+            .stype_out(SType::InstrumentId)
+            .build();
+        metadata.layout = Some(mbo_layout(metadata.symbol_cstr_len as u16));
+        metadata
+    }
+
+    #[test]
+    fn test_encode_metadata_carries_the_stream_layout() {
+        let metadata = v4_metadata();
+        let mut expected = Vec::new();
+        crate::layout::wire::encode(&mut expected, metadata.layout.as_ref().unwrap()).unwrap();
+
+        let mut buffer = Vec::new();
+        MetadataEncoder::new(&mut buffer).encode(&metadata).unwrap();
+
+        let at = 8 + crate::METADATA_FIXED_LEN;
+        assert_eq!(u32::from_le_slice(&buffer[at..]) as usize, expected.len());
+        let body = at + mem::size_of::<u32>();
+        assert_eq!(&buffer[body..body + expected.len()], expected.as_slice());
+    }
+
+    #[test]
+    fn test_encode_metadata_declares_the_symbology_length() {
+        let mut metadata = v4_metadata();
+        metadata.symbols = vec!["AAPL".to_owned(), "MSFT".to_owned()];
+        metadata.partial = vec!["TSLA".to_owned()];
+        metadata.not_found = vec!["NOPE".to_owned()];
+        metadata.mappings = vec![SymbolMapping {
+            raw_symbol: "ES.0".to_owned(),
+            intervals: vec![MappingInterval {
+                start_date: time::Date::from_calendar_date(2022, time::Month::July, 26).unwrap(),
+                end_date: time::Date::from_calendar_date(2022, time::Month::September, 1).unwrap(),
+                symbol: "ESU2".to_owned(),
+            }],
+        }];
+
+        let lengths = MetadataLengths::for_version(metadata.version).unwrap();
+        let layout = super::super::encode_layout(lengths, &metadata).unwrap();
+        let (_, end_padding) = super::super::calc_length(lengths, &metadata, layout.len());
+        let mut buffer = Vec::new();
+        MetadataEncoder::new(&mut buffer).encode(&metadata).unwrap();
+
+        let at = 8 + crate::METADATA_FIXED_LEN + mem::size_of::<u32>() + layout.len();
+        let declared = u32::from_le_slice(&buffer[at..]) as usize;
+        let body = at + mem::size_of::<u32>();
+        assert_eq!(declared, buffer.len() - body - end_padding as usize);
+    }
+
+    #[rstest]
+    #[case::v4_without_a_layout(crate::v4::DBN_VERSION, None)]
+    #[case::v3_with_a_layout(3, Some(mbo_layout(crate::v3::SYMBOL_CSTR_LEN as u16)))]
+    fn test_layout_must_match_the_version(
+        #[case] version: u8,
+        #[case] layout: Option<crate::layout::StreamLayout>,
+    ) {
+        let mut metadata = v4_metadata();
+        metadata.version = version;
+        metadata.layout = layout;
+        if version < crate::v4::DBN_VERSION {
+            metadata.symbol_cstr_len = version_symbol_cstr_len(version);
+        }
+        let mut buffer = Vec::new();
+        assert!(MetadataEncoder::new(&mut buffer).encode(&metadata).is_err());
+        assert!(buffer.is_empty(), "a rejected metadata wrote {buffer:?}");
+    }
+
     #[rstest]
     fn test_fails_to_encode_newer_metadata() {
         let metadata = MetadataBuilder::new()
@@ -821,13 +942,20 @@ mod tests {
             .start(0)
             .stype_in(Some(SType::RawSymbol))
             .stype_out(SType::InstrumentId)
-            .version(DBN_VERSION + 1)
+            .version(crate::v4::DBN_VERSION + 1)
             .build();
         let mut buffer = Vec::new();
         let mut target = MetadataEncoder::new(&mut buffer);
         assert!(
             matches!(target.encode(&metadata), Err(Error::Encode(msg)) if msg.contains("can't encode Metadata with version"))
         );
+    }
+
+    #[test]
+    fn test_refuses_v4_metadata() {
+        let mut buffer = Vec::new();
+        assert!(Encoder::new(&mut buffer, &v4_metadata()).is_err());
+        assert!(buffer.is_empty());
     }
 
     mod batch {

@@ -79,10 +79,14 @@ pub use stream::StreamIterDecoder;
 
 use std::{io::Seek, mem};
 
-use crate::{v3, Metadata, RecordBuf, RecordRef, VersionUpgradePolicy};
+use crate::{
+    v3, HasRType, Metadata, RecordBuf, RecordHeaderKind, RecordRef, VersionUpgradePolicy,
+    MAX_RECORD_LEN,
+};
 
-/// Trait for types that decode references to DBN records of a dynamic type.
-pub trait DecodeRecordRef {
+/// Trait for types that decode references to DBN records of a dynamic type with
+/// header `H`.
+pub trait DecodeRecordRef<H: RecordHeaderKind = v3::RecordHeader> {
     /// Tries to decode a generic reference a record. Returns `Ok(None)` if input
     /// has been exhausted.
     ///
@@ -92,13 +96,15 @@ pub trait DecodeRecordRef {
     ///
     /// If the `length` property of the record is invalid, an
     /// [`Error::Decode`](crate::Error::Decode) will be returned.
-    fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef<'_>>>;
+    fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef<'_, H>>>;
 
     /// Returns an [`Iterator`] of owned [`RecordBuf`]s decoded from this reader.
     ///
     /// Each record is copied from the internal decode buffer into a `RecordBuf`.
     /// For zero-copy access, use [`decode_record_ref()`](Self::decode_record_ref) instead.
-    fn decode_buf_iter(&mut self) -> impl Iterator<Item = crate::Result<RecordBuf>> + '_ {
+    fn decode_buf_iter(
+        &mut self,
+    ) -> impl Iterator<Item = crate::Result<RecordBuf<MAX_RECORD_LEN, H>>> + '_ {
         std::iter::from_fn(move || match self.decode_record_ref() {
             Ok(Some(rec_ref)) => Some(Ok(rec_ref.to_owned())),
             Ok(None) => None,
@@ -116,8 +122,8 @@ pub trait DbnMetadata {
     fn metadata_mut(&mut self) -> &mut Metadata;
 }
 
-/// Trait for types that decode DBN records of a particular type.
-pub trait DecodeRecord {
+/// Trait for types that decode DBN records of a particular type with header `H`.
+pub trait DecodeRecord<H: RecordHeaderKind = v3::RecordHeader> {
     /// Tries to decode a reference to a single record of type `T`. Returns `Ok(None)`
     /// if the input has been exhausted.
     ///
@@ -130,7 +136,7 @@ pub trait DecodeRecord {
     ///
     /// If the `length` property of the record is invalid, an
     /// [`Error::Decode`](crate::Error::Decode) will be returned.
-    fn decode_record<T: v3::HasRType>(&mut self) -> crate::Result<Option<&T>>;
+    fn decode_record<T: HasRType<Header = H>>(&mut self) -> crate::Result<Option<&T>>;
 
     /// Tries to decode all records into a `Vec`. This eagerly decodes the data.
     ///
@@ -143,7 +149,7 @@ pub trait DecodeRecord {
     ///
     /// If the `length` property of any of the records is invalid, a
     /// [`Error::Decode`](crate::Error::Decode) will be returned.
-    fn decode_records<T: v3::HasRType + Clone>(mut self) -> crate::Result<Vec<T>>
+    fn decode_records<T: HasRType<Header = H> + Clone>(mut self) -> crate::Result<Vec<T>>
     where
         Self: Sized,
     {
@@ -156,13 +162,18 @@ pub trait DecodeRecord {
 }
 
 /// A trait alias for DBN decoders with metadata.
-pub trait DecodeDbn: DecodeRecord + DecodeRecordRef + DbnMetadata {}
+pub trait DecodeDbn<H: RecordHeaderKind = v3::RecordHeader>:
+    DecodeRecord<H> + DecodeRecordRef<H> + DbnMetadata
+{
+}
 
 /// A trait for decoders that can be converted to streaming iterators.
-pub trait DecodeStream: DecodeRecord + private::LastRecord {
+pub trait DecodeStream<H: RecordHeaderKind = v3::RecordHeader>:
+    DecodeRecord<H> + private::LastRecord<H>
+{
     /// Converts the decoder into a streaming iterator of records of type `T`. This
     /// lazily decodes the data.
-    fn decode_stream<T: v3::HasRType>(self) -> StreamIterDecoder<Self, T>
+    fn decode_stream<T: HasRType<Header = H>>(self) -> StreamIterDecoder<Self, T>
     where
         Self: Sized;
 }
@@ -187,10 +198,11 @@ where
     }
 }
 
-/// Async trait for types that decode references to DBN records of a dynamic type.
+/// Async trait for types that decode references to DBN records of a dynamic type
+/// with header `H`.
 #[cfg(feature = "async")]
 #[allow(async_fn_in_trait)] // the futures can't be Send because self is borrowed mutably
-pub trait AsyncDecodeRecordRef {
+pub trait AsyncDecodeRecordRef<H: RecordHeaderKind = v3::RecordHeader> {
     /// Tries to decode a generic reference a record. Returns `Ok(None)` if input
     /// has been exhausted.
     ///
@@ -204,14 +216,16 @@ pub trait AsyncDecodeRecordRef {
     /// # Cancel safety
     /// This method is cancel safe. It can be used within a `tokio::select!` statement
     /// without the potential for corrupting the input stream.
-    async fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef<'_>>>;
+    async fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef<'_, H>>>;
 
     /// Returns a [`Stream`](futures_core::Stream) of owned [`RecordBuf`]s decoded
     /// from this reader.
     ///
     /// Each record is copied from the internal decode buffer into a `RecordBuf`.
     /// For zero-copy access, use [`decode_record_ref()`](Self::decode_record_ref) instead.
-    fn decode_stream(&mut self) -> impl futures_core::Stream<Item = crate::Result<RecordBuf>> + '_ {
+    fn decode_stream(
+        &mut self,
+    ) -> impl futures_core::Stream<Item = crate::Result<RecordBuf<MAX_RECORD_LEN, H>>> + '_ {
         async_stream::try_stream! {
             while let Some(rec_ref) = self.decode_record_ref().await? {
                 yield rec_ref.to_owned();
@@ -223,7 +237,7 @@ pub trait AsyncDecodeRecordRef {
 /// Async trait for types that decode DBN records of a particular type.
 #[cfg(feature = "async")]
 #[allow(async_fn_in_trait)] // the futures can't be Send because self is borrowed mutably
-pub trait AsyncDecodeRecord {
+pub trait AsyncDecodeRecord<H: RecordHeaderKind = v3::RecordHeader> {
     /// Tries to decode a reference to a single record of type `T`. Returns `Ok(None)`
     /// if the input has been exhausted.
     ///
@@ -240,7 +254,9 @@ pub trait AsyncDecodeRecord {
     /// # Cancel safety
     /// This method is cancel safe. It can be used within a `tokio::select!` statement
     /// without the potential for corrupting the input stream.
-    async fn decode_record<'a, T: v3::HasRType + 'a>(&'a mut self) -> crate::Result<Option<&'a T>>;
+    async fn decode_record<'a, T: HasRType<Header = H> + 'a>(
+        &'a mut self,
+    ) -> crate::Result<Option<&'a T>>;
 
     /// Tries to decode all records into a `Vec`. This eagerly decodes the data.
     ///
@@ -257,7 +273,7 @@ pub trait AsyncDecodeRecord {
     /// # Cancel safety
     /// This method is not cancellation safe. If used within a `tokio::select!` statement
     /// partially decoded records will be lost and the stream may be corrupted.
-    async fn decode_records<T: v3::HasRType + Clone>(&mut self) -> crate::Result<Vec<T>>
+    async fn decode_records<T: HasRType<Header = H> + Clone>(&mut self) -> crate::Result<Vec<T>>
     where
         Self: Sized,
     {
@@ -285,13 +301,13 @@ const ZSTD_FILE_BUFFER_CAPACITY: usize = 1 << 20;
 
 #[doc(hidden)]
 pub mod private {
-    use crate::RecordRef;
+    use crate::{v3, RecordHeaderKind, RecordRef};
 
     /// An implementation detail for the interaction between [`StreamingIterator`] and
     /// implementers of [`DecodeRecord`].
     #[doc(hidden)]
-    pub trait LastRecord {
-        fn last_record(&self) -> Option<RecordRef<'_>>;
+    pub trait LastRecord<H: RecordHeaderKind = v3::RecordHeader> {
+        fn last_record(&self) -> Option<RecordRef<'_, H>>;
     }
 }
 
@@ -342,6 +358,6 @@ pub use self::dbn::{
 };
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     pub const TEST_DATA_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/data");
 }

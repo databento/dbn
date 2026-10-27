@@ -17,7 +17,7 @@ crate-type = ["cdylib", "staticlib"]
 dbn = { path = "../rust/dbn", default-features = false }
 
 anyhow.workspace = true
-libc = "0.2.190"
+libc = "0.2.191"
 time.workspace = true
 
 [build-dependencies]

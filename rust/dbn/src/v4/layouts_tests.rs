@@ -1,6 +1,3 @@
-// `OHLCV_DEPRECATED` is still a compiled rtype
-#![allow(deprecated)]
-
 use std::{
     mem::{offset_of, size_of},
     os::raw::c_char,
@@ -40,7 +37,6 @@ macro_rules! expected_fields {
 #[case::ohlcv_1h(rtype::OHLCV_1H, size_of::<OhlcvMsg>())]
 #[case::ohlcv_1d(rtype::OHLCV_1D, size_of::<OhlcvMsg>())]
 #[case::ohlcv_eod(rtype::OHLCV_EOD, size_of::<OhlcvMsg>())]
-#[case::ohlcv_deprecated(rtype::OHLCV_DEPRECATED, size_of::<OhlcvMsg>())]
 #[case::status(rtype::STATUS, size_of::<StatusMsg>())]
 #[case::imbalance(rtype::IMBALANCE, size_of::<ImbalanceMsg>())]
 #[case::statistics(rtype::STATISTICS, size_of::<StatMsg>())]
@@ -53,7 +49,32 @@ fn default_layout_base_matches_struct(#[case] rtype: u16, #[case] size: usize) {
 
 #[test]
 fn default_layout_holds_one_layout_per_rtype() {
-    assert_eq!(default_layout().record_layouts.len(), 24);
+    assert_eq!(default_layout().record_layouts.len(), 23);
+}
+
+#[test]
+fn every_record_references_the_header() {
+    for rec in &default_layout().record_layouts {
+        let i = rec
+            .field_defs
+            .iter()
+            .position(|f| f.field_id == fields::HD.id())
+            .unwrap_or_else(|| panic!("no header in {}", rec.name));
+        let hd = &rec.field_defs[i];
+        assert_eq!(hd.type_id, fields::STRUCT_ID, "{}", rec.name);
+        assert_eq!(hd.offset, 0, "{}", rec.name);
+        assert_eq!(hd.size as usize, size_of::<RecordHeader>(), "{}", rec.name);
+        assert_eq!(hd.def_index, 0, "{}", rec.name);
+        assert_eq!(rec.field_names[i], "hd", "{}", rec.name);
+    }
+}
+
+#[rstest]
+#[case::mbo(rtype::MBO, crate::Schema::Mbo)]
+#[case::trades(rtype::MBP_0, crate::Schema::Trades)]
+fn default_layout_carries_a_schema(#[case] rtype: u16, #[case] expected: crate::Schema) {
+    let rec = default_layout().record_layout(rtype).unwrap();
+    assert_eq!(rec.schema, expected as u16);
 }
 
 #[test]
@@ -107,7 +128,6 @@ fn default_layout_is_compiled_for_every_rtype() {
         rtype::OHLCV_1H,
         rtype::OHLCV_1D,
         rtype::OHLCV_EOD,
-        rtype::OHLCV_DEPRECATED,
     ],
     expected_fields!(OhlcvMsg {
         OPEN: open, HIGH: high, LOW: low, CLOSE: close, VOLUME: volume,
@@ -323,4 +343,229 @@ fn required_symbols_follow_the_struct(
     );
     let err = crate::layout::validate(default_layout(), width + 1).unwrap_err();
     assert!(err.to_string().contains("symbol width"), "{err}");
+}
+
+mod decoded_layout {
+    use std::os::raw::c_char;
+
+    use rstest::*;
+
+    use crate::{
+        decode::{
+            dbn::{fsm::DbnFsm, Decoder},
+            DbnMetadata,
+        },
+        encode::dbn::v4::Encoder,
+        layout::{
+            DynFieldAccess, RecordLayoutBuilder, RecordLayoutDesc, StreamLayout,
+            StreamLayoutBuilder, Verdict,
+        },
+        v4::{
+            fields::{self, Field, FieldType},
+            rtype,
+            types::Char,
+            RecordBuf, RecordHeader, TradeMsg,
+        },
+        Dataset, FlagSet, Metadata, SType, Schema, SYMBOL_CSTR_LEN,
+    };
+
+    const SYM_LEN: u16 = SYMBOL_CSTR_LEN as u16;
+    const TS_RECV: u64 = 1_609_160_400_000_000_000;
+    const TS_OUT: u64 = TS_RECV + 1_000;
+
+    fn sale_condition<T: FieldType>() -> Field<T> {
+        Field::new(fields::SALE_CONDITION.id())
+    }
+
+    fn trades_with_ext(declare: impl FnOnce(&mut RecordLayoutBuilder<'_>)) -> StreamLayout {
+        let mut sb = StreamLayoutBuilder::new(1, SYM_LEN);
+        {
+            let mut r = sb.record(rtype::MBP_0, Schema::Trades as u16, "TradeMsg");
+            TradeMsg::add_fields(&mut r);
+            r.finish_base();
+            declare(&mut r);
+            r.finish();
+        }
+        sb.build().unwrap()
+    }
+
+    fn metadata(layout: StreamLayout, ts_out: bool) -> Metadata {
+        let mut metadata = Metadata::builder()
+            .version(crate::v4::DBN_VERSION)
+            .dataset(Dataset::GlbxMdp3)
+            .schema(Some(Schema::Trades))
+            .start(TS_RECV)
+            .end(None)
+            .stype_in(Some(SType::RawSymbol))
+            .stype_out(SType::InstrumentId)
+            .ts_out(ts_out)
+            .build();
+        metadata.symbol_cstr_len = SYM_LEN as usize;
+        metadata.layout = Some(layout);
+        metadata
+    }
+
+    fn trade() -> TradeMsg {
+        TradeMsg {
+            hd: RecordHeader::new::<TradeMsg>(rtype::MBP_0, 1, 555, TS_RECV - 100),
+            price: 123_000_000_000,
+            size: 7,
+            action: b'T' as c_char,
+            side: b'B' as c_char,
+            flags: FlagSet::new(0b1010),
+            _reserved: 0,
+            ts_recv: TS_RECV,
+            ts_in_delta: 9,
+            sequence: 88,
+        }
+    }
+
+    fn trade_with_ext(layout: &StreamLayout, ext: &[u8]) -> RecordBuf<128> {
+        let total = layout.record_layout(rtype::MBP_0).unwrap().record_size() as usize;
+        let mut buf = RecordBuf::<128>::from(trade());
+        let raw = buf.raw_buf_mut();
+        raw[size_of::<TradeMsg>()..][..ext.len()].copy_from_slice(ext);
+        raw[..2].copy_from_slice(&((total - size_of::<RecordHeader>()) as u16).to_le_bytes());
+        buf
+    }
+
+    #[rstest]
+    #[case::opra_sale_condition(
+        trades_with_ext(|r| { r.field(sale_condition::<Char>(), "sale_condition"); }),
+        false,
+        b"@".to_vec()
+    )]
+    #[case::sip_sale_condition(
+        trades_with_ext(|r| { r.field(sale_condition::<[Char; 4]>(), "sale_condition"); }),
+        false,
+        b"@ TI".to_vec()
+    )]
+    #[case::ts_out(
+        trades_with_ext(|r| { r.field(fields::TS_OUT, "ts_out"); }),
+        true,
+        TS_OUT.to_le_bytes().to_vec()
+    )]
+    fn extension_resolves_from_the_decoded_layout(
+        #[case] layout: StreamLayout,
+        #[case] ts_out: bool,
+        #[case] ext: Vec<u8>,
+    ) -> crate::Result<()> {
+        let metadata = metadata(layout.clone(), ts_out);
+        let sent = trade_with_ext(&layout, &ext);
+        let mut encoded = Vec::new();
+        Encoder::new(&mut encoded, &metadata)?.encode_ref(sent.as_rec_ref())?;
+
+        let fsm = DbnFsm::builder().header::<RecordHeader>().build()?;
+        let mut decoder = Decoder::with_fsm(encoded.as_slice(), fsm)?;
+        assert_eq!(decoder.metadata().layout.as_ref(), Some(&layout));
+        let index = decoder
+            .metadata()
+            .layout_index()
+            .expect("version 4 carries a layout");
+        assert_eq!(index.verdict(rtype::MBP_0), Some(Verdict::Compiled));
+        let rec = decoder.decode_ref()?.expect("one trade record");
+
+        assert_eq!(rec.as_ref(), sent.as_rec_ref().as_ref());
+        match ext.len() {
+            1 => assert_eq!(
+                rec.field(&index, sale_condition::<Char>()),
+                Some(Char(b'@' as c_char))
+            ),
+            4 => assert_eq!(
+                rec.field(&index, sale_condition::<[Char; 4]>()),
+                Some((*b"@ TI").map(|b| Char(b as c_char)))
+            ),
+            _ => assert_eq!(rec.field(&index, fields::TS_OUT).map(|t| t.0), Some(TS_OUT)),
+        }
+        if ts_out {
+            assert!(rec.field(&index, sale_condition::<Char>()).is_none());
+        } else {
+            assert!(rec.field(&index, fields::TS_OUT).is_none());
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn a_record_that_does_not_match_the_layout_is_refused() {
+        let metadata = metadata(
+            trades_with_ext(|r| {
+                r.field(sale_condition::<[Char; 4]>(), "sale_condition");
+            }),
+            false,
+        );
+        let mut buf = Vec::new();
+        let mut encoder = Encoder::new(&mut buf, &metadata).unwrap();
+
+        let err = encoder.encode(&trade()).unwrap_err().to_string();
+        assert!(err.contains("in this stream's layout"), "{err}");
+    }
+}
+
+fn v3_csv_header<R: crate::encode::csv::serialize::CsvSerialize>() -> Vec<String> {
+    let mut writer = csv::Writer::from_writer(Vec::new());
+    R::serialize_header(&mut writer).unwrap();
+    writer.write_record(None::<&[u8]>).unwrap();
+    let header = String::from_utf8(writer.into_inner().unwrap()).unwrap();
+    header.trim_end().split(',').map(str::to_owned).collect()
+}
+
+/// Named fields in display order, with non-array nested structs like the header
+/// flattened.
+fn v4_display_names(rtype: u16) -> Vec<String> {
+    let layout = default_layout();
+    let rec = layout.record_layout(rtype).unwrap();
+    let mut names = Vec::new();
+    for (def, name) in rec.field_defs.iter().zip(&rec.field_names) {
+        if def.type_id == fields::STRUCT_ID && !def.is_array() {
+            let nested = &layout.struct_layouts[usize::from(def.def_index)];
+            names.extend(nested.field_names.iter().filter(|n| !n.is_empty()).cloned());
+        } else if !name.is_empty() {
+            names.push(name.clone());
+        }
+    }
+    names
+}
+
+#[rstest]
+#[case::mbo(rtype::MBO, v3_csv_header::<crate::v3::MboMsg>)]
+#[case::trades(rtype::MBP_0, v3_csv_header::<crate::v3::TradeMsg>)]
+#[case::mbp1(rtype::MBP_1, v3_csv_header::<crate::v3::Mbp1Msg>)]
+#[case::mbp10(rtype::MBP_10, v3_csv_header::<crate::v3::Mbp10Msg>)]
+#[case::bbo(rtype::BBO_1S, v3_csv_header::<crate::v3::BboMsg>)]
+#[case::cmbp1(rtype::CMBP_1, v3_csv_header::<crate::v3::Cmbp1Msg>)]
+#[case::cbbo(rtype::CBBO_1S, v3_csv_header::<crate::v3::CbboMsg>)]
+#[case::ohlcv(rtype::OHLCV_1S, v3_csv_header::<crate::v3::OhlcvMsg>)]
+#[case::status(rtype::STATUS, v3_csv_header::<crate::v3::StatusMsg>)]
+#[case::definition(rtype::INSTRUMENT_DEF, v3_csv_header::<crate::v3::InstrumentDefMsg>)]
+#[case::imbalance(rtype::IMBALANCE, v3_csv_header::<crate::v3::ImbalanceMsg>)]
+#[case::statistics(rtype::STATISTICS, v3_csv_header::<crate::v3::StatMsg>)]
+#[case::error(rtype::ERROR, v3_csv_header::<crate::v3::ErrorMsg>)]
+#[case::symbol_mapping(rtype::SYMBOL_MAPPING, v3_csv_header::<crate::v3::SymbolMappingMsg>)]
+#[case::system(rtype::SYSTEM, v3_csv_header::<crate::v3::SystemMsg>)]
+fn default_layout_display_order_matches_v3_csv(
+    #[case] rtype: u16,
+    #[case] v3_header: fn() -> Vec<String>,
+) {
+    let v3 = v3_header();
+    let v4 = v4_display_names(rtype);
+    let shared_v4: Vec<_> = v4.iter().filter(|n| v3.contains(n)).collect();
+    let shared_v3: Vec<_> = v3.iter().filter(|n| v4.contains(n)).collect();
+    assert_eq!(shared_v4, shared_v3);
+}
+
+#[test]
+fn every_label_def_is_used_and_every_enum_labeled() {
+    let layout = default_layout();
+    let mut referenced: Vec<u16> = layout
+        .record_layouts
+        .iter()
+        .flat_map(|rec| &rec.field_defs)
+        .chain(layout.struct_layouts.iter().flat_map(|s| &s.field_defs))
+        .filter(|f| fields::uses_label_def(f.type_id))
+        .map(|f| f.def_index)
+        .collect();
+    referenced.sort_unstable();
+    referenced.dedup();
+    let all: Vec<u16> = (0..layout.label_defs.len() as u16).collect();
+    assert_eq!(referenced, all, "an unused or missing label def");
 }

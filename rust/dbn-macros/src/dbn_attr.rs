@@ -4,9 +4,12 @@
 use std::collections::{HashSet, VecDeque};
 
 use proc_macro2::Ident;
+use quote::ToTokens;
 use syn::{
-    parenthesized, punctuated::Punctuated, spanned::Spanned, token, Attribute, Field, FieldsNamed,
-    Meta, Token,
+    parenthesized,
+    parse::{Parse, ParseStream},
+    spanned::Spanned,
+    token, Field, FieldsNamed, Meta, Token,
 };
 
 pub const C_CHAR_ATTR: &str = "c_char";
@@ -16,49 +19,64 @@ pub const FIXED_PRICE_ATTR: &str = "fixed_price";
 pub const FMT_BINARY: &str = "fmt_binary";
 pub const FMT_METHOD: &str = "fmt_method";
 pub const INDEX_TS_ATTR: &str = "index_ts";
-pub const REQUIRED_ATTR: &str = "required";
 pub const SKIP_ATTR: &str = "skip";
 pub const UNIX_NANOS_ATTR: &str = "unix_nanos";
 
 /// Parses and sorts the fields of a DBN record according to the order specified with `dbn`
 /// attributes.
 pub fn get_sorted_fields(fields: FieldsNamed) -> syn::Result<VecDeque<Field>> {
-    let mut fields: VecDeque<_> = fields.named.into_iter().collect();
+    let fields = fields
+        .named
+        .into_iter()
+        .map(|field| Ok((DbnFieldAttrs::parse(&field)?.encode_order, field)))
+        .collect::<syn::Result<_>>()?;
+    sort_by_encode_order(fields)
+}
+
+/// Moves each item with an encode order to that position, in ascending encode order.
+pub fn sort_by_encode_order<T: ToTokens>(
+    items: Vec<(Option<usize>, T)>,
+) -> syn::Result<VecDeque<T>> {
     let mut encode_orders = HashSet::new();
-    let mut encode_order_fields = Vec::new();
-    for field in fields.iter() {
-        if let Some(encode_order) = DbnFieldAttrs::parse(field)?.encode_order {
+    let mut encode_order_items = Vec::new();
+    for (i, (encode_order, item)) in items.iter().enumerate() {
+        if let Some(encode_order) = *encode_order {
             if !encode_orders.insert(encode_order) {
                 // Already existed
                 return Err(syn::Error::new_spanned(
-                    field,
+                    item,
                     format!("Specified duplicate encode order `{encode_order}` for field"),
                 ));
             }
-            encode_order_fields.push((encode_order, field.clone()));
+            encode_order_items.push((encode_order, i));
         }
     }
-    encode_order_fields.sort_by_key(|field| field.0);
-    for (encode_order, prioritized_field) in encode_order_fields {
-        let idx = fields
+    encode_order_items.sort_by_key(|item| item.0);
+    let mut items: VecDeque<_> = items
+        .into_iter()
+        .enumerate()
+        .map(|(i, (_, item))| (i, item))
+        .collect();
+    for (encode_order, i) in encode_order_items {
+        let idx = items
             .iter()
-            .position(|f| f.ident == prioritized_field.ident)
+            .position(|(j, _)| *j == i)
             .expect("to find field");
-        fields.remove(idx).expect("to find field");
-        if encode_order >= fields.len() {
-            fields.push_back(prioritized_field);
+        let prioritized_item = items.remove(idx).expect("to find field");
+        if encode_order >= items.len() {
+            items.push_back(prioritized_item);
         } else {
-            fields.insert(encode_order, prioritized_field);
+            items.insert(encode_order, prioritized_item);
         }
     }
-    Ok(fields)
+    Ok(items.into_iter().map(|(_, item)| item).collect())
 }
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct DbnFieldAttrs {
     pub flags: Vec<Ident>,
     pub encode_order: Option<usize>,
-    pub field_id: Option<Ident>,
+    pub field_id: Option<syn::Path>,
 }
 
 impl DbnFieldAttrs {
@@ -106,29 +124,27 @@ impl DbnFieldAttrs {
     }
 }
 
-#[derive(Debug, Default)]
-pub struct DbnStructAttrs {
-    pub required: Vec<Ident>,
+/// A symbol field every layout of the record declares but the struct doesn't hold.
+#[derive(Debug)]
+pub struct RequiredField {
+    pub ident: Ident,
+    pub encode_order: Option<usize>,
 }
 
-impl DbnStructAttrs {
-    pub fn parse(attrs: &[Attribute]) -> syn::Result<Self> {
-        let mut parsed = Self::default();
-        for attr in attrs.iter().filter(|attr| attr.path().is_ident("dbn")) {
-            attr.parse_nested_meta(|meta| {
-                if meta.path.is_ident(REQUIRED_ATTR) {
-                    let content;
-                    parenthesized!(content in meta.input);
-                    parsed
-                        .required
-                        .extend(Punctuated::<Ident, Token![,]>::parse_terminated(&content)?);
-                    Ok(())
-                } else {
-                    Err(meta.error("unrecognized dbn attr"))
-                }
-            })?;
-        }
-        Ok(parsed)
+impl Parse for RequiredField {
+    // e.g. `raw_symbol = 1` from `required(raw_symbol = 1, other)`
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let ident = input.parse()?;
+        let encode_order = if input.peek(Token![=]) {
+            input.parse::<Token![=]>()?;
+            Some(input.parse::<syn::LitInt>()?.base10_parse()?)
+        } else {
+            None
+        };
+        Ok(Self {
+            ident,
+            encode_order,
+        })
     }
 }
 
@@ -274,7 +290,7 @@ mod tests {
         let fields = syn::parse2::<FieldsNamed>(input).unwrap();
         let field = fields.named.first().unwrap();
         let attrs = DbnFieldAttrs::parse(field).unwrap();
-        assert_eq!(attrs.field_id.unwrap(), "STATUS_ACTION");
+        assert!(attrs.field_id.unwrap().is_ident("STATUS_ACTION"));
         assert_eq!(attrs.encode_order, Some(1));
         assert_eq!(attrs.flags, [FMT_METHOD]);
     }

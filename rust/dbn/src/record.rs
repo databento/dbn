@@ -18,7 +18,9 @@ use dbn_macros::MockPyo3;
 
 use crate::{
     enums::rtype,
-    macros::{dbn_record, CsvSerialize, JsonSerialize, RecordDebug, StructLayoutDesc},
+    macros::{
+        dbn_record, ArrowSerialize, CsvSerialize, JsonSerialize, RecordDebug, StructLayoutDesc,
+    },
     Action, Error, FlagSet, InstrumentClass, MatchAlgorithm, Publisher, RType, Result,
     SecurityUpdateAction, Side, StatUpdateAction, UserDefinedInstrument, ASSET_CSTR_LEN,
     SYMBOL_CSTR_LEN,
@@ -37,7 +39,7 @@ pub use traits::{HasRType, Record, RecordHeaderKind, RecordMut};
 /// Common data for all Databento records. Always found at the beginning of a record
 /// struct.
 #[repr(C)]
-#[derive(Clone, Copy, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, ArrowSerialize, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
 #[cfg_attr(test, derive(type_layout::TypeLayout))]
@@ -67,7 +69,7 @@ pub struct RecordHeader {
 /// A market-by-order (MBO) tick message. The record of the [`Mbo`](crate::Schema::Mbo)
 /// schema.
 #[repr(C)]
-#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
+#[derive(Clone, ArrowSerialize, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
@@ -124,7 +126,9 @@ const _: () = assert!(std::mem::size_of::<MboMsg>() == 56);
 
 /// A price level.
 #[repr(C)]
-#[derive(Clone, JsonSerialize, RecordDebug, StructLayoutDesc, PartialEq, Eq, Hash)]
+#[derive(
+    Clone, ArrowSerialize, JsonSerialize, RecordDebug, StructLayoutDesc, PartialEq, Eq, Hash,
+)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
@@ -167,7 +171,9 @@ const _: () = assert!(std::mem::size_of::<BidAskPair>() == 32);
 
 /// A price level consolidated from multiple venues.
 #[repr(C)]
-#[derive(Clone, JsonSerialize, RecordDebug, StructLayoutDesc, PartialEq, Eq, Hash)]
+#[derive(
+    Clone, ArrowSerialize, JsonSerialize, RecordDebug, StructLayoutDesc, PartialEq, Eq, Hash,
+)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(
@@ -222,7 +228,7 @@ const _: () = assert!(std::mem::size_of::<ConsolidatedBidAskPair>() == 32);
 
 /// Market-by-price implementation with a book depth of 0. Equivalent to MBP-0. The record of the [`Trades`](crate::Schema::Trades) schema.
 #[repr(C)]
-#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
+#[derive(Clone, ArrowSerialize, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
@@ -275,7 +281,7 @@ const _: () = assert!(std::mem::size_of::<TradeMsg>() == 48);
 /// Market-by-price implementation with a known book depth of 1. The record of the
 /// [`Mbp1`](crate::Schema::Mbp1) schema.
 #[repr(C)]
-#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
+#[derive(Clone, ArrowSerialize, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
@@ -324,6 +330,7 @@ pub struct Mbp1Msg {
     /// The message sequence number assigned at the venue.
     pub sequence: u32,
     /// The top of the order book.
+    #[dbn(field_id = LEVELS_1)]
     pub levels: [BidAskPair; 1],
 }
 
@@ -332,7 +339,7 @@ const _: () = assert!(std::mem::size_of::<Mbp1Msg>() == 80);
 /// Market-by-price implementation with a known book depth of 10. The record of the
 /// [`Mbp10`](crate::Schema::Mbp10) schema.
 #[repr(C)]
-#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
+#[derive(Clone, ArrowSerialize, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
@@ -381,6 +388,7 @@ pub struct Mbp10Msg {
     /// The message sequence number assigned at the venue.
     pub sequence: u32,
     /// The top 10 levels of the order book.
+    #[dbn(field_id = LEVELS_10)]
     pub levels: [BidAskPair; 10],
 }
 
@@ -389,7 +397,7 @@ const _: () = assert!(std::mem::size_of::<Mbp10Msg>() == 368);
 /// Subsampled market by price with a known book depth of 1. The record of the
 /// [`Bbo1S`](crate::Schema::Bbo1S) and [`Bbo1M`](crate::Schema::Bbo1M) schemas.
 #[repr(C)]
-#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
+#[derive(Clone, ArrowSerialize, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
@@ -436,6 +444,7 @@ pub struct BboMsg {
     /// The message sequence number assigned at the venue of the last update.
     pub sequence: u32,
     /// The top of the order book.
+    #[dbn(field_id = LEVELS_1)]
     pub levels: [BidAskPair; 1],
 }
 
@@ -444,7 +453,7 @@ const _: () = assert!(std::mem::size_of::<BboMsg>() == 80);
 /// Consolidated market-by-price implementation with a known book depth of 1. The record of
 /// the [`Cmbp1`](crate::Schema::Cmbp1) schema.
 #[repr(C)]
-#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
+#[derive(Clone, ArrowSerialize, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
@@ -494,6 +503,7 @@ pub struct Cmbp1Msg {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub _reserved2: [u8; 4],
     /// The top of the order book.
+    #[dbn(field_id = CONSOLIDATED_LEVELS_1)]
     pub levels: [ConsolidatedBidAskPair; 1],
 }
 
@@ -501,7 +511,7 @@ const _: () = assert!(std::mem::size_of::<Cmbp1Msg>() == 80);
 
 /// Subsampled consolidated market by price with a known book depth of 1. The record of the [`Cbbo1S`](crate::Schema::Cbbo1S) and [`Cbbo1M`](crate::Schema::Cbbo1M) schemas.
 #[repr(C)]
-#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
+#[derive(Clone, ArrowSerialize, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
@@ -546,6 +556,7 @@ pub struct CbboMsg {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub _reserved3: [u8; 8],
     /// The top of the order book.
+    #[dbn(field_id = CONSOLIDATED_LEVELS_1)]
     pub levels: [ConsolidatedBidAskPair; 1],
 }
 
@@ -576,7 +587,7 @@ pub type Cbbo1MMsg = CbboMsg;
 /// - [`Ohlcv1D`](crate::enums::Schema::Ohlcv1D)
 /// - [`OhlcvEod`](crate::enums::Schema::OhlcvEod)
 #[repr(C)]
-#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
+#[derive(Clone, ArrowSerialize, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
@@ -625,7 +636,7 @@ const _: () = assert!(std::mem::size_of::<OhlcvMsg>() == 56);
 
 /// A trading status update message. The record of the [`Status`](crate::Schema::Status) schema.
 #[repr(C)]
-#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
+#[derive(Clone, ArrowSerialize, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
@@ -642,7 +653,7 @@ pub struct StatusMsg {
     #[dbn(encode_order(0), index_ts, unix_nanos)]
     pub ts_recv: u64,
     /// The type of status change.
-    #[dbn(fmt_method)]
+    #[dbn(field_id = STATUS_ACTION, fmt_method)]
     pub action: u16,
     /// Additional details about the cause of the status change.
     #[dbn(fmt_method)]
@@ -669,7 +680,7 @@ const _: () = assert!(std::mem::size_of::<StatusMsg>() == 40);
 /// A definition of an instrument. The record of the
 /// [`Definition`](crate::Schema::Definition) schema.
 #[repr(C)]
-#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
+#[derive(Clone, ArrowSerialize, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
@@ -819,6 +830,7 @@ pub struct InstrumentDefMsg {
     /// The date at which a contract will begin to decay.
     pub decay_start_date: u16,
     /// The channel ID assigned by Databento as an incrementing integer starting at zero.
+    #[dbn(field_id = CHANNEL_ID_V1)]
     pub channel_id: u16,
     /// The number of legs in the strategy or spread. Will be 0 for outrights.
     #[dbn(encode_order(158))]
@@ -839,7 +851,7 @@ pub struct InstrumentDefMsg {
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub secsubtype: [c_char; 6],
     /// The instrument raw symbol assigned by the publisher.
-    #[dbn(encode_order(2), fmt_method)]
+    #[dbn(encode_order(2), field_id = RAW_SYMBOL_V1, fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub raw_symbol: [c_char; SYMBOL_CSTR_LEN],
     /// The security group code of the instrument.
@@ -931,7 +943,7 @@ const _: () = assert!(std::mem::size_of::<InstrumentDefMsg>() == 520);
 
 /// An auction imbalance message.
 #[repr(C)]
-#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
+#[derive(Clone, ArrowSerialize, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
@@ -1051,7 +1063,7 @@ const _: () = assert!(std::mem::size_of::<ImbalanceMsg>() == 112);
 /// A statistics message. A catchall for various data disseminated by publishers. The
 /// [`stat_type`](Self::stat_type) indicates the statistic contained in the message.
 #[repr(C)]
-#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
+#[derive(Clone, ArrowSerialize, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
@@ -1094,6 +1106,7 @@ pub struct StatMsg {
     #[dbn(fmt_method)]
     pub stat_type: u16,
     /// The channel ID assigned by Databento as an incrementing integer starting at zero.
+    #[dbn(field_id = CHANNEL_ID_V1)]
     pub channel_id: u16,
     /// Indicates if the statistic is newly added (1) or deleted (2). (Deleted is only
     /// used with some stat types).
@@ -1111,7 +1124,7 @@ const _: () = assert!(std::mem::size_of::<StatMsg>() == 80);
 
 /// An error message from the Databento Live Subscription Gateway (LSG).
 #[repr(C)]
-#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
+#[derive(Clone, ArrowSerialize, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
@@ -1127,7 +1140,7 @@ pub struct ErrorMsg {
     pub err: [c_char; 302],
     /// The error code. See the [`ErrorCode`](crate::enums::ErrorCode) enum
     /// for possible values.
-    #[dbn(fmt_method)]
+    #[dbn(field_id = ERROR_CODE, fmt_method)]
     pub code: u8,
     /// Sometimes multiple errors are sent together. This field will be non-zero for the
     /// last error.
@@ -1139,7 +1152,7 @@ const _: () = assert!(std::mem::size_of::<ErrorMsg>() == 320);
 /// A symbol mapping message from the live API which maps a symbol from one
 /// [`SType`](crate::enums::SType) to another.
 #[repr(C)]
-#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
+#[derive(Clone, ArrowSerialize, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
@@ -1153,14 +1166,14 @@ pub struct SymbolMappingMsg {
     #[dbn(fmt_method)]
     pub stype_in: u8,
     /// The input symbol.
-    #[dbn(fmt_method)]
+    #[dbn(field_id = STYPE_IN_SYMBOL_V1, fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub stype_in_symbol: [c_char; SYMBOL_CSTR_LEN],
     /// The output symbology type of `stype_out_symbol`. Will always be [`RawSymbol`](crate::SType::RawSymbol).
     #[dbn(fmt_method)]
     pub stype_out: u8,
     /// The output symbol.
-    #[dbn(fmt_method)]
+    #[dbn(field_id = STYPE_OUT_SYMBOL_V1, fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub stype_out_symbol: [c_char; SYMBOL_CSTR_LEN],
     /// The start of the mapping interval expressed as the number of nanoseconds since
@@ -1178,7 +1191,7 @@ const _: () = assert!(std::mem::size_of::<SymbolMappingMsg>() == 176);
 /// A non-error message from the Databento Live Subscription Gateway (LSG). Also used
 /// for heartbeating.
 #[repr(C)]
-#[derive(Clone, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
+#[derive(Clone, ArrowSerialize, CsvSerialize, JsonSerialize, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "python", derive(crate::macros::PyFieldDesc))]
@@ -1194,7 +1207,7 @@ pub struct SystemMsg {
     pub msg: [c_char; 303],
     /// Type of system message. See the [`SystemCode`](crate::enums::SystemCode) enum
     /// for possible values.
-    #[dbn(fmt_method)]
+    #[dbn(field_id = SYSTEM_CODE, fmt_method)]
     pub code: u8,
 }
 

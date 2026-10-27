@@ -441,9 +441,10 @@ impl Record for RecordRef<'_, crate::v4::RecordHeader> {
     }
 
     fn raw_index_ts(&self) -> u64 {
-        self.get::<crate::v4::MboMsg>()
-            .map(|r| r.raw_index_ts())
-            .unwrap_or_else(|| self.header().ts_event)
+        fn raw_index_ts<T: HasRType>(t: &T) -> u64 {
+            t.raw_index_ts()
+        }
+        crate::macros::v4_rtype_dispatch!(self, raw_index_ts()).unwrap_or(self.header().ts_event)
     }
 }
 

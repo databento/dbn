@@ -3,8 +3,9 @@
 use std::{ffi::c_char, marker::PhantomData};
 
 use crate::{
+    flags,
     v4::{
-        types::{CStr, Char, Decimal, EnumField, OpenEnum, Symbol, TimestampNs},
+        types::{CStr, Char, Decimal, EnumField, Labels, OpenEnum, Symbol, TimestampNs},
         RecordHeader,
     },
     FlagSet,
@@ -44,6 +45,8 @@ pub trait FieldType: Sized {
     /// resolver can only check a declared width against the descriptor when the type
     /// fixes it, which arrays do and a per-dataset [`CStr`] does not.
     const ARRAY_WIRE_SIZE: Option<u16> = None;
+    /// The labels of an enum or bit set type, `None` for every other type.
+    const LABELS: Option<Labels> = None;
 }
 
 /// A [`FieldType`] whose wire width comes from the type rather than the dataset.
@@ -56,6 +59,13 @@ pub trait FieldType: Sized {
 /// // A `CStr`'s width is the dataset's to declare, so the type cannot report one.
 /// fn bad() -> u16 {
 ///     Field::<CStr>::new(0x0030).size()
+/// }
+/// ```
+///
+/// ```compile_fail,E0277
+/// use dbn::{layout::RecordLayoutBuilder, v4::{fields::Field, types::CStr}};
+/// fn bad(b: &mut RecordLayoutBuilder) {
+///     b.field(Field::<CStr>::new(0x0030), "raw_symbol");
 /// }
 /// ```
 pub trait FixedWidth: FieldType {
@@ -146,8 +156,102 @@ where
         Some(OpenEnum::from_raw(E::Repr::decode(bytes, scale)?))
     }
 }
-// Array (`[T; N]` -> `&'a [T]`) and `Struct` (-> `&'a S`) reads slot in the same way:
-// further `DecodeField` impls with a borrowing `Value<'a>`.
+impl<T, const N: usize> DecodeField for [T; N]
+where
+    T: FixedWidth + for<'x> DecodeField<Value<'x> = T>,
+{
+    type Value<'a> = [T; N];
+    fn decode(bytes: &[u8], scale: i8) -> Option<[T; N]> {
+        let width = usize::from(T::WIRE_SIZE);
+        let mut out: [Option<T>; N] = [const { None }; N];
+        for (i, slot) in out.iter_mut().enumerate() {
+            *slot = Some(T::decode(bytes.get(i * width..(i + 1) * width)?, scale)?);
+        }
+        Some(out.map(Option::unwrap))
+    }
+}
+
+/// A scalar field's type read from its `type_id` at runtime. Enums and bit sets read
+/// as their raw unsigned value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ScalarType {
+    U8,
+    U16,
+    U32,
+    U64,
+    I8,
+    I16,
+    I32,
+    I64,
+    F32,
+    F64,
+    Decimal,
+    Timestamp,
+    Char,
+    Str,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) enum ScalarValue<'a> {
+    U8(u8),
+    U16(u16),
+    U32(u32),
+    U64(u64),
+    I8(i8),
+    I16(i16),
+    I32(i32),
+    I64(i64),
+    F32(f32),
+    F64(f64),
+    Decimal(Decimal),
+    Timestamp(TimestampNs),
+    Char(Char),
+    Str(&'a str),
+}
+
+impl ScalarType {
+    /// `None` for a `Struct` or `Padding` tag or an unknown type ID.
+    pub(crate) fn new(type_id: u8) -> Option<Self> {
+        Some(match type_id {
+            <u8 as FieldType>::TYPE_ID | ENUM_8_ID | BIT_SET_8_ID => Self::U8,
+            <u16 as FieldType>::TYPE_ID | ENUM_16_ID | BIT_SET_16_ID => Self::U16,
+            <u32 as FieldType>::TYPE_ID | BIT_SET_32_ID => Self::U32,
+            <u64 as FieldType>::TYPE_ID | BIT_SET_64_ID => Self::U64,
+            <i8 as FieldType>::TYPE_ID => Self::I8,
+            <i16 as FieldType>::TYPE_ID => Self::I16,
+            <i32 as FieldType>::TYPE_ID => Self::I32,
+            <i64 as FieldType>::TYPE_ID => Self::I64,
+            <f32 as FieldType>::TYPE_ID => Self::F32,
+            <f64 as FieldType>::TYPE_ID => Self::F64,
+            <Decimal as FieldType>::TYPE_ID => Self::Decimal,
+            <TimestampNs as FieldType>::TYPE_ID => Self::Timestamp,
+            <Char as FieldType>::TYPE_ID | ENUM_CHAR_ID => Self::Char,
+            CSTR_ID | SYMBOL_ID => Self::Str,
+            _ => return None,
+        })
+    }
+
+    /// Decodes like [`DecodeField::decode`]: `None` for a short window or non-UTF-8 in
+    /// a string.
+    pub(crate) fn decode(self, bytes: &[u8], scale: i8) -> Option<ScalarValue<'_>> {
+        Some(match self {
+            Self::U8 => ScalarValue::U8(u8::decode(bytes, scale)?),
+            Self::U16 => ScalarValue::U16(u16::decode(bytes, scale)?),
+            Self::U32 => ScalarValue::U32(u32::decode(bytes, scale)?),
+            Self::U64 => ScalarValue::U64(u64::decode(bytes, scale)?),
+            Self::I8 => ScalarValue::I8(i8::decode(bytes, scale)?),
+            Self::I16 => ScalarValue::I16(i16::decode(bytes, scale)?),
+            Self::I32 => ScalarValue::I32(i32::decode(bytes, scale)?),
+            Self::I64 => ScalarValue::I64(i64::decode(bytes, scale)?),
+            Self::F32 => ScalarValue::F32(f32::decode(bytes, scale)?),
+            Self::F64 => ScalarValue::F64(f64::decode(bytes, scale)?),
+            Self::Decimal => ScalarValue::Decimal(Decimal::decode(bytes, scale)?),
+            Self::Timestamp => ScalarValue::Timestamp(TimestampNs::decode(bytes, scale)?),
+            Self::Char => ScalarValue::Char(Char::decode(bytes, scale)?),
+            Self::Str => ScalarValue::Str(CStr::decode(bytes, scale)?),
+        })
+    }
+}
 
 /// A field constant.
 #[derive(Debug, Clone, Copy)]
@@ -191,6 +295,50 @@ impl<T: FixedWidth> Field<T> {
 
 /// Field ID for padding fields.
 pub const PADDING: u16 = 0;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum FieldDefault {
+    Max,
+    Value(i64),
+}
+
+pub(crate) fn default_of(field_id: u16, type_id: u8) -> FieldDefault {
+    registry_default(field_id).unwrap_or(
+        if type_id == Decimal::TYPE_ID || type_id == TimestampNs::TYPE_ID {
+            FieldDefault::Max
+        } else {
+            FieldDefault::Value(0)
+        },
+    )
+}
+
+impl FieldDefault {
+    pub(crate) fn write(self, type_id: u8, bytes: &mut [u8]) {
+        match self {
+            Self::Max => {
+                bytes.fill(u8::MAX);
+                let signed = [
+                    i8::TYPE_ID,
+                    i16::TYPE_ID,
+                    i32::TYPE_ID,
+                    i64::TYPE_ID,
+                    Decimal::TYPE_ID,
+                ];
+                if signed.contains(&type_id) {
+                    if let Some(last) = bytes.last_mut() {
+                        *last = i8::MAX as u8;
+                    }
+                }
+            }
+            Self::Value(value) => {
+                let value = value.to_le_bytes();
+                let (head, tail) = bytes.split_at_mut(bytes.len().min(value.len()));
+                head.copy_from_slice(&value[..head.len()]);
+                tail.fill(0);
+            }
+        }
+    }
+}
 
 impl FieldType for u8 {
     const TYPE_ID: u8 = 0x01;
@@ -244,14 +392,17 @@ impl FieldType for RecordHeader {
 impl<T: FixedWidth, const N: usize> FieldType for [T; N] {
     const TYPE_ID: u8 = T::TYPE_ID;
     const ARRAY_WIRE_SIZE: Option<u16> = Some(T::WIRE_SIZE * N as u16);
+    const LABELS: Option<Labels> = T::LABELS;
 }
 impl<E> FieldType for OpenEnum<E>
 where
     E: EnumField,
 {
-    // TODO: check enum identity through the field's `LabelDef`. Enums of the same
-    // width share a type ID, so the tag alone can't tell `Side` from `Action`.
     const TYPE_ID: u8 = E::TYPE_ID;
+    const LABELS: Option<Labels> = Some(Labels {
+        name: E::NAME,
+        values: E::LABELS,
+    });
 }
 /// Type ID for a C character enum.
 pub const ENUM_CHAR_ID: u8 = 0x20;
@@ -278,6 +429,24 @@ pub const PADDING_ID: u8 = 0xFF;
 
 impl FieldType for FlagSet {
     const TYPE_ID: u8 = BIT_SET_8_ID;
+    const LABELS: Option<Labels> = Some(Labels {
+        name: "FlagSet",
+        values: &[
+            (flags::LAST.trailing_zeros() as u16, "LAST"),
+            (flags::TOB.trailing_zeros() as u16, "TOB"),
+            (flags::SNAPSHOT.trailing_zeros() as u16, "SNAPSHOT"),
+            (flags::MBP.trailing_zeros() as u16, "MBP"),
+            (flags::BAD_TS_RECV.trailing_zeros() as u16, "BAD_TS_RECV"),
+            (
+                flags::MAYBE_BAD_BOOK.trailing_zeros() as u16,
+                "MAYBE_BAD_BOOK",
+            ),
+            (
+                flags::PUBLISHER_SPECIFIC.trailing_zeros() as u16,
+                "PUBLISHER_SPECIFIC",
+            ),
+        ],
+    });
 }
 
 macro_rules! impl_fixed_width {
@@ -330,7 +499,35 @@ pub(crate) const fn scalar_size(type_id: u8) -> Option<u16> {
 mod tests {
     use std::collections::HashSet;
 
+    use rstest::rstest;
+
     use super::*;
+    use crate::{
+        layout::{RecordLayoutDesc, StreamLayoutBuilder},
+        HasRType,
+    };
+
+    #[rstest]
+    #[case::enum_char(ENUM_CHAR_ID, b"B", Some(ScalarValue::Char(Char(b'B' as c_char))))]
+    #[case::bit_set_16(BIT_SET_16_ID, &[0x01, 0x02], Some(ScalarValue::U16(0x0201)))]
+    #[case::price(
+        <Decimal as FieldType>::TYPE_ID,
+        &5_500_000_000_i64.to_le_bytes(),
+        Some(ScalarValue::Decimal(Decimal { raw: 5_500_000_000, scale: -9 }))
+    )]
+    #[case::symbol(SYMBOL_ID, b"ESZ6\0\0\0\0", Some(ScalarValue::Str("ESZ6")))]
+    #[case::non_utf8(CSTR_ID, b"\xFFZ6\0", None)]
+    #[case::short(<u32 as FieldType>::TYPE_ID, &[0x01, 0x02], None)]
+    fn scalar_type_decodes(
+        #[case] type_id: u8,
+        #[case] bytes: &[u8],
+        #[case] expected: Option<ScalarValue<'static>>,
+    ) {
+        assert_eq!(
+            ScalarType::new(type_id).unwrap().decode(bytes, -9),
+            expected
+        );
+    }
 
     #[test]
     fn registry_field_ids_are_unique() {
@@ -352,5 +549,81 @@ mod tests {
         for id in ids {
             assert!(seen.insert(id), "duplicate field ID {id:#06X}");
         }
+    }
+
+    fn non_registry_defaults<R: RecordLayoutDesc + HasRType>(
+        rec: R,
+        mut sb: StreamLayoutBuilder,
+    ) -> Vec<String> {
+        sb.layout_of::<R>(rec.raw_rtype()).finish();
+        let layout = sb.into_unvalidated().record_layouts.pop().unwrap();
+        let bytes = rec.as_ref();
+        layout
+            .field_defs
+            .iter()
+            .zip(&layout.field_names)
+            .filter(|(f, _)| !f.is_padding() && f.field_id != HD.id() && !f.is_array())
+            .filter(|(f, _)| usize::from(f.offset + f.size) <= bytes.len())
+            .filter(|(f, _)| {
+                let mut expected = vec![0; usize::from(f.size)];
+                default_of(f.field_id, f.type_id).write(f.type_id, &mut expected);
+                let start = usize::from(f.offset);
+                bytes[start..start + expected.len()] != expected
+            })
+            .map(|(_, name)| format!("{}.{name}", R::NAME))
+            .collect()
+    }
+
+    macro_rules! non_registry_defaults {
+        ($v:ident, $sb:expr, $mbp1:expr) => {{
+            use crate::$v::*;
+            use crate::Schema;
+            [
+                non_registry_defaults(MboMsg::default(), $sb),
+                non_registry_defaults(TradeMsg::default(), $sb),
+                non_registry_defaults($mbp1, $sb),
+                non_registry_defaults(Mbp10Msg::default(), $sb),
+                non_registry_defaults(BboMsg::default_for_schema(Schema::Bbo1S), $sb),
+                non_registry_defaults(Cmbp1Msg::default_for_schema(Schema::Cmbp1), $sb),
+                non_registry_defaults(CbboMsg::default_for_schema(Schema::Cbbo1S), $sb),
+                non_registry_defaults(OhlcvMsg::default_for_schema(Schema::Ohlcv1S), $sb),
+                non_registry_defaults(StatusMsg::default(), $sb),
+                non_registry_defaults(InstrumentDefMsg::default(), $sb),
+                non_registry_defaults(ImbalanceMsg::default(), $sb),
+                non_registry_defaults(StatMsg::default(), $sb),
+                non_registry_defaults(ErrorMsg::default(), $sb),
+                non_registry_defaults(SymbolMappingMsg::default(), $sb),
+                non_registry_defaults(SystemMsg::default(), $sb),
+            ]
+            .concat()
+        }};
+    }
+
+    #[test]
+    fn record_defaults_match_the_registry() {
+        let mismatched = [
+            non_registry_defaults!(
+                v1,
+                StreamLayoutBuilder::pre_v4(crate::v1::SYMBOL_CSTR_LEN as u16),
+                Mbp1Msg::default()
+            ),
+            non_registry_defaults!(
+                v2,
+                StreamLayoutBuilder::pre_v4(crate::v2::SYMBOL_CSTR_LEN as u16),
+                Mbp1Msg::default()
+            ),
+            non_registry_defaults!(
+                v3,
+                StreamLayoutBuilder::pre_v4(crate::v3::SYMBOL_CSTR_LEN as u16),
+                Mbp1Msg::default()
+            ),
+            non_registry_defaults!(
+                v4,
+                StreamLayoutBuilder::new(DBN_VERSION.into(), crate::SYMBOL_CSTR_LEN as u16),
+                Mbp1Msg::default_for_schema(Schema::Mbp1)
+            ),
+        ]
+        .concat();
+        assert!(mismatched.is_empty(), "{mismatched:?}");
     }
 }

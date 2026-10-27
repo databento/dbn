@@ -233,8 +233,7 @@ mod tests {
         let mut buf = Vec::new();
         let mut file = File::open(format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn")).unwrap();
         file.read_to_end(&mut buf).unwrap();
-        // change version
-        buf[3] = crate::DBN_VERSION + 1;
+        buf[3] = crate::MAX_READ_VERSION + 1;
         let res = DynDecoder::new_inferred(io::Cursor::new(buf), VersionUpgradePolicy::default());
         assert!(matches!(res, Err(e) if e
             .to_string()

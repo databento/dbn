@@ -2,8 +2,10 @@
 //! sync and async decoders.
 
 use std::{
+    marker::PhantomData,
     mem::{size_of, size_of_val, transmute, MaybeUninit},
     num::NonZeroU64,
+    ops::RangeInclusive,
     str::Utf8Error,
 };
 
@@ -14,38 +16,46 @@ use crate::{
         dbn::{decode_iso8601, DBN_PREFIX, DBN_PREFIX_LEN},
         FromLittleEndianSlice,
     },
-    v1, v2, v3, DbnVersion, Error, MappingInterval, Metadata, Record, RecordHeader, RecordMut,
-    RecordRef, Result, SType, Schema, SymbolMapping, VersionUpgradePolicy, WithTsOut, DBN_VERSION,
+    layout::{wire::ByteReader, Upgrader},
+    metadata::MetadataLengths,
+    record::RecordHeaderKind,
+    v1, v2, v3, v4, DbnVersion, Error, MappingInterval, Metadata, Record, RecordMut, RecordRef,
+    Result, SType, Schema, SymbolMapping, VersionUpgradePolicy, WithTsOut, DBN_VERSION,
     MAX_RECORD_LEN, METADATA_FIXED_LEN, NULL_SCHEMA, NULL_STYPE, UNDEF_TIMESTAMP,
 };
 
 /// State machine for decoding DBN with bring your own I/O.
-pub struct DbnFsm {
+///
+/// `H` is the record header the state machine decodes, and it determines which DBN
+/// versions the state machine accepts. The default, [`v3::RecordHeader`], decodes data
+/// from versions 1 to 3, and [`v4::RecordHeader`] decodes version 4 data only.
+pub struct DbnFsm<H: DecodeHeader = v3::RecordHeader> {
     input_dbn_version: Option<DbnVersion>,
     upgrade_policy: VersionUpgradePolicy,
     needs_upgrade: bool,
+    schema: Option<Schema>,
     ts_out: bool,
     state: State,
     buffer: AlignedBuffer,
     compat_buffer: AlignedBuffer,
+    upgrader: Option<Upgrader>,
     batch: RecordBatch,
+    _header: PhantomData<H>,
 }
 
-impl std::fmt::Debug for DbnFsm {
+impl<H: DecodeHeader> std::fmt::Debug for DbnFsm<H> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let dbg_available_data = self.buffer.available_data().min(MAX_RECORD_LEN);
+        let dbg_data_len = self.buffer.available_data().min(MAX_RECORD_LEN);
         f.debug_struct("DbnFsm")
             .field("input_dbn_version", &self.input_dbn_version)
             .field("upgrade_policy", &self.upgrade_policy)
             .field("needs_upgrade", &self.needs_upgrade)
+            .field("schema", &self.schema)
             .field("ts_out", &self.ts_out)
             .field("state", &self.state)
-            .field(
-                "buffer_available_data",
-                &&self.buffer.data()[..dbg_available_data],
-            )
-            .field("buffer_available_space", &self.buffer.available_space())
+            .field("buffer_data", &&self.buffer.data()[..dbg_data_len])
             .field("buffer_available_data", &self.buffer.available_data())
+            .field("buffer_available_space", &self.buffer.available_space())
             .field("buffer_capacity", &self.buffer.capacity())
             .field("compat_buffer_capacity", &self.compat_buffer.capacity())
             .field("batch", &self.batch)
@@ -112,23 +122,51 @@ impl<R> ProcessResult<R> {
 }
 
 /// Helper for configuring the state machine.
-pub struct DbnFsmBuilder {
+pub struct DbnFsmBuilder<H: DecodeHeader = v3::RecordHeader> {
     input_dbn_version: Option<DbnVersion>,
-    upgrade_policy: VersionUpgradePolicy,
+    upgrade_policy: Option<VersionUpgradePolicy>,
     ts_out: bool,
     skip_metadata: bool,
     buffer_size: usize,
     compat_size: Option<usize>,
+    _header: PhantomData<H>,
 }
+
+/// A record header that can be decoded.
+pub trait DecodeHeader: RecordHeaderKind {
+    /// The default upgrade policy.
+    const DEFAULT_UPGRADE_POLICY: VersionUpgradePolicy;
+
+    /// The DBN versions that can be decoded into records with this header.
+    const INPUT_DBN_VERSIONS: RangeInclusive<u8>;
+
+    /// Whether an upgrade is required.
+    fn needs_upgrade(
+        upgrade_policy: VersionUpgradePolicy,
+        input_dbn_version: Option<DbnVersion>,
+    ) -> bool;
+
+    /// Upgrades the record in `read_buffer` using `compat_buffer`.
+    ///
+    /// # Safety
+    /// `read_buffer` must start with a complete, valid DBN record.
+    #[doc(hidden)]
+    unsafe fn upgrade<'a>(
+        input_dbn_version: &mut Option<DbnVersion>,
+        upgrade_policy: VersionUpgradePolicy,
+        upgrader: Option<&Upgrader>,
+        ts_out: bool,
+        read_buffer: &'a [u8],
+        compat_buffer: &'a mut [u8],
+    ) -> Result<(&'a mut [u8], Option<RecordRef<'a, Self>>)>;
+}
+
+/// The most records `process_batch()` decodes at once.
+const BATCH_LEN: usize = 16;
 
 impl DbnFsm {
     /// The default internal buffer size: 64 KiB.
     pub const DEFAULT_BUF_SIZE: usize = 64 * (1 << 10);
-    /// The most records `process_batch()` decodes at once.
-    const BATCH_LEN: usize = 16;
-    const METADATA_PRELUDE_LEN: usize = 8;
-    const HEADER_LEN: usize = size_of::<RecordHeader>();
-    const U32_SIZE: usize = size_of::<u32>();
 
     /// Creates a new decoder with the specified buffer sizes. Assumes the
     /// data being decoded is packed.
@@ -138,11 +176,14 @@ impl DbnFsm {
             input_dbn_version: None,
             upgrade_policy,
             needs_upgrade: Self::compute_needs_upgrade(upgrade_policy, None),
+            schema: None,
             ts_out: false,
             state: State::default(),
             buffer: AlignedBuffer::with_capacity(buffer_size),
             compat_buffer: AlignedBuffer::with_capacity(compat_size),
+            upgrader: None,
             batch: RecordBatch::default(),
+            _header: PhantomData,
         }
     }
 
@@ -162,6 +203,28 @@ impl DbnFsm {
         DbnFsmBuilder::default()
     }
 
+    /// Reads available records into `rec_ptrs` as record header pointers until the
+    /// internal buffer is exhausted or the slice is filled. Returns the number of records
+    /// decoded.
+    ///
+    /// The decoded records carry no lifetime, which makes this method suitable for FFI
+    /// The pointers are valid until the next call that modifies the internal buffers.
+    ///
+    /// # Errors
+    /// This function returns an error if it encounters invalid metadata or an invalid
+    /// record. Records decoded before an invalid record are returned first, and the
+    /// error is returned by the following call.
+    pub fn process_many_raw(
+        &mut self,
+        rec_ptrs: &mut [MaybeUninit<*const v3::RecordHeader>],
+    ) -> ProcessResult<usize> {
+        self.process_multiple(rec_ptrs)
+    }
+}
+
+impl<H: DecodeHeader> DbnFsm<H> {
+    const U32_SIZE: usize = size_of::<u32>();
+
     /// Returns the input DBN version.
     pub fn input_dbn_version(&self) -> Option<u8> {
         self.input_dbn_version.map(|v| v.0)
@@ -170,13 +233,13 @@ impl DbnFsm {
     /// Sets the DBN version to expect when decoding.
     ///
     /// # Errors
-    /// This function will return an error if the `version` exceeds the highest
-    /// supported version or the `version` and `upgrade_policy` are incompatible.
+    /// This function will return an error if the `version` isn't one `H` can decode
+    /// or the `version` and `upgrade_policy` are incompatible.
     pub fn set_input_dbn_version(&mut self, version: u8) -> Result<()> {
-        let version = DbnVersion::try_from(version)?;
-        self.upgrade_policy.validate_compatibility(version.0)?;
+        let version = DbnVersion::for_header::<H>(version, self.upgrade_policy)?;
         self.input_dbn_version = Some(version);
-        self.needs_upgrade = Self::compute_needs_upgrade(self.upgrade_policy, Some(version));
+        self.needs_upgrade = H::needs_upgrade(self.upgrade_policy, Some(version));
+        self.upgrader = upgrader_for(self.upgrade_policy, Some(version), self.schema, self.ts_out);
         Ok(())
     }
 
@@ -188,6 +251,12 @@ impl DbnFsm {
     /// Sets whether each record is expected to have `ts_out` appended.
     pub fn set_ts_out(&mut self, ts_out: bool) {
         self.ts_out = ts_out;
+        self.upgrader = upgrader_for(
+            self.upgrade_policy,
+            self.input_dbn_version,
+            self.schema,
+            ts_out,
+        );
     }
 
     /// Returns the current DBN version upgrade policy.
@@ -201,17 +270,24 @@ impl DbnFsm {
     /// This function will return an error if the `version` and `upgrade_policy` are
     /// incompatible.
     pub fn set_upgrade_policy(&mut self, upgrade_policy: VersionUpgradePolicy) -> Result<()> {
-        if let Some(DbnVersion(input_dbn_version)) = self.input_dbn_version {
-            upgrade_policy.validate_compatibility(input_dbn_version)?;
+        DbnVersion::validate_policy::<H>(upgrade_policy)?;
+        if let Some(DbnVersion(version)) = self.input_dbn_version {
+            upgrade_policy.validate_compatibility(version)?;
         }
         self.upgrade_policy = upgrade_policy;
-        self.needs_upgrade = Self::compute_needs_upgrade(upgrade_policy, self.input_dbn_version);
+        self.needs_upgrade = H::needs_upgrade(upgrade_policy, self.input_dbn_version);
+        self.upgrader = upgrader_for(
+            upgrade_policy,
+            self.input_dbn_version,
+            self.schema,
+            self.ts_out,
+        );
         Ok(())
     }
 
     /// Returns an immutable reference to the most recently decoded record, or `None`.
     #[inline]
-    pub fn last_record(&self) -> Option<RecordRef<'_>> {
+    pub fn last_record(&self) -> Option<RecordRef<'_, H>> {
         match self.state {
             State::Prelude | State::Metadata { .. } | State::Record => None,
             // A batch leaves its compat fill to `consume`, so the upgraded records
@@ -231,7 +307,7 @@ impl DbnFsm {
     }
 
     /// Returns a mutable reference to the most recently decoded record, or `None`.
-    pub fn last_record_mut(&mut self) -> Option<crate::RecordRefMut<'_>> {
+    pub fn last_record_mut(&mut self) -> Option<crate::RecordRefMut<'_, H>> {
         match self.state {
             State::Prelude | State::Metadata { .. } | State::Record => None,
             State::ConsumeBatch { compat, .. } if compat > 0 => None,
@@ -318,8 +394,10 @@ impl DbnFsm {
         self.state = State::Prelude;
         self.buffer.reset();
         self.compat_buffer.reset();
+        self.upgrader = None;
         self.input_dbn_version = None;
-        self.needs_upgrade = Self::compute_needs_upgrade(self.upgrade_policy, None);
+        self.schema = None;
+        self.needs_upgrade = H::needs_upgrade(self.upgrade_policy, None);
     }
 
     /// Resets buffered record state after seeking while preserving decoder
@@ -352,15 +430,21 @@ impl DbnFsm {
                 return res;
             }
             let available_data = self.buffer.available_data();
-            if available_data < Self::HEADER_LEN {
-                return ProcessResult::ReadMore(Self::record_shortfall(&self.buffer));
+            if available_data < input_header_len::<H>(self.input_dbn_version) {
+                return ProcessResult::ReadMore(Self::record_shortfall(
+                    &self.buffer,
+                    self.input_dbn_version,
+                ));
             }
-            let length = match Self::record_length(self.buffer.data()) {
+            let length = match input_frame_len::<H>(self.input_dbn_version, self.buffer.data()) {
                 Ok(length) => length,
                 Err(err) => return ProcessResult::Err(err),
             };
             if length > available_data {
-                return ProcessResult::ReadMore(Self::record_shortfall(&self.buffer));
+                return ProcessResult::ReadMore(Self::record_shortfall(
+                    &self.buffer,
+                    self.input_dbn_version,
+                ));
             }
             if !self.needs_upgrade {
                 self.state = State::ConsumeOne {
@@ -370,14 +454,19 @@ impl DbnFsm {
                 return ProcessResult::Record(());
             }
             let prev_compat_cap = self.compat_buffer.available_space();
-            let (rem_compat_buffer, rec) = unsafe {
-                Self::upgrade_record(
+            let upgraded = unsafe {
+                H::upgrade(
                     &mut self.input_dbn_version,
                     self.upgrade_policy,
+                    self.upgrader.as_ref(),
                     self.ts_out,
                     self.buffer.data(),
                     self.compat_buffer.space(),
                 )
+            };
+            let (rem_compat_buffer, rec) = match upgraded {
+                Ok(upgraded) => upgraded,
+                Err(err) => return ProcessResult::Err(err),
             };
             if rec.is_none() {
                 self.double_compat_buffer();
@@ -400,9 +489,9 @@ impl DbnFsm {
             let available_data = self.buffer.available_data();
             match self.state {
                 State::Record => return None,
-                State::Prelude if available_data < Self::METADATA_PRELUDE_LEN => {
+                State::Prelude if available_data < crate::METADATA_PRELUDE_LEN => {
                     return Some(ProcessResult::ReadMore(
-                        Self::METADATA_PRELUDE_LEN - available_data,
+                        crate::METADATA_PRELUDE_LEN - available_data,
                     ));
                 }
                 State::Prelude => {
@@ -424,27 +513,15 @@ impl DbnFsm {
         }
     }
 
-    /// Reads the length of the record at the start of `data`.
-    ///
-    /// # Errors
-    /// This function returns an error if the length can't describe a record.
-    fn record_length(data: &[u8]) -> Result<usize> {
-        let length = data[0] as usize * RecordHeader::LENGTH_MULTIPLIER;
-        if length < Self::HEADER_LEN {
-            return Err(Error::decode(format!(
-                "invalid record with impossible length {length} which is shorter than the header"
-            )));
-        }
-        Ok(length)
-    }
-
     /// Bytes still needed to buffer the next complete record.
-    fn record_shortfall(buffer: &AlignedBuffer) -> usize {
+    fn record_shortfall(buffer: &AlignedBuffer, input_dbn_version: Option<DbnVersion>) -> usize {
+        let header_len = input_header_len::<H>(input_dbn_version);
         let available_data = buffer.available_data();
-        if available_data < Self::HEADER_LEN {
-            Self::HEADER_LEN - available_data
+        if available_data < header_len {
+            header_len - available_data
         } else {
-            buffer.data()[0] as usize * RecordHeader::LENGTH_MULTIPLIER - available_data
+            input_frame_len::<H>(input_dbn_version, buffer.data())
+                .map_or(header_len, |length| length.saturating_sub(available_data))
         }
     }
 
@@ -465,7 +542,7 @@ impl DbnFsm {
     /// error is returned by the following call.
     pub fn process_all<'a>(
         &'a mut self,
-        rec_refs: &mut Vec<RecordRef<'a>>,
+        rec_refs: &mut Vec<RecordRef<'a, H>>,
         limit: Option<NonZeroU64>,
     ) -> ProcessResult<u64> {
         self.process_multiple(VecRecRefBuf {
@@ -488,27 +565,9 @@ impl DbnFsm {
     /// error is returned by the following call.
     pub fn process_many<'a>(
         &'a mut self,
-        rec_refs: &'a mut [Option<RecordRef<'a>>],
-    ) -> ProcessResult<&'a mut [RecordRef<'a>]> {
+        rec_refs: &'a mut [Option<RecordRef<'a, H>>],
+    ) -> ProcessResult<&'a mut [RecordRef<'a, H>]> {
         self.process_multiple(rec_refs)
-    }
-
-    /// Reads available records into `rec_ptrs` as record header pointers until the
-    /// internal buffer is exhausted or the slice is filled. Returns the number of records
-    /// decoded.
-    ///
-    /// The decoded records carry no lifetime, which makes this method suitable for FFI
-    /// The pointers are valid until the next call that modifies the internal buffers.
-    ///
-    /// # Errors
-    /// This function returns an error if it encounters invalid metadata or an invalid
-    /// record. Records decoded before an invalid record are returned first, and the
-    /// error is returned by the following call.
-    pub fn process_many_raw(
-        &mut self,
-        rec_ptrs: &mut [MaybeUninit<*const RecordHeader>],
-    ) -> ProcessResult<usize> {
-        self.process_multiple(rec_ptrs)
     }
 
     /// Decodes a batch of records, returning how many became
@@ -550,8 +609,11 @@ impl DbnFsm {
     /// Returns the next record decoded by
     /// [`process_batch()`](Self::process_batch), or `None` once the batch is drained.
     #[inline]
-    pub fn next_buffered_record(&mut self) -> Option<RecordRef<'_>> {
-        if !self.batch.advance(self.buffer.data()) {
+    pub fn next_buffered_record(&mut self) -> Option<RecordRef<'_, H>> {
+        if !self
+            .batch
+            .advance::<H>(self.input_dbn_version, self.buffer.data())
+        {
             return None;
         }
         self.last_record()
@@ -559,7 +621,7 @@ impl DbnFsm {
 
     fn process_multiple<'a, B>(&'a mut self, mut rec_ref_buf: B) -> ProcessResult<B::Return>
     where
-        B: RecRefBuf<'a>,
+        B: RecRefBuf<'a, H>,
     {
         if let Some(res) = self.advance_to_record() {
             return res;
@@ -578,12 +640,11 @@ impl DbnFsm {
         let mut compat_bytes = 0;
         let mut remaining_compat = self.compat_buffer.space();
         let mut expand_compat = false;
-        while rec_ref_buf.has_capacity(record_count)
-            && read_bytes + Self::HEADER_LEN <= available_data
-        {
+        let header_len = input_header_len::<H>(self.input_dbn_version);
+        while rec_ref_buf.has_capacity(record_count) && read_bytes + header_len <= available_data {
             let remaining_data = &self.buffer.data()[read_bytes..];
 
-            let length = match Self::record_length(remaining_data) {
+            let length = match input_frame_len::<H>(self.input_dbn_version, remaining_data) {
                 Ok(length) => length,
                 // Deliver what's already decoded; the next call repeats the error
                 Err(_) if record_count > 0 => break,
@@ -601,14 +662,21 @@ impl DbnFsm {
                 continue;
             }
             let prev_compat_cap = remaining_compat.len();
-            let (new_rem_compat, rec) = unsafe {
-                Self::upgrade_record(
+            let upgraded = unsafe {
+                H::upgrade(
                     &mut self.input_dbn_version,
                     self.upgrade_policy,
+                    self.upgrader.as_ref(),
                     self.ts_out,
                     remaining_data,
                     remaining_compat,
                 )
+            };
+            let (new_rem_compat, rec) = match upgraded {
+                Ok(upgraded) => upgraded,
+                // Deliver what's already decoded; the next call repeats the error
+                Err(_) if record_count > 0 => break,
+                Err(err) => return ProcessResult::Err(err),
             };
             let Some(rec) = rec else {
                 // Insufficient remaining compat space. Growing reallocates and would
@@ -625,7 +693,10 @@ impl DbnFsm {
         }
         if record_count == 0 && rec_ref_buf.has_capacity(0) {
             debug_assert!(!expand_compat);
-            return ProcessResult::ReadMore(Self::record_shortfall(&self.buffer));
+            return ProcessResult::ReadMore(Self::record_shortfall(
+                &self.buffer,
+                self.input_dbn_version,
+            ));
         }
         self.state = State::ConsumeBatch {
             read: read_bytes,
@@ -690,27 +761,23 @@ impl DbnFsm {
         if &data[..DBN_PREFIX_LEN] != DBN_PREFIX {
             return Err(Error::decode("invalid DBN header"));
         }
-        let version = data[DBN_PREFIX_LEN];
-        self.input_dbn_version = Some(DbnVersion(version));
-        self.needs_upgrade =
-            Self::compute_needs_upgrade(self.upgrade_policy, Some(DbnVersion(version)));
-        if version > DBN_VERSION {
-            return Err(Error::decode(format!("can't decode newer version of DBN. Decoder version is {DBN_VERSION}, input version is {version}")));
-        }
-        self.upgrade_policy.validate_compatibility(version)?;
+        let version = DbnVersion::for_header::<H>(data[DBN_PREFIX_LEN], self.upgrade_policy)?;
+        self.input_dbn_version = Some(version);
+        self.needs_upgrade = H::needs_upgrade(self.upgrade_policy, Some(version));
         let length = u32::from_le_slice(&data[4..]);
         if (length as usize) < METADATA_FIXED_LEN {
             return Err(Error::decode(
                 "invalid DBN metadata. Metadata length shorter than fixed length.",
             ));
         }
-        if self.upgrade_policy.is_upgrade_situation(version) && self.compat_buffer.capacity() == 0 {
+        if self.upgrade_policy.is_upgrade_situation(version.0) && self.compat_buffer.capacity() == 0
+        {
             self.double_compat_buffer();
         }
         self.state = State::Metadata { length };
-        self.buffer.consume(Self::METADATA_PRELUDE_LEN);
+        self.buffer.consume(crate::METADATA_PRELUDE_LEN);
         self.buffer
-            .grow(length as usize + Self::METADATA_PRELUDE_LEN);
+            .grow(length as usize + crate::METADATA_PRELUDE_LEN);
         Ok(())
     }
 
@@ -723,6 +790,13 @@ impl DbnFsm {
         let mut metadata = Self::decode_metadata_impl(input_dbn_version, metadata_bytes)?;
         metadata.upgrade(self.upgrade_policy);
         self.ts_out = metadata.ts_out;
+        self.schema = metadata.schema;
+        self.upgrader = upgrader_for(
+            self.upgrade_policy,
+            self.input_dbn_version,
+            self.schema,
+            self.ts_out,
+        );
         self.buffer.consume(length as usize);
         // Need to shift to ensure record alignment
         self.buffer.shift();
@@ -733,13 +807,18 @@ impl DbnFsm {
     fn decode_metadata_impl(input_version: u8, buffer: &[u8]) -> Result<Metadata> {
         const U64_SIZE: usize = size_of::<u64>();
 
+        let lengths = MetadataLengths::for_version(input_version).ok_or_else(|| {
+            crate::Error::decode(format!(
+                "can't decode metadata with version {input_version}"
+            ))
+        })?;
         let mut pos = 0;
-        let dataset = std::str::from_utf8(&buffer[pos..pos + crate::METADATA_DATASET_CSTR_LEN])
+        let dataset = std::str::from_utf8(&buffer[pos..pos + lengths.dataset_cstr_len])
             .map_err(|e| crate::Error::utf8(e, "reading dataset from metadata"))?
             // remove null bytes
             .trim_end_matches('\0')
             .to_owned();
-        pos += crate::METADATA_DATASET_CSTR_LEN;
+        pos += lengths.dataset_cstr_len;
 
         let raw_schema = u16::from_le_slice(&buffer[pos..]);
         let schema = if raw_schema == NULL_SCHEMA {
@@ -756,7 +835,7 @@ impl DbnFsm {
         pos += U64_SIZE;
         let limit = NonZeroU64::new(u64::from_le_slice(&buffer[pos..]));
         pos += U64_SIZE;
-        if input_version == 1 {
+        if lengths.has_record_count {
             // skip deprecated record_count
             pos += U64_SIZE;
         }
@@ -774,33 +853,58 @@ impl DbnFsm {
         pos += size_of::<SType>();
         let ts_out = buffer[pos] != 0;
         pos += size_of::<bool>();
-        let symbol_cstr_len = if input_version == 1 {
-            v1::SYMBOL_CSTR_LEN
-        } else {
+        let symbol_cstr_len = if lengths.has_symbol_cstr_len {
             let res = u16::from_le_slice(&buffer[pos..]);
             pos += size_of::<u16>();
             res as usize
+        } else {
+            v1::SYMBOL_CSTR_LEN
         };
         // skip reserved
-        pos += if input_version == 1 {
-            v1::METADATA_RESERVED_LEN
-        } else {
-            crate::METADATA_RESERVED_LEN
-        };
-        let layout_length = u32::from_le_slice(&buffer[pos..]);
-        if layout_length != 0 {
+        pos += lengths.reserved_len;
+        let mut tail = ByteReader::new(&buffer[pos..]);
+        let layout_length = tail.u32("stream layout length")? as usize;
+        let layout_bytes = tail.take("stream layout", layout_length)?;
+        let layout = if input_version < crate::v4::DBN_VERSION {
+            if layout_length != 0 {
+                return Err(crate::Error::decode(format!(
+                    "version {input_version} metadata carries a {layout_length}-byte stream \
+                     layout, which only version {} defines",
+                    crate::v4::DBN_VERSION
+                )));
+            }
+            None
+        } else if layout_length == 0 {
             return Err(crate::Error::decode(
-                "this version of dbn can't parse schema definitions",
+                "a DBN version 4 stream must carry a stream layout",
             ));
-        }
-        pos += Self::U32_SIZE + (layout_length as usize);
-        let symbols =
-            Self::decode_metadata_repeated_symbol_cstr(symbol_cstr_len, buffer, &mut pos)?;
-        let partial =
-            Self::decode_metadata_repeated_symbol_cstr(symbol_cstr_len, buffer, &mut pos)?;
-        let not_found =
-            Self::decode_metadata_repeated_symbol_cstr(symbol_cstr_len, buffer, &mut pos)?;
-        let mappings = Self::decode_metadata_symbol_mappings(symbol_cstr_len, buffer, &mut pos)?;
+        } else {
+            Some(crate::layout::wire::decode(
+                layout_bytes,
+                symbol_cstr_len as u16,
+            )?)
+        };
+        let symbology = if lengths.has_layout {
+            let declared = tail.u32("symbology length")? as usize;
+            let section = tail.take("symbology", declared)?;
+            let mut sec_pos = 0;
+            let symbology =
+                Self::decode_metadata_symbology(symbol_cstr_len, section, &mut sec_pos)?;
+            if sec_pos != declared {
+                return Err(crate::Error::decode(format!(
+                    "symbology section declares {declared} bytes but its contents span {sec_pos}"
+                )));
+            }
+            symbology
+        } else {
+            Self::decode_metadata_symbology(symbol_cstr_len, tail.remaining(), &mut 0)?
+        };
+        let MetadataSymbology {
+            symbols,
+            partial,
+            not_found,
+            mappings,
+        } = symbology;
 
         Ok(Metadata {
             version: input_version,
@@ -821,11 +925,24 @@ impl DbnFsm {
             partial,
             not_found,
             mappings,
-            layout: None,
+            layout,
         })
     }
 
-    fn checked_count(
+    fn decode_metadata_symbology(
+        symbol_cstr_len: usize,
+        buffer: &[u8],
+        pos: &mut usize,
+    ) -> crate::Result<MetadataSymbology> {
+        Ok(MetadataSymbology {
+            symbols: Self::decode_metadata_repeated_symbol_cstr(symbol_cstr_len, buffer, pos)?,
+            partial: Self::decode_metadata_repeated_symbol_cstr(symbol_cstr_len, buffer, pos)?,
+            not_found: Self::decode_metadata_repeated_symbol_cstr(symbol_cstr_len, buffer, pos)?,
+            mappings: Self::decode_metadata_symbol_mappings(symbol_cstr_len, buffer, pos)?,
+        })
+    }
+
+    pub(crate) fn checked_count(
         ctx: std::fmt::Arguments<'_>,
         count: usize,
         min_item_size: usize,
@@ -963,9 +1080,9 @@ impl DbnFsm {
         *pos += symbol_cstr_len;
         Ok(symbol)
     }
+}
 
-    /// # Safety
-    /// `read_buffer` must start with a complete, valid DBN record.
+impl DbnFsm {
     #[doc(hidden)]
     pub unsafe fn upgrade_record<'a>(
         input_dbn_version: &mut Option<DbnVersion>,
@@ -1120,15 +1237,80 @@ impl DbnFsm {
     }
 }
 
+impl DecodeHeader for v3::RecordHeader {
+    const DEFAULT_UPGRADE_POLICY: VersionUpgradePolicy = VersionUpgradePolicy::UpgradeToV3;
+    const INPUT_DBN_VERSIONS: RangeInclusive<u8> = 1..=3;
+
+    fn needs_upgrade(
+        upgrade_policy: VersionUpgradePolicy,
+        input_dbn_version: Option<DbnVersion>,
+    ) -> bool {
+        DbnFsm::compute_needs_upgrade(upgrade_policy, input_dbn_version)
+    }
+
+    unsafe fn upgrade<'a>(
+        input_dbn_version: &mut Option<DbnVersion>,
+        upgrade_policy: VersionUpgradePolicy,
+        _: Option<&Upgrader>,
+        ts_out: bool,
+        read_buffer: &'a [u8],
+        compat_buffer: &'a mut [u8],
+    ) -> Result<(&'a mut [u8], Option<RecordRef<'a, Self>>)> {
+        Ok(DbnFsm::upgrade_record(
+            input_dbn_version,
+            upgrade_policy,
+            ts_out,
+            read_buffer,
+            compat_buffer,
+        ))
+    }
+}
+
+impl DecodeHeader for v4::RecordHeader {
+    const DEFAULT_UPGRADE_POLICY: VersionUpgradePolicy = VersionUpgradePolicy::UpgradeToV4;
+    const INPUT_DBN_VERSIONS: RangeInclusive<u8> = 1..=v4::DBN_VERSION;
+
+    fn needs_upgrade(
+        upgrade_policy: VersionUpgradePolicy,
+        input_dbn_version: Option<DbnVersion>,
+    ) -> bool {
+        input_dbn_version.is_some_and(|DbnVersion(v)| upgrade_policy.is_upgrade_situation(v))
+    }
+
+    unsafe fn upgrade<'a>(
+        _: &mut Option<DbnVersion>,
+        _: VersionUpgradePolicy,
+        upgrader: Option<&Upgrader>,
+        _: bool,
+        read_buffer: &'a [u8],
+        compat_buffer: &'a mut [u8],
+    ) -> Result<(&'a mut [u8], Option<RecordRef<'a, Self>>)> {
+        let upgrader = upgrader.expect("upgrader is set whenever records need upgrading");
+        let Some(record_size) = upgrader.upgrade(read_buffer, compat_buffer)? else {
+            return Ok((compat_buffer, None));
+        };
+        let (upgraded, rem_compat) = compat_buffer.split_at_mut(record_size);
+        Ok((rem_compat, Some(RecordRef::new(upgraded))))
+    }
+}
+
+struct MetadataSymbology {
+    symbols: Vec<String>,
+    partial: Vec<String>,
+    not_found: Vec<String>,
+    mappings: Vec<SymbolMapping>,
+}
+
 impl Default for DbnFsmBuilder {
     fn default() -> Self {
         Self {
             input_dbn_version: None,
-            upgrade_policy: VersionUpgradePolicy::default(),
+            upgrade_policy: None,
             ts_out: false,
             skip_metadata: false,
             buffer_size: DbnFsm::DEFAULT_BUF_SIZE,
             compat_size: None,
+            _header: PhantomData,
         }
     }
 }
@@ -1138,29 +1320,32 @@ impl DbnFsmBuilder {
     pub fn new() -> Self {
         Self::default()
     }
+}
 
+impl<H: DecodeHeader> DbnFsmBuilder<H> {
     /// Creates a new state machine instance.
     ///
     /// # Errors
     /// This function returns an error when the input DBN version override
-    /// is incompatible with the version upgrade policy.
-    pub fn build(&self) -> crate::Result<DbnFsm> {
+    /// is incompatible with `H` or the version upgrade policy.
+    pub fn build(&self) -> crate::Result<DbnFsm<H>> {
         let state = if self.skip_metadata {
             State::Record
         } else {
             State::default()
         };
-        if let Some(input_dbn_version) = self.input_dbn_version {
-            self.upgrade_policy
-                .validate_compatibility(input_dbn_version.0)?;
+        let upgrade_policy = self.upgrade_policy.unwrap_or(H::DEFAULT_UPGRADE_POLICY);
+        if let Some(DbnVersion(version)) = self.input_dbn_version {
+            DbnVersion::for_header::<H>(version, upgrade_policy)?;
+        } else if self.skip_metadata {
+            // Otherwise decoding the metadata validates the policy
+            DbnVersion::validate_policy::<H>(upgrade_policy)?;
         }
         Ok(DbnFsm {
             input_dbn_version: self.input_dbn_version,
-            upgrade_policy: self.upgrade_policy,
-            needs_upgrade: DbnFsm::compute_needs_upgrade(
-                self.upgrade_policy,
-                self.input_dbn_version,
-            ),
+            upgrade_policy,
+            needs_upgrade: H::needs_upgrade(upgrade_policy, self.input_dbn_version),
+            schema: None,
             ts_out: self.ts_out,
             state,
             buffer: AlignedBuffer::with_capacity(self.buffer_size),
@@ -1168,7 +1353,7 @@ impl DbnFsmBuilder {
                 if self.skip_metadata
                     && self
                         .input_dbn_version
-                        .is_none_or(|DbnVersion(v)| self.upgrade_policy.is_upgrade_situation(v))
+                        .is_none_or(|DbnVersion(v)| upgrade_policy.is_upgrade_situation(v))
                 {
                     DbnFsm::DEFAULT_BUF_SIZE
                 } else {
@@ -1176,7 +1361,9 @@ impl DbnFsmBuilder {
                     0
                 }
             })),
+            upgrader: upgrader_for(upgrade_policy, self.input_dbn_version, None, self.ts_out),
             batch: RecordBatch::default(),
+            _header: PhantomData,
         })
     }
 
@@ -1193,9 +1380,24 @@ impl DbnFsmBuilder {
         Ok(self)
     }
 
-    /// Sets the DBN version upgrade policy.
+    /// Sets the record header to decode, which determines the DBN versions the
+    /// state machine decodes. Defaults to [`v3::RecordHeader`].
+    pub fn header<H2: DecodeHeader>(self) -> DbnFsmBuilder<H2> {
+        DbnFsmBuilder {
+            input_dbn_version: self.input_dbn_version,
+            upgrade_policy: self.upgrade_policy,
+            ts_out: self.ts_out,
+            skip_metadata: self.skip_metadata,
+            buffer_size: self.buffer_size,
+            compat_size: self.compat_size,
+            _header: PhantomData,
+        }
+    }
+
+    /// Sets the DBN version upgrade policy. Defaults to upgrading to the latest version
+    /// `H` represents.
     pub fn upgrade_policy(mut self, upgrade_policy: VersionUpgradePolicy) -> Self {
-        self.upgrade_policy = upgrade_policy;
+        self.upgrade_policy = Some(upgrade_policy);
         self
     }
 
@@ -1259,13 +1461,18 @@ impl RecordBatch {
 
     /// Advances to the next record in `data`. Returns `false` once the batch is
     /// drained.
-    fn advance(&mut self, data: &[u8]) -> bool {
+    fn advance<H: RecordHeaderKind>(
+        &mut self,
+        input_dbn_version: Option<DbnVersion>,
+        data: &[u8],
+    ) -> bool {
         if !self.has_next() {
             return false;
         }
         self.current = self.drained;
         // Validated when the batch decoded this record
-        self.drained += data[self.current] as usize * RecordHeader::LENGTH_MULTIPLIER;
+        self.drained += input_frame_len::<H>(input_dbn_version, &data[self.current..])
+            .expect("batch records were validated when decoded");
         self.remaining -= 1;
         true
     }
@@ -1276,43 +1483,43 @@ impl RecordBatch {
     }
 }
 
-trait RecRefBuf<'a> {
+trait RecRefBuf<'a, H: RecordHeaderKind> {
     type Return;
 
     fn has_capacity(&self, record_count: usize) -> bool;
-    fn push(&mut self, record_count: usize, rec_ref: RecordRef<'a>);
+    fn push(&mut self, record_count: usize, rec_ref: RecordRef<'a, H>);
     fn finalize(self, record_count: usize) -> Self::Return;
 }
 
 struct BatchRecRefBuf;
 
-impl<'a> RecRefBuf<'a> for BatchRecRefBuf {
+impl<'a, H: RecordHeaderKind> RecRefBuf<'a, H> for BatchRecRefBuf {
     type Return = usize;
 
     fn has_capacity(&self, record_count: usize) -> bool {
-        record_count < DbnFsm::BATCH_LEN
+        record_count < BATCH_LEN
     }
 
-    fn push(&mut self, _: usize, _: RecordRef<'a>) {}
+    fn push(&mut self, _: usize, _: RecordRef<'a, H>) {}
 
     fn finalize(self, record_count: usize) -> Self::Return {
         record_count
     }
 }
 
-struct VecRecRefBuf<'v, 'a> {
-    recs: &'v mut Vec<RecordRef<'a>>,
+struct VecRecRefBuf<'v, 'a, H: RecordHeaderKind> {
+    recs: &'v mut Vec<RecordRef<'a, H>>,
     limit: Option<NonZeroU64>,
 }
 
-impl<'a> RecRefBuf<'a> for VecRecRefBuf<'_, 'a> {
+impl<'a, H: RecordHeaderKind> RecRefBuf<'a, H> for VecRecRefBuf<'_, 'a, H> {
     type Return = u64;
 
     fn has_capacity(&self, record_count: usize) -> bool {
         self.limit.is_none_or(|l| l.get() > record_count as u64)
     }
 
-    fn push(&mut self, _: usize, rec_ref: RecordRef<'a>) {
+    fn push(&mut self, _: usize, rec_ref: RecordRef<'a, H>) {
         self.recs.push(rec_ref);
     }
 
@@ -1321,14 +1528,14 @@ impl<'a> RecRefBuf<'a> for VecRecRefBuf<'_, 'a> {
     }
 }
 
-impl<'a> RecRefBuf<'a> for &'a mut [Option<RecordRef<'a>>] {
-    type Return = &'a mut [RecordRef<'a>];
+impl<'a, H: RecordHeaderKind> RecRefBuf<'a, H> for &'a mut [Option<RecordRef<'a, H>>] {
+    type Return = &'a mut [RecordRef<'a, H>];
 
     fn has_capacity(&self, record_count: usize) -> bool {
         record_count < self.len()
     }
 
-    fn push(&mut self, record_count: usize, rec_ref: RecordRef<'a>) {
+    fn push(&mut self, record_count: usize, rec_ref: RecordRef<'a, H>) {
         self[record_count] = Some(rec_ref);
     }
 
@@ -1336,12 +1543,12 @@ impl<'a> RecRefBuf<'a> for &'a mut [Option<RecordRef<'a>>] {
         // SAFETY: `record_count` records in `rec_refs` have been populated so it's safe to cast
         // these `Option<RecordRef>` to `RecordRef`
         unsafe {
-            transmute::<&mut [Option<RecordRef>], &mut [RecordRef]>(&mut self[..record_count])
+            transmute::<&mut [Option<RecordRef<H>>], &mut [RecordRef<H>]>(&mut self[..record_count])
         }
     }
 }
 
-impl<'a> RecRefBuf<'a> for &mut [MaybeUninit<*const RecordHeader>] {
+impl<'a> RecRefBuf<'a, v3::RecordHeader> for &mut [MaybeUninit<*const v3::RecordHeader>] {
     type Return = usize;
 
     fn has_capacity(&self, record_count: usize) -> bool {
@@ -1395,12 +1602,55 @@ impl Default for DbnFsm {
             input_dbn_version: None,
             upgrade_policy,
             needs_upgrade: Self::compute_needs_upgrade(upgrade_policy, None),
+            schema: None,
             ts_out: false,
             state: State::default(),
             buffer: AlignedBuffer::with_capacity(Self::DEFAULT_BUF_SIZE),
             compat_buffer: AlignedBuffer::with_capacity(0),
+            upgrader: None,
             batch: RecordBatch::default(),
+            _header: PhantomData,
         }
+    }
+}
+
+// The read buffer holds records as encoded, so framing follows the input version's
+// header, not `H`
+fn input_header_len<H: RecordHeaderKind>(input_dbn_version: Option<DbnVersion>) -> usize {
+    match input_dbn_version {
+        Some(DbnVersion(v)) if v < v4::DBN_VERSION => v3::RecordHeader::HEADER_LEN,
+        _ => H::HEADER_LEN,
+    }
+}
+
+fn input_frame_len<H: RecordHeaderKind>(
+    input_dbn_version: Option<DbnVersion>,
+    data: &[u8],
+) -> Result<usize> {
+    match input_dbn_version {
+        Some(DbnVersion(v)) if v < v4::DBN_VERSION => v3::RecordHeader::frame_len(data),
+        _ => H::frame_len(data),
+    }
+}
+
+fn upgrader_for(
+    upgrade_policy: VersionUpgradePolicy,
+    input_dbn_version: Option<DbnVersion>,
+    schema: Option<Schema>,
+    ts_out: bool,
+) -> Option<Upgrader> {
+    match input_dbn_version {
+        Some(DbnVersion(v))
+            if upgrade_policy.target_version() == Some(v4::DBN_VERSION)
+                && upgrade_policy.is_upgrade_situation(v) =>
+        {
+            Some(Upgrader::new(
+                v,
+                &crate::layout::upgrade_layout(ts_out),
+                schema,
+            ))
+        }
+        _ => None,
     }
 }
 
@@ -1420,13 +1670,15 @@ mod tests {
 
     use super::*;
 
+    const HEADER_LEN: usize = size_of::<v3::RecordHeader>();
+
     #[test]
     fn test_decode_metadata_symbol_invalid_utf8() {
         let mut bytes = [0; SYMBOL_CSTR_LEN];
         // continuation byte
         bytes[0] = 0x80;
         let mut pos = 0;
-        let res = DbnFsm::decode_metadata_symbol(bytes.len(), bytes.as_slice(), &mut pos);
+        let res = <DbnFsm>::decode_metadata_symbol(bytes.len(), bytes.as_slice(), &mut pos);
         assert!(res.is_err());
     }
 
@@ -1487,12 +1739,37 @@ mod tests {
         );
     }
 
+    #[rstest]
+    fn test_v3_fragment_fsm_refuses_v4_policy(
+        #[values(VersionUpgradePolicy::UpgradeToV4, VersionUpgradePolicy::ExpectV4)]
+        upgrade_policy: VersionUpgradePolicy,
+    ) {
+        let builder = DbnFsm::builder()
+            .skip_metadata(true)
+            .upgrade_policy(upgrade_policy);
+        assert!(builder.build().is_err());
+        let mut fsm = DbnFsm::builder().skip_metadata(true).build().unwrap();
+        assert!(fsm.set_upgrade_policy(upgrade_policy).is_err());
+    }
+
+    #[rstest]
+    fn test_v4_fsm_refuses_pre_v4_policy_before_metadata(
+        #[values(VersionUpgradePolicy::UpgradeToV2, VersionUpgradePolicy::UpgradeToV3)]
+        upgrade_policy: VersionUpgradePolicy,
+    ) {
+        let mut fsm = DbnFsm::builder()
+            .header::<v4::RecordHeader>()
+            .build()
+            .unwrap();
+        assert!(fsm.set_upgrade_policy(upgrade_policy).is_err());
+    }
+
     #[test]
     fn test_decode_metadata_symbol() {
         let bytes = b"SPX.1.2\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
         assert_eq!(bytes.len(), v1::SYMBOL_CSTR_LEN);
         let mut pos = 0;
-        let res = DbnFsm::decode_metadata_symbol(v1::SYMBOL_CSTR_LEN, bytes.as_slice(), &mut pos)
+        let res = <DbnFsm>::decode_metadata_symbol(v1::SYMBOL_CSTR_LEN, bytes.as_slice(), &mut pos)
             .unwrap();
         assert_eq!(pos, v1::SYMBOL_CSTR_LEN);
         assert_eq!(&res, "SPX.1.2");
@@ -1801,7 +2078,7 @@ mod tests {
                             // the buffers haven't been mutated since
                             let header = unsafe { &*rec_ptr.assume_init() };
                             assert_eq!(
-                                header.length as usize * RecordHeader::LENGTH_MULTIPLIER,
+                                header.length as usize * v3::RecordHeader::LENGTH_MULTIPLIER,
                                 expected_size
                             );
                         }
@@ -1832,12 +2109,12 @@ mod tests {
         let mut slice_buf = [const { None }; 4];
         assert!(matches!(
             target.process_many(&mut slice_buf),
-            ProcessResult::ReadMore(n) if n == DbnFsm::HEADER_LEN
+            ProcessResult::ReadMore(n) if n == HEADER_LEN
         ));
         let mut vec_buf = Vec::new();
         assert!(matches!(
             target.process_all(&mut vec_buf, None),
-            ProcessResult::ReadMore(n) if n == DbnFsm::HEADER_LEN
+            ProcessResult::ReadMore(n) if n == HEADER_LEN
         ));
 
         target.write_all(&data[..data.len() - 4]);
@@ -1887,7 +2164,7 @@ mod tests {
             }
             match batched.process_batch() {
                 ProcessResult::Record(count) => {
-                    assert!((1..=DbnFsm::BATCH_LEN).contains(&count));
+                    assert!((1..=BATCH_LEN).contains(&count));
                 }
                 ProcessResult::ReadMore(_) => break,
                 res => panic!("unexpected {res:?}"),
@@ -1994,7 +2271,7 @@ mod tests {
 
     fn three_trades_then_invalid_record() -> Vec<u8> {
         const LENGTH_BYTE_SHORTER_THAN_HEADER: u8 =
-            (DbnFsm::HEADER_LEN / RecordHeader::LENGTH_MULTIPLIER) as u8 - 1;
+            (HEADER_LEN / v3::RecordHeader::LENGTH_MULTIPLIER) as u8 - 1;
         let mut data = Vec::new();
         let mut trade = TradeMsg::default();
         let mut encoder = DbnRecordEncoder::new(&mut data);
@@ -2002,7 +2279,7 @@ mod tests {
             trade.hd.instrument_id = instrument_id;
             encoder.encode_record(&trade).unwrap();
         }
-        data.extend_from_slice(&[LENGTH_BYTE_SHORTER_THAN_HEADER; DbnFsm::HEADER_LEN]);
+        data.extend_from_slice(&[LENGTH_BYTE_SHORTER_THAN_HEADER; HEADER_LEN]);
         data
     }
 
@@ -2091,7 +2368,7 @@ mod tests {
         assert!(matches!(
             (batched_tail, single_tail),
             (ProcessResult::ReadMore(batched), ProcessResult::ReadMore(single))
-                if batched == single && batched == DbnFsm::HEADER_LEN - 3
+                if batched == single && batched == HEADER_LEN - 3
         ));
     }
 
@@ -2363,7 +2640,7 @@ mod tests {
         DbnEncoder::new(&mut buf, &metadata)?;
 
         // with every list empty, the four counts sit back to back past `layout_length`
-        let counts = DbnFsm::METADATA_PRELUDE_LEN + crate::METADATA_FIXED_LEN + size_of::<u32>();
+        let counts = crate::METADATA_PRELUDE_LEN + crate::METADATA_FIXED_LEN + size_of::<u32>();
         let at = counts + which * size_of::<u32>();
         assert_eq!(u32::from_le_slice(&buf[at..]), 0, "the list is empty");
         buf[at..at + size_of::<u32>()].copy_from_slice(&u32::MAX.to_le_bytes());
@@ -2392,7 +2669,7 @@ mod tests {
             encoder.encode_record(&SystemMsg::heartbeat(2))?;
         }
         // the symbols count follows the prelude, the fixed fields, and `layout_length`
-        let at = DbnFsm::METADATA_PRELUDE_LEN + crate::METADATA_FIXED_LEN + size_of::<u32>();
+        let at = crate::METADATA_PRELUDE_LEN + crate::METADATA_FIXED_LEN + size_of::<u32>();
         assert_eq!(u32::from_le_slice(&buf[at..]), 1, "one symbol was encoded");
         buf[at..at + size_of::<u32>()].copy_from_slice(&9u32.to_le_bytes());
 

@@ -1,7 +1,6 @@
 //! Record data types for encoding different Databento [`Schema`](crate::enums::Schema)s
 //! in DBN version 1.
 
-pub(crate) use crate::compat::METADATA_RESERVED_LEN_V1 as METADATA_RESERVED_LEN;
 pub use crate::compat::{
     ErrorMsgV1 as ErrorMsg, HasRTypeV1 as HasRType, InstrumentDefMsgV1 as InstrumentDefMsg,
     RecordBufV1 as RecordBuf, RecordRefMutV1 as RecordRefMut, RecordRefV1 as RecordRef,
@@ -11,7 +10,7 @@ pub use crate::compat::{
 };
 pub use crate::record::{
     Bbo1MMsg, Bbo1SMsg, BboMsg, Cbbo1MMsg, Cbbo1SMsg, CbboMsg, Cmbp1Msg, ImbalanceMsg, MboMsg,
-    Mbp10Msg, Mbp1Msg, OhlcvMsg, StatusMsg, TbboMsg, TcbboMsg, TradeMsg, WithTsOut,
+    Mbp10Msg, Mbp1Msg, OhlcvMsg, RecordHeader, StatusMsg, TbboMsg, TcbboMsg, TradeMsg, WithTsOut,
 };
 
 mod impl_default;

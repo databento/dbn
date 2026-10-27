@@ -2,11 +2,59 @@
 //!
 //! [`StreamLayout`] is a table containing: one [`RecordLayout`] per rtype, plus the
 //! nested [`StructLayout`]s and [`LabelDef`]s its fields reference.
+//!
+//! # Examples
+//! Records whose layout matches a compiled struct cast to it, and any field the stream
+//! declares reads through its [`LayoutIndex`]:
+//!
+//! ```
+//! use dbn::{
+//!     decode::{
+//!         dbn::{fsm::DbnFsm, v4::Decoder},
+//!         DbnMetadata,
+//!     },
+//!     encode::dbn::v4::Encoder,
+//!     layout::DynFieldAccess,
+//!     v4::{self, fields, layouts::default_layout, TradeMsg},
+//!     Dataset, Metadata, SType, Schema,
+//! };
+//!
+//! let metadata = Metadata::builder()
+//!     .version(v4::DBN_VERSION)
+//!     .dataset(Dataset::XnasItch)
+//!     .schema(Some(Schema::Trades))
+//!     .start(1_609_160_400_000_000_000)
+//!     .stype_in(Some(SType::RawSymbol))
+//!     .stype_out(SType::InstrumentId)
+//!     .layout(default_layout().clone())
+//!     .build();
+//! let trade = TradeMsg {
+//!     price: 4_215_500_000_000,
+//!     size: 7,
+//!     ..Default::default()
+//! };
+//! let mut encoded = Vec::new();
+//! Encoder::new(&mut encoded, &metadata)?.encode(&trade)?;
+//!
+//! let fsm = DbnFsm::builder().header::<v4::RecordHeader>().build()?;
+//! let mut decoder = Decoder::with_fsm(encoded.as_slice(), fsm)?;
+//! let index = decoder.metadata().layout_index().unwrap();
+//! let rec = decoder.decode_ref()?.unwrap();
+//!
+//! assert_eq!(rec.try_get::<TradeMsg>()?.size, 7);
+//! assert_eq!(rec.field(&index, fields::PRICE).unwrap().raw, trade.price);
+//! // This stream's trades declare no `sale_condition`
+//! assert!(rec.field(&index, fields::SALE_CONDITION).is_none());
+//! # Ok::<_, dbn::Error>(())
+//! ```
 
 use std::{collections::BTreeMap, marker::PhantomData};
 
 use crate::{
-    v4::fields::{self, DecodeField, Field, FieldType},
+    v4::{
+        fields::{self, DecodeField, Field, FieldType},
+        types::Symbol,
+    },
     Record,
 };
 
@@ -14,16 +62,21 @@ mod builders;
 mod compare;
 mod hash;
 mod index;
+mod pre_v4;
+mod upgrade;
 mod validate;
+pub mod wire;
 
 pub use builders::{RecordLayoutBuilder, StreamLayoutBuilder, StructLayoutBuilder};
 pub use index::LayoutIndex;
+pub(crate) use upgrade::{upgrade_layout, Upgrader};
 #[cfg(test)]
 pub(crate) use validate::validate;
+pub(crate) use validate::validate_for_metadata;
 
 /// The layout description of a record struct, used to build its [`RecordLayout`].
 ///
-/// Usually derived with [`RecordLayoutDesc`](crate::macros::RecordLayoutDesc).
+/// Usually implemented by [`dbn_record`](crate::macros::dbn_record).
 pub trait RecordLayoutDesc {
     /// The display name of the record.
     const NAME: &'static str;
@@ -31,8 +84,8 @@ pub trait RecordLayoutDesc {
     /// Adds the fields the struct holds, after the header.
     fn add_fields(r: &mut RecordLayoutBuilder<'_>);
 
-    /// Adds the fields every layout of this record declares but no struct holds.
-    fn add_required_fields(_r: &mut RecordLayoutBuilder<'_>) {}
+    /// The symbol fields every layout of this record declares but no struct holds.
+    const REQUIRED_FIELDS: &'static [(Field<Symbol>, &'static str)] = &[];
 }
 
 /// The layout description of a struct nested in records, used to build its
@@ -81,7 +134,7 @@ pub struct RecordLayout {
 
 impl RecordLayout {
     /// The only legal size for records of this rtype in this stream: the base plus
-    /// whatever extension tail the layout declares.
+    /// whatever extensions the layout declares.
     pub fn record_size(&self) -> u16 {
         self.field_defs
             .iter()
@@ -89,6 +142,13 @@ impl RecordLayout {
             .max()
             .unwrap_or(self.base_record_size)
             .max(self.base_record_size)
+    }
+
+    /// Returns `true` if the layout declares `f` with `f`'s type.
+    pub fn has_field<T: FieldType>(&self, f: Field<T>) -> bool {
+        self.field_defs
+            .iter()
+            .any(|def| def.field_id == f.id() && def.type_id == f.type_id())
     }
 }
 
@@ -135,7 +195,7 @@ impl FieldDef {
         self.flags & fields::FLAG_IS_ARRAY != 0
     }
 
-    /// Whether this field lives past `base_record_size` in the extension tail.
+    /// Whether this field is an extension, placed past `base_record_size`.
     pub const fn is_extension(&self) -> bool {
         self.flags & fields::FLAG_IS_EXTENSION != 0
     }
@@ -177,6 +237,35 @@ pub struct LabelDef {
 
 /// How records of one rtype in a stream can be read, decided once per stream by
 /// comparing the stream's layout against the compiled one.
+///
+/// # Examples
+/// ```
+/// use dbn::{
+///     layout::{LayoutIndex, StreamLayoutBuilder, Verdict},
+///     v4::{fields, layouts::default_layout, rtype, TradeMsg},
+///     Schema,
+/// };
+///
+/// const RTYPE_CUSTOM_TRADES: u16 = 0x01A0;
+///
+/// let mut sb = StreamLayoutBuilder::new(1, dbn::SYMBOL_CSTR_LEN as u16);
+/// let mut trades = sb.layout_of::<TradeMsg>(rtype::MBP_0);
+/// trades.finish_base();
+/// trades.field(fields::SALE_CONDITION, "sale_condition");
+/// trades.finish();
+/// let mut custom = sb.record(RTYPE_CUSTOM_TRADES, Schema::Trades as u16, "CustomTradeMsg");
+/// custom.field(fields::PRICE, "price");
+/// custom.finish();
+/// let index = LayoutIndex::new(&sb.build()?, default_layout());
+///
+/// // Extension fields leave the base, and with it the cast, unchanged
+/// assert_eq!(index.verdict(rtype::MBP_0), Some(Verdict::Compiled));
+/// // No compiled struct exists for this rtype
+/// assert_eq!(index.verdict(RTYPE_CUSTOM_TRADES), Some(Verdict::Dynamic));
+/// // The stream carries no MBO records
+/// assert_eq!(index.verdict(rtype::MBO), None);
+/// # Ok::<_, dbn::Error>(())
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Verdict {
     /// A compiled struct describes every base field, so records can be cast to it.
@@ -198,6 +287,90 @@ pub struct FieldOffset<T> {
     rtype: u16,
     def: FieldDef,
     _marker: PhantomData<T>,
+}
+
+/// An untyped handle to a field resolved from a [`LayoutIndex`] by name or ID, for
+/// reading fields without a compiled type, e.g. with
+/// [`enum_at`](DynFieldAccess::enum_at).
+///
+/// # Correctness
+/// Like a [`FieldOffset`], a handle is specific to the stream it was resolved from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DynField<'a> {
+    rtype: u16,
+    def: FieldDef,
+    label_def: Option<&'a LabelDef>,
+}
+
+impl<'a> DynField<'a> {
+    /// Returns the field's definition.
+    pub fn def(&self) -> &FieldDef {
+        &self.def
+    }
+
+    /// Returns the field's [`LabelDef`], or `None` if it isn't a labeled enum or bit
+    /// set.
+    pub fn label_def(&self) -> Option<&'a LabelDef> {
+        self.label_def
+    }
+
+    fn bytes<'r>(&self, record: &'r [u8], rtype: u16) -> Option<&'r [u8]> {
+        if rtype != self.rtype || self.def.is_array() {
+            return None;
+        }
+        let start = usize::from(self.def.offset);
+        record.get(start..start + usize::from(self.def.size))
+    }
+}
+
+/// An enum value read through a [`DynField`], with the [`LabelDef`] naming it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EnumValue<'a> {
+    raw: u16,
+    label_def: Option<&'a LabelDef>,
+}
+
+impl<'a> EnumValue<'a> {
+    /// Returns the raw value, e.g. `65` for `Side::Ask`.
+    pub fn raw(&self) -> u16 {
+        self.raw
+    }
+
+    /// Returns the value's label, e.g. `ASK`, or `None` if the field is unlabeled or
+    /// the value has no label.
+    pub fn label(&self) -> Option<&'a str> {
+        self.label_def?.labels.get(&self.raw).map(String::as_str)
+    }
+
+    /// Returns the enum's name, e.g. `Side`, or `None` if the field is unlabeled.
+    pub fn enum_name(&self) -> Option<&'a str> {
+        self.label_def.map(|ld| ld.name.as_str())
+    }
+}
+
+/// A bit set value read through a [`DynField`], with the [`LabelDef`] naming its bits.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BitSetValue<'a> {
+    raw: u64,
+    label_def: Option<&'a LabelDef>,
+}
+
+impl<'a> BitSetValue<'a> {
+    /// Returns the raw bits.
+    pub fn raw(&self) -> u64 {
+        self.raw
+    }
+
+    /// Returns the labels of the set bits in ascending bit order. Set bits without a
+    /// label are skipped.
+    pub fn labels(&self) -> impl Iterator<Item = &'a str> {
+        let raw = self.raw;
+        self.label_def
+            .into_iter()
+            .flat_map(|ld| &ld.labels)
+            .filter(move |(&bit, _)| bit < u64::BITS as u16 && raw & (1 << bit) != 0)
+            .map(|(_, label)| label.as_str())
+    }
 }
 
 impl StreamLayout {
@@ -255,9 +428,8 @@ impl<T: DecodeField> FieldOffset<T> {
         if rtype != self.rtype {
             return None;
         }
-        let start = self.def.offset as usize;
         T::decode(
-            bytes.get(start..start + self.def.size as usize)?,
+            window(bytes, self.def.offset, self.def.size)?,
             self.def.scale,
         )
     }
@@ -291,6 +463,58 @@ pub trait DynFieldAccess: Record<Header = crate::v4::RecordHeader> {
     fn field_at<T: DecodeField>(&self, offset: FieldOffset<T>) -> Option<T::Value<'_>> {
         offset.decode(self.as_ref(), self.raw_rtype())
     }
+
+    /// Reads an enum `field` of any width. `None` if `field` was resolved for a
+    /// different rtype, isn't an enum, or is beyond the record's length.
+    ///
+    /// # Examples
+    /// ```
+    /// use dbn::{
+    ///     layout::{DynFieldAccess, LayoutIndex},
+    ///     v4::{layouts::default_layout, rtype, MboMsg},
+    ///     Side,
+    /// };
+    ///
+    /// let index = LayoutIndex::new(default_layout(), default_layout());
+    /// let side = index.field_by_name(rtype::MBO, "side").unwrap();
+    /// let mbo = MboMsg {
+    ///     side: Side::Ask as std::ffi::c_char,
+    ///     ..Default::default()
+    /// };
+    ///
+    /// let value = mbo.enum_at(&side).unwrap();
+    /// assert_eq!(value.enum_name(), Some("Side"));
+    /// assert_eq!(value.label(), Some("ASK"));
+    /// ```
+    fn enum_at<'a>(&self, field: &DynField<'a>) -> Option<EnumValue<'a>> {
+        let bytes = field.bytes(self.as_ref(), self.raw_rtype())?;
+        let raw = match field.def.type_id {
+            fields::ENUM_CHAR_ID | fields::ENUM_8_ID => u16::from(u8::decode(bytes, 0)?),
+            fields::ENUM_16_ID => u16::decode(bytes, 0)?,
+            _ => return None,
+        };
+        Some(EnumValue {
+            raw,
+            label_def: field.label_def,
+        })
+    }
+
+    /// Reads a bit set `field` of any width. `None` if `field` was resolved for a
+    /// different rtype, isn't a bit set, or is beyond the record's length.
+    fn bit_set_at<'a>(&self, field: &DynField<'a>) -> Option<BitSetValue<'a>> {
+        let bytes = field.bytes(self.as_ref(), self.raw_rtype())?;
+        let raw = match field.def.type_id {
+            fields::BIT_SET_8_ID => u64::from(u8::decode(bytes, 0)?),
+            fields::BIT_SET_16_ID => u64::from(u16::decode(bytes, 0)?),
+            fields::BIT_SET_32_ID => u64::from(u32::decode(bytes, 0)?),
+            fields::BIT_SET_64_ID => u64::decode(bytes, 0)?,
+            _ => return None,
+        };
+        Some(BitSetValue {
+            raw,
+            label_def: field.label_def,
+        })
+    }
 }
 
 impl<R: Record<Header = crate::v4::RecordHeader>> DynFieldAccess for R {}
@@ -305,6 +529,11 @@ impl StructLayout {
     }
 }
 
+pub(crate) fn window(bytes: &[u8], offset: u16, size: u16) -> Option<&[u8]> {
+    let start = offset as usize;
+    bytes.get(start..start + size as usize)
+}
+
 #[cfg(test)]
 mod tests {
     use std::os::raw::c_char;
@@ -313,19 +542,20 @@ mod tests {
 
     use super::*;
     use crate::{
+        flags,
         v4::{
             self,
             layouts::default_layout,
             rtype,
-            types::{CStr, Char, Decimal, TimestampNs},
-            MboMsg, RecordHeader, TradeMsg,
+            types::{CStr, Char, Decimal, OpenEnum},
+            MboMsg, RecordHeader, StatMsg, TradeMsg,
         },
-        Action, FlagSet, Side,
+        Action, FlagSet, Side, StatType, StatUpdateAction,
     };
 
     fn mbo_layout() -> StreamLayout {
         let mut sb = StreamLayoutBuilder::new(1, 8);
-        sb.record_of::<MboMsg>(rtype::MBO);
+        sb.layout_of::<MboMsg>(rtype::MBO).finish();
         sb.build().unwrap()
     }
 
@@ -335,7 +565,7 @@ mod tests {
 
     fn trades_layout() -> StreamLayout {
         let mut sb = StreamLayoutBuilder::new(1, 8);
-        sb.record_of::<TradeMsg>(rtype::MBP_0);
+        sb.layout_of::<TradeMsg>(rtype::MBP_0).finish();
         sb.build().unwrap()
     }
 
@@ -438,21 +668,22 @@ mod tests {
 
     #[test]
     fn offset_of_rejects_array_shape_mismatch() {
-        let conditions = Field::<[Char; 4]>::new(0x1A);
         let mut sb = StreamLayoutBuilder::new(1, 8);
         {
-            let mut r = sb.record(rtype::MBP_0, 0, "WithConditions");
-            r.field(conditions, "conditions");
+            let mut r = sb.record(rtype::MBP_0, 0, "TradeMsg");
+            r.field(sale_condition::<[Char; 4]>(), "sale_condition");
             r.finish();
         }
         let index = LayoutIndex::new(&sb.build().unwrap(), default_layout());
 
-        assert!(index.offset_of(rtype::MBP_0, conditions).is_some());
         assert!(index
-            .offset_of(rtype::MBP_0, Field::<Char>::new(conditions.id()))
+            .offset_of(rtype::MBP_0, sale_condition::<[Char; 4]>())
+            .is_some());
+        assert!(index
+            .offset_of(rtype::MBP_0, fields::SALE_CONDITION)
             .is_none());
         assert!(index
-            .offset_of(rtype::MBP_0, Field::<[Char; 8]>::new(conditions.id()))
+            .offset_of(rtype::MBP_0, sale_condition::<[Char; 8]>())
             .is_none());
     }
 
@@ -485,22 +716,61 @@ mod tests {
         assert!(index.offset_of(rtype::MBP_0, fields::PRICE).is_none());
     }
 
-    fn trades_with_extension() -> StreamLayout {
-        let mut layout = trades_layout();
-        let rec = &mut layout.record_layouts[0];
-        rec.field_defs.push(FieldDef {
-            field_id: 0x0F00,
-            offset: rec.base_record_size,
-            size: 8,
-            type_id: <TimestampNs as FieldType>::TYPE_ID,
-            flags: fields::FLAG_IS_EXTENSION,
-            def_index: 0,
-            scale: 0,
-            _reserved: [0; 5],
-        });
-        rec.field_names.push("ts_out".to_owned());
-        rec.layout_hash = hash::layout_hash(&layout.struct_layouts, rec);
-        layout
+    fn trades_with_ext(declare: impl FnOnce(&mut RecordLayoutBuilder<'_>)) -> StreamLayout {
+        let mut sb = StreamLayoutBuilder::new(1, 8);
+        {
+            let mut r = sb.record(rtype::MBP_0, 0, "TradeMsg");
+            TradeMsg::add_fields(&mut r);
+            r.finish_base();
+            declare(&mut r);
+            r.finish();
+        }
+        sb.build().unwrap()
+    }
+
+    fn trades_with_ts_out() -> StreamLayout {
+        trades_with_ext(|r| {
+            r.field(fields::TS_OUT, "ts_out");
+        })
+    }
+
+    fn trades_opra_sale_condition() -> StreamLayout {
+        trades_with_ext(|r| {
+            r.field(sale_condition::<Char>(), "sale_condition");
+        })
+    }
+
+    fn trades_sip_sale_condition() -> StreamLayout {
+        trades_with_ext(|r| {
+            r.field(sale_condition::<[Char; 4]>(), "sale_condition");
+        })
+    }
+
+    fn sale_condition<T: FieldType>() -> Field<T> {
+        Field::new(fields::SALE_CONDITION.id())
+    }
+
+    fn sample_trade() -> v4::TradeMsg {
+        v4::TradeMsg {
+            hd: RecordHeader::new::<v4::TradeMsg>(rtype::MBP_0, 1, 555, 111),
+            price: 123_000_000_000,
+            size: 7,
+            action: b'T' as c_char,
+            side: b'B' as c_char,
+            flags: FlagSet::new(0b1010),
+            _reserved: 0,
+            ts_recv: 222,
+            ts_in_delta: 9,
+            sequence: 88,
+        }
+    }
+
+    fn trade_with_ext<const TOTAL: usize>(ext: &[u8]) -> v4::RecordBuf<TOTAL> {
+        let mut buf = v4::RecordBuf::<TOTAL>::from(sample_trade());
+        let raw = buf.raw_buf_mut();
+        raw[size_of::<v4::TradeMsg>()..][..ext.len()].copy_from_slice(ext);
+        raw[..2].copy_from_slice(&((TOTAL - size_of::<RecordHeader>()) as u16).to_le_bytes());
+        buf
     }
 
     fn trades_repacked() -> StreamLayout {
@@ -522,7 +792,7 @@ mod tests {
 
     #[rstest]
     #[case::compiled_layout(trades_layout(), Verdict::Compiled)]
-    #[case::appended_extension(trades_with_extension(), Verdict::Compiled)]
+    #[case::appended_extension(trades_with_ts_out(), Verdict::Compiled)]
     #[case::repacked_size(trades_repacked(), Verdict::Dynamic)]
     fn verdict_authorizes_the_compiled_cast(
         #[case] stream: StreamLayout,
@@ -554,11 +824,119 @@ mod tests {
     }
 
     #[test]
+    fn ts_out_reads_from_the_extensions() {
+        let index = LayoutIndex::new(&trades_with_ts_out(), default_layout());
+        let rec = trade_with_ext::<64>(&777u64.to_le_bytes());
+
+        assert_eq!(rec.record_size(), 64);
+        assert_eq!(rec.get::<v4::TradeMsg>().unwrap().price, 123_000_000_000);
+        assert_eq!(rec.field(&index, fields::TS_OUT).map(|t| t.0), Some(777));
+    }
+
+    #[test]
+    fn absent_extension_reads_as_none() {
+        let index = LayoutIndex::new(&trades_with_ts_out(), default_layout());
+        let trade = sample_trade();
+        let rec = crate::RecordRef::from(&trade);
+
+        assert!(rec.field(&index, fields::TS_OUT).is_none());
+        assert!(index.offset_of(rtype::MBP_0, fields::TS_OUT).is_some());
+    }
+
+    #[test]
+    fn sale_condition_reads_at_each_datasets_type() {
+        let opra_idx = LayoutIndex::new(&trades_opra_sale_condition(), default_layout());
+        let rec = trade_with_ext::<64>(b"@");
+        assert_eq!(
+            rec.field(&opra_idx, sale_condition::<Char>()),
+            Some(Char(b'@' as c_char))
+        );
+
+        let sip_idx = LayoutIndex::new(&trades_sip_sale_condition(), default_layout());
+        let rec = trade_with_ext::<64>(b"@ TI");
+        assert_eq!(
+            rec.field(&sip_idx, sale_condition::<[Char; 4]>()),
+            Some((*b"@ TI").map(|b| Char(b as c_char)))
+        );
+        assert!(rec.field(&sip_idx, sale_condition::<Char>()).is_none());
+        assert!(rec
+            .field(&opra_idx, sale_condition::<[Char; 4]>())
+            .is_none());
+    }
+
+    #[rstest]
+    #[case::opra(trades_opra_sale_condition(), 1)]
+    #[case::sip(trades_sip_sale_condition(), 4)]
+    fn sale_condition_layouts_stay_castable(#[case] stream: StreamLayout, #[case] size: u16) {
+        let index = LayoutIndex::new(&stream, default_layout());
+        assert_eq!(index.verdict(rtype::MBP_0), Some(Verdict::Compiled));
+
+        let rec = stream.record_layout(rtype::MBP_0).unwrap();
+        assert_eq!(usize::from(rec.base_record_size), size_of::<v4::TradeMsg>());
+        let cond = rec
+            .field_defs
+            .iter()
+            .find(|f| f.field_id == fields::SALE_CONDITION.id())
+            .unwrap();
+        assert_eq!(cond.type_id, <Char as FieldType>::TYPE_ID);
+        assert_eq!(cond.size, size);
+        assert!(cond.is_extension());
+        assert_eq!(cond.is_array(), size > 1);
+    }
+
+    #[rstest]
+    #[case::ts_out(trades_with_ts_out())]
+    #[case::opra(trades_opra_sale_condition())]
+    #[case::sip(trades_sip_sale_condition())]
+    fn extensions_are_8_aligned(#[case] stream: StreamLayout) {
+        let rec = stream.record_layout(rtype::MBP_0).unwrap();
+        assert_eq!(
+            rec.record_size() % 8,
+            0,
+            "extensions end at {}",
+            rec.record_size()
+        );
+    }
+
+    #[rstest]
+    #[case::record(|l: &mut StreamLayout| {
+        l.record_layouts[0].field_defs.reverse();
+        l.record_layouts[0].field_names.reverse();
+    })]
+    #[case::header(|l: &mut StreamLayout| {
+        l.struct_layouts[0].field_defs.reverse();
+        l.struct_layouts[0].field_names.reverse();
+    })]
+    fn display_order_doesnt_affect_verdict(#[case] reorder: fn(&mut StreamLayout)) {
+        let mut stream = mbo_layout();
+        reorder(&mut stream);
+        let rec = &mut stream.record_layouts[0];
+        rec.layout_hash = rec.layout_hash(&stream.struct_layouts);
+        assert_eq!(
+            rec.layout_hash,
+            default_layout()
+                .record_layout(rtype::MBO)
+                .unwrap()
+                .layout_hash
+        );
+        let index = LayoutIndex::new(&stream, default_layout());
+        assert_eq!(index.verdict(rtype::MBO), Some(Verdict::Compiled));
+    }
+
+    #[test]
     fn validate_accepts_builder_output() {
         assert!(validate::validate(&mbo_layout(), 8).is_ok());
     }
 
     #[rstest]
+    #[case::extension_flag_within_base(|l: &mut StreamLayout| {
+        l.record_layouts[0]
+            .field_defs
+            .iter_mut()
+            .find(|f| f.field_id == fields::PRICE.id())
+            .unwrap()
+            .flags |= fields::FLAG_IS_EXTENSION;
+    })]
     #[case::misaligned_offset(|l: &mut StreamLayout| {
         l.record_layouts[0]
             .field_defs
@@ -642,9 +1020,125 @@ mod tests {
         rec.field_names.push("raw_symbol".to_owned());
         rec.base_record_size += 16;
     })]
+    #[case::zero_size_struct_array(|l: &mut StreamLayout| {
+        l.struct_layouts.push(StructLayout {
+            size: 0,
+            name: "Empty".to_owned(),
+            field_defs: Vec::new(),
+            field_names: Vec::new(),
+        });
+        let rec = &mut l.record_layouts[0];
+        rec.field_defs.push(FieldDef {
+            field_id: 0x0031,
+            offset: rec.base_record_size,
+            size: 0,
+            type_id: fields::STRUCT_ID,
+            flags: fields::FLAG_IS_ARRAY | fields::FLAG_IS_EXTENSION,
+            def_index: (l.struct_layouts.len() - 1) as u16,
+            scale: 0,
+            _reserved: [0; 5],
+        });
+        rec.field_names.push("empties".to_owned());
+    })]
+    #[case::zero_size_string_array(|l: &mut StreamLayout| {
+        let rec = &mut l.record_layouts[0];
+        rec.field_defs.push(FieldDef {
+            field_id: 0x0030,
+            offset: rec.base_record_size,
+            size: 0,
+            type_id: fields::CSTR_ID,
+            flags: fields::FLAG_IS_ARRAY | fields::FLAG_IS_EXTENSION,
+            def_index: 0,
+            scale: 0,
+            _reserved: [0; 5],
+        });
+        rec.field_names.push("raw_symbols".to_owned());
+    })]
     fn validate_rejects_corruption(#[case] corrupt: fn(&mut StreamLayout)) {
         let mut bad = mbo_layout();
         corrupt(&mut bad);
         assert!(validate::validate(&bad, 8).is_err());
+    }
+
+    #[test]
+    fn offset_of_checks_enum_identity() {
+        let index = mbo_index();
+        assert!(index.offset_of(rtype::MBO, fields::SIDE).is_some());
+        let side_as_action = Field::<OpenEnum<Action>>::new(fields::SIDE.id());
+        assert!(index.offset_of(rtype::MBO, side_as_action).is_none());
+    }
+
+    #[test]
+    fn field_by_name_and_id_agree() {
+        let index = mbo_index();
+        let side = index.field_by_name(rtype::MBO, "side").unwrap();
+        assert_eq!(index.field_by_id(rtype::MBO, fields::SIDE.id()), Some(side));
+        assert_eq!(side.label_def().unwrap().name, "Side");
+        assert!(index.field_by_name(rtype::MBO, "stat_type").is_none());
+        assert!(index.field_by_name(rtype::MBP_0, "side").is_none());
+    }
+
+    #[rstest]
+    #[case::known(b'B', Some("BID"))]
+    #[case::unknown(b'X', None)]
+    fn enum_at_reads_a_char_enum(#[case] side: u8, #[case] label: Option<&str>) {
+        let index = mbo_index();
+        let mbo = MboMsg {
+            side: side as c_char,
+            ..sample_mbo()
+        };
+        let value = mbo
+            .enum_at(&index.field_by_name(rtype::MBO, "side").unwrap())
+            .unwrap();
+        assert_eq!(value.raw(), u16::from(side));
+        assert_eq!(value.label(), label);
+        assert_eq!(value.enum_name(), Some("Side"));
+    }
+
+    #[rstest]
+    #[case::u16("stat_type", "StatType", "OPEN_INTEREST")]
+    #[case::u8("update_action", "StatUpdateAction", "DELETE")]
+    fn enum_at_reads_numeric_enums(
+        #[case] name: &str,
+        #[case] enum_name: &str,
+        #[case] label: &str,
+    ) {
+        let index = LayoutIndex::new(default_layout(), default_layout());
+        let stat = StatMsg {
+            stat_type: StatType::OpenInterest as u16,
+            update_action: StatUpdateAction::Delete as u8,
+            ..Default::default()
+        };
+        let value = stat
+            .enum_at(&index.field_by_name(rtype::STATISTICS, name).unwrap())
+            .unwrap();
+        assert_eq!(value.enum_name(), Some(enum_name));
+        assert_eq!(value.label(), Some(label));
+    }
+
+    #[test]
+    fn bit_set_at_labels_set_bits() {
+        let index = mbo_index();
+        let mbo = MboMsg {
+            flags: FlagSet::new(flags::LAST | flags::BAD_TS_RECV | 1),
+            ..sample_mbo()
+        };
+        let value = mbo
+            .bit_set_at(&index.field_by_name(rtype::MBO, "flags").unwrap())
+            .unwrap();
+        assert_eq!(value.raw(), 0x89);
+        assert_eq!(value.labels().collect::<Vec<_>>(), ["BAD_TS_RECV", "LAST"]);
+    }
+
+    #[test]
+    fn dyn_reads_reject_the_wrong_kind_and_rtype() {
+        let index = LayoutIndex::new(default_layout(), default_layout());
+        let mbo = sample_mbo();
+        let side = index.field_by_name(rtype::MBO, "side").unwrap();
+        let flags = index.field_by_name(rtype::MBO, "flags").unwrap();
+        assert!(mbo.enum_at(&flags).is_none());
+        assert!(mbo.bit_set_at(&side).is_none());
+        let stat_type = index.field_by_name(rtype::STATISTICS, "stat_type").unwrap();
+        assert!(mbo.enum_at(&stat_type).is_none());
     }
 }

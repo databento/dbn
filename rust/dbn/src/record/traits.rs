@@ -7,6 +7,8 @@
 //! - [`RecordHeaderKind`]: the header layouts a record can begin with, abstracted so
 //!   framing and downcasting work on any DBN version.
 
+use std::ops::RangeInclusive;
+
 use super::ts_to_dt;
 use crate::{Publisher, RType, RecordHeader};
 
@@ -103,7 +105,20 @@ pub trait HasRType: Record {
 /// Abstracts over the DBN record header layouts so encoders, decoders, and
 /// [`RecordRef`](crate::RecordRef) can frame a record and downcast it without knowing
 /// which DBN version it came from.
-pub trait RecordHeaderKind: private::Sealed + Copy + std::fmt::Debug {
+pub trait RecordHeaderKind: private::Sealed + Copy + std::fmt::Debug + 'static {
+    /// The width of the header in bytes.
+    const HEADER_LEN: usize = size_of::<Self>();
+
+    /// The DBN versions whose records begin with this header.
+    const DBN_VERSIONS: RangeInclusive<u8>;
+
+    /// Reads the size of the whole record at the start of `data` from its header's
+    /// `length`. `data` must hold at least [`HEADER_LEN`](Self::HEADER_LEN) bytes.
+    ///
+    /// # Errors
+    /// This function returns an error if the length can't describe a record.
+    fn frame_len(data: &[u8]) -> crate::Result<usize>;
+
     /// Returns the size of the whole record in bytes, derived from the header's `length`.
     fn record_size(&self) -> usize;
 
@@ -112,6 +127,18 @@ pub trait RecordHeaderKind: private::Sealed + Copy + std::fmt::Debug {
 }
 
 impl RecordHeaderKind for RecordHeader {
+    const DBN_VERSIONS: RangeInclusive<u8> = 1..=3;
+
+    fn frame_len(data: &[u8]) -> crate::Result<usize> {
+        let length = data[0] as usize * RecordHeader::LENGTH_MULTIPLIER;
+        if length < Self::HEADER_LEN {
+            return Err(crate::Error::decode(format!(
+                "invalid record with impossible length {length} which is shorter than the header"
+            )));
+        }
+        Ok(length)
+    }
+
     fn record_size(&self) -> usize {
         RecordHeader::record_size(self)
     }
@@ -122,6 +149,12 @@ impl RecordHeaderKind for RecordHeader {
 }
 
 impl RecordHeaderKind for crate::v4::RecordHeader {
+    const DBN_VERSIONS: RangeInclusive<u8> = 4..=4;
+
+    fn frame_len(data: &[u8]) -> crate::Result<usize> {
+        Ok(Self::HEADER_LEN + u16::from_le_bytes([data[0], data[1]]) as usize)
+    }
+
     fn record_size(&self) -> usize {
         crate::v4::RecordHeader::record_size(self)
     }

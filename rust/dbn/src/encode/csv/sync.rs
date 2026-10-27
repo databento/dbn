@@ -5,8 +5,7 @@ use fallible_streaming_iterator::FallibleStreamingIterator;
 use crate::{
     decode::{DbnMetadata, DecodeRecordRef},
     encode::{DbnEncodable, EncodeDbn, EncodeRecord, EncodeRecordRef, EncodeRecordTextExt},
-    rtype_dispatch, schema_dispatch, v2, v3, Error, RType, Record, Result, Schema, WithTsOut,
-    DBN_VERSION,
+    rtype_dispatch, schema_dispatch, v3, Error, RType, Record, Result, Schema, DBN_VERSION,
 };
 
 /// Type for encoding files and streams of DBN records in CSV or other text-delimited
@@ -22,6 +21,11 @@ where
     has_written_header: bool,
     use_pretty_px: bool,
     use_pretty_ts: bool,
+    /// Whether the schema has a trailing `symbol` column. Set by the builder.
+    /// `encode_record` errors when this is `true`; `encode_record_with_sym`
+    /// errors when this is `false`. Guarantees the header column count
+    /// matches every row.
+    with_symbol: bool,
 }
 
 /// Helper for constructing a CSV [`Encoder`].
@@ -136,6 +140,7 @@ where
             has_written_header: true,
             use_pretty_px: self.use_pretty_px,
             use_pretty_ts: self.use_pretty_ts,
+            with_symbol: self.with_symbol,
         };
         if self.write_header {
             if let Some(schema) = self.schema {
@@ -168,6 +173,8 @@ where
     /// is `true`, price fields will be serialized as a decimal. If `pretty_ts` is
     /// `true`, timestamp fields will be serialized in a ISO8601 datetime string.
     /// By default, a header will be written once a schema can be inferred.
+    /// `with_symbol` defaults to `false`; use [`builder`](Self::builder) to
+    /// configure it.
     pub fn new(writer: W, use_pretty_px: bool, use_pretty_ts: bool) -> Self {
         Self::builder(writer)
             .use_pretty_px(use_pretty_px)
@@ -182,13 +189,23 @@ where
         self.writer.get_ref()
     }
 
+    /// Flushes any buffered data and returns the underlying writer.
+    ///
+    /// # Errors
+    /// This function returns an error if it fails to flush to the underlying writer.
+    pub fn into_inner(self) -> Result<W> {
+        self.writer
+            .into_inner()
+            .map_err(|e| Error::io(e.into_error(), "flushing CSV writer"))
+    }
+
     /// Encodes the CSV header for the record type `R`, i.e. the names of each of the
     /// fields to the output.
     ///
-    /// If `with_symbol` is `true`, will add a header field for "symbol". This should
-    /// only be used with  [`Self::encode_record_with_sym()`] and
-    /// [`Self::encode_ref_with_sym()`], otherwise there will be a mismatch between the
-    /// number of fields in the header and the body.
+    /// If `with_symbol` is `true`, will add a header field for "symbol". This must
+    /// match the encoder's [`with_symbol`](EncoderBuilder::with_symbol) setting:
+    /// `encode_record` errors when the encoder was built with `with_symbol(true)`,
+    /// and `encode_record_with_sym` errors when it was built with `with_symbol(false)`.
     ///
     /// # Errors
     /// This function returns an error if there's an error writing to `writer`.
@@ -210,10 +227,9 @@ where
     ///
     /// If `ts_out` is `true`, it will add a header field "ts_out".
     ///
-    /// If `with_symbol` is `true`, it will add a header field for "symbol". This should
-    /// only be used with  [`Self::encode_record_with_sym()`] and
-    /// [`Self::encode_ref_with_sym()`], otherwise there will be a mismatch between the
-    /// number of fields in the header and the body.
+    /// If `with_symbol` is `true`, it will add a header field for "symbol". This must
+    /// match the encoder's [`with_symbol`](EncoderBuilder::with_symbol) setting; see
+    /// [`encode_header`](Self::encode_header) for details.
     ///
     /// # Errors
     /// This function returns an error if there's an error writing to `writer`.
@@ -224,16 +240,12 @@ where
         ts_out: bool,
         with_symbol: bool,
     ) -> Result<()> {
-        // Workaround for definitions fields changing between versions 1/2 and 3
-        if version < 3 && schema == Schema::Definition {
-            if ts_out {
-                self.encode_header::<WithTsOut<v2::InstrumentDefMsg>>(with_symbol)?;
-            } else {
-                self.encode_header::<v2::InstrumentDefMsg>(with_symbol)?;
-            }
-        } else {
-            schema_dispatch!(schema, ts_out: ts_out, self.encode_header(with_symbol))?;
-        }
+        schema_dispatch!(
+            schema,
+            version: version,
+            ts_out: ts_out,
+            self.encode_header(with_symbol)
+        )?;
         self.has_written_header = true;
         Ok(())
     }
@@ -265,6 +277,11 @@ where
     W: io::Write,
 {
     fn encode_record<R: DbnEncodable>(&mut self, record: &R) -> Result<()> {
+        if self.with_symbol {
+            return Err(Error::encode(
+                "Encoder configured with with_symbol(true); use encode_record_with_sym",
+            ));
+        }
         if !self.has_written_header {
             self.encode_header::<R>(false)?;
         }
@@ -406,6 +423,11 @@ where
         record: &R,
         symbol: Option<&str>,
     ) -> Result<()> {
+        if !self.with_symbol {
+            return Err(Error::encode(
+                "Encoder not configured with with_symbol(true); use encode_record",
+            ));
+        }
         if !self.has_written_header {
             self.encode_header::<R>(true)?;
         }
@@ -907,6 +929,7 @@ mod tests {
             .use_pretty_px(false)
             .use_pretty_ts(false)
             .write_header(false)
+            .with_symbol(true)
             .build()
             .unwrap();
         encoder.encode_ref_with_sym(rec_ref, None).unwrap();
@@ -917,6 +940,43 @@ mod tests {
             res,
             "0,34,10,9,175000000000,177000000000,174000000000,175000000000,4033445,\n\
             0,34,10,9,175000000000,177000000000,174000000000,175000000000,4033445,AAPL\n"
+        );
+    }
+
+    #[test]
+    fn test_with_symbol_method_mismatch_errors() {
+        let mut buffer = Vec::new();
+        let mut encoder = Encoder::builder(&mut buffer)
+            .write_header(false)
+            .with_symbol(true)
+            .build()
+            .unwrap();
+        let rec = OhlcvMsg {
+            hd: RecordHeader::new::<OhlcvMsg>(rtype::OHLCV_1H, 10, 9, 0),
+            open: 175 * FIXED_PRICE_SCALE,
+            high: 177 * FIXED_PRICE_SCALE,
+            low: 174 * FIXED_PRICE_SCALE,
+            close: 175 * FIXED_PRICE_SCALE,
+            volume: 4033445,
+        };
+        let err = encoder.encode_record(&rec).unwrap_err();
+        assert!(
+            err.to_string().contains("with_symbol"),
+            "unexpected error: {err}"
+        );
+
+        // The reverse: with_symbol(false) builder, encode_record_with_sym call.
+        let mut buffer2 = Vec::new();
+        let mut encoder2 = Encoder::builder(&mut buffer2)
+            .write_header(false)
+            .build()
+            .unwrap();
+        let err = encoder2
+            .encode_record_with_sym(&rec, Some("AAPL"))
+            .unwrap_err();
+        assert!(
+            err.to_string().contains("with_symbol"),
+            "unexpected error: {err}"
         );
     }
 

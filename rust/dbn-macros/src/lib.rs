@@ -1,8 +1,8 @@
 use proc_macro::TokenStream;
 
+mod arrow;
 mod dbn_attr;
 mod debug;
-mod enum_field;
 mod has_rtype;
 mod layout_desc;
 mod py_field_desc;
@@ -28,32 +28,6 @@ pub fn dbn_attr(_item: TokenStream) -> TokenStream {
     TokenStream::new()
 }
 
-/// Derive macro for the `EnumField` trait used in DBN v4 dynamic field access.
-///
-/// Emits the `Repr` associated type and `TYPE_ID` const from the enum's
-/// `#[repr(u8)]` / `#[repr(u16)]`. Char-valued enums read as a `u8` but tag as
-/// `ENUM_CHAR_ID`; mark them with the `#[dbn(char)]` helper attribute.
-#[proc_macro_derive(EnumField, attributes(dbn))]
-pub fn derive_enum_field(input: TokenStream) -> TokenStream {
-    enum_field::derive_impl(input)
-}
-
-/// Derive macro for the `RecordLayoutDesc` trait, for a record struct starting with an
-/// `hd` header field.
-///
-/// Places each field after the header at its `offset_of!` offset under the `v4::fields`
-/// registry constant named after it, so the layout matches the compiled struct.
-///
-/// Supports the following `dbn` attributes:
-/// - `field_id = IDENT`: on a field, uses the registry entry `IDENT` instead of the one
-///   named after the field
-/// - `required(name, ...)`: on the struct, the symbol fields every layout of the record
-///   declares but the struct doesn't hold, appended by `add_required_fields`
-#[proc_macro_derive(RecordLayoutDesc, attributes(dbn))]
-pub fn derive_record_layout_desc(input: TokenStream) -> TokenStream {
-    layout_desc::derive_record_impl(input)
-}
-
 /// Derive macro for the `StructLayoutDesc` trait, for a struct nested in records like
 /// `BidAskPair`.
 ///
@@ -62,8 +36,8 @@ pub fn derive_record_layout_desc(input: TokenStream) -> TokenStream {
 /// implements `FieldType` for the struct and arrays of it, so registry constants can
 /// name them.
 ///
-/// Supports the `field_id = IDENT` field attribute, which uses the registry entry
-/// `IDENT` instead of the one named after the field.
+/// Supports the `field_id = PATH` field attribute, which uses the registry entry
+/// `PATH` instead of the one named after the field.
 #[proc_macro_derive(StructLayoutDesc, attributes(dbn))]
 pub fn derive_struct_layout_desc(input: TokenStream) -> TokenStream {
     layout_desc::derive_struct_impl(input)
@@ -117,18 +91,29 @@ pub fn derive_py_field_desc(input: TokenStream) -> TokenStream {
 }
 
 /// Attribute macro that acts like a derive macro for `Debug` (with customization),
-/// `Record`, `RecordMut`, `HasRType`, `PartialOrd`, and `AsRef<[u8]>`.
+/// `Record`, `RecordMut`, `HasRType`, `PartialOrd`, `AsRef<[u8]>`, and
+/// `RecordLayoutDesc`.
 ///
 /// Expects 1 or more paths to `u8` constants that are the RTypes associated
-/// with this record.
+/// with this record, optionally followed by:
+/// - `layout = false`: skips `RecordLayoutDesc`
+/// - `required(name, name = N, ...)`: the symbol fields every layout of the record
+///   must have, listed in `REQUIRED_FIELDS`. `N` moves the field like `encode_order`
 ///
-/// Supports the following `dbn` attributes:
+/// The layout places each field after the header at its `offset_of!` offset under the
+/// `v4::fields` registry constant named after it, so the layout matches the compiled
+/// struct.
+///
+/// Supports the following `dbn` field attributes:
 /// - `c_char`: format the type as a `char` instead of as a numeric
+/// - `encode_order(N)`: moves the field to position `N` of the layout's display order
+/// - `field_id = PATH`: uses the registry entry `PATH` instead of the one named after
+///   the field. A bare name resolves against `v4::fields`
 /// - `fixed_price`: format the integer as a fixed-precision decimal
 /// - `fmt_binary`: format as a binary
 /// - `fmt_method`: try to format by calling the getter method with the same name as the
-/// - `index_ts`: indicates this field is the primary timestamp for the record
 ///   field. If the getter returns an error, the raw field value will be used
+/// - `index_ts`: indicates this field is the primary timestamp for the record
 /// - `skip`: won't be included in the `Debug` output
 ///
 /// Note: attribute macros don't support helper attributes on their own. If not deriving
@@ -137,6 +122,20 @@ pub fn derive_py_field_desc(input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn dbn_record(attr: TokenStream, input: TokenStream) -> TokenStream {
     has_rtype::attribute_macro_impl(attr, input)
+}
+
+/// Derive macro for Arrow columnar serialization.
+///
+/// Generates an implementation of `ArrowSerialize` for the type, gated behind
+/// `#[cfg(feature = "arrow")]`. Supports the same `dbn` attributes as
+/// `CsvSerialize` and `JsonSerialize`.
+///
+/// Each field's schema entry and column come from one `ArrowField` implementer: the
+/// marker type for the field's `dbn` attribute, if any, otherwise the field's type.
+/// Those impls live in `dbn::encode::arrow::serialize`.
+#[proc_macro_derive(ArrowSerialize, attributes(dbn))]
+pub fn derive_arrow_serialize(input: TokenStream) -> TokenStream {
+    arrow::derive_arrow_serialize_macro_impl(input)
 }
 
 /// Derive macro for Debug representations with the same extensions for DBN records

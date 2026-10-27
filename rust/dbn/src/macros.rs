@@ -2,7 +2,7 @@
 
 // Re-export
 pub use dbn_macros::{
-    dbn_record, CsvSerialize, DbnAttr, JsonSerialize, PyFieldDesc, RecordDebug, RecordLayoutDesc,
+    dbn_record, ArrowSerialize, CsvSerialize, DbnAttr, JsonSerialize, PyFieldDesc, RecordDebug,
     StructLayoutDesc, WritePyRepr,
 };
 
@@ -69,6 +69,45 @@ macro_rules! rtype_dispatch_base {
         }
     }};
 }
+macro_rules! v4_rtype_dispatch {
+    ($rec_ref:expr, $generic_fn:ident($($arg:expr),*)$(,)?) => {{
+        use $crate::enums::RType;
+        use $crate::v4::*;
+        macro_rules! handler {
+            ($r:ty) => {{
+                $rec_ref.try_get::<$r>().ok().map(|r| $generic_fn(r $(, $arg)*))
+            }}
+        }
+        match u8::try_from($rec_ref.raw_rtype())
+            .ok()
+            .and_then(|rtype| RType::try_from(rtype).ok())
+        {
+            Some(RType::Mbo) => handler!(MboMsg),
+            Some(RType::Mbp0) => handler!(TradeMsg),
+            Some(RType::Mbp1) | Some(RType::Tbbo) => handler!(Mbp1Msg),
+            Some(RType::Mbp10) => handler!(Mbp10Msg),
+            Some(RType::Bbo1S) | Some(RType::Bbo1M) => handler!(BboMsg),
+            Some(RType::Cmbp1) | Some(RType::Tcbbo) => handler!(Cmbp1Msg),
+            Some(RType::Cbbo1S) | Some(RType::Cbbo1M) => handler!(CbboMsg),
+            #[allow(deprecated)]
+            Some(RType::OhlcvDeprecated)
+            | Some(RType::Ohlcv1S)
+            | Some(RType::Ohlcv1M)
+            | Some(RType::Ohlcv1H)
+            | Some(RType::Ohlcv1D)
+            | Some(RType::OhlcvEod) => handler!(OhlcvMsg),
+            Some(RType::Status) => handler!(StatusMsg),
+            Some(RType::InstrumentDef) => handler!(InstrumentDefMsg),
+            Some(RType::Imbalance) => handler!(ImbalanceMsg),
+            Some(RType::Statistics) => handler!(StatMsg),
+            Some(RType::Error) => handler!(ErrorMsg),
+            Some(RType::SymbolMapping) => handler!(SymbolMappingMsg),
+            Some(RType::System) => handler!(SystemMsg),
+            None => None,
+        }
+    }};
+}
+pub(crate) use v4_rtype_dispatch;
 
 /// Dispatches to a generic function or method based on `$rtype` and optionally `$ts_out`.
 ///
@@ -209,6 +248,15 @@ macro_rules! rtype_dispatch {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! schema_dispatch_base {
+    ($schema:expr, version: $version:expr, $handler:ident) => {{
+        use $crate::enums::Schema;
+        match ($schema, $version) {
+            (Schema::Definition, 1) => $handler!($crate::v1::InstrumentDefMsg),
+            (Schema::Definition, 2) => $handler!($crate::v2::InstrumentDefMsg),
+            (Schema::Statistics, 1 | 2) => $handler!($crate::v1::StatMsg),
+            (schema, _) => $crate::schema_dispatch_base!(schema, $handler),
+        }
+    }};
     ($schema:expr, $handler:ident) => {{
         use $crate::enums::Schema;
         use $crate::record::*;
@@ -239,7 +287,8 @@ macro_rules! schema_dispatch_base {
     }};
 }
 
-/// Dispatches to a generic function or method based on `$schema` and optionally `$ts_out`.
+/// Dispatches to a generic function or method based on `$schema` and optionally the DBN
+/// `$version` and `$ts_out`. Without `$version`, the version 3 record types are used.
 ///
 /// # Errors
 /// This macro returns an error when the generic function or method returns an error.
@@ -332,6 +381,32 @@ macro_rules! schema_dispatch {
             }}
         }
         $crate::schema_dispatch_base!($schema, handler)
+    }};
+    // generic method
+    ($schema:expr, version: $version:expr, ts_out: $ts_out:expr, $this:ident.$generic_method:ident($($arg:expr),*)$(,)?) => {{
+        macro_rules! handler {
+            ($r:ty) => {{
+                if $ts_out {
+                    $this.$generic_method::<$crate::WithTsOut<$r>>($($arg),*)
+                } else {
+                    $this.$generic_method::<$r>($($arg),*)
+                }
+            }}
+        }
+        $crate::schema_dispatch_base!($schema, version: $version, handler)
+    }};
+    // generic function
+    ($schema:expr, version: $version:expr, ts_out: $ts_out:expr, $generic_fn:ident($($arg:expr),*)$(,)?) => {{
+        macro_rules! handler {
+            ($r:ty) => {{
+                if $ts_out {
+                    $generic_fn::<$crate::WithTsOut<$r>>($($arg),*)
+                } else {
+                    $generic_fn::<$r>($($arg),*)
+                }
+            }}
+        }
+        $crate::schema_dispatch_base!($schema, version: $version, handler)
     }};
 }
 

@@ -179,6 +179,7 @@ impl MetadataDecoder {
     const FIXED_METADATA_LEN: usize = 96;
     const SCHEMA_VERSION: u8 = 1;
     const VERSION_CSTR_LEN: usize = 4;
+    const DATASET_CSTR_LEN: usize = 16;
     const RESERVED_LEN: usize = 39;
     const DBZ_PREFIX: &'static [u8] = b"DBZ";
 
@@ -201,10 +202,17 @@ impl MetadataDecoder {
             ));
         }
 
-        let mut metadata_buffer = vec![0u8; frame_size as usize];
+        let mut metadata_buffer = Vec::new();
         reader
-            .read_exact(&mut metadata_buffer)
+            .take(u64::from(frame_size))
+            .read_to_end(&mut metadata_buffer)
             .map_err(|e| crate::Error::io(e, "reading metadata"))?;
+        if metadata_buffer.len() < frame_size as usize {
+            return Err(crate::Error::io(
+                io::ErrorKind::UnexpectedEof.into(),
+                "reading metadata",
+            ));
+        }
         Self::decode(metadata_buffer)
     }
 
@@ -223,13 +231,11 @@ impl MetadataDecoder {
             ));
         }
         pos += Self::VERSION_CSTR_LEN;
-        let dataset =
-            std::str::from_utf8(&metadata_buffer[pos..pos + crate::METADATA_DATASET_CSTR_LEN])
-                .map_err(|e| crate::Error::utf8(e, "reading dataset from metadata"))?
-                // remove null bytes
-                .trim_end_matches('\0')
-                .to_owned();
-        pos += crate::METADATA_DATASET_CSTR_LEN;
+        let dataset = std::str::from_utf8(&metadata_buffer[pos..pos + Self::DATASET_CSTR_LEN])
+            .map_err(|e| crate::Error::utf8(e, "reading dataset from metadata"))?
+            .trim_end_matches('\0')
+            .to_owned();
+        pos += Self::DATASET_CSTR_LEN;
         let schema =
             Schema::try_from(u16::from_le_slice(&metadata_buffer[pos..])).map_err(|_| {
                 crate::Error::conversion::<Schema>(format_args!(
@@ -328,6 +334,13 @@ impl MetadataDecoder {
         }
         let count = u32::from_le_slice(&buffer[*pos..]) as usize;
         *pos += Self::U32_SIZE;
+        let min_symbol_mapping_encoded_size = crate::compat::SYMBOL_CSTR_LEN_V1 + Self::U32_SIZE;
+        let count = <DbnFsm>::checked_count(
+            format_args!("symbol mapping count"),
+            count,
+            min_symbol_mapping_encoded_size,
+            buffer.len() - *pos,
+        )?;
         let mut res = Vec::with_capacity(count);
         // Because each `SymbolMapping` itself is of a variable length, decoding it requires frequent bounds checks
         for _ in 0..count {
@@ -452,5 +465,24 @@ mod tests {
         let mut pos = 0;
         let res = MetadataDecoder::decode_symbol(BYTES.as_slice(), &mut pos);
         assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_read_rejects_frame_size_beyond_input() {
+        let mut input = ZSTD_SKIPPABLE_MAGIC_RANGE.start.to_le_bytes().to_vec();
+        input.extend(u32::MAX.to_le_bytes());
+        input.extend([0; MetadataDecoder::FIXED_METADATA_LEN]);
+        let res = MetadataDecoder::read(&mut input.as_slice());
+        assert!(
+            matches!(res, Err(crate::Error::Io { source, .. }) if source.kind() == io::ErrorKind::UnexpectedEof)
+        );
+    }
+
+    #[test]
+    fn test_decode_symbol_mappings_rejects_overstated_count() {
+        let buffer = u32::MAX.to_le_bytes().to_vec();
+        let mut pos = 0;
+        let res = MetadataDecoder::decode_symbol_mappings(&buffer, &mut pos);
+        assert!(matches!(res, Err(crate::Error::Decode(_))));
     }
 }

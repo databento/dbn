@@ -634,6 +634,43 @@ fn map_symbols(#[case] output_flag: &str) {
 }
 
 #[rstest]
+fn map_symbols_parquet(output_dir: TempDir) {
+    use arrow::array::{Array, StringArray};
+    use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
+
+    let output_path = format!("{}/out.parquet", output_dir.path().to_str().unwrap());
+    cmd()
+        .args([
+            &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst"),
+            "--output",
+            &output_path,
+            "--parquet",
+            "--map-symbols",
+        ])
+        .assert()
+        .success()
+        .stdout(is_empty())
+        .stderr(is_empty());
+
+    let file = std::fs::File::open(&output_path).unwrap();
+    let reader = ParquetRecordBatchReaderBuilder::try_new(file)
+        .unwrap()
+        .build()
+        .unwrap();
+    let batches: Vec<_> = reader.into_iter().map(|b| b.unwrap()).collect();
+    let batch = arrow::compute::concat_batches(&batches[0].schema(), &batches).unwrap();
+    let symbols = batch
+        .column_by_name("symbol")
+        .expect("symbol column should be present in parquet output")
+        .as_any()
+        .downcast_ref::<StringArray>()
+        .expect("symbol column should be Utf8");
+    assert!(batch.num_rows() > 0);
+    let any_populated = (0..batch.num_rows()).any(|i| !symbols.is_null(i));
+    assert!(any_populated, "expected at least one non-null symbol");
+}
+
+#[rstest]
 #[case::dbn("--dbn")]
 #[case::fragment("--fragment")]
 fn map_symbols_fails_for_invalid_output(#[case] output_flag: &str) {
@@ -1066,4 +1103,201 @@ fn version() {
         .success()
         .stdout(contains(env!("CARGO_PKG_VERSION")))
         .stderr(is_empty());
+}
+
+// Parquet magic bytes: "PAR1"
+const PARQUET_MAGIC: &[u8; 4] = b"PAR1";
+
+#[rstest]
+fn write_parquet_with_flag(output_dir: TempDir) {
+    let output_path = format!("{}/out.parquet", output_dir.path().to_str().unwrap());
+    cmd()
+        .args([
+            &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst"),
+            "--output",
+            &output_path,
+            "--parquet",
+        ])
+        .assert()
+        .success()
+        .stdout(is_empty());
+    let contents = fs::read(&output_path).unwrap();
+    assert!(contents.len() > 8, "Parquet file too small");
+    assert_eq!(
+        &contents[..4],
+        PARQUET_MAGIC,
+        "missing Parquet header magic"
+    );
+    assert_eq!(
+        &contents[contents.len() - 4..],
+        PARQUET_MAGIC,
+        "missing Parquet footer magic"
+    );
+}
+
+#[rstest]
+fn write_parquet_infer_from_extension(output_dir: TempDir) {
+    let output_path = format!("{}/out.parquet", output_dir.path().to_str().unwrap());
+    cmd()
+        .args([
+            &format!("{TEST_DATA_PATH}/test_data.mbp-1.v3.dbn.zst"),
+            "--output",
+            &output_path,
+        ])
+        .assert()
+        .success()
+        .stdout(is_empty());
+    let contents = fs::read(&output_path).unwrap();
+    assert_eq!(&contents[..4], PARQUET_MAGIC);
+}
+
+#[test]
+fn write_parquet_to_stdout() {
+    let output = cmd()
+        .args([
+            &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst"),
+            "--parquet",
+        ])
+        .assert()
+        .success();
+    let stdout = output.get_output().stdout.clone();
+    assert!(stdout.len() > 8, "stdout should contain Parquet output");
+    assert_eq!(
+        &stdout[..4],
+        PARQUET_MAGIC,
+        "stdout should begin with Parquet magic"
+    );
+}
+
+// Arrow IPC file magic: "ARROW1\0\0"
+const ARROW_IPC_MAGIC: &[u8; 6] = b"ARROW1";
+
+#[rstest]
+fn write_arrow_with_flag(output_dir: TempDir) {
+    let output_path = format!("{}/out.arrow", output_dir.path().to_str().unwrap());
+    cmd()
+        .args([
+            &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst"),
+            "--output",
+            &output_path,
+            "--arrow",
+        ])
+        .assert()
+        .success()
+        .stdout(is_empty());
+    let contents = fs::read(&output_path).unwrap();
+    assert!(contents.len() > 16, "Arrow IPC file too small");
+    assert_eq!(
+        &contents[..6],
+        ARROW_IPC_MAGIC,
+        "missing Arrow IPC header magic"
+    );
+    assert_eq!(
+        &contents[contents.len() - 6..],
+        ARROW_IPC_MAGIC,
+        "missing Arrow IPC footer magic"
+    );
+}
+
+#[rstest]
+fn write_arrow_infer_from_extension(output_dir: TempDir) {
+    let output_path = format!("{}/out.feather", output_dir.path().to_str().unwrap());
+    cmd()
+        .args([
+            &format!("{TEST_DATA_PATH}/test_data.mbp-1.v3.dbn.zst"),
+            "--output",
+            &output_path,
+        ])
+        .assert()
+        .success()
+        .stdout(is_empty());
+    let contents = fs::read(&output_path).unwrap();
+    assert_eq!(&contents[..6], ARROW_IPC_MAGIC);
+}
+
+#[rstest]
+#[case::parquet("parquet")]
+#[case::arrow("arrow")]
+fn omit_header_conflicts_with_columnar(#[case] output_enc: &str) {
+    cmd()
+        .args([
+            &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst"),
+            &format!("--{output_enc}"),
+            "--omit-header",
+        ])
+        .assert()
+        .failure()
+        .stdout(is_empty())
+        .stderr(contains("--omit-header"));
+}
+
+#[rstest]
+#[case::parquet("parquet")]
+#[case::arrow("arrow")]
+fn input_fragment_conflicts_with_columnar(#[case] output_enc: &str) {
+    cmd()
+        .args([
+            "--input-zstd-fragment",
+            &format!("{TEST_DATA_PATH}/test_data.definition.v3.dbn.frag.zst"),
+            &format!("--{output_enc}"),
+        ])
+        .assert()
+        .failure()
+        .stdout(is_empty())
+        .stderr(contains("cannot be used with"));
+}
+
+#[rstest]
+fn write_arrow_zstd_reads_back(output_dir: TempDir) {
+    use arrow::ipc::reader::FileReader;
+
+    let output_path = format!("{}/out.arrow", output_dir.path().to_str().unwrap());
+    cmd()
+        .args([
+            &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst"),
+            "--output",
+            &output_path,
+            "--arrow",
+            "--zstd",
+        ])
+        .assert()
+        .success()
+        .stdout(is_empty())
+        .stderr(is_empty());
+    let reader = FileReader::try_new(fs::File::open(&output_path).unwrap(), None).unwrap();
+    assert!(reader.schema().field_with_name("price").is_ok());
+    let num_rows: usize = reader.map(|batch| batch.unwrap().num_rows()).sum();
+    assert_eq!(num_rows, 2);
+}
+
+#[rstest]
+fn write_parquet_zero_rows_with_schema_filter(output_dir: TempDir) {
+    use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
+
+    let output_path = format!("{}/out.parquet", output_dir.path().to_str().unwrap());
+    cmd()
+        .args([
+            &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn"),
+            "--output",
+            &output_path,
+            "--parquet",
+            "--schema",
+            "trades",
+        ])
+        .assert()
+        .success()
+        .stdout(is_empty())
+        .stderr(is_empty());
+    let builder =
+        ParquetRecordBatchReaderBuilder::try_new(fs::File::open(&output_path).unwrap()).unwrap();
+    assert_eq!(builder.metadata().file_metadata().num_rows(), 0);
+    assert!(builder.schema().field_with_name("price").is_ok());
+    assert!(builder.schema().field_with_name("order_id").is_err());
+    assert!(builder.schema().metadata()["databento:metadata"].contains("\"schema\":\"trades\""));
+    let num_rows: usize = builder
+        .build()
+        .unwrap()
+        .map(|batch| batch.unwrap().num_rows())
+        .sum();
+    assert_eq!(num_rows, 0);
 }

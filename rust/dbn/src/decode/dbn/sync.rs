@@ -4,18 +4,20 @@ use std::{fs::File, io, path::Path};
 
 use crate::{
     decode::{
-        dbn::fsm::{DbnFsm, ProcessResult},
+        dbn::fsm::{DbnFsm, DecodeHeader, ProcessResult},
         private::LastRecord,
         DbnMetadata, DecodeRecord, DecodeRecordRef, DecodeStream, SkipBytes, StreamIterDecoder,
         VersionUpgradePolicy,
     },
-    v3, Metadata, RecordRef, DBN_VERSION,
+    v3, HasRType, Metadata, RecordRef, DBN_VERSION,
 };
 
 /// Type for decoding files and streams in Databento Binary Encoding (DBN), both metadata and records.
-pub struct Decoder<R> {
+///
+/// `H` is the record header type to decode. See [`DbnFsm`].
+pub struct Decoder<R, H: DecodeHeader = v3::RecordHeader> {
     metadata: Metadata,
-    decoder: RecordDecoder<R>,
+    decoder: RecordDecoder<R, H>,
 }
 
 impl<R> Decoder<R>
@@ -54,6 +56,27 @@ where
             metadata,
         })
     }
+}
+
+impl<R, H> Decoder<R, H>
+where
+    R: io::Read,
+    H: DecodeHeader,
+{
+    /// Creates a new DBN [`Decoder`] from `reader` that decodes with `fsm`, which
+    /// determines the record header and DBN versions it reads.
+    ///
+    /// # Errors
+    /// This function will return an error if it is unable to parse the metadata in
+    /// `reader`, or `fsm` can't decode its DBN version.
+    pub fn with_fsm(reader: R, fsm: DbnFsm<H>) -> crate::Result<Self> {
+        let mut metadata_decoder = MetadataDecoder { reader, fsm };
+        let metadata = metadata_decoder.decode()?;
+        Ok(Self {
+            decoder: RecordDecoder::from(metadata_decoder),
+            metadata,
+        })
+    }
 
     /// Returns a mutable reference to the inner reader.
     pub fn get_mut(&mut self) -> &mut R {
@@ -82,6 +105,17 @@ where
         self.decoder.set_upgrade_policy(upgrade_policy)?;
         self.metadata.upgrade(upgrade_policy);
         Ok(())
+    }
+
+    /// Tries to decode a generic reference to a record. Returns `Ok(None)` if
+    /// the reader is exhausted.
+    ///
+    /// # Errors
+    /// This function returns an error if the underlying reader returns an
+    /// error of a kind other than `io::ErrorKind::UnexpectedEof` upon reading.
+    /// It will also return an error if it encounters an invalid record.
+    pub fn decode_ref(&mut self) -> crate::Result<Option<RecordRef<'_, H>>> {
+        self.decoder.decode_ref()
     }
 }
 
@@ -157,16 +191,17 @@ impl Decoder<zstd::stream::Decoder<'_, BufReader<File>>> {
     }
 }
 
-impl<R> DecodeRecordRef for Decoder<R>
+impl<R, H> DecodeRecordRef<H> for Decoder<R, H>
 where
     R: io::Read,
+    H: DecodeHeader,
 {
-    fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef<'_>>> {
+    fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef<'_, H>>> {
         self.decoder.decode_record_ref()
     }
 }
 
-impl<R> DbnMetadata for Decoder<R> {
+impl<R, H: DecodeHeader> DbnMetadata for Decoder<R, H> {
     fn metadata(&self) -> &Metadata {
         &self.metadata
     }
@@ -176,44 +211,59 @@ impl<R> DbnMetadata for Decoder<R> {
     }
 }
 
-impl<R> DecodeRecord for Decoder<R>
+impl<R, H> DecodeRecord<H> for Decoder<R, H>
 where
     R: io::Read,
+    H: DecodeHeader,
 {
-    fn decode_record<T: v3::HasRType>(&mut self) -> crate::Result<Option<&T>> {
-        self.decoder.decode()
+    fn decode_record<T: HasRType<Header = H>>(&mut self) -> crate::Result<Option<&T>> {
+        self.decoder.decode_record()
     }
 }
 
-impl<R> DecodeStream for Decoder<R>
+impl<R, H> DecodeStream<H> for Decoder<R, H>
 where
     R: io::Read,
+    H: DecodeHeader,
 {
-    fn decode_stream<T: v3::HasRType>(self) -> StreamIterDecoder<Self, T> {
+    fn decode_stream<T: HasRType<Header = H>>(self) -> StreamIterDecoder<Self, T> {
         StreamIterDecoder::new(self)
     }
 }
 
-impl<R> LastRecord for Decoder<R>
+impl<R, H> LastRecord<H> for Decoder<R, H>
 where
     R: io::Read,
+    H: DecodeHeader,
 {
-    fn last_record(&self) -> Option<RecordRef<'_>> {
+    fn last_record(&self) -> Option<RecordRef<'_, H>> {
         self.decoder.last_record()
     }
 }
 
-/// A DBN decoder of records
-pub struct RecordDecoder<R> {
-    reader: R,
-    fsm: DbnFsm,
+impl<R, H: DecodeHeader> std::fmt::Debug for Decoder<R, H> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Decoder")
+            .field("metadata", &self.metadata)
+            .field("decoder", &self.decoder)
+            .finish()
+    }
 }
 
-impl<R> From<MetadataDecoder<R>> for RecordDecoder<R>
+/// A DBN decoder of records
+///
+/// `H` is the record header to decode. See [`DbnFsm`].
+pub struct RecordDecoder<R, H: DecodeHeader = v3::RecordHeader> {
+    reader: R,
+    fsm: DbnFsm<H>,
+}
+
+impl<R, H> From<MetadataDecoder<R, H>> for RecordDecoder<R, H>
 where
     R: io::Read,
+    H: DecodeHeader,
 {
-    fn from(metadata_decoder: MetadataDecoder<R>) -> Self {
+    fn from(metadata_decoder: MetadataDecoder<R, H>) -> Self {
         let MetadataDecoder { reader, mut fsm } = metadata_decoder;
         if fsm
             .upgrade_policy()
@@ -261,11 +311,58 @@ where
         Ok(Self { reader, fsm })
     }
 
+    /// Tries to decode the next record of type `T`. Returns `Ok(None)` if
+    /// the reader is exhausted.
+    ///
+    /// # Errors
+    /// This function returns an error if the underlying reader returns an
+    /// error of a kind other than `io::ErrorKind::UnexpectedEof` upon reading.
+    ///
+    /// If the next record is of a different type than `T`,
+    /// this function returns an error of kind `io::ErrorKind::InvalidData`.
+    pub fn decode<T: v3::HasRType>(&mut self) -> crate::Result<Option<&T>> {
+        self.decode_ref().and_then(|rec| {
+            if let Some(rec) = rec {
+                rec.try_get().map(Some)
+            } else {
+                Ok(None)
+            }
+        })
+    }
+}
+
+impl<R> RecordDecoder<R, crate::v4::RecordHeader>
+where
+    R: io::Read,
+{
+    /// Tries to decode the next record of type `T`. Returns `Ok(None)` if the reader
+    /// is exhausted.
+    ///
+    /// # Errors
+    /// This function returns an error if reading fails or the next record isn't a `T`.
+    pub fn decode<T: HasRType<Header = crate::v4::RecordHeader>>(
+        &mut self,
+    ) -> crate::Result<Option<&T>> {
+        self.decode_record()
+    }
+}
+
+impl<R, H> RecordDecoder<R, H>
+where
+    R: io::Read,
+    H: DecodeHeader,
+{
+    /// Creates a new `RecordDecoder` that will decode from `reader` with `fsm`, which
+    /// determines the record header and DBN versions it reads.
+    pub fn with_fsm(reader: R, fsm: DbnFsm<H>) -> Self {
+        Self { reader, fsm }
+    }
+
     /// Sets the DBN version to expect when decoding.
     ///
     /// # Errors
-    /// This function will return an error if the `version` exceeds the highest
-    /// supported version or the `version` and `upgrade_policy` are incompatible.
+    /// This function will return an error if the `version` isn't one `H` can decode
+    /// or the `version` and `upgrade_policy` are incompatible.
     pub fn set_version(&mut self, version: u8) -> crate::Result<()> {
         self.fsm.set_input_dbn_version(version).map(drop)
     }
@@ -302,25 +399,6 @@ where
         self.reader
     }
 
-    /// Tries to decode the next record of type `T`. Returns `Ok(None)` if
-    /// the reader is exhausted.
-    ///
-    /// # Errors
-    /// This function returns an error if the underlying reader returns an
-    /// error of a kind other than `io::ErrorKind::UnexpectedEof` upon reading.
-    ///
-    /// If the next record is of a different type than `T`,
-    /// this function returns an error of kind `io::ErrorKind::InvalidData`.
-    pub fn decode<T: v3::HasRType>(&mut self) -> crate::Result<Option<&T>> {
-        self.decode_ref().and_then(|rec| {
-            if let Some(rec) = rec {
-                rec.try_get().map(Some)
-            } else {
-                Ok(None)
-            }
-        })
-    }
-
     /// Tries to decode a generic reference a record. Returns `Ok(None)` if
     /// the reader is exhausted.
     ///
@@ -328,7 +406,7 @@ where
     /// This function returns an error if the underlying reader returns an
     /// error of a kind other than `io::ErrorKind::UnexpectedEof` upon reading.
     /// It will also return an error if it encounters an invalid record.
-    pub fn decode_ref(&mut self) -> crate::Result<Option<RecordRef<'_>>> {
+    pub fn decode_ref(&mut self) -> crate::Result<Option<RecordRef<'_, H>>> {
         while !self.fsm.has_buffered_record() {
             match self.fsm.process_batch() {
                 ProcessResult::ReadMore(_) => match self.reader.read(self.fsm.space()) {
@@ -352,27 +430,36 @@ where
     }
 }
 
-impl<R> DecodeRecord for RecordDecoder<R>
+impl<R, H> DecodeRecord<H> for RecordDecoder<R, H>
 where
     R: io::Read,
+    H: DecodeHeader,
 {
-    fn decode_record<T: v3::HasRType>(&mut self) -> crate::Result<Option<&T>> {
-        self.decode()
+    fn decode_record<T: HasRType<Header = H>>(&mut self) -> crate::Result<Option<&T>> {
+        self.decode_ref().and_then(|rec| {
+            if let Some(rec) = rec {
+                rec.try_get().map(Some)
+            } else {
+                Ok(None)
+            }
+        })
     }
 }
 
-impl<R> DecodeRecordRef for RecordDecoder<R>
+impl<R, H> DecodeRecordRef<H> for RecordDecoder<R, H>
 where
     R: io::Read,
+    H: DecodeHeader,
 {
-    fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef<'_>>> {
+    fn decode_record_ref(&mut self) -> crate::Result<Option<RecordRef<'_, H>>> {
         self.decode_ref()
     }
 }
 
-impl<R> RecordDecoder<R>
+impl<R, H> RecordDecoder<R, H>
 where
     R: io::Read + io::Seek,
+    H: DecodeHeader,
 {
     /// Seeks to absolute byte position `pos` and clears buffered decoder state.
     ///
@@ -429,18 +516,20 @@ where
     }
 }
 
-impl<R> LastRecord for RecordDecoder<R>
+impl<R, H> LastRecord<H> for RecordDecoder<R, H>
 where
     R: io::Read,
+    H: DecodeHeader,
 {
-    fn last_record(&self) -> Option<RecordRef<'_>> {
+    fn last_record(&self) -> Option<RecordRef<'_, H>> {
         self.fsm.last_record()
     }
 }
 
-impl<R> SkipBytes for RecordDecoder<R>
+impl<R, H> SkipBytes for RecordDecoder<R, H>
 where
     R: SkipBytes,
+    H: DecodeHeader,
 {
     fn skip_bytes(&mut self, n_bytes: usize) -> crate::Result<()> {
         let skipped = self.fsm.skip(n_bytes);
@@ -452,13 +541,21 @@ where
     }
 }
 
+impl<R, H: DecodeHeader> std::fmt::Debug for RecordDecoder<R, H> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RecordDecoder")
+            .field("fsm", &self.fsm)
+            .finish_non_exhaustive()
+    }
+}
+
 /// Type for decoding [`Metadata`] from Databento Binary Encoding (DBN).
-pub struct MetadataDecoder<R>
+pub struct MetadataDecoder<R, H: DecodeHeader = v3::RecordHeader>
 where
     R: io::Read,
 {
     reader: R,
-    fsm: DbnFsm,
+    fsm: DbnFsm<H>,
 }
 
 impl<R> MetadataDecoder<R>
@@ -488,7 +585,13 @@ where
             .unwrap();
         Self { reader, fsm }
     }
+}
 
+impl<R, H> MetadataDecoder<R, H>
+where
+    R: io::Read,
+    H: DecodeHeader,
+{
     /// Decodes and returns a DBN [`Metadata`].
     ///
     /// # Errors
@@ -539,6 +642,17 @@ where
     }
 }
 
+impl<R, H: DecodeHeader> std::fmt::Debug for MetadataDecoder<R, H>
+where
+    R: io::Read,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MetadataDecoder")
+            .field("fsm", &self.fsm)
+            .finish_non_exhaustive()
+    }
+}
+
 pub(crate) fn decode_iso8601(raw: u32) -> Result<time::Date, String> {
     let year = raw / 10_000;
     let remaining = raw % 10_000;
@@ -560,22 +674,37 @@ mod tests {
     #[cfg(feature = "zstd")]
     use std::fs::File;
 
-    #[cfg(feature = "zstd")]
     use rstest::rstest;
 
     use super::*;
-    use crate::{
-        decode::tests::TEST_DATA_PATH,
-        encode::{dbn::Encoder, DbnRecordEncoder, EncodeRecord},
-        rtype, Dataset, Error, ErrorMsg, MboMsg, MetadataBuilder, OhlcvMsg, Record, RecordBuf,
-        RecordHeader, Result, SType, Schema, TradeMsg, WithTsOut,
-    };
     #[cfg(feature = "zstd")]
     use crate::{
         decode::DynReader,
         encode::{DbnEncodable, DynWriter},
         v1, v2, v3, Compression,
     };
+    use crate::{
+        decode::{
+            dbn::tests::{
+                fsm_v4, mbo_v4, metadata_v4, replace_layout, trade_v3, trade_v3_upgraded, trade_v4,
+                trades_v4,
+            },
+            tests::TEST_DATA_PATH,
+        },
+        encode::{dbn::Encoder, DbnRecordEncoder, EncodeRecord, EncodeRecordRef},
+        rtype, Dataset, Error, ErrorMsg, HasRType, MboMsg, MetadataBuilder, OhlcvMsg, Record,
+        RecordBuf, RecordHeader, Result, SType, Schema, TradeMsg, WithTsOut,
+    };
+    use crate::{
+        layout::{DynFieldAccess, Verdict},
+        record::str_to_c_chars,
+        v4::{
+            fields,
+            types::{Decimal, TimestampNs},
+        },
+        InstrumentClass, MatchAlgorithm, Side,
+    };
+    use std::ffi::c_char;
 
     #[test]
     fn test_decode_iso8601_valid() {
@@ -673,6 +802,501 @@ mod tests {
         )?;
         assert_eq!(buf_decoder.metadata(), &file_metadata);
         assert_eq!(decoded_records, buf_decoder.decode_records()?);
+        Ok(())
+    }
+
+    #[rstest]
+    #[case::mbo(Schema::Mbo, mbo_v4())]
+    #[case::trades(Schema::Trades, trade_v4())]
+    fn test_dbn_identity_v4<R>(#[case] schema: Schema, #[case] rec: R) -> Result<()>
+    where
+        R: HasRType<Header = crate::v4::RecordHeader> + PartialEq + Clone + std::fmt::Debug,
+    {
+        let metadata = metadata_v4(schema);
+
+        let collect = |buf: &[u8]| -> Result<(Metadata, Vec<R>)> {
+            let mut decoder = crate::decode::dbn::v4::Decoder::with_fsm(buf, fsm_v4()?)?;
+            let decoded_metadata = decoder.metadata().clone();
+            let mut records = Vec::new();
+            while let Some(rec_ref) = decoder.decode_ref()? {
+                records.push(rec_ref.try_get::<R>()?.clone());
+            }
+            Ok((decoded_metadata, records))
+        };
+
+        let mut encoded = Vec::new();
+        crate::encode::dbn::v4::Encoder::new(&mut encoded, &metadata)?.encode(&rec)?;
+        let (decoded_metadata, decoded) = collect(encoded.as_slice())?;
+        assert_eq!(decoded_metadata, metadata);
+        assert_eq!(decoded, vec![rec]);
+
+        let mut reencoded = Vec::new();
+        {
+            let mut encoder =
+                crate::encode::dbn::v4::Encoder::new(&mut reencoded, &decoded_metadata)?;
+            for rec in &decoded {
+                encoder.encode(rec)?;
+            }
+        }
+        assert_eq!(reencoded, encoded);
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_v3_decoder_refuses_v4_input(
+        #[values(
+            VersionUpgradePolicy::AsIs,
+            VersionUpgradePolicy::UpgradeToV2,
+            VersionUpgradePolicy::UpgradeToV3,
+            VersionUpgradePolicy::ExpectV4
+        )]
+        upgrade_policy: VersionUpgradePolicy,
+    ) -> Result<()> {
+        let encoded = trades_v4()?;
+        let err = Decoder::with_upgrade_policy(encoded.as_slice(), upgrade_policy).unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("can't decode DBN version 4 with a decoder for DBN versions 1 to 3"),
+            "{err}"
+        );
+
+        let mut fsm = DbnFsm::builder().upgrade_policy(upgrade_policy).build()?;
+        fsm.write_all(&encoded);
+        let mut recs = [const { None }; 4];
+        assert!(matches!(fsm.process_many(&mut recs), ProcessResult::Err(_)));
+        Ok(())
+    }
+
+    #[test]
+    fn test_v3_record_decoder_refuses_v4() {
+        assert!(RecordDecoder::with_version(
+            [].as_slice(),
+            crate::v4::DBN_VERSION,
+            VersionUpgradePolicy::AsIs,
+            false
+        )
+        .is_err());
+        let mut decoder = RecordDecoder::new([].as_slice());
+        assert!(decoder.set_version(crate::v4::DBN_VERSION).is_err());
+    }
+
+    fn trades_v3_metadata() -> Metadata {
+        MetadataBuilder::new()
+            .dataset(Dataset::XnasItch)
+            .schema(Some(Schema::Trades))
+            .start(0)
+            .stype_in(Some(SType::RawSymbol))
+            .stype_out(SType::InstrumentId)
+            .build()
+    }
+
+    fn trades_v3() -> Result<Vec<u8>> {
+        let mut encoded = Vec::new();
+        Encoder::new(&mut encoded, &trades_v3_metadata())?.encode_record(&trade_v3())?;
+        Ok(encoded)
+    }
+
+    #[test]
+    fn test_v3_decoder_refuses_upgrade_to_v4() -> Result<()> {
+        let err = Decoder::with_upgrade_policy(
+            trades_v3()?.as_slice(),
+            VersionUpgradePolicy::UpgradeToV4,
+        )
+        .unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("can't upgrade to DBN version 4 with a decoder for DBN versions 1 to 3"),
+            "{err}"
+        );
+        Ok(())
+    }
+
+    #[rstest]
+    #[case::as_is(
+        VersionUpgradePolicy::AsIs,
+        "`VersionUpgradePolicy::AsIs` can't decode DBN version 3 with a decoder for DBN version 4"
+    )]
+    #[case::expect_v4(
+        VersionUpgradePolicy::ExpectV4,
+        "`VersionUpgradePolicy::ExpectV4` requires DBN version 4 input, got version 3"
+    )]
+    fn test_v4_decoder_refuses_v3_input(
+        #[case] upgrade_policy: VersionUpgradePolicy,
+        #[case] expected: &str,
+    ) -> Result<()> {
+        let fsm = DbnFsm::builder()
+            .header::<crate::v4::RecordHeader>()
+            .upgrade_policy(upgrade_policy)
+            .build()?;
+        let err =
+            crate::decode::dbn::v4::Decoder::with_fsm(trades_v3()?.as_slice(), fsm).unwrap_err();
+        assert!(err.to_string().contains(expected), "{err}");
+        Ok(())
+    }
+
+    #[rstest]
+    #[cfg(feature = "zstd")]
+    fn test_v4_decoder_upgrades_tbbo_rtype(#[values(1, 2, 3)] version: u8) -> Result<()> {
+        let mut decoder = crate::decode::dbn::v4::Decoder::with_fsm(
+            DynReader::from_file(format!(
+                "{TEST_DATA_PATH}/test_data.tbbo.v{version}.dbn.zst"
+            ))?,
+            fsm_v4()?,
+        )?;
+        let mut count = 0;
+        while let Some(rec) = decoder.decode_ref()? {
+            assert_eq!(rec.header().rtype, crate::v4::rtype::TBBO);
+            count += 1;
+        }
+        assert!(count > 0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_v4_decoder_upgrades_v3_input() -> Result<()> {
+        let encoded = trades_v3()?;
+        let mut decoder = crate::decode::dbn::v4::Decoder::with_fsm(encoded.as_slice(), fsm_v4()?)?;
+        assert_eq!(decoder.metadata().version, crate::v4::DBN_VERSION);
+        let rec = decoder.decode_ref()?.unwrap();
+        assert_eq!(*rec.try_get::<crate::v4::TradeMsg>()?, trade_v3_upgraded());
+        assert!(decoder.decode_ref()?.is_none());
+        Ok(())
+    }
+
+    fn es_call_v3() -> v3::InstrumentDefMsg {
+        v3::InstrumentDefMsg {
+            hd: RecordHeader::new::<v3::InstrumentDefMsg>(
+                rtype::INSTRUMENT_DEF,
+                1,
+                42_005_804,
+                1_757_970_000_000_000_000,
+            ),
+            ts_recv: 1_757_970_000_000_000_100,
+            min_price_increment: 250_000_000,
+            display_factor: 1_000_000_000,
+            expiration: 1_766_154_600_000_000_000,
+            strike_price: 6_800_000_000_000,
+            raw_instrument_id: 42_005_804,
+            min_lot_size_round_lot: 1,
+            channel_id: 13,
+            currency: str_to_c_chars("USD").unwrap(),
+            raw_symbol: str_to_c_chars("ESZ5 C6800").unwrap(),
+            exchange: str_to_c_chars("XCME").unwrap(),
+            asset: str_to_c_chars("ES").unwrap(),
+            underlying: str_to_c_chars("ESZ5").unwrap(),
+            instrument_class: InstrumentClass::Call as c_char,
+            match_algorithm: MatchAlgorithm::Fifo as c_char,
+            ..Default::default()
+        }
+    }
+
+    fn es_call_v1() -> crate::v1::InstrumentDefMsg {
+        let v3 = es_call_v3();
+        crate::v1::InstrumentDefMsg {
+            hd: v3.hd,
+            ts_recv: v3.ts_recv,
+            min_price_increment: v3.min_price_increment,
+            display_factor: v3.display_factor,
+            expiration: v3.expiration,
+            strike_price: v3.strike_price,
+            raw_instrument_id: 42_005_804,
+            min_lot_size_round_lot: v3.min_lot_size_round_lot,
+            channel_id: v3.channel_id,
+            currency: v3.currency,
+            raw_symbol: str_to_c_chars("ESZ5 C6800").unwrap(),
+            exchange: v3.exchange,
+            asset: str_to_c_chars("ES").unwrap(),
+            underlying: v3.underlying,
+            instrument_class: v3.instrument_class,
+            match_algorithm: v3.match_algorithm,
+            ..Default::default()
+        }
+    }
+
+    fn definitions<R: crate::encode::DbnEncodable>(version: u8, recs: &[R]) -> Vec<u8> {
+        let metadata = MetadataBuilder::new()
+            .version(version)
+            .dataset(Dataset::GlbxMdp3)
+            .schema(Some(Schema::Definition))
+            .start(1_757_970_000_000_000_000)
+            .stype_in(Some(SType::RawSymbol))
+            .stype_out(SType::InstrumentId)
+            .build();
+        let mut encoded = Vec::new();
+        let mut encoder = Encoder::new(&mut encoded, &metadata).unwrap();
+        for rec in recs {
+            encoder.encode_record(rec).unwrap();
+        }
+        encoded
+    }
+
+    #[rstest]
+    #[case::v1(definitions(1, &[es_call_v1()]))]
+    #[case::v3(definitions(3, &[es_call_v3()]))]
+    fn test_v4_decoder_keeps_every_definition_field(#[case] encoded: Vec<u8>) {
+        let mut decoder =
+            crate::decode::dbn::v4::Decoder::with_fsm(encoded.as_slice(), fsm_v4().unwrap())
+                .unwrap();
+        let metadata = decoder.metadata().clone();
+        let index = metadata.layout_index().unwrap();
+        assert_eq!(
+            index.verdict(crate::v4::rtype::INSTRUMENT_DEF),
+            Some(Verdict::Compiled)
+        );
+        let rec = decoder.decode_ref().unwrap().unwrap();
+
+        let def = rec.try_get::<crate::v4::InstrumentDefMsg>().unwrap();
+        assert_eq!(def.hd.instrument_id, 42_005_804);
+        assert_eq!(def.raw_instrument_id, 42_005_804);
+        assert_eq!(def.min_price_increment, 250_000_000);
+        assert_eq!(def.instrument_class, InstrumentClass::Call as c_char);
+        assert_eq!(def.channel_id, 13);
+        assert_eq!(rec.field(&index, fields::RAW_SYMBOL), Some("ESZ5 C6800"));
+        assert_eq!(
+            rec.field(&index, fields::STRIKE_PRICE),
+            Some(Decimal {
+                raw: 6_800_000_000_000,
+                scale: -9
+            })
+        );
+        assert_eq!(
+            rec.field(&index, fields::EXPIRATION),
+            Some(TimestampNs(1_766_154_600_000_000_000))
+        );
+        assert_eq!(rec.field(&index, fields::CURRENCY), Some("USD"));
+        assert_eq!(rec.field(&index, fields::EXCHANGE), Some("XCME"));
+        assert_eq!(rec.field(&index, fields::ASSET), Some("ES"));
+        assert_eq!(rec.field(&index, fields::UNDERLYING), Some("ESZ5"));
+        assert_eq!(rec.field(&index, fields::LEG_COUNT), Some(0));
+        assert_eq!(rec.field(&index, fields::LEG_RAW_SYMBOL), Some(""));
+
+        let mut json = Vec::new();
+        let mut encoder =
+            crate::encode::json::v4::Encoder::new(&mut json, &metadata, false, false, false)
+                .unwrap();
+        encoder.encode_record_ref(rec).unwrap();
+        let json = String::from_utf8(json).unwrap();
+        assert!(json.contains(r#""currency":"USD""#), "{json}");
+        assert!(json.contains(r#""underlying":"ESZ5""#), "{json}");
+    }
+
+    #[test]
+    fn test_v4_decoder_keeps_v3_definition_legs() {
+        let spread_leg = v3::InstrumentDefMsg {
+            hd: RecordHeader::new::<v3::InstrumentDefMsg>(
+                rtype::INSTRUMENT_DEF,
+                1,
+                42_140_878,
+                1_757_970_000_000_000_000,
+            ),
+            raw_instrument_id: 42_140_878,
+            raw_symbol: str_to_c_chars("UD:1V: VT 0915976518").unwrap(),
+            instrument_class: InstrumentClass::OptionSpread as c_char,
+            leg_count: 2,
+            leg_index: 1,
+            leg_instrument_id: 42_005_804,
+            leg_raw_symbol: str_to_c_chars("ESZ5 C6800").unwrap(),
+            leg_instrument_class: InstrumentClass::Call as c_char,
+            leg_side: Side::Ask as c_char,
+            leg_ratio_qty_numerator: 1,
+            leg_ratio_qty_denominator: 1,
+            ..es_call_v3()
+        };
+        let encoded = definitions(3, &[spread_leg]);
+        let mut decoder =
+            crate::decode::dbn::v4::Decoder::with_fsm(encoded.as_slice(), fsm_v4().unwrap())
+                .unwrap();
+        let index = decoder.metadata().layout_index().unwrap();
+        let rec = decoder.decode_ref().unwrap().unwrap();
+
+        assert_eq!(rec.field(&index, fields::LEG_COUNT), Some(2));
+        assert_eq!(rec.field(&index, fields::LEG_INDEX), Some(1));
+        assert_eq!(
+            rec.field(&index, fields::LEG_INSTRUMENT_ID),
+            Some(42_005_804)
+        );
+        assert_eq!(
+            rec.field(&index, fields::LEG_RAW_SYMBOL),
+            Some("ESZ5 C6800")
+        );
+        assert_eq!(
+            rec.field(&index, fields::LEG_SIDE).unwrap().get().unwrap(),
+            Side::Ask
+        );
+    }
+
+    #[test]
+    fn test_v4_decoder_upgrades_v3_ts_out() -> Result<()> {
+        const TS_OUT: u64 = 1_697_240_529_000_000_200;
+        let mut metadata = trades_v3_metadata();
+        metadata.ts_out = true;
+        let mut encoded = Vec::new();
+        Encoder::new(&mut encoded, &metadata)?
+            .encode_record(&WithTsOut::new(trade_v3(), TS_OUT))?;
+        let mut decoder = crate::decode::dbn::v4::Decoder::with_fsm(encoded.as_slice(), fsm_v4()?)?;
+        let index = decoder.metadata().layout_index().unwrap();
+        let rec = decoder.decode_ref()?.unwrap();
+
+        let trade = rec.try_get::<crate::v4::TradeMsg>()?;
+        assert_eq!(trade.price, trade_v4().price);
+        assert_eq!(rec.field(&index, fields::TS_OUT), Some(TimestampNs(TS_OUT)));
+        Ok(())
+    }
+
+    #[test]
+    fn test_v4_record_decoder_upgrades_v3_ts_out_fragment() -> Result<()> {
+        const TS_OUT: u64 = 1_697_240_529_000_000_200;
+        let fsm = DbnFsm::builder()
+            .header::<crate::v4::RecordHeader>()
+            .skip_metadata(true)
+            .input_dbn_version(Some(3))?
+            .ts_out(true)
+            .build()?;
+        let trade = WithTsOut::new(trade_v3(), TS_OUT);
+        let mut decoder = crate::decode::dbn::v4::RecordDecoder::with_fsm(trade.as_ref(), fsm);
+        let rec = decoder.decode_ref()?.unwrap();
+        let index = crate::layout::LayoutIndex::new(
+            &crate::layout::upgrade_layout(true),
+            crate::v4::layouts::default_layout(),
+        );
+
+        assert_eq!(rec.field(&index, fields::TS_OUT), Some(TimestampNs(TS_OUT)));
+        Ok(())
+    }
+
+    #[test]
+    fn test_v4_record_decoder_upgrades_v3_fragment() -> Result<()> {
+        let fsm = DbnFsm::builder()
+            .header::<crate::v4::RecordHeader>()
+            .skip_metadata(true)
+            .input_dbn_version(Some(3))?
+            .build()?;
+        let trade = trade_v3();
+        let mut decoder = crate::decode::dbn::v4::RecordDecoder::with_fsm(trade.as_ref(), fsm);
+        let rec = decoder.decode_ref()?.unwrap();
+        assert_eq!(*rec.try_get::<crate::v4::TradeMsg>()?, trade_v3_upgraded());
+        assert!(decoder.decode_ref()?.is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn test_v4_record_decoder_decode() -> Result<()> {
+        let mut encoded = Vec::new();
+        crate::encode::dbn::v4::RecordEncoder::new(&mut encoded).encode(&trade_v4())?;
+        let fsm = DbnFsm::builder()
+            .header::<crate::v4::RecordHeader>()
+            .skip_metadata(true)
+            .input_dbn_version(Some(crate::v4::DBN_VERSION))?
+            .build()?;
+        let mut decoder = crate::decode::dbn::v4::RecordDecoder::with_fsm(encoded.as_slice(), fsm);
+        assert_eq!(
+            *decoder.decode::<crate::v4::TradeMsg>()?.unwrap(),
+            trade_v4()
+        );
+        assert!(decoder.decode::<crate::v4::TradeMsg>()?.is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn test_v4_decoder_keeps_body_without_a_layout() -> Result<()> {
+        #[repr(C)]
+        struct ClockMsg {
+            hd: RecordHeader,
+            ts_now: u64,
+            ts_delta: i64,
+            channel_id: u16,
+            _reserved: [u8; 6],
+        }
+        let clock = ClockMsg {
+            hd: RecordHeader {
+                length: (size_of::<ClockMsg>() / RecordHeader::LENGTH_MULTIPLIER) as u8,
+                rtype: 0xAD,
+                publisher_id: 1,
+                instrument_id: 5482,
+                ts_event: 1_697_240_529_000_000_000,
+            },
+            ts_now: 1_697_240_529_000_000_250,
+            ts_delta: 250,
+            channel_id: 3,
+            _reserved: [0; 6],
+        };
+        // SAFETY: `ClockMsg` is a `repr(C)` record of plain data
+        let clock_bytes = unsafe {
+            std::slice::from_raw_parts((&raw const clock).cast::<u8>(), size_of::<ClockMsg>())
+        };
+        let mut encoded = Vec::new();
+        Encoder::new(&mut encoded, &trades_v3_metadata())?
+            .encode_record_ref(unsafe { RecordRef::new(clock_bytes) })?;
+
+        let mut decoder = crate::decode::dbn::v4::Decoder::with_fsm(encoded.as_slice(), fsm_v4()?)?;
+        let rec = decoder.decode_ref()?.unwrap();
+        let hd = rec.header();
+        assert_eq!(
+            (hd.rtype, hd.publisher_id, hd.instrument_id, hd.ts_event),
+            (0xAD, 1, 5482, 1_697_240_529_000_000_000)
+        );
+        let header_len = size_of::<crate::v4::RecordHeader>();
+        assert_eq!(
+            rec.record_size(),
+            header_len + size_of::<ClockMsg>() - size_of::<RecordHeader>()
+        );
+        assert_eq!(
+            rec.as_ref()[header_len..],
+            clock_bytes[size_of::<RecordHeader>()..]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_v4_decoder_defaults_to_upgrade_to_v4() -> Result<()> {
+        assert_eq!(
+            fsm_v4()?.upgrade_policy(),
+            VersionUpgradePolicy::UpgradeToV4
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_v4_decoder_refuses_missing_layout() -> Result<()> {
+        let without_layout = replace_layout(&trades_v4()?, &[]);
+        let err = crate::decode::dbn::v4::Decoder::with_fsm(without_layout.as_slice(), fsm_v4()?)
+            .unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("a DBN version 4 stream must carry a stream layout"),
+            "{err}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_v4_decoder_refuses_layout_missing_required_field() -> Result<()> {
+        let mut layout = crate::v4::layouts::default_layout().clone();
+        let definition = layout
+            .record_layouts
+            .iter_mut()
+            .find(|rec| rec.rtype == crate::v4::rtype::INSTRUMENT_DEF)
+            .unwrap();
+        // Blank out `raw_symbol`, leaving the byte coverage intact
+        let raw_symbol = definition
+            .field_defs
+            .iter_mut()
+            .find(|f| f.field_id == crate::v4::fields::RAW_SYMBOL.id())
+            .unwrap();
+        raw_symbol.field_id = crate::v4::fields::PADDING;
+        raw_symbol.type_id = crate::v4::fields::PADDING_ID;
+        definition.layout_hash = definition.layout_hash(&layout.struct_layouts);
+        let mut layout_bytes = Vec::new();
+        crate::layout::wire::encode(&mut layout_bytes, &layout)?;
+
+        let invalid = replace_layout(&trades_v4()?, &layout_bytes);
+        let err =
+            crate::decode::dbn::v4::Decoder::with_fsm(invalid.as_slice(), fsm_v4()?).unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("missing required field `raw_symbol`"),
+            "{err}"
+        );
         Ok(())
     }
 

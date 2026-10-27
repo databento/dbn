@@ -4,10 +4,10 @@ use dbn::{
     decode::{DbnMetadata, DecodeRecordRef},
     encode::{
         json, DbnEncodable, DbnRecordEncoder, DynEncoder, DynWriter, EncodeDbn, EncodeRecord,
-        EncodeRecordRef, EncodeRecordTextExt, NoSchemaBehavior, SchemaSplitter, SplitEncoder,
-        Splitter, SymbolSplitter, TimeSplitter,
+        EncodeRecordRef, EncodeRecordTextExt, NoSchemaBehavior, OutputEncoding, SchemaSplitter,
+        SplitEncoder, Splitter, SymbolSplitter, TimeSplitter,
     },
-    rtype_dispatch, Compression, Encoding, Metadata, MetadataBuilder, SType, Schema, SymbolIndex,
+    rtype_dispatch, Compression, Metadata, MetadataBuilder, SType, Schema, SymbolIndex,
     TsSymbolMap,
 };
 
@@ -36,7 +36,7 @@ where
         compression,
     } = infer_encoding(args)?;
     if args.should_output_metadata {
-        if encoding != Encoding::Json {
+        if encoding != OutputEncoding::Json {
             return Err(anyhow::format_err!(
                 "Metadata flag is only valid with JSON encoding"
             ));
@@ -70,9 +70,12 @@ where
         } else {
             encoder.encode_decoded(decoder)?;
         }
+        encoder.finish()?;
     }
     Ok(())
 }
+
+type CliEncoder = DynEncoder<'static, Box<dyn io::Write + Send>>;
 
 pub fn split_encode_from_dbn<D>(
     args: &Args,
@@ -125,7 +128,7 @@ where
     }
 }
 
-fn split_by_encode<D, E, F>(
+fn split_by_encode<D, F>(
     decoder: D,
     split_by: SplitBy,
     output_pattern: &str,
@@ -134,8 +137,7 @@ fn split_by_encode<D, E, F>(
 ) -> anyhow::Result<()>
 where
     D: DecodeRecordRef + DbnMetadata,
-    E: EncodeRecordTextExt,
-    F: Fn(&str, Option<Metadata>) -> dbn::Result<E>,
+    F: Fn(&str, Option<Metadata>) -> dbn::Result<CliEncoder>,
 {
     let symbol_map = decoder.metadata().symbol_map()?;
     match split_by {
@@ -227,7 +229,7 @@ where
     }
 }
 
-fn split_encode_impl<D, S, E>(
+fn split_encode_impl<D, S>(
     mut decoder: D,
     map_symbols: bool,
     splitter: S,
@@ -235,8 +237,7 @@ fn split_encode_impl<D, S, E>(
 ) -> anyhow::Result<()>
 where
     D: DecodeRecordRef + DbnMetadata,
-    S: Splitter<E>,
-    E: EncodeRecordTextExt,
+    S: Splitter<CliEncoder>,
 {
     let mut encoder = SplitEncoder::with_metadata(splitter, decoder.metadata().clone());
     if map_symbols {
@@ -256,6 +257,7 @@ where
     } else {
         encoder.encode_decoded(decoder)?;
     }
+    encoder.finish()?;
     Ok(())
 }
 
@@ -288,6 +290,7 @@ where
         encode_fragment(decoder, writer, compression)?;
         return Ok(());
     }
+    check_frag_encoding(encoding)?;
     assert!(!args.should_output_metadata);
 
     let mut encoder = DynEncoder::builder(
@@ -302,10 +305,10 @@ where
     .write_header(false)
     .all_pretty(args.should_pretty_print)
     .build()?;
-    let mut has_written_header = (encoding != Encoding::Csv) || !args.write_header;
+    let mut has_written_header = (encoding != OutputEncoding::Csv) || !args.write_header;
     fn write_header<T: DbnEncodable>(
         _record: &T,
-        encoder: &mut DynEncoder<Box<dyn io::Write>>,
+        encoder: &mut DynEncoder<Box<dyn io::Write + Send>>,
     ) -> dbn::Result<()> {
         encoder.encode_header::<T>(false)
     }
@@ -315,6 +318,18 @@ where
             has_written_header = true;
         }
         encoder.encode_record_ref(record)?;
+    }
+    encoder.finish()?;
+    Ok(())
+}
+
+/// Parquet and Arrow fix their columns from the metadata's schema, which fragments
+/// lack.
+fn check_frag_encoding(encoding: OutputEncoding) -> anyhow::Result<()> {
+    if matches!(encoding, OutputEncoding::Parquet | OutputEncoding::Arrow) {
+        return Err(anyhow::anyhow!(
+            "Parquet and Arrow output requires DBN metadata and isn't supported for fragment input"
+        ));
     }
     Ok(())
 }
@@ -331,7 +346,7 @@ fn dummy_metadata() -> Metadata {
 
 fn encode_fragment<D: DecodeRecordRef>(
     mut decoder: D,
-    writer: Box<dyn io::Write>,
+    writer: Box<dyn io::Write + Send>,
     compression: Compression,
 ) -> dbn::Result<()> {
     let mut encoder = DbnRecordEncoder::new(DynWriter::new(writer, compression)?);
@@ -365,6 +380,9 @@ where
         delimiter,
         is_fragment,
     } = infer_encoding(args)?;
+    if !is_fragment {
+        check_frag_encoding(encoding)?;
+    }
     let open_output = |path: &str| {
         crate::output(Some(Path::new(path)), args.force)
             .map_err(|e| dbn::Error::io(io::Error::other(e), format!("opening output file {path}")))

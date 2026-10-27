@@ -138,13 +138,7 @@ pub fn str_to_c_chars<const N: usize>(s: &str) -> Result<[c_char; N]> {
     Ok(res)
 }
 
-/// Tries to convert a slice of `c_char`s to a UTF-8 `str`.
-///
-/// # Safety
-/// This should always be safe.
-///
-/// # Preconditions
-/// None.
+/// Tries to convert a fixed-length array of `c_char`s to a UTF-8 `str`.
 ///
 /// # Errors
 /// This function returns an error if `chars` contains invalid UTF-8 or is not null-terminated.

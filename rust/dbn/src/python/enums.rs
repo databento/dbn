@@ -1425,6 +1425,8 @@ impl VersionUpgradePolicy {
             Self::AsIs => "AS_IS",
             Self::UpgradeToV2 => "UPGRADE_TO_V2",
             Self::UpgradeToV3 => "UPGRADE_TO_V3",
+            Self::UpgradeToV4 => "UPGRADE_TO_V4",
+            Self::ExpectV4 => "EXPECT_V4",
         }
     }
 

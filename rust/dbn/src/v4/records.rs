@@ -3,7 +3,7 @@
 use std::os::raw::c_char;
 
 use crate::{
-    macros::{dbn_record, DbnAttr, RecordLayoutDesc},
+    macros::{dbn_record, DbnAttr},
     BidAskPair, ConsolidatedBidAskPair, FlagSet,
 };
 
@@ -12,7 +12,7 @@ use super::{rtype, RecordHeader};
 /// A market-by-order (MBO) tick message. The record of the [`Mbo`](crate::Schema::Mbo)
 /// schema.
 #[repr(C)]
-#[derive(Clone, DbnAttr, RecordLayoutDesc, PartialEq, Eq, Hash)]
+#[derive(Clone, DbnAttr, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[dbn_record(rtype::MBO)]
 pub struct MboMsg {
@@ -65,7 +65,7 @@ const _: () = assert!(std::mem::size_of::<MboMsg>() == 64);
 
 /// Market-by-price implementation with a book depth of 0. Equivalent to MBP-0. The record of the [`Trades`](crate::Schema::Trades) schema.
 #[repr(C)]
-#[derive(Clone, DbnAttr, RecordLayoutDesc, PartialEq, Eq, Hash)]
+#[derive(Clone, DbnAttr, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[dbn_record(rtype::MBP_0)]
 pub struct TradeMsg {
@@ -114,7 +114,7 @@ const _: () = assert!(std::mem::size_of::<TradeMsg>() == 56);
 /// Market-by-price implementation with a known book depth of 1. The record of the
 /// [`Mbp1`](crate::Schema::Mbp1) and [`Tbbo`](crate::Schema::Tbbo) schemas.
 #[repr(C)]
-#[derive(Clone, DbnAttr, RecordLayoutDesc, PartialEq, Eq, Hash)]
+#[derive(Clone, DbnAttr, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[dbn_record(rtype::MBP_1, rtype::TBBO)]
 pub struct Mbp1Msg {
@@ -168,7 +168,7 @@ const _: () = assert!(std::mem::size_of::<Mbp1Msg>() == 88);
 /// Market-by-price implementation with a known book depth of 10. The record of the
 /// [`Mbp10`](crate::Schema::Mbp10) schema.
 #[repr(C)]
-#[derive(Clone, DbnAttr, RecordLayoutDesc, PartialEq, Eq, Hash)]
+#[derive(Clone, DbnAttr, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[dbn_record(rtype::MBP_10)]
 pub struct Mbp10Msg {
@@ -222,7 +222,7 @@ const _: () = assert!(std::mem::size_of::<Mbp10Msg>() == 376);
 /// Subsampled market by price with a known book depth of 1. The record of the
 /// [`Bbo1S`](crate::Schema::Bbo1S) and [`Bbo1M`](crate::Schema::Bbo1M) schemas.
 #[repr(C)]
-#[derive(Clone, DbnAttr, RecordLayoutDesc, PartialEq, Eq, Hash)]
+#[derive(Clone, DbnAttr, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[dbn_record(rtype::BBO_1S, rtype::BBO_1M)]
 pub struct BboMsg {
@@ -271,7 +271,7 @@ const _: () = assert!(std::mem::size_of::<BboMsg>() == 88);
 /// Consolidated market-by-price implementation with a known book depth of 1. The record of
 /// the [`Cmbp1`](crate::Schema::Cmbp1) schema.
 #[repr(C)]
-#[derive(Clone, DbnAttr, RecordLayoutDesc, PartialEq, Eq, Hash)]
+#[derive(Clone, DbnAttr, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[dbn_record(rtype::CMBP_1, rtype::TCBBO)]
 pub struct Cmbp1Msg {
@@ -323,7 +323,7 @@ const _: () = assert!(std::mem::size_of::<Cmbp1Msg>() == 88);
 
 /// Subsampled consolidated market by price with a known book depth of 1. The record of the [`Cbbo1S`](crate::Schema::Cbbo1S) and [`Cbbo1M`](crate::Schema::Cbbo1M) schemas.
 #[repr(C)]
-#[derive(Clone, DbnAttr, RecordLayoutDesc, PartialEq, Eq, Hash)]
+#[derive(Clone, DbnAttr, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[dbn_record(rtype::CBBO_1S, rtype::CBBO_1M)]
 pub struct CbboMsg {
@@ -392,15 +392,14 @@ pub type Cbbo1MMsg = CbboMsg;
 /// - [`Ohlcv1D`](crate::enums::Schema::Ohlcv1D)
 /// - [`OhlcvEod`](crate::enums::Schema::OhlcvEod)
 #[repr(C)]
-#[derive(Clone, DbnAttr, RecordLayoutDesc, PartialEq, Eq, Hash)]
+#[derive(Clone, DbnAttr, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[dbn_record(
     rtype::OHLCV_1S,
     rtype::OHLCV_1M,
     rtype::OHLCV_1H,
     rtype::OHLCV_1D,
-    rtype::OHLCV_EOD,
-    rtype::OHLCV_DEPRECATED
+    rtype::OHLCV_EOD
 )]
 pub struct OhlcvMsg {
     /// The common header.
@@ -437,7 +436,7 @@ const _: () = assert!(std::mem::size_of::<OhlcvMsg>() == 64);
 
 /// A trading status update message. The record of the [`Status`](crate::Schema::Status) schema.
 #[repr(C)]
-#[derive(Clone, DbnAttr, RecordLayoutDesc, PartialEq, Eq, Hash)]
+#[derive(Clone, DbnAttr, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[dbn_record(rtype::STATUS)]
 pub struct StatusMsg {
@@ -476,10 +475,9 @@ const _: () = assert!(std::mem::size_of::<StatusMsg>() == 48);
 /// A definition of an instrument. The record of the
 /// [`Definition`](crate::Schema::Definition) schema.
 #[repr(C)]
-#[derive(Clone, DbnAttr, RecordLayoutDesc, PartialEq, Eq, Hash)]
+#[derive(Clone, DbnAttr, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
-#[dbn_record(rtype::INSTRUMENT_DEF)]
-#[dbn(required(raw_symbol))]
+#[dbn_record(rtype::INSTRUMENT_DEF, required(raw_symbol = 2))]
 pub struct InstrumentDefMsg {
     /// The common header.
     pub hd: RecordHeader,
@@ -493,33 +491,33 @@ pub struct InstrumentDefMsg {
     /// 1/1,000,000,000 or 0.000000001.
     ///
     /// See [Prices](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#prices).
-    #[dbn(encode_order(4), fixed_price)]
+    #[dbn(encode_order(5), fixed_price)]
     pub min_price_increment: i64,
     /// The multiplier to convert the venue's display price to the conventional price where every
     /// 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
-    #[dbn(encode_order(5), fixed_price)]
+    #[dbn(encode_order(6), fixed_price)]
     pub display_factor: i64,
     /// The instrument ID assigned by the publisher. May be the same as `instrument_id`.
     ///
     /// See [Instrument identifiers](https://databento.com/docs/standards-and-conventions/common-fields-enums-types#instrument-identifiers)
-    #[dbn(encode_order(8))]
+    #[dbn(encode_order(7))]
     pub raw_instrument_id: u64,
     /// The minimum quantity required for a round lot of the instrument. Multiples of this
     /// quantity are also round lots.
-    #[dbn(encode_order(6))]
+    #[dbn(encode_order(8))]
     pub min_lot_size_round_lot: i32,
     /// Indicates if the instrument definition has been added, modified, or deleted.
-    #[dbn(c_char, encode_order(2))]
+    #[dbn(c_char, encode_order(3))]
     pub security_update_action: c_char,
     /// The classification of the instrument.
     ///
     /// See [Instrument class](https://databento.com/docs/schemas-and-data-formats/instrument-definitions#instrument-class).
-    #[dbn(c_char, encode_order(3))]
+    #[dbn(c_char, encode_order(4))]
     pub instrument_class: c_char,
     /// The matching algorithm used for the instrument, typically **F**IFO.
     ///
     /// See [Matching algorithm](https://databento.com/docs/schemas-and-data-formats/instrument-definitions#matching-algorithm).
-    #[dbn(c_char, encode_order(7))]
+    #[dbn(c_char, encode_order(10))]
     pub match_algorithm: c_char,
     /// The channel ID assigned by Databento as an incrementing integer starting at zero.
     #[dbn(encode_order(9))]
@@ -530,7 +528,7 @@ const _: () = assert!(std::mem::size_of::<InstrumentDefMsg>() == 64);
 
 /// An auction imbalance message.
 #[repr(C)]
-#[derive(Clone, DbnAttr, RecordLayoutDesc, PartialEq, Eq, Hash)]
+#[derive(Clone, DbnAttr, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[dbn_record(rtype::IMBALANCE)]
 pub struct ImbalanceMsg {
@@ -588,7 +586,7 @@ const _: () = assert!(std::mem::size_of::<ImbalanceMsg>() == 72);
 /// A statistics message. A catchall for various data disseminated by publishers. The
 /// [`stat_type`](Self::stat_type) indicates the statistic contained in the message.
 #[repr(C)]
-#[derive(Clone, DbnAttr, RecordLayoutDesc, PartialEq, Eq, Hash)]
+#[derive(Clone, DbnAttr, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[dbn_record(rtype::STATISTICS)]
 pub struct StatMsg {
@@ -643,7 +641,7 @@ const _: () = assert!(std::mem::size_of::<StatMsg>() == 72);
 
 /// An error message from the Databento Live Subscription Gateway (LSG).
 #[repr(C)]
-#[derive(Clone, DbnAttr, RecordLayoutDesc, PartialEq, Eq, Hash)]
+#[derive(Clone, DbnAttr, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[dbn_record(rtype::ERROR)]
 pub struct ErrorMsg {
@@ -664,7 +662,7 @@ pub struct ErrorMsg {
     #[doc(hidden)]
     pub _reserved: [u8; 2],
     /// The error message.
-    #[dbn(fmt_method)]
+    #[dbn(encode_order(1), fmt_method)]
     pub err: [c_char; 302],
 }
 
@@ -673,10 +671,12 @@ const _: () = assert!(std::mem::size_of::<ErrorMsg>() == 336);
 /// A symbol mapping message from the live API which maps a symbol from one
 /// [`SType`](crate::enums::SType) to another.
 #[repr(C)]
-#[derive(Clone, DbnAttr, RecordLayoutDesc, PartialEq, Eq, Hash)]
+#[derive(Clone, DbnAttr, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
-#[dbn_record(rtype::SYMBOL_MAPPING)]
-#[dbn(required(stype_in_symbol, stype_out_symbol))]
+#[dbn_record(
+    rtype::SYMBOL_MAPPING,
+    required(stype_in_symbol = 2, stype_out_symbol = 4)
+)]
 pub struct SymbolMappingMsg {
     /// The common header.
     pub hd: RecordHeader,
@@ -689,10 +689,10 @@ pub struct SymbolMappingMsg {
     #[dbn(unix_nanos)]
     pub end_ts: u64,
     /// The input symbology type of `stype_in_symbol`.
-    #[dbn(fmt_method)]
+    #[dbn(encode_order(1), fmt_method)]
     pub stype_in: u8,
     /// The output symbology type of `stype_out_symbol`. Will always be [`RawSymbol`](crate::SType::RawSymbol).
-    #[dbn(fmt_method)]
+    #[dbn(encode_order(3), fmt_method)]
     pub stype_out: u8,
     #[doc(hidden)]
     pub _reserved: [u8; 6],
@@ -703,7 +703,7 @@ const _: () = assert!(std::mem::size_of::<SymbolMappingMsg>() == 48);
 /// A non-error message from the Databento Live Subscription Gateway (LSG). Also used
 /// for heartbeating.
 #[repr(C)]
-#[derive(Clone, DbnAttr, RecordLayoutDesc, PartialEq, Eq, Hash)]
+#[derive(Clone, DbnAttr, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "trivial_copy", derive(Copy))]
 #[dbn_record(rtype::SYSTEM)]
 pub struct SystemMsg {
@@ -721,7 +721,7 @@ pub struct SystemMsg {
     #[doc(hidden)]
     pub _reserved: [u8; 2],
     /// The message from the Databento gateway.
-    #[dbn(fmt_method)]
+    #[dbn(encode_order(1), fmt_method)]
     pub msg: [c_char; 303],
 }
 

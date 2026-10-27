@@ -133,29 +133,67 @@ impl VersionUpgradePolicy {
     /// This function returns an error if the version and upgrade policy are
     /// incompatible.
     pub fn validate_compatibility(self, version: u8) -> crate::Result<()> {
-        if version > 2 && self == Self::UpgradeToV2 {
-            Err(crate::Error::decode("Invalid combination of `VersionUpgradePolicy::UpgradeToV2` and input version 3. Choose either `AsIs` and `UpgradeToV3` as an upgrade policy"))
-        } else {
-            Ok(())
+        match self.target_version() {
+            Some(target) if self == Self::ExpectV4 && version < target => {
+                Err(crate::Error::decode(format!(
+                    "`VersionUpgradePolicy::ExpectV4` requires DBN version {target} input, got version {version}. Choose `UpgradeToV4` to convert it"
+                )))
+            }
+            Some(target) if version > target => Err(crate::Error::decode(format!(
+                "Invalid combination of `VersionUpgradePolicy::{self:?}` and input version {version}. Choose either `AsIs` or a newer upgrade policy"
+            ))),
+            _ => Ok(()),
+        }
+    }
+
+    pub(crate) fn target_version(self) -> Option<u8> {
+        match self {
+            Self::AsIs => None,
+            Self::UpgradeToV2 => Some(2),
+            Self::UpgradeToV3 => Some(3),
+            Self::UpgradeToV4 | Self::ExpectV4 => Some(crate::v4::DBN_VERSION),
         }
     }
 
     pub(crate) fn is_upgrade_situation(self, version: u8) -> bool {
-        match (self, version) {
-            (Self::AsIs, _) => false,
-            (Self::UpgradeToV2, v) if v < 2 => true,
-            (Self::UpgradeToV2, _) => false,
-            (Self::UpgradeToV3, v) if v < 3 => true,
-            (Self::UpgradeToV3, _) => false,
-        }
+        self != Self::ExpectV4 && self.target_version().is_some_and(|target| version < target)
     }
 
     /// Returns the output DBN version given the input version and upgrade policy.
     pub fn output_version(self, input_version: u8) -> u8 {
-        match self {
-            Self::AsIs => input_version,
-            Self::UpgradeToV2 => 2,
-            Self::UpgradeToV3 => 3,
-        }
+        self.target_version().unwrap_or(input_version)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rstest::*;
+
+    use crate::VersionUpgradePolicy;
+
+    #[rstest]
+    fn upgrade_to_v4_targets_v4(#[values(1, 2, 3)] input_version: u8) {
+        let policy = VersionUpgradePolicy::UpgradeToV4;
+        assert_eq!(policy.output_version(input_version), crate::v4::DBN_VERSION);
+        assert!(policy.is_upgrade_situation(input_version));
+        assert!(policy.validate_compatibility(input_version).is_ok());
+    }
+
+    #[rstest]
+    fn expect_v4_accepts_only_v4(#[values(1, 2, 3, 4)] input_version: u8) {
+        let policy = VersionUpgradePolicy::ExpectV4;
+        assert_eq!(
+            policy.validate_compatibility(input_version).is_ok(),
+            input_version == crate::v4::DBN_VERSION
+        );
+        assert!(!policy.is_upgrade_situation(input_version));
+        assert_eq!(policy.output_version(input_version), crate::v4::DBN_VERSION);
+    }
+
+    #[test]
+    fn upgrade_to_v3_rejects_v4() {
+        assert!(VersionUpgradePolicy::UpgradeToV3
+            .validate_compatibility(crate::v4::DBN_VERSION)
+            .is_err());
     }
 }

@@ -1,9 +1,12 @@
 //! Contains [`Metadata`] struct which comes at the beginning of any DBN file or
 //! stream and [`MetadataBuilder`] for creating a [`Metadata`] with defaults.
 
+mod lengths;
 mod merge;
 
 use std::num::NonZeroU64;
+
+pub(crate) use lengths::MetadataLengths;
 
 // Dummy derive macro to get around `cfg_attr` incompatibility of several
 // of pyo3's attribute macros. See https://github.com/PyO3/pyo3/issues/780
@@ -15,8 +18,10 @@ use merge::MetadataMerger;
 use serde::Deserialize;
 
 use crate::{
-    compat::version_symbol_cstr_len, layout::StreamLayout, record::as_u8_slice, PitSymbolMap,
-    SType, Schema, TsSymbolMap, VersionUpgradePolicy,
+    compat::version_symbol_cstr_len,
+    layout::{LayoutIndex, StreamLayout},
+    record::as_u8_slice,
+    PitSymbolMap, SType, Schema, TsSymbolMap, VersionUpgradePolicy,
 };
 
 /// Information about the data contained in a DBN file or stream. DBN requires the
@@ -59,6 +64,9 @@ pub struct Metadata {
     pub stype_out: SType,
     /// `true` if this store contains live data with send timestamps appended to each
     /// record.
+    ///
+    /// In version 4, this field is superseded by whether `layout` specifies a `ts_out`
+    /// extension field.
     #[pyo3(get)]
     pub ts_out: bool,
     /// The length in bytes of fixed-length symbol strings, including a null terminator
@@ -86,6 +94,14 @@ impl Metadata {
     /// required fields. Finally call `.build()` to create the `Metadata` instance.
     pub fn builder() -> MetadataBuilder<Unset, Unset, Unset, Unset, Unset> {
         MetadataBuilder::default()
+    }
+
+    /// An index over this stream's layout, for resolving fields the compiled structs
+    /// don't hold. `None` for DBN versions 1-3, which carry no layout.
+    pub fn layout_index(&self) -> Option<LayoutIndex> {
+        self.layout
+            .as_ref()
+            .map(|layout| LayoutIndex::new(layout, crate::v4::layouts::default_layout()))
     }
 
     /// Parses the raw query start into a datetime.
@@ -131,23 +147,18 @@ impl Metadata {
 
     /// Upgrades the metadata according to `upgrade_policy` if necessary.
     pub fn upgrade(&mut self, upgrade_policy: VersionUpgradePolicy) {
+        let target = if upgrade_policy.is_upgrade_situation(self.version) {
+            upgrade_policy.output_version(self.version)
+        } else {
+            self.version
+        };
         if self.version < 2 {
-            match upgrade_policy {
-                VersionUpgradePolicy::AsIs => {
-                    self.symbol_cstr_len = crate::v1::SYMBOL_CSTR_LEN;
-                }
-                VersionUpgradePolicy::UpgradeToV2 => {
-                    self.version = 2;
-                    self.symbol_cstr_len = crate::v2::SYMBOL_CSTR_LEN;
-                }
-                VersionUpgradePolicy::UpgradeToV3 => {
-                    self.version = 3;
-                    self.symbol_cstr_len = crate::v3::SYMBOL_CSTR_LEN;
-                }
-            }
-        } else if self.version == 2 && upgrade_policy == VersionUpgradePolicy::UpgradeToV3 {
-            self.version = 3;
+            self.symbol_cstr_len = version_symbol_cstr_len(target);
         }
+        if target > self.version && target >= crate::v4::DBN_VERSION && self.layout.is_none() {
+            self.layout = Some(crate::layout::upgrade_layout(self.ts_out));
+        }
+        self.version = target;
     }
 
     /// Attempts to merge another metadata into this one. This is useful for merging
@@ -218,6 +229,7 @@ pub struct MetadataBuilder<D, Sch, Start, StIn, StOut> {
     stype_in: StIn,
     stype_out: StOut,
     ts_out: bool,
+    layout: Option<StreamLayout>,
     symbols: Vec<String>,
     partial: Vec<String>,
     not_found: Vec<String>,
@@ -262,6 +274,7 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
             stype_in: self.stype_in,
             stype_out: self.stype_out,
             ts_out: self.ts_out,
+            layout: self.layout,
             symbols: self.symbols,
             partial: self.partial,
             not_found: self.not_found,
@@ -284,6 +297,7 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
             stype_in: self.stype_in,
             stype_out: self.stype_out,
             ts_out: self.ts_out,
+            layout: self.layout,
             symbols: self.symbols,
             partial: self.partial,
             not_found: self.not_found,
@@ -302,6 +316,7 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
             limit: self.limit,
             stype_in: self.stype_in,
             stype_out: self.stype_out,
+            layout: self.layout,
             symbols: self.symbols,
             ts_out: self.ts_out,
             partial: self.partial,
@@ -337,6 +352,7 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
             stype_in,
             stype_out: self.stype_out,
             ts_out: self.ts_out,
+            layout: self.layout,
             symbols: self.symbols,
             partial: self.partial,
             not_found: self.not_found,
@@ -356,6 +372,7 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
             stype_in: self.stype_in,
             stype_out,
             ts_out: self.ts_out,
+            layout: self.layout,
             symbols: self.symbols,
             partial: self.partial,
             not_found: self.not_found,
@@ -366,6 +383,12 @@ impl<D, Sch, Start, StIn, StOut> MetadataBuilder<D, Sch, Start, StIn, StOut> {
     /// Sets [`ts_out`](Metadata::ts_out) and returns the builder.
     pub fn ts_out(mut self, ts_out: bool) -> Self {
         self.ts_out = ts_out;
+        self
+    }
+
+    /// Sets the [`layout`](Metadata::layout) and returns the builder.
+    pub fn layout(mut self, layout: StreamLayout) -> Self {
+        self.layout = Some(layout);
         self
     }
 
@@ -413,7 +436,9 @@ impl MetadataBuilder<String, Option<Schema>, u64, Option<SType>, SType> {
             not_found: self.not_found,
             mappings: self.mappings,
             symbol_cstr_len: version_symbol_cstr_len(self.version),
-            layout: None,
+            // TODO(cg): look at making this method fallible and validating v4 metadata
+            // has non-None `layout`. Currently validated in `MetadataEncoder`
+            layout: self.layout,
         }
     }
 }
@@ -430,6 +455,7 @@ impl Default for MetadataBuilder<Unset, Unset, Unset, Unset, Unset> {
             stype_in: Unset {},
             stype_out: Unset {},
             ts_out: false,
+            layout: None,
             symbols: vec![],
             partial: vec![],
             not_found: vec![],
@@ -474,6 +500,13 @@ pub struct MappingInterval {
 pub const DATE_FORMAT: &[time::format_description::BorrowedFormatItem<'static>] =
     time::macros::format_description!("[year]-[month]-[day]");
 
+/// Encodes `date` as a `YYYYMMDD` integer, the form used in DBN metadata
+/// symbol-mapping intervals (see [`MappingInterval`]) and in the JSON/parquet
+/// metadata representations.
+pub(crate) fn date_to_yyyymmdd(date: time::Date) -> u32 {
+    date.year() as u32 * 10_000 + date.month() as u32 * 100 + date.day() as u32
+}
+
 #[cfg(feature = "serde")]
 fn deserialize_date<'de, D: serde::Deserializer<'de>>(
     deserializer: D,
@@ -490,24 +523,43 @@ mod tests {
 
     use super::*;
 
-    #[rstest]
-    #[case(VersionUpgradePolicy::AsIs, 1)]
-    #[case(VersionUpgradePolicy::UpgradeToV2, 2)]
-    #[case(VersionUpgradePolicy::UpgradeToV3, 3)]
-    fn test_upgrade_metadata(
-        #[case] upgrade_policy: VersionUpgradePolicy,
-        #[case] exp_version: u8,
-    ) {
-        let mut target = Metadata::builder()
+    fn v1_metadata() -> Metadata {
+        Metadata::builder()
             .version(1)
             .dataset(Dataset::OpraPillar)
             .schema(Some(Schema::Mbp1))
             .start(0)
             .stype_in(None)
             .stype_out(SType::InstrumentId)
-            .build();
+            .build()
+    }
+
+    #[rstest]
+    #[case(VersionUpgradePolicy::AsIs, 1)]
+    #[case(VersionUpgradePolicy::UpgradeToV2, 2)]
+    #[case(VersionUpgradePolicy::UpgradeToV3, 3)]
+    #[case(VersionUpgradePolicy::UpgradeToV4, 4)]
+    #[case(VersionUpgradePolicy::ExpectV4, 1)]
+    fn test_upgrade_metadata(
+        #[case] upgrade_policy: VersionUpgradePolicy,
+        #[case] exp_version: u8,
+    ) {
+        let mut target = v1_metadata();
         assert_eq!(target.version, 1);
         target.upgrade(upgrade_policy);
         assert_eq!(target.version, exp_version);
+    }
+
+    #[test]
+    fn test_upgrade_to_v4_attaches_the_upgrade_layout() {
+        let mut target = v1_metadata();
+        assert!(target.layout.is_none());
+
+        target.upgrade(VersionUpgradePolicy::UpgradeToV4);
+        assert_eq!(
+            target.layout.as_ref(),
+            Some(&crate::layout::upgrade_layout(false))
+        );
+        assert_eq!(target.symbol_cstr_len, crate::v3::SYMBOL_CSTR_LEN);
     }
 }

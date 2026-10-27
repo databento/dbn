@@ -118,7 +118,7 @@ impl BboMsg {
     /// Creates a new default `BboMsg` for the given `schema`.
     pub fn default_for_schema(schema: Schema) -> Self {
         Self {
-            hd: RecordHeader::default::<Self>(RType::from(schema) as u8),
+            hd: RecordHeader::default::<Self>(RType::from(schema) as _),
             price: UNDEF_PRICE,
             size: 0,
             _reserved1: 0,
@@ -137,7 +137,7 @@ impl Cmbp1Msg {
     /// Creates a new default `Cmbp1Msg` for the given `schema`.
     pub fn default_for_schema(schema: Schema) -> Self {
         Self {
-            hd: RecordHeader::default::<Self>(RType::from(schema) as u8),
+            hd: RecordHeader::default::<Self>(RType::from(schema) as _),
             price: UNDEF_PRICE,
             size: 0,
             action: Action::default() as c_char,
@@ -156,7 +156,7 @@ impl CbboMsg {
     /// Creates a new default `CbboMsg` for the given `schema`.
     pub fn default_for_schema(schema: Schema) -> Self {
         Self {
-            hd: RecordHeader::default::<Self>(RType::from(schema) as u8),
+            hd: RecordHeader::default::<Self>(RType::from(schema) as _),
             price: UNDEF_PRICE,
             size: 0,
             _reserved1: 0,
@@ -174,7 +174,7 @@ impl OhlcvMsg {
     /// Creates a new default `OhlcvMsg` for the given `schema`.
     pub fn default_for_schema(schema: Schema) -> Self {
         Self {
-            hd: RecordHeader::default::<Self>(RType::from(schema) as u8),
+            hd: RecordHeader::default::<Self>(RType::from(schema) as _),
             open: UNDEF_PRICE,
             high: UNDEF_PRICE,
             low: UNDEF_PRICE,

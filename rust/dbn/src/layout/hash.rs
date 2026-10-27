@@ -3,12 +3,23 @@ use crate::{
     v4::fields,
 };
 
-pub(crate) fn layout_hash(struct_layouts: &[StructLayout], rec_layout: &RecordLayout) -> u64 {
-    let mut crc = Crc64::new();
-    for field_def in rec_layout.field_defs.iter() {
-        hash_field(&mut crc, struct_layouts, field_def);
+impl RecordLayout {
+    /// Computes the hash of this record's field table, resolving nested struct fields
+    /// through `struct_layouts`, the stream's struct table. A valid layout stores
+    /// the result in the `layout_hash` field.
+    pub fn layout_hash(&self, struct_layouts: &[StructLayout]) -> u64 {
+        let mut crc = Crc64::new();
+        for field_def in by_offset(&self.field_defs) {
+            hash_field(&mut crc, struct_layouts, field_def);
+        }
+        crc.finish()
     }
-    crc.finish()
+}
+
+pub(crate) fn by_offset(field_defs: &[FieldDef]) -> Vec<&FieldDef> {
+    let mut sorted: Vec<_> = field_defs.iter().collect();
+    sorted.sort_unstable_by_key(|f| f.offset);
+    sorted
 }
 
 fn hash_field(crc: &mut Crc64, struct_layouts: &[StructLayout], field_def: &FieldDef) {
@@ -24,7 +35,7 @@ fn hash_field(crc: &mut Crc64, struct_layouts: &[StructLayout], field_def: &Fiel
     if field_def.type_id == fields::STRUCT_ID {
         if let Some(struct_def) = struct_layouts.get(field_def.def_index as usize) {
             crc.hash_u16(struct_def.size);
-            for sub_field_def in struct_def.field_defs.iter() {
+            for sub_field_def in by_offset(&struct_def.field_defs) {
                 hash_field(crc, struct_layouts, sub_field_def);
             }
         }
@@ -191,7 +202,7 @@ mod tests {
         // Regression guarding the Databento-specific field feed (which
         // fields are hashed and in what order); computed from the primitive above
         assert_eq!(
-            layout_hash(&stream.struct_layouts, &record),
+            record.layout_hash(&stream.struct_layouts),
             0x84C3_59FB_671A_0F23
         );
     }
@@ -224,8 +235,8 @@ mod tests {
             }
         };
         assert_eq!(
-            layout_hash(std::slice::from_ref(&sub), &record_at(0)),
-            layout_hash(&[filler, sub], &record_at(1)),
+            record_at(0).layout_hash(std::slice::from_ref(&sub)),
+            record_at(1).layout_hash(&[filler, sub]),
         );
     }
 
@@ -246,8 +257,8 @@ mod tests {
             field_names: vec!["a".to_owned()],
         };
         assert_eq!(
-            layout_hash(&[], &record(unlabeled)),
-            layout_hash(&[], &record(labeled)),
+            record(unlabeled).layout_hash(&[]),
+            record(labeled).layout_hash(&[]),
         );
     }
 }

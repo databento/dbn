@@ -1,5 +1,74 @@
 # Changelog
 
+## 0.73.0 - 2026-10-27
+
+This version adds Apache Arrow and Apache Parquet encoding to the `dbn` crate and CLI.
+It also adds decoders and DBN, JSON, and CSV encoders for the in-development DBN
+version 4.
+DBN version 3 remains the default.
+
+### Enhancements
+- Added Apache Arrow and Apache Parquet encoding support behind the `arrow` and
+  `parquet` feature flags, respectively
+  - Added `ArrowEncoder` and `ParquetEncoder` with builders for the batch size,
+    compression, and `symbol` column
+  - Added `OutputEncoding` enum, a superset of `Encoding` with `Arrow` and `Parquet`
+    variants. `DynEncoder` and `DynEncoderBuilder` accept any `impl Into<OutputEncoding>`,
+    so passing an `Encoding` continues to work
+  - Added `--arrow`/`-A` and `--parquet`/`-P` flags to the `dbn` CLI, which also infers
+    the formats from `.arrow`, `.feather`, and `.parquet` output paths. These formats
+    reject `--omit-header`, `--metadata`, and fragment input
+  - Added `Error::Arrow` and `Error::Parquet` variants
+- Added `DynEncoder::finish()` to flush buffered records and finalize the output, which
+  surfaces errors that dropping the encoder would swallow, and `SplitEncoder::finish()`
+  to do the same for every `DynEncoder` sub-encoder
+- Added `SizeSplitter` for splitting encoded output into parts by size, which can be
+  nested in the other splitters
+- Improved the performance of `SymbolSplitter` with metadata containing many symbols
+- Added `decode::dbn::v4::Decoder`, `RecordDecoder`, `MetadataDecoder`, `AsyncDecoder`,
+  `AsyncRecordDecoder`, and `AsyncMetadataDecoder` for reading DBN version 4 streams
+- Added `UpgradeToV4` and `ExpectV4` variants to `VersionUpgradePolicy`. The version 4
+  decoders default to `UpgradeToV4`, which decodes version 1-3 input into version 4
+  records, and `ExpectV4` returns an error for input older than version 4
+- Added a record header type parameter to `DecodeRecordRef`, `DecodeRecord`,
+  `DecodeStream`, `DecodeDbn`, `AsyncDecodeRecordRef`, and `AsyncDecodeRecord`,
+  defaulting to the version 3 `RecordHeader`, and implemented them for the version 4
+  decoders. `MergeDecoder` and `MergeRecordDecoder` can merge version 4 decoders
+- Added `encode::dbn::v4::Encoder`, `RecordEncoder`, `AsyncEncoder`, and `AsyncRecordEncoder`
+  for writing DBN version 4 streams
+- Added `encode::json::v4::Encoder` for encoding DBN version 4 records as JSON lines
+- Added `encode::csv::v4::Encoder` for encoding DBN version 4 records as CSV or TSV
+- Increased the maximum dataset code length in version 4 metadata to 37 characters
+- Added a `version` parameter to `schema_dispatch!` for dispatching to the record types
+  of DBN versions 1 and 2
+- Implemented `Debug` for the sync and async DBN `Decoder`, `RecordDecoder`, and
+  `MetadataDecoder`
+- Changed `Transcoder` in the Python bindings to release the GIL while transcoding
+- Upgraded async-compression to 0.4.51
+
+### Breaking changes
+- Added a `'static` bound to the `DbnEncodable` trait. All DBN record types satisfy it,
+  but generic code that restates the trait's bounds needs to add `'static`
+- Changed `DynEncoder` and `DynEncoderBuilder` to require `W: io::Write + Send`
+  (previously `W: io::Write`). All standard writers (`File`, `BufWriter`, `Vec<u8>`)
+  satisfy this bound
+- The CSV `Encoder` now returns `Error::Encode` when `encode_record` and
+  `encode_record_with_sym` are mismatched against the builder's `with_symbol`
+  setting (previously, mismatches silently produced rows whose column count did
+  not match the header). Existing callers that always pair `with_symbol(true)` with
+  `encode_record_with_sym` and `with_symbol(false)` with `encode_record` are unaffected.
+  The same strictness applies to the new parquet and arrow encoders
+- Added required `into_sub_encoders()` method to the `Splitter` trait, which consumes the
+  splitter and yields every active sub-encoder
+
+### Bug fixes
+- Fixed legacy DBZ metadata decoding allocating memory for the symbol mapping count
+  before checking it against the input (credit: @Tyagiquamar)
+- Fixed legacy DBZ metadata decoding allocating memory for the metadata length before
+  reading the metadata
+- Fixed the `requires-python` metadata of `databento_dbn` which prevented installation on
+  Python 3.15
+
 ## 0.72.0 - 2026-10-13
 
 ### Enhancements
@@ -29,7 +98,8 @@
 
 ### Breaking changes
 - Changed `TsSymbolMap::insert()` to take the `start` and `end` of the mapping as UNIX
-  timestamps instead of dates
+  timestamps instead of dates, and `symbol` as `impl Into<String>` instead of
+  `impl Into<Arc<String>>`
 - `RecordRef`, `RecordRefMut`, and `RecordBuf` are generic over the record header
   layout, which defaults to the v1-v3 `RecordHeader`. `Record` has a new `Header`
   associated type naming the layout a record begins with. Generic code bounded on `T:
