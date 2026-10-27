@@ -20,4 +20,4 @@ syn = { version = "2.0", features = ["full"] }
 csv = { workspace = true }
 dbn = { path = "../dbn" }
 rstest = { workspace = true }
-trybuild = "1.0.121"
+trybuild = "1.0.122"

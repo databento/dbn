@@ -33,7 +33,8 @@ cargo install dbn-cli
 
 ## Usage
 
-`dbn` currently supports CSV and [JSON lines](https://jsonlines.org/) as output formats.
+`dbn` supports CSV, TSV, [JSON lines](https://jsonlines.org/), DBN, Apache Parquet, and
+Apache Arrow IPC as output formats.
 By default, `dbn` outputs the result to standard output for ease of use with
 text-based command-line utilities.
 Running
@@ -52,21 +53,22 @@ You can also save the results directly to another file by running
 ```sh
 dbn some.dbn.zst --json --output some.json
 ```
-`dbn` will create a new file `some.csv` with the data from `some.dbn.zst`
+`dbn` will create a new file `some.json` with the data from `some.dbn.zst`
 formatted as JSON.
 
-When the file name passed `--output` or `-o` ends in `.json` or `.csv`, you
-can omit the `--json` and `--csv` flags.
+When the file name passed `--output` or `-o` ends in `.json`, `.csv`, `.tsv`, `.dbn`,
+`.parquet`, `.arrow`, or `.feather`, you can omit the output format flag.
 ```sh
 dbn another.dbn.zst -o data.csv
 ```
-This writes the contents of `another.dbn.zst` to `data.json` in CSV format.
+This writes the contents of `another.dbn.zst` to `data.csv` in CSV format.
 
 By default, `dbn` will not overwrite an existing file.
 To replace the contents of an existing file and allow overwriting files, pass
 the `-f` or `--force` flag.
 
 ### Merging DBN files
+
 You can use `dbn` to merge several DBN files into one, including files of different schemas.
 ```sh
 # Merge files split by symbols
@@ -100,14 +102,20 @@ or explicitly
 dbn ohlcv-1d.dbn --json --zstd -o ohlcv-1d.json.zst
 ```
 
-### Converting DBZ files to DBN
-
-DBN is an evolution of DBZ, which required Zstandard.
-To update an old DBZ file to Zstandard-compressed DBN, run
+### Writing Parquet and Arrow
+`dbn` can write Apache Parquet and Apache Arrow IPC (Feather v2) files.
+Pass `--parquet`/`-P` or `--arrow`/`-A`, or use an output path ending in `.parquet`, `.arrow`,
+or `.feather`.
 ```sh
-dbn 20221212.mbo.dbz -o 20221212.dbn.zst
+dbn ohlcv-1d.dbn.zst -o ohlcv-1d.parquet
 ```
-or pass `--dbn` to set the output encoding explicitly.
+With these formats, `--zstd` compresses the data inside the file instead of the whole file,
+and `--pretty` writes prices as floating-point columns.
+Timestamps always use the native Arrow timestamp type.
+
+Each file holds records of a single schema, so pass `--schema` or `--split-by schema` when the
+input mixes schemas.
+These formats require DBN metadata, so they don't support fragment input.
 
 ### Reading and writing fragments
 `dbn` can also read and write DBN files without the metadata header, these are called "DBN fragments".
@@ -119,6 +127,15 @@ You can also write DBN files without the metadata header with the `--fragment` o
 ```sh
 dbn ohlcv-1d.dbn -F -o ohlcv-1d.dbn.frag
 ```
+
+### Converting DBZ files to DBN
+
+DBZ is a legacy precursor to DBN that required Zstandard.
+To convert a DBZ file to Zstandard-compressed DBN, run
+```sh
+dbn 20221212.mbo.dbz -o 20221212.dbn.zst
+```
+or pass `--dbn` to set the output encoding explicitly.
 
 ## License
 

@@ -29,10 +29,10 @@ trivial_copy = []
 zstd = ["dep:zstd"]
 
 [dependencies]
-dbn-macros = { version = "=0.72.0", path = "../dbn-macros" }
+dbn-macros = { version = "=0.73.0", path = "../dbn-macros" }
 
 arrow = { workspace = true, optional = true, features = ["ipc", "ipc_compression"] }
-async-compression = { version = "0.4.50", features = ["tokio", "zstd"], optional = true }
+async-compression = { version = "0.4.51", features = ["tokio", "zstd"], optional = true }
 async-stream = { version = "0.3", optional = true }
 futures-core = { version = "0.3", optional = true }
 csv = { workspace = true }

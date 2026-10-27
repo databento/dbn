@@ -108,7 +108,8 @@ where
     }
 
     /// Sets whether the encoder will serialize price fields as a decimal in CSV and
-    /// JSON encodings. Defaults to `false`.
+    /// JSON encodings and as `Float64` in Arrow and Parquet encodings. Defaults to
+    /// `false`.
     pub fn use_pretty_px(mut self, use_pretty_px: bool) -> Self {
         self.use_pretty_px = use_pretty_px;
         self

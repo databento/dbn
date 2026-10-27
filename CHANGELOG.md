@@ -1,6 +1,11 @@
 # Changelog
 
-## 0.73.0 - Upcoming
+## 0.73.0 - 2026-10-27
+
+This version adds Apache Arrow and Apache Parquet encoding to the `dbn` crate and CLI.
+It also adds decoders and DBN, JSON, and CSV encoders for the in-development DBN
+version 4.
+DBN version 3 remains the default.
 
 ### Enhancements
 - Added Apache Arrow and Apache Parquet encoding support behind the `arrow` and
@@ -17,21 +22,11 @@
 - Added `DynEncoder::finish()` to flush buffered records and finalize the output, which
   surfaces errors that dropping the encoder would swallow, and `SplitEncoder::finish()`
   to do the same for every `DynEncoder` sub-encoder
-- Added a `version` parameter to `schema_dispatch!` for dispatching to the record types
-  of DBN versions 1 and 2
-- Added `encode::dbn::v4::Encoder`, `RecordEncoder`, `AsyncEncoder`, and `AsyncRecordEncoder`
-  for writing DBN version 4 streams
-- Added `encode::json::v4::Encoder` for encoding DBN version 4 records as JSON lines
-- Added `encode::csv::v4::Encoder` for encoding DBN version 4 records as CSV or TSV
-- Increased the maximum dataset code length in version 4 metadata to 37 characters
-- Added `decode::dbn::v4::Decoder`, `RecordDecoder`, `MetadataDecoder`, `AsyncDecoder`,
-  `AsyncRecordDecoder`, and `AsyncMetadataDecoder` for reading DBN version 4 streams
-- Implemented `Debug` for the sync and async DBN `Decoder`, `RecordDecoder`, and
-  `MetadataDecoder`
-- Improved the performance of `SymbolSplitter` with metadata containing many symbols
 - Added `SizeSplitter` for splitting encoded output into parts by size, which can be
   nested in the other splitters
-- Changed `Transcoder` in the Python bindings to release the GIL while transcoding
+- Improved the performance of `SymbolSplitter` with metadata containing many symbols
+- Added `decode::dbn::v4::Decoder`, `RecordDecoder`, `MetadataDecoder`, `AsyncDecoder`,
+  `AsyncRecordDecoder`, and `AsyncMetadataDecoder` for reading DBN version 4 streams
 - Added `UpgradeToV4` and `ExpectV4` variants to `VersionUpgradePolicy`. The version 4
   decoders default to `UpgradeToV4`, which decodes version 1-3 input into version 4
   records, and `ExpectV4` returns an error for input older than version 4
@@ -39,6 +34,17 @@
   `DecodeStream`, `DecodeDbn`, `AsyncDecodeRecordRef`, and `AsyncDecodeRecord`,
   defaulting to the version 3 `RecordHeader`, and implemented them for the version 4
   decoders. `MergeDecoder` and `MergeRecordDecoder` can merge version 4 decoders
+- Added `encode::dbn::v4::Encoder`, `RecordEncoder`, `AsyncEncoder`, and `AsyncRecordEncoder`
+  for writing DBN version 4 streams
+- Added `encode::json::v4::Encoder` for encoding DBN version 4 records as JSON lines
+- Added `encode::csv::v4::Encoder` for encoding DBN version 4 records as CSV or TSV
+- Increased the maximum dataset code length in version 4 metadata to 37 characters
+- Added a `version` parameter to `schema_dispatch!` for dispatching to the record types
+  of DBN versions 1 and 2
+- Implemented `Debug` for the sync and async DBN `Decoder`, `RecordDecoder`, and
+  `MetadataDecoder`
+- Changed `Transcoder` in the Python bindings to release the GIL while transcoding
+- Upgraded async-compression to 0.4.51
 
 ### Breaking changes
 - Added a `'static` bound to the `DbnEncodable` trait. All DBN record types satisfy it,
@@ -92,7 +98,8 @@
 
 ### Breaking changes
 - Changed `TsSymbolMap::insert()` to take the `start` and `end` of the mapping as UNIX
-  timestamps instead of dates
+  timestamps instead of dates, and `symbol` as `impl Into<String>` instead of
+  `impl Into<Arc<String>>`
 - `RecordRef`, `RecordRefMut`, and `RecordBuf` are generic over the record header
   layout, which defaults to the v1-v3 `RecordHeader`. `Record` has a new `Header`
   associated type naming the layout a record begins with. Generic code bounded on `T:
