@@ -152,7 +152,14 @@ impl RecordHeaderKind for crate::v4::RecordHeader {
     const DBN_VERSIONS: RangeInclusive<u8> = 4..=4;
 
     fn frame_len(data: &[u8]) -> crate::Result<usize> {
-        Ok(Self::HEADER_LEN + u16::from_le_bytes([data[0], data[1]]) as usize)
+        use crate::v4::framing::{is_framing_rtype, FramingHeader};
+
+        let header = FramingHeader::from_bytes(data.first_chunk().unwrap());
+        if is_framing_rtype(header.rtype) {
+            header.frame_len()
+        } else {
+            Ok(Self::HEADER_LEN + usize::from(header.length))
+        }
     }
 
     fn record_size(&self) -> usize {

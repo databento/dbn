@@ -8,6 +8,7 @@ pub mod rtype;
 use crate::{record::HasRType, Publisher, RType};
 
 pub mod fields;
+pub mod framing;
 mod impl_default;
 mod impl_enum_field;
 pub mod layouts;
@@ -109,8 +110,16 @@ impl RecordHeader {
 
     /// Returns the size of the **entire** record in bytes. Unlike the v1-v3 header, the
     /// v4 `length` is a plain byte count of the fields following the header.
+    /// A framing record's size also counts its trailer.
     pub const fn record_size(&self) -> usize {
-        std::mem::size_of::<Self>() + self.length as usize
+        let size = std::mem::size_of::<Self>() + self.length as usize;
+        if !framing::is_framing_rtype(self.rtype) {
+            return size;
+        }
+        // SAFETY: `FramingHeader` is plain old data that fits within the header's size and
+        // alignment
+        let framing = unsafe { &*(self as *const Self).cast::<framing::FramingHeader>() };
+        size + framing.trailer_length as usize
     }
 
     /// Tries to convert the raw record type into an enum.
