@@ -22,7 +22,6 @@ anyhow.workspace = true
 clap = { version = "4.6", features = ["derive", "wrap_help"] }
 serde = { workspace = true, features = ["derive"] }
 time.workspace = true
-zstd.workspace = true
 
 [dev-dependencies]
 assert_cmd = "2.2"

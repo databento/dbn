@@ -29,6 +29,10 @@ impl MboMsg {
     /// # Errors
     /// This function returns an error if the `action` field does not
     /// contain a valid [`Action`].
+    #[allow(
+        clippy::unnecessary_cast,
+        reason = "c_char is u8 on some targets like aarch64 Linux"
+    )]
     pub fn action(&self) -> crate::Result<Action> {
         Action::try_from(self.action as u8)
             .map_err(|_| Error::conversion::<Action>(format_args!("{:#04X}", self.action as u8)))
@@ -39,6 +43,10 @@ impl MboMsg {
     /// # Errors
     /// This function returns an error if the `side` field does not
     /// contain a valid [`Side`].
+    #[allow(
+        clippy::unnecessary_cast,
+        reason = "c_char is u8 on some targets like aarch64 Linux"
+    )]
     pub fn side(&self) -> crate::Result<Side> {
         Side::try_from(self.side as u8)
             .map_err(|_| Error::conversion::<Side>(format_args!("{:#04X}", self.side as u8)))
@@ -73,6 +81,10 @@ impl TradeMsg {
     /// # Errors
     /// This function returns an error if the `action` field does not
     /// contain a valid [`Action`].
+    #[allow(
+        clippy::unnecessary_cast,
+        reason = "c_char is u8 on some targets like aarch64 Linux"
+    )]
     pub fn action(&self) -> crate::Result<Action> {
         Action::try_from(self.action as u8)
             .map_err(|_| Error::conversion::<Action>(format_args!("{:#04X}", self.action as u8)))
@@ -83,6 +95,10 @@ impl TradeMsg {
     /// # Errors
     /// This function returns an error if the `side` field does not
     /// contain a valid [`Side`].
+    #[allow(
+        clippy::unnecessary_cast,
+        reason = "c_char is u8 on some targets like aarch64 Linux"
+    )]
     pub fn side(&self) -> crate::Result<Side> {
         Side::try_from(self.side as u8)
             .map_err(|_| Error::conversion::<Side>(format_args!("{:#04X}", self.side as u8)))
@@ -117,6 +133,10 @@ impl Mbp1Msg {
     /// # Errors
     /// This function returns an error if the `action` field does not
     /// contain a valid [`Action`].
+    #[allow(
+        clippy::unnecessary_cast,
+        reason = "c_char is u8 on some targets like aarch64 Linux"
+    )]
     pub fn action(&self) -> crate::Result<Action> {
         Action::try_from(self.action as u8)
             .map_err(|_| Error::conversion::<Action>(format_args!("{:#04X}", self.action as u8)))
@@ -127,6 +147,10 @@ impl Mbp1Msg {
     /// # Errors
     /// This function returns an error if the `side` field does not
     /// contain a valid [`Side`].
+    #[allow(
+        clippy::unnecessary_cast,
+        reason = "c_char is u8 on some targets like aarch64 Linux"
+    )]
     pub fn side(&self) -> crate::Result<Side> {
         Side::try_from(self.side as u8)
             .map_err(|_| Error::conversion::<Side>(format_args!("{:#04X}", self.side as u8)))
@@ -161,6 +185,10 @@ impl Mbp10Msg {
     /// # Errors
     /// This function returns an error if the `action` field does not
     /// contain a valid [`Action`].
+    #[allow(
+        clippy::unnecessary_cast,
+        reason = "c_char is u8 on some targets like aarch64 Linux"
+    )]
     pub fn action(&self) -> crate::Result<Action> {
         Action::try_from(self.action as u8)
             .map_err(|_| Error::conversion::<Action>(format_args!("{:#04X}", self.action as u8)))
@@ -171,6 +199,10 @@ impl Mbp10Msg {
     /// # Errors
     /// This function returns an error if the `side` field does not
     /// contain a valid [`Side`].
+    #[allow(
+        clippy::unnecessary_cast,
+        reason = "c_char is u8 on some targets like aarch64 Linux"
+    )]
     pub fn side(&self) -> crate::Result<Side> {
         Side::try_from(self.side as u8)
             .map_err(|_| Error::conversion::<Side>(format_args!("{:#04X}", self.side as u8)))
@@ -205,6 +237,10 @@ impl BboMsg {
     /// # Errors
     /// This function returns an error if the `side` field does not
     /// contain a valid [`Side`].
+    #[allow(
+        clippy::unnecessary_cast,
+        reason = "c_char is u8 on some targets like aarch64 Linux"
+    )]
     pub fn side(&self) -> crate::Result<Side> {
         Side::try_from(self.side as u8)
             .map_err(|_| Error::conversion::<Side>(format_args!("{:#04X}", self.side as u8)))
@@ -234,6 +270,10 @@ impl Cmbp1Msg {
     /// # Errors
     /// This function returns an error if the `action` field does not
     /// contain a valid [`Action`].
+    #[allow(
+        clippy::unnecessary_cast,
+        reason = "c_char is u8 on some targets like aarch64 Linux"
+    )]
     pub fn action(&self) -> crate::Result<Action> {
         Action::try_from(self.action as u8)
             .map_err(|_| Error::conversion::<Action>(format_args!("{:#04X}", self.action as u8)))
@@ -244,6 +284,10 @@ impl Cmbp1Msg {
     /// # Errors
     /// This function returns an error if the `side` field does not
     /// contain a valid [`Side`].
+    #[allow(
+        clippy::unnecessary_cast,
+        reason = "c_char is u8 on some targets like aarch64 Linux"
+    )]
     pub fn side(&self) -> crate::Result<Side> {
         Side::try_from(self.side as u8)
             .map_err(|_| Error::conversion::<Side>(format_args!("{:#04X}", self.side as u8)))
@@ -278,6 +322,10 @@ impl CbboMsg {
     /// # Errors
     /// This function returns an error if the `side` field does not
     /// contain a valid [`Side`].
+    #[allow(
+        clippy::unnecessary_cast,
+        reason = "c_char is u8 on some targets like aarch64 Linux"
+    )]
     pub fn side(&self) -> crate::Result<Side> {
         Side::try_from(self.side as u8)
             .map_err(|_| Error::conversion::<Side>(format_args!("{:#04X}", self.side as u8)))
@@ -433,6 +481,10 @@ impl InstrumentDefMsg {
     /// # Errors
     /// This function returns an error if the `security_update_action` field does not
     /// contain a valid [`SecurityUpdateAction`].
+    #[allow(
+        clippy::unnecessary_cast,
+        reason = "c_char is u8 on some targets like aarch64 Linux"
+    )]
     pub fn security_update_action(&self) -> crate::Result<SecurityUpdateAction> {
         SecurityUpdateAction::try_from(self.security_update_action as u8).map_err(|_| {
             Error::conversion::<SecurityUpdateAction>(format_args!(
@@ -447,6 +499,10 @@ impl InstrumentDefMsg {
     /// # Errors
     /// This function returns an error if the `instrument_class` field does not
     /// contain a valid [`InstrumentClass`].
+    #[allow(
+        clippy::unnecessary_cast,
+        reason = "c_char is u8 on some targets like aarch64 Linux"
+    )]
     pub fn instrument_class(&self) -> crate::Result<InstrumentClass> {
         InstrumentClass::try_from(self.instrument_class as u8).map_err(|_| {
             Error::conversion::<InstrumentClass>(format_args!(
@@ -461,6 +517,10 @@ impl InstrumentDefMsg {
     /// # Errors
     /// This function returns an error if the `match_algorithm` field does not
     /// contain a valid [`MatchAlgorithm`].
+    #[allow(
+        clippy::unnecessary_cast,
+        reason = "c_char is u8 on some targets like aarch64 Linux"
+    )]
     pub fn match_algorithm(&self) -> crate::Result<MatchAlgorithm> {
         MatchAlgorithm::try_from(self.match_algorithm as u8).map_err(|_| {
             Error::conversion::<MatchAlgorithm>(format_args!("{:#04X}", self.match_algorithm as u8))
@@ -513,6 +573,10 @@ impl ImbalanceMsg {
     /// # Errors
     /// This function returns an error if the `side` field does not
     /// contain a valid [`Side`].
+    #[allow(
+        clippy::unnecessary_cast,
+        reason = "c_char is u8 on some targets like aarch64 Linux"
+    )]
     pub fn side(&self) -> crate::Result<Side> {
         Side::try_from(self.side as u8)
             .map_err(|_| Error::conversion::<Side>(format_args!("{:#04X}", self.side as u8)))

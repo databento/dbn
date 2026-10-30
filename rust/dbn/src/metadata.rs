@@ -160,7 +160,7 @@ impl Metadata {
             self.symbol_cstr_len = version_symbol_cstr_len(target);
         }
         if target > self.version && target >= crate::v4::DBN_VERSION && self.layout.is_none() {
-            self.layout = Some(crate::layout::upgrade_layout(self.ts_out));
+            self.layout = Some(crate::layout::upgrade_layout(self.ts_out, self.schema));
         }
         if target >= crate::v4::DBN_VERSION {
             self.upgrade_mappings();
@@ -211,7 +211,7 @@ impl Metadata {
     /// - `symbol_cstr_len`: upgrade the metadata of the lower version before merging
     ///
     /// This function will also return an error if there are conflicting symbology
-    /// mappings.
+    /// mappings or stream layouts. See [`StreamLayout::merge()`](crate::layout::StreamLayout::merge).
     pub fn merge(self, other: impl IntoIterator<Item = Metadata>) -> crate::Result<Self> {
         let mut merger = MetadataMerger::new(self);
         for metadata in other {
@@ -623,9 +623,28 @@ mod tests {
         target.upgrade(VersionUpgradePolicy::UpgradeToV4);
         assert_eq!(
             target.layout.as_ref(),
-            Some(&crate::layout::upgrade_layout(false))
+            Some(&crate::layout::upgrade_layout(false, target.schema))
         );
         assert_eq!(target.symbol_cstr_len, crate::v3::SYMBOL_CSTR_LEN);
+    }
+
+    #[test]
+    fn test_upgrade_to_v4_layout_describes_only_the_schema() {
+        let has_stat_type = |layout: &crate::layout::StreamLayout| {
+            layout
+                .label_defs
+                .iter()
+                .any(|label| label.name == "StatType")
+        };
+        assert!(has_stat_type(&crate::layout::upgrade_layout(false, None)));
+
+        let mut target = v1_metadata();
+        target.schema = Some(Schema::Mbp10);
+        target.upgrade(VersionUpgradePolicy::UpgradeToV4);
+        let layout = target.layout.unwrap();
+        let rtypes: Vec<_> = layout.record_layouts.iter().map(|rec| rec.rtype).collect();
+        assert_eq!(rtypes, [crate::v4::rtype::MBP_10]);
+        assert!(!has_stat_type(&layout));
     }
 
     #[test]

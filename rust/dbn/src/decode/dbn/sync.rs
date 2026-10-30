@@ -1244,7 +1244,7 @@ mod tests {
         let mut decoder = crate::decode::dbn::v4::RecordDecoder::with_fsm(trade.as_ref(), fsm);
         let rec = decoder.decode_ref()?.unwrap();
         let index = crate::layout::LayoutIndex::new(
-            &crate::layout::upgrade_layout(true),
+            &crate::layout::upgrade_layout(true, None),
             crate::v4::layouts::default_layout(),
         );
 

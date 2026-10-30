@@ -443,7 +443,13 @@ fn upgraded_definitions_data_is_same_but_larger(output_dir: TempDir) {
         .stdout(is_empty());
     let orig_csv_contents = std::fs::read_to_string(orig_csv).unwrap();
     let mut upgrade_cmd = cmd();
-    upgrade_cmd.args([&input_path, "--upgrade", "--output", &upgraded_dbn_output]);
+    upgrade_cmd.args([
+        &input_path,
+        "--upgrade",
+        "3",
+        "--output",
+        &upgraded_dbn_output,
+    ]);
     upgrade_cmd
         .assert()
         .success()
@@ -1300,4 +1306,360 @@ fn write_parquet_zero_rows_with_schema_filter(output_dir: TempDir) {
         .map(|batch| batch.unwrap().num_rows())
         .sum();
     assert_eq!(num_rows, 0);
+}
+
+fn stdout_of<'a>(args: impl IntoIterator<Item = &'a str>) -> String {
+    let output = cmd().args(args).assert().success().get_output().clone();
+    String::from_utf8(output.stdout).unwrap()
+}
+
+fn upgrade_to_v4(input: &str, output_dir: &TempDir) -> String {
+    let file_name = input.rsplit('/').next().unwrap();
+    let output_path = format!("{}/{file_name}.v4.dbn", output_dir.path().to_str().unwrap());
+    cmd()
+        .args([input, "--upgrade", "4", "--dbn", "--output", &output_path])
+        .assert()
+        .success()
+        .stderr(is_empty());
+    output_path
+}
+
+#[rstest]
+fn v4_text_matches_v3(
+    output_dir: TempDir,
+    #[values("--csv", "--json")] output_flag: &str,
+    #[values(None, Some("--map-symbols"), Some("--pretty"))] extra_flag: Option<&str>,
+) {
+    let input = format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst");
+    let v4_input = upgrade_to_v4(&input, &output_dir);
+    let flags = [Some(output_flag), extra_flag].into_iter().flatten();
+    let v3_output = stdout_of([input.as_str()].into_iter().chain(flags.clone()));
+    assert_eq!(
+        stdout_of([v4_input.as_str()].into_iter().chain(flags.clone())),
+        v3_output
+    );
+    assert_eq!(
+        stdout_of([input.as_str(), "--upgrade", "4"].into_iter().chain(flags)),
+        v3_output
+    );
+}
+
+#[rstest]
+fn v4_metadata(output_dir: TempDir) {
+    let v4_input = upgrade_to_v4(
+        &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst"),
+        &output_dir,
+    );
+    cmd()
+        .args([&v4_input, "--json", "--metadata"])
+        .assert()
+        .success()
+        .stdout(starts_with("{\"version\":4,"))
+        .stderr(is_empty());
+}
+
+#[rstest]
+fn merge_v4_matches_v3(output_dir: TempDir) {
+    let mbo = format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst");
+    let ohlcv = format!("{TEST_DATA_PATH}/test_data.ohlcv-1s.v3.dbn.zst");
+    let mbo_v4 = upgrade_to_v4(&mbo, &output_dir);
+    let ohlcv_v4 = upgrade_to_v4(&ohlcv, &output_dir);
+    let v3_output = stdout_of([mbo.as_str(), &ohlcv, "--json"]);
+    assert_eq!(v3_output.lines().count(), 4);
+    assert_eq!(stdout_of([mbo_v4.as_str(), &ohlcv_v4, "--json"]), v3_output);
+    assert_eq!(
+        stdout_of([mbo_v4.as_str(), &ohlcv, "--json", "--upgrade", "4"]),
+        v3_output
+    );
+}
+
+#[rstest]
+fn split_v4_by_schema_matches_v3(output_dir: TempDir) {
+    let dir = output_dir.path().to_str().unwrap();
+    let mbo = format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst");
+    let ohlcv = format!("{TEST_DATA_PATH}/test_data.ohlcv-1s.v3.dbn.zst");
+    for version in ["3", "4"] {
+        let merged = format!("{dir}/merged.v{version}.dbn");
+        cmd()
+            .args([
+                &mbo,
+                &ohlcv,
+                "--upgrade",
+                version,
+                "--dbn",
+                "--output",
+                &merged,
+            ])
+            .assert()
+            .success();
+        cmd()
+            .args([
+                &merged,
+                "--split-by",
+                "schema",
+                "--output-pattern",
+                &format!("{dir}/{{schema}}.v{version}.csv"),
+            ])
+            .assert()
+            .success()
+            .stderr(is_empty());
+    }
+    for schema in ["mbo", "ohlcv-1s"] {
+        let v4_output = fs::read_to_string(format!("{dir}/{schema}.v4.csv")).unwrap();
+        assert_eq!(v4_output.lines().count(), 3);
+        assert_eq!(
+            v4_output,
+            fs::read_to_string(format!("{dir}/{schema}.v3.csv")).unwrap()
+        );
+    }
+}
+
+#[rstest]
+fn read_v4_zstd_from_file_and_stdin(output_dir: TempDir) {
+    let input = format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst");
+    let v4_path = format!("{}/mbo.v4.dbn.zst", output_dir.path().to_str().unwrap());
+    cmd()
+        .args([
+            &input,
+            "--upgrade",
+            "4",
+            "--dbn",
+            "--zstd",
+            "--output",
+            &v4_path,
+        ])
+        .assert()
+        .success();
+    let v3_output = stdout_of([input.as_str(), "--json"]);
+    assert_eq!(stdout_of([v4_path.as_str(), "--json"]), v3_output);
+    let stdin_output = cmd()
+        .args(["-", "--json"])
+        .pipe_stdin(&v4_path)
+        .unwrap()
+        .ok()
+        .unwrap();
+    assert_eq!(String::from_utf8(stdin_output.stdout).unwrap(), v3_output);
+}
+
+#[rstest]
+fn split_v4_by_day_matches_input(output_dir: TempDir) {
+    let dir = output_dir.path().to_str().unwrap();
+    let v4_input = upgrade_to_v4(
+        &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst"),
+        &output_dir,
+    );
+    cmd()
+        .args([
+            &v4_input,
+            "--split-by",
+            "day",
+            "--output-pattern",
+            &format!("{dir}/{{date}}.dbn"),
+        ])
+        .assert()
+        .success()
+        .stderr(is_empty());
+    assert_eq!(
+        stdout_of([format!("{dir}/2020-12-28.dbn").as_str(), "--json"]),
+        stdout_of([v4_input.as_str(), "--json"])
+    );
+}
+
+#[rstest]
+fn merge_fragments_upgraded_to_v4() {
+    let input = format!("{TEST_DATA_PATH}/test_data.definition.v3.dbn.frag");
+    let single = stdout_of([
+        input.as_str(),
+        "--input-fragment",
+        "--json",
+        "--upgrade",
+        "4",
+    ]);
+    let merged = stdout_of([
+        input.as_str(),
+        &input,
+        "--input-fragment",
+        "--json",
+        "--upgrade",
+        "4",
+    ]);
+    assert_eq!(merged.lines().count(), 2 * single.lines().count());
+}
+
+#[rstest]
+fn upgrade_fragment_to_v4() {
+    let input = format!("{TEST_DATA_PATH}/test_data.definition.v3.dbn.frag");
+    let v3_output = stdout_of([input.as_str(), "--input-fragment", "--json"]);
+    let v4_output = stdout_of([
+        input.as_str(),
+        "--input-fragment",
+        "--json",
+        "--upgrade",
+        "4",
+    ]);
+    assert_eq!(v4_output.lines().count(), v3_output.lines().count());
+    assert!(v4_output.contains("\"raw_symbol\":\"GEM3 P9812\""));
+}
+
+#[rstest]
+#[case::bare_upgrade(&["--json", "--upgrade"], "a value is required")]
+#[case::downgrade(&["--json", "--upgrade", "3"], "Can't downgrade DBN version 4")]
+#[case::fragment_output(&["--fragment"], "fragment output isn't supported")]
+#[case::parquet(&["--parquet", "--output", "out.parquet"], "Parquet and Arrow output don't support")]
+#[case::split_by_symbol(
+    &["--csv", "--split-by", "symbol", "--output-pattern", "{symbol}.csv"],
+    "by symbol isn't supported"
+)]
+fn v4_unsupported_args(output_dir: TempDir, #[case] args: &[&str], #[case] expected_err: &str) {
+    let v4_input = upgrade_to_v4(
+        &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst"),
+        &output_dir,
+    );
+    cmd()
+        .current_dir(output_dir.path())
+        .arg(&v4_input)
+        .args(args)
+        .assert()
+        .failure()
+        .stderr(contains(expected_err));
+}
+
+#[rstest]
+fn merge_v4_with_earlier_version_requires_upgrade(output_dir: TempDir) {
+    let mbo_v4 = upgrade_to_v4(
+        &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst"),
+        &output_dir,
+    );
+    cmd()
+        .args([
+            &mbo_v4,
+            &format!("{TEST_DATA_PATH}/test_data.ohlcv-1s.v3.dbn.zst"),
+            "--json",
+        ])
+        .assert()
+        .failure()
+        .stderr(contains("requires `--upgrade 4`"));
+}
+
+const REGROUPED_ID: u64 = 9999;
+const REGROUPED_SYMBOL: &str = "NEWSYM";
+
+fn write_v4_with_record_groups(output_dir: &TempDir) -> String {
+    use dbn::{
+        decode::{dbn::fsm::DbnFsm, DbnMetadata, DecodeRecord},
+        encode::dbn::v4::Encoder,
+        v4, SymbolInterval,
+    };
+
+    let upgraded = upgrade_to_v4(
+        &format!("{TEST_DATA_PATH}/test_data.mbo.v3.dbn.zst"),
+        output_dir,
+    );
+    let fsm = DbnFsm::builder()
+        .header::<v4::RecordHeader>()
+        .build()
+        .unwrap();
+    let decoder =
+        dbn::decode::dbn::v4::Decoder::with_fsm(fs::File::open(upgraded).unwrap(), fsm).unwrap();
+    let metadata = decoder.metadata().clone();
+    let mut records = decoder.decode_records::<v4::MboMsg>().unwrap();
+    assert_eq!(records.len(), 2);
+    records[1].hd.instrument_id = REGROUPED_ID;
+
+    let output_path = format!("{}/groups.v4.dbn", output_dir.path().to_str().unwrap());
+    let mut encoder = Encoder::new(fs::File::create(&output_path).unwrap(), &metadata).unwrap();
+    encoder
+        .encode_record_group_header(records[0].ts_recv, &[])
+        .unwrap();
+    encoder.encode(&records[0]).unwrap();
+    encoder
+        .encode_record_group_header(
+            records[1].ts_recv,
+            &[SymbolInterval {
+                start_ts: records[1].ts_recv,
+                end_ts: metadata.end.unwrap().get(),
+                instrument_id: REGROUPED_ID,
+                stype_in_symbol: REGROUPED_SYMBOL.to_owned(),
+                stype_out_symbol: REGROUPED_ID.to_string(),
+            }],
+        )
+        .unwrap();
+    encoder.encode(&records[1]).unwrap();
+    output_path
+}
+
+#[rstest]
+fn v4_dbn_output_passes_through_record_groups(
+    output_dir: TempDir,
+    #[values(&[], &["--schema", "mbo", "--zstd"], &["--limit", "1"])] extra_args: &[&str],
+) {
+    use dbn::{
+        decode::{dbn::fsm::DbnFsm, DynReader},
+        v4,
+    };
+
+    let input = write_v4_with_record_groups(&output_dir);
+    let output_path = format!("{}/out.v4.dbn", output_dir.path().to_str().unwrap());
+    cmd()
+        .args([&input, "--dbn", "--output", &output_path])
+        .args(extra_args)
+        .assert()
+        .success()
+        .stderr(is_empty());
+
+    let fsm = DbnFsm::builder()
+        .header::<v4::RecordHeader>()
+        .build()
+        .unwrap();
+    let mut decoder =
+        dbn::decode::dbn::v4::Decoder::with_fsm(DynReader::from_file(&output_path).unwrap(), fsm)
+            .unwrap()
+            .with_symbol_map()
+            .unwrap();
+    let mut symbols = Vec::new();
+    while let Some((_, symbol)) = decoder.decode_ref_with_symbol().unwrap() {
+        symbols.push(symbol.map(str::to_owned));
+    }
+    let expected = [Some("ESH1".to_owned()), Some(REGROUPED_SYMBOL.to_owned())];
+    let expected_len = if extra_args.contains(&"--limit") {
+        1
+    } else {
+        2
+    };
+    assert_eq!(symbols, expected[..expected_len]);
+    if extra_args.is_empty() {
+        assert_eq!(fs::read(&output_path).unwrap(), fs::read(&input).unwrap());
+    }
+}
+
+#[rstest]
+#[case::map_symbols(&["--csv", "--map-symbols"], false)]
+#[case::merged_dbn(&["--dbn"], true)]
+#[case::split_dbn(&["--split-by", "day", "--output-pattern", "{date}.dbn"], false)]
+fn v4_record_groups_unsupported(
+    output_dir: TempDir,
+    #[case] args: &[&str],
+    #[case] is_merged: bool,
+) {
+    let input = write_v4_with_record_groups(&output_dir);
+    let mut cmd = cmd();
+    cmd.current_dir(output_dir.path()).arg(&input);
+    if is_merged {
+        cmd.arg(&input);
+    }
+    cmd.args(args)
+        .assert()
+        .failure()
+        .stderr(contains("Record groups aren't supported yet"));
+}
+
+#[rstest]
+fn v4_text_output_skips_record_groups(output_dir: TempDir) {
+    let input = write_v4_with_record_groups(&output_dir);
+    cmd()
+        .args([&input, &input, "--csv"])
+        .assert()
+        .success()
+        .stdout(contains('\n').count(5))
+        .stderr(is_empty());
 }

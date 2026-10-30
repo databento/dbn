@@ -13,6 +13,8 @@ use dbn::{
 
 use crate::{infer_encoding, output_from_args, Args, InferredEncoding, SplitBy};
 
+pub mod v4;
+
 pub fn silence_broken_pipe(err: anyhow::Error) -> anyhow::Result<()> {
     // Handle broken pipe as a non-error.
     if let Some(err) = err.downcast_ref::<dbn::Error>() {
@@ -36,18 +38,7 @@ where
         compression,
     } = infer_encoding(args)?;
     if args.should_output_metadata {
-        if encoding != OutputEncoding::Json {
-            return Err(anyhow::format_err!(
-                "Metadata flag is only valid with JSON encoding"
-            ));
-        }
-        json::Encoder::new(
-            writer,
-            args.should_pretty_print,
-            args.should_pretty_print,
-            args.should_pretty_print,
-        )
-        .encode_metadata(decoder.metadata())?;
+        encode_metadata(args, encoding, writer, decoder.metadata())?;
     } else if is_fragment {
         encode_fragment(decoder, writer, compression)?;
     } else {
@@ -72,6 +63,27 @@ where
         }
         encoder.finish()?;
     }
+    Ok(())
+}
+
+fn encode_metadata(
+    args: &Args,
+    encoding: OutputEncoding,
+    writer: Box<dyn io::Write + Send>,
+    metadata: &Metadata,
+) -> anyhow::Result<()> {
+    if encoding != OutputEncoding::Json {
+        return Err(anyhow::format_err!(
+            "Metadata flag is only valid with JSON encoding"
+        ));
+    }
+    json::Encoder::new(
+        writer,
+        args.should_pretty_print,
+        args.should_pretty_print,
+        args.should_pretty_print,
+    )
+    .encode_metadata(metadata)?;
     Ok(())
 }
 

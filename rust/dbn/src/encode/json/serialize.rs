@@ -1,11 +1,14 @@
-use std::ffi::c_char;
+use std::{ffi::c_char, fmt::Write};
 
 use crate::{
     json_writer::{
         JsonObjectWriter, JsonStringWriter, JsonWriter, JsonWriterValue, Key, Slot, NULL,
     },
+    layout::{FieldDef, RecordLayout, StreamLayout, StructLayout},
+    metadata::{MappingInterval, SymbolInterval, SymbolMapping},
     pretty::{fmt_px_into, fmt_ts},
     record::{c_chars_to_str, ConsolidatedBidAskPair},
+    v4::fields::ENUM_CHAR_ID,
     BidAskPair, FlagSet, HasRType, Metadata, RecordHeader, SecurityUpdateAction,
     UserDefinedInstrument, WithTsOut, UNDEF_PRICE, UNDEF_TIMESTAMP,
 };
@@ -87,7 +90,7 @@ impl<T: HasRType + JsonSerialize> JsonSerialize for WithTsOut<T> {
 }
 
 impl JsonSerialize for Metadata {
-    fn to_json<J: crate::json_writer::JsonWriter, const _PRETTY_PX: bool, const PRETTY_TS: bool>(
+    fn to_json<J: crate::json_writer::JsonWriter, const PRETTY_PX: bool, const PRETTY_TS: bool>(
         &self,
         writer: &mut JsonObjectWriter<J>,
     ) {
@@ -106,6 +109,11 @@ impl JsonSerialize for Metadata {
         writer.value("stype_out", self.stype_out.as_str());
         writer.value("ts_out", self.ts_out);
         writer.value("symbol_cstr_len", self.symbol_cstr_len as u32);
+        if let Some(layout) = &self.layout {
+            layout.to_json::<J, PRETTY_PX, PRETTY_TS>(&mut writer.object("layout"));
+        } else {
+            writer.value("layout", NULL);
+        }
         for (key, sym_list) in [
             ("symbols", &self.symbols),
             ("partial", &self.partial),
@@ -118,34 +126,50 @@ impl JsonSerialize for Metadata {
         }
         let mut mappings_writer = writer.array("mappings");
         for mapping in self.mappings.iter() {
-            let mut item_writer = mappings_writer.object();
-            item_writer.value("raw_symbol", &mapping.raw_symbol);
-            let mut interval_arr_writer = item_writer.array("intervals");
-            for interval in mapping.intervals.iter() {
-                let mut interval_writer = interval_arr_writer.object();
-                write_date_field::<J, PRETTY_TS>(
-                    &mut interval_writer,
-                    "start_date",
-                    &interval.start_date,
-                );
-                write_date_field::<J, PRETTY_TS>(
-                    &mut interval_writer,
-                    "end_date",
-                    &interval.end_date,
-                );
-                interval_writer.value("symbol", &interval.symbol);
-            }
+            mapping.to_json::<J, PRETTY_PX, PRETTY_TS>(&mut mappings_writer.object());
         }
         drop(mappings_writer);
         let mut intervals_writer = writer.array("intervals");
         for interval in self.intervals.iter() {
-            let mut interval_writer = intervals_writer.object();
-            write_ts_field::<J, PRETTY_TS>(&mut interval_writer, "start_ts", interval.start_ts);
-            write_ts_field::<J, PRETTY_TS>(&mut interval_writer, "end_ts", interval.end_ts);
-            interval_writer.value("instrument_id", interval.instrument_id);
-            interval_writer.value("stype_in_symbol", &interval.stype_in_symbol);
-            interval_writer.value("stype_out_symbol", &interval.stype_out_symbol);
+            interval.to_json::<J, PRETTY_PX, PRETTY_TS>(&mut intervals_writer.object());
         }
+    }
+}
+
+impl JsonSerialize for SymbolMapping {
+    fn to_json<J: crate::json_writer::JsonWriter, const PRETTY_PX: bool, const PRETTY_TS: bool>(
+        &self,
+        writer: &mut JsonObjectWriter<J>,
+    ) {
+        writer.value("raw_symbol", &self.raw_symbol);
+        let mut intervals_writer = writer.array("intervals");
+        for interval in self.intervals.iter() {
+            interval.to_json::<J, PRETTY_PX, PRETTY_TS>(&mut intervals_writer.object());
+        }
+    }
+}
+
+impl JsonSerialize for MappingInterval {
+    fn to_json<J: crate::json_writer::JsonWriter, const _PRETTY_PX: bool, const PRETTY_TS: bool>(
+        &self,
+        writer: &mut JsonObjectWriter<J>,
+    ) {
+        write_date_field::<J, PRETTY_TS>(writer, "start_date", &self.start_date);
+        write_date_field::<J, PRETTY_TS>(writer, "end_date", &self.end_date);
+        writer.value("symbol", &self.symbol);
+    }
+}
+
+impl JsonSerialize for SymbolInterval {
+    fn to_json<J: crate::json_writer::JsonWriter, const _PRETTY_PX: bool, const PRETTY_TS: bool>(
+        &self,
+        writer: &mut JsonObjectWriter<J>,
+    ) {
+        write_ts_field::<J, PRETTY_TS>(writer, "start_ts", self.start_ts);
+        write_ts_field::<J, PRETTY_TS>(writer, "end_ts", self.end_ts);
+        writer.value("instrument_id", self.instrument_id);
+        writer.value("stype_in_symbol", &self.stype_in_symbol);
+        writer.value("stype_out_symbol", &self.stype_out_symbol);
     }
 }
 
@@ -435,6 +459,117 @@ fn write_date_field<J: crate::json_writer::JsonWriter, const PRETTY_TS: bool>(
         );
     } else {
         writer.value(key, crate::metadata::date_to_yyyymmdd(*date));
+    }
+}
+
+impl JsonSerialize for StreamLayout {
+    fn to_json<J: crate::json_writer::JsonWriter, const PRETTY_PX: bool, const PRETTY_TS: bool>(
+        &self,
+        writer: &mut JsonObjectWriter<J>,
+    ) {
+        writer.value("stream_layout_version", self.stream_layout_version);
+        let mut records_writer = writer.array("record_layouts");
+        for rec in self.record_layouts.iter() {
+            rec.to_json::<J, PRETTY_PX, PRETTY_TS>(&mut records_writer.object());
+        }
+        drop(records_writer);
+        let mut structs_writer = writer.array("struct_layouts");
+        for struct_layout in self.struct_layouts.iter() {
+            struct_layout.to_json::<J, PRETTY_PX, PRETTY_TS>(&mut structs_writer.object());
+        }
+        drop(structs_writer);
+        // Key the labels of char enums by the char, as their record fields serialize
+        let char_label_defs: Vec<u16> = self
+            .record_layouts
+            .iter()
+            .flat_map(|rec| &rec.field_defs)
+            .chain(self.struct_layouts.iter().flat_map(|s| &s.field_defs))
+            .filter(|field| field.type_id == ENUM_CHAR_ID)
+            .map(|field| field.def_index)
+            .collect();
+        let mut label_defs_writer = writer.array("label_defs");
+        for (idx, label_def) in self.label_defs.iter().enumerate() {
+            let is_char = u16::try_from(idx).is_ok_and(|idx| char_label_defs.contains(&idx));
+            let mut label_def_writer = label_defs_writer.object();
+            label_def_writer.value("name", &label_def.name);
+            let mut labels_writer = label_def_writer.object("labels");
+            let mut buf = itoa::Buffer::new();
+            let mut char_buf = [0; 4];
+            for (value, label) in label_def.labels.iter() {
+                let key = match u8::try_from(*value) {
+                    Ok(c) if is_char => char::from(c).encode_utf8(&mut char_buf),
+                    _ => buf.format(*value),
+                };
+                labels_writer.value(key, label);
+            }
+        }
+    }
+}
+
+impl JsonSerialize for RecordLayout {
+    fn to_json<
+        J: crate::json_writer::JsonWriter,
+        const _PRETTY_PX: bool,
+        const _PRETTY_TS: bool,
+    >(
+        &self,
+        writer: &mut JsonObjectWriter<J>,
+    ) {
+        writer.value("rtype", self.rtype);
+        writer.value("schema", self.schema);
+        writer.value("base_record_size", self.base_record_size);
+        write!(
+            JsonStringWriter::new(
+                Key {
+                    object: writer,
+                    key: "layout_hash",
+                }
+                .begin()
+            ),
+            "{:#018x}",
+            self.layout_hash
+        )
+        // Writing to a string is infallible
+        .unwrap();
+        writer.value("name", &self.name);
+        write_field_defs(writer, &self.field_defs, &self.field_names);
+    }
+}
+
+impl JsonSerialize for StructLayout {
+    fn to_json<
+        J: crate::json_writer::JsonWriter,
+        const _PRETTY_PX: bool,
+        const _PRETTY_TS: bool,
+    >(
+        &self,
+        writer: &mut JsonObjectWriter<J>,
+    ) {
+        writer.value("size", self.size);
+        writer.value("name", &self.name);
+        write_field_defs(writer, &self.field_defs, &self.field_names);
+    }
+}
+
+fn write_field_defs<J: crate::json_writer::JsonWriter>(
+    writer: &mut JsonObjectWriter<J>,
+    field_defs: &[FieldDef],
+    field_names: &[String],
+) {
+    let mut fields_writer = writer.array("fields");
+    for (field, name) in field_defs.iter().zip(field_names) {
+        let mut field_writer = fields_writer.object();
+        field_writer.value("name", name);
+        field_writer.value("field_id", field.field_id);
+        field_writer.value("offset", field.offset);
+        field_writer.value("size", field.size);
+        field_writer.value("type_id", field.type_id);
+        field_writer.value("flags", field.flags);
+        field_writer.value(
+            "def_index",
+            (field.def_index != FieldDef::UNDEF_LABEL_DEF).then_some(field.def_index),
+        );
+        field_writer.value("scale", field.scale);
     }
 }
 

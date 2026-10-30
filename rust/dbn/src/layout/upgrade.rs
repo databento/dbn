@@ -6,20 +6,23 @@ use crate::{
         self,
         fields::{self, FieldDefault, FieldType},
     },
-    Schema,
+    RType, Schema,
 };
 
-pub(crate) fn upgrade_layout(ts_out: bool) -> StreamLayout {
+pub(crate) fn upgrade_layout(ts_out: bool, schema: Option<Schema>) -> StreamLayout {
     let v3 = pre_v4::stream_layout(3, false);
-    v4::layouts::compiled_layout(|rtype, r| {
-        r.finish_base();
-        for (f, name) in v3_only_fields(&v3.record_layouts, rtype) {
-            r.copy_field(f, name, &v3.label_defs);
-        }
-        if ts_out {
-            r.field(fields::TS_OUT, "ts_out");
-        }
-    })
+    v4::layouts::compiled_layout(
+        |rtype| schema.is_none_or(|schema| RType::try_into_schema(rtype) == Some(schema)),
+        |rtype, r| {
+            r.finish_base();
+            for (f, name) in v3_only_fields(&v3.record_layouts, rtype) {
+                r.copy_field(f, name, &v3.label_defs);
+            }
+            if ts_out {
+                r.field(fields::TS_OUT, "ts_out");
+            }
+        },
+    )
 }
 
 fn v3_only_fields(v3: &[RecordLayout], rtype: u16) -> Vec<(&FieldDef, &str)> {
@@ -584,7 +587,7 @@ mod tests {
 
     #[test]
     fn upgraded_records_fit_a_record_buf() {
-        for rec in &upgrade_layout(true).record_layouts {
+        for rec in &upgrade_layout(true, None).record_layouts {
             assert!(usize::from(rec.record_size()) <= crate::MAX_RECORD_LEN);
         }
     }
@@ -613,7 +616,7 @@ mod tests {
 
     #[test]
     fn the_upgrade_layout_only_adds_extensions() {
-        let upgraded = upgrade_layout(false);
+        let upgraded = upgrade_layout(false, None);
         let default = v4::layouts::default_layout();
         assert_eq!(upgraded.struct_layouts, default.struct_layouts);
         assert_eq!(upgraded.record_layouts.len(), default.record_layouts.len());
@@ -644,7 +647,7 @@ mod tests {
 
     #[test]
     fn the_upgrade_layout_labels_v3_only_fields() {
-        let upgraded = upgrade_layout(false);
+        let upgraded = upgrade_layout(false, None);
         let index = LayoutIndex::new(&upgraded, v4::layouts::default_layout());
         let field = index
             .field_by_name(rtype::INSTRUMENT_DEF, "user_defined_instrument")

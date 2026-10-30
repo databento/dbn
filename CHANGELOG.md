@@ -5,13 +5,15 @@
 ### Enhancements
 - Added experimental Arrow IPC and Parquet encodings to the Python `Transcoder` with
   `encoding="arrow"` and `encoding="parquet"`
-- Added `get_ref` and `get_mut` to `ArrowEncoder` and `ParquetEncoder` for accessing
-  the underlying writer
 - Added nanosecond-precision symbology intervals to DBN version 4 metadata to support
   intraday symbology changes
   - Added `SymbolInterval` and `MetadataBuilder::intervals()`
   - Added `intervals` field to `Metadata`
   - `Metadata::upgrade()` to version 4 converts `mappings` into `intervals`
+- Added DBN version 4 support to the `dbn` CLI for DBN, CSV, and JSON output
+  - `--upgrade 4` upgrades earlier DBN versions to version 4, including fragments
+  - Merging, `--schema`, `--limit`, `--map-symbols`, and splitting by schema or time
+    support version 4
 - Added record group symbology to DBN version 4 for symbology changes mid-stream
   - Added `encode_record_group_header()` to the version 4 `Encoder`, `RecordEncoder`,
     `AsyncEncoder`, and `AsyncRecordEncoder`
@@ -24,10 +26,22 @@
 - Added support for free-threaded Python 3.15
 - Changed the Python type stubs to use `typing.Self` for enum constructors, `Metadata.decode()`,
   and `Transcoder.__enter__()`
+- Added `encode_record_with_sym()` and `encode_ref_with_sym()` to the version 4 JSON
+  `Encoder` for adding a `symbol` field
+- Added `StreamLayout::merge()` for combining the layouts of different record types,
+  which `Metadata::merge()` uses to merge version 4 metadata of different schemas
+- Added `get_ref` and `get_mut` to `ArrowEncoder` and `ParquetEncoder` for accessing
+  the underlying writer
+- Added the DBN version 4 stream layout to JSON metadata as `layout`, which is `null`
+  for earlier DBN versions. Parquet and Arrow metadata also include it
 
 ### Breaking changes
 - Added `intervals` field to `Metadata` for the symbology of a DBN version 4 stream
 - Dropped support for Python 3.10, which has reached end of life
+- Changed `--upgrade`/`-u` in the `dbn` CLI to require the DBN version to upgrade to,
+  e.g. `--upgrade 3`
+- Removed `NoSchemaBehavior::Broadcast`. `SchemaSplitter` now works with encoders of
+  any DBN version
 
 ### Bug fixes
 - Fixed `--zstd`/`-z` in the `dbn` CLI being ignored when the output encoding was

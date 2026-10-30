@@ -251,6 +251,10 @@ impl InstrumentDefMsg {
     /// # Errors
     /// This function returns an error if the `instrument_class` field does not
     /// contain a valid [`InstrumentClass`].
+    #[allow(
+        clippy::unnecessary_cast,
+        reason = "c_char is u8 on some targets like aarch64 Linux"
+    )]
     pub fn instrument_class(&self) -> crate::Result<InstrumentClass> {
         InstrumentClass::try_from(self.instrument_class as u8).map_err(|_| {
             Error::conversion::<InstrumentClass>(format_args!(
@@ -276,6 +280,10 @@ impl InstrumentDefMsg {
     /// # Errors
     /// This function returns an error if the `match_algorithm` field does not
     /// contain a valid [`MatchAlgorithm`].
+    #[allow(
+        clippy::unnecessary_cast,
+        reason = "c_char is u8 on some targets like aarch64 Linux"
+    )]
     pub fn match_algorithm(&self) -> crate::Result<MatchAlgorithm> {
         MatchAlgorithm::try_from(self.match_algorithm as u8).map_err(|_| {
             Error::conversion::<MatchAlgorithm>(format_args!("{:#04X}", self.match_algorithm as u8))

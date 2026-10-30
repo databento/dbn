@@ -1773,7 +1773,7 @@ fn upgrader_for(
         {
             Some(Upgrader::new(
                 v,
-                &crate::layout::upgrade_layout(ts_out),
+                &crate::layout::upgrade_layout(ts_out, schema),
                 schema,
             ))
         }

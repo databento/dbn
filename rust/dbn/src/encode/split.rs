@@ -306,8 +306,6 @@ pub enum NoSchemaBehavior {
     Skip,
     /// Return an error when encountering an rtype without a schema.
     Error,
-    /// Route records with rtypes that have no schema to all existing encoders.
-    Broadcast,
 }
 
 /// Splits a stream by schema.
@@ -558,7 +556,6 @@ where
 impl<E, F> Splitter<E> for SchemaSplitter<E, F>
 where
     F: Fn(Schema, Option<Metadata>) -> crate::Result<E>,
-    E: EncodeRecordRef,
 {
     fn sub_encoder<R>(
         &mut self,
@@ -577,29 +574,13 @@ where
                     "rtype {} has no corresponding schema",
                     record.raw_rtype()
                 ))),
-                NoSchemaBehavior::Broadcast => {
-                    let rec_ref =
-                    // SAFETY: `record` is a valid DBN record: it satisfies `R: Record`.
-                        unsafe { RecordRef::unchecked_from_header(record.as_ref().as_ptr() as *const crate::RecordHeader) };
-                    for encoder in self.encoders.values_mut() {
-                        // Have to use `encode_record_ref` here because `SplitEncoder` supports
-                        // both `EncodeRecord` and `EncodeRecordRef`
-                        encoder.encode_record_ref(rec_ref)?;
-                    }
-                    Ok(None)
-                }
             };
         };
         let encoder = match self.encoders.entry(schema) {
             Entry::Occupied(entry) => entry.into_mut(),
             Entry::Vacant(entry) => {
                 let split_metadata = metadata.cloned().map(|mut m| {
-                    // Only set schema if not broadcasting (broadcast outputs contain mixed rtypes)
-                    if self.no_schema_behavior != NoSchemaBehavior::Broadcast {
-                        m.schema = Some(schema);
-                    } else {
-                        m.schema = None;
-                    }
+                    m.schema = Some(schema);
                     m
                 });
                 entry.insert((self.build_encoder)(schema, split_metadata)?)

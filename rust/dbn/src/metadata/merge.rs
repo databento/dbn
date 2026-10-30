@@ -3,7 +3,7 @@ use std::{
     num::NonZeroU64,
 };
 
-use crate::{Error, SType, Schema};
+use crate::{layout::StreamLayout, Error, SType, Schema};
 
 use super::{MappingInterval, Metadata, SymbolInterval, SymbolMapping};
 
@@ -18,6 +18,7 @@ pub struct MetadataMerger {
     stype_out: SType,
     ts_out: bool,
     symbol_cstr_len: usize,
+    layout: Option<StreamLayout>,
     symbols: HashSet<String>,
     partial: HashSet<String>,
     not_found: HashSet<String>,
@@ -38,6 +39,7 @@ impl MetadataMerger {
             stype_out: original.stype_out,
             ts_out: original.ts_out,
             symbol_cstr_len: original.symbol_cstr_len,
+            layout: original.layout,
             symbols: original.symbols.into_iter().collect(),
             partial: original.partial.into_iter().collect(),
             not_found: original.not_found.into_iter().collect(),
@@ -75,6 +77,10 @@ impl MetadataMerger {
         if self.symbol_cstr_len != additional.symbol_cstr_len {
             return bad_arg("symbol_cstr_len");
         }
+        self.layout = match (self.layout.take(), additional.layout) {
+            (Some(layout), Some(additional)) => Some(layout.merge([additional])?),
+            (layout, additional) => layout.or(additional),
+        };
         if self.schema != additional.schema {
             self.schema = None
         }
@@ -152,7 +158,7 @@ impl MetadataMerger {
             stype_out: self.stype_out,
             ts_out: self.ts_out,
             symbol_cstr_len: self.symbol_cstr_len,
-            layout: None,
+            layout: self.layout,
             intervals: self.intervals,
             symbols: self.symbols.into_iter().collect(),
             partial: self.partial.into_iter().collect(),
@@ -389,6 +395,20 @@ mod tests {
         expected.sort();
         assert_eq!(merged.intervals, expected);
         assert!(merged.mappings.is_empty());
+        assert_eq!(merged.layout, target.layout);
+        assert!(merged.layout.is_some());
+    }
+
+    #[test]
+    fn test_merge_v4_layout_mismatch() {
+        let mut target = metadata_w_mappings();
+        target.upgrade(crate::VersionUpgradePolicy::UpgradeToV4);
+        let mut other = target.clone();
+        other.layout = Some(crate::layout::upgrade_layout(!target.ts_out, target.schema));
+        assert!(matches!(
+            target.merge([other]),
+            Err(Error::BadArgument { desc, .. }) if desc.starts_with("conflicting layouts")
+        ));
     }
 
     #[fixture]

@@ -2,7 +2,8 @@ use std::num::NonZeroU64;
 
 use dbn::{
     decode::{DbnMetadata, DecodeRecordRef},
-    RType, RecordRef, Schema,
+    v4::framing::is_framing_rtype,
+    RType, RecordHeaderKind, RecordRef, Schema,
 };
 
 #[derive(Debug)]
@@ -42,12 +43,18 @@ impl<D: DbnMetadata> DbnMetadata for SchemaFilter<D> {
     }
 }
 
-impl<D: DecodeRecordRef> DecodeRecordRef for SchemaFilter<D> {
-    fn decode_record_ref(&mut self) -> dbn::Result<Option<dbn::RecordRef<'_>>> {
+impl<D, H> DecodeRecordRef<H> for SchemaFilter<D>
+where
+    D: DecodeRecordRef<H>,
+    H: RecordHeaderKind,
+{
+    fn decode_record_ref(&mut self) -> dbn::Result<Option<RecordRef<'_, H>>> {
         while let Some(record) = self.decoder.decode_record_ref()? {
-            if self
-                .rtype
-                .is_none_or(|rtype| rtype as u8 == record.header().rtype)
+            let header = record.header();
+            if is_framing_rtype(header.raw_rtype())
+                || self
+                    .rtype
+                    .is_none_or(|rtype| rtype as u16 == header.raw_rtype())
             {
                 // Safe: casting reference to pointer so the pointer will always be valid.
                 // Getting around borrow checker limitation.
@@ -104,16 +111,22 @@ impl<D: DbnMetadata> DbnMetadata for LimitFilter<D> {
     }
 }
 
-impl<D: DecodeRecordRef> DecodeRecordRef for LimitFilter<D> {
-    fn decode_record_ref(&mut self) -> dbn::Result<Option<RecordRef<'_>>> {
+impl<D, H> DecodeRecordRef<H> for LimitFilter<D>
+where
+    D: DecodeRecordRef<H>,
+    H: RecordHeaderKind,
+{
+    fn decode_record_ref(&mut self) -> dbn::Result<Option<RecordRef<'_, H>>> {
         if self
             .limit
             .is_some_and(|limit| self.record_count >= limit.get())
         {
             return Ok(None);
         }
-        Ok(self.decoder.decode_record_ref()?.inspect(|_| {
-            self.record_count += 1;
+        Ok(self.decoder.decode_record_ref()?.inspect(|record| {
+            if !is_framing_rtype(record.header().raw_rtype()) {
+                self.record_count += 1;
+            }
         }))
     }
 }

@@ -62,6 +62,7 @@ mod builders;
 mod compare;
 mod hash;
 mod index;
+mod merge;
 mod pre_v4;
 mod upgrade;
 mod validate;
@@ -553,7 +554,7 @@ mod tests {
         Action, FlagSet, Side, StatType, StatUpdateAction,
     };
 
-    fn mbo_layout() -> StreamLayout {
+    pub(super) fn mbo_layout() -> StreamLayout {
         let mut sb = StreamLayoutBuilder::new(1, 8);
         sb.layout_of::<MboMsg>(rtype::MBO).finish();
         sb.build().unwrap()
@@ -563,7 +564,7 @@ mod tests {
         LayoutIndex::new(&mbo_layout(), default_layout())
     }
 
-    fn trades_layout() -> StreamLayout {
+    pub(super) fn trades_layout() -> StreamLayout {
         let mut sb = StreamLayoutBuilder::new(1, 8);
         sb.layout_of::<TradeMsg>(rtype::MBP_0).finish();
         sb.build().unwrap()

@@ -612,7 +612,6 @@ dependencies = [
  "serde",
  "tempfile",
  "time",
- "zstd",
 ]
 
 [[package]]
