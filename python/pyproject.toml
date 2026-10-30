@@ -9,6 +9,7 @@ authors = [{ name = "Databento", email = "support@databento.com" }]
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Free Threading :: 2 - Beta",
 ]
 dependencies = []
 

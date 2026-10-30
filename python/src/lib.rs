@@ -23,6 +23,7 @@ use dbn::{
 mod dbn_decoder;
 mod encode;
 mod enums;
+mod free_threading;
 mod transcoder;
 
 /// A Python module wrapping dbn functions

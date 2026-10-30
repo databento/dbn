@@ -12,7 +12,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.15"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.15", "3.15t"]
     name: build - Python ${{ matrix.python-version }} (x86_64 ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
 
@@ -62,7 +62,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.15"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.15", "3.15t"]
     name: build - Python ${{ matrix.python-version }} (aarch64 linux)
     runs-on: ubuntu-latest
 
@@ -109,7 +109,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.15"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.15", "3.15t"]
     name: build - Python ${{ matrix.python-version }} (macOS)
     runs-on: macos-latest
 

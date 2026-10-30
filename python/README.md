@@ -46,6 +46,12 @@ uv sync                 # create .venv with maturin and build databento-dbn into
 uv run maturin develop  # rebuild after editing the Rust sources
 ```
 
+To build for a specific interpreter, such as the free-threaded build of Python 3.15, pass it
+explicitly:
+```sh
+maturin build --interpreter python3.15t
+```
+
 ## License
 
 Distributed under the [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0.html).

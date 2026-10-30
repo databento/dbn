@@ -21,6 +21,7 @@
     `decode_record_ref_with_symbol()`
 - Added `TsSymbolMap::retain_from()` for removing intervals that end at or before a
   timestamp
+- Added support for free-threaded Python 3.15
 
 ### Breaking changes
 - Added `intervals` field to `Metadata` for the symbology of a DBN version 4 stream
