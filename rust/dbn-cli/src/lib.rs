@@ -286,7 +286,7 @@ pub fn infer_encoding(args: &Args) -> anyhow::Result<InferredEncoding> {
                 "Unable to infer output encoding from output path '{output}'",
             ));
         };
-        (format, extension.ends_with(".zst"))
+        (format, args.zstd || extension.ends_with(".zst"))
     };
     Ok(InferredEncoding {
         encoding: format.encoding,
@@ -571,6 +571,26 @@ mod tests {
                 is_fragment: exp_fragment,
             }
         );
+    }
+
+    #[rstest]
+    #[case("out.csv", OutputEncoding::Csv)]
+    #[case("out.csv.zst", OutputEncoding::Csv)]
+    #[case("out.dbn", OutputEncoding::Dbn)]
+    #[case("out.parquet", OutputEncoding::Parquet)]
+    #[case("out.arrow", OutputEncoding::Arrow)]
+    fn test_infer_encoding_zstd_flag_with_inferred_encoding(
+        #[case] output: &str,
+        #[case] exp_enc: OutputEncoding,
+    ) {
+        let args = Args {
+            output: Some(PathBuf::from(output)),
+            zstd: true,
+            ..Default::default()
+        };
+        let inferred = infer_encoding(&args).unwrap();
+        assert_eq!(inferred.encoding, exp_enc);
+        assert_eq!(inferred.compression, Compression::Zstd);
     }
 
     #[rstest]

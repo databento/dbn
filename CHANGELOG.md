@@ -25,6 +25,10 @@
 ### Breaking changes
 - Added `intervals` field to `Metadata` for the symbology of a DBN version 4 stream
 
+### Bug fixes
+- Fixed `--zstd`/`-z` in the `dbn` CLI being ignored when the output encoding was
+  inferred from the output path
+
 ## 0.73.0 - 2026-10-27
 
 This version adds Apache Arrow and Apache Parquet encoding to the `dbn` crate and CLI.
