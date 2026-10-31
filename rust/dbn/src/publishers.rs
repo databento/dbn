@@ -17,9 +17,9 @@ pub enum Venue {
     Glbx = 1,
     /// Nasdaq - All Markets
     Xnas = 2,
-    /// Nasdaq OMX BX
+    /// Nasdaq Texas
     Xbos = 3,
-    /// Nasdaq OMX PSX
+    /// Nasdaq PSX
     Xpsx = 4,
     /// Cboe BZX U.S. Equities Exchange
     Bats = 5,
@@ -33,7 +33,7 @@ pub enum Venue {
     Xnys = 9,
     /// NYSE National, Inc.
     Xcis = 10,
-    /// NYSE MKT LLC
+    /// NYSE American
     Xase = 11,
     /// NYSE Arca
     Arcx = 12,
@@ -141,11 +141,11 @@ pub enum Venue {
     Ftse = 63,
     /// CGIF Intraday Net Asset Values
     Inav = 64,
-    /// CGIF Morning Star
+    /// CGIF Morningstar
     Mstar = 65,
-    /// CGIF Crypto Currency
+    /// CGIF Cryptocurrency
     Cccy = 66,
-    /// CGIF CBOE Global Indices
+    /// CGIF Cboe Global Indices
     Cgi = 67,
     /// CGIF Definitions
     Cdef = 68,
@@ -437,11 +437,11 @@ pub enum Dataset {
     FtseCgif = 45,
     /// CGIF - Intraday Net Asset Values
     InavCgif = 46,
-    /// CGIF - Morning Star
+    /// CGIF - Morningstar
     MstarCgif = 47,
-    /// CGIF - Crypto Currency
+    /// CGIF - Cryptocurrency
     CccyCgif = 48,
-    /// CGIF - CBOE Global Indices
+    /// CGIF - Cboe Global Indices
     CgiCgif = 49,
     /// Arrowhead FLEX
     XtksFlex = 50,
@@ -868,7 +868,7 @@ pub enum Publisher {
     XnysTradesXnys = 45,
     /// Nasdaq QBBO
     XnasQbboXnas = 46,
-    /// Nasdaq Trades
+    /// Nasdaq NLS
     XnasNlsXnas = 47,
     /// Databento US Equities Plus - NYSE Texas
     EqusPlusXchi = 48,
@@ -954,7 +954,7 @@ pub enum Publisher {
     XnasBasicXbos = 88,
     /// Nasdaq Basic - Nasdaq PSX
     XnasBasicXpsx = 89,
-    /// Databento Equities Summary
+    /// Databento US Equities Summary
     EqusSummaryEqus = 90,
     /// NYSE National Trades and BBO
     XcisTradesbboXcis = 91,
@@ -1052,11 +1052,11 @@ pub enum Publisher {
     FtseCgifFtse = 137,
     /// CGIF - Intraday Net Asset Values
     InavCgifInav = 138,
-    /// CGIF - Morning Star
+    /// CGIF - Morningstar
     MstarCgifMstar = 139,
-    /// CGIF - Crypto Currency
+    /// CGIF - Cryptocurrency
     CccyCgifCccy = 140,
-    /// CGIF - CBOE Global Indices
+    /// CGIF - Cboe Global Indices
     CgiCgifCgi = 141,
     /// CGIF - Definitions
     MainCgifCdef = 142,
@@ -1074,11 +1074,11 @@ pub enum Publisher {
     DbixCoreFtse = 148,
     /// CGIF - Intraday Net Asset Values
     DbixCoreInav = 149,
-    /// CGIF - Morning Star
+    /// CGIF - Morningstar
     DbixCoreMstar = 150,
-    /// CGIF - Crypto Currency
+    /// CGIF - Cryptocurrency
     DbixCoreCccy = 151,
-    /// CGIF - CBOE Global Indices
+    /// CGIF - Cboe Global Indices
     DbixCoreCgi = 152,
     /// CGIF - Definitions
     DbixCoreCdef = 153,
