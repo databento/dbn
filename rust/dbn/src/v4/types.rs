@@ -45,7 +45,7 @@ pub trait EnumField: Copy {
 
 /// An enum wrapper that allows carrying non-variant values. Models how
 /// DBN handles encoding enums.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct OpenEnum<E: EnumField> {
     raw: E::Repr,
     _marker: PhantomData<E>,
@@ -88,5 +88,5 @@ pub struct Char(pub c_char);
 
 /// Marker for null-terminated string fields. Uninhabited as it's only
 /// used as a type parameter. Width is declared in the `FieldDef`.
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum CStr {}

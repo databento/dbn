@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use crate::{
-    layout::{compare, FieldDef, StreamLayout, StructLayout, Verdict},
+    layout::{compare, FieldDef, StreamLayout, StructLayout},
     v4::{
         fields::{self, FieldType},
         types::Decimal,
@@ -300,9 +300,7 @@ pub(crate) fn check_compiled_rtypes(layout: &StreamLayout) -> crate::Result<()> 
         let Some(compiled_rec) = compiled.record_layout(rec.rtype) else {
             continue;
         };
-        if rec.base_record_size >= compiled_rec.base_record_size
-            && compare::verdict(layout, rec, compiled) == Verdict::Dynamic
-        {
+        if compare::is_repacked(layout, rec, compiled, compiled_rec) {
             return Err(err(
                 &rec.name,
                 &format!(
@@ -405,6 +403,15 @@ mod tests {
         sb.build().unwrap()
     }
 
+    fn repacked_smaller_trades_layout() -> StreamLayout {
+        let mut sb = StreamLayoutBuilder::new(1, SYMBOL_WIDTH);
+        let mut r = sb.record(rtype::MBP_0, Schema::Trades as u16, TradeMsg::NAME);
+        r.field(fields::PRICE, "price")
+            .field(Field::<Decimal>::new(fields::SIZE.id()), "size");
+        r.finish();
+        sb.build().unwrap()
+    }
+
     fn grown_trades_layout() -> StreamLayout {
         let mut sb = StreamLayoutBuilder::new(1, SYMBOL_WIDTH);
         let mut r = sb.layout_of::<TradeMsg>(rtype::MBP_0);
@@ -436,6 +443,7 @@ mod tests {
 
     #[rstest]
     #[case::repacked(repacked_trades_layout(), false)]
+    #[case::repacked_smaller(repacked_smaller_trades_layout(), false)]
     #[case::grown_base(grown_trades_layout(), true)]
     #[case::older_base(older_trades_layout(), true)]
     #[case::custom_rtype(custom_rtype_layout(), true)]

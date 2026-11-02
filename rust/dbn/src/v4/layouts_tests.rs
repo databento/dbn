@@ -577,3 +577,35 @@ fn every_label_def_is_used_and_every_enum_labeled() {
     let all: Vec<u16> = (0..layout.label_defs.len() as u16).collect();
     assert_eq!(referenced, all, "an unused or missing label def");
 }
+
+#[test]
+fn offsets_of_undeclared_extensions_are_none() {
+    let index = LayoutIndex::new(default_layout(), default_layout());
+    let offsets = InstrumentDefOffsets::resolve(&index).unwrap();
+    let def = InstrumentDefMsg::default();
+
+    assert_eq!(def.strike_price(&offsets), None);
+    assert_eq!(def.strike_price_f64(&offsets), None);
+    assert_eq!(def.raw_expiration(&offsets), None);
+    assert_eq!(def.expiration(&offsets), None);
+    assert_eq!(def.leg_side(&offsets).unwrap(), None);
+}
+
+#[test]
+fn required_field_beyond_record_is_an_error() {
+    let index = LayoutIndex::new(default_layout(), default_layout());
+    let offsets = InstrumentDefOffsets::resolve(&index).unwrap();
+    // The bare struct's length ends before `raw_symbol`
+    assert!(InstrumentDefMsg::default().raw_symbol(&offsets).is_err());
+}
+
+#[test]
+fn offsets_require_a_layout_for_the_rtype() {
+    let mut sb = crate::layout::StreamLayoutBuilder::new(1, 8);
+    sb.layout_of::<MboMsg>(rtype::MBO).finish();
+    let index = LayoutIndex::new(&sb.build().unwrap(), default_layout());
+
+    assert!(InstrumentDefOffsets::resolve(&index).is_err());
+    assert!(ImbalanceOffsets::resolve(&index).is_err());
+    assert!(SymbolMappingOffsets::resolve(&index).is_err());
+}

@@ -1214,6 +1214,109 @@ mod tests {
     }
 
     #[test]
+    fn test_v4_definition_offsets_read_upgraded_v3_fields() -> Result<()> {
+        let leg = v3::InstrumentDefMsg {
+            leg_side: Side::Ask as c_char,
+            leg_price: 1_250_000_000,
+            ..es_call_v3()
+        };
+        let encoded = definitions(3, &[leg]);
+        let mut decoder = crate::decode::dbn::v4::Decoder::with_fsm(encoded.as_slice(), fsm_v4()?)?;
+        let offsets =
+            crate::v4::InstrumentDefOffsets::resolve(&decoder.metadata().layout_index().unwrap())?;
+        let rec = decoder.decode_ref()?.unwrap();
+        let def = rec.try_get::<crate::v4::InstrumentDefMsg>()?;
+
+        assert_eq!(def.raw_symbol(&offsets)?, "ESZ5 C6800");
+        assert_eq!(def.strike_price(&offsets), Some(6_800_000_000_000));
+        assert_eq!(def.strike_price_f64(&offsets), Some(6800.0));
+        assert_eq!(def.leg_price(&offsets), Some(1_250_000_000));
+        assert_eq!(
+            def.raw_expiration(&offsets),
+            Some(1_766_154_600_000_000_000)
+        );
+        assert_eq!(
+            def.expiration(&offsets),
+            Some(
+                time::OffsetDateTime::from_unix_timestamp_nanos(1_766_154_600_000_000_000).unwrap()
+            )
+        );
+        assert_eq!(def.activation(&offsets), None);
+        assert!(def.high_limit_price_f64(&offsets).unwrap().is_nan());
+        assert_eq!(def.leg_side(&offsets)?, Some(Side::Ask));
+        Ok(())
+    }
+
+    #[test]
+    fn test_v4_imbalance_offsets_read_upgraded_v3_fields() -> Result<()> {
+        let imbalance = v3::ImbalanceMsg {
+            hd: RecordHeader::new::<v3::ImbalanceMsg>(
+                rtype::IMBALANCE,
+                1,
+                7,
+                1_757_970_000_000_000_000,
+            ),
+            auction_time: 1_757_970_600_000_000_000,
+            upper_collar: 105_000_000_000,
+            unpaired_side: Side::Bid as c_char,
+            ..Default::default()
+        };
+        let fsm = DbnFsm::builder()
+            .header::<crate::v4::RecordHeader>()
+            .skip_metadata(true)
+            .input_dbn_version(Some(3))?
+            .build()?;
+        let mut decoder = crate::decode::dbn::v4::RecordDecoder::with_fsm(imbalance.as_ref(), fsm);
+        let index = crate::layout::LayoutIndex::new(
+            &crate::layout::upgrade_layout(false, None),
+            crate::v4::layouts::default_layout(),
+        );
+        let offsets = crate::v4::ImbalanceOffsets::resolve(&index)?;
+        let rec = decoder.decode_ref()?.unwrap();
+        let imbalance = rec.try_get::<crate::v4::ImbalanceMsg>()?;
+
+        assert_eq!(
+            imbalance.raw_auction_time(&offsets),
+            Some(1_757_970_600_000_000_000)
+        );
+        assert_eq!(imbalance.upper_collar(&offsets), Some(105_000_000_000));
+        assert_eq!(imbalance.unpaired_side(&offsets)?, Some(Side::Bid));
+        Ok(())
+    }
+
+    #[test]
+    fn test_v4_symbol_mapping_offsets_read_upgraded_v3_symbols() -> Result<()> {
+        let mapping = v3::SymbolMappingMsg {
+            hd: RecordHeader::new::<v3::SymbolMappingMsg>(
+                rtype::SYMBOL_MAPPING,
+                1,
+                42_005_804,
+                1_757_970_000_000_000_000,
+            ),
+            stype_in_symbol: str_to_c_chars("ES.FUT").unwrap(),
+            stype_out_symbol: str_to_c_chars("ESZ5").unwrap(),
+            ..Default::default()
+        };
+        let fsm = DbnFsm::builder()
+            .header::<crate::v4::RecordHeader>()
+            .skip_metadata(true)
+            .input_dbn_version(Some(3))?
+            .build()?;
+        let mut decoder = crate::decode::dbn::v4::RecordDecoder::with_fsm(mapping.as_ref(), fsm);
+        let index = crate::layout::LayoutIndex::new(
+            &crate::layout::upgrade_layout(false, None),
+            crate::v4::layouts::default_layout(),
+        );
+        let offsets = crate::v4::SymbolMappingOffsets::resolve(&index)?;
+        let rec = decoder.decode_ref()?.unwrap();
+        let mapping = rec.try_get::<crate::v4::SymbolMappingMsg>()?;
+
+        assert_eq!(mapping.stype_in_symbol(&offsets)?, "ES.FUT");
+        assert_eq!(mapping.stype_out_symbol(&offsets)?, "ESZ5");
+        Ok(())
+    }
+
+    #[test]
     fn test_v4_decoder_upgrades_v3_ts_out() -> Result<()> {
         const TS_OUT: u64 = 1_697_240_529_000_000_200;
         let mut metadata = trades_v3_metadata();

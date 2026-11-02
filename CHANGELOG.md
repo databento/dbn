@@ -21,6 +21,10 @@
     `TsSymbolMap` from the metadata and record group symbology, which the decoder
     exposes through `symbol_map()`, `decode_ref_with_symbol()`, and the async
     `decode_record_ref_with_symbol()`
+- Added `InstrumentDefOffsets`, `ImbalanceOffsets`, and `SymbolMappingOffsets` for
+  reading DBN version 4 fields the compiled record structs don't hold, such as
+  `raw_symbol`, `strike_price`, and `leg_side`, through methods on `InstrumentDefMsg`,
+  `ImbalanceMsg`, and `SymbolMappingMsg`
 - Added `TsSymbolMap::retain_from()` for removing intervals that end at or before a
   timestamp
 - Added support for free-threaded Python 3.15
@@ -46,6 +50,10 @@
 ### Bug fixes
 - Fixed `--zstd`/`-z` in the `dbn` CLI being ignored when the output encoding was
   inferred from the output path
+- Fixed DBN version 4 decoders rejecting streams with a symbol width greater than 71
+  and reading definition and symbol mapping records dynamically when it was smaller
+- Fixed DBN version 4 layout validation accepting a repacked compiled record layout
+  smaller than its compiled struct
 
 ## 0.73.0 - 2026-10-27
 

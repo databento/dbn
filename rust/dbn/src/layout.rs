@@ -803,6 +803,29 @@ mod tests {
         assert_eq!(index.verdict(rtype::MBP_0), Some(expected));
     }
 
+    #[rstest]
+    #[case::narrower(22)]
+    #[case::compiled(71)]
+    #[case::wider(80)]
+    fn symbol_width_doesnt_affect_verdict(#[case] symbol_cstr_len: u16) {
+        let mut sb = StreamLayoutBuilder::new(1, symbol_cstr_len);
+        sb.layout_of::<v4::InstrumentDefMsg>(rtype::INSTRUMENT_DEF)
+            .finish();
+        sb.layout_of::<v4::SymbolMappingMsg>(rtype::SYMBOL_MAPPING)
+            .finish();
+        let stream = sb.build().unwrap();
+        validate::check_compiled_rtypes(&stream).unwrap();
+        let index = LayoutIndex::new(&stream, default_layout());
+        assert_eq!(
+            index.verdict(rtype::INSTRUMENT_DEF),
+            Some(Verdict::Compiled)
+        );
+        assert_eq!(
+            index.verdict(rtype::SYMBOL_MAPPING),
+            Some(Verdict::Compiled)
+        );
+    }
+
     #[test]
     fn uncompiled_rtype_is_dynamic() {
         let uncompiled = 0x9999;

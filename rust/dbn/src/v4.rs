@@ -15,9 +15,11 @@ pub mod layouts;
 #[cfg(test)]
 mod layouts_tests;
 mod methods;
+mod offsets;
 mod records;
 pub mod types;
 
+pub use offsets::*;
 pub use records::*;
 
 /// The DBN version of this module.
