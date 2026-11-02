@@ -5,7 +5,7 @@ use crate::{
     },
     v4::{
         fields::{self, Field, FieldType, FixedWidth},
-        types::{CStr, Decimal, Symbol},
+        types::{CStr, Decimal},
         RecordHeader,
     },
     RType,
@@ -276,7 +276,7 @@ impl<'a> RecordLayoutBuilder<'a> {
     }
 
     /// Places a symbol field of the stream's symbol width at the cursor.
-    pub fn symbol_field(&mut self, f: Field<Symbol>, name: &str) -> &mut Self {
+    pub fn symbol_field(&mut self, f: Field<CStr>, name: &str) -> &mut Self {
         self.seq.string(f, name, self.parent.symbol_cstr_len);
         self
     }

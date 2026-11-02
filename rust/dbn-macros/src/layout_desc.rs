@@ -41,7 +41,7 @@ pub fn expand_record(
             }
 
             const REQUIRED_FIELDS: &'static [(
-                #crate_name::v4::fields::Field<#crate_name::v4::types::Symbol>,
+                #crate_name::v4::fields::Field<#crate_name::v4::types::CStr>,
                 &'static str,
             )] = &[#(#required),*];
         }

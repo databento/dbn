@@ -4,7 +4,7 @@ use std::sync::LazyLock;
 
 use crate::layout::{RecordLayoutBuilder, RecordLayoutDesc, StreamLayout, StreamLayoutBuilder};
 
-use super::{fields::Field, rtype, types::Symbol};
+use super::{fields::Field, rtype, types::CStr};
 
 /// The layout of the compiled v4 record structs, for
 /// [`LayoutIndex::new(layout, compiled)`](crate::layout::LayoutIndex::new).
@@ -53,7 +53,7 @@ pub(crate) fn compiled_layout(
     sb.build().expect("v4 record layouts are valid")
 }
 
-pub(crate) fn required_fields(rtype: u16) -> &'static [(Field<Symbol>, &'static str)] {
+pub(crate) fn required_fields(rtype: u16) -> &'static [(Field<CStr>, &'static str)] {
     match rtype {
         rtype::INSTRUMENT_DEF => super::InstrumentDefMsg::REQUIRED_FIELDS,
         rtype::SYMBOL_MAPPING => super::SymbolMappingMsg::REQUIRED_FIELDS,

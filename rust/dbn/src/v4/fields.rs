@@ -5,7 +5,7 @@ use std::{ffi::c_char, marker::PhantomData};
 use crate::{
     flags,
     v4::{
-        types::{CStr, Char, Decimal, EnumField, Labels, OpenEnum, Symbol, TimestampNs},
+        types::{CStr, Char, Decimal, EnumField, Labels, OpenEnum, TimestampNs},
         RecordHeader,
     },
     FlagSet,
@@ -139,12 +139,6 @@ impl DecodeField for CStr {
         std::str::from_utf8(&bytes[..end]).ok()
     }
 }
-impl DecodeField for Symbol {
-    type Value<'a> = &'a str;
-    fn decode(bytes: &[u8], scale: i8) -> Option<&str> {
-        CStr::decode(bytes, scale)
-    }
-}
 impl<E> DecodeField for OpenEnum<E>
 where
     E: EnumField,
@@ -226,7 +220,7 @@ impl ScalarType {
             <Decimal as FieldType>::TYPE_ID => Self::Decimal,
             <TimestampNs as FieldType>::TYPE_ID => Self::Timestamp,
             <Char as FieldType>::TYPE_ID | ENUM_CHAR_ID => Self::Char,
-            CSTR_ID | SYMBOL_ID => Self::Str,
+            CSTR_ID => Self::Str,
             _ => return None,
         })
     }
@@ -383,9 +377,6 @@ impl FieldType for CStr {
     const TYPE_ID: u8 = CSTR_ID;
     // not an array of c_char; it's own semantic type
 }
-impl FieldType for Symbol {
-    const TYPE_ID: u8 = SYMBOL_ID;
-}
 impl FieldType for RecordHeader {
     const TYPE_ID: u8 = STRUCT_ID;
 }
@@ -420,8 +411,6 @@ pub const BIT_SET_32_ID: u8 = 0x32;
 pub const BIT_SET_64_ID: u8 = 0x33;
 /// Type ID for a C string.
 pub const CSTR_ID: u8 = 0x0E;
-/// Type ID for a symbol, a C string with the stream's symbol width.
-pub const SYMBOL_ID: u8 = 0x0F;
 /// Type ID for a nested struct.
 pub const STRUCT_ID: u8 = 0x40;
 /// Type ID for padding.
@@ -482,7 +471,7 @@ impl<E: EnumField> FixedWidth for OpenEnum<E> {
 }
 
 /// The byte width and natural alignment of a scalar element of `type_id`, or
-/// `None` for `CStr` and `Symbol`, whose width the dataset declares, and for aggregate
+/// `None` for `CStr`, whose width the dataset declares, and for aggregate
 /// (`Struct`) and `Padding` tags. For an array field the element width is returned,
 /// which is also the field's alignment.
 pub(crate) const fn scalar_size(type_id: u8) -> Option<u16> {
@@ -515,7 +504,6 @@ mod tests {
         &5_500_000_000_i64.to_le_bytes(),
         Some(ScalarValue::Decimal(Decimal { raw: 5_500_000_000, scale: -9 }))
     )]
-    #[case::symbol(SYMBOL_ID, b"ESZ6\0\0\0\0", Some(ScalarValue::Str("ESZ6")))]
     #[case::non_utf8(CSTR_ID, b"\xFFZ6\0", None)]
     #[case::short(<u32 as FieldType>::TYPE_ID, &[0x01, 0x02], None)]
     fn scalar_type_decodes(

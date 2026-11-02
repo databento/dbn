@@ -53,7 +53,7 @@ use std::{collections::BTreeMap, marker::PhantomData};
 use crate::{
     v4::{
         fields::{self, DecodeField, Field, FieldType},
-        types::Symbol,
+        types::CStr,
     },
     Record,
 };
@@ -85,7 +85,7 @@ pub trait RecordLayoutDesc {
     fn add_fields(r: &mut RecordLayoutBuilder<'_>);
 
     /// The symbol fields every layout of this record declares but no struct holds.
-    const REQUIRED_FIELDS: &'static [(Field<Symbol>, &'static str)] = &[];
+    const REQUIRED_FIELDS: &'static [(Field<CStr>, &'static str)] = &[];
 }
 
 /// The layout description of a struct nested in records, used to build its
@@ -1004,21 +1004,6 @@ mod tests {
     })]
     #[case::struct_size_not_a_multiple_of_its_alignment(|l: &mut StreamLayout| {
         l.struct_layouts[0].size += 1;
-    })]
-    #[case::symbol_wider_than_the_stream_declares(|l: &mut StreamLayout| {
-        let rec = &mut l.record_layouts[0];
-        rec.field_defs.push(FieldDef {
-            field_id: fields::RAW_SYMBOL.id(),
-            offset: rec.base_record_size,
-            size: 16,
-            type_id: fields::SYMBOL_ID,
-            flags: 0,
-            def_index: 0,
-            scale: 0,
-            _reserved: [0; 5],
-        });
-        rec.field_names.push("raw_symbol".to_owned());
-        rec.base_record_size += 16;
     })]
     #[case::zero_size_struct_array(|l: &mut StreamLayout| {
         l.struct_layouts.push(StructLayout {

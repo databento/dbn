@@ -231,7 +231,7 @@ pub struct InstrumentDefMsgV1 {
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub secsubtype: [c_char; 6],
     /// The instrument raw symbol assigned by the publisher.
-    #[dbn(encode_order(2), field_id = RAW_SYMBOL_V1, fmt_method)]
+    #[dbn(encode_order(2), fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub raw_symbol: [c_char; SYMBOL_CSTR_LEN_V1],
     /// The security group code of the instrument.
@@ -402,11 +402,11 @@ pub struct SymbolMappingMsgV1 {
     /// The common header.
     pub hd: RecordHeader,
     /// The input symbol.
-    #[dbn(field_id = STYPE_IN_SYMBOL_V1, fmt_method)]
+    #[dbn(fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub stype_in_symbol: [c_char; SYMBOL_CSTR_LEN_V1],
     /// The output symbol.
-    #[dbn(field_id = STYPE_OUT_SYMBOL_V1, fmt_method)]
+    #[dbn(fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub stype_out_symbol: [c_char; SYMBOL_CSTR_LEN_V1],
     #[doc(hidden)]
@@ -593,7 +593,7 @@ pub struct InstrumentDefMsgV2 {
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub secsubtype: [c_char; 6],
     /// The instrument raw symbol assigned by the publisher.
-    #[dbn(encode_order(2), field_id = RAW_SYMBOL_V1, fmt_method)]
+    #[dbn(encode_order(2), fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub raw_symbol: [c_char; SYMBOL_CSTR_LEN_V2],
     /// The security group code of the instrument.

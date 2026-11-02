@@ -851,7 +851,7 @@ pub struct InstrumentDefMsg {
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub secsubtype: [c_char; 6],
     /// The instrument raw symbol assigned by the publisher.
-    #[dbn(encode_order(2), field_id = RAW_SYMBOL_V1, fmt_method)]
+    #[dbn(encode_order(2), fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub raw_symbol: [c_char; SYMBOL_CSTR_LEN],
     /// The security group code of the instrument.
@@ -1166,14 +1166,14 @@ pub struct SymbolMappingMsg {
     #[dbn(fmt_method)]
     pub stype_in: u8,
     /// The input symbol.
-    #[dbn(field_id = STYPE_IN_SYMBOL_V1, fmt_method)]
+    #[dbn(fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub stype_in_symbol: [c_char; SYMBOL_CSTR_LEN],
     /// The output symbology type of `stype_out_symbol`. Will always be [`RawSymbol`](crate::SType::RawSymbol).
     #[dbn(fmt_method)]
     pub stype_out: u8,
     /// The output symbol.
-    #[dbn(field_id = STYPE_OUT_SYMBOL_V1, fmt_method)]
+    #[dbn(fmt_method)]
     #[cfg_attr(feature = "serde", serde(with = "crate::record::cstr_serde"))]
     pub stype_out_symbol: [c_char; SYMBOL_CSTR_LEN],
     /// The start of the mapping interval expressed as the number of nanoseconds since

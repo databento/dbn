@@ -79,7 +79,7 @@ pub const IS_QUOTING: Field<crate::v4::types::OpenEnum<crate::TriState>> = Field
 pub const IS_SHORT_SELL_RESTRICTED: Field<crate::v4::types::OpenEnum<crate::TriState>> =
     Field::new(0x2E);
 /// Field ID for `raw_symbol`.
-pub const RAW_SYMBOL: Field<crate::v4::types::Symbol> = Field::new(0x2F);
+pub const RAW_SYMBOL: Field<crate::v4::types::CStr> = Field::new(0x2F);
 /// Field ID for `min_price_increment`.
 pub const MIN_PRICE_INCREMENT: Field<crate::v4::types::Decimal> = Field::new(0x30);
 /// Field ID for `display_factor`.
@@ -139,9 +139,9 @@ pub const STYPE_IN: Field<crate::v4::types::OpenEnum<crate::SType>> = Field::new
 /// Field ID for `stype_out`.
 pub const STYPE_OUT: Field<crate::v4::types::OpenEnum<crate::SType>> = Field::new(0x4A);
 /// Field ID for `stype_in_symbol`.
-pub const STYPE_IN_SYMBOL: Field<crate::v4::types::Symbol> = Field::new(0x4B);
+pub const STYPE_IN_SYMBOL: Field<crate::v4::types::CStr> = Field::new(0x4B);
 /// Field ID for `stype_out_symbol`.
-pub const STYPE_OUT_SYMBOL: Field<crate::v4::types::Symbol> = Field::new(0x4C);
+pub const STYPE_OUT_SYMBOL: Field<crate::v4::types::CStr> = Field::new(0x4C);
 /// Field ID for `start_ts`.
 pub const START_TS: Field<crate::v4::types::TimestampNs> = Field::new(0x4D);
 /// Field ID for `end_ts`.
@@ -322,12 +322,6 @@ pub const RAW_INSTRUMENT_ID_V1: Field<u32> = Field::new(0x32);
 pub const CHANNEL_ID_V1: Field<u16> = Field::new(0x1B);
 /// Field ID for `quantity_v1`.
 pub const QUANTITY_V1: Field<i32> = Field::new(0x3E);
-/// Field ID for `raw_symbol_v1`.
-pub const RAW_SYMBOL_V1: Field<crate::v4::types::CStr> = Field::new(0x2F);
-/// Field ID for `stype_in_symbol_v1`.
-pub const STYPE_IN_SYMBOL_V1: Field<crate::v4::types::CStr> = Field::new(0x4B);
-/// Field ID for `stype_out_symbol_v1`.
-pub const STYPE_OUT_SYMBOL_V1: Field<crate::v4::types::CStr> = Field::new(0x4C);
 
 pub(crate) fn registry_default(field_id: u16) -> Option<FieldDefault> {
     Some(match field_id {

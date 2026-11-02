@@ -244,8 +244,7 @@ fn op_for(have: &FieldDef, want: &FieldDef) -> Option<Op> {
     if have.scale != want.scale || have.is_array() || want.is_array() {
         return None;
     }
-    let is_str = |type_id| matches!(type_id, fields::CSTR_ID | fields::SYMBOL_ID);
-    if is_str(have.type_id) && is_str(want.type_id) {
+    if have.type_id == fields::CSTR_ID && want.type_id == fields::CSTR_ID {
         return (have.size <= want.size).then_some(Op::Copy {
             src_offset: have.offset,
             dst_offset: want.offset,
@@ -516,7 +515,7 @@ mod tests {
     fn a_symbol_widens_with_nulls() {
         let src = record_of(|r| {
             r.str_field(
-                fields::RAW_SYMBOL_V1,
+                fields::RAW_SYMBOL,
                 "raw_symbol",
                 crate::compat::SYMBOL_CSTR_LEN_V1 as u16,
             );

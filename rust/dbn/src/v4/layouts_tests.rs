@@ -5,7 +5,11 @@ use std::{
 
 use rstest::rstest;
 
-use super::{fields, layouts::default_layout, rtype, *};
+use super::{
+    fields,
+    layouts::{default_layout, required_fields},
+    rtype, *,
+};
 use crate::{
     layout::{DynFieldAccess, LayoutIndex, Verdict},
     record::str_to_c_chars,
@@ -176,7 +180,11 @@ fn default_layout_places_every_field(
             .field_defs
             .iter()
             .filter(|f| {
-                !f.is_padding() && f.field_id != fields::HD.id() && f.type_id != fields::SYMBOL_ID
+                !f.is_padding()
+                    && f.field_id != fields::HD.id()
+                    && !required_fields(rtype)
+                        .iter()
+                        .any(|(r, _)| r.id() == f.field_id)
             })
             .map(|f| (f.field_id, usize::from(f.offset)))
             .collect();
@@ -320,7 +328,7 @@ fn reads_stat_type() {
 fn required_symbols_follow_the_struct(
     #[case] rtype: u16,
     #[case] struct_size: usize,
-    #[case] symbols: &[fields::Field<types::Symbol>],
+    #[case] symbols: &[fields::Field<types::CStr>],
 ) {
     let width = crate::compat::SYMBOL_CSTR_LEN_V3 as u16;
     let rec = default_layout().record_layout(rtype).unwrap();
@@ -330,7 +338,7 @@ fn required_symbols_follow_the_struct(
             .iter()
             .find(|f| f.field_id == symbol.id())
             .unwrap();
-        assert_eq!(def.type_id, fields::SYMBOL_ID);
+        assert_eq!(def.type_id, fields::CSTR_ID);
         assert_eq!(def.size, width);
         assert_eq!(
             usize::from(def.offset),
