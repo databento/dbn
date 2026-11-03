@@ -22,9 +22,12 @@
 - Added `TsSymbolMap::retain_from()` for removing intervals that end at or before a
   timestamp
 - Added support for free-threaded Python 3.15
+- Changed the Python type stubs to use `typing.Self` for enum constructors, `Metadata.decode()`,
+  and `Transcoder.__enter__()`
 
 ### Breaking changes
 - Added `intervals` field to `Metadata` for the symbology of a DBN version 4 stream
+- Dropped support for Python 3.10, which has reached end of life
 
 ### Bug fixes
 - Fixed `--zstd`/`-z` in the `dbn` CLI being ignored when the output encoding was

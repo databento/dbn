@@ -1,6 +1,4 @@
-# ruff: noqa: F401, F405, UP007
-from typing import Union
-
+# ruff: noqa: F401, F405
 from databento_dbn import v1
 from databento_dbn import v2
 from databento_dbn import v3
@@ -12,26 +10,26 @@ from databento_dbn.metadata import SymbolMapping
 from ._lib import *  # noqa: F403
 
 
-DBNRecord = Union[
-    MBOMsg,
-    TradeMsg,
-    MBP1Msg,
-    MBP10Msg,
-    BBOMsg,
-    CMBP1Msg,
-    CBBOMsg,
-    OHLCVMsg,
-    StatusMsg,
-    InstrumentDefMsg,
-    ImbalanceMsg,
-    StatMsg,
-    ErrorMsg,
-    SymbolMappingMsg,
-    SystemMsg,
-    ErrorMsgV1,
-    InstrumentDefMsgV1,
-    StatMsgV1,
-    SymbolMappingMsgV1,
-    SystemMsgV1,
-    InstrumentDefMsgV2,
-]
+DBNRecord = (
+    MBOMsg
+    | TradeMsg
+    | MBP1Msg
+    | MBP10Msg
+    | BBOMsg
+    | CMBP1Msg
+    | CBBOMsg
+    | OHLCVMsg
+    | StatusMsg
+    | InstrumentDefMsg
+    | ImbalanceMsg
+    | StatMsg
+    | ErrorMsg
+    | SymbolMappingMsg
+    | SystemMsg
+    | ErrorMsgV1
+    | InstrumentDefMsgV1
+    | StatMsgV1
+    | SymbolMappingMsgV1
+    | SystemMsgV1
+    | InstrumentDefMsgV2
+)
