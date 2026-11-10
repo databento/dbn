@@ -1,85 +1,11 @@
 use crate::{
-    pretty::px_to_f64,
-    record::{c_chars_to_str, ts_to_dt},
-    Error, InstrumentClass, MatchAlgorithm, SecurityUpdateAction,
+    pretty::px_to_f64, record::c_chars_to_str, InstrumentClass, InstrumentDefRec, Result, Side,
+    UserDefinedInstrument,
 };
 
 use super::*;
 
 impl InstrumentDefMsg {
-    /// Parses the capture-server-received timestamp into a datetime.
-    /// Returns `None` if `ts_recv` contains the sentinel for a null timestamp.
-    pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
-        ts_to_dt(self.ts_recv)
-    }
-
-    /// Converts the minimum constant tick to a floating point.
-    ///
-    /// `UNDEF_PRICE` will be converted to NaN.
-    ///
-    /// <div class="warning">
-    /// This may introduce floating-point error.
-    /// </div>
-    pub fn min_price_increment_f64(&self) -> f64 {
-        px_to_f64(self.min_price_increment)
-    }
-
-    /// Converts the display factor to a floating point.
-    ///
-    /// `UNDEF_PRICE` will be converted to NaN.
-    ///
-    /// <div class="warning">
-    /// This may introduce floating-point error.
-    /// </div>
-    pub fn display_factor_f64(&self) -> f64 {
-        px_to_f64(self.display_factor)
-    }
-
-    /// Parses the last eligible trade time into a datetime.
-    /// Returns `None` if `expiration` contains the sentinel for a null timestamp.
-    pub fn expiration(&self) -> Option<time::OffsetDateTime> {
-        ts_to_dt(self.expiration)
-    }
-
-    /// Parses the time of instrument activation into a datetime.
-    /// Returns `None` if `activation` contains the sentinel for a null timestamp.
-    pub fn activation(&self) -> Option<time::OffsetDateTime> {
-        ts_to_dt(self.activation)
-    }
-
-    /// Converts the high limit price to a floating point.
-    ///
-    /// `UNDEF_PRICE` will be converted to NaN.
-    ///
-    /// <div class="warning">
-    /// This may introduce floating-point error.
-    /// </div>
-    pub fn high_limit_price_f64(&self) -> f64 {
-        px_to_f64(self.high_limit_price)
-    }
-
-    /// Converts the low limit price to a floating point.
-    ///
-    /// `UNDEF_PRICE` will be converted to NaN.
-    ///
-    /// <div class="warning">
-    /// This may introduce floating-point error.
-    /// </div>
-    pub fn low_limit_price_f64(&self) -> f64 {
-        px_to_f64(self.low_limit_price)
-    }
-
-    /// Converts the differential value for price banding to a floating point.
-    ///
-    /// `UNDEF_PRICE` will be converted to NaN.
-    ///
-    /// <div class="warning">
-    /// This may introduce floating-point error.
-    /// </div>
-    pub fn max_price_variation_f64(&self) -> f64 {
-        px_to_f64(self.max_price_variation)
-    }
-
     /// Converts the trading session settlement price to a floating point.
     ///
     /// `UNDEF_PRICE` will be converted to NaN.
@@ -89,50 +15,6 @@ impl InstrumentDefMsg {
     /// </div>
     pub fn trading_reference_price_f64(&self) -> f64 {
         px_to_f64(self.trading_reference_price)
-    }
-
-    /// Converts the contract size for each instrument to a floating point.
-    ///
-    /// `UNDEF_PRICE` will be converted to NaN.
-    ///
-    /// <div class="warning">
-    /// This may introduce floating-point error.
-    /// </div>
-    pub fn unit_of_measure_qty_f64(&self) -> f64 {
-        px_to_f64(self.unit_of_measure_qty)
-    }
-
-    /// Converts the min price increment amount to a floating point.
-    ///
-    /// `UNDEF_PRICE` will be converted to NaN.
-    ///
-    /// <div class="warning">
-    /// This may introduce floating-point error.
-    /// </div>
-    pub fn min_price_increment_amount_f64(&self) -> f64 {
-        px_to_f64(self.min_price_increment_amount)
-    }
-
-    /// Converts the price ratio to a floating point.
-    ///
-    /// `UNDEF_PRICE` will be converted to NaN.
-    ///
-    /// <div class="warning">
-    /// This may introduce floating-point error.
-    /// </div>
-    pub fn price_ratio_f64(&self) -> f64 {
-        px_to_f64(self.price_ratio)
-    }
-
-    /// Converts the strike price to a floating point.
-    ///
-    /// `UNDEF_PRICE` will be converted to NaN.
-    ///
-    /// <div class="warning">
-    /// This may introduce floating-point error.
-    /// </div>
-    pub fn strike_price_f64(&self) -> f64 {
-        px_to_f64(self.strike_price)
     }
 
     /// Parses the currency into a `&str`.
@@ -157,14 +39,6 @@ impl InstrumentDefMsg {
     /// This function returns an error if `secsubtype` contains invalid UTF-8.
     pub fn secsubtype(&self) -> crate::Result<&str> {
         c_chars_to_str(&self.secsubtype)
-    }
-
-    /// Parses the raw symbol into a `&str`.
-    ///
-    /// # Errors
-    /// This function returns an error if `raw_symbol` contains invalid UTF-8.
-    pub fn raw_symbol(&self) -> crate::Result<&str> {
-        c_chars_to_str(&self.raw_symbol)
     }
 
     /// Parses the security group code into a `&str`.
@@ -230,55 +104,102 @@ impl InstrumentDefMsg {
     pub fn strike_price_currency(&self) -> crate::Result<&str> {
         c_chars_to_str(&self.strike_price_currency)
     }
+}
 
-    /// Parses the instrument class into an enum.
-    ///
-    /// # Errors
-    /// This function returns an error if the `instrument_class` field does not
-    /// contain a valid [`InstrumentClass`].
-    #[allow(
-        clippy::unnecessary_cast,
-        reason = "c_char is u8 on some targets like aarch64 Linux"
-    )]
-    pub fn instrument_class(&self) -> crate::Result<InstrumentClass> {
-        InstrumentClass::try_from(self.instrument_class as u8).map_err(|_| {
-            Error::conversion::<InstrumentClass>(format_args!(
-                "{:#04X}",
-                self.instrument_class as u8
-            ))
-        })
+impl InstrumentDefRec for InstrumentDefMsg {
+    fn raw_ts_recv(&self) -> u64 {
+        self.ts_recv
     }
 
-    /// Parses the match algorithm into an enum.
-    ///
-    /// # Errors
-    /// This function returns an error if the `match_algorithm` field does not
-    /// contain a valid [`MatchAlgorithm`].
-    #[allow(
-        clippy::unnecessary_cast,
-        reason = "c_char is u8 on some targets like aarch64 Linux"
-    )]
-    pub fn match_algorithm(&self) -> crate::Result<MatchAlgorithm> {
-        MatchAlgorithm::try_from(self.match_algorithm as u8).map_err(|_| {
-            Error::conversion::<MatchAlgorithm>(format_args!("{:#04X}", self.match_algorithm as u8))
-        })
+    fn min_price_increment(&self) -> i64 {
+        self.min_price_increment
     }
 
-    /// Parses the security update action into an enum.
-    ///
-    /// # Errors
-    /// This function returns an error if the `security_update_action` field does not
-    /// contain a valid [`SecurityUpdateAction`].
-    #[allow(
-        clippy::unnecessary_cast,
-        reason = "c_char is u8 on some targets like aarch64 Linux"
-    )]
-    pub fn security_update_action(&self) -> crate::Result<SecurityUpdateAction> {
-        SecurityUpdateAction::try_from(self.security_update_action as u8).map_err(|_| {
-            Error::conversion::<SecurityUpdateAction>(format_args!(
-                "{:#04X}",
-                self.security_update_action as u8
-            ))
-        })
+    fn display_factor(&self) -> i64 {
+        self.display_factor
+    }
+
+    fn raw_instrument_id(&self) -> u64 {
+        u64::from(self.raw_instrument_id)
+    }
+
+    fn min_lot_size_round_lot(&self) -> i32 {
+        self.min_lot_size_round_lot
+    }
+
+    fn raw_security_update_action(&self) -> c_char {
+        self.security_update_action
+    }
+
+    fn raw_instrument_class(&self) -> c_char {
+        self.instrument_class
+    }
+
+    fn raw_match_algorithm(&self) -> c_char {
+        self.match_algorithm
+    }
+
+    fn channel_id(&self) -> u8 {
+        u8::try_from(self.channel_id).unwrap_or(u8::MAX)
+    }
+
+    fn raw_symbol(&self) -> Result<&str> {
+        c_chars_to_str(&self.raw_symbol)
+    }
+
+    fn raw_expiration(&self) -> Option<u64> {
+        Some(self.expiration)
+    }
+
+    fn raw_activation(&self) -> Option<u64> {
+        Some(self.activation)
+    }
+
+    fn high_limit_price(&self) -> Option<i64> {
+        Some(self.high_limit_price)
+    }
+
+    fn low_limit_price(&self) -> Option<i64> {
+        Some(self.low_limit_price)
+    }
+
+    fn max_price_variation(&self) -> Option<i64> {
+        Some(self.max_price_variation)
+    }
+
+    fn unit_of_measure_qty(&self) -> Option<i64> {
+        Some(self.unit_of_measure_qty)
+    }
+
+    fn min_price_increment_amount(&self) -> Option<i64> {
+        Some(self.min_price_increment_amount)
+    }
+
+    fn price_ratio(&self) -> Option<i64> {
+        Some(self.price_ratio)
+    }
+
+    fn strike_price(&self) -> Option<i64> {
+        Some(self.strike_price)
+    }
+
+    fn leg_price(&self) -> Option<i64> {
+        None
+    }
+
+    fn leg_delta(&self) -> Option<i64> {
+        None
+    }
+
+    fn user_defined_instrument(&self) -> Result<Option<UserDefinedInstrument>> {
+        Ok(Some(self.user_defined_instrument))
+    }
+
+    fn leg_instrument_class(&self) -> Result<Option<InstrumentClass>> {
+        Ok(None)
+    }
+
+    fn leg_side(&self) -> Result<Option<Side>> {
+        Ok(None)
     }
 }

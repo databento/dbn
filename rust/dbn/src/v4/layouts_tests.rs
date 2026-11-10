@@ -10,6 +10,7 @@ use super::{
     layouts::{default_layout, required_fields},
     rtype, *,
 };
+use crate::prelude::*;
 use crate::{
     layout::{DynFieldAccess, LayoutIndex, Verdict},
     record::str_to_c_chars,
@@ -582,13 +583,14 @@ fn every_label_def_is_used_and_every_enum_labeled() {
 fn offsets_of_undeclared_extensions_are_none() {
     let index = LayoutIndex::new(default_layout(), default_layout());
     let offsets = InstrumentDefOffsets::resolve(&index).unwrap();
-    let def = InstrumentDefMsg::default();
+    let rec = InstrumentDefMsg::default();
+    let def = ResolvedInstrumentDefRef::resolve(&rec, &offsets);
 
-    assert_eq!(def.strike_price(&offsets), None);
-    assert_eq!(def.strike_price_f64(&offsets), None);
-    assert_eq!(def.raw_expiration(&offsets), None);
-    assert_eq!(def.expiration(&offsets), None);
-    assert_eq!(def.leg_side(&offsets).unwrap(), None);
+    assert_eq!(def.strike_price(), None);
+    assert_eq!(def.strike_price_f64(), None);
+    assert_eq!(def.raw_expiration(), None);
+    assert_eq!(def.expiration(), None);
+    assert_eq!(def.leg_side().unwrap(), None);
 }
 
 #[test]
@@ -596,7 +598,10 @@ fn required_field_beyond_record_is_an_error() {
     let index = LayoutIndex::new(default_layout(), default_layout());
     let offsets = InstrumentDefOffsets::resolve(&index).unwrap();
     // The bare struct's length ends before `raw_symbol`
-    assert!(InstrumentDefMsg::default().raw_symbol(&offsets).is_err());
+    let rec = InstrumentDefMsg::default();
+    assert!(ResolvedInstrumentDefRef::resolve(&rec, &offsets)
+        .raw_symbol()
+        .is_err());
 }
 
 #[test]

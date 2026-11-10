@@ -1796,6 +1796,7 @@ mod tests {
     };
 
     use super::*;
+    use crate::prelude::*;
 
     const HEADER_LEN: usize = size_of::<v3::RecordHeader>();
 

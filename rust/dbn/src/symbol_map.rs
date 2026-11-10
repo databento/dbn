@@ -9,7 +9,11 @@ use std::{
 
 use time::{macros::time, PrimitiveDateTime};
 
-use crate::{compat, metadata, v1, Error, HasRType, Metadata, Record, RecordRef, SymbolMappingMsg};
+use crate::{
+    metadata,
+    record::{InstrumentDefRec, SymbolMappingRec},
+    v1, Error, HasRType, Metadata, Record, RecordRef, SymbolMappingMsg,
+};
 
 /// A timeseries symbol map. Useful for working with historical requests over multiple
 /// days, where the same instrument ID can map to different symbols at different times.
@@ -284,7 +288,7 @@ impl TsSymbolMap {
     /// # Errors
     /// This function returns an error if the symbol contains invalid UTF-8 or the
     /// mapping starts after it ends.
-    pub fn on_symbol_mapping<S: compat::SymbolMappingRec>(
+    pub fn on_symbol_mapping<S: SymbolMappingRec>(
         &mut self,
         symbol_mapping: &S,
     ) -> crate::Result<()> {
@@ -507,7 +511,7 @@ impl PitSymbolMap {
     ///
     /// # Errors
     /// This function returns an error if the symbol contains invalid UTF-8.
-    pub fn on_symbol_mapping<S: compat::SymbolMappingRec>(
+    pub fn on_symbol_mapping<S: SymbolMappingRec>(
         &mut self,
         symbol_mapping: &S,
     ) -> crate::Result<()> {
@@ -523,7 +527,7 @@ impl PitSymbolMap {
     ///
     /// # Errors
     /// This function returns an error if the symbol contains invalid UTF-8.
-    pub fn on_instrument_def<D: compat::InstrumentDefRec>(
+    pub fn on_instrument_def<D: InstrumentDefRec>(
         &mut self,
         instrument_def: &D,
     ) -> crate::Result<()> {
@@ -616,10 +620,8 @@ pub(crate) mod tests {
     use time::macros::{date, datetime};
 
     use crate::{
-        compat::{SymbolMappingMsgV1, SymbolMappingRec},
-        publishers::Dataset,
-        MappingInterval, Metadata, SType, Schema, SymbolMapping, VersionUpgradePolicy,
-        UNDEF_TIMESTAMP,
+        compat::SymbolMappingMsgV1, publishers::Dataset, MappingInterval, Metadata, SType, Schema,
+        SymbolMapping, VersionUpgradePolicy, UNDEF_TIMESTAMP,
     };
 
     use super::*;

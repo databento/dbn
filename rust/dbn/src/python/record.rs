@@ -3,13 +3,16 @@ use std::{ffi::c_char, mem};
 use pyo3::{conversion::IntoPyObjectExt, prelude::*};
 
 use crate::{
-    python::WritePyRepr, record::str_to_c_chars, rtype, v1, v2, Action, BboMsg, BidAskPair,
-    CbboMsg, Cmbp1Msg, ConsolidatedBidAskPair, ErrorCode, ErrorMsg, FlagSet, ImbalanceMsg,
-    InstrumentClass, InstrumentDefMsg, MatchAlgorithm, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, RType,
-    Record, RecordHeader, SType, SecurityUpdateAction, Side, StatMsg, StatType, StatUpdateAction,
-    StatusAction, StatusMsg, StatusReason, SymbolMappingMsg, SystemCode, SystemMsg, TradeMsg,
-    TradingEvent, TriState, UserDefinedInstrument, WithTsOut, UNDEF_ORDER_SIZE, UNDEF_PRICE,
-    UNDEF_TIMESTAMP,
+    prelude::*,
+    pretty::px_to_f64,
+    python::WritePyRepr,
+    record::{c_chars_to_str, str_to_c_chars},
+    rtype, v1, v2, Action, BboMsg, BidAskPair, CbboMsg, Cmbp1Msg, ConsolidatedBidAskPair,
+    ErrorCode, ErrorMsg, FlagSet, ImbalanceMsg, InstrumentClass, InstrumentDefMsg, MatchAlgorithm,
+    MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg, RType, Record, RecordHeader, SType, SecurityUpdateAction,
+    Side, StatMsg, StatType, StatUpdateAction, StatusAction, StatusMsg, StatusReason,
+    SymbolMappingMsg, SystemCode, SystemMsg, TradeMsg, TradingEvent, TriState,
+    UserDefinedInstrument, WithTsOut, UNDEF_ORDER_SIZE, UNDEF_PRICE, UNDEF_TIMESTAMP,
 };
 
 use super::{
@@ -190,7 +193,7 @@ impl PyMboMsg {
     }
     #[getter]
     fn get_pretty_price(&self) -> f64 {
-        self.inner.price_f64()
+        px_to_f64(self.inner.price)
     }
     #[getter]
 
@@ -221,8 +224,7 @@ impl PyMboMsg {
     }
     #[getter]
     fn get_action<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .action()
+        Action::try_from(self.inner.action as u8)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| (self.inner.action as u8 as char).into_bound_py_any(py))
     }
@@ -232,8 +234,7 @@ impl PyMboMsg {
     }
     #[getter]
     fn get_side<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .side()
+        Side::try_from(self.inner.side as u8)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| (self.inner.side as u8 as char).into_bound_py_any(py))
     }
@@ -594,7 +595,7 @@ impl PyTradeMsg {
     }
     #[getter]
     fn get_pretty_price(&self) -> f64 {
-        self.inner.price_f64()
+        px_to_f64(self.inner.price)
     }
     #[getter]
 
@@ -607,8 +608,7 @@ impl PyTradeMsg {
     }
     #[getter]
     fn get_action<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .action()
+        Action::try_from(self.inner.action as u8)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| (self.inner.action as u8 as char).into_bound_py_any(py))
     }
@@ -618,8 +618,7 @@ impl PyTradeMsg {
     }
     #[getter]
     fn get_side<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .side()
+        Side::try_from(self.inner.side as u8)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| (self.inner.side as u8 as char).into_bound_py_any(py))
     }
@@ -907,7 +906,7 @@ impl PyMbp1Msg {
     }
     #[getter]
     fn get_pretty_price(&self) -> f64 {
-        self.inner.price_f64()
+        px_to_f64(self.inner.price)
     }
     #[getter]
 
@@ -920,8 +919,7 @@ impl PyMbp1Msg {
     }
     #[getter]
     fn get_action<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .action()
+        Action::try_from(self.inner.action as u8)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| (self.inner.action as u8 as char).into_bound_py_any(py))
     }
@@ -931,8 +929,7 @@ impl PyMbp1Msg {
     }
     #[getter]
     fn get_side<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .side()
+        Side::try_from(self.inner.side as u8)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| (self.inner.side as u8 as char).into_bound_py_any(py))
     }
@@ -1286,7 +1283,7 @@ impl PyMbp10Msg {
     }
     #[getter]
     fn get_pretty_price(&self) -> f64 {
-        self.inner.price_f64()
+        px_to_f64(self.inner.price)
     }
     #[getter]
 
@@ -1299,8 +1296,7 @@ impl PyMbp10Msg {
     }
     #[getter]
     fn get_action<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .action()
+        Action::try_from(self.inner.action as u8)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| (self.inner.action as u8 as char).into_bound_py_any(py))
     }
@@ -1310,8 +1306,7 @@ impl PyMbp10Msg {
     }
     #[getter]
     fn get_side<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .side()
+        Side::try_from(self.inner.side as u8)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| (self.inner.side as u8 as char).into_bound_py_any(py))
     }
@@ -2160,7 +2155,7 @@ impl PyBboMsg {
     }
     #[getter]
     fn get_pretty_price(&self) -> f64 {
-        self.inner.price_f64()
+        px_to_f64(self.inner.price)
     }
     #[getter]
 
@@ -2173,8 +2168,7 @@ impl PyBboMsg {
     }
     #[getter]
     fn get_side<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .side()
+        Side::try_from(self.inner.side as u8)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| (self.inner.side as u8 as char).into_bound_py_any(py))
     }
@@ -2503,7 +2497,7 @@ impl PyCmbp1Msg {
     }
     #[getter]
     fn get_pretty_price(&self) -> f64 {
-        self.inner.price_f64()
+        px_to_f64(self.inner.price)
     }
     #[getter]
 
@@ -2516,8 +2510,7 @@ impl PyCmbp1Msg {
     }
     #[getter]
     fn get_action<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .action()
+        Action::try_from(self.inner.action as u8)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| (self.inner.action as u8 as char).into_bound_py_any(py))
     }
@@ -2527,8 +2520,7 @@ impl PyCmbp1Msg {
     }
     #[getter]
     fn get_side<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .side()
+        Side::try_from(self.inner.side as u8)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| (self.inner.side as u8 as char).into_bound_py_any(py))
     }
@@ -2852,7 +2844,7 @@ impl PyCbboMsg {
     }
     #[getter]
     fn get_pretty_price(&self) -> f64 {
-        self.inner.price_f64()
+        px_to_f64(self.inner.price)
     }
     #[getter]
 
@@ -2865,8 +2857,7 @@ impl PyCbboMsg {
     }
     #[getter]
     fn get_side<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .side()
+        Side::try_from(self.inner.side as u8)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| (self.inner.side as u8 as char).into_bound_py_any(py))
     }
@@ -3176,7 +3167,7 @@ impl PyOhlcvMsg {
     }
     #[getter]
     fn get_pretty_open(&self) -> f64 {
-        self.inner.open_f64()
+        px_to_f64(self.inner.open)
     }
     #[getter]
 
@@ -3189,7 +3180,7 @@ impl PyOhlcvMsg {
     }
     #[getter]
     fn get_pretty_high(&self) -> f64 {
-        self.inner.high_f64()
+        px_to_f64(self.inner.high)
     }
     #[getter]
 
@@ -3202,7 +3193,7 @@ impl PyOhlcvMsg {
     }
     #[getter]
     fn get_pretty_low(&self) -> f64 {
-        self.inner.low_f64()
+        px_to_f64(self.inner.low)
     }
     #[getter]
 
@@ -3215,7 +3206,7 @@ impl PyOhlcvMsg {
     }
     #[getter]
     fn get_pretty_close(&self) -> f64 {
-        self.inner.close_f64()
+        px_to_f64(self.inner.close)
     }
     #[getter]
 
@@ -3454,8 +3445,7 @@ impl PyStatusMsg {
     }
     #[getter]
     fn get_action<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .action()
+        StatusAction::try_from(self.inner.action)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| self.inner.action.into_bound_py_any(py))
     }
@@ -3465,8 +3455,7 @@ impl PyStatusMsg {
     }
     #[getter]
     fn get_reason<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .reason()
+        StatusReason::try_from(self.inner.reason)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| self.inner.reason.into_bound_py_any(py))
     }
@@ -3476,8 +3465,7 @@ impl PyStatusMsg {
     }
     #[getter]
     fn get_trading_event<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .trading_event()
+        TradingEvent::try_from(self.inner.trading_event)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| self.inner.trading_event.into_bound_py_any(py))
     }
@@ -3927,7 +3915,7 @@ impl PyInstrumentDefMsg {
     }
     #[getter]
     fn get_pretty_min_price_increment(&self) -> f64 {
-        self.inner.min_price_increment_f64()
+        px_to_f64(self.inner.min_price_increment)
     }
     #[getter]
 
@@ -3940,7 +3928,7 @@ impl PyInstrumentDefMsg {
     }
     #[getter]
     fn get_pretty_display_factor(&self) -> f64 {
-        self.inner.display_factor_f64()
+        px_to_f64(self.inner.display_factor)
     }
     #[getter]
 
@@ -3979,7 +3967,7 @@ impl PyInstrumentDefMsg {
     }
     #[getter]
     fn get_pretty_high_limit_price(&self) -> f64 {
-        self.inner.high_limit_price_f64()
+        px_to_f64(self.inner.high_limit_price)
     }
     #[getter]
 
@@ -3992,7 +3980,7 @@ impl PyInstrumentDefMsg {
     }
     #[getter]
     fn get_pretty_low_limit_price(&self) -> f64 {
-        self.inner.low_limit_price_f64()
+        px_to_f64(self.inner.low_limit_price)
     }
     #[getter]
 
@@ -4005,7 +3993,7 @@ impl PyInstrumentDefMsg {
     }
     #[getter]
     fn get_pretty_max_price_variation(&self) -> f64 {
-        self.inner.max_price_variation_f64()
+        px_to_f64(self.inner.max_price_variation)
     }
     #[getter]
 
@@ -4018,7 +4006,7 @@ impl PyInstrumentDefMsg {
     }
     #[getter]
     fn get_pretty_unit_of_measure_qty(&self) -> f64 {
-        self.inner.unit_of_measure_qty_f64()
+        px_to_f64(self.inner.unit_of_measure_qty)
     }
     #[getter]
 
@@ -4031,7 +4019,7 @@ impl PyInstrumentDefMsg {
     }
     #[getter]
     fn get_pretty_min_price_increment_amount(&self) -> f64 {
-        self.inner.min_price_increment_amount_f64()
+        px_to_f64(self.inner.min_price_increment_amount)
     }
     #[getter]
 
@@ -4044,7 +4032,7 @@ impl PyInstrumentDefMsg {
     }
     #[getter]
     fn get_pretty_price_ratio(&self) -> f64 {
-        self.inner.price_ratio_f64()
+        px_to_f64(self.inner.price_ratio)
     }
     #[getter]
 
@@ -4057,7 +4045,7 @@ impl PyInstrumentDefMsg {
     }
     #[getter]
     fn get_pretty_strike_price(&self) -> f64 {
-        self.inner.strike_price_f64()
+        px_to_f64(self.inner.strike_price)
     }
     #[getter]
 
@@ -4079,7 +4067,7 @@ impl PyInstrumentDefMsg {
     }
     #[getter]
     fn get_pretty_leg_price(&self) -> f64 {
-        self.inner.leg_price_f64()
+        px_to_f64(self.inner.leg_price)
     }
     #[getter]
 
@@ -4092,7 +4080,7 @@ impl PyInstrumentDefMsg {
     }
     #[getter]
     fn get_pretty_leg_delta(&self) -> f64 {
-        self.inner.leg_delta_f64()
+        px_to_f64(self.inner.leg_delta)
     }
     #[getter]
 
@@ -4321,60 +4309,59 @@ impl PyInstrumentDefMsg {
     }
     #[getter]
     fn get_currency(&self) -> PyResult<&str> {
-        Ok(self.inner.currency()?)
+        Ok(c_chars_to_str(&self.inner.currency)?)
     }
     #[getter]
     fn get_settl_currency(&self) -> PyResult<&str> {
-        Ok(self.inner.settl_currency()?)
+        Ok(c_chars_to_str(&self.inner.settl_currency)?)
     }
     #[getter]
     fn get_secsubtype(&self) -> PyResult<&str> {
-        Ok(self.inner.secsubtype()?)
+        Ok(c_chars_to_str(&self.inner.secsubtype)?)
     }
     #[getter]
     fn get_raw_symbol(&self) -> PyResult<&str> {
-        Ok(self.inner.raw_symbol()?)
+        Ok(c_chars_to_str(&self.inner.raw_symbol)?)
     }
     #[getter]
     fn get_group(&self) -> PyResult<&str> {
-        Ok(self.inner.group()?)
+        Ok(c_chars_to_str(&self.inner.group)?)
     }
     #[getter]
     fn get_exchange(&self) -> PyResult<&str> {
-        Ok(self.inner.exchange()?)
+        Ok(c_chars_to_str(&self.inner.exchange)?)
     }
     #[getter]
     fn get_asset(&self) -> PyResult<&str> {
-        Ok(self.inner.asset()?)
+        Ok(c_chars_to_str(&self.inner.asset)?)
     }
     #[getter]
     fn get_cfi(&self) -> PyResult<&str> {
-        Ok(self.inner.cfi()?)
+        Ok(c_chars_to_str(&self.inner.cfi)?)
     }
     #[getter]
     fn get_security_type(&self) -> PyResult<&str> {
-        Ok(self.inner.security_type()?)
+        Ok(c_chars_to_str(&self.inner.security_type)?)
     }
     #[getter]
     fn get_unit_of_measure(&self) -> PyResult<&str> {
-        Ok(self.inner.unit_of_measure()?)
+        Ok(c_chars_to_str(&self.inner.unit_of_measure)?)
     }
     #[getter]
     fn get_underlying(&self) -> PyResult<&str> {
-        Ok(self.inner.underlying()?)
+        Ok(c_chars_to_str(&self.inner.underlying)?)
     }
     #[getter]
     fn get_strike_price_currency(&self) -> PyResult<&str> {
-        Ok(self.inner.strike_price_currency()?)
+        Ok(c_chars_to_str(&self.inner.strike_price_currency)?)
     }
     #[getter]
     fn get_leg_raw_symbol(&self) -> PyResult<&str> {
-        Ok(self.inner.leg_raw_symbol()?)
+        Ok(c_chars_to_str(&self.inner.leg_raw_symbol)?)
     }
     #[getter]
     fn get_instrument_class<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .instrument_class()
+        InstrumentClass::try_from(self.inner.instrument_class as u8)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| (self.inner.instrument_class as u8 as char).into_bound_py_any(py))
     }
@@ -4384,8 +4371,7 @@ impl PyInstrumentDefMsg {
     }
     #[getter]
     fn get_match_algorithm<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .match_algorithm()
+        MatchAlgorithm::try_from(self.inner.match_algorithm as u8)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| (self.inner.match_algorithm as u8 as char).into_bound_py_any(py))
     }
@@ -4431,8 +4417,7 @@ impl PyInstrumentDefMsg {
     }
     #[getter]
     fn get_security_update_action<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .security_update_action()
+        SecurityUpdateAction::try_from(self.inner.security_update_action as u8)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| {
                 (self.inner.security_update_action as u8 as char).into_bound_py_any(py)
@@ -4471,8 +4456,7 @@ impl PyInstrumentDefMsg {
     }
     #[getter]
     fn get_user_defined_instrument<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .user_defined_instrument()
+        UserDefinedInstrument::try_from(self.inner.user_defined_instrument as u8)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| {
                 (self.inner.user_defined_instrument as u8 as char).into_bound_py_any(py)
@@ -4511,8 +4495,7 @@ impl PyInstrumentDefMsg {
     }
     #[getter]
     fn get_leg_instrument_class<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .leg_instrument_class()
+        InstrumentClass::try_from(self.inner.leg_instrument_class as u8)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| {
                 (self.inner.leg_instrument_class as u8 as char).into_bound_py_any(py)
@@ -4524,8 +4507,7 @@ impl PyInstrumentDefMsg {
     }
     #[getter]
     fn get_leg_side<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .leg_side()
+        Side::try_from(self.inner.leg_side as u8)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| (self.inner.leg_side as u8 as char).into_bound_py_any(py))
     }
@@ -4809,7 +4791,7 @@ impl PyImbalanceMsg {
     }
     #[getter]
     fn get_pretty_ref_price(&self) -> f64 {
-        self.inner.ref_price_f64()
+        px_to_f64(self.inner.ref_price)
     }
     #[getter]
 
@@ -4835,7 +4817,7 @@ impl PyImbalanceMsg {
     }
     #[getter]
     fn get_pretty_cont_book_clr_price(&self) -> f64 {
-        self.inner.cont_book_clr_price_f64()
+        px_to_f64(self.inner.cont_book_clr_price)
     }
     #[getter]
 
@@ -4848,7 +4830,7 @@ impl PyImbalanceMsg {
     }
     #[getter]
     fn get_pretty_auct_interest_clr_price(&self) -> f64 {
-        self.inner.auct_interest_clr_price_f64()
+        px_to_f64(self.inner.auct_interest_clr_price)
     }
     #[getter]
 
@@ -4861,7 +4843,7 @@ impl PyImbalanceMsg {
     }
     #[getter]
     fn get_pretty_ssr_filling_price(&self) -> f64 {
-        self.inner.ssr_filling_price_f64()
+        px_to_f64(self.inner.ssr_filling_price)
     }
     #[getter]
 
@@ -4874,7 +4856,7 @@ impl PyImbalanceMsg {
     }
     #[getter]
     fn get_pretty_ind_match_price(&self) -> f64 {
-        self.inner.ind_match_price_f64()
+        px_to_f64(self.inner.ind_match_price)
     }
     #[getter]
 
@@ -4887,7 +4869,7 @@ impl PyImbalanceMsg {
     }
     #[getter]
     fn get_pretty_upper_collar(&self) -> f64 {
-        self.inner.upper_collar_f64()
+        px_to_f64(self.inner.upper_collar)
     }
     #[getter]
 
@@ -4900,7 +4882,7 @@ impl PyImbalanceMsg {
     }
     #[getter]
     fn get_pretty_lower_collar(&self) -> f64 {
-        self.inner.lower_collar_f64()
+        px_to_f64(self.inner.lower_collar)
     }
     #[getter]
 
@@ -4949,8 +4931,7 @@ impl PyImbalanceMsg {
     }
     #[getter]
     fn get_side<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .side()
+        Side::try_from(self.inner.side as u8)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| (self.inner.side as u8 as char).into_bound_py_any(py))
     }
@@ -4987,8 +4968,7 @@ impl PyImbalanceMsg {
     }
     #[getter]
     fn get_unpaired_side<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .unpaired_side()
+        Side::try_from(self.inner.unpaired_side as u8)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| (self.inner.unpaired_side as u8 as char).into_bound_py_any(py))
     }
@@ -5263,7 +5243,7 @@ impl PyStatMsg {
     }
     #[getter]
     fn get_pretty_price(&self) -> f64 {
-        self.inner.price_f64()
+        px_to_f64(self.inner.price)
     }
     #[getter]
 
@@ -5294,8 +5274,7 @@ impl PyStatMsg {
     }
     #[getter]
     fn get_stat_type<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .stat_type()
+        StatType::try_from(self.inner.stat_type)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| self.inner.stat_type.into_bound_py_any(py))
     }
@@ -5314,8 +5293,7 @@ impl PyStatMsg {
     }
     #[getter]
     fn get_update_action<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .update_action()
+        StatUpdateAction::try_from(self.inner.update_action)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| self.inner.update_action.into_bound_py_any(py))
     }
@@ -5512,12 +5490,11 @@ impl PyErrorMsg {
 
     #[getter]
     fn get_err(&self) -> PyResult<&str> {
-        Ok(self.inner.err()?)
+        Ok(c_chars_to_str(&self.inner.err)?)
     }
     #[getter]
     fn get_code<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .code()
+        ErrorCode::try_from(self.inner.code)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| self.inner.code.into_bound_py_any(py))
     }
@@ -5750,8 +5727,7 @@ impl PySymbolMappingMsg {
 
     #[getter]
     fn get_stype_in<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .stype_in()
+        SType::try_from(self.inner.stype_in)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| self.inner.stype_in.into_bound_py_any(py))
     }
@@ -5761,12 +5737,11 @@ impl PySymbolMappingMsg {
     }
     #[getter]
     fn get_stype_in_symbol(&self) -> PyResult<&str> {
-        Ok(self.inner.stype_in_symbol()?)
+        Ok(c_chars_to_str(&self.inner.stype_in_symbol)?)
     }
     #[getter]
     fn get_stype_out<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .stype_out()
+        SType::try_from(self.inner.stype_out)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| self.inner.stype_out.into_bound_py_any(py))
     }
@@ -5776,7 +5751,7 @@ impl PySymbolMappingMsg {
     }
     #[getter]
     fn get_stype_out_symbol(&self) -> PyResult<&str> {
-        Ok(self.inner.stype_out_symbol()?)
+        Ok(c_chars_to_str(&self.inner.stype_out_symbol)?)
     }
     #[getter]
 
@@ -5983,12 +5958,11 @@ impl PySystemMsg {
 
     #[getter]
     fn get_msg(&self) -> PyResult<&str> {
-        Ok(self.inner.msg()?)
+        Ok(c_chars_to_str(&self.inner.msg)?)
     }
     #[getter]
     fn get_code<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .code()
+        SystemCode::try_from(self.inner.code)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| self.inner.code.into_bound_py_any(py))
     }
@@ -6164,7 +6138,7 @@ impl PyV1ErrorMsg {
 
     #[getter]
     fn get_err(&self) -> PyResult<&str> {
-        Ok(self.inner.err()?)
+        Ok(c_chars_to_str(&self.inner.err)?)
     }
 
     #[classattr]
@@ -6571,7 +6545,7 @@ impl PyV1InstrumentDefMsg {
     }
     #[getter]
     fn get_pretty_min_price_increment(&self) -> f64 {
-        self.inner.min_price_increment_f64()
+        px_to_f64(self.inner.min_price_increment)
     }
     #[getter]
 
@@ -6584,7 +6558,7 @@ impl PyV1InstrumentDefMsg {
     }
     #[getter]
     fn get_pretty_display_factor(&self) -> f64 {
-        self.inner.display_factor_f64()
+        px_to_f64(self.inner.display_factor)
     }
     #[getter]
 
@@ -6623,7 +6597,7 @@ impl PyV1InstrumentDefMsg {
     }
     #[getter]
     fn get_pretty_high_limit_price(&self) -> f64 {
-        self.inner.high_limit_price_f64()
+        px_to_f64(self.inner.high_limit_price)
     }
     #[getter]
 
@@ -6636,7 +6610,7 @@ impl PyV1InstrumentDefMsg {
     }
     #[getter]
     fn get_pretty_low_limit_price(&self) -> f64 {
-        self.inner.low_limit_price_f64()
+        px_to_f64(self.inner.low_limit_price)
     }
     #[getter]
 
@@ -6649,7 +6623,7 @@ impl PyV1InstrumentDefMsg {
     }
     #[getter]
     fn get_pretty_max_price_variation(&self) -> f64 {
-        self.inner.max_price_variation_f64()
+        px_to_f64(self.inner.max_price_variation)
     }
     #[getter]
 
@@ -6662,7 +6636,7 @@ impl PyV1InstrumentDefMsg {
     }
     #[getter]
     fn get_pretty_trading_reference_price(&self) -> f64 {
-        self.inner.trading_reference_price_f64()
+        px_to_f64(self.inner.trading_reference_price)
     }
     #[getter]
 
@@ -6675,7 +6649,7 @@ impl PyV1InstrumentDefMsg {
     }
     #[getter]
     fn get_pretty_unit_of_measure_qty(&self) -> f64 {
-        self.inner.unit_of_measure_qty_f64()
+        px_to_f64(self.inner.unit_of_measure_qty)
     }
     #[getter]
 
@@ -6688,7 +6662,7 @@ impl PyV1InstrumentDefMsg {
     }
     #[getter]
     fn get_pretty_min_price_increment_amount(&self) -> f64 {
-        self.inner.min_price_increment_amount_f64()
+        px_to_f64(self.inner.min_price_increment_amount)
     }
     #[getter]
 
@@ -6701,7 +6675,7 @@ impl PyV1InstrumentDefMsg {
     }
     #[getter]
     fn get_pretty_price_ratio(&self) -> f64 {
-        self.inner.price_ratio_f64()
+        px_to_f64(self.inner.price_ratio)
     }
     #[getter]
 
@@ -6876,56 +6850,55 @@ impl PyV1InstrumentDefMsg {
     }
     #[getter]
     fn get_currency(&self) -> PyResult<&str> {
-        Ok(self.inner.currency()?)
+        Ok(c_chars_to_str(&self.inner.currency)?)
     }
     #[getter]
     fn get_settl_currency(&self) -> PyResult<&str> {
-        Ok(self.inner.settl_currency()?)
+        Ok(c_chars_to_str(&self.inner.settl_currency)?)
     }
     #[getter]
     fn get_secsubtype(&self) -> PyResult<&str> {
-        Ok(self.inner.secsubtype()?)
+        Ok(c_chars_to_str(&self.inner.secsubtype)?)
     }
     #[getter]
     fn get_raw_symbol(&self) -> PyResult<&str> {
-        Ok(self.inner.raw_symbol()?)
+        Ok(c_chars_to_str(&self.inner.raw_symbol)?)
     }
     #[getter]
     fn get_group(&self) -> PyResult<&str> {
-        Ok(self.inner.group()?)
+        Ok(c_chars_to_str(&self.inner.group)?)
     }
     #[getter]
     fn get_exchange(&self) -> PyResult<&str> {
-        Ok(self.inner.exchange()?)
+        Ok(c_chars_to_str(&self.inner.exchange)?)
     }
     #[getter]
     fn get_asset(&self) -> PyResult<&str> {
-        Ok(self.inner.asset()?)
+        Ok(c_chars_to_str(&self.inner.asset)?)
     }
     #[getter]
     fn get_cfi(&self) -> PyResult<&str> {
-        Ok(self.inner.cfi()?)
+        Ok(c_chars_to_str(&self.inner.cfi)?)
     }
     #[getter]
     fn get_security_type(&self) -> PyResult<&str> {
-        Ok(self.inner.security_type()?)
+        Ok(c_chars_to_str(&self.inner.security_type)?)
     }
     #[getter]
     fn get_unit_of_measure(&self) -> PyResult<&str> {
-        Ok(self.inner.unit_of_measure()?)
+        Ok(c_chars_to_str(&self.inner.unit_of_measure)?)
     }
     #[getter]
     fn get_underlying(&self) -> PyResult<&str> {
-        Ok(self.inner.underlying()?)
+        Ok(c_chars_to_str(&self.inner.underlying)?)
     }
     #[getter]
     fn get_strike_price_currency(&self) -> PyResult<&str> {
-        Ok(self.inner.strike_price_currency()?)
+        Ok(c_chars_to_str(&self.inner.strike_price_currency)?)
     }
     #[getter]
     fn get_instrument_class<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .instrument_class()
+        InstrumentClass::try_from(self.inner.instrument_class as u8)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| (self.inner.instrument_class as u8 as char).into_bound_py_any(py))
     }
@@ -6944,12 +6917,11 @@ impl PyV1InstrumentDefMsg {
     }
     #[getter]
     fn get_pretty_strike_price(&self) -> f64 {
-        self.inner.strike_price_f64()
+        px_to_f64(self.inner.strike_price)
     }
     #[getter]
     fn get_match_algorithm<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .match_algorithm()
+        MatchAlgorithm::try_from(self.inner.match_algorithm as u8)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| (self.inner.match_algorithm as u8 as char).into_bound_py_any(py))
     }
@@ -7341,7 +7313,7 @@ impl PyV1StatMsg {
     }
     #[getter]
     fn get_pretty_price(&self) -> f64 {
-        self.inner.price_f64()
+        px_to_f64(self.inner.price)
     }
     #[getter]
 
@@ -7372,8 +7344,7 @@ impl PyV1StatMsg {
     }
     #[getter]
     fn get_stat_type<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .stat_type()
+        StatType::try_from(self.inner.stat_type)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| self.inner.stat_type.into_bound_py_any(py))
     }
@@ -7392,8 +7363,7 @@ impl PyV1StatMsg {
     }
     #[getter]
     fn get_update_action<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .update_action()
+        StatUpdateAction::try_from(self.inner.update_action)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| self.inner.update_action.into_bound_py_any(py))
     }
@@ -7621,11 +7591,11 @@ impl PyV1SymbolMappingMsg {
 
     #[getter]
     fn get_stype_in_symbol(&self) -> PyResult<&str> {
-        Ok(self.inner.stype_in_symbol()?)
+        Ok(c_chars_to_str(&self.inner.stype_in_symbol)?)
     }
     #[getter]
     fn get_stype_out_symbol(&self) -> PyResult<&str> {
-        Ok(self.inner.stype_out_symbol()?)
+        Ok(c_chars_to_str(&self.inner.stype_out_symbol)?)
     }
     #[getter]
 
@@ -7826,7 +7796,7 @@ impl PyV1SystemMsg {
 
     #[getter]
     fn get_msg(&self) -> PyResult<&str> {
-        Ok(self.inner.msg()?)
+        Ok(c_chars_to_str(&self.inner.msg)?)
     }
 
     #[classattr]
@@ -8229,7 +8199,7 @@ impl PyV2InstrumentDefMsg {
     }
     #[getter]
     fn get_pretty_min_price_increment(&self) -> f64 {
-        self.inner.min_price_increment_f64()
+        px_to_f64(self.inner.min_price_increment)
     }
     #[getter]
 
@@ -8242,7 +8212,7 @@ impl PyV2InstrumentDefMsg {
     }
     #[getter]
     fn get_pretty_display_factor(&self) -> f64 {
-        self.inner.display_factor_f64()
+        px_to_f64(self.inner.display_factor)
     }
     #[getter]
 
@@ -8281,7 +8251,7 @@ impl PyV2InstrumentDefMsg {
     }
     #[getter]
     fn get_pretty_high_limit_price(&self) -> f64 {
-        self.inner.high_limit_price_f64()
+        px_to_f64(self.inner.high_limit_price)
     }
     #[getter]
 
@@ -8294,7 +8264,7 @@ impl PyV2InstrumentDefMsg {
     }
     #[getter]
     fn get_pretty_low_limit_price(&self) -> f64 {
-        self.inner.low_limit_price_f64()
+        px_to_f64(self.inner.low_limit_price)
     }
     #[getter]
 
@@ -8307,7 +8277,7 @@ impl PyV2InstrumentDefMsg {
     }
     #[getter]
     fn get_pretty_max_price_variation(&self) -> f64 {
-        self.inner.max_price_variation_f64()
+        px_to_f64(self.inner.max_price_variation)
     }
     #[getter]
 
@@ -8320,7 +8290,7 @@ impl PyV2InstrumentDefMsg {
     }
     #[getter]
     fn get_pretty_trading_reference_price(&self) -> f64 {
-        self.inner.trading_reference_price_f64()
+        px_to_f64(self.inner.trading_reference_price)
     }
     #[getter]
 
@@ -8333,7 +8303,7 @@ impl PyV2InstrumentDefMsg {
     }
     #[getter]
     fn get_pretty_unit_of_measure_qty(&self) -> f64 {
-        self.inner.unit_of_measure_qty_f64()
+        px_to_f64(self.inner.unit_of_measure_qty)
     }
     #[getter]
 
@@ -8346,7 +8316,7 @@ impl PyV2InstrumentDefMsg {
     }
     #[getter]
     fn get_pretty_min_price_increment_amount(&self) -> f64 {
-        self.inner.min_price_increment_amount_f64()
+        px_to_f64(self.inner.min_price_increment_amount)
     }
     #[getter]
 
@@ -8359,7 +8329,7 @@ impl PyV2InstrumentDefMsg {
     }
     #[getter]
     fn get_pretty_price_ratio(&self) -> f64 {
-        self.inner.price_ratio_f64()
+        px_to_f64(self.inner.price_ratio)
     }
     #[getter]
 
@@ -8372,7 +8342,7 @@ impl PyV2InstrumentDefMsg {
     }
     #[getter]
     fn get_pretty_strike_price(&self) -> f64 {
-        self.inner.strike_price_f64()
+        px_to_f64(self.inner.strike_price)
     }
     #[getter]
 
@@ -8547,56 +8517,55 @@ impl PyV2InstrumentDefMsg {
     }
     #[getter]
     fn get_currency(&self) -> PyResult<&str> {
-        Ok(self.inner.currency()?)
+        Ok(c_chars_to_str(&self.inner.currency)?)
     }
     #[getter]
     fn get_settl_currency(&self) -> PyResult<&str> {
-        Ok(self.inner.settl_currency()?)
+        Ok(c_chars_to_str(&self.inner.settl_currency)?)
     }
     #[getter]
     fn get_secsubtype(&self) -> PyResult<&str> {
-        Ok(self.inner.secsubtype()?)
+        Ok(c_chars_to_str(&self.inner.secsubtype)?)
     }
     #[getter]
     fn get_raw_symbol(&self) -> PyResult<&str> {
-        Ok(self.inner.raw_symbol()?)
+        Ok(c_chars_to_str(&self.inner.raw_symbol)?)
     }
     #[getter]
     fn get_group(&self) -> PyResult<&str> {
-        Ok(self.inner.group()?)
+        Ok(c_chars_to_str(&self.inner.group)?)
     }
     #[getter]
     fn get_exchange(&self) -> PyResult<&str> {
-        Ok(self.inner.exchange()?)
+        Ok(c_chars_to_str(&self.inner.exchange)?)
     }
     #[getter]
     fn get_asset(&self) -> PyResult<&str> {
-        Ok(self.inner.asset()?)
+        Ok(c_chars_to_str(&self.inner.asset)?)
     }
     #[getter]
     fn get_cfi(&self) -> PyResult<&str> {
-        Ok(self.inner.cfi()?)
+        Ok(c_chars_to_str(&self.inner.cfi)?)
     }
     #[getter]
     fn get_security_type(&self) -> PyResult<&str> {
-        Ok(self.inner.security_type()?)
+        Ok(c_chars_to_str(&self.inner.security_type)?)
     }
     #[getter]
     fn get_unit_of_measure(&self) -> PyResult<&str> {
-        Ok(self.inner.unit_of_measure()?)
+        Ok(c_chars_to_str(&self.inner.unit_of_measure)?)
     }
     #[getter]
     fn get_underlying(&self) -> PyResult<&str> {
-        Ok(self.inner.underlying()?)
+        Ok(c_chars_to_str(&self.inner.underlying)?)
     }
     #[getter]
     fn get_strike_price_currency(&self) -> PyResult<&str> {
-        Ok(self.inner.strike_price_currency()?)
+        Ok(c_chars_to_str(&self.inner.strike_price_currency)?)
     }
     #[getter]
     fn get_instrument_class<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .instrument_class()
+        InstrumentClass::try_from(self.inner.instrument_class as u8)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| (self.inner.instrument_class as u8 as char).into_bound_py_any(py))
     }
@@ -8606,8 +8575,7 @@ impl PyV2InstrumentDefMsg {
     }
     #[getter]
     fn get_match_algorithm<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .match_algorithm()
+        MatchAlgorithm::try_from(self.inner.match_algorithm as u8)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| (self.inner.match_algorithm as u8 as char).into_bound_py_any(py))
     }
@@ -8671,8 +8639,7 @@ impl PyV2InstrumentDefMsg {
     }
     #[getter]
     fn get_security_update_action<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.inner
-            .security_update_action()
+        SecurityUpdateAction::try_from(self.inner.security_update_action as u8)
             .map(|c| c.into_bound_py_any(py))
             .unwrap_or_else(|_| {
                 (self.inner.security_update_action as u8 as char).into_bound_py_any(py)

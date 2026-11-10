@@ -40,7 +40,7 @@ pub use crate::record::InstrumentDefMsg as InstrumentDefMsgV3;
 pub use crate::record::StatMsg as StatMsgV3;
 pub use crate::record::SymbolMappingMsg as SymbolMappingMsgV2;
 pub use crate::record::SystemMsg as SystemMsgV2;
-pub use traits::{HasRTypeV1, InstrumentDefRec, RecordV1, StatRec, SymbolMappingRec};
+pub use traits::{HasRTypeV1, RecordV1};
 
 /// A non-owning immutable reference to a DBN version 1 through 3 record.
 pub type RecordRefV1<'a> = crate::RecordRef<'a, RecordHeader>;
@@ -58,6 +58,7 @@ use dbn_macros::MockPyo3;
 
 use crate::{
     macros::{dbn_record, ArrowSerialize, CsvSerialize, JsonSerialize},
+    prelude::*,
     rtype, RecordHeader, SecurityUpdateAction, UserDefinedInstrument, MAX_RECORD_LEN,
 };
 

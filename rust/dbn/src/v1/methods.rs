@@ -2,9 +2,9 @@ use std::os::raw::c_char;
 
 use crate::{
     pretty::px_to_f64,
-    record::{c_chars_to_str, str_to_c_chars, ts_to_dt},
-    rtype, Error, InstrumentClass, MatchAlgorithm, RecordHeader, Result, StatType,
-    StatUpdateAction,
+    record::{c_chars_to_str, str_to_c_chars},
+    rtype, ErrorCode, ErrorRec, InstrumentClass, InstrumentDefRec, RecordHeader, Result, Side,
+    StatRec, SymbolMappingRec, SystemCode, SystemRec, UserDefinedInstrument,
 };
 
 use super::*;
@@ -22,90 +22,31 @@ impl ErrorMsg {
         }
         error
     }
+}
 
-    /// Parses the error message into a `&str`.
-    ///
-    /// # Errors
-    /// This function returns an error if `err` contains invalid UTF-8.
-    pub fn err(&self) -> crate::Result<&str> {
+impl ErrorRec for ErrorMsg {
+    fn subscription_id(&self) -> u32 {
+        u32::MAX
+    }
+
+    fn raw_schema(&self) -> u16 {
+        u16::MAX
+    }
+
+    fn raw_code(&self) -> u8 {
+        ErrorCode::default() as u8
+    }
+
+    fn is_last(&self) -> u8 {
+        u8::MAX
+    }
+
+    fn err(&self) -> Result<&str> {
         c_chars_to_str(&self.err)
     }
 }
 
 impl InstrumentDefMsg {
-    /// Parses the capture-server-received timestamp into a datetime.
-    /// Returns `None` if `ts_recv` contains the sentinel for a null timestamp.
-    pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
-        ts_to_dt(self.ts_recv)
-    }
-
-    /// Converts the minimum constant tick to a floating point.
-    ///
-    /// `UNDEF_PRICE` will be converted to NaN.
-    ///
-    /// <div class="warning">
-    /// This may introduce floating-point error.
-    /// </div>
-    pub fn min_price_increment_f64(&self) -> f64 {
-        px_to_f64(self.min_price_increment)
-    }
-
-    /// Converts the display factor to a floating point.
-    ///
-    /// `UNDEF_PRICE` will be converted to NaN.
-    ///
-    /// <div class="warning">
-    /// This may introduce floating-point error.
-    /// </div>
-    pub fn display_factor_f64(&self) -> f64 {
-        px_to_f64(self.display_factor)
-    }
-
-    /// Parses the last eligible trade time into a datetime.
-    /// Returns `None` if `expiration` contains the sentinel for a null timestamp.
-    pub fn expiration(&self) -> Option<time::OffsetDateTime> {
-        ts_to_dt(self.expiration)
-    }
-
-    /// Parses the time of instrument activation into a datetime.
-    /// Returns `None` if `activation` contains the sentinel for a null timestamp.
-    pub fn activation(&self) -> Option<time::OffsetDateTime> {
-        ts_to_dt(self.activation)
-    }
-
-    /// Converts the high limit price to a floating point.
-    ///
-    /// `UNDEF_PRICE` will be converted to NaN.
-    ///
-    /// <div class="warning">
-    /// This may introduce floating-point error.
-    /// </div>
-    pub fn high_limit_price_f64(&self) -> f64 {
-        px_to_f64(self.high_limit_price)
-    }
-
-    /// Converts the low limit price to a floating point.
-    ///
-    /// `UNDEF_PRICE` will be converted to NaN.
-    ///
-    /// <div class="warning">
-    /// This may introduce floating-point error.
-    /// </div>
-    pub fn low_limit_price_f64(&self) -> f64 {
-        px_to_f64(self.low_limit_price)
-    }
-
-    /// Converts the differential value for price banding to a floating point.
-    ///
-    /// `UNDEF_PRICE` will be converted to NaN.
-    ///
-    /// <div class="warning">
-    /// This may introduce floating-point error.
-    /// </div>
-    pub fn max_price_variation_f64(&self) -> f64 {
-        px_to_f64(self.max_price_variation)
-    }
-
     /// Converts the trading session settlement price to a floating point.
     ///
     /// `UNDEF_PRICE` will be converted to NaN.
@@ -115,39 +56,6 @@ impl InstrumentDefMsg {
     /// </div>
     pub fn trading_reference_price_f64(&self) -> f64 {
         px_to_f64(self.trading_reference_price)
-    }
-
-    /// Converts the contract size for each instrument to a floating point.
-    ///
-    /// `UNDEF_PRICE` will be converted to NaN.
-    ///
-    /// <div class="warning">
-    /// This may introduce floating-point error.
-    /// </div>
-    pub fn unit_of_measure_qty_f64(&self) -> f64 {
-        px_to_f64(self.unit_of_measure_qty)
-    }
-
-    /// Converts the min price increment amount to a floating point.
-    ///
-    /// `UNDEF_PRICE` will be converted to NaN.
-    ///
-    /// <div class="warning">
-    /// This may introduce floating-point error.
-    /// </div>
-    pub fn min_price_increment_amount_f64(&self) -> f64 {
-        px_to_f64(self.min_price_increment_amount)
-    }
-
-    /// Converts the price ratio to a floating point.
-    ///
-    /// `UNDEF_PRICE` will be converted to NaN.
-    ///
-    /// <div class="warning">
-    /// This may introduce floating-point error.
-    /// </div>
-    pub fn price_ratio_f64(&self) -> f64 {
-        px_to_f64(self.price_ratio)
     }
 
     /// Parses the currency into a `&str`.
@@ -172,14 +80,6 @@ impl InstrumentDefMsg {
     /// This function returns an error if `secsubtype` contains invalid UTF-8.
     pub fn secsubtype(&self) -> crate::Result<&str> {
         c_chars_to_str(&self.secsubtype)
-    }
-
-    /// Parses the raw symbol into a `&str`.
-    ///
-    /// # Errors
-    /// This function returns an error if `raw_symbol` contains invalid UTF-8.
-    pub fn raw_symbol(&self) -> crate::Result<&str> {
-        c_chars_to_str(&self.raw_symbol)
     }
 
     /// Parses the security group code into a `&str`.
@@ -245,100 +145,149 @@ impl InstrumentDefMsg {
     pub fn strike_price_currency(&self) -> crate::Result<&str> {
         c_chars_to_str(&self.strike_price_currency)
     }
+}
 
-    /// Parses the instrument class into an enum.
-    ///
-    /// # Errors
-    /// This function returns an error if the `instrument_class` field does not
-    /// contain a valid [`InstrumentClass`].
-    #[allow(
-        clippy::unnecessary_cast,
-        reason = "c_char is u8 on some targets like aarch64 Linux"
-    )]
-    pub fn instrument_class(&self) -> crate::Result<InstrumentClass> {
-        InstrumentClass::try_from(self.instrument_class as u8).map_err(|_| {
-            Error::conversion::<InstrumentClass>(format_args!(
-                "{:#04X}",
-                self.instrument_class as u8
-            ))
-        })
+impl InstrumentDefRec for InstrumentDefMsg {
+    fn raw_ts_recv(&self) -> u64 {
+        self.ts_recv
     }
 
-    /// Converts the strike price to a floating point.
-    ///
-    /// `UNDEF_PRICE` will be converted to NaN.
-    ///
-    /// <div class="warning">
-    /// This may introduce floating-point error.
-    /// </div>
-    pub fn strike_price_f64(&self) -> f64 {
-        px_to_f64(self.strike_price)
+    fn min_price_increment(&self) -> i64 {
+        self.min_price_increment
     }
 
-    /// Parses the match algorithm into an enum.
-    ///
-    /// # Errors
-    /// This function returns an error if the `match_algorithm` field does not
-    /// contain a valid [`MatchAlgorithm`].
-    #[allow(
-        clippy::unnecessary_cast,
-        reason = "c_char is u8 on some targets like aarch64 Linux"
-    )]
-    pub fn match_algorithm(&self) -> crate::Result<MatchAlgorithm> {
-        MatchAlgorithm::try_from(self.match_algorithm as u8).map_err(|_| {
-            Error::conversion::<MatchAlgorithm>(format_args!("{:#04X}", self.match_algorithm as u8))
-        })
+    fn display_factor(&self) -> i64 {
+        self.display_factor
+    }
+
+    fn raw_instrument_id(&self) -> u64 {
+        u64::from(self.raw_instrument_id)
+    }
+
+    fn min_lot_size_round_lot(&self) -> i32 {
+        self.min_lot_size_round_lot
+    }
+
+    fn raw_security_update_action(&self) -> c_char {
+        self.security_update_action as c_char
+    }
+
+    fn raw_instrument_class(&self) -> c_char {
+        self.instrument_class
+    }
+
+    fn raw_match_algorithm(&self) -> c_char {
+        self.match_algorithm
+    }
+
+    fn channel_id(&self) -> u8 {
+        u8::try_from(self.channel_id).unwrap_or(u8::MAX)
+    }
+
+    fn raw_symbol(&self) -> Result<&str> {
+        c_chars_to_str(&self.raw_symbol)
+    }
+
+    fn raw_expiration(&self) -> Option<u64> {
+        Some(self.expiration)
+    }
+
+    fn raw_activation(&self) -> Option<u64> {
+        Some(self.activation)
+    }
+
+    fn high_limit_price(&self) -> Option<i64> {
+        Some(self.high_limit_price)
+    }
+
+    fn low_limit_price(&self) -> Option<i64> {
+        Some(self.low_limit_price)
+    }
+
+    fn max_price_variation(&self) -> Option<i64> {
+        Some(self.max_price_variation)
+    }
+
+    fn unit_of_measure_qty(&self) -> Option<i64> {
+        Some(self.unit_of_measure_qty)
+    }
+
+    fn min_price_increment_amount(&self) -> Option<i64> {
+        Some(self.min_price_increment_amount)
+    }
+
+    fn price_ratio(&self) -> Option<i64> {
+        Some(self.price_ratio)
+    }
+
+    fn strike_price(&self) -> Option<i64> {
+        Some(self.strike_price)
+    }
+
+    fn leg_price(&self) -> Option<i64> {
+        None
+    }
+
+    fn leg_delta(&self) -> Option<i64> {
+        None
+    }
+
+    fn user_defined_instrument(&self) -> Result<Option<UserDefinedInstrument>> {
+        Ok(Some(self.user_defined_instrument))
+    }
+
+    fn leg_instrument_class(&self) -> Result<Option<InstrumentClass>> {
+        Ok(None)
+    }
+
+    fn leg_side(&self) -> Result<Option<Side>> {
+        Ok(None)
     }
 }
 
-impl StatMsg {
-    /// Parses the capture-server-received timestamp into a datetime.
-    /// Returns `None` if `ts_recv` contains the sentinel for a null timestamp.
-    pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
-        ts_to_dt(self.ts_recv)
+impl StatRec for StatMsg {
+    fn raw_ts_recv(&self) -> u64 {
+        self.ts_recv
     }
 
-    /// Parses the reference timestamp of the statistic value into a datetime.
-    /// Returns `None` if `ts_ref` contains the sentinel for a null timestamp.
-    pub fn ts_ref(&self) -> Option<time::OffsetDateTime> {
-        ts_to_dt(self.ts_ref)
+    fn raw_ts_ref(&self) -> u64 {
+        self.ts_ref
     }
 
-    /// Converts the value for price statistics to a floating point.
-    ///
-    /// `UNDEF_PRICE` will be converted to NaN.
-    ///
-    /// <div class="warning">
-    /// This may introduce floating-point error.
-    /// </div>
-    pub fn price_f64(&self) -> f64 {
-        px_to_f64(self.price)
+    fn price(&self) -> i64 {
+        self.price
     }
 
-    /// Parses the difference between `ts_recv` and the matching-engine-sending timestamp into a duration.
-    pub fn ts_in_delta(&self) -> time::Duration {
-        time::Duration::new(0, self.ts_in_delta)
+    fn quantity(&self) -> i64 {
+        if self.quantity == i32::MAX {
+            i64::MAX
+        } else {
+            i64::from(self.quantity)
+        }
     }
 
-    /// Parses the type of statistic value into an enum.
-    ///
-    /// # Errors
-    /// This function returns an error if the `stat_type` field does not
-    /// contain a valid [`StatType`].
-    pub fn stat_type(&self) -> crate::Result<StatType> {
-        StatType::try_from(self.stat_type)
-            .map_err(|_| Error::conversion::<StatType>(format_args!("{:#04X}", self.stat_type)))
+    fn sequence(&self) -> u32 {
+        self.sequence
     }
 
-    /// Parses the update action into an enum.
-    ///
-    /// # Errors
-    /// This function returns an error if the `update_action` field does not
-    /// contain a valid [`StatUpdateAction`].
-    pub fn update_action(&self) -> crate::Result<StatUpdateAction> {
-        StatUpdateAction::try_from(self.update_action).map_err(|_| {
-            Error::conversion::<StatUpdateAction>(format_args!("{:#04X}", self.update_action))
-        })
+    fn raw_ts_in_delta(&self) -> i32 {
+        self.ts_in_delta
+    }
+
+    fn raw_stat_type(&self) -> u16 {
+        self.stat_type
+    }
+
+    fn channel_id(&self) -> u8 {
+        u8::try_from(self.channel_id).unwrap_or(u8::MAX)
+    }
+
+    fn raw_update_action(&self) -> u8 {
+        self.update_action
+    }
+
+    fn stat_flags(&self) -> u8 {
+        self.stat_flags
     }
 }
 
@@ -368,33 +317,31 @@ impl SymbolMappingMsg {
             end_ts,
         })
     }
+}
 
-    /// Parses the input symbol into a `&str`.
-    ///
-    /// # Errors
-    /// This function returns an error if `stype_in_symbol` contains invalid UTF-8.
-    pub fn stype_in_symbol(&self) -> crate::Result<&str> {
+impl SymbolMappingRec for SymbolMappingMsg {
+    fn raw_start_ts(&self) -> u64 {
+        self.start_ts
+    }
+
+    fn raw_end_ts(&self) -> u64 {
+        self.end_ts
+    }
+
+    fn raw_stype_in(&self) -> u8 {
+        u8::MAX
+    }
+
+    fn raw_stype_out(&self) -> u8 {
+        u8::MAX
+    }
+
+    fn stype_in_symbol(&self) -> Result<&str> {
         c_chars_to_str(&self.stype_in_symbol)
     }
 
-    /// Parses the output symbol into a `&str`.
-    ///
-    /// # Errors
-    /// This function returns an error if `stype_out_symbol` contains invalid UTF-8.
-    pub fn stype_out_symbol(&self) -> crate::Result<&str> {
+    fn stype_out_symbol(&self) -> Result<&str> {
         c_chars_to_str(&self.stype_out_symbol)
-    }
-
-    /// Parses the start of the mapping interval into a datetime.
-    /// Returns `None` if `start_ts` contains the sentinel for a null timestamp.
-    pub fn start_ts(&self) -> Option<time::OffsetDateTime> {
-        ts_to_dt(self.start_ts)
-    }
-
-    /// Parses the end of the mapping interval into a datetime.
-    /// Returns `None` if `end_ts` contains the sentinel for a null timestamp.
-    pub fn end_ts(&self) -> Option<time::OffsetDateTime> {
-        ts_to_dt(self.end_ts)
     }
 }
 
@@ -417,19 +364,22 @@ impl SystemMsg {
             msg: str_to_c_chars(crate::SystemMsg::HEARTBEAT).unwrap(),
         }
     }
+}
 
-    /// Checks whether the message is a heartbeat from the gateway.
-    pub fn is_heartbeat(&self) -> bool {
-        self.msg()
-            .map(|msg| msg == crate::SystemMsg::HEARTBEAT)
-            .unwrap_or_default()
+impl SystemRec for SystemMsg {
+    fn subscription_id(&self) -> u32 {
+        u32::MAX
     }
 
-    /// Parses the message from the Databento gateway into a `&str`.
-    ///
-    /// # Errors
-    /// This function returns an error if `msg` contains invalid UTF-8.
-    pub fn msg(&self) -> crate::Result<&str> {
+    fn raw_schema(&self) -> u16 {
+        u16::MAX
+    }
+
+    fn raw_code(&self) -> u8 {
+        SystemCode::default() as u8
+    }
+
+    fn msg(&self) -> Result<&str> {
         c_chars_to_str(&self.msg)
     }
 }

@@ -23,8 +23,9 @@
     `decode_record_ref_with_symbol()`
 - Added `InstrumentDefOffsets`, `ImbalanceOffsets`, and `SymbolMappingOffsets` for
   reading DBN version 4 fields the compiled record structs don't hold, such as
-  `raw_symbol`, `strike_price`, and `leg_side`, through methods on `InstrumentDefMsg`,
-  `ImbalanceMsg`, and `SymbolMappingMsg`
+  `raw_symbol`, `strike_price`, and `leg_side`. `ResolvedInstrumentDefRef`,
+  `ResolvedImbalanceRef`, and `ResolvedSymbolMappingRef` bind a record to its offsets
+  with `resolve()`
 - Added `TsSymbolMap::retain_from()` for removing intervals that end at or before a
   timestamp
 - Added support for free-threaded Python 3.15
@@ -40,6 +41,9 @@
   for earlier DBN versions. Parquet and Arrow metadata also include it
 - Optimized `MergeDecoder` and `MergeRecordDecoder` to reorder the advanced stream in
   place instead of removing and reinserting it
+- Added a trait for each record type, such as `TradeRec` and `InstrumentDefRec`, for
+  reading records of any DBN version through the same methods, and a `prelude` module
+  for importing them
 
 ### Breaking changes
 - Added `intervals` field to `Metadata` for the symbology of a DBN version 4 stream
@@ -48,6 +52,19 @@
   e.g. `--upgrade 3`
 - Removed `NoSchemaBehavior::Broadcast`. `SchemaSplitter` now works with encoders of
   any DBN version
+- Moved the record methods that convert fields, such as `ts_recv()`, `action()`, and
+  `price_f64()`, into the new record traits. Import them with `use dbn::prelude::*`
+- Replaced `compat::InstrumentDefRec`, `compat::StatRec`, and `compat::SymbolMappingRec`
+  with the record traits of the same names in the crate root, which cover DBN versions
+  1 through 4
+  - `InstrumentDefRec::channel_id()` returns a `u8`, and `asset()` and `security_type()`
+    are methods of the version 1 through 3 structs
+  - Removed `StatRec::UNDEF_STAT_QUANTITY`. `quantity()` returns `UNDEF_STAT_QUANTITY`
+    for a null quantity in every version
+- Changed the methods for the definition and imbalance fields DBN version 4 holds
+  outside the compiled struct, such as `strike_price_f64()`, `leg_side()`, and
+  `user_defined_instrument()`, to return an `Option`
+- Changed `is_heartbeat()` to check the message text when `code` is `SystemCode::Unset`
 
 ### Bug fixes
 - Fixed panic when decoding, transcoding, or encoding a record whose length is shorter

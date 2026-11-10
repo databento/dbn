@@ -5,6 +5,7 @@ pub(crate) mod conv;
 mod impl_default;
 mod layout_tests;
 mod methods;
+pub(crate) mod rec_traits;
 mod record_methods_tests;
 mod traits;
 mod with_ts_out_methods;
@@ -21,9 +22,8 @@ use crate::{
     macros::{
         dbn_record, ArrowSerialize, CsvSerialize, JsonSerialize, RecordDebug, StructLayoutDesc,
     },
-    Action, Error, FlagSet, InstrumentClass, MatchAlgorithm, Publisher, RType, Result,
-    SecurityUpdateAction, Side, StatUpdateAction, UserDefinedInstrument, ASSET_CSTR_LEN,
-    SYMBOL_CSTR_LEN,
+    Action, Error, FlagSet, MatchAlgorithm, Publisher, RType, Result, SecurityUpdateAction, Side,
+    StatUpdateAction, UserDefinedInstrument, ASSET_CSTR_LEN, SYMBOL_CSTR_LEN,
 };
 pub(crate) use conv::as_u8_slice;
 #[cfg(feature = "serde")]
@@ -34,6 +34,7 @@ pub use conv::{
     c_chars_to_str, str_to_c_chars, transmute_header_bytes, transmute_record,
     transmute_record_bytes, transmute_record_mut, ts_to_dt,
 };
+pub use rec_traits::*;
 pub use traits::{HasRType, Record, RecordHeaderKind, RecordMut};
 
 /// Common data for all Databento records. Always found at the beginning of a record

@@ -764,6 +764,7 @@ mod tests {
     use rstest::rstest;
 
     use super::*;
+    use crate::prelude::*;
     use crate::v4::framing::{RecordGroupHeader, RecordGroupHeaderMsg};
     #[cfg(feature = "zstd")]
     use crate::{
@@ -1225,25 +1226,25 @@ mod tests {
         let offsets =
             crate::v4::InstrumentDefOffsets::resolve(&decoder.metadata().layout_index().unwrap())?;
         let rec = decoder.decode_ref()?.unwrap();
-        let def = rec.try_get::<crate::v4::InstrumentDefMsg>()?;
-
-        assert_eq!(def.raw_symbol(&offsets)?, "ESZ5 C6800");
-        assert_eq!(def.strike_price(&offsets), Some(6_800_000_000_000));
-        assert_eq!(def.strike_price_f64(&offsets), Some(6800.0));
-        assert_eq!(def.leg_price(&offsets), Some(1_250_000_000));
-        assert_eq!(
-            def.raw_expiration(&offsets),
-            Some(1_766_154_600_000_000_000)
+        let def = crate::v4::ResolvedInstrumentDefRef::resolve(
+            rec.try_get::<crate::v4::InstrumentDefMsg>()?,
+            &offsets,
         );
+
+        assert_eq!(def.raw_symbol()?, "ESZ5 C6800");
+        assert_eq!(def.strike_price(), Some(6_800_000_000_000));
+        assert_eq!(def.strike_price_f64(), Some(6800.0));
+        assert_eq!(def.leg_price(), Some(1_250_000_000));
+        assert_eq!(def.raw_expiration(), Some(1_766_154_600_000_000_000));
         assert_eq!(
-            def.expiration(&offsets),
+            def.expiration(),
             Some(
                 time::OffsetDateTime::from_unix_timestamp_nanos(1_766_154_600_000_000_000).unwrap()
             )
         );
-        assert_eq!(def.activation(&offsets), None);
-        assert!(def.high_limit_price_f64(&offsets).unwrap().is_nan());
-        assert_eq!(def.leg_side(&offsets)?, Some(Side::Ask));
+        assert_eq!(def.activation(), None);
+        assert!(def.high_limit_price_f64().unwrap().is_nan());
+        assert_eq!(def.leg_side()?, Some(Side::Ask));
         Ok(())
     }
 
@@ -1273,14 +1274,17 @@ mod tests {
         );
         let offsets = crate::v4::ImbalanceOffsets::resolve(&index)?;
         let rec = decoder.decode_ref()?.unwrap();
-        let imbalance = rec.try_get::<crate::v4::ImbalanceMsg>()?;
+        let imbalance = crate::v4::ResolvedImbalanceRef::resolve(
+            rec.try_get::<crate::v4::ImbalanceMsg>()?,
+            &offsets,
+        );
 
         assert_eq!(
-            imbalance.raw_auction_time(&offsets),
+            imbalance.raw_auction_time(),
             Some(1_757_970_600_000_000_000)
         );
-        assert_eq!(imbalance.upper_collar(&offsets), Some(105_000_000_000));
-        assert_eq!(imbalance.unpaired_side(&offsets)?, Some(Side::Bid));
+        assert_eq!(imbalance.upper_collar(), Some(105_000_000_000));
+        assert_eq!(imbalance.unpaired_side()?, Some(Side::Bid));
         Ok(())
     }
 
@@ -1309,10 +1313,13 @@ mod tests {
         );
         let offsets = crate::v4::SymbolMappingOffsets::resolve(&index)?;
         let rec = decoder.decode_ref()?.unwrap();
-        let mapping = rec.try_get::<crate::v4::SymbolMappingMsg>()?;
+        let mapping = crate::v4::ResolvedSymbolMappingRef::resolve(
+            rec.try_get::<crate::v4::SymbolMappingMsg>()?,
+            &offsets,
+        );
 
-        assert_eq!(mapping.stype_in_symbol(&offsets)?, "ES.FUT");
-        assert_eq!(mapping.stype_out_symbol(&offsets)?, "ESZ5");
+        assert_eq!(mapping.stype_in_symbol()?, "ES.FUT");
+        assert_eq!(mapping.stype_out_symbol()?, "ESZ5");
         Ok(())
     }
 

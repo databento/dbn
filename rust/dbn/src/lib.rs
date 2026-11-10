@@ -92,6 +92,11 @@ pub mod layout;
 pub mod macros;
 pub mod metadata;
 pub mod pretty;
+pub mod prelude {
+    //! The record traits, for glob importing.
+
+    pub use crate::record::{rec_traits::*, HasRType, Record, RecordMut};
+}
 pub mod publishers;
 #[cfg(feature = "python")]
 pub mod python;
@@ -107,6 +112,8 @@ pub mod v2;
 pub mod v3;
 pub mod v4;
 
+#[doc(inline)]
+pub use crate::record::rec_traits::*;
 #[doc(inline)]
 pub use crate::{
     enums::{

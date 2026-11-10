@@ -16,78 +16,8 @@ pub use crate::record::{
 mod impl_default;
 mod methods;
 
-use crate::compat::{InstrumentDefRec, StatRec, SymbolMappingRec};
-
 /// The DBN version of this module.
 pub const DBN_VERSION: u8 = 1;
-
-impl SymbolMappingRec for SymbolMappingMsg {
-    fn stype_in_symbol(&self) -> crate::Result<&str> {
-        Self::stype_in_symbol(self)
-    }
-
-    fn stype_out_symbol(&self) -> crate::Result<&str> {
-        Self::stype_out_symbol(self)
-    }
-
-    fn start_ts(&self) -> Option<time::OffsetDateTime> {
-        Self::start_ts(self)
-    }
-
-    fn end_ts(&self) -> Option<time::OffsetDateTime> {
-        Self::end_ts(self)
-    }
-}
-
-impl InstrumentDefRec for InstrumentDefMsg {
-    fn raw_symbol(&self) -> crate::Result<&str> {
-        Self::raw_symbol(self)
-    }
-
-    fn asset(&self) -> crate::Result<&str> {
-        Self::asset(self)
-    }
-
-    fn security_type(&self) -> crate::Result<&str> {
-        Self::security_type(self)
-    }
-
-    fn security_update_action(&self) -> crate::Result<crate::SecurityUpdateAction> {
-        Ok(self.security_update_action)
-    }
-
-    fn channel_id(&self) -> u16 {
-        self.channel_id
-    }
-}
-
-impl StatRec for StatMsg {
-    const UNDEF_STAT_QUANTITY: i64 = UNDEF_STAT_QUANTITY as i64;
-
-    fn stat_type(&self) -> crate::Result<crate::StatType> {
-        Self::stat_type(self)
-    }
-
-    fn ts_recv(&self) -> Option<time::OffsetDateTime> {
-        Self::ts_recv(self)
-    }
-
-    fn ts_ref(&self) -> Option<time::OffsetDateTime> {
-        Self::ts_ref(self)
-    }
-
-    fn update_action(&self) -> crate::Result<crate::StatUpdateAction> {
-        Self::update_action(self)
-    }
-
-    fn price(&self) -> i64 {
-        self.price
-    }
-
-    fn quantity(&self) -> i64 {
-        self.quantity as i64
-    }
-}
 
 #[cfg(test)]
 mod tests {
