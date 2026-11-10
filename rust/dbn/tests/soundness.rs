@@ -3,7 +3,9 @@
 //! These assertions only prove anything under
 //! `cargo +nightly miri test --test soundness`.
 
-use dbn::{MboMsg, Record, RecordBuf, RecordMut, RecordRef, RecordRefMut};
+use dbn::{
+    rtype, MboMsg, Mbp10Msg, Record, RecordBuf, RecordMut, RecordRef, RecordRefMut, StatusMsg,
+};
 
 #[repr(align(8))]
 struct AlignedBuf([u8; 128]);
@@ -96,4 +98,14 @@ fn record_buf_round_trips_through_a_mutable_view() {
     let mut rec = buf.as_rec_ref_mut();
     rec.get_mut::<MboMsg>().unwrap().order_id = 13;
     assert_eq!(buf.get::<MboMsg>().unwrap().order_id, 13);
+}
+
+#[test]
+fn as_enum_does_not_reference_past_a_short_record() {
+    // `rtype` says `Mbp10Msg` (368 bytes) but the record is a 40-byte `StatusMsg`
+    let mut status = StatusMsg::default();
+    status.hd.rtype = rtype::MBP_10;
+    let rec = RecordRef::from(&status);
+    assert!(rec.try_get::<Mbp10Msg>().is_err());
+    assert!(rec.as_enum().is_err());
 }

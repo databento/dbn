@@ -20,9 +20,9 @@
 
 use crate::{
     record::{CbboMsg, Cmbp1Msg},
-    BboMsg, Error, ErrorMsg, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg, OhlcvMsg,
-    RType, Record, RecordHeader, RecordMut, RecordRef, StatMsg, StatusMsg, SymbolMappingMsg,
-    SystemMsg, TradeMsg,
+    BboMsg, Error, ErrorMsg, HasRType, ImbalanceMsg, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg,
+    OhlcvMsg, RType, Record, RecordHeader, RecordMut, RecordRef, StatMsg, StatusMsg,
+    SymbolMappingMsg, SystemMsg, TradeMsg,
 };
 
 /// An owned DBN record type of flexible type. Unlike [`RecordRef`], this type allows
@@ -174,21 +174,38 @@ impl<'a> TryFrom<RecordRef<'a>> for RecordRefEnum<'a> {
     type Error = Error;
 
     fn try_from(rec_ref: RecordRef<'a>) -> Result<Self, Error> {
+        // `rtype` and `length` come from the record itself, so a record can claim a type
+        // that is longer than it is. Narrowing it would create a reference past its end.
+        fn checked<'a, T: HasRType<Header = RecordHeader>>(
+            rec_ref: &RecordRef<'a>,
+        ) -> Result<&'a T, Error> {
+            if rec_ref.record_size() < std::mem::size_of::<T>() {
+                return Err(Error::conversion::<RecordRefEnum>(format_args!(
+                    "{} record with insufficient length: expected at least {} bytes, found {}",
+                    std::any::type_name::<T>(),
+                    std::mem::size_of::<T>(),
+                    rec_ref.record_size()
+                )));
+            }
+            // Safety: `rtype` matched by the caller and length checked above
+            Ok(unsafe { rec_ref.get_unchecked() })
+        }
+
         Ok(unsafe {
             #[allow(deprecated)]
             match rec_ref.rtype()? {
-                RType::Mbo => RecordRefEnum::Mbo(rec_ref.get_unchecked()),
-                RType::Mbp0 => RecordRefEnum::Trade(rec_ref.get_unchecked()),
-                RType::Mbp1 | RType::Tbbo => RecordRefEnum::Mbp1(rec_ref.get_unchecked()),
-                RType::Bbo1S | RType::Bbo1M => RecordRefEnum::Bbo(rec_ref.get_unchecked()),
-                RType::Mbp10 => RecordRefEnum::Mbp10(rec_ref.get_unchecked()),
+                RType::Mbo => RecordRefEnum::Mbo(checked(&rec_ref)?),
+                RType::Mbp0 => RecordRefEnum::Trade(checked(&rec_ref)?),
+                RType::Mbp1 | RType::Tbbo => RecordRefEnum::Mbp1(checked(&rec_ref)?),
+                RType::Bbo1S | RType::Bbo1M => RecordRefEnum::Bbo(checked(&rec_ref)?),
+                RType::Mbp10 => RecordRefEnum::Mbp10(checked(&rec_ref)?),
                 RType::OhlcvDeprecated
                 | RType::Ohlcv1S
                 | RType::Ohlcv1M
                 | RType::Ohlcv1H
                 | RType::Ohlcv1D
-                | RType::OhlcvEod => RecordRefEnum::Ohlcv(rec_ref.get_unchecked()),
-                RType::Status => RecordRefEnum::Status(rec_ref.get_unchecked()),
+                | RType::OhlcvEod => RecordRefEnum::Ohlcv(checked(&rec_ref)?),
+                RType::Status => RecordRefEnum::Status(checked(&rec_ref)?),
                 RType::InstrumentDef => {
                     // can't convert V1 structs here because an immutable reference
                     if rec_ref.record_size() < std::mem::size_of::<InstrumentDefMsg>() {
@@ -198,7 +215,7 @@ impl<'a> TryFrom<RecordRef<'a>> for RecordRefEnum<'a> {
                     }
                     RecordRefEnum::InstrumentDef(rec_ref.get_unchecked())
                 }
-                RType::Imbalance => RecordRefEnum::Imbalance(rec_ref.get_unchecked()),
+                RType::Imbalance => RecordRefEnum::Imbalance(checked(&rec_ref)?),
                 RType::Statistics => {
                     if rec_ref.record_size() < std::mem::size_of::<StatMsg>() {
                         return Err(Error::conversion::<Self>(
@@ -234,8 +251,8 @@ impl<'a> TryFrom<RecordRef<'a>> for RecordRefEnum<'a> {
                     }
                     RecordRefEnum::System(rec_ref.get_unchecked())
                 }
-                RType::Cmbp1 | RType::Tcbbo => RecordRefEnum::Cmbp1(rec_ref.get_unchecked()),
-                RType::Cbbo1S | RType::Cbbo1M => RecordRefEnum::Cbbo(rec_ref.get_unchecked()),
+                RType::Cmbp1 | RType::Tcbbo => RecordRefEnum::Cmbp1(checked(&rec_ref)?),
+                RType::Cbbo1S | RType::Cbbo1M => RecordRefEnum::Cbbo(checked(&rec_ref)?),
             }
         })
     }
@@ -599,7 +616,7 @@ impl<'a> From<RecordRefEnum<'a>> for RecordRef<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{record::*, v1, v2, v3};
+    use crate::{record::*, rtype, v1, v2, v3};
 
     use super::*;
     use rstest::rstest;
@@ -653,5 +670,49 @@ mod tests {
         } else {
             assert!(res.is_ok());
         }
+    }
+
+    #[rstest]
+    fn test_short_record_safety(
+        #[values(
+            rtype::MBO,
+            rtype::MBP_0,
+            rtype::MBP_1,
+            rtype::TBBO,
+            rtype::BBO_1S,
+            rtype::BBO_1M,
+            rtype::MBP_10,
+            rtype::OHLCV_DEPRECATED,
+            rtype::OHLCV_1S,
+            rtype::OHLCV_1M,
+            rtype::OHLCV_1H,
+            rtype::OHLCV_1D,
+            rtype::OHLCV_EOD,
+            rtype::STATUS,
+            rtype::INSTRUMENT_DEF,
+            rtype::IMBALANCE,
+            rtype::STATISTICS,
+            rtype::ERROR,
+            rtype::SYMBOL_MAPPING,
+            rtype::SYSTEM,
+            rtype::CMBP_1,
+            rtype::TCBBO,
+            rtype::CBBO_1S,
+            rtype::CBBO_1M
+        )]
+        rtype: u8,
+    ) {
+        // A header-only record, shorter than any record type
+        let mut hd = RecordHeader::new::<MboMsg>(rtype, 0, 0, 0);
+        hd.length = (std::mem::size_of::<RecordHeader>() / RecordHeader::LENGTH_MULTIPLIER) as u8;
+        // Safety: `hd` is an aligned `RecordHeader` and its `length` covers only itself
+        let rec_ref = unsafe {
+            RecordRef::new(std::slice::from_raw_parts(
+                (&hd as *const RecordHeader).cast::<u8>(),
+                std::mem::size_of::<RecordHeader>(),
+            ))
+        };
+        assert_eq!(rec_ref.record_size(), std::mem::size_of::<RecordHeader>());
+        assert!(rec_ref.as_enum().is_err());
     }
 }
