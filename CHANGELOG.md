@@ -50,6 +50,8 @@
 ### Bug fixes
 - Fixed `--zstd`/`-z` in the `dbn` CLI being ignored when the output encoding was
   inferred from the output path
+- Fixed `RecordRef::as_enum()` and `RecordBuf::as_enum()` returning a reference past the
+  end of a record whose length is shorter than its rtype's struct (credit: @samsonmaximus)
 - Fixed DBN version 4 decoders rejecting streams with a symbol width greater than 71
   and reading definition and symbol mapping records dynamically when it was smaller
 - Fixed DBN version 4 layout validation accepting a repacked compiled record layout

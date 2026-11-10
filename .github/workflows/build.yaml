@@ -188,7 +188,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # pinned so a nightly change doesn't break CI
-      MIRI_TOOLCHAIN: nightly-2026-09-02
+      MIRI_TOOLCHAIN: nightly-2026-11-10
 
     steps:
       - name: Checkout repository
