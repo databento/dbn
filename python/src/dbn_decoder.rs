@@ -6,7 +6,7 @@ use pyo3::{exceptions::PyRuntimeError, prelude::*, IntoPyObjectExt};
 use dbn::{
     decode::dbn::fsm::{DbnFsm, ProcessResult},
     python::to_py_err,
-    rtype_dispatch, Compression, HasRType, RecordHeader, VersionUpgradePolicy,
+    Compression, HasRType, RecordHeader, VersionUpgradePolicy,
 };
 
 #[pyclass(module = "databento_dbn", name = "DBNDecoder")]
@@ -105,21 +105,39 @@ impl DbnDecoder {
                 ProcessResult::Record(_) => {
                     // Bug in clippy generates an error here. trivial_copy feature isn't enabled,
                     // but clippy thinks these records are `Copy`
-                    fn push_rec<'py, R>(rec: &R, py: Python<'py>, py_recs: &mut Vec<Py<PyAny>>)
+                    fn push_rec<'py, R>(
+                        rec: &R,
+                        py: Python<'py>,
+                        py_recs: &mut Vec<Py<PyAny>>,
+                    ) -> PyResult<()>
                     where
                         R: Clone + HasRType + IntoPyObject<'py>,
                     {
-                        py_recs.push(rec.clone().into_py_any(py).unwrap());
+                        py_recs.push(rec.clone().into_py_any(py)?);
+                        Ok(())
                     }
 
                     let rec = self.fsm.last_record().ok_or_else(|| {
                         PyRuntimeError::new_err("Error while decoding DBN stream")
                     })?;
 
-                    // SAFETY: It's safe to cast to `WithTsOut` because we're passing in the
-                    // `ts_out` from the metadata header.
-                    rtype_dispatch!(rec, ts_out: ts_out, push_rec(py, &mut py_recs))
-                        .map_err(PyErr::from)?;
+                    // Dispatch using fallible record casts. A malformed record may
+                    // carry a valid rtype but encode fewer bytes than its struct.
+                    // rtype_dispatch! uses get() which panics in that case; external
+                    // DBN input must instead produce a recoverable Python DBNError.
+                    macro_rules! push_checked {
+                        ($r:ty) => {{
+                            if ts_out {
+                                let typed =
+                                    rec.try_get::<dbn::WithTsOut<$r>>().map_err(PyErr::from)?;
+                                push_rec(typed, py, &mut py_recs)?;
+                            } else {
+                                let typed = rec.try_get::<$r>().map_err(PyErr::from)?;
+                                push_rec(typed, py, &mut py_recs)?;
+                            }
+                        }};
+                    }
+                    dbn::rtype_dispatch_base!(rec, push_checked).map_err(PyErr::from)?;
                 }
                 ProcessResult::Err(error) => return Err(PyErr::from(error)),
             }
@@ -242,6 +260,40 @@ mod tests {
         decoder.write(&encoder.get_ref()[rec1_pos + 4..]).unwrap();
         let res2 = Python::attach(|py| decoder.decode(py));
         assert!(matches!(res2, Ok(recs) if recs.len() == 1));
+    }
+
+    #[rstest]
+    fn test_malformed_mbp1_record_size_returns_python_error(_python: ()) {
+        let mut encoder = Encoder::new(
+            Vec::new(),
+            &MetadataBuilder::new()
+                .dataset(Dataset::GlbxMdp3.to_string())
+                .schema(Some(Schema::Mbp1))
+                .stype_in(Some(SType::RawSymbol))
+                .stype_out(SType::InstrumentId)
+                .start(0)
+                .build(),
+        )
+        .unwrap();
+        let record_start = encoder.get_ref().len();
+        encoder.encode_record(&dbn::Mbp1Msg::default()).unwrap();
+        let mut encoded = encoder.get_ref().clone();
+        // 4 words = 16 bytes, less than the MBP-1 struct. The header still
+        // identifies the record as MBP-1 and must not cause a Rust panic.
+        encoded[record_start] = 4;
+        let mut decoder = DbnDecoder::new(
+            true,
+            false,
+            None,
+            VersionUpgradePolicy::default(),
+            Compression::None,
+        )
+        .unwrap();
+        Python::attach(|py| {
+            let err = decoder.write_and_decode(py, &encoded).unwrap_err();
+            assert!(err.is_instance_of::<dbn::python::DBNError>(py));
+            assert!(err.to_string().contains("insufficient length"));
+        });
     }
 
     #[rstest]
