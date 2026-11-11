@@ -1,4 +1,7 @@
-use std::{cmp::Reverse, collections::BinaryHeap};
+use std::{
+    cmp::Reverse,
+    collections::{binary_heap::PeekMut, BinaryHeap},
+};
 
 use crate::{Error, HasRType, Metadata, Record, RecordHeaderKind, RecordRef};
 
@@ -230,6 +233,28 @@ impl<D> RecordDecoder<D> {
 }
 
 impl<D> RecordDecoder<D> {
+    fn advance_min_stream<H>(&mut self) -> crate::Result<()>
+    where
+        D: DecodeRecordRef<H>,
+        H: RecordHeaderKind,
+        for<'a> RecordRef<'a, H>: Record,
+    {
+        let Some(mut head) = self.min_heap.peek_mut() else {
+            return Ok(());
+        };
+        match self.decoders[head.0.decoder_idx].decode_record_ref() {
+            Ok(Some(rec)) => head.0.index_ts = IndexTs::Real(rec.raw_index_ts()),
+            Ok(None) => {
+                PeekMut::pop(head);
+            }
+            Err(err) => {
+                PeekMut::pop(head);
+                return Err(err);
+            }
+        }
+        Ok(())
+    }
+
     // handles hints
     fn next_decoder_idx<H>(&mut self) -> crate::Result<Option<usize>>
     where
@@ -247,15 +272,7 @@ impl<D> RecordDecoder<D> {
             };
             match index_ts {
                 IndexTs::Real(_) => return Ok(Some(decoder_idx)),
-                IndexTs::Hint(_) => {
-                    self.min_heap.pop();
-                    if let Some(rec) = self.decoders[decoder_idx].decode_record_ref()? {
-                        self.min_heap.push(Reverse(StreamHead {
-                            index_ts: IndexTs::Real(rec.raw_index_ts()),
-                            decoder_idx,
-                        }));
-                    }
-                }
+                IndexTs::Hint(_) => self.advance_min_stream()?,
             }
         }
     }
@@ -271,20 +288,7 @@ where
         if self.is_first {
             self.is_first = false;
         } else {
-            // Pop last record
-            let Some(Reverse(StreamHead {
-                index_ts: _,
-                decoder_idx,
-            })) = self.min_heap.pop()
-            else {
-                return Ok(None);
-            };
-            if let Some(rec) = self.decoders[decoder_idx].decode_record_ref()? {
-                self.min_heap.push(Reverse(StreamHead {
-                    index_ts: IndexTs::Real(rec.raw_index_ts()),
-                    decoder_idx,
-                }));
-            }
+            self.advance_min_stream()?;
         }
         let Some(decoder_idx) = self.next_decoder_idx::<H>()? else {
             return Ok(None);

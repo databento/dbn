@@ -38,6 +38,8 @@
   the underlying writer
 - Added the DBN version 4 stream layout to JSON metadata as `layout`, which is `null`
   for earlier DBN versions. Parquet and Arrow metadata also include it
+- Optimized `MergeDecoder` and `MergeRecordDecoder` to reorder the advanced stream in
+  place instead of removing and reinserting it
 
 ### Breaking changes
 - Added `intervals` field to `Metadata` for the symbology of a DBN version 4 stream
