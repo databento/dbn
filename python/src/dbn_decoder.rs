@@ -191,6 +191,37 @@ mod tests {
     }
 
     #[rstest]
+    fn test_undersized_record_returns_error(_python: ()) {
+        let mut encoder = Encoder::new(
+            Vec::new(),
+            &MetadataBuilder::new()
+                .dataset(Dataset::GlbxMdp3.to_string())
+                .schema(Some(Schema::Mbp1))
+                .stype_in(Some(SType::RawSymbol))
+                .stype_out(SType::InstrumentId)
+                .start(0)
+                .build(),
+        )
+        .unwrap();
+        let record_pos = encoder.get_ref().len();
+        encoder.encode_record(&dbn::Mbp1Msg::default()).unwrap();
+        let mut bytes = encoder.get_ref().clone();
+        bytes[record_pos] = 4;
+        let mut decoder = DbnDecoder::new(
+            true,
+            false,
+            None,
+            VersionUpgradePolicy::default(),
+            Compression::None,
+        )
+        .unwrap();
+        Python::attach(|py| {
+            let err = decoder.write_and_decode(py, &bytes).unwrap_err();
+            assert!(err.is_instance_of::<dbn::python::DBNError>(py));
+        });
+    }
+
+    #[rstest]
     fn test_full_with_partial_record(_python: ()) {
         let mut decoder = DbnDecoder::new(
             true,
