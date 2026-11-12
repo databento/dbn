@@ -44,6 +44,11 @@
 - Added a trait for each record type, such as `TradeRec` and `InstrumentDefRec`, for
   reading records of any DBN version through the same methods, and a `prelude` module
   for importing them
+- Implemented `Record` and `RecordMut` for `RecordRefMut`, and `RecordMut` for
+  `RecordBuf`, for the DBN version 4 `RecordHeader`
+- Added support for `seek_to()` and `is_compressed()` to the sync and async
+  `RecordDecoder` over a `DynReader` or `AsyncDynReader` when decoding DBN version 4
+  records
 
 ### Breaking changes
 - Added `intervals` field to `Metadata` for the symbology of a DBN version 4 stream

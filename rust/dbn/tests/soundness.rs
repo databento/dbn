@@ -50,7 +50,7 @@ fn get_mut_unchecked_writes_through_pointer_from_new() {
 fn header_mut_writes_through_pointer_from_new() {
     let mut buf = mbo_buf();
     // Safety: 8-aligned and holds a valid `MboMsg`.
-    let mut rec = unsafe { RecordRefMut::new(&mut buf.0) };
+    let mut rec = unsafe { RecordRefMut::<dbn::RecordHeader>::new(&mut buf.0) };
     rec.header_mut().instrument_id = 11;
     assert_eq!(rec.instrument_id(), 11);
 }

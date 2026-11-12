@@ -787,6 +787,52 @@ impl RecordMut for RecordRefMut<'_, RecordHeader> {
     }
 }
 
+impl Record for RecordRefMut<'_, crate::v4::RecordHeader> {
+    type Header = crate::v4::RecordHeader;
+
+    fn record_size(&self) -> usize {
+        self.header().record_size()
+    }
+
+    fn rtype(&self) -> crate::Result<crate::RType> {
+        self.header().rtype()
+    }
+
+    fn raw_rtype(&self) -> u16 {
+        self.header().rtype
+    }
+
+    fn publisher_id(&self) -> u16 {
+        self.header().publisher_id
+    }
+
+    fn publisher(&self) -> crate::Result<crate::Publisher> {
+        self.header().publisher()
+    }
+
+    fn instrument_id(&self) -> u64 {
+        self.header().instrument_id
+    }
+
+    fn raw_ts_event(&self) -> u64 {
+        self.header().ts_event
+    }
+
+    fn raw_index_ts(&self) -> u64 {
+        fn raw_index_ts<T: HasRType>(t: &T) -> u64 {
+            t.raw_index_ts()
+        }
+        crate::macros::v4_rtype_dispatch!(self, raw_index_ts()).unwrap_or(self.header().ts_event)
+    }
+}
+
+impl RecordMut for RecordRefMut<'_, crate::v4::RecordHeader> {
+    fn header_mut(&mut self) -> &mut crate::v4::RecordHeader {
+        // Safety: assumes `ptr` points to a `v4::RecordHeader`.
+        unsafe { self.ptr.as_mut() }
+    }
+}
+
 impl<H: RecordHeaderKind + Debug> Debug for RecordRefMut<'_, H> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("RecordRefMut")

@@ -700,9 +700,10 @@ where
     }
 }
 
-impl<R> RecordDecoder<AsyncDynReader<R>>
+impl<R, H> RecordDecoder<AsyncDynReader<R>, H>
 where
     R: io::AsyncReadExt + io::AsyncBufReadExt + Unpin,
+    H: DecodeHeader,
 {
     /// Seeks to absolute byte position `pos` and clears buffered decoder state.
     ///

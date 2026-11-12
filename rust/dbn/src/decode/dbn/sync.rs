@@ -566,9 +566,10 @@ where
 }
 
 #[cfg(feature = "zstd")]
-impl<'a, R> RecordDecoder<crate::decode::DynReader<'a, R>>
+impl<'a, R, H> RecordDecoder<crate::decode::DynReader<'a, R>, H>
 where
     R: io::BufRead,
+    H: DecodeHeader,
 {
     /// Seeks to absolute byte position `pos` and clears buffered decoder state.
     ///
