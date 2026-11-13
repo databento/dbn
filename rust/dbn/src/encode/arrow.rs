@@ -8,7 +8,7 @@
 //! record's wrapper field; bare `R = T` produces a schema without `ts_out`.
 
 pub(crate) mod serialize;
-pub(crate) mod sync;
+mod sync;
 #[cfg(test)]
 mod tests;
 
@@ -20,8 +20,9 @@ use ::arrow::ipc::CompressionType;
 use ::arrow::record_batch::RecordBatch;
 
 pub use serialize::ArrowSerialize;
-
-use sync::ColumnarWriter;
+#[doc(hidden)]
+pub use sync::ColumnarWriter;
+pub use sync::{Encoder as ColumnarEncoder, EncoderBuilder as ColumnarEncoderBuilder};
 
 use crate::{Compression, Error, Result};
 
@@ -30,9 +31,9 @@ use crate::{Compression, Error, Result};
 pub(crate) const METADATA_KEY: &str = "databento:metadata";
 
 /// Synchronous Arrow IPC encoder for DBN records (Feather v2).
-pub type Encoder<W> = sync::Encoder<IpcFile<W>>;
+pub type Encoder<W> = ColumnarEncoder<IpcFile<W>>;
 /// Builder for the Arrow IPC encoder.
-pub type EncoderBuilder<W> = sync::EncoderBuilder<IpcFile<W>>;
+pub type EncoderBuilder<W> = ColumnarEncoderBuilder<IpcFile<W>>;
 
 /// An Arrow IPC file (Feather v2) being written by [`Encoder`].
 pub struct IpcFile<W: Write>(FileWriter<W>);

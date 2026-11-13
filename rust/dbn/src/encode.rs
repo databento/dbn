@@ -74,7 +74,7 @@ pub use self::{
 };
 
 #[cfg(feature = "arrow")]
-pub use self::arrow::Encoder as ArrowEncoder;
+pub use self::arrow::{ColumnarEncoder, ColumnarEncoderBuilder, Encoder as ArrowEncoder};
 #[cfg(feature = "parquet")]
 pub use self::parquet::Encoder as ParquetEncoder;
 #[cfg(feature = "async")]

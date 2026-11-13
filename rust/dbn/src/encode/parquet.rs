@@ -9,13 +9,13 @@ use parquet::basic::{Compression as Codec, ZstdLevel};
 use parquet::file::metadata::KeyValue;
 use parquet::file::properties::WriterProperties;
 
-use super::arrow::sync::{self, ColumnarWriter};
+use super::arrow::{ColumnarEncoder, ColumnarEncoderBuilder, ColumnarWriter};
 use crate::{Compression, Error, Result};
 
 /// Synchronous Parquet encoder for DBN records.
-pub type Encoder<W> = sync::Encoder<ParquetFile<W>>;
+pub type Encoder<W> = ColumnarEncoder<ParquetFile<W>>;
 /// Builder for the Parquet encoder.
-pub type EncoderBuilder<W> = sync::EncoderBuilder<ParquetFile<W>>;
+pub type EncoderBuilder<W> = ColumnarEncoderBuilder<ParquetFile<W>>;
 
 /// A Parquet file being written by [`Encoder`].
 pub struct ParquetFile<W: Write + Send>(ArrowWriter<W>);

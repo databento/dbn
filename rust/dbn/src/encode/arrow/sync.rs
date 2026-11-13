@@ -105,8 +105,8 @@ impl<B: ColumnarWriter> EncoderBuilder<B> {
     }
 
     /// Sets the schema, `ts_out`, and version from a DBN [`Metadata`] and embeds the
-    /// metadata as JSON under [`METADATA_KEY`] in the output file's schema. Equivalent
-    /// to calling [`schema()`](Self::schema), [`ts_out()`](Self::ts_out), and
+    /// metadata as JSON under the `databento:metadata` key in the output file's schema.
+    /// Equivalent to calling [`schema()`](Self::schema), [`ts_out()`](Self::ts_out), and
     /// [`version()`](Self::version) with the respective fields.
     pub fn metadata(mut self, metadata: &Metadata) -> Self {
         let mut json = String::new();
@@ -329,7 +329,7 @@ pub(crate) const DEFAULT_BATCH_SIZE: NonZeroUsize = NonZeroUsize::new(65_536).un
 
 /// A columnar file format that consumes Arrow [`RecordBatch`]es. Implemented by
 /// [`IpcFile`](super::IpcFile) and [`ParquetFile`](crate::encode::parquet::ParquetFile).
-pub trait ColumnarWriter: Sized {
+pub trait ColumnarWriter: private::Sealed + Sized {
     /// The underlying byte sink.
     type Inner: Write + Send;
 
@@ -412,4 +412,14 @@ where
         fields,
         Box::new(TypedRows::<R>(Vec::with_capacity(capacity))),
     )
+}
+
+mod private {
+    use std::io::Write;
+
+    pub trait Sealed {}
+
+    impl<W: Write> Sealed for super::super::IpcFile<W> {}
+    #[cfg(feature = "parquet")]
+    impl<W: Write + Send> Sealed for crate::encode::parquet::ParquetFile<W> {}
 }
