@@ -1172,7 +1172,7 @@ impl DbnFsm {
         ts_out: bool,
         read_buffer: &'a [u8],
         compat_buffer: &'a mut [u8],
-    ) -> (&'a mut [u8], Option<RecordRef<'a>>) {
+    ) -> Result<(&'a mut [u8], Option<RecordRef<'a>>)> {
         if let Some(input_dbn_version) = input_dbn_version {
             Self::upgrade_record_with_version(
                 input_dbn_version.0,
@@ -1198,7 +1198,7 @@ impl DbnFsm {
         ts_out: bool,
         read_buffer: &'a [u8],
         compat_buffer: &'a mut [u8],
-    ) -> (&'a mut [u8], Option<RecordRef<'a>>) {
+    ) -> Result<(&'a mut [u8], Option<RecordRef<'a>>)> {
         use crate::{rtype::*, VersionUpgradePolicy::*};
 
         let rec = RecordRef::<crate::RecordHeader>::new(read_buffer);
@@ -1243,7 +1243,7 @@ impl DbnFsm {
             (v, _, _) if v > DBN_VERSION => panic!("Unsupported version {version}"),
             _ => (),
         }
-        (compat_buffer, Some(rec))
+        Ok((compat_buffer, Some(rec)))
     }
 
     /// More dynamic upgrading of records when we don't know the input DBN version:
@@ -1259,35 +1259,38 @@ impl DbnFsm {
         ts_out: bool,
         read_buffer: &'a [u8],
         compat_buffer: &'a mut [u8],
-    ) -> (&'a mut [u8], Option<RecordRef<'a>>) {
+    ) -> Result<(&'a mut [u8], Option<RecordRef<'a>>)> {
         use crate::{rtype::*, VersionUpgradePolicy::*};
 
         let rec = RecordRef::<crate::RecordHeader>::new(read_buffer);
         let rec_size = rec.record_size();
         match (rec.header().rtype, upgrade_policy) {
             (INSTRUMENT_DEF, UpgradeToV2) if rec_size < size_of::<v2::InstrumentDefMsg>() => {
-                *input_dbn_version = Some(DbnVersion(1));
-                return upgrade_record::<v1::InstrumentDefMsg, v2::InstrumentDefMsg>(
+                let upgraded = upgrade_record::<v1::InstrumentDefMsg, v2::InstrumentDefMsg>(
                     ts_out,
                     compat_buffer,
                     rec,
-                );
+                )?;
+                *input_dbn_version = Some(DbnVersion(1));
+                return Ok(upgraded);
             }
             (INSTRUMENT_DEF, UpgradeToV3) if rec_size < size_of::<v2::InstrumentDefMsg>() => {
-                *input_dbn_version = Some(DbnVersion(1));
-                return upgrade_record::<v1::InstrumentDefMsg, v3::InstrumentDefMsg>(
+                let upgraded = upgrade_record::<v1::InstrumentDefMsg, v3::InstrumentDefMsg>(
                     ts_out,
                     compat_buffer,
                     rec,
-                );
+                )?;
+                *input_dbn_version = Some(DbnVersion(1));
+                return Ok(upgraded);
             }
             (INSTRUMENT_DEF, UpgradeToV3) if rec_size < size_of::<v3::InstrumentDefMsg>() => {
-                *input_dbn_version = Some(DbnVersion(2));
-                return upgrade_record::<v2::InstrumentDefMsg, v3::InstrumentDefMsg>(
+                let upgraded = upgrade_record::<v2::InstrumentDefMsg, v3::InstrumentDefMsg>(
                     ts_out,
                     compat_buffer,
                     rec,
-                );
+                )?;
+                *input_dbn_version = Some(DbnVersion(2));
+                return Ok(upgraded);
             }
             (STATISTICS, UpgradeToV3) if rec_size < size_of::<v3::StatMsg>() => {
                 // Input version could be either 1 or 2. The difference doesn't matter
@@ -1298,24 +1301,29 @@ impl DbnFsm {
             (SYMBOL_MAPPING, UpgradeToV2 | UpgradeToV3)
                 if rec_size < size_of::<v2::SymbolMappingMsg>() =>
             {
-                *input_dbn_version = Some(DbnVersion(1));
-                return upgrade_record::<v1::SymbolMappingMsg, v2::SymbolMappingMsg>(
+                let upgraded = upgrade_record::<v1::SymbolMappingMsg, v2::SymbolMappingMsg>(
                     ts_out,
                     compat_buffer,
                     rec,
-                );
+                )?;
+                *input_dbn_version = Some(DbnVersion(1));
+                return Ok(upgraded);
             }
             (ERROR, UpgradeToV2 | UpgradeToV3) if rec_size < size_of::<v2::ErrorMsg>() => {
+                let upgraded =
+                    upgrade_record::<v1::ErrorMsg, v2::ErrorMsg>(ts_out, compat_buffer, rec)?;
                 *input_dbn_version = Some(DbnVersion(1));
-                return upgrade_record::<v1::ErrorMsg, v2::ErrorMsg>(ts_out, compat_buffer, rec);
+                return Ok(upgraded);
             }
             (SYSTEM, UpgradeToV2 | UpgradeToV3) if rec_size < size_of::<v2::SystemMsg>() => {
+                let upgraded =
+                    upgrade_record::<v1::SystemMsg, v2::SystemMsg>(ts_out, compat_buffer, rec)?;
                 *input_dbn_version = Some(DbnVersion(1));
-                return upgrade_record::<v1::SystemMsg, v2::SystemMsg>(ts_out, compat_buffer, rec);
+                return Ok(upgraded);
             }
             _ => (),
         }
-        (compat_buffer, Some(rec))
+        Ok((compat_buffer, Some(rec)))
     }
 }
 
@@ -1338,13 +1346,13 @@ impl DecodeHeader for v3::RecordHeader {
         read_buffer: &'a [u8],
         compat_buffer: &'a mut [u8],
     ) -> Result<(&'a mut [u8], Option<RecordRef<'a, Self>>)> {
-        Ok(DbnFsm::upgrade_record(
+        DbnFsm::upgrade_record(
             input_dbn_version,
             upgrade_policy,
             ts_out,
             read_buffer,
             compat_buffer,
-        ))
+        )
     }
 }
 
@@ -1661,30 +1669,30 @@ unsafe fn upgrade_record<'a, T, U>(
     ts_out: bool,
     compat_buffer: &'a mut [u8],
     input: RecordRef<'a>,
-) -> (&'a mut [u8], Option<RecordRef<'a>>)
+) -> Result<(&'a mut [u8], Option<RecordRef<'a>>)>
 where
     T: v3::HasRType,
     U: AsRef<[u8]> + v3::HasRType + RecordMut + for<'t> From<&'t T>,
 {
     if ts_out {
-        let rec = input.get::<WithTsOut<T>>().unwrap();
+        let rec = input.try_get::<WithTsOut<T>>()?;
         let upgraded = WithTsOut::new(U::from(&rec.rec), rec.ts_out);
         if size_of_val(&upgraded) > compat_buffer.len() {
-            return (compat_buffer, None);
+            return Ok((compat_buffer, None));
         };
         // Split at to have multiple mutable borrows to the same buffer, each
         // with their own unique slice within the buffer
         let (record_compat, rem_compat) = compat_buffer.split_at_mut(size_of_val(&upgraded));
         record_compat.copy_from_slice(upgraded.as_ref());
-        (rem_compat, Some(RecordRef::new(record_compat)))
+        Ok((rem_compat, Some(RecordRef::new(record_compat))))
     } else {
-        let upgraded = U::from(input.get::<T>().unwrap());
+        let upgraded = U::from(input.try_get::<T>()?);
         if size_of_val(&upgraded) > compat_buffer.len() {
-            return (compat_buffer, None);
+            return Ok((compat_buffer, None));
         };
         let (record_compat, rem_compat) = compat_buffer.split_at_mut(size_of_val(&upgraded));
         record_compat.copy_from_slice(upgraded.as_ref());
-        (rem_compat, Some(RecordRef::new(record_compat)))
+        Ok((rem_compat, Some(RecordRef::new(record_compat))))
     }
 }
 
@@ -2564,6 +2572,92 @@ mod tests {
         Ok(())
     }
 
+    fn assert_short_record_errs(
+        rtype: u8,
+        input_version: Option<u8>,
+        upgrade_policy: VersionUpgradePolicy,
+        ts_out: bool,
+        is_batch: bool,
+    ) {
+        // header only: shorter than every upgradable record
+        let mut short = [0; HEADER_LEN];
+        short[0] = (HEADER_LEN / v3::RecordHeader::LENGTH_MULTIPLIER) as u8;
+        short[1] = rtype;
+        let mut target = DbnFsm::builder()
+            .skip_metadata(true)
+            .input_dbn_version(input_version)
+            .unwrap()
+            .upgrade_policy(upgrade_policy)
+            .ts_out(ts_out)
+            .build()
+            .unwrap();
+        target.write_all(&short);
+        if is_batch {
+            assert!(matches!(target.process_batch(), ProcessResult::Err(_)));
+        } else {
+            assert!(matches!(target.process(), ProcessResult::Err(_)));
+        }
+        assert_eq!(target.input_dbn_version(), input_version);
+    }
+
+    #[rstest]
+    fn test_upgrade_short_record_returns_error(
+        #[values(
+            crate::rtype::INSTRUMENT_DEF,
+            crate::rtype::STATISTICS,
+            crate::rtype::ERROR,
+            crate::rtype::SYMBOL_MAPPING,
+            crate::rtype::SYSTEM
+        )]
+        rtype: u8,
+        #[values(None, Some(1))] input_version: Option<u8>,
+        #[values(false, true)] ts_out: bool,
+        #[values(false, true)] is_batch: bool,
+    ) {
+        assert_short_record_errs(
+            rtype,
+            input_version,
+            VersionUpgradePolicy::UpgradeToV3,
+            ts_out,
+            is_batch,
+        );
+    }
+
+    #[rstest]
+    fn test_upgrade_short_record_to_v2_returns_error(
+        #[values(
+            crate::rtype::INSTRUMENT_DEF,
+            crate::rtype::ERROR,
+            crate::rtype::SYMBOL_MAPPING,
+            crate::rtype::SYSTEM
+        )]
+        rtype: u8,
+        #[values(None, Some(1))] input_version: Option<u8>,
+        #[values(false, true)] is_batch: bool,
+    ) {
+        assert_short_record_errs(
+            rtype,
+            input_version,
+            VersionUpgradePolicy::UpgradeToV2,
+            false,
+            is_batch,
+        );
+    }
+
+    #[rstest]
+    fn test_upgrade_short_v2_record_returns_error(
+        #[values(crate::rtype::INSTRUMENT_DEF, crate::rtype::STATISTICS)] rtype: u8,
+        #[values(false, true)] is_batch: bool,
+    ) {
+        assert_short_record_errs(
+            rtype,
+            Some(2),
+            VersionUpgradePolicy::UpgradeToV3,
+            false,
+            is_batch,
+        );
+    }
+
     #[rstest]
     fn test_upgrade_symbol_mapping_ts_out(
         #[values(None, Some(DbnVersion(1)))] mut input_dbn_version: Option<DbnVersion>,
@@ -2581,7 +2675,7 @@ mod tests {
                 orig.as_ref(),
                 &mut compat_buffer,
             )
-        };
+        }?;
         assert_eq!(input_dbn_version, Some(DbnVersion(1)));
         let res = res.unwrap();
         assert_eq!(
@@ -2620,7 +2714,7 @@ mod tests {
                 orig.as_ref(),
                 &mut compat_buffer,
             )
-        };
+        }?;
         assert_eq!(input_dbn_version, Some(DbnVersion(1)));
         let res = res.unwrap();
         // Unchanged
@@ -2681,7 +2775,8 @@ mod tests {
         let mut ver = None;
         let (rem_compat, rec) = unsafe {
             DbnFsm::upgrade_record_detect_version(&mut ver, upgrade_policy, false, buf, compat_buf)
-        };
+        }
+        .unwrap();
         assert!(rem_compat.len() < MAX_RECORD_LEN - size_of::<R>());
         assert!(rec.is_some());
         let rec = rec.unwrap();

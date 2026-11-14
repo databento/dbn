@@ -75,6 +75,8 @@
 - Fixed panic when decoding, transcoding, or encoding a record whose length is shorter
   than its `rtype` requires. `rtype_dispatch!` now returns an error, so the Python
   `DBNDecoder` and `Transcoder` raise `DBNError` instead of `PanicException`
+- Fixed decoder panicking instead of returning an error when upgrading a DBN version 1
+  or 2 record whose length is shorter than its `rtype` requires
 - Fixed `--zstd`/`-z` in the `dbn` CLI being ignored when the output encoding was
   inferred from the output path
 - Fixed `RecordRef::as_enum()` and `RecordBuf::as_enum()` returning a reference past the
