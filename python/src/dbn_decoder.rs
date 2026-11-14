@@ -222,6 +222,26 @@ mod tests {
     }
 
     #[rstest]
+    fn test_undersized_record_in_upgrade_returns_error(_python: ()) {
+        // header only: shorter than a version 1 `InstrumentDefMsg`
+        let mut bytes = [0; 16];
+        bytes[0] = 4;
+        bytes[1] = dbn::rtype::INSTRUMENT_DEF;
+        let mut decoder = DbnDecoder::new(
+            false,
+            false,
+            Some(1),
+            VersionUpgradePolicy::default(),
+            Compression::None,
+        )
+        .unwrap();
+        Python::attach(|py| {
+            let err = decoder.write_and_decode(py, &bytes).unwrap_err();
+            assert!(err.is_instance_of::<dbn::python::DBNError>(py));
+        });
+    }
+
+    #[rstest]
     fn test_full_with_partial_record(_python: ()) {
         let mut decoder = DbnDecoder::new(
             true,
