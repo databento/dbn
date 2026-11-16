@@ -49,6 +49,7 @@
 - Added support for `seek_to()` and `is_compressed()` to the sync and async
   `RecordDecoder` over a `DynReader` or `AsyncDynReader` when decoding DBN version 4
   records
+- Added new venues, datasets, and publishers for HKEX
 
 ### Breaking changes
 - Added `intervals` field to `Metadata` for the symbology of a DBN version 4 stream
