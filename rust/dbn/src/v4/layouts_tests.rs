@@ -5,7 +5,12 @@ use std::{
 
 use rstest::rstest;
 
-use super::{fields, layouts::default_layout, rtype, *};
+use super::{
+    fields,
+    layouts::{default_layout, required_fields},
+    rtype, *,
+};
+use crate::prelude::*;
 use crate::{
     layout::{DynFieldAccess, LayoutIndex, Verdict},
     record::str_to_c_chars,
@@ -176,7 +181,11 @@ fn default_layout_places_every_field(
             .field_defs
             .iter()
             .filter(|f| {
-                !f.is_padding() && f.field_id != fields::HD.id() && f.type_id != fields::SYMBOL_ID
+                !f.is_padding()
+                    && f.field_id != fields::HD.id()
+                    && !required_fields(rtype)
+                        .iter()
+                        .any(|(r, _)| r.id() == f.field_id)
             })
             .map(|f| (f.field_id, usize::from(f.offset)))
             .collect();
@@ -320,7 +329,7 @@ fn reads_stat_type() {
 fn required_symbols_follow_the_struct(
     #[case] rtype: u16,
     #[case] struct_size: usize,
-    #[case] symbols: &[fields::Field<types::Symbol>],
+    #[case] symbols: &[fields::Field<types::CStr>],
 ) {
     let width = crate::compat::SYMBOL_CSTR_LEN_V3 as u16;
     let rec = default_layout().record_layout(rtype).unwrap();
@@ -330,7 +339,7 @@ fn required_symbols_follow_the_struct(
             .iter()
             .find(|f| f.field_id == symbol.id())
             .unwrap();
-        assert_eq!(def.type_id, fields::SYMBOL_ID);
+        assert_eq!(def.type_id, fields::CSTR_ID);
         assert_eq!(def.size, width);
         assert_eq!(
             usize::from(def.offset),
@@ -568,4 +577,40 @@ fn every_label_def_is_used_and_every_enum_labeled() {
     referenced.dedup();
     let all: Vec<u16> = (0..layout.label_defs.len() as u16).collect();
     assert_eq!(referenced, all, "an unused or missing label def");
+}
+
+#[test]
+fn offsets_of_undeclared_extensions_are_none() {
+    let index = LayoutIndex::new(default_layout(), default_layout());
+    let offsets = InstrumentDefOffsets::resolve(&index).unwrap();
+    let rec = InstrumentDefMsg::default();
+    let def = ResolvedInstrumentDefRef::resolve(&rec, &offsets);
+
+    assert_eq!(def.strike_price(), None);
+    assert_eq!(def.strike_price_f64(), None);
+    assert_eq!(def.raw_expiration(), None);
+    assert_eq!(def.expiration(), None);
+    assert_eq!(def.leg_side().unwrap(), None);
+}
+
+#[test]
+fn required_field_beyond_record_is_an_error() {
+    let index = LayoutIndex::new(default_layout(), default_layout());
+    let offsets = InstrumentDefOffsets::resolve(&index).unwrap();
+    // The bare struct's length ends before `raw_symbol`
+    let rec = InstrumentDefMsg::default();
+    assert!(ResolvedInstrumentDefRef::resolve(&rec, &offsets)
+        .raw_symbol()
+        .is_err());
+}
+
+#[test]
+fn offsets_require_a_layout_for_the_rtype() {
+    let mut sb = crate::layout::StreamLayoutBuilder::new(1, 8);
+    sb.layout_of::<MboMsg>(rtype::MBO).finish();
+    let index = LayoutIndex::new(&sb.build().unwrap(), default_layout());
+
+    assert!(InstrumentDefOffsets::resolve(&index).is_err());
+    assert!(ImbalanceOffsets::resolve(&index).is_err());
+    assert!(SymbolMappingOffsets::resolve(&index).is_err());
 }

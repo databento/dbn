@@ -11,7 +11,7 @@ use crate::{
     decode::{DbnMetadata, DynDecoder},
     encode::dbn::MetadataEncoder,
     enums::{SType, Schema},
-    MappingInterval, Metadata, SymbolMapping, VersionUpgradePolicy,
+    MappingInterval, Metadata, SymbolInterval, SymbolMapping, VersionUpgradePolicy,
 };
 
 use super::{py_to_time_date, to_py_err};
@@ -33,6 +33,7 @@ impl Metadata {
         limit=None,
         ts_out=None,
         version=crate::DBN_VERSION,
+        intervals=None,
     ))]
     fn py_new(
         dataset: String,
@@ -48,6 +49,7 @@ impl Metadata {
         limit: Option<u64>,
         ts_out: Option<bool>,
         version: u8,
+        intervals: Option<Vec<SymbolInterval>>,
     ) -> Metadata {
         Metadata::builder()
             .dataset(dataset)
@@ -57,6 +59,7 @@ impl Metadata {
             .partial(partial.unwrap_or_default())
             .not_found(not_found.unwrap_or_default())
             .mappings(mappings.unwrap_or_default())
+            .intervals(intervals.unwrap_or_default())
             .schema(schema)
             .stype_in(stype_in)
             .end(NonZeroU64::new(end.unwrap_or_default()))
@@ -85,6 +88,14 @@ impl Metadata {
             );
         }
         Ok(res)
+    }
+
+    #[getter]
+    fn get_intervals<'py>(&self, py: Python<'py>) -> PyResult<Vec<Bound<'py, PyDict>>> {
+        self.intervals
+            .iter()
+            .map(|interval| interval.into_pyobject(py))
+            .collect()
     }
 
     #[pyo3(name = "decode", signature = (data, upgrade_policy = VersionUpgradePolicy::default()))]
@@ -174,6 +185,46 @@ impl<'py> IntoPyObject<'py> for &MappingInterval {
             )?,
         )?;
         dict.set_item(intern!(py, "symbol"), &self.symbol)?;
+        Ok(dict)
+    }
+}
+
+impl<'a, 'py> FromPyObject<'a, 'py> for SymbolInterval {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
+        fn attr<'py, T: for<'a> FromPyObject<'a, 'py>>(
+            ob: Borrowed<'_, 'py, PyAny>,
+            name: &Bound<'py, pyo3::types::PyString>,
+        ) -> PyResult<T> {
+            ob.getattr(name)
+                .map_err(|_| to_py_err(format!("Missing {name}")))?
+                .extract::<T>()
+                .map_err(Into::into)
+        }
+        let py = ob.py();
+        Ok(Self {
+            start_ts: attr(ob, intern!(py, "start_ts"))?,
+            end_ts: attr(ob, intern!(py, "end_ts"))?,
+            instrument_id: attr(ob, intern!(py, "instrument_id"))?,
+            stype_in_symbol: attr(ob, intern!(py, "stype_in_symbol"))?,
+            stype_out_symbol: attr(ob, intern!(py, "stype_out_symbol"))?,
+        })
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &SymbolInterval {
+    type Target = PyDict;
+    type Output = Bound<'py, PyDict>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let dict = PyDict::new(py);
+        dict.set_item(intern!(py, "start_ts"), self.start_ts)?;
+        dict.set_item(intern!(py, "end_ts"), self.end_ts)?;
+        dict.set_item(intern!(py, "instrument_id"), self.instrument_id)?;
+        dict.set_item(intern!(py, "stype_in_symbol"), &self.stype_in_symbol)?;
+        dict.set_item(intern!(py, "stype_out_symbol"), &self.stype_out_symbol)?;
         Ok(dict)
     }
 }

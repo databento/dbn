@@ -139,6 +139,7 @@ fn test_metadata() -> Metadata {
         symbols: vec!["ESM4".to_owned()],
         partial: vec![],
         not_found: vec![],
+        intervals: vec![],
         mappings: vec![SymbolMapping {
             raw_symbol: "ESM4".to_owned(),
             intervals: vec![MappingInterval {
@@ -206,6 +207,29 @@ fn test_batch_flushing<F: Format>(#[case] _format: F) {
         encoder.close().unwrap();
     }
     let (_, batch) = F::read(&buf);
+    assert_eq!(batch.num_rows(), 10);
+    let ids = column::<UInt32Array>(&batch, "instrument_id");
+    assert_eq!(ids.values().as_ref(), (0..10).collect::<Vec<u32>>());
+}
+
+#[rstest]
+#[case::arrow(Arrow)]
+#[cfg_attr(feature = "parquet", case::parquet(Parquet))]
+fn test_drain_inner_between_flushes<F: Format>(#[case] _format: F) {
+    let mut encoder = EncoderBuilder::<F::File<Vec<u8>>>::new(Vec::new())
+        .schema(Schema::Mbo)
+        .build()
+        .unwrap();
+    let mut chunks = Vec::new();
+    for i in 0..10 {
+        encoder.encode_record(&make_mbo(i, 100)).unwrap();
+        encoder.flush().unwrap();
+        chunks.push(std::mem::take(encoder.get_mut()));
+    }
+    encoder.close().unwrap();
+    chunks.push(std::mem::take(encoder.get_mut()));
+    assert!(chunks.iter().all(|c| !c.is_empty()));
+    let (_, batch) = F::read(&chunks.concat());
     assert_eq!(batch.num_rows(), 10);
     let ids = column::<UInt32Array>(&batch, "instrument_id");
     assert_eq!(ids.values().as_ref(), (0..10).collect::<Vec<u32>>());

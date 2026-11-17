@@ -51,3 +51,55 @@ class SymbolMapping(Protocol):
 
     raw_symbol: str
     intervals: Sequence[MappingInterval]
+
+
+class SymbolInterval(Protocol):
+    """
+    Represents a symbol mapping over a nanosecond-precision time range.
+
+    Parameters
+    ----------
+    start_ts : int
+        The start of the interval (inclusive) as nanoseconds since the UNIX epoch.
+    end_ts : int
+        The end of the interval (exclusive) as nanoseconds since the UNIX epoch.
+    instrument_id : int
+        The numeric instrument ID.
+    stype_in_symbol : str
+        The symbol in `stype_in`.
+    stype_out_symbol : str
+        The symbol in `stype_out`.
+
+    """
+
+    start_ts: int
+    end_ts: int
+    instrument_id: int
+    stype_in_symbol: str
+    stype_out_symbol: str
+
+
+class SymbolIntervalDict(TypedDict):
+    """
+    Represents a symbol mapping over a nanosecond-precision time range.
+
+    Parameters
+    ----------
+    start_ts : int
+        The start of the interval (inclusive) as nanoseconds since the UNIX epoch.
+    end_ts : int
+        The end of the interval (exclusive) as nanoseconds since the UNIX epoch.
+    instrument_id : int
+        The numeric instrument ID.
+    stype_in_symbol : str
+        The symbol in `stype_in`.
+    stype_out_symbol : str
+        The symbol in `stype_out`.
+
+    """
+
+    start_ts: int
+    end_ts: int
+    instrument_id: int
+    stype_in_symbol: str
+    stype_out_symbol: str

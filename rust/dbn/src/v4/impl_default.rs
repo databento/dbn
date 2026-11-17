@@ -8,7 +8,9 @@ use crate::{
 use super::*;
 
 impl RecordHeader {
-    pub(crate) const fn default<R: HasRType<Header = Self>>(rtype: u16) -> Self {
+    /// Creates a new `RecordHeader` with `rtype` and `length` set
+    /// for `R` while the other fields are set to their defaults.
+    pub const fn default<R: HasRType<Header = Self>>(rtype: u16) -> Self {
         Self::new::<R>(rtype, 0, 0, UNDEF_TIMESTAMP)
     }
 }

@@ -26,19 +26,36 @@ fn is_base_compatible(
     compiled: &StreamLayout,
     compiled_rec: &RecordLayout,
 ) -> bool {
-    if stream_rec.base_record_size < compiled_rec.base_record_size {
-        return false;
-    }
+    base_fields(compiled_rec).all(|want| {
+        stream_rec
+            .field_defs
+            .iter()
+            .any(|have| field_eq(have, stream, want, compiled))
+    })
+}
+
+pub(crate) fn is_repacked(
+    stream: &StreamLayout,
+    stream_rec: &RecordLayout,
+    compiled: &StreamLayout,
+    compiled_rec: &RecordLayout,
+) -> bool {
+    base_fields(compiled_rec).any(|want| {
+        stream_rec
+            .field_defs
+            .iter()
+            .find(|have| have.field_id == want.field_id)
+            .is_some_and(|have| !field_eq(have, stream, want, compiled))
+    })
+}
+
+fn base_fields(compiled_rec: &RecordLayout) -> impl Iterator<Item = &FieldDef> {
+    // Required fields aren't part of the struct, and their width varies by stream
+    let required = crate::v4::layouts::required_fields(compiled_rec.rtype);
     compiled_rec
         .field_defs
         .iter()
-        .filter(|f| !f.is_padding())
-        .all(|want| {
-            stream_rec
-                .field_defs
-                .iter()
-                .any(|have| field_eq(have, stream, want, compiled))
-        })
+        .filter(|f| !f.is_padding() && !required.iter().any(|(r, _)| r.id() == f.field_id))
 }
 
 fn field_eq(a: &FieldDef, a_layout: &StreamLayout, b: &FieldDef, b_layout: &StreamLayout) -> bool {

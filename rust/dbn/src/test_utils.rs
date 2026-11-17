@@ -263,7 +263,7 @@ pub fn trade_v3() -> v3::TradeMsg {
 /// [`trade_v3()`] upgraded to v4, which keeps v3's `depth` as an extension.
 pub fn trade_v3_upgraded() -> v4::TradeMsg {
     let trade = trade_v4();
-    let record_size = crate::layout::upgrade_layout(false)
+    let record_size = crate::layout::upgrade_layout(false, None)
         .record_layout(v4::rtype::MBP_0)
         .unwrap()
         .record_size();

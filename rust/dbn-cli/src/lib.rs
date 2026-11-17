@@ -158,11 +158,11 @@ pub struct Args {
     #[clap(
         short = 'u',
         long = "upgrade",
-        default_value = "false",
-        action = ArgAction::SetTrue,
-        help = "Upgrade data when decoding previous DBN versions. By default data is decoded as-is."
+        value_name = "DBN_VERSION",
+        value_parser = clap::value_parser!(u8).range(2..=4),
+        help = "Upgrade data from previous DBN versions to DBN_VERSION. By default data is decoded as-is"
     )]
-    pub should_upgrade: bool,
+    pub upgrade_version: Option<u8>,
     #[clap(
         short,
         long,
@@ -249,11 +249,36 @@ pub struct Args {
 }
 
 impl Args {
-    pub fn upgrade_policy(&self) -> VersionUpgradePolicy {
-        if self.should_upgrade {
-            VersionUpgradePolicy::UpgradeToV3
+    pub fn upgrade_policy(&self, input_versions: &[u8]) -> anyhow::Result<VersionUpgradePolicy> {
+        let has_v4_input = input_versions.contains(&dbn::v4::DBN_VERSION);
+        match self.upgrade_version {
+            Some(version) if has_v4_input && version < dbn::v4::DBN_VERSION => Err(anyhow!(
+                "Can't downgrade DBN version 4 input to version {version}"
+            )),
+            None if has_v4_input
+                && input_versions
+                    .iter()
+                    .any(|version| *version < dbn::v4::DBN_VERSION) =>
+            {
+                Err(anyhow!(
+                    "Merging DBN version 4 with earlier versions requires `--upgrade 4`"
+                ))
+            }
+            None if has_v4_input => Ok(VersionUpgradePolicy::ExpectV4),
+            None => Ok(VersionUpgradePolicy::AsIs),
+            Some(2) => Ok(VersionUpgradePolicy::UpgradeToV2),
+            Some(3) => Ok(VersionUpgradePolicy::UpgradeToV3),
+            Some(_) => Ok(VersionUpgradePolicy::UpgradeToV4),
+        }
+    }
+
+    pub fn input_fragment_compression(&self) -> Option<Compression> {
+        if self.is_input_zstd_fragment {
+            Some(Compression::Zstd)
+        } else if self.is_input_fragment {
+            Some(Compression::None)
         } else {
-            VersionUpgradePolicy::AsIs
+            None
         }
     }
 
@@ -286,7 +311,7 @@ pub fn infer_encoding(args: &Args) -> anyhow::Result<InferredEncoding> {
                 "Unable to infer output encoding from output path '{output}'",
             ));
         };
-        (format, extension.ends_with(".zst"))
+        (format, args.zstd || extension.ends_with(".zst"))
     };
     Ok(InferredEncoding {
         encoding: format.encoding,
@@ -571,6 +596,26 @@ mod tests {
                 is_fragment: exp_fragment,
             }
         );
+    }
+
+    #[rstest]
+    #[case("out.csv", OutputEncoding::Csv)]
+    #[case("out.csv.zst", OutputEncoding::Csv)]
+    #[case("out.dbn", OutputEncoding::Dbn)]
+    #[case("out.parquet", OutputEncoding::Parquet)]
+    #[case("out.arrow", OutputEncoding::Arrow)]
+    fn test_infer_encoding_zstd_flag_with_inferred_encoding(
+        #[case] output: &str,
+        #[case] exp_enc: OutputEncoding,
+    ) {
+        let args = Args {
+            output: Some(PathBuf::from(output)),
+            zstd: true,
+            ..Default::default()
+        };
+        let inferred = infer_encoding(&args).unwrap();
+        assert_eq!(inferred.encoding, exp_enc);
+        assert_eq!(inferred.compression, Compression::Zstd);
     }
 
     #[rstest]

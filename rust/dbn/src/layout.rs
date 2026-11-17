@@ -53,7 +53,7 @@ use std::{collections::BTreeMap, marker::PhantomData};
 use crate::{
     v4::{
         fields::{self, DecodeField, Field, FieldType},
-        types::Symbol,
+        types::CStr,
     },
     Record,
 };
@@ -62,6 +62,7 @@ mod builders;
 mod compare;
 mod hash;
 mod index;
+mod merge;
 mod pre_v4;
 mod upgrade;
 mod validate;
@@ -85,7 +86,7 @@ pub trait RecordLayoutDesc {
     fn add_fields(r: &mut RecordLayoutBuilder<'_>);
 
     /// The symbol fields every layout of this record declares but no struct holds.
-    const REQUIRED_FIELDS: &'static [(Field<Symbol>, &'static str)] = &[];
+    const REQUIRED_FIELDS: &'static [(Field<CStr>, &'static str)] = &[];
 }
 
 /// The layout description of a struct nested in records, used to build its
@@ -553,7 +554,7 @@ mod tests {
         Action, FlagSet, Side, StatType, StatUpdateAction,
     };
 
-    fn mbo_layout() -> StreamLayout {
+    pub(super) fn mbo_layout() -> StreamLayout {
         let mut sb = StreamLayoutBuilder::new(1, 8);
         sb.layout_of::<MboMsg>(rtype::MBO).finish();
         sb.build().unwrap()
@@ -563,7 +564,7 @@ mod tests {
         LayoutIndex::new(&mbo_layout(), default_layout())
     }
 
-    fn trades_layout() -> StreamLayout {
+    pub(super) fn trades_layout() -> StreamLayout {
         let mut sb = StreamLayoutBuilder::new(1, 8);
         sb.layout_of::<TradeMsg>(rtype::MBP_0).finish();
         sb.build().unwrap()
@@ -802,6 +803,29 @@ mod tests {
         assert_eq!(index.verdict(rtype::MBP_0), Some(expected));
     }
 
+    #[rstest]
+    #[case::narrower(22)]
+    #[case::compiled(71)]
+    #[case::wider(80)]
+    fn symbol_width_doesnt_affect_verdict(#[case] symbol_cstr_len: u16) {
+        let mut sb = StreamLayoutBuilder::new(1, symbol_cstr_len);
+        sb.layout_of::<v4::InstrumentDefMsg>(rtype::INSTRUMENT_DEF)
+            .finish();
+        sb.layout_of::<v4::SymbolMappingMsg>(rtype::SYMBOL_MAPPING)
+            .finish();
+        let stream = sb.build().unwrap();
+        validate::check_compiled_rtypes(&stream).unwrap();
+        let index = LayoutIndex::new(&stream, default_layout());
+        assert_eq!(
+            index.verdict(rtype::INSTRUMENT_DEF),
+            Some(Verdict::Compiled)
+        );
+        assert_eq!(
+            index.verdict(rtype::SYMBOL_MAPPING),
+            Some(Verdict::Compiled)
+        );
+    }
+
     #[test]
     fn uncompiled_rtype_is_dynamic() {
         let uncompiled = 0x9999;
@@ -1004,21 +1028,6 @@ mod tests {
     })]
     #[case::struct_size_not_a_multiple_of_its_alignment(|l: &mut StreamLayout| {
         l.struct_layouts[0].size += 1;
-    })]
-    #[case::symbol_wider_than_the_stream_declares(|l: &mut StreamLayout| {
-        let rec = &mut l.record_layouts[0];
-        rec.field_defs.push(FieldDef {
-            field_id: fields::RAW_SYMBOL.id(),
-            offset: rec.base_record_size,
-            size: 16,
-            type_id: fields::SYMBOL_ID,
-            flags: 0,
-            def_index: 0,
-            scale: 0,
-            _reserved: [0; 5],
-        });
-        rec.field_names.push("raw_symbol".to_owned());
-        rec.base_record_size += 16;
     })]
     #[case::zero_size_struct_array(|l: &mut StreamLayout| {
         l.struct_layouts.push(StructLayout {

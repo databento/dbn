@@ -145,7 +145,7 @@ where
     /// Creates the new encoder with the previously specified settings and if
     /// `write_header` is `true`, encodes the header row.
     ///
-    /// For [`OutputEncoding::Parquet`] and [`OutputEncoding::Arrow`], `compression`
+    /// For `OutputEncoding::Parquet` and `OutputEncoding::Arrow`, `compression`
     /// selects the codec: `Compression::Zstd` maps to Zstd level 3 for Parquet and
     /// to ZSTD body compression for Arrow IPC.
     ///

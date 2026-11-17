@@ -29,8 +29,8 @@ use crate::{
 /// the DBN [`Schema`], `ts_out` flag, and version. Encoding a record of any other
 /// type returns an error.
 pub struct Encoder<B: ColumnarWriter> {
-    // `None` once closed
-    writer: Option<B>,
+    writer: B,
+    is_closed: bool,
     schema: SchemaRef,
     rows: Box<dyn Rows>,
     symbol: Option<StringBuilder>,
@@ -70,7 +70,7 @@ impl<B: ColumnarWriter> EncoderBuilder<B> {
         }
     }
 
-    /// Sets the number of records per Arrow record batch or Parquet row group.
+    /// Sets the number of records per Arrow record batch.
     /// Defaults to 65,536.
     pub fn batch_size(mut self, size: NonZeroUsize) -> Self {
         self.batch_size = size;
@@ -105,8 +105,8 @@ impl<B: ColumnarWriter> EncoderBuilder<B> {
     }
 
     /// Sets the schema, `ts_out`, and version from a DBN [`Metadata`] and embeds the
-    /// metadata as JSON under [`METADATA_KEY`] in the output file's schema. Equivalent
-    /// to calling [`schema()`](Self::schema), [`ts_out()`](Self::ts_out), and
+    /// metadata as JSON under the `databento:metadata` key in the output file's schema.
+    /// Equivalent to calling [`schema()`](Self::schema), [`ts_out()`](Self::ts_out), and
     /// [`version()`](Self::version) with the respective fields.
     pub fn metadata(mut self, metadata: &Metadata) -> Self {
         let mut json = String::new();
@@ -165,7 +165,8 @@ impl<B: ColumnarWriter> EncoderBuilder<B> {
         let schema = Arc::new(ArrowSchema::new_with_metadata(fields, self.metadata));
         let writer = B::open(self.writer, schema.clone(), self.compression)?;
         Ok(Encoder {
-            writer: Some(writer),
+            writer,
+            is_closed: false,
             schema,
             rows,
             symbol,
@@ -183,7 +184,17 @@ impl<B: ColumnarWriter> Encoder<B> {
 
     /// Returns `true` if the encoder has been closed.
     pub fn is_closed(&self) -> bool {
-        self.writer.is_none()
+        self.is_closed
+    }
+
+    /// Returns a reference to the underlying writer.
+    pub fn get_ref(&self) -> &B::Inner {
+        self.writer.get_ref()
+    }
+
+    /// Returns a mutable reference to the underlying writer.
+    pub fn get_mut(&mut self) -> &mut B::Inner {
+        self.writer.get_mut()
     }
 
     /// Flushes any buffered records and finalizes the file. Calling this a second
@@ -192,19 +203,23 @@ impl<B: ColumnarWriter> Encoder<B> {
     /// # Errors
     /// Returns an error if flushing or closing the writer fails.
     pub fn close(&mut self) -> Result<()> {
-        let Some(mut writer) = self.writer.take() else {
+        if self.is_closed {
             return Ok(());
-        };
-        if self.rows.len() > 0 {
-            writer.write(&self.finish_batch()?)?;
         }
-        writer.close()
+        self.is_closed = true;
+        if self.rows.len() > 0 {
+            let batch = self.finish_batch()?;
+            self.writer.write(&batch)?;
+        }
+        self.writer.close()
     }
 
     fn writer(&mut self) -> Result<&mut B> {
-        self.writer
-            .as_mut()
-            .ok_or_else(|| Error::encode("columnar encoder has already been closed"))
+        if self.is_closed {
+            Err(Error::encode("columnar encoder has already been closed"))
+        } else {
+            Ok(&mut self.writer)
+        }
     }
 
     fn append(
@@ -309,12 +324,12 @@ impl<B: ColumnarWriter> Drop for Encoder<B> {
     }
 }
 
-/// Default number of records buffered before a batch or row group is flushed.
+/// Default number of records buffered before a batch is written.
 pub(crate) const DEFAULT_BATCH_SIZE: NonZeroUsize = NonZeroUsize::new(65_536).unwrap();
 
 /// A columnar file format that consumes Arrow [`RecordBatch`]es. Implemented by
 /// [`IpcFile`](super::IpcFile) and [`ParquetFile`](crate::encode::parquet::ParquetFile).
-pub trait ColumnarWriter: Sized {
+pub trait ColumnarWriter: private::Sealed + Sized {
     /// The underlying byte sink.
     type Inner: Write + Send;
 
@@ -337,13 +352,17 @@ pub trait ColumnarWriter: Sized {
     /// # Errors
     /// This function returns an error if it fails to flush the underlying writer.
     fn flush(&mut self) -> Result<()>;
-    /// Finalizes the file (writes footer, magic bytes, etc.) and consumes the
-    /// writer.
+    /// Finalizes the file (writes footer, magic bytes, etc.). Must be called at
+    /// most once.
     ///
     /// # Errors
     /// This function returns an error if it fails to write the file footer to the
     /// underlying writer.
-    fn close(self) -> Result<()>;
+    fn close(&mut self) -> Result<()>;
+    /// Returns a reference to the underlying writer.
+    fn get_ref(&self) -> &Self::Inner;
+    /// Returns a mutable reference to the underlying writer.
+    fn get_mut(&mut self) -> &mut Self::Inner;
 }
 
 /// The records buffered between batches, typed on the record type fixed at build time
@@ -393,4 +412,14 @@ where
         fields,
         Box::new(TypedRows::<R>(Vec::with_capacity(capacity))),
     )
+}
+
+mod private {
+    use std::io::Write;
+
+    pub trait Sealed {}
+
+    impl<W: Write> Sealed for super::super::IpcFile<W> {}
+    #[cfg(feature = "parquet")]
+    impl<W: Write + Send> Sealed for crate::encode::parquet::ParquetFile<W> {}
 }

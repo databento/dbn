@@ -2,7 +2,9 @@
 
 use std::io;
 
-use super::serialize::{to_json_in_buf, write_c_char, write_px, write_ts, JsonSerialize};
+use super::serialize::{
+    to_json_in_buf, to_json_with_sym_in_buf, write_c_char, write_px, write_ts, JsonSerialize,
+};
 use crate::{
     encode::resolved_layout::{ResolvedField, ResolvedStreamLayout, ResolvedValue},
     json_writer::{JsonArrayWriter, JsonObjectWriter, JsonWriter, JsonWriterValue, Key, Slot},
@@ -163,8 +165,57 @@ where
     /// record's rtype, the record is shorter than its layout, or it fails to write to
     /// the underlying writer.
     pub fn encode_record_ref(&mut self, record: RecordRef<'_, v4::RecordHeader>) -> Result<()> {
-        self.encode_to_buf(record)?;
+        let layout = self.layout.layout_for(record)?;
+        to_json_in_buf(
+            &mut self.buf,
+            &LayoutRecord {
+                fields: &layout.fields,
+                bytes: record.as_ref(),
+            },
+            self.should_pretty_print,
+            self.use_pretty_px,
+            self.use_pretty_ts,
+        );
         self.write_buf(|e| Error::io(e, "writing record"))
+    }
+
+    /// Encodes a single record along with the record's text symbol.
+    ///
+    /// # Errors
+    /// This function returns an error if the stream layout doesn't describe the
+    /// record's rtype, the record is shorter than its layout, or it fails to write to
+    /// the underlying writer.
+    pub fn encode_record_with_sym<R>(&mut self, record: &R, symbol: Option<&str>) -> Result<()>
+    where
+        R: HasRType<Header = v4::RecordHeader>,
+    {
+        self.encode_ref_with_sym(RecordRef::from(record), symbol)
+    }
+
+    /// Encodes a single record along with the record's text symbol.
+    ///
+    /// # Errors
+    /// This function returns an error if the stream layout doesn't describe the
+    /// record's rtype, the record is shorter than its layout, or it fails to write to
+    /// the underlying writer.
+    pub fn encode_ref_with_sym(
+        &mut self,
+        record: RecordRef<'_, v4::RecordHeader>,
+        symbol: Option<&str>,
+    ) -> Result<()> {
+        let layout = self.layout.layout_for(record)?;
+        to_json_with_sym_in_buf(
+            &mut self.buf,
+            &LayoutRecord {
+                fields: &layout.fields,
+                bytes: record.as_ref(),
+            },
+            self.should_pretty_print,
+            self.use_pretty_px,
+            self.use_pretty_ts,
+            symbol,
+        );
+        self.write_buf(|e| Error::io(e, format!("writing record with symbol {symbol:?}")))
     }
 
     /// Flushes any buffered content to the underlying writer.
@@ -185,22 +236,6 @@ where
     /// Returns a mutable reference to the underlying writer.
     pub fn get_mut(&mut self) -> &mut W {
         &mut self.writer
-    }
-
-    /// Writes to `self.buf`, but not the writer.
-    fn encode_to_buf(&mut self, record: RecordRef<'_, v4::RecordHeader>) -> Result<()> {
-        let layout = self.layout.layout_for(record)?;
-        to_json_in_buf(
-            &mut self.buf,
-            &LayoutRecord {
-                fields: &layout.fields,
-                bytes: record.as_ref(),
-            },
-            self.should_pretty_print,
-            self.use_pretty_px,
-            self.use_pretty_ts,
-        );
-        Ok(())
     }
 
     fn write_buf<F>(&mut self, handle_err: F) -> Result<()>
@@ -307,7 +342,8 @@ mod tests {
     use super::*;
     use crate::{
         decode::dbn::tests::{metadata_v4, trade_v4},
-        encode::{json, EncodeRecord},
+        encode::{json, EncodeRecord, EncodeRecordTextExt},
+        layout::FieldDef,
         test_utils::{
             as_ref, mbo_v3, mbo_v4, mbp10_v3, mbp10_v4, symbol_mapping_v3, symbol_mapping_v4,
             trade_v4_with_sale_condition, trades_with_sale_condition,
@@ -381,6 +417,31 @@ mod tests {
         assert_eq!(
             encode_v4(&metadata_v4(Schema::Mbo), as_ref(&buf), flags).unwrap(),
             encode_v3(&symbol_mapping_v3(), flags)
+        );
+    }
+
+    #[rstest]
+    fn with_symbol_matches_v3(
+        #[values(false, true)] pretty_print: bool,
+        #[values(None, Some("ESZ6"))] symbol: Option<&str>,
+    ) {
+        let mut buf = Vec::new();
+        let mut encoder = Encoder::new(
+            &mut buf,
+            &metadata_v4(Schema::Mbo),
+            pretty_print,
+            false,
+            false,
+        )
+        .unwrap();
+        encoder.encode_record_with_sym(&mbo_v4(), symbol).unwrap();
+        let mut v3_buf = Vec::new();
+        json::Encoder::new(&mut v3_buf, pretty_print, false, false)
+            .encode_record_with_sym(&mbo_v3(), symbol)
+            .unwrap();
+        assert_eq!(
+            String::from_utf8(buf).unwrap(),
+            String::from_utf8(v3_buf).unwrap()
         );
     }
 
@@ -512,8 +573,45 @@ mod tests {
             .unwrap()
             .encode_metadata(&metadata)
             .unwrap();
-        assert!(String::from_utf8(buf)
-            .unwrap()
-            .contains(r#""dataset":"GLBX.MDP3""#));
+        let json = parse(std::str::from_utf8(&buf).unwrap());
+        assert_eq!(json["dataset"], "GLBX.MDP3");
+        let layout = metadata.layout.as_ref().unwrap();
+        let json_layout = &json["layout"];
+        let json_records = json_layout["record_layouts"].as_array().unwrap();
+        assert_eq!(json_records.len(), layout.record_layouts.len());
+        for (rec, json_rec) in layout.record_layouts.iter().zip(json_records) {
+            assert_eq!(json_rec["rtype"], rec.rtype);
+            assert_eq!(json_rec["name"], rec.name);
+            assert_eq!(
+                json_rec["layout_hash"],
+                format!("{:#018x}", rec.layout_hash)
+            );
+            let json_fields = json_rec["fields"].as_array().unwrap();
+            assert_eq!(json_fields.len(), rec.field_defs.len());
+            for ((field, name), json_field) in
+                rec.field_defs.iter().zip(&rec.field_names).zip(json_fields)
+            {
+                assert_eq!(json_field["name"], *name);
+                assert_eq!(json_field["offset"], field.offset);
+                assert_eq!(json_field["type_id"], field.type_id);
+                if field.def_index == FieldDef::UNDEF_LABEL_DEF {
+                    assert!(json_field["def_index"].is_null(), "{name}");
+                } else {
+                    assert_eq!(json_field["def_index"], field.def_index, "{name}");
+                }
+            }
+        }
+        let json_label_defs = json_layout["label_defs"].as_array().unwrap();
+        assert_eq!(json_label_defs.len(), layout.label_defs.len());
+        let labels = |name: &str| {
+            json_label_defs
+                .iter()
+                .find(|label_def| label_def["name"] == name)
+                .unwrap()["labels"]
+                .clone()
+        };
+        assert_eq!(labels("Action")["A"], "ADD");
+        assert_eq!(labels("Side")["B"], "BID");
+        assert_eq!(labels("FlagSet")["7"], "LAST");
     }
 }

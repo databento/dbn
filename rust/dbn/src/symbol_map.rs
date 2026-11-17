@@ -9,7 +9,11 @@ use std::{
 
 use time::{macros::time, PrimitiveDateTime};
 
-use crate::{compat, v1, Error, HasRType, Metadata, Record, RecordRef, SymbolMappingMsg};
+use crate::{
+    metadata,
+    record::{InstrumentDefRec, SymbolMappingRec},
+    v1, Error, HasRType, Metadata, Record, RecordRef, SymbolMappingMsg,
+};
 
 /// A timeseries symbol map. Useful for working with historical requests over multiple
 /// days, where the same instrument ID can map to different symbols at different times.
@@ -208,6 +212,25 @@ impl TsSymbolMap {
         }
     }
 
+    pub(crate) fn insert_interval(
+        &mut self,
+        interval: &metadata::SymbolInterval,
+        is_inverse: bool,
+    ) -> crate::Result<()> {
+        let (iid, symbol) = interval_entry(interval, is_inverse)?;
+        self.insert(iid, interval.start_ts, interval.end_ts, symbol)
+    }
+
+    /// Removes the intervals that end at or before `ts`, expressed as the number of
+    /// nanoseconds since the UNIX epoch.
+    pub fn retain_from(&mut self, ts: u64) {
+        self.0.retain(|_, SymbolIntervals { intervals, hint }| {
+            intervals.drain(..intervals.partition_point(|i| i.end_ts <= ts));
+            *hint.get_mut() = 0;
+            !intervals.is_empty()
+        });
+    }
+
     /// Returns the symbol mapping for the given timestamp, expressed as the number of
     /// nanoseconds since the UNIX epoch, and instrument ID. Returns `None` if no mapping
     /// exists.
@@ -265,7 +288,7 @@ impl TsSymbolMap {
     /// # Errors
     /// This function returns an error if the symbol contains invalid UTF-8 or the
     /// mapping starts after it ends.
-    pub fn on_symbol_mapping<S: compat::SymbolMappingRec>(
+    pub fn on_symbol_mapping<S: SymbolMappingRec>(
         &mut self,
         symbol_mapping: &S,
     ) -> crate::Result<()> {
@@ -351,7 +374,11 @@ impl TryFrom<&Metadata> for TsSymbolMap {
 
     fn try_from(metadata: &Metadata) -> Result<Self, Error> {
         let mut res = Self::new();
-        if metadata.is_inverse()? {
+        let is_inverse = metadata.is_inverse()?;
+        for interval in metadata.intervals.iter() {
+            res.insert_interval(interval, is_inverse)?;
+        }
+        if is_inverse {
             for mapping in metadata.mappings.iter() {
                 let iid = mapping
                     .raw_symbol
@@ -429,6 +456,15 @@ impl PitSymbolMap {
             });
         }
         let mut res = HashMap::new();
+        let ts = date_to_ts(date);
+        for interval in metadata
+            .intervals
+            .iter()
+            .filter(|interval| interval.start_ts <= ts && ts < interval.end_ts)
+        {
+            let (iid, symbol) = interval_entry(interval, is_inverse)?;
+            res.insert(iid, symbol.to_owned());
+        }
         for mapping in metadata.mappings.iter() {
             if let Some(interval) = mapping
                 .intervals
@@ -475,7 +511,7 @@ impl PitSymbolMap {
     ///
     /// # Errors
     /// This function returns an error if the symbol contains invalid UTF-8.
-    pub fn on_symbol_mapping<S: compat::SymbolMappingRec>(
+    pub fn on_symbol_mapping<S: SymbolMappingRec>(
         &mut self,
         symbol_mapping: &S,
     ) -> crate::Result<()> {
@@ -491,7 +527,7 @@ impl PitSymbolMap {
     ///
     /// # Errors
     /// This function returns an error if the symbol contains invalid UTF-8.
-    pub fn on_instrument_def<D: compat::InstrumentDefRec>(
+    pub fn on_instrument_def<D: InstrumentDefRec>(
         &mut self,
         instrument_def: &D,
     ) -> crate::Result<()> {
@@ -557,6 +593,21 @@ impl std::ops::Index<u32> for PitSymbolMap {
     }
 }
 
+/// Returns the instrument ID and symbol a symbol map stores for `interval`.
+fn interval_entry(
+    interval: &metadata::SymbolInterval,
+    is_inverse: bool,
+) -> crate::Result<(u32, &str)> {
+    let iid = u32::try_from(interval.instrument_id)
+        .map_err(|_| Error::conversion::<u32>(interval.instrument_id))?;
+    let symbol = if is_inverse {
+        &interval.stype_out_symbol
+    } else {
+        &interval.stype_in_symbol
+    };
+    Ok((iid, symbol))
+}
+
 pub(crate) fn date_to_ts(date: time::Date) -> u64 {
     date.midnight().assume_utc().unix_timestamp_nanos() as u64
 }
@@ -569,9 +620,8 @@ pub(crate) mod tests {
     use time::macros::{date, datetime};
 
     use crate::{
-        compat::{SymbolMappingMsgV1, SymbolMappingRec},
-        publishers::Dataset,
-        MappingInterval, Metadata, SType, Schema, SymbolMapping, UNDEF_TIMESTAMP,
+        compat::SymbolMappingMsgV1, publishers::Dataset, MappingInterval, Metadata, SType, Schema,
+        SymbolMapping, VersionUpgradePolicy, UNDEF_TIMESTAMP,
     };
 
     use super::*;
@@ -1101,6 +1151,22 @@ pub(crate) mod tests {
         assert_eq!(symbol_map, inverse_target.symbol_map().unwrap());
     }
 
+    #[rstest]
+    fn test_v4_symbol_maps_match_v3(
+        #[values(metadata_w_mappings(), metadata_w_inverse_mappings())] target: Metadata,
+    ) {
+        let mut upgraded = target.clone();
+        upgraded.upgrade(VersionUpgradePolicy::UpgradeToV4);
+        assert!(upgraded.mappings.is_empty());
+        assert_eq!(upgraded.symbol_map().unwrap(), target.symbol_map().unwrap());
+        for date in [date!(2023 - 07 - 03), date!(2023 - 07 - 31)] {
+            assert_eq!(
+                upgraded.symbol_map_for_date(date).unwrap(),
+                target.symbol_map_for_date(date).unwrap()
+            );
+        }
+    }
+
     #[test]
     fn test_other_stype_errors() {
         let mut target = metadata_w_mappings();
@@ -1254,6 +1320,30 @@ pub(crate) mod tests {
         target.insert(1, ts, ts, "test").unwrap();
         // should have no effect
         assert!(target.is_empty());
+    }
+
+    #[test]
+    fn test_retain_from() {
+        let [d1, d2, d3, d4] = [
+            date!(2026 - 09 - 01),
+            date!(2026 - 09 - 02),
+            date!(2026 - 09 - 03),
+            date!(2026 - 09 - 04),
+        ]
+        .map(date_to_ts);
+        let mut target = TsSymbolMap::new();
+        target.insert(1, d1, d2, "ESU6").unwrap();
+        target.insert(1, d2, d4, "ESZ6").unwrap();
+        target.insert(2, d1, d2, "NQU6").unwrap();
+        target.insert(3, d1, u64::MAX, "CLV6").unwrap();
+        assert_eq!(target.get_for_ts(d1, 1).unwrap(), "ESU6");
+
+        target.retain_from(d2);
+        assert_eq!(target.len(), 2);
+        assert!(target.get_for_ts(d1, 1).is_none());
+        assert_eq!(target.get_for_ts(d3, 1).unwrap(), "ESZ6");
+        assert!(!target.inner().contains_key(&2));
+        assert_eq!(target.get_for_ts(d3, 3).unwrap(), "CLV6");
     }
 
     #[test]

@@ -9,13 +9,13 @@ use parquet::basic::{Compression as Codec, ZstdLevel};
 use parquet::file::metadata::KeyValue;
 use parquet::file::properties::WriterProperties;
 
-use super::arrow::sync::{self, ColumnarWriter};
+use super::arrow::{ColumnarEncoder, ColumnarEncoderBuilder, ColumnarWriter};
 use crate::{Compression, Error, Result};
 
 /// Synchronous Parquet encoder for DBN records.
-pub type Encoder<W> = sync::Encoder<ParquetFile<W>>;
+pub type Encoder<W> = ColumnarEncoder<ParquetFile<W>>;
 /// Builder for the Parquet encoder.
-pub type EncoderBuilder<W> = sync::EncoderBuilder<ParquetFile<W>>;
+pub type EncoderBuilder<W> = ColumnarEncoderBuilder<ParquetFile<W>>;
 
 /// A Parquet file being written by [`Encoder`].
 pub struct ParquetFile<W: Write + Send>(ArrowWriter<W>);
@@ -49,14 +49,25 @@ impl<W: Write + Send> ColumnarWriter for ParquetFile<W> {
     fn flush(&mut self) -> Result<()> {
         self.0
             .flush()
-            .map_err(|e| Error::parquet(e, "flushing Parquet writer"))
+            .map_err(|e| Error::parquet(e, "flushing Parquet writer"))?;
+        self.0
+            .sync()
+            .map_err(|e| Error::io(e, "flushing Parquet writer"))
     }
 
-    fn close(self) -> Result<()> {
+    fn close(&mut self) -> Result<()> {
         self.0
-            .close()
+            .finish()
             .map(|_| ())
             .map_err(|e| Error::parquet(e, "closing Parquet writer"))
+    }
+
+    fn get_ref(&self) -> &W {
+        self.0.inner()
+    }
+
+    fn get_mut(&mut self) -> &mut W {
+        self.0.inner_mut()
     }
 }
 

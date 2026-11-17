@@ -18,10 +18,7 @@ mod methods;
 
 use std::os::raw::c_char;
 
-use crate::{
-    compat::{InstrumentDefRec, SymbolMappingRec},
-    rtype, v1, ErrorCode, SystemCode,
-};
+use crate::{prelude::*, rtype, v1, ErrorCode, SystemCode};
 
 /// The DBN version of this module.
 pub const DBN_VERSION: u8 = 2;
@@ -177,46 +174,6 @@ impl From<&v1::SystemMsg> for SystemMsg {
         }
         new.msg[..old.msg.len()].copy_from_slice(old.msg.as_slice());
         new
-    }
-}
-
-impl SymbolMappingRec for SymbolMappingMsg {
-    fn stype_in_symbol(&self) -> crate::Result<&str> {
-        Self::stype_in_symbol(self)
-    }
-
-    fn stype_out_symbol(&self) -> crate::Result<&str> {
-        Self::stype_out_symbol(self)
-    }
-
-    fn start_ts(&self) -> Option<time::OffsetDateTime> {
-        Self::start_ts(self)
-    }
-
-    fn end_ts(&self) -> Option<time::OffsetDateTime> {
-        Self::end_ts(self)
-    }
-}
-
-impl InstrumentDefRec for InstrumentDefMsg {
-    fn raw_symbol(&self) -> crate::Result<&str> {
-        Self::raw_symbol(self)
-    }
-
-    fn asset(&self) -> crate::Result<&str> {
-        Self::asset(self)
-    }
-
-    fn security_type(&self) -> crate::Result<&str> {
-        Self::security_type(self)
-    }
-
-    fn security_update_action(&self) -> crate::Result<crate::SecurityUpdateAction> {
-        Self::security_update_action(self)
-    }
-
-    fn channel_id(&self) -> u16 {
-        self.channel_id
     }
 }
 

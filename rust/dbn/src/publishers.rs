@@ -17,9 +17,9 @@ pub enum Venue {
     Glbx = 1,
     /// Nasdaq - All Markets
     Xnas = 2,
-    /// Nasdaq OMX BX
+    /// Nasdaq Texas
     Xbos = 3,
-    /// Nasdaq OMX PSX
+    /// Nasdaq PSX
     Xpsx = 4,
     /// Cboe BZX U.S. Equities Exchange
     Bats = 5,
@@ -33,7 +33,7 @@ pub enum Venue {
     Xnys = 9,
     /// NYSE National, Inc.
     Xcis = 10,
-    /// NYSE MKT LLC
+    /// NYSE American
     Xase = 11,
     /// NYSE Arca
     Arcx = 12,
@@ -141,11 +141,11 @@ pub enum Venue {
     Ftse = 63,
     /// CGIF Intraday Net Asset Values
     Inav = 64,
-    /// CGIF Morning Star
+    /// CGIF Morningstar
     Mstar = 65,
-    /// CGIF Crypto Currency
+    /// CGIF Cryptocurrency
     Cccy = 66,
-    /// CGIF CBOE Global Indices
+    /// CGIF Cboe Global Indices
     Cgi = 67,
     /// CGIF Definitions
     Cdef = 68,
@@ -157,10 +157,14 @@ pub enum Venue {
     Xose = 71,
     /// Databento Core Indices
     Dbix = 72,
+    /// Hong Kong Exchanges and Clearing
+    Xhkg = 73,
+    /// Hong Kong Futures Exchange
+    Xhkf = 74,
 }
 
 /// The number of [`Venue`] variants.
-pub const VENUE_COUNT: usize = 72;
+pub const VENUE_COUNT: usize = 74;
 
 impl Venue {
     /// Converts the venue to its `str` representation.
@@ -238,6 +242,8 @@ impl Venue {
             Self::Xtkt => "XTKT",
             Self::Xose => "XOSE",
             Self::Dbix => "DBIX",
+            Self::Xhkg => "XHKG",
+            Self::Xhkf => "XHKF",
         }
     }
 }
@@ -331,6 +337,8 @@ impl std::str::FromStr for Venue {
             "XTKT" => Ok(Self::Xtkt),
             "XOSE" => Ok(Self::Xose),
             "DBIX" => Ok(Self::Dbix),
+            "XHKG" => Ok(Self::Xhkg),
+            "XHKF" => Ok(Self::Xhkf),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
@@ -437,11 +445,11 @@ pub enum Dataset {
     FtseCgif = 45,
     /// CGIF - Intraday Net Asset Values
     InavCgif = 46,
-    /// CGIF - Morning Star
+    /// CGIF - Morningstar
     MstarCgif = 47,
-    /// CGIF - Crypto Currency
+    /// CGIF - Cryptocurrency
     CccyCgif = 48,
-    /// CGIF - CBOE Global Indices
+    /// CGIF - Cboe Global Indices
     CgiCgif = 49,
     /// Arrowhead FLEX
     XtksFlex = 50,
@@ -451,10 +459,14 @@ pub enum Dataset {
     XoseItch = 52,
     /// Databento Core Indices
     DbixCore = 53,
+    /// HKEX Orion Securities Market (Unreleased)
+    XhkgOmdc = 54,
+    /// HKEX Orion Derivatives Market (Unreleased)
+    XhkfOmdd = 55,
 }
 
 /// The number of [`Dataset`] variants.
-pub const DATASET_COUNT: usize = 53;
+pub const DATASET_COUNT: usize = 55;
 
 impl Dataset {
     /// Converts the dataset to its `str` representation.
@@ -515,6 +527,8 @@ impl Dataset {
             Self::XtktItch => "XTKT.ITCH",
             Self::XoseItch => "XOSE.ITCH",
             Self::DbixCore => "DBIX.CORE",
+            Self::XhkgOmdc => "XHKG.OMDC",
+            Self::XhkfOmdd => "XHKF.OMDD",
         }
     }
 
@@ -688,6 +702,8 @@ impl Dataset {
                 Publisher::DbixCoreCgi,
                 Publisher::DbixCoreCdef,
             ],
+            Self::XhkgOmdc => &[Publisher::XhkgOmdcXhkg],
+            Self::XhkfOmdd => &[Publisher::XhkfOmddXhkf],
         }
     }
 }
@@ -764,6 +780,8 @@ impl std::str::FromStr for Dataset {
             "XTKT.ITCH" => Ok(Self::XtktItch),
             "XOSE.ITCH" => Ok(Self::XoseItch),
             "DBIX.CORE" => Ok(Self::DbixCore),
+            "XHKG.OMDC" => Ok(Self::XhkgOmdc),
+            "XHKF.OMDD" => Ok(Self::XhkfOmdd),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }
@@ -868,7 +886,7 @@ pub enum Publisher {
     XnysTradesXnys = 45,
     /// Nasdaq QBBO
     XnasQbboXnas = 46,
-    /// Nasdaq Trades
+    /// Nasdaq NLS
     XnasNlsXnas = 47,
     /// Databento US Equities Plus - NYSE Texas
     EqusPlusXchi = 48,
@@ -954,7 +972,7 @@ pub enum Publisher {
     XnasBasicXbos = 88,
     /// Nasdaq Basic - Nasdaq PSX
     XnasBasicXpsx = 89,
-    /// Databento Equities Summary
+    /// Databento US Equities Summary
     EqusSummaryEqus = 90,
     /// NYSE National Trades and BBO
     XcisTradesbboXcis = 91,
@@ -1052,11 +1070,11 @@ pub enum Publisher {
     FtseCgifFtse = 137,
     /// CGIF - Intraday Net Asset Values
     InavCgifInav = 138,
-    /// CGIF - Morning Star
+    /// CGIF - Morningstar
     MstarCgifMstar = 139,
-    /// CGIF - Crypto Currency
+    /// CGIF - Cryptocurrency
     CccyCgifCccy = 140,
-    /// CGIF - CBOE Global Indices
+    /// CGIF - Cboe Global Indices
     CgiCgifCgi = 141,
     /// CGIF - Definitions
     MainCgifCdef = 142,
@@ -1074,18 +1092,22 @@ pub enum Publisher {
     DbixCoreFtse = 148,
     /// CGIF - Intraday Net Asset Values
     DbixCoreInav = 149,
-    /// CGIF - Morning Star
+    /// CGIF - Morningstar
     DbixCoreMstar = 150,
-    /// CGIF - Crypto Currency
+    /// CGIF - Cryptocurrency
     DbixCoreCccy = 151,
-    /// CGIF - CBOE Global Indices
+    /// CGIF - Cboe Global Indices
     DbixCoreCgi = 152,
     /// CGIF - Definitions
     DbixCoreCdef = 153,
+    /// HKEX - Hong Kong Securities Exchange (Unreleased)
+    XhkgOmdcXhkg = 154,
+    /// HKEX - Hong Kong Futures Exchange (Unreleased)
+    XhkfOmddXhkf = 155,
 }
 
 /// The number of [`Publisher`] variants.
-pub const PUBLISHER_COUNT: usize = 153;
+pub const PUBLISHER_COUNT: usize = 155;
 
 impl Publisher {
     /// Converts the publisher to its `str` representation.
@@ -1244,6 +1266,8 @@ impl Publisher {
             Self::DbixCoreCccy => "DBIX.CORE.CCCY",
             Self::DbixCoreCgi => "DBIX.CORE.CGI",
             Self::DbixCoreCdef => "DBIX.CORE.CDEF",
+            Self::XhkgOmdcXhkg => "XHKG.OMDC.XHKG",
+            Self::XhkfOmddXhkf => "XHKF.OMDD.XHKF",
         }
     }
 
@@ -1403,6 +1427,8 @@ impl Publisher {
             Self::DbixCoreCccy => Venue::Cccy,
             Self::DbixCoreCgi => Venue::Cgi,
             Self::DbixCoreCdef => Venue::Cdef,
+            Self::XhkgOmdcXhkg => Venue::Xhkg,
+            Self::XhkfOmddXhkf => Venue::Xhkf,
         }
     }
 
@@ -1562,6 +1588,8 @@ impl Publisher {
             Self::DbixCoreCccy => Dataset::DbixCore,
             Self::DbixCoreCgi => Dataset::DbixCore,
             Self::DbixCoreCdef => Dataset::DbixCore,
+            Self::XhkgOmdcXhkg => Dataset::XhkgOmdc,
+            Self::XhkfOmddXhkf => Dataset::XhkfOmdd,
         }
     }
 
@@ -1724,6 +1752,8 @@ impl Publisher {
             (Dataset::DbixCore, Venue::Cccy) => Ok(Self::DbixCoreCccy),
             (Dataset::DbixCore, Venue::Cgi) => Ok(Self::DbixCoreCgi),
             (Dataset::DbixCore, Venue::Cdef) => Ok(Self::DbixCoreCdef),
+            (Dataset::XhkgOmdc, Venue::Xhkg) => Ok(Self::XhkgOmdcXhkg),
+            (Dataset::XhkfOmdd, Venue::Xhkf) => Ok(Self::XhkfOmddXhkf),
             _ => Err(Error::conversion::<Self>(format_args!(
                 "({dataset}, {venue})"
             ))),
@@ -1901,6 +1931,8 @@ impl std::str::FromStr for Publisher {
             "DBIX.CORE.CCCY" => Ok(Self::DbixCoreCccy),
             "DBIX.CORE.CGI" => Ok(Self::DbixCoreCgi),
             "DBIX.CORE.CDEF" => Ok(Self::DbixCoreCdef),
+            "XHKG.OMDC.XHKG" => Ok(Self::XhkgOmdcXhkg),
+            "XHKF.OMDD.XHKF" => Ok(Self::XhkfOmddXhkf),
             _ => Err(Error::conversion::<Self>(s)),
         }
     }

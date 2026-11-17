@@ -16,12 +16,15 @@ use crate::{
         dbn::{decode_iso8601, DBN_PREFIX, DBN_PREFIX_LEN},
         FromLittleEndianSlice,
     },
-    layout::{wire::ByteReader, Upgrader},
+    layout::{
+        wire::{str_len, ByteReader},
+        Upgrader,
+    },
     metadata::MetadataLengths,
     record::RecordHeaderKind,
     v1, v2, v3, v4, DbnVersion, Error, MappingInterval, Metadata, Record, RecordMut, RecordRef,
-    Result, SType, Schema, SymbolMapping, VersionUpgradePolicy, WithTsOut, DBN_VERSION,
-    MAX_RECORD_LEN, METADATA_FIXED_LEN, NULL_SCHEMA, NULL_STYPE, UNDEF_TIMESTAMP,
+    Result, SType, Schema, SymbolInterval, SymbolMapping, VersionUpgradePolicy, WithTsOut,
+    DBN_VERSION, MAX_RECORD_LEN, METADATA_FIXED_LEN, NULL_SCHEMA, NULL_STYPE, UNDEF_TIMESTAMP,
 };
 
 /// State machine for decoding DBN with bring your own I/O.
@@ -35,6 +38,7 @@ pub struct DbnFsm<H: DecodeHeader = v3::RecordHeader> {
     needs_upgrade: bool,
     schema: Option<Schema>,
     ts_out: bool,
+    skip_framing_records: bool,
     state: State,
     buffer: AlignedBuffer,
     compat_buffer: AlignedBuffer,
@@ -52,6 +56,7 @@ impl<H: DecodeHeader> std::fmt::Debug for DbnFsm<H> {
             .field("needs_upgrade", &self.needs_upgrade)
             .field("schema", &self.schema)
             .field("ts_out", &self.ts_out)
+            .field("skip_framing_records", &self.skip_framing_records)
             .field("state", &self.state)
             .field("buffer_data", &&self.buffer.data()[..dbg_data_len])
             .field("buffer_available_data", &self.buffer.available_data())
@@ -127,6 +132,7 @@ pub struct DbnFsmBuilder<H: DecodeHeader = v3::RecordHeader> {
     upgrade_policy: Option<VersionUpgradePolicy>,
     ts_out: bool,
     skip_metadata: bool,
+    skip_framing_records: bool,
     buffer_size: usize,
     compat_size: Option<usize>,
     _header: PhantomData<H>,
@@ -178,6 +184,7 @@ impl DbnFsm {
             needs_upgrade: Self::compute_needs_upgrade(upgrade_policy, None),
             schema: None,
             ts_out: false,
+            skip_framing_records: true,
             state: State::default(),
             buffer: AlignedBuffer::with_capacity(buffer_size),
             compat_buffer: AlignedBuffer::with_capacity(compat_size),
@@ -285,6 +292,15 @@ impl<H: DecodeHeader> DbnFsm<H> {
         Ok(())
     }
 
+    pub(crate) fn set_skip_framing_records(&mut self, skip_framing_records: bool) {
+        self.skip_framing_records = skip_framing_records;
+    }
+
+    pub(crate) fn last_framing_record(&self) -> Option<RecordRef<'_, H>> {
+        self.last_record()
+            .filter(|rec| is_framing::<H>(self.input_dbn_version, rec.as_ref()))
+    }
+
     /// Returns an immutable reference to the most recently decoded record, or `None`.
     #[inline]
     pub fn last_record(&self) -> Option<RecordRef<'_, H>> {
@@ -341,10 +357,16 @@ impl<H: DecodeHeader> DbnFsm<H> {
     ///
     /// May move the unconsumed tail to offset 0 to guarantee that the
     /// returned slice is at least [`MAX_RECORD_LEN`] bytes long (when the
-    /// buffer is that large).
+    /// buffer is that large). Grows the buffer when the pending record doesn't fit.
     #[inline]
     pub fn space(&mut self) -> &mut [u8] {
         self.drop_batch();
+        if matches!(self.state, State::Record) {
+            // A framing record's trailer can exceed the buffer's capacity
+            let pending_len = self.buffer.available_data()
+                + Self::record_shortfall(&self.buffer, self.input_dbn_version);
+            self.buffer.grow(pending_len);
+        }
         self.buffer.shift_for_space(MAX_RECORD_LEN);
         self.buffer.space()
     }
@@ -429,6 +451,7 @@ impl<H: DecodeHeader> DbnFsm<H> {
             if let Some(res) = self.advance_to_record() {
                 return res;
             }
+            self.consume_framing_records();
             let available_data = self.buffer.available_data();
             if available_data < input_header_len::<H>(self.input_dbn_version) {
                 return ProcessResult::ReadMore(Self::record_shortfall(
@@ -522,6 +545,26 @@ impl<H: DecodeHeader> DbnFsm<H> {
         } else {
             input_frame_len::<H>(input_dbn_version, buffer.data())
                 .map_or(header_len, |length| length.saturating_sub(available_data))
+        }
+    }
+
+    /// Consumes the complete framing records at the front of the buffer when skipping
+    /// them.
+    fn consume_framing_records(&mut self) {
+        if !self.skip_framing_records {
+            return;
+        }
+        let header_len = input_header_len::<H>(self.input_dbn_version);
+        while self.buffer.available_data() >= header_len
+            && is_framing::<H>(self.input_dbn_version, self.buffer.data())
+        {
+            match input_frame_len::<H>(self.input_dbn_version, self.buffer.data()) {
+                Ok(length) if length <= self.buffer.available_data() => {
+                    self.buffer.consume(length);
+                }
+                // Incomplete or invalid, which the caller reports
+                _ => return,
+            }
         }
     }
 
@@ -626,6 +669,7 @@ impl<H: DecodeHeader> DbnFsm<H> {
         if let Some(res) = self.advance_to_record() {
             return res;
         }
+        self.consume_framing_records();
         // Guarantee room for the first record, so the batch never comes up empty for
         // lack of compat space. `expand_compat` covers the later ones
         debug_assert!(self.compat_buffer.is_empty());
@@ -651,6 +695,11 @@ impl<H: DecodeHeader> DbnFsm<H> {
                 Err(err) => return ProcessResult::Err(err),
             };
             if length > remaining_data.len() {
+                break;
+            }
+            // Records already in the batch borrow `buffer`
+            if self.skip_framing_records && is_framing::<H>(self.input_dbn_version, remaining_data)
+            {
                 break;
             }
             if !self.needs_upgrade {
@@ -884,15 +933,15 @@ impl<H: DecodeHeader> DbnFsm<H> {
                 symbol_cstr_len as u16,
             )?)
         };
-        let symbology = if lengths.has_layout {
+        let symbology = if lengths.has_symbol_intervals {
             let declared = tail.u32("symbology length")? as usize;
-            let section = tail.take("symbology", declared)?;
-            let mut sec_pos = 0;
-            let symbology =
-                Self::decode_metadata_symbology(symbol_cstr_len, section, &mut sec_pos)?;
-            if sec_pos != declared {
+            let mut section = ByteReader::new(tail.take("symbology", declared)?);
+            let symbology = Self::decode_v4_symbology(&mut section)?;
+            let trailing = section.remaining().len();
+            if trailing != 0 {
                 return Err(crate::Error::decode(format!(
-                    "symbology section declares {declared} bytes but its contents span {sec_pos}"
+                    "symbology section declares {declared} bytes but its contents span {}",
+                    declared - trailing
                 )));
             }
             symbology
@@ -904,6 +953,7 @@ impl<H: DecodeHeader> DbnFsm<H> {
             partial,
             not_found,
             mappings,
+            intervals,
         } = symbology;
 
         Ok(Metadata {
@@ -925,6 +975,7 @@ impl<H: DecodeHeader> DbnFsm<H> {
             partial,
             not_found,
             mappings,
+            intervals,
             layout,
         })
     }
@@ -939,7 +990,38 @@ impl<H: DecodeHeader> DbnFsm<H> {
             partial: Self::decode_metadata_repeated_symbol_cstr(symbol_cstr_len, buffer, pos)?,
             not_found: Self::decode_metadata_repeated_symbol_cstr(symbol_cstr_len, buffer, pos)?,
             mappings: Self::decode_metadata_symbol_mappings(symbol_cstr_len, buffer, pos)?,
+            intervals: Vec::new(),
         })
+    }
+
+    fn decode_v4_symbology(cur: &mut ByteReader<'_>) -> crate::Result<MetadataSymbology> {
+        let symbols = Self::decode_str_list(cur, "symbols")?;
+        let partial = Self::decode_str_list(cur, "partial")?;
+        let not_found = Self::decode_str_list(cur, "not_found")?;
+        let count = cur.u32("symbol interval")?;
+        let decoded = decode_symbol_intervals(cur, count)?;
+        let mut intervals = Vec::with_capacity(decoded.len());
+        for interval in decoded {
+            intervals.push(interval?);
+        }
+        Ok(MetadataSymbology {
+            symbols,
+            partial,
+            not_found,
+            mappings: Vec::new(),
+            intervals,
+        })
+    }
+
+    fn decode_str_list(cur: &mut ByteReader<'_>, ctx: &str) -> crate::Result<Vec<String>> {
+        let count = cur.u32(ctx)? as usize;
+        let count = Self::checked_count(
+            format_args!("{ctx} count"),
+            count,
+            str_len(""),
+            cur.remaining().len(),
+        )?;
+        (0..count).map(|_| cur.str(ctx)).collect()
     }
 
     pub(crate) fn checked_count(
@@ -1090,7 +1172,7 @@ impl DbnFsm {
         ts_out: bool,
         read_buffer: &'a [u8],
         compat_buffer: &'a mut [u8],
-    ) -> (&'a mut [u8], Option<RecordRef<'a>>) {
+    ) -> Result<(&'a mut [u8], Option<RecordRef<'a>>)> {
         if let Some(input_dbn_version) = input_dbn_version {
             Self::upgrade_record_with_version(
                 input_dbn_version.0,
@@ -1116,7 +1198,7 @@ impl DbnFsm {
         ts_out: bool,
         read_buffer: &'a [u8],
         compat_buffer: &'a mut [u8],
-    ) -> (&'a mut [u8], Option<RecordRef<'a>>) {
+    ) -> Result<(&'a mut [u8], Option<RecordRef<'a>>)> {
         use crate::{rtype::*, VersionUpgradePolicy::*};
 
         let rec = RecordRef::<crate::RecordHeader>::new(read_buffer);
@@ -1161,7 +1243,7 @@ impl DbnFsm {
             (v, _, _) if v > DBN_VERSION => panic!("Unsupported version {version}"),
             _ => (),
         }
-        (compat_buffer, Some(rec))
+        Ok((compat_buffer, Some(rec)))
     }
 
     /// More dynamic upgrading of records when we don't know the input DBN version:
@@ -1177,7 +1259,7 @@ impl DbnFsm {
         ts_out: bool,
         read_buffer: &'a [u8],
         compat_buffer: &'a mut [u8],
-    ) -> (&'a mut [u8], Option<RecordRef<'a>>) {
+    ) -> Result<(&'a mut [u8], Option<RecordRef<'a>>)> {
         use crate::{rtype::*, VersionUpgradePolicy::*};
 
         let rec = RecordRef::<crate::RecordHeader>::new(read_buffer);
@@ -1233,7 +1315,7 @@ impl DbnFsm {
             }
             _ => (),
         }
-        (compat_buffer, Some(rec))
+        Ok((compat_buffer, Some(rec)))
     }
 }
 
@@ -1256,13 +1338,13 @@ impl DecodeHeader for v3::RecordHeader {
         read_buffer: &'a [u8],
         compat_buffer: &'a mut [u8],
     ) -> Result<(&'a mut [u8], Option<RecordRef<'a, Self>>)> {
-        Ok(DbnFsm::upgrade_record(
+        DbnFsm::upgrade_record(
             input_dbn_version,
             upgrade_policy,
             ts_out,
             read_buffer,
             compat_buffer,
-        ))
+        )
     }
 }
 
@@ -1299,6 +1381,7 @@ struct MetadataSymbology {
     partial: Vec<String>,
     not_found: Vec<String>,
     mappings: Vec<SymbolMapping>,
+    intervals: Vec<SymbolInterval>,
 }
 
 impl Default for DbnFsmBuilder {
@@ -1308,6 +1391,7 @@ impl Default for DbnFsmBuilder {
             upgrade_policy: None,
             ts_out: false,
             skip_metadata: false,
+            skip_framing_records: true,
             buffer_size: DbnFsm::DEFAULT_BUF_SIZE,
             compat_size: None,
             _header: PhantomData,
@@ -1347,6 +1431,7 @@ impl<H: DecodeHeader> DbnFsmBuilder<H> {
             needs_upgrade: H::needs_upgrade(upgrade_policy, self.input_dbn_version),
             schema: None,
             ts_out: self.ts_out,
+            skip_framing_records: self.skip_framing_records,
             state,
             buffer: AlignedBuffer::with_capacity(self.buffer_size),
             compat_buffer: AlignedBuffer::with_capacity(self.compat_size.unwrap_or_else(|| {
@@ -1388,6 +1473,7 @@ impl<H: DecodeHeader> DbnFsmBuilder<H> {
             upgrade_policy: self.upgrade_policy,
             ts_out: self.ts_out,
             skip_metadata: self.skip_metadata,
+            skip_framing_records: self.skip_framing_records,
             buffer_size: self.buffer_size,
             compat_size: self.compat_size,
             _header: PhantomData,
@@ -1412,6 +1498,13 @@ impl<H: DecodeHeader> DbnFsmBuilder<H> {
     /// expect the data to begin with records.
     pub fn skip_metadata(mut self, skip_metadata: bool) -> Self {
         self.skip_metadata = skip_metadata;
+        self
+    }
+
+    /// Sets whether to skip DBN version 4 framing records, such as record group headers,
+    /// instead of returning them as records. Defaults to `true`.
+    pub fn skip_framing_records(mut self, skip_framing_records: bool) -> Self {
+        self.skip_framing_records = skip_framing_records;
         self
     }
 
@@ -1568,30 +1661,30 @@ unsafe fn upgrade_record<'a, T, U>(
     ts_out: bool,
     compat_buffer: &'a mut [u8],
     input: RecordRef<'a>,
-) -> (&'a mut [u8], Option<RecordRef<'a>>)
+) -> Result<(&'a mut [u8], Option<RecordRef<'a>>)>
 where
     T: v3::HasRType,
     U: AsRef<[u8]> + v3::HasRType + RecordMut + for<'t> From<&'t T>,
 {
     if ts_out {
-        let rec = input.get::<WithTsOut<T>>().unwrap();
+        let rec = input.try_get::<WithTsOut<T>>()?;
         let upgraded = WithTsOut::new(U::from(&rec.rec), rec.ts_out);
         if size_of_val(&upgraded) > compat_buffer.len() {
-            return (compat_buffer, None);
+            return Ok((compat_buffer, None));
         };
         // Split at to have multiple mutable borrows to the same buffer, each
         // with their own unique slice within the buffer
         let (record_compat, rem_compat) = compat_buffer.split_at_mut(size_of_val(&upgraded));
         record_compat.copy_from_slice(upgraded.as_ref());
-        (rem_compat, Some(RecordRef::new(record_compat)))
+        Ok((rem_compat, Some(RecordRef::new(record_compat))))
     } else {
-        let upgraded = U::from(input.get::<T>().unwrap());
+        let upgraded = U::from(input.try_get::<T>()?);
         if size_of_val(&upgraded) > compat_buffer.len() {
-            return (compat_buffer, None);
+            return Ok((compat_buffer, None));
         };
         let (record_compat, rem_compat) = compat_buffer.split_at_mut(size_of_val(&upgraded));
         record_compat.copy_from_slice(upgraded.as_ref());
-        (rem_compat, Some(RecordRef::new(record_compat)))
+        Ok((rem_compat, Some(RecordRef::new(record_compat))))
     }
 }
 
@@ -1604,6 +1697,7 @@ impl Default for DbnFsm {
             needs_upgrade: Self::compute_needs_upgrade(upgrade_policy, None),
             schema: None,
             ts_out: false,
+            skip_framing_records: true,
             state: State::default(),
             buffer: AlignedBuffer::with_capacity(Self::DEFAULT_BUF_SIZE),
             compat_buffer: AlignedBuffer::with_capacity(0),
@@ -1633,6 +1727,39 @@ fn input_frame_len<H: RecordHeaderKind>(
     }
 }
 
+pub(crate) fn decode_symbol_intervals<'a, 'b>(
+    cur: &'a mut ByteReader<'b>,
+    count: u32,
+) -> Result<impl ExactSizeIterator<Item = Result<SymbolInterval>> + use<'a, 'b>> {
+    const CTX: &str = "symbol interval";
+    let min_interval_len = size_of::<u64>() * 3 + str_len("") * 2;
+    let count = <DbnFsm>::checked_count(
+        format_args!("symbol interval count"),
+        count as usize,
+        min_interval_len,
+        cur.remaining().len(),
+    )?;
+    Ok((0..count).map(move |_| {
+        Ok(SymbolInterval {
+            start_ts: cur.u64(CTX)?,
+            end_ts: cur.u64(CTX)?,
+            instrument_id: cur.u64(CTX)?,
+            stype_in_symbol: cur.str(CTX)?,
+            stype_out_symbol: cur.str(CTX)?,
+        })
+    }))
+}
+
+fn is_framing<H: RecordHeaderKind>(input_dbn_version: Option<DbnVersion>, data: &[u8]) -> bool {
+    match input_dbn_version {
+        Some(DbnVersion(v)) if v < v4::DBN_VERSION => false,
+        _ => {
+            H::DBN_VERSIONS.contains(&v4::DBN_VERSION)
+                && v4::framing::is_framing_rtype(u16::from_le_bytes([data[2], data[3]]))
+        }
+    }
+}
+
 fn upgrader_for(
     upgrade_policy: VersionUpgradePolicy,
     input_dbn_version: Option<DbnVersion>,
@@ -1646,7 +1773,7 @@ fn upgrader_for(
         {
             Some(Upgrader::new(
                 v,
-                &crate::layout::upgrade_layout(ts_out),
+                &crate::layout::upgrade_layout(ts_out, schema),
                 schema,
             ))
         }
@@ -1669,6 +1796,7 @@ mod tests {
     };
 
     use super::*;
+    use crate::prelude::*;
 
     const HEADER_LEN: usize = size_of::<v3::RecordHeader>();
 
@@ -2437,6 +2565,52 @@ mod tests {
     }
 
     #[rstest]
+    #[case::v1_def(
+        crate::rtype::INSTRUMENT_DEF,
+        Some(1),
+        VersionUpgradePolicy::UpgradeToV3
+    )]
+    #[case::v1_def_to_v2(
+        crate::rtype::INSTRUMENT_DEF,
+        Some(1),
+        VersionUpgradePolicy::UpgradeToV2
+    )]
+    #[case::v2_def(
+        crate::rtype::INSTRUMENT_DEF,
+        Some(2),
+        VersionUpgradePolicy::UpgradeToV3
+    )]
+    #[case::v1_stat(crate::rtype::STATISTICS, Some(1), VersionUpgradePolicy::UpgradeToV3)]
+    #[case::v1_symbol_mapping(
+        crate::rtype::SYMBOL_MAPPING,
+        Some(1),
+        VersionUpgradePolicy::UpgradeToV3
+    )]
+    #[case::v1_error(crate::rtype::ERROR, Some(1), VersionUpgradePolicy::UpgradeToV3)]
+    #[case::v1_system(crate::rtype::SYSTEM, Some(1), VersionUpgradePolicy::UpgradeToV3)]
+    #[case::detected_def(crate::rtype::INSTRUMENT_DEF, None, VersionUpgradePolicy::UpgradeToV3)]
+    fn test_upgrade_undersized_record_returns_error(
+        #[case] rtype: u8,
+        #[case] input_version: Option<u8>,
+        #[case] upgrade_policy: VersionUpgradePolicy,
+        #[values(false, true)] ts_out: bool,
+    ) {
+        let mut header = [0; HEADER_LEN];
+        header[0] = 4;
+        header[1] = rtype;
+        let mut target = DbnFsm::builder()
+            .skip_metadata(true)
+            .input_dbn_version(input_version)
+            .unwrap()
+            .upgrade_policy(upgrade_policy)
+            .ts_out(ts_out)
+            .build()
+            .unwrap();
+        target.write_all(&header);
+        assert!(matches!(target.process(), ProcessResult::Err(_)));
+    }
+
+    #[rstest]
     fn test_upgrade_symbol_mapping_ts_out(
         #[values(None, Some(DbnVersion(1)))] mut input_dbn_version: Option<DbnVersion>,
     ) -> crate::Result<()> {
@@ -2453,7 +2627,7 @@ mod tests {
                 orig.as_ref(),
                 &mut compat_buffer,
             )
-        };
+        }?;
         assert_eq!(input_dbn_version, Some(DbnVersion(1)));
         let res = res.unwrap();
         assert_eq!(
@@ -2492,7 +2666,7 @@ mod tests {
                 orig.as_ref(),
                 &mut compat_buffer,
             )
-        };
+        }?;
         assert_eq!(input_dbn_version, Some(DbnVersion(1)));
         let res = res.unwrap();
         // Unchanged
@@ -2553,7 +2727,8 @@ mod tests {
         let mut ver = None;
         let (rem_compat, rec) = unsafe {
             DbnFsm::upgrade_record_detect_version(&mut ver, upgrade_policy, false, buf, compat_buf)
-        };
+        }
+        .unwrap();
         assert!(rem_compat.len() < MAX_RECORD_LEN - size_of::<R>());
         assert!(rec.is_some());
         let rec = rec.unwrap();
@@ -2677,5 +2852,258 @@ mod tests {
         target.write_all(&buf);
         assert!(matches!(target.process(), ProcessResult::Err(_)));
         Ok(())
+    }
+
+    fn v4_symbology_metadata() -> Metadata {
+        let mut metadata = crate::decode::dbn::tests::metadata_v4(Schema::Trades);
+        metadata.symbols = vec!["ES.c.0".to_owned(), "SPX".to_owned()];
+        metadata.partial = vec!["ESZ6".to_owned()];
+        metadata.not_found = vec!["NOPE".to_owned()];
+        metadata.intervals = vec![
+            SymbolInterval {
+                start_ts: 1_771_459_200_000_000_000,
+                end_ts: 1_771_511_400_000_000_000,
+                instrument_id: 12345,
+                stype_in_symbol: "ES.c.0".to_owned(),
+                stype_out_symbol: "12345".to_owned(),
+            },
+            SymbolInterval {
+                start_ts: 1_771_511_400_000_000_000,
+                end_ts: crate::UNDEF_TIMESTAMP,
+                instrument_id: 12346,
+                stype_in_symbol: "ES.c.0".to_owned(),
+                stype_out_symbol: "12346".to_owned(),
+            },
+        ];
+        metadata
+    }
+
+    fn encode_v4_metadata(metadata: &Metadata) -> crate::Result<Vec<u8>> {
+        let mut buf = Vec::new();
+        DbnMetadataEncoder::new(&mut buf).encode(metadata)?;
+        Ok(buf)
+    }
+
+    #[rstest]
+    fn test_v4_symbology_round_trips(#[values(2, 4_000)] interval_count: u64) -> crate::Result<()> {
+        let mut metadata = v4_symbology_metadata();
+        let template = metadata.intervals[0].clone();
+        metadata.intervals = (0..interval_count)
+            .map(|i| SymbolInterval {
+                instrument_id: i,
+                stype_out_symbol: i.to_string(),
+                ..template.clone()
+            })
+            .collect();
+        let mut target = crate::decode::dbn::tests::fsm_v4()?;
+        target.write_all(&encode_v4_metadata(&metadata)?);
+        let ProcessResult::Metadata(decoded) = target.process() else {
+            panic!("expected metadata");
+        };
+        assert_eq!(decoded, metadata);
+        Ok(())
+    }
+
+    #[rstest]
+    #[case::symbols(0)]
+    #[case::partial(1)]
+    #[case::not_found(2)]
+    #[case::intervals(3)]
+    fn test_v4_no_count_sizes_an_allocation_on_its_own(#[case] which: usize) -> crate::Result<()> {
+        let metadata = crate::decode::dbn::tests::metadata_v4(Schema::Trades);
+        let mut buf = encode_v4_metadata(&metadata)?;
+        let layout_len_at = crate::METADATA_PRELUDE_LEN + crate::METADATA_FIXED_LEN;
+        let layout_len = u32::from_le_slice(&buf[layout_len_at..]) as usize;
+        // with every list empty, the four counts sit back to back past the symbology length
+        let counts = layout_len_at + size_of::<u32>() + layout_len + size_of::<u32>();
+        let at = counts + which * size_of::<u32>();
+        assert_eq!(u32::from_le_slice(&buf[at..]), 0, "the list is empty");
+        buf[at..at + size_of::<u32>()].copy_from_slice(&u32::MAX.to_le_bytes());
+
+        let mut target = crate::decode::dbn::tests::fsm_v4()?;
+        target.write_all(&buf);
+        assert!(matches!(target.process(), ProcessResult::Err(_)));
+        Ok(())
+    }
+
+    #[test]
+    fn test_v4_symbology_must_fill_its_declared_length() -> crate::Result<()> {
+        let mut buf = encode_v4_metadata(&v4_symbology_metadata())?;
+        let layout_len_at = crate::METADATA_PRELUDE_LEN + crate::METADATA_FIXED_LEN;
+        let layout_len = u32::from_le_slice(&buf[layout_len_at..]) as usize;
+        let at = layout_len_at + size_of::<u32>() + layout_len;
+        let declared = u32::from_le_slice(&buf[at..]);
+        buf[at..at + size_of::<u32>()].copy_from_slice(&(declared - 1).to_le_bytes());
+
+        let mut target = crate::decode::dbn::tests::fsm_v4()?;
+        target.write_all(&buf);
+        assert!(matches!(target.process(), ProcessResult::Err(_)));
+        Ok(())
+    }
+
+    const UNKNOWN_FRAMING_RTYPE: u16 = 0xF5;
+
+    fn v4_trade(instrument_id: u64) -> v4::TradeMsg {
+        v4::TradeMsg {
+            hd: v4::RecordHeader::new::<v4::TradeMsg>(
+                v4::rtype::MBP_0,
+                1,
+                instrument_id,
+                1_697_240_529_000_000_000,
+            ),
+            price: 4_500_250_000_000,
+            size: 3,
+            ..Default::default()
+        }
+    }
+
+    fn framing_record(rtype: u16, trailer_length: u32) -> Vec<u8> {
+        let mut rec = vec![0; v4::RecordHeader::HEADER_LEN + 8];
+        rec[..2].copy_from_slice(&8u16.to_le_bytes());
+        rec[2..4].copy_from_slice(&rtype.to_le_bytes());
+        rec[4..8].copy_from_slice(&trailer_length.to_le_bytes());
+        rec.extend((0..trailer_length).map(|i| i as u8));
+        rec
+    }
+
+    /// Trades 1 to 3 with a framing record before each of the last two.
+    fn v4_stream_with_framing(trailer_length: u32) -> (Vec<u8>, Vec<u8>) {
+        let framing = framing_record(UNKNOWN_FRAMING_RTYPE, trailer_length);
+        let mut stream = Vec::new();
+        stream.extend_from_slice(v4_trade(1).as_ref());
+        stream.extend_from_slice(&framing);
+        stream.extend_from_slice(v4_trade(2).as_ref());
+        stream.extend_from_slice(&framing);
+        stream.extend_from_slice(v4_trade(3).as_ref());
+        (stream, framing)
+    }
+
+    fn v4_fsm(buffer_size: usize, skip_framing_records: bool) -> DbnFsm<v4::RecordHeader> {
+        DbnFsm::builder()
+            .header::<v4::RecordHeader>()
+            .skip_metadata(true)
+            .input_dbn_version(Some(v4::DBN_VERSION))
+            .unwrap()
+            .skip_framing_records(skip_framing_records)
+            .buffer_size(buffer_size)
+            .build()
+            .unwrap()
+    }
+
+    #[derive(Clone, Copy, Debug)]
+    enum ProcessMethod {
+        One,
+        Batch,
+        All,
+    }
+
+    /// Feeds `stream` through `space()` and `fill()` `chunk_len` bytes at a time,
+    /// returning each decoded record's bytes.
+    fn decode_v4_chunked(
+        mut fsm: DbnFsm<v4::RecordHeader>,
+        method: ProcessMethod,
+        stream: &[u8],
+        chunk_len: usize,
+    ) -> crate::Result<Vec<Vec<u8>>> {
+        let mut records = Vec::new();
+        let mut rest = stream;
+        loop {
+            let res = match method {
+                ProcessMethod::One => fsm.process().map(|()| {
+                    records.push(fsm.last_record().unwrap().as_ref().to_vec());
+                }),
+                ProcessMethod::Batch => fsm.process_batch().map(|_| {
+                    while let Some(rec) = fsm.next_buffered_record() {
+                        records.push(rec.as_ref().to_vec());
+                    }
+                }),
+                ProcessMethod::All => {
+                    let mut recs = Vec::new();
+                    fsm.process_all(&mut recs, None).map(|_| {
+                        records.extend(recs.iter().map(|rec| rec.as_ref().to_vec()));
+                    })
+                }
+            };
+            match res {
+                ProcessResult::Record(()) => {}
+                ProcessResult::ReadMore(_) if rest.is_empty() => return Ok(records),
+                ProcessResult::ReadMore(_) => {
+                    let space = fsm.space();
+                    assert!(!space.is_empty(), "no space for the pending record");
+                    let nbytes = chunk_len.min(rest.len()).min(space.len());
+                    space[..nbytes].copy_from_slice(&rest[..nbytes]);
+                    fsm.fill(nbytes);
+                    rest = &rest[nbytes..];
+                }
+                ProcessResult::Err(err) => return Err(err),
+                ProcessResult::Metadata(_) => panic!("metadata was skipped"),
+            }
+        }
+    }
+
+    #[rstest]
+    fn test_v4_skips_framing_records(
+        #[values(ProcessMethod::One, ProcessMethod::Batch, ProcessMethod::All)]
+        method: ProcessMethod,
+        #[values(usize::MAX, 7)] chunk_len: usize,
+        #[values(64, 8_192)] trailer_length: u32,
+    ) -> crate::Result<()> {
+        let (stream, _) = v4_stream_with_framing(trailer_length);
+        let records = decode_v4_chunked(v4_fsm(MAX_RECORD_LEN, true), method, &stream, chunk_len)?;
+        let expected: Vec<Vec<u8>> = (1..=3).map(|id| v4_trade(id).as_ref().to_vec()).collect();
+        assert_eq!(records, expected);
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_v4_yields_framing_records_with_their_trailer(
+        #[values(ProcessMethod::One, ProcessMethod::Batch, ProcessMethod::All)]
+        method: ProcessMethod,
+        #[values(usize::MAX, 7)] chunk_len: usize,
+        #[values(64, 8_192)] trailer_length: u32,
+    ) -> crate::Result<()> {
+        let (stream, framing) = v4_stream_with_framing(trailer_length);
+        let records = decode_v4_chunked(v4_fsm(MAX_RECORD_LEN, false), method, &stream, chunk_len)?;
+        let expected = vec![
+            v4_trade(1).as_ref().to_vec(),
+            framing.clone(),
+            v4_trade(2).as_ref().to_vec(),
+            framing,
+            v4_trade(3).as_ref().to_vec(),
+        ];
+        assert_eq!(records, expected);
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_v4_framing_trailer_must_be_a_multiple_of_8(
+        #[values(true, false)] skip_framing_records: bool,
+    ) {
+        let mut target = v4_fsm(MAX_RECORD_LEN, skip_framing_records);
+        target.write_all(&framing_record(UNKNOWN_FRAMING_RTYPE, 12));
+        assert!(matches!(target.process(), ProcessResult::Err(_)));
+    }
+
+    #[test]
+    fn test_v4_framing_record_cut_short_needs_more_data() {
+        let mut target = v4_fsm(MAX_RECORD_LEN, true);
+        let framing = framing_record(UNKNOWN_FRAMING_RTYPE, 64);
+        target.write_all(&framing[..framing.len() - 8]);
+        assert!(matches!(target.process(), ProcessResult::ReadMore(8)));
+    }
+
+    #[test]
+    fn test_v3_framing_range_rtype_is_a_record() {
+        let mut rec = v3::TradeMsg::default();
+        rec.hd.rtype = UNKNOWN_FRAMING_RTYPE as u8;
+        let mut target = DbnFsm::builder()
+            .skip_metadata(true)
+            .input_dbn_version(Some(3))
+            .unwrap()
+            .build()
+            .unwrap();
+        target.write_all(rec.as_ref());
+        assert!(matches!(target.process(), ProcessResult::Record(())));
+        assert_eq!(target.last_record().unwrap().as_ref(), rec.as_ref());
     }
 }

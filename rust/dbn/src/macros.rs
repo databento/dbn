@@ -111,137 +111,182 @@ pub(crate) use v4_rtype_dispatch;
 
 /// Dispatches to a generic function or method based on `$rtype` and optionally `$ts_out`.
 ///
-/// # Panics
-/// This function will panic if the encoded length of the given record is shorter
-/// than expected for its `rtype`.
-///
 /// # Errors
-/// This macro returns an error if the rtype is not recognized.
+/// This macro returns an error if the rtype is not recognized or the encoded length
+/// of the given record is shorter than expected for its `rtype` and `$ts_out`.
 #[macro_export]
 macro_rules! rtype_dispatch {
     // generic async method
     ($rec_ref:expr, $this:ident.$generic_method:ident($($arg:expr),*).await$(,)?) => {{
         macro_rules! handler {
             ($r:ty) => {{
-                $this.$generic_method($rec_ref.get::<$r>().unwrap() $(, $arg)*).await
+                match $rec_ref.try_get::<$r>() {
+                    Ok(rec) => Ok($this.$generic_method(rec $(, $arg)*).await),
+                    Err(e) => Err(e),
+                }
             }}
         }
-        $crate::rtype_dispatch_base!($rec_ref, handler)
+        $crate::rtype_dispatch_base!($rec_ref, handler).and_then(|res| res)
     }};
     // generic method
     ($rec_ref:expr, $this:ident.$generic_method:ident($($arg:expr),*)$(,)?) => {{
         macro_rules! handler {
             ($r:ty) => {{
-                $this.$generic_method($rec_ref.get::<$r>().unwrap() $(, $arg)*)
+                match $rec_ref.try_get::<$r>() {
+                    Ok(rec) => Ok($this.$generic_method(rec $(, $arg)*)),
+                    Err(e) => Err(e),
+                }
             }}
         }
-        $crate::rtype_dispatch_base!($rec_ref, handler)
+        $crate::rtype_dispatch_base!($rec_ref, handler).and_then(|res| res)
     }};
     // generic async function
     ($rec_ref:expr, $generic_fn:ident($($arg:expr),*).await$(,)?) => {{
         macro_rules! handler {
             ($r:ty) => {{
-                $generic_fn($rec_ref.get::<$r>().unwrap() $(, $arg)*).await
+                match $rec_ref.try_get::<$r>() {
+                    Ok(rec) => Ok($generic_fn(rec $(, $arg)*).await),
+                    Err(e) => Err(e),
+                }
             }}
         }
-        $crate::rtype_dispatch_base!($rec_ref, handler)
+        $crate::rtype_dispatch_base!($rec_ref, handler).and_then(|res| res)
     }};
     // generic function
     ($rec_ref:expr, $generic_fn:ident($($arg:expr),*)$(,)?) => {{
         macro_rules! handler {
             ($r:ty) => {{
-                $generic_fn($rec_ref.get::<$r>().unwrap() $(, $arg)*)
+                match $rec_ref.try_get::<$r>() {
+                    Ok(rec) => Ok($generic_fn(rec $(, $arg)*)),
+                    Err(e) => Err(e),
+                }
             }}
         }
-        $crate::rtype_dispatch_base!($rec_ref, handler)
+        $crate::rtype_dispatch_base!($rec_ref, handler).and_then(|res| res)
     }};
     // generic always ts_out async method
     ($rec_ref:expr, ts_out: true, $this:ident.$generic_method:ident($($arg:expr),*).await$(,)?) => {{
         macro_rules! handler {
             ($r:ty) => {{
-                $this.$generic_method($rec_ref.get::<$crate::WithTsOut<$r>>().unwrap() $(, $arg)*).await
+                match $rec_ref.try_get::<$crate::WithTsOut<$r>>() {
+                    Ok(rec) => Ok($this.$generic_method(rec $(, $arg)*).await),
+                    Err(e) => Err(e),
+                }
             }}
         }
-        $crate::rtype_dispatch_base!($rec_ref, handler)
+        $crate::rtype_dispatch_base!($rec_ref, handler).and_then(|res| res)
     }};
     // generic always ts_out method
     ($rec_ref:expr, ts_out: true, $this:ident.$generic_method:ident($($arg:expr),*)$(,)?) => {{
         macro_rules! handler {
             ($r:ty) => {{
-                $this.$generic_method($rec_ref.get::<$crate::WithTsOut<$r>>().unwrap(), $(, $arg)*)
+                match $rec_ref.try_get::<$crate::WithTsOut<$r>>() {
+                    Ok(rec) => Ok($this.$generic_method(rec $(, $arg)*)),
+                    Err(e) => Err(e),
+                }
             }}
         }
-        $crate::rtype_dispatch_base!($rec_ref, handler)
+        $crate::rtype_dispatch_base!($rec_ref, handler).and_then(|res| res)
     }};
     // generic always ts_out async function
     ($rec_ref:expr, ts_out: true, $generic_fn:ident($($arg:expr),*).await$(,)?) => {{
         macro_rules! handler {
             ($r:ty) => {{
-                $generic_fn($rec_ref.get::<$crate::WithTsOut<$r>>().unwrap() $(, $arg)*).await
+                match $rec_ref.try_get::<$crate::WithTsOut<$r>>() {
+                    Ok(rec) => Ok($generic_fn(rec $(, $arg)*).await),
+                    Err(e) => Err(e),
+                }
             }}
         }
-        $crate::rtype_dispatch_base!($rec_ref, handler)
+        $crate::rtype_dispatch_base!($rec_ref, handler).and_then(|res| res)
     }};
     // generic always ts_out function
     ($rec_ref:expr, ts_out: true, $generic_fn:ident($($arg:expr),*)$(,)?) => {{
         macro_rules! handler {
             ($r:ty) => {{
-                $generic_fn($rec_ref.get::<$crate::WithTsOut<$r>>().unwrap() $(, $arg)*)
+                match $rec_ref.try_get::<$crate::WithTsOut<$r>>() {
+                    Ok(rec) => Ok($generic_fn(rec $(, $arg)*)),
+                    Err(e) => Err(e),
+                }
             }}
         }
-        $crate::rtype_dispatch_base!($rec_ref, handler)
+        $crate::rtype_dispatch_base!($rec_ref, handler).and_then(|res| res)
     }};
     // ts_out generic async method
     ($rec_ref:expr, ts_out: $ts_out:expr, $this:ident.$generic_method:ident($($arg:expr),*).await$(,)?) => {{
         macro_rules! handler {
             ($r:ty) => {{
                 if $ts_out {
-                    $this.$generic_method($rec_ref.get::<$crate::WithTsOut<$r>>().unwrap() $(, $arg)*).await
+                    match $rec_ref.try_get::<$crate::WithTsOut<$r>>() {
+                        Ok(rec) => Ok($this.$generic_method(rec $(, $arg)*).await),
+                        Err(e) => Err(e),
+                    }
                 } else {
-                    $this.$generic_method($rec_ref.get::<$r>().unwrap() $(, $arg)*).await
+                    match $rec_ref.try_get::<$r>() {
+                        Ok(rec) => Ok($this.$generic_method(rec $(, $arg)*).await),
+                        Err(e) => Err(e),
+                    }
                 }
             }}
         }
-        $crate::rtype_dispatch_base!($rec_ref, handler)
+        $crate::rtype_dispatch_base!($rec_ref, handler).and_then(|res| res)
     }};
     // ts_out generic method
     ($rec_ref:expr, ts_out: $ts_out:expr, $this:ident.$generic_method:ident($($arg:expr),*)$(,)?) => {{
         macro_rules! handler {
             ($r:ty) => {{
                 if $ts_out {
-                    $this.$generic_method($rec_ref.get::<$crate::WithTsOut<$r>>().unwrap() $(, $arg)*)
+                    match $rec_ref.try_get::<$crate::WithTsOut<$r>>() {
+                        Ok(rec) => Ok($this.$generic_method(rec $(, $arg)*)),
+                        Err(e) => Err(e),
+                    }
                 } else {
-                    $this.$generic_method($rec_ref.get::<$r>().unwrap() $(, $arg)*)
+                    match $rec_ref.try_get::<$r>() {
+                        Ok(rec) => Ok($this.$generic_method(rec $(, $arg)*)),
+                        Err(e) => Err(e),
+                    }
                 }
             }}
         }
-        $crate::rtype_dispatch_base!($rec_ref, handler)
+        $crate::rtype_dispatch_base!($rec_ref, handler).and_then(|res| res)
     }};
     // ts_out generic async function
     ($rec_ref:expr, ts_out: $ts_out:expr, $generic_fn:ident($($arg:expr),*).await$(,)?) => {{
         macro_rules! handler {
             ($r:ty) => {{
                 if $ts_out {
-                    $generic_fn($rec_ref.get::<$crate::WithTsOut<$r>>().unwrap() $(, $arg)*).await
+                    match $rec_ref.try_get::<$crate::WithTsOut<$r>>() {
+                        Ok(rec) => Ok($generic_fn(rec $(, $arg)*).await),
+                        Err(e) => Err(e),
+                    }
                 } else {
-                    $generic_fn($rec_ref.get::<$r>().unwrap() $(, $arg)*).await
+                    match $rec_ref.try_get::<$r>() {
+                        Ok(rec) => Ok($generic_fn(rec $(, $arg)*).await),
+                        Err(e) => Err(e),
+                    }
                 }
             }}
         }
-        $crate::rtype_dispatch_base!($rec_ref, handler)
+        $crate::rtype_dispatch_base!($rec_ref, handler).and_then(|res| res)
     }};
     // ts_out generic function
     ($rec_ref:expr, ts_out: $ts_out:expr, $generic_fn:ident($($arg:expr),*)$(,)?) => {{
         macro_rules! handler {
             ($r:ty) => {{
                 if $ts_out {
-                    $generic_fn($rec_ref.get::<$crate::WithTsOut<$r>>().unwrap() $(, $arg)*)
+                    match $rec_ref.try_get::<$crate::WithTsOut<$r>>() {
+                        Ok(rec) => Ok($generic_fn(rec $(, $arg)*)),
+                        Err(e) => Err(e),
+                    }
                 } else {
-                    $generic_fn($rec_ref.get::<$r>().unwrap() $(, $arg)*)
+                    match $rec_ref.try_get::<$r>() {
+                        Ok(rec) => Ok($generic_fn(rec $(, $arg)*)),
+                        Err(e) => Err(e),
+                    }
                 }
             }}
         }
-        $crate::rtype_dispatch_base!($rec_ref, handler)
+        $crate::rtype_dispatch_base!($rec_ref, handler).and_then(|res| res)
     }};
 }
 
@@ -609,7 +654,14 @@ macro_rules! schema_async_method_dispatch {
 
 #[cfg(test)]
 mod tests {
-    use crate::{record::HasRType, rtype};
+    use std::mem;
+
+    use rstest::*;
+
+    use crate::{
+        record::{as_u8_slice, HasRType},
+        rtype, Mbp1Msg, RecordRef,
+    };
 
     struct Dummy {}
 
@@ -653,6 +705,40 @@ mod tests {
         let dummy = Dummy {};
         let ret = schema_dispatch!(Schema::Definition, dummy.on_rtype());
         assert!(!ret);
+    }
+
+    fn noop<T: HasRType>(_rec: &T) {}
+
+    const MBP1_WORDS: u8 = (mem::size_of::<Mbp1Msg>() / 4) as u8;
+
+    #[rstest]
+    #[case::complete(MBP1_WORDS, true)]
+    #[case::undersized(4, false)]
+    fn test_rtype_dispatch_length(#[case] length: u8, #[case] is_ok: bool) {
+        let mut rec = Mbp1Msg::default();
+        rec.hd.length = length;
+        // `RecordRef::from` debug-asserts the length, so alias the full struct instead
+        let rec_ref = unsafe { RecordRef::new(as_u8_slice(&rec)) };
+        assert_eq!(rtype_dispatch!(rec_ref, noop()).is_ok(), is_ok);
+    }
+
+    #[rstest]
+    #[case::complete(MBP1_WORDS, false, true)]
+    #[case::undersized(4, false, false)]
+    #[case::missing_ts_out(MBP1_WORDS, true, false)]
+    fn test_rtype_dispatch_ts_out_length(
+        #[case] length: u8,
+        #[case] ts_out: bool,
+        #[case] is_ok: bool,
+    ) {
+        let mut rec = Mbp1Msg::default();
+        rec.hd.length = length;
+        // `RecordRef::from` debug-asserts the length, so alias the full struct instead
+        let rec_ref = unsafe { RecordRef::new(as_u8_slice(&rec)) };
+        assert_eq!(
+            rtype_dispatch!(rec_ref, ts_out: ts_out, noop()).is_ok(),
+            is_ok
+        );
     }
 
     #[cfg(feature = "async")]

@@ -1,401 +1,310 @@
 use std::os::raw::c_char;
 
-use num_enum::TryFromPrimitive;
-
 use crate::{
     pretty::px_to_f64,
     record::{c_chars_to_str, ts_to_dt},
-    Action, Error, ErrorCode, InstrumentClass, MatchAlgorithm, SType, Schema, SecurityUpdateAction,
-    Side, StatType, StatUpdateAction, StatusAction, StatusReason, SystemCode, TradingEvent,
-    TriState,
+    BboRec, BidAskPair, CbboRec, Cmbp1Rec, ConsolidatedBidAskPair, Error, ErrorRec, FlagSet,
+    InstrumentClass, MatchAlgorithm, MboRec, Mbp10Rec, Mbp1Rec, OhlcvRec, Result, SType,
+    SecurityUpdateAction, Side, StatRec, StatusRec, SystemRec, TradeRec,
 };
 
 use super::*;
 
-impl MboMsg {
-    /// Converts the order price to a floating point.
-    ///
-    /// `UNDEF_PRICE` will be converted to NaN.
-    ///
-    /// <div class="warning">
-    /// This may introduce floating-point error.
-    /// </div>
-    pub fn price_f64(&self) -> f64 {
-        px_to_f64(self.price)
+impl MboRec for MboMsg {
+    fn order_id(&self) -> u64 {
+        self.order_id
     }
 
-    /// Parses the action into an enum.
-    ///
-    /// # Errors
-    /// This function returns an error if the `action` field does not
-    /// contain a valid [`Action`].
-    pub fn action(&self) -> crate::Result<Action> {
-        Action::try_from(self.action as u8)
-            .map_err(|_| Error::conversion::<Action>(format_args!("{:#04X}", self.action as u8)))
+    fn price(&self) -> i64 {
+        self.price
     }
 
-    /// Parses the side that initiates the event into an enum.
-    ///
-    /// # Errors
-    /// This function returns an error if the `side` field does not
-    /// contain a valid [`Side`].
-    pub fn side(&self) -> crate::Result<Side> {
-        Side::try_from(self.side as u8)
-            .map_err(|_| Error::conversion::<Side>(format_args!("{:#04X}", self.side as u8)))
+    fn size(&self) -> u32 {
+        self.size
     }
 
-    /// Parses the capture-server-received timestamp into a datetime.
-    /// Returns `None` if `ts_recv` contains the sentinel for a null timestamp.
-    pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
-        ts_to_dt(self.ts_recv)
+    fn flags(&self) -> FlagSet {
+        self.flags
     }
 
-    /// Parses the difference between `ts_recv` and the matching-engine-sending timestamp into a duration.
-    pub fn ts_in_delta(&self) -> time::Duration {
-        time::Duration::new(0, self.ts_in_delta)
+    fn channel_id(&self) -> u8 {
+        self.channel_id
+    }
+
+    fn raw_action(&self) -> c_char {
+        self.action
+    }
+
+    fn raw_side(&self) -> c_char {
+        self.side
+    }
+
+    fn raw_ts_recv(&self) -> u64 {
+        self.ts_recv
+    }
+
+    fn raw_ts_in_delta(&self) -> i32 {
+        self.ts_in_delta
+    }
+
+    fn sequence(&self) -> u32 {
+        self.sequence
     }
 }
 
-impl TradeMsg {
-    /// Converts the price to a floating point.
-    ///
-    /// `UNDEF_PRICE` will be converted to NaN.
-    ///
-    /// <div class="warning">
-    /// This may introduce floating-point error.
-    /// </div>
-    pub fn price_f64(&self) -> f64 {
-        px_to_f64(self.price)
+impl TradeRec for TradeMsg {
+    fn price(&self) -> i64 {
+        self.price
     }
 
-    /// Parses the action into an enum.
-    ///
-    /// # Errors
-    /// This function returns an error if the `action` field does not
-    /// contain a valid [`Action`].
-    pub fn action(&self) -> crate::Result<Action> {
-        Action::try_from(self.action as u8)
-            .map_err(|_| Error::conversion::<Action>(format_args!("{:#04X}", self.action as u8)))
+    fn size(&self) -> u32 {
+        self.size
     }
 
-    /// Parses the side into an enum.
-    ///
-    /// # Errors
-    /// This function returns an error if the `side` field does not
-    /// contain a valid [`Side`].
-    pub fn side(&self) -> crate::Result<Side> {
-        Side::try_from(self.side as u8)
-            .map_err(|_| Error::conversion::<Side>(format_args!("{:#04X}", self.side as u8)))
+    fn raw_action(&self) -> c_char {
+        self.action
     }
 
-    /// Parses the capture-server-received timestamp into a datetime.
-    /// Returns `None` if `ts_recv` contains the sentinel for a null timestamp.
-    pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
-        ts_to_dt(self.ts_recv)
+    fn raw_side(&self) -> c_char {
+        self.side
     }
 
-    /// Parses the difference between `ts_recv` and the matching-engine-sending timestamp into a duration.
-    pub fn ts_in_delta(&self) -> time::Duration {
-        time::Duration::new(0, self.ts_in_delta)
+    fn flags(&self) -> FlagSet {
+        self.flags
+    }
+
+    fn raw_ts_recv(&self) -> u64 {
+        self.ts_recv
+    }
+
+    fn raw_ts_in_delta(&self) -> i32 {
+        self.ts_in_delta
+    }
+
+    fn sequence(&self) -> u32 {
+        self.sequence
     }
 }
 
-impl Mbp1Msg {
-    /// Converts the order price to a floating point.
-    ///
-    /// `UNDEF_PRICE` will be converted to NaN.
-    ///
-    /// <div class="warning">
-    /// This may introduce floating-point error.
-    /// </div>
-    pub fn price_f64(&self) -> f64 {
-        px_to_f64(self.price)
+impl Mbp1Rec for Mbp1Msg {
+    fn price(&self) -> i64 {
+        self.price
     }
 
-    /// Parses the action into an enum.
-    ///
-    /// # Errors
-    /// This function returns an error if the `action` field does not
-    /// contain a valid [`Action`].
-    pub fn action(&self) -> crate::Result<Action> {
-        Action::try_from(self.action as u8)
-            .map_err(|_| Error::conversion::<Action>(format_args!("{:#04X}", self.action as u8)))
+    fn size(&self) -> u32 {
+        self.size
     }
 
-    /// Parses the side that initiates the event into an enum.
-    ///
-    /// # Errors
-    /// This function returns an error if the `side` field does not
-    /// contain a valid [`Side`].
-    pub fn side(&self) -> crate::Result<Side> {
-        Side::try_from(self.side as u8)
-            .map_err(|_| Error::conversion::<Side>(format_args!("{:#04X}", self.side as u8)))
+    fn raw_action(&self) -> c_char {
+        self.action
     }
 
-    /// Parses the capture-server-received timestamp into a datetime.
-    /// Returns `None` if `ts_recv` contains the sentinel for a null timestamp.
-    pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
-        ts_to_dt(self.ts_recv)
+    fn raw_side(&self) -> c_char {
+        self.side
     }
 
-    /// Parses the difference between `ts_recv` and the matching-engine-sending timestamp into a duration.
-    pub fn ts_in_delta(&self) -> time::Duration {
-        time::Duration::new(0, self.ts_in_delta)
+    fn flags(&self) -> FlagSet {
+        self.flags
+    }
+
+    fn raw_ts_recv(&self) -> u64 {
+        self.ts_recv
+    }
+
+    fn raw_ts_in_delta(&self) -> i32 {
+        self.ts_in_delta
+    }
+
+    fn sequence(&self) -> u32 {
+        self.sequence
+    }
+
+    fn levels(&self) -> &[BidAskPair; 1] {
+        &self.levels
     }
 }
 
-impl Mbp10Msg {
-    /// Converts the order price to a floating point.
-    ///
-    /// `UNDEF_PRICE` will be converted to NaN.
-    ///
-    /// <div class="warning">
-    /// This may introduce floating-point error.
-    /// </div>
-    pub fn price_f64(&self) -> f64 {
-        px_to_f64(self.price)
+impl Mbp10Rec for Mbp10Msg {
+    fn price(&self) -> i64 {
+        self.price
     }
 
-    /// Parses the action into an enum.
-    ///
-    /// # Errors
-    /// This function returns an error if the `action` field does not
-    /// contain a valid [`Action`].
-    pub fn action(&self) -> crate::Result<Action> {
-        Action::try_from(self.action as u8)
-            .map_err(|_| Error::conversion::<Action>(format_args!("{:#04X}", self.action as u8)))
+    fn size(&self) -> u32 {
+        self.size
     }
 
-    /// Parses the side that initiates the event into an enum.
-    ///
-    /// # Errors
-    /// This function returns an error if the `side` field does not
-    /// contain a valid [`Side`].
-    pub fn side(&self) -> crate::Result<Side> {
-        Side::try_from(self.side as u8)
-            .map_err(|_| Error::conversion::<Side>(format_args!("{:#04X}", self.side as u8)))
+    fn raw_action(&self) -> c_char {
+        self.action
     }
 
-    /// Parses the capture-server-received timestamp into a datetime.
-    /// Returns `None` if `ts_recv` contains the sentinel for a null timestamp.
-    pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
-        ts_to_dt(self.ts_recv)
+    fn raw_side(&self) -> c_char {
+        self.side
     }
 
-    /// Parses the difference between `ts_recv` and the matching-engine-sending timestamp into a duration.
-    pub fn ts_in_delta(&self) -> time::Duration {
-        time::Duration::new(0, self.ts_in_delta)
+    fn flags(&self) -> FlagSet {
+        self.flags
+    }
+
+    fn depth(&self) -> u8 {
+        self.depth
+    }
+
+    fn raw_ts_recv(&self) -> u64 {
+        self.ts_recv
+    }
+
+    fn raw_ts_in_delta(&self) -> i32 {
+        self.ts_in_delta
+    }
+
+    fn sequence(&self) -> u32 {
+        self.sequence
+    }
+
+    fn levels(&self) -> &[BidAskPair; 10] {
+        &self.levels
     }
 }
 
-impl BboMsg {
-    /// Converts the last trade price to a floating point.
-    ///
-    /// `UNDEF_PRICE` will be converted to NaN.
-    ///
-    /// <div class="warning">
-    /// This may introduce floating-point error.
-    /// </div>
-    pub fn price_f64(&self) -> f64 {
-        px_to_f64(self.price)
+impl BboRec for BboMsg {
+    fn price(&self) -> i64 {
+        self.price
     }
 
-    /// Parses the side that initiated the last trade into an enum.
-    ///
-    /// # Errors
-    /// This function returns an error if the `side` field does not
-    /// contain a valid [`Side`].
-    pub fn side(&self) -> crate::Result<Side> {
-        Side::try_from(self.side as u8)
-            .map_err(|_| Error::conversion::<Side>(format_args!("{:#04X}", self.side as u8)))
+    fn size(&self) -> u32 {
+        self.size
     }
 
-    /// Parses the end timestamp of the interval capture-server-received timestamp into a datetime.
-    /// Returns `None` if `ts_recv` contains the sentinel for a null timestamp.
-    pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
-        ts_to_dt(self.ts_recv)
-    }
-}
-
-impl Cmbp1Msg {
-    /// Converts the order price to a floating point.
-    ///
-    /// `UNDEF_PRICE` will be converted to NaN.
-    ///
-    /// <div class="warning">
-    /// This may introduce floating-point error.
-    /// </div>
-    pub fn price_f64(&self) -> f64 {
-        px_to_f64(self.price)
+    fn raw_side(&self) -> c_char {
+        self.side
     }
 
-    /// Parses the action into an enum.
-    ///
-    /// # Errors
-    /// This function returns an error if the `action` field does not
-    /// contain a valid [`Action`].
-    pub fn action(&self) -> crate::Result<Action> {
-        Action::try_from(self.action as u8)
-            .map_err(|_| Error::conversion::<Action>(format_args!("{:#04X}", self.action as u8)))
+    fn flags(&self) -> FlagSet {
+        self.flags
     }
 
-    /// Parses the side that initiates the event into an enum.
-    ///
-    /// # Errors
-    /// This function returns an error if the `side` field does not
-    /// contain a valid [`Side`].
-    pub fn side(&self) -> crate::Result<Side> {
-        Side::try_from(self.side as u8)
-            .map_err(|_| Error::conversion::<Side>(format_args!("{:#04X}", self.side as u8)))
+    fn raw_ts_recv(&self) -> u64 {
+        self.ts_recv
     }
 
-    /// Parses the capture-server-received timestamp into a datetime.
-    /// Returns `None` if `ts_recv` contains the sentinel for a null timestamp.
-    pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
-        ts_to_dt(self.ts_recv)
+    fn sequence(&self) -> u32 {
+        self.sequence
     }
 
-    /// Parses the difference between `ts_recv` and the matching-engine-sending timestamp into a duration.
-    pub fn ts_in_delta(&self) -> time::Duration {
-        time::Duration::new(0, self.ts_in_delta)
+    fn levels(&self) -> &[BidAskPair; 1] {
+        &self.levels
     }
 }
 
-impl CbboMsg {
-    /// Converts the last trade price to a floating point.
-    ///
-    /// `UNDEF_PRICE` will be converted to NaN.
-    ///
-    /// <div class="warning">
-    /// This may introduce floating-point error.
-    /// </div>
-    pub fn price_f64(&self) -> f64 {
-        px_to_f64(self.price)
+impl Cmbp1Rec for Cmbp1Msg {
+    fn price(&self) -> i64 {
+        self.price
     }
 
-    /// Parses the side that initiated the last trade into an enum.
-    ///
-    /// # Errors
-    /// This function returns an error if the `side` field does not
-    /// contain a valid [`Side`].
-    pub fn side(&self) -> crate::Result<Side> {
-        Side::try_from(self.side as u8)
-            .map_err(|_| Error::conversion::<Side>(format_args!("{:#04X}", self.side as u8)))
+    fn size(&self) -> u32 {
+        self.size
     }
 
-    /// Parses the end timestamp of the interval capture-server-received timestamp into a datetime.
-    /// Returns `None` if `ts_recv` contains the sentinel for a null timestamp.
-    pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
-        ts_to_dt(self.ts_recv)
-    }
-}
-
-impl OhlcvMsg {
-    /// Converts the open price to a floating point.
-    ///
-    /// `UNDEF_PRICE` will be converted to NaN.
-    ///
-    /// <div class="warning">
-    /// This may introduce floating-point error.
-    /// </div>
-    pub fn open_f64(&self) -> f64 {
-        px_to_f64(self.open)
+    fn raw_action(&self) -> c_char {
+        self.action
     }
 
-    /// Converts the high price to a floating point.
-    ///
-    /// `UNDEF_PRICE` will be converted to NaN.
-    ///
-    /// <div class="warning">
-    /// This may introduce floating-point error.
-    /// </div>
-    pub fn high_f64(&self) -> f64 {
-        px_to_f64(self.high)
+    fn raw_side(&self) -> c_char {
+        self.side
     }
 
-    /// Converts the low price to a floating point.
-    ///
-    /// `UNDEF_PRICE` will be converted to NaN.
-    ///
-    /// <div class="warning">
-    /// This may introduce floating-point error.
-    /// </div>
-    pub fn low_f64(&self) -> f64 {
-        px_to_f64(self.low)
+    fn flags(&self) -> FlagSet {
+        self.flags
     }
 
-    /// Converts the close price to a floating point.
-    ///
-    /// `UNDEF_PRICE` will be converted to NaN.
-    ///
-    /// <div class="warning">
-    /// This may introduce floating-point error.
-    /// </div>
-    pub fn close_f64(&self) -> f64 {
-        px_to_f64(self.close)
+    fn raw_ts_recv(&self) -> u64 {
+        self.ts_recv
+    }
+
+    fn raw_ts_in_delta(&self) -> i32 {
+        self.ts_in_delta
+    }
+
+    fn levels(&self) -> &[ConsolidatedBidAskPair; 1] {
+        &self.levels
     }
 }
 
-impl StatusMsg {
-    /// Parses the capture-server-received timestamp into a datetime.
-    /// Returns `None` if `ts_recv` contains the sentinel for a null timestamp.
-    pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
-        ts_to_dt(self.ts_recv)
+impl CbboRec for CbboMsg {
+    fn price(&self) -> i64 {
+        self.price
     }
 
-    /// Parses the action into an enum.
-    ///
-    /// # Errors
-    /// This function returns an error if the `action` field does not
-    /// contain a valid [`StatusAction`].
-    pub fn action(&self) -> crate::Result<StatusAction> {
-        StatusAction::try_from(self.action)
-            .map_err(|_| Error::conversion::<StatusAction>(format_args!("{:#04X}", self.action)))
+    fn size(&self) -> u32 {
+        self.size
     }
 
-    /// Parses the reason into an enum.
-    ///
-    /// # Errors
-    /// This function returns an error if the `reason` field does not
-    /// contain a valid [`StatusReason`].
-    pub fn reason(&self) -> crate::Result<StatusReason> {
-        StatusReason::try_from(self.reason)
-            .map_err(|_| Error::conversion::<StatusReason>(format_args!("{:#04X}", self.reason)))
+    fn raw_side(&self) -> c_char {
+        self.side
     }
 
-    /// Parses the trading event into an enum.
-    ///
-    /// # Errors
-    /// This function returns an error if the `trading_event` field does not
-    /// contain a valid [`TradingEvent`].
-    pub fn trading_event(&self) -> crate::Result<TradingEvent> {
-        TradingEvent::try_from(self.trading_event).map_err(|_| {
-            Error::conversion::<TradingEvent>(format_args!("{:#04X}", self.trading_event))
-        })
+    fn flags(&self) -> FlagSet {
+        self.flags
     }
 
-    /// Parses the trading state into an `Option<bool>` where `None` indicates
-    /// a value is not applicable or available.
-    pub fn is_trading(&self) -> Option<bool> {
-        TriState::try_from_primitive(self.is_trading as c_char as u8)
-            .map(Option::<bool>::from)
-            .unwrap_or_default()
+    fn raw_ts_recv(&self) -> u64 {
+        self.ts_recv
     }
 
-    /// Parses the quoting state into an `Option<bool>` where `None` indicates
-    /// a value is not applicable or available.
-    pub fn is_quoting(&self) -> Option<bool> {
-        TriState::try_from_primitive(self.is_quoting as c_char as u8)
-            .map(Option::<bool>::from)
-            .unwrap_or_default()
+    fn levels(&self) -> &[ConsolidatedBidAskPair; 1] {
+        &self.levels
+    }
+}
+
+impl OhlcvRec for OhlcvMsg {
+    fn open(&self) -> i64 {
+        self.open
     }
 
-    /// Parses the short selling state into an `Option<bool>` where `None` indicates
-    /// a value is not applicable or available.
-    pub fn is_short_sell_restricted(&self) -> Option<bool> {
-        TriState::try_from_primitive(self.is_short_sell_restricted as c_char as u8)
-            .map(Option::<bool>::from)
-            .unwrap_or_default()
+    fn high(&self) -> i64 {
+        self.high
+    }
+
+    fn low(&self) -> i64 {
+        self.low
+    }
+
+    fn close(&self) -> i64 {
+        self.close
+    }
+
+    fn volume(&self) -> u64 {
+        self.volume
+    }
+}
+
+impl StatusRec for StatusMsg {
+    fn raw_ts_recv(&self) -> u64 {
+        self.ts_recv
+    }
+
+    fn raw_action(&self) -> u16 {
+        self.action
+    }
+
+    fn raw_reason(&self) -> u16 {
+        self.reason
+    }
+
+    fn raw_trading_event(&self) -> u16 {
+        self.trading_event
+    }
+
+    fn raw_is_trading(&self) -> c_char {
+        self.is_trading
+    }
+
+    fn raw_is_quoting(&self) -> c_char {
+        self.is_quoting
+    }
+
+    fn raw_is_short_sell_restricted(&self) -> c_char {
+        self.is_short_sell_restricted
     }
 }
 
@@ -433,6 +342,10 @@ impl InstrumentDefMsg {
     /// # Errors
     /// This function returns an error if the `security_update_action` field does not
     /// contain a valid [`SecurityUpdateAction`].
+    #[allow(
+        clippy::unnecessary_cast,
+        reason = "c_char is u8 on some targets like aarch64 Linux"
+    )]
     pub fn security_update_action(&self) -> crate::Result<SecurityUpdateAction> {
         SecurityUpdateAction::try_from(self.security_update_action as u8).map_err(|_| {
             Error::conversion::<SecurityUpdateAction>(format_args!(
@@ -447,6 +360,10 @@ impl InstrumentDefMsg {
     /// # Errors
     /// This function returns an error if the `instrument_class` field does not
     /// contain a valid [`InstrumentClass`].
+    #[allow(
+        clippy::unnecessary_cast,
+        reason = "c_char is u8 on some targets like aarch64 Linux"
+    )]
     pub fn instrument_class(&self) -> crate::Result<InstrumentClass> {
         InstrumentClass::try_from(self.instrument_class as u8).map_err(|_| {
             Error::conversion::<InstrumentClass>(format_args!(
@@ -461,6 +378,10 @@ impl InstrumentDefMsg {
     /// # Errors
     /// This function returns an error if the `match_algorithm` field does not
     /// contain a valid [`MatchAlgorithm`].
+    #[allow(
+        clippy::unnecessary_cast,
+        reason = "c_char is u8 on some targets like aarch64 Linux"
+    )]
     pub fn match_algorithm(&self) -> crate::Result<MatchAlgorithm> {
         MatchAlgorithm::try_from(self.match_algorithm as u8).map_err(|_| {
             Error::conversion::<MatchAlgorithm>(format_args!("{:#04X}", self.match_algorithm as u8))
@@ -513,89 +434,76 @@ impl ImbalanceMsg {
     /// # Errors
     /// This function returns an error if the `side` field does not
     /// contain a valid [`Side`].
+    #[allow(
+        clippy::unnecessary_cast,
+        reason = "c_char is u8 on some targets like aarch64 Linux"
+    )]
     pub fn side(&self) -> crate::Result<Side> {
         Side::try_from(self.side as u8)
             .map_err(|_| Error::conversion::<Side>(format_args!("{:#04X}", self.side as u8)))
     }
 }
 
-impl StatMsg {
-    /// Parses the capture-server-received timestamp into a datetime.
-    /// Returns `None` if `ts_recv` contains the sentinel for a null timestamp.
-    pub fn ts_recv(&self) -> Option<time::OffsetDateTime> {
-        ts_to_dt(self.ts_recv)
+impl StatRec for StatMsg {
+    fn raw_ts_recv(&self) -> u64 {
+        self.ts_recv
     }
 
-    /// Parses the reference timestamp of the statistic value into a datetime.
-    /// Returns `None` if `ts_ref` contains the sentinel for a null timestamp.
-    pub fn ts_ref(&self) -> Option<time::OffsetDateTime> {
-        ts_to_dt(self.ts_ref)
+    fn raw_ts_ref(&self) -> u64 {
+        self.ts_ref
     }
 
-    /// Converts the value for price statistics to a floating point.
-    ///
-    /// `UNDEF_PRICE` will be converted to NaN.
-    ///
-    /// <div class="warning">
-    /// This may introduce floating-point error.
-    /// </div>
-    pub fn price_f64(&self) -> f64 {
-        px_to_f64(self.price)
+    fn price(&self) -> i64 {
+        self.price
     }
 
-    /// Parses the difference between `ts_recv` and the matching-engine-sending timestamp into a duration.
-    pub fn ts_in_delta(&self) -> time::Duration {
-        time::Duration::new(0, self.ts_in_delta)
+    fn quantity(&self) -> i64 {
+        self.quantity
     }
 
-    /// Parses the type of statistic value into an enum.
-    ///
-    /// # Errors
-    /// This function returns an error if the `stat_type` field does not
-    /// contain a valid [`StatType`].
-    pub fn stat_type(&self) -> crate::Result<StatType> {
-        StatType::try_from(self.stat_type)
-            .map_err(|_| Error::conversion::<StatType>(format_args!("{:#04X}", self.stat_type)))
+    fn sequence(&self) -> u32 {
+        self.sequence
     }
 
-    /// Parses the update action into an enum.
-    ///
-    /// # Errors
-    /// This function returns an error if the `update_action` field does not
-    /// contain a valid [`StatUpdateAction`].
-    pub fn update_action(&self) -> crate::Result<StatUpdateAction> {
-        StatUpdateAction::try_from(self.update_action).map_err(|_| {
-            Error::conversion::<StatUpdateAction>(format_args!("{:#04X}", self.update_action))
-        })
+    fn raw_ts_in_delta(&self) -> i32 {
+        self.ts_in_delta
+    }
+
+    fn raw_stat_type(&self) -> u16 {
+        self.stat_type
+    }
+
+    fn channel_id(&self) -> u8 {
+        self.channel_id
+    }
+
+    fn raw_update_action(&self) -> u8 {
+        self.update_action
+    }
+
+    fn stat_flags(&self) -> u8 {
+        self.stat_flags
     }
 }
 
-impl ErrorMsg {
-    /// Parses the schema into an enum.
-    ///
-    /// # Errors
-    /// This function returns an error if the `schema` field does not
-    /// contain a valid [`Schema`].
-    pub fn schema(&self) -> crate::Result<Schema> {
-        Schema::try_from(self.schema)
-            .map_err(|_| Error::conversion::<Schema>(format_args!("{:#04X}", self.schema)))
+impl ErrorRec for ErrorMsg {
+    fn subscription_id(&self) -> u32 {
+        self.subscription_id
     }
 
-    /// Parses the error code into an enum.
-    ///
-    /// # Errors
-    /// This function returns an error if the `code` field does not
-    /// contain a valid [`ErrorCode`].
-    pub fn code(&self) -> crate::Result<ErrorCode> {
-        ErrorCode::try_from(self.code)
-            .map_err(|_| Error::conversion::<ErrorCode>(format_args!("{:#04X}", self.code)))
+    fn raw_schema(&self) -> u16 {
+        self.schema
     }
 
-    /// Parses the error message into a `&str`.
-    ///
-    /// # Errors
-    /// This function returns an error if `err` contains invalid UTF-8.
-    pub fn err(&self) -> crate::Result<&str> {
+    fn raw_code(&self) -> u8 {
+        self.code
+    }
+
+    fn is_last(&self) -> u8 {
+        self.is_last
+    }
+
+    fn err(&self) -> Result<&str> {
         c_chars_to_str(&self.err)
     }
 }
@@ -634,32 +542,20 @@ impl SymbolMappingMsg {
     }
 }
 
-impl SystemMsg {
-    /// Parses the schema into an enum.
-    ///
-    /// # Errors
-    /// This function returns an error if the `schema` field does not
-    /// contain a valid [`Schema`].
-    pub fn schema(&self) -> crate::Result<Schema> {
-        Schema::try_from(self.schema)
-            .map_err(|_| Error::conversion::<Schema>(format_args!("{:#04X}", self.schema)))
+impl SystemRec for SystemMsg {
+    fn subscription_id(&self) -> u32 {
+        self.subscription_id
     }
 
-    /// Parses the type of system message into an enum.
-    ///
-    /// # Errors
-    /// This function returns an error if the `code` field does not
-    /// contain a valid [`SystemCode`].
-    pub fn code(&self) -> crate::Result<SystemCode> {
-        SystemCode::try_from(self.code)
-            .map_err(|_| Error::conversion::<SystemCode>(format_args!("{:#04X}", self.code)))
+    fn raw_schema(&self) -> u16 {
+        self.schema
     }
 
-    /// Parses the message from the Databento gateway into a `&str`.
-    ///
-    /// # Errors
-    /// This function returns an error if `msg` contains invalid UTF-8.
-    pub fn msg(&self) -> crate::Result<&str> {
+    fn raw_code(&self) -> u8 {
+        self.code
+    }
+
+    fn msg(&self) -> Result<&str> {
         c_chars_to_str(&self.msg)
     }
 }

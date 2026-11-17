@@ -177,18 +177,18 @@ impl<'a> TryFrom<RecordRef<'a>> for RecordRefEnum<'a> {
         Ok(unsafe {
             #[allow(deprecated)]
             match rec_ref.rtype()? {
-                RType::Mbo => RecordRefEnum::Mbo(rec_ref.get_unchecked()),
-                RType::Mbp0 => RecordRefEnum::Trade(rec_ref.get_unchecked()),
-                RType::Mbp1 | RType::Tbbo => RecordRefEnum::Mbp1(rec_ref.get_unchecked()),
-                RType::Bbo1S | RType::Bbo1M => RecordRefEnum::Bbo(rec_ref.get_unchecked()),
-                RType::Mbp10 => RecordRefEnum::Mbp10(rec_ref.get_unchecked()),
+                RType::Mbo => RecordRefEnum::Mbo(rec_ref.try_get()?),
+                RType::Mbp0 => RecordRefEnum::Trade(rec_ref.try_get()?),
+                RType::Mbp1 | RType::Tbbo => RecordRefEnum::Mbp1(rec_ref.try_get()?),
+                RType::Bbo1S | RType::Bbo1M => RecordRefEnum::Bbo(rec_ref.try_get()?),
+                RType::Mbp10 => RecordRefEnum::Mbp10(rec_ref.try_get()?),
                 RType::OhlcvDeprecated
                 | RType::Ohlcv1S
                 | RType::Ohlcv1M
                 | RType::Ohlcv1H
                 | RType::Ohlcv1D
-                | RType::OhlcvEod => RecordRefEnum::Ohlcv(rec_ref.get_unchecked()),
-                RType::Status => RecordRefEnum::Status(rec_ref.get_unchecked()),
+                | RType::OhlcvEod => RecordRefEnum::Ohlcv(rec_ref.try_get()?),
+                RType::Status => RecordRefEnum::Status(rec_ref.try_get()?),
                 RType::InstrumentDef => {
                     // can't convert V1 structs here because an immutable reference
                     if rec_ref.record_size() < std::mem::size_of::<InstrumentDefMsg>() {
@@ -198,7 +198,7 @@ impl<'a> TryFrom<RecordRef<'a>> for RecordRefEnum<'a> {
                     }
                     RecordRefEnum::InstrumentDef(rec_ref.get_unchecked())
                 }
-                RType::Imbalance => RecordRefEnum::Imbalance(rec_ref.get_unchecked()),
+                RType::Imbalance => RecordRefEnum::Imbalance(rec_ref.try_get()?),
                 RType::Statistics => {
                     if rec_ref.record_size() < std::mem::size_of::<StatMsg>() {
                         return Err(Error::conversion::<Self>(
@@ -234,8 +234,8 @@ impl<'a> TryFrom<RecordRef<'a>> for RecordRefEnum<'a> {
                     }
                     RecordRefEnum::System(rec_ref.get_unchecked())
                 }
-                RType::Cmbp1 | RType::Tcbbo => RecordRefEnum::Cmbp1(rec_ref.get_unchecked()),
-                RType::Cbbo1S | RType::Cbbo1M => RecordRefEnum::Cbbo(rec_ref.get_unchecked()),
+                RType::Cmbp1 | RType::Tcbbo => RecordRefEnum::Cmbp1(rec_ref.try_get()?),
+                RType::Cbbo1S | RType::Cbbo1M => RecordRefEnum::Cbbo(rec_ref.try_get()?),
             }
         })
     }
@@ -599,7 +599,7 @@ impl<'a> From<RecordRefEnum<'a>> for RecordRef<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{record::*, v1, v2, v3};
+    use crate::{record::*, rtype, v1, v2, v3};
 
     use super::*;
     use rstest::rstest;
@@ -653,5 +653,42 @@ mod tests {
         } else {
             assert!(res.is_ok());
         }
+    }
+
+    #[rstest]
+    fn test_short_record_safety(
+        #[values(
+            rtype::MBO,
+            rtype::MBP_0,
+            rtype::MBP_1,
+            rtype::TBBO,
+            rtype::BBO_1S,
+            rtype::BBO_1M,
+            rtype::MBP_10,
+            rtype::OHLCV_DEPRECATED,
+            rtype::OHLCV_1S,
+            rtype::OHLCV_1M,
+            rtype::OHLCV_1H,
+            rtype::OHLCV_1D,
+            rtype::OHLCV_EOD,
+            rtype::STATUS,
+            rtype::INSTRUMENT_DEF,
+            rtype::IMBALANCE,
+            rtype::STATISTICS,
+            rtype::ERROR,
+            rtype::SYMBOL_MAPPING,
+            rtype::SYSTEM,
+            rtype::CMBP_1,
+            rtype::TCBBO,
+            rtype::CBBO_1S,
+            rtype::CBBO_1M
+        )]
+        rtype: u8,
+    ) {
+        let mut hd = RecordHeader::new::<MboMsg>(rtype, 0, 0, 0);
+        hd.length = (std::mem::size_of::<RecordHeader>() / RecordHeader::LENGTH_MULTIPLIER) as u8;
+        // Safety: `hd` is an aligned `RecordHeader` and its `length` covers only itself
+        let rec_ref = unsafe { RecordRef::unchecked_from_header(&hd) };
+        assert!(rec_ref.as_enum().is_err());
     }
 }

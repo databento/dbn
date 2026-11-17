@@ -68,7 +68,9 @@
 //! ```
 //!
 //! # Feature flags
+//! - `arrow`: enables Arrow IPC encoding
 //! - `async`: enables async decoding and encoding
+//! - `parquet`: enables Parquet encoding
 //! - `python`: enables `pyo3` bindings
 //! - `serde`: enables deriving `serde` traits for types
 //! - `trivial_copy`: enables deriving the `Copy` trait for records
@@ -92,6 +94,11 @@ pub mod layout;
 pub mod macros;
 pub mod metadata;
 pub mod pretty;
+pub mod prelude {
+    //! The record traits, for glob importing.
+
+    pub use crate::record::{rec_traits::*, HasRType, Record, RecordMut};
+}
 pub mod publishers;
 #[cfg(feature = "python")]
 pub mod python;
@@ -108,6 +115,8 @@ pub mod v3;
 pub mod v4;
 
 #[doc(inline)]
+pub use crate::record::rec_traits::*;
+#[doc(inline)]
 pub use crate::{
     enums::{
         rtype, Action, Compression, Encoding, ErrorCode, InstrumentClass, MatchAlgorithm, RType,
@@ -117,7 +126,7 @@ pub use crate::{
     },
     error::{Error, Result},
     flags::FlagSet,
-    metadata::{MappingInterval, Metadata, MetadataBuilder, SymbolMapping},
+    metadata::{MappingInterval, Metadata, MetadataBuilder, SymbolInterval, SymbolMapping},
     publishers::{Dataset, Publisher, Venue},
     record::{
         Bbo1MMsg, Bbo1SMsg, BboMsg, BidAskPair, Cbbo1MMsg, Cbbo1SMsg, CbboMsg, Cmbp1Msg,

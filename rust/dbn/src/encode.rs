@@ -1,8 +1,9 @@
-//! Encoding DBN records to various formats: DBN binary, CSV, JSON, and Apache Parquet.
+//! Encoders for encoding DBN records to various formats: DBN binary, CSV, JSON, Apache
+//! Arrow, and Apache Parquet.
 //!
-//! Each format has a dedicated encoder ([`DbnEncoder`], [`CsvEncoder`],
-//! [`JsonEncoder`]). When the format is chosen at runtime, use [`DynEncoder`]
-//! with [`DynEncoderBuilder`].
+//! Each encoding has a dedicated encoder ([`DbnEncoder`], [`CsvEncoder`],
+//! [`JsonEncoder`], `ArrowEncoder`, and `ParquetEncoder`). When the encoding is
+//! chosen at runtime, use [`DynEncoder`] with [`DynEncoderBuilder`].
 //!
 //! Sync encoders implement the [`EncodeDbn`] trait. With the `async` feature flag,
 //! async variants are also available. Zstandard compression and the `Dyn` encoders and
@@ -73,7 +74,7 @@ pub use self::{
 };
 
 #[cfg(feature = "arrow")]
-pub use self::arrow::Encoder as ArrowEncoder;
+pub use self::arrow::{ColumnarEncoder, ColumnarEncoderBuilder, Encoder as ArrowEncoder};
 #[cfg(feature = "parquet")]
 pub use self::parquet::Encoder as ParquetEncoder;
 #[cfg(feature = "async")]

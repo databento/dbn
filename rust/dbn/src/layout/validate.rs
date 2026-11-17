@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use crate::{
-    layout::{compare, FieldDef, StreamLayout, StructLayout, Verdict},
+    layout::{compare, FieldDef, StreamLayout, StructLayout},
     v4::{
         fields::{self, FieldType},
         types::Decimal,
@@ -30,7 +30,6 @@ pub(crate) fn validate(layout: &StreamLayout, symbol_cstr_len: u16) -> crate::Re
             sd.size,
             false,
             layout,
-            symbol_cstr_len,
         )?;
     }
     let header_size = std::mem::size_of::<RecordHeader>() as u16;
@@ -66,13 +65,25 @@ pub(crate) fn validate(layout: &StreamLayout, symbol_cstr_len: u16) -> crate::Re
             rec.base_record_size,
             true,
             layout,
-            symbol_cstr_len,
         )?;
         for &(f, name) in crate::v4::layouts::required_fields(rec.rtype) {
-            if !rec.has_field(f) {
+            let Some(def) = rec
+                .field_defs
+                .iter()
+                .find(|def| def.field_id == f.id() && def.type_id == f.type_id())
+            else {
                 return Err(err(
                     &rec.name,
                     &format!("missing required field `{name}` ({:#06X})", f.id()),
+                ));
+            };
+            if def.size != symbol_cstr_len {
+                return Err(err(
+                    &rec.name,
+                    &format!(
+                        "required field `{name}` size {} differs from the stream's symbol width {symbol_cstr_len}",
+                        def.size
+                    ),
                 ));
             }
         }
@@ -91,7 +102,6 @@ fn check_fields(
     base: u16,
     is_record: bool,
     layout: &StreamLayout,
-    symbol_cstr_len: u16,
 ) -> crate::Result<()> {
     if defs.len() != names.len() {
         return Err(err(
@@ -128,15 +138,6 @@ fn check_fields(
                 &format!(
                     "field {} scale {} is unsupported, only -9 is currently supported",
                     f.field_id, f.scale
-                ),
-            ));
-        }
-        if f.type_id == fields::SYMBOL_ID && f.size != symbol_cstr_len {
-            return Err(err(
-                ctx,
-                &format!(
-                    "symbol field {} size {} differs from the stream's symbol width {symbol_cstr_len}",
-                    f.field_id, f.size
                 ),
             ));
         }
@@ -299,9 +300,7 @@ pub(crate) fn check_compiled_rtypes(layout: &StreamLayout) -> crate::Result<()> 
         let Some(compiled_rec) = compiled.record_layout(rec.rtype) else {
             continue;
         };
-        if rec.base_record_size >= compiled_rec.base_record_size
-            && compare::verdict(layout, rec, compiled) == Verdict::Dynamic
-        {
+        if compare::is_repacked(layout, rec, compiled, compiled_rec) {
             return Err(err(
                 &rec.name,
                 &format!(
@@ -404,6 +403,15 @@ mod tests {
         sb.build().unwrap()
     }
 
+    fn repacked_smaller_trades_layout() -> StreamLayout {
+        let mut sb = StreamLayoutBuilder::new(1, SYMBOL_WIDTH);
+        let mut r = sb.record(rtype::MBP_0, Schema::Trades as u16, TradeMsg::NAME);
+        r.field(fields::PRICE, "price")
+            .field(Field::<Decimal>::new(fields::SIZE.id()), "size");
+        r.finish();
+        sb.build().unwrap()
+    }
+
     fn grown_trades_layout() -> StreamLayout {
         let mut sb = StreamLayoutBuilder::new(1, SYMBOL_WIDTH);
         let mut r = sb.layout_of::<TradeMsg>(rtype::MBP_0);
@@ -435,6 +443,7 @@ mod tests {
 
     #[rstest]
     #[case::repacked(repacked_trades_layout(), false)]
+    #[case::repacked_smaller(repacked_smaller_trades_layout(), false)]
     #[case::grown_base(grown_trades_layout(), true)]
     #[case::older_base(older_trades_layout(), true)]
     #[case::custom_rtype(custom_rtype_layout(), true)]

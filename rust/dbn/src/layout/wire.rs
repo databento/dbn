@@ -17,9 +17,9 @@ const _: () = assert!(FIELD_DEF_LEN == std::mem::size_of::<FieldDef>());
 /// Serializes `layout` onto the end of `out`.
 ///
 /// # Errors
-/// Returns [`Error::Layout`] if a name exceeds 255 bytes, a count exceeds `u16::MAX`,
-/// a section exceeds `u16::MAX` bytes, or a field-def and field-name list disagree in
-/// length.
+/// Returns [`Error::Layout`] if a count exceeds `u16::MAX`, a section exceeds
+/// `u16::MAX` bytes, or a field-def and field-name list disagree in length, and
+/// [`Error::Encode`] if a name exceeds 255 bytes.
 pub fn encode(out: &mut Vec<u8>, layout: &StreamLayout) -> crate::Result<()> {
     out.extend_from_slice(&layout.stream_layout_version.to_le_bytes());
     encode_count(out, "record layouts", layout.record_layouts.len())?;
@@ -80,8 +80,9 @@ pub(crate) fn encoded_len(layout: &StreamLayout) -> usize {
 ///
 /// # Errors
 /// Returns [`Error::Layout`] on a malformed table: a length or count running past its
-/// enclosing section, a name that isn't NUL-terminated UTF-8, a duplicate label code,
-/// a repacked base under a compiled record's rtype, or any other validation error.
+/// enclosing section, a duplicate label code, a repacked base under a compiled record's
+/// rtype, or any other validation error. Returns [`Error::Decode`] on truncated input or
+/// a name that isn't NUL-terminated UTF-8.
 pub fn decode(bytes: &[u8], symbol_cstr_len: u16) -> crate::Result<StreamLayout> {
     let mut cur = ByteReader::new(bytes);
     let stream_layout_version = cur.u16("stream layout")?;
@@ -140,7 +141,7 @@ fn decode_record_layout(cur: &mut ByteReader<'_>) -> crate::Result<RecordLayout>
     let schema = sec.u16(CTX)?;
     let base_record_size = sec.u16(CTX)?;
     let layout_hash = sec.u64(CTX)?;
-    let name = sec.name(CTX)?;
+    let name = sec.str(CTX)?;
     let (field_defs, field_names) = decode_fields(&mut sec, CTX)?;
     Ok(RecordLayout {
         rtype,
@@ -165,7 +166,7 @@ fn decode_struct_layout(cur: &mut ByteReader<'_>) -> crate::Result<StructLayout>
     const CTX: &str = "struct layout";
     let mut sec = cur.section(CTX)?;
     let struct_size = sec.u16(CTX)?;
-    let name = sec.name(CTX)?;
+    let name = sec.str(CTX)?;
     let (fields, field_names) = decode_fields(&mut sec, CTX)?;
     Ok(StructLayout {
         size: struct_size,
@@ -190,11 +191,11 @@ fn encode_label_def(out: &mut Vec<u8>, ld: &LabelDef) -> crate::Result<()> {
 fn decode_label_def(cur: &mut ByteReader<'_>) -> crate::Result<LabelDef> {
     const CTX: &str = "label def";
     let mut sec = cur.section(CTX)?;
-    let name = sec.name(CTX)?;
+    let name = sec.str(CTX)?;
     let mut labels = BTreeMap::new();
     for _ in 0..sec.u16(CTX)? {
         let code = sec.u16(CTX)?;
-        if labels.insert(code, sec.name(CTX)?).is_some() {
+        if labels.insert(code, sec.str(CTX)?).is_some() {
             return Err(Error::layout(format!(
                 "label def `{name}`: duplicate label code {code}"
             )));
@@ -260,7 +261,7 @@ fn decode_fields(
     }
     let mut names = Vec::new();
     for _ in 0..count {
-        names.push(cur.name(ctx)?);
+        names.push(cur.str(ctx)?);
     }
     Ok((defs, names))
 }
@@ -279,21 +280,24 @@ fn section(
     Ok(())
 }
 
-fn encode_str(out: &mut Vec<u8>, ctx: &str, s: &str) -> crate::Result<()> {
+/// Appends `s` as a length-prefixed string: a `u8` byte length, the UTF-8 bytes, and a
+/// NUL the length doesn't count.
+pub(crate) fn encode_str(out: &mut Vec<u8>, ctx: &str, s: &str) -> crate::Result<()> {
     let len = u8::try_from(s.len())
-        .map_err(|_| Error::layout(format!("{ctx}: name `{s}` exceeds {} bytes", u8::MAX)))?;
+        .map_err(|_| Error::encode(format!("{ctx}: `{s}` exceeds {} bytes", u8::MAX)))?;
     out.push(len);
     out.extend_from_slice(s.as_bytes());
     out.push(0);
     Ok(())
 }
 
-fn str_len(s: &str) -> usize {
+/// The encoded length of `s` as a length-prefixed string.
+pub(crate) fn str_len(s: &str) -> usize {
     let (len_byte, nul) = (1, 1);
     len_byte + s.len() + nul
 }
 
-fn strs_len(strs: &[String]) -> usize {
+pub(crate) fn strs_len(strs: &[String]) -> usize {
     strs.iter().map(|s| str_len(s)).sum()
 }
 
@@ -350,21 +354,22 @@ impl<'a> ByteReader<'a> {
         Ok(u64::from_le_bytes(bytes))
     }
 
-    fn name(&mut self, ctx: &str) -> crate::Result<String> {
+    /// Reads a length-prefixed string written by [`encode_str`].
+    pub fn str(&mut self, ctx: &str) -> crate::Result<String> {
         let len = self.u8(ctx)? as usize;
         let bytes = self.take(ctx, len)?;
         if bytes.contains(&0) {
-            return Err(Error::layout(format!("{ctx}: name contains a NUL byte")));
+            return Err(Error::decode(format!("{ctx}: string contains a NUL byte")));
         }
-        let name = std::str::from_utf8(bytes)
-            .map_err(|_| Error::layout(format!("{ctx}: name is not UTF-8")))?
+        let s = std::str::from_utf8(bytes)
+            .map_err(|_| Error::decode(format!("{ctx}: string is not UTF-8")))?
             .to_owned();
         if self.u8(ctx)? != 0 {
-            return Err(Error::layout(format!(
-                "{ctx}: name `{name}` is not NUL-terminated"
+            return Err(Error::decode(format!(
+                "{ctx}: string `{s}` is not NUL-terminated"
             )));
         }
-        Ok(name)
+        Ok(s)
     }
 
     fn section(&mut self, ctx: &str) -> crate::Result<Self> {
@@ -568,6 +573,20 @@ mod tests {
         let mut buf = Vec::new();
         encode(&mut buf, &layout).unwrap();
         assert!(decode(&buf, SYM_LEN).is_err());
+    }
+
+    #[rstest::rstest]
+    #[case::empty("")]
+    #[case::ascii("SPY   260116C00500000")]
+    #[case::multibyte("ÄÖÜ")]
+    #[case::max_len(&"x".repeat(255))]
+    fn a_str_round_trips(#[case] s: &str) {
+        let mut buf = Vec::new();
+        encode_str(&mut buf, "test", s).unwrap();
+        assert_eq!(buf.len(), str_len(s));
+        let mut cur = ByteReader::new(&buf);
+        assert_eq!(cur.str("test").unwrap(), s);
+        assert!(cur.remaining().is_empty());
     }
 
     #[test]

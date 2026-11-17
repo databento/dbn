@@ -6,20 +6,23 @@ use crate::{
         self,
         fields::{self, FieldDefault, FieldType},
     },
-    Schema,
+    RType, Schema,
 };
 
-pub(crate) fn upgrade_layout(ts_out: bool) -> StreamLayout {
+pub(crate) fn upgrade_layout(ts_out: bool, schema: Option<Schema>) -> StreamLayout {
     let v3 = pre_v4::stream_layout(3, false);
-    v4::layouts::compiled_layout(|rtype, r| {
-        r.finish_base();
-        for (f, name) in v3_only_fields(&v3.record_layouts, rtype) {
-            r.copy_field(f, name, &v3.label_defs);
-        }
-        if ts_out {
-            r.field(fields::TS_OUT, "ts_out");
-        }
-    })
+    v4::layouts::compiled_layout(
+        |rtype| schema.is_none_or(|schema| RType::try_into_schema(rtype) == Some(schema)),
+        |rtype, r| {
+            r.finish_base();
+            for (f, name) in v3_only_fields(&v3.record_layouts, rtype) {
+                r.copy_field(f, name, &v3.label_defs);
+            }
+            if ts_out {
+                r.field(fields::TS_OUT, "ts_out");
+            }
+        },
+    )
 }
 
 fn v3_only_fields(v3: &[RecordLayout], rtype: u16) -> Vec<(&FieldDef, &str)> {
@@ -244,8 +247,7 @@ fn op_for(have: &FieldDef, want: &FieldDef) -> Option<Op> {
     if have.scale != want.scale || have.is_array() || want.is_array() {
         return None;
     }
-    let is_str = |type_id| matches!(type_id, fields::CSTR_ID | fields::SYMBOL_ID);
-    if is_str(have.type_id) && is_str(want.type_id) {
+    if have.type_id == fields::CSTR_ID && want.type_id == fields::CSTR_ID {
         return (have.size <= want.size).then_some(Op::Copy {
             src_offset: have.offset,
             dst_offset: want.offset,
@@ -516,7 +518,7 @@ mod tests {
     fn a_symbol_widens_with_nulls() {
         let src = record_of(|r| {
             r.str_field(
-                fields::RAW_SYMBOL_V1,
+                fields::RAW_SYMBOL,
                 "raw_symbol",
                 crate::compat::SYMBOL_CSTR_LEN_V1 as u16,
             );
@@ -585,7 +587,7 @@ mod tests {
 
     #[test]
     fn upgraded_records_fit_a_record_buf() {
-        for rec in &upgrade_layout(true).record_layouts {
+        for rec in &upgrade_layout(true, None).record_layouts {
             assert!(usize::from(rec.record_size()) <= crate::MAX_RECORD_LEN);
         }
     }
@@ -614,7 +616,7 @@ mod tests {
 
     #[test]
     fn the_upgrade_layout_only_adds_extensions() {
-        let upgraded = upgrade_layout(false);
+        let upgraded = upgrade_layout(false, None);
         let default = v4::layouts::default_layout();
         assert_eq!(upgraded.struct_layouts, default.struct_layouts);
         assert_eq!(upgraded.record_layouts.len(), default.record_layouts.len());
@@ -645,7 +647,7 @@ mod tests {
 
     #[test]
     fn the_upgrade_layout_labels_v3_only_fields() {
-        let upgraded = upgrade_layout(false);
+        let upgraded = upgrade_layout(false, None);
         let index = LayoutIndex::new(&upgraded, v4::layouts::default_layout());
         let field = index
             .field_by_name(rtype::INSTRUMENT_DEF, "user_defined_instrument")

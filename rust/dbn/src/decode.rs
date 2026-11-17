@@ -64,7 +64,8 @@ pub mod zstd;
 
 // Re-exports
 pub use self::dbn::{
-    Decoder as DbnDecoder, MetadataDecoder as DbnMetadataDecoder, RecordDecoder as DbnRecordDecoder,
+    fsm::DecodeHeader, Decoder as DbnDecoder, MetadataDecoder as DbnMetadataDecoder,
+    RecordDecoder as DbnRecordDecoder,
 };
 #[cfg(feature = "zstd")]
 #[doc(inline)]

@@ -301,6 +301,7 @@ impl MetadataDecoder {
             partial,
             not_found,
             mappings,
+            intervals: Vec::new(),
             symbol_cstr_len: crate::compat::SYMBOL_CSTR_LEN_V1,
             layout: None,
         })

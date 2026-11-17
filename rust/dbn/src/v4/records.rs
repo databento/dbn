@@ -4,6 +4,7 @@ use std::os::raw::c_char;
 
 use crate::{
     macros::{dbn_record, DbnAttr},
+    prelude::*,
     BidAskPair, ConsolidatedBidAskPair, FlagSet,
 };
 

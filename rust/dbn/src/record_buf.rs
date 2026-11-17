@@ -450,6 +450,13 @@ impl<const CAP: usize> Record for RecordBuf<CAP, crate::v4::RecordHeader> {
     }
 }
 
+impl<const CAP: usize> RecordMut for RecordBuf<CAP, crate::v4::RecordHeader> {
+    fn header_mut(&mut self) -> &mut crate::v4::RecordHeader {
+        // SAFETY: same as `header()`.
+        unsafe { &mut self.0.hd }
+    }
+}
+
 impl<const CAP: usize, H: RecordHeaderKind> AsRef<[u8]> for RecordBuf<CAP, H> {
     fn as_ref(&self) -> &[u8] {
         // SAFETY: `buf` is always fully initialized (every constructor writes all bytes).

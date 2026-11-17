@@ -1,7 +1,7 @@
 # databento-dbn
 
 [![build](https://github.com/databento/dbn/actions/workflows/build.yaml/badge.svg)](https://github.com/databento/dbn/actions/workflows/build.yaml)
-![python](https://img.shields.io/badge/python-3.10+-blue.svg)
+![python](https://img.shields.io/badge/python-3.11+-blue.svg)
 ![license](https://img.shields.io/github/license/databento/dbn?color=blue)
 [![pypi-version](https://img.shields.io/pypi/v/databento_dbn)](https://pypi.org/project/databento-dbn)
 
@@ -44,6 +44,12 @@ Alternatively, [uv](https://docs.astral.sh/uv/) can manage the development envir
 cd python
 uv sync                 # create .venv with maturin and build databento-dbn into it
 uv run maturin develop  # rebuild after editing the Rust sources
+```
+
+To build for a specific interpreter, such as the free-threaded build of Python 3.15, pass it
+explicitly:
+```sh
+maturin build --interpreter python3.15t
 ```
 
 ## License

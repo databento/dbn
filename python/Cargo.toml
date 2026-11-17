@@ -13,10 +13,14 @@ repository.workspace = true
 name = "databento_dbn" # Python modules can't contain dashes
 
 [dependencies]
-dbn = { path = "../rust/dbn", features = ["python"] }
+dbn = { path = "../rust/dbn", features = ["parquet", "python"] }
 pyo3.workspace = true
+sync_wrapper.workspace = true
 time.workspace = true
 zstd.workspace = true
 
 [dev-dependencies]
+arrow = { workspace = true, features = ["ipc"] }
+bytes = "1"
+parquet = { workspace = true, features = ["arrow"] }
 rstest.workspace = true

@@ -4,7 +4,8 @@ use std::io;
 
 use crate::{
     record::{HasRType, Record},
-    v4, Error, Metadata, Result,
+    v4::{self, framing::RecordGroupHeaderMsg},
+    Error, Metadata, Result, SymbolInterval,
 };
 
 /// Encodes a DBN version 4 stream.
@@ -78,6 +79,24 @@ where
         self.layout_check.check_refs(records)?;
         self.record_encoder.encode_refs(records)
     }
+
+    /// Encodes the header of a record group whose first record has the index timestamp
+    /// `start_ts`, expressed as the number of nanoseconds since the UNIX epoch.
+    /// `intervals` are the symbol intervals the group adds to those of the metadata and
+    /// earlier groups.
+    ///
+    /// # Errors
+    /// This function returns an error if `intervals` exceed the size a record group
+    /// header can describe, if a symbol is longer than 255 bytes, or if it fails to
+    /// write to the underlying writer.
+    pub fn encode_record_group_header(
+        &mut self,
+        start_ts: u64,
+        intervals: &[SymbolInterval],
+    ) -> Result<()> {
+        self.record_encoder
+            .encode_record_group_header(start_ts, intervals)
+    }
 }
 
 /// Encodes DBN version 4 records, without metadata.
@@ -137,6 +156,57 @@ where
     pub fn encode_refs(&mut self, records: &[v4::RecordRef]) -> Result<()> {
         super::write_records(&mut self.writer, records)
             .map_err(|e| Error::io(e, format!("failed to encode {} RecordRefs", records.len())))
+    }
+
+    /// Encodes the header of a record group whose first record has the index timestamp
+    /// `start_ts`, expressed as the number of nanoseconds since the UNIX epoch.
+    /// `intervals` are the symbol intervals the group adds to those of earlier groups.
+    ///
+    /// # Errors
+    /// This function returns an error if `intervals` exceed the size a record group
+    /// header can describe, if a symbol is longer than 255 bytes, or if it fails to
+    /// write to the underlying writer.
+    pub fn encode_record_group_header(
+        &mut self,
+        start_ts: u64,
+        intervals: &[SymbolInterval],
+    ) -> Result<()> {
+        let intervals_len = intervals
+            .iter()
+            .map(super::symbol_interval_len)
+            .sum::<usize>();
+        let padding = intervals_len.next_multiple_of(8) - intervals_len;
+        let too_large = || {
+            Error::encode(format!(
+                "{} symbol intervals of {intervals_len} bytes exceed a record group header's limits",
+                intervals.len()
+            ))
+        };
+        let msg = RecordGroupHeaderMsg {
+            length: (size_of::<RecordGroupHeaderMsg>() - size_of::<v4::RecordHeader>()) as u16,
+            rtype: RecordGroupHeaderMsg::RTYPE,
+            trailer_length: u32::try_from(intervals_len + padding).map_err(|_| too_large())?,
+            stream_layout_hash: 0,
+            start_ts,
+            stream_layout_length: 0,
+            interval_count: u32::try_from(intervals.len()).map_err(|_| too_large())?,
+        };
+        let mut fixed = Vec::with_capacity(size_of::<RecordGroupHeaderMsg>());
+        fixed.extend_from_slice(&msg.length.to_le_bytes());
+        fixed.extend_from_slice(&msg.rtype.to_le_bytes());
+        fixed.extend_from_slice(&msg.trailer_length.to_le_bytes());
+        fixed.extend_from_slice(&msg.stream_layout_hash.to_le_bytes());
+        fixed.extend_from_slice(&msg.start_ts.to_le_bytes());
+        fixed.extend_from_slice(&msg.stream_layout_length.to_le_bytes());
+        fixed.extend_from_slice(&msg.interval_count.to_le_bytes());
+        let write = |writer: &mut W, bytes: &[u8]| {
+            writer
+                .write_all(bytes)
+                .map_err(|e| Error::io(e, "writing record group header"))
+        };
+        write(&mut self.writer, &fixed)?;
+        super::encode_symbol_intervals(&mut self.writer, intervals)?;
+        write(&mut self.writer, &[0; 8][..padding])
     }
 }
 
@@ -345,6 +415,31 @@ where
         self.record_encoder.encode_refs(records).await
     }
 
+    /// Encodes the header of a record group whose first record has the index timestamp
+    /// `start_ts`, expressed as the number of nanoseconds since the UNIX epoch.
+    /// `intervals` are the symbol intervals the group adds to those of the metadata and
+    /// earlier groups.
+    ///
+    /// # Errors
+    /// This function returns an error if `intervals` exceed the size a record group
+    /// header can describe, if a symbol is longer than 255 bytes, or if it fails to
+    /// write to the underlying writer.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If this method is used in a
+    /// `tokio::select!` statement and another branch completes first, then the
+    /// record group header may have been partially written, but future calls will
+    /// begin writing the encoded header from the beginning.
+    pub async fn encode_record_group_header(
+        &mut self,
+        start_ts: u64,
+        intervals: &[SymbolInterval],
+    ) -> Result<()> {
+        self.record_encoder
+            .encode_record_group_header(start_ts, intervals)
+            .await
+    }
+
     /// Flushes any buffered content to the true output.
     ///
     /// # Errors
@@ -456,6 +551,33 @@ where
         super::write_records_async(&mut self.writer, records)
             .await
             .map_err(|e| Error::io(e, format!("failed to encode {} RecordRefs", records.len())))
+    }
+
+    /// Encodes the header of a record group whose first record has the index timestamp
+    /// `start_ts`, expressed as the number of nanoseconds since the UNIX epoch.
+    /// `intervals` are the symbol intervals the group adds to those of earlier groups.
+    ///
+    /// # Errors
+    /// This function returns an error if `intervals` exceed the size a record group
+    /// header can describe, if a symbol is longer than 255 bytes, or if it fails to
+    /// write to the underlying writer.
+    ///
+    /// # Cancel safety
+    /// This method is not cancellation safe. If this method is used in a
+    /// `tokio::select!` statement and another branch completes first, then the
+    /// record group header may have been partially written, but future calls will
+    /// begin writing the encoded header from the beginning.
+    pub async fn encode_record_group_header(
+        &mut self,
+        start_ts: u64,
+        intervals: &[SymbolInterval],
+    ) -> Result<()> {
+        let mut buf = Vec::new();
+        RecordEncoder::new(&mut buf).encode_record_group_header(start_ts, intervals)?;
+        self.writer
+            .write_all(&buf)
+            .await
+            .map_err(|e| Error::io(e, "writing record group header"))
     }
 
     /// Flushes any buffered content to the true output.
@@ -708,9 +830,19 @@ mod tests {
         let mbo = mbo();
         let trade = trade();
         let refs = [v4::RecordRef::from(&trade), v4::RecordRef::from(&mbo)];
+        let intervals = [SymbolInterval {
+            start_ts: TS_EVENT,
+            end_ts: TS_EVENT + 86_400_000_000_000,
+            instrument_id: 42_000,
+            stype_in_symbol: "ESZ3".to_owned(),
+            stype_out_symbol: "42000".to_owned(),
+        }];
 
         let mut sync_encoder = Encoder::new(Vec::new(), &metadata).unwrap();
         sync_encoder.encode(&mbo).unwrap();
+        sync_encoder
+            .encode_record_group_header(TS_EVENT, &intervals)
+            .unwrap();
         sync_encoder
             .encode_ref(v4::RecordRef::from(&trade))
             .unwrap();
@@ -718,6 +850,10 @@ mod tests {
 
         let mut async_encoder = AsyncEncoder::new(Vec::new(), &metadata).await.unwrap();
         async_encoder.encode(&mbo).await.unwrap();
+        async_encoder
+            .encode_record_group_header(TS_EVENT, &intervals)
+            .await
+            .unwrap();
         async_encoder
             .encode_ref(v4::RecordRef::from(&trade))
             .await
