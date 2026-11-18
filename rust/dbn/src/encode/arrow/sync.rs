@@ -47,6 +47,7 @@ pub struct EncoderBuilder<B: ColumnarWriter> {
     with_symbol: bool,
     compression: Compression,
     metadata: HashMap<String, String>,
+    extra_metadata: HashMap<String, String>,
     schema: Option<Schema>,
     ts_out: bool,
     version: u8,
@@ -63,6 +64,7 @@ impl<B: ColumnarWriter> EncoderBuilder<B> {
             with_symbol: false,
             compression: Compression::None,
             metadata: HashMap::new(),
+            extra_metadata: HashMap::new(),
             schema: None,
             ts_out: false,
             version: DBN_VERSION,
@@ -120,6 +122,15 @@ impl<B: ColumnarWriter> EncoderBuilder<B> {
         self
     }
 
+    /// Sets additional key-value pairs to embed in the output file's schema metadata
+    /// alongside the DBN metadata. Defaults to none.
+    ///
+    /// [`build()`](Self::build) returns an error if any key is `databento:metadata`.
+    pub fn extra_metadata(mut self, extra_metadata: HashMap<String, String>) -> Self {
+        self.extra_metadata = extra_metadata;
+        self
+    }
+
     /// Sets the DBN schema, which determines the record type and columns. Required.
     pub fn schema(mut self, schema: Schema) -> Self {
         self.schema = Some(schema);
@@ -143,14 +154,22 @@ impl<B: ColumnarWriter> EncoderBuilder<B> {
     /// Builds the encoder and writes the file header.
     ///
     /// # Errors
-    /// This function returns an error if no schema was set or if it fails to write
-    /// to the underlying writer.
+    /// This function returns an error if no schema was set, if an
+    /// [`extra_metadata()`](Self::extra_metadata) key is `databento:metadata`, or if
+    /// it fails to write to the underlying writer.
     pub fn build(self) -> Result<Encoder<B>> {
         let Some(schema) = self.schema else {
             return Err(Error::encode(
                 "can't encode columnar format with mixed schemas; a single schema is required",
             ));
         };
+        if self.extra_metadata.contains_key(METADATA_KEY) {
+            return Err(Error::encode(format!(
+                "key '{METADATA_KEY}' is reserved for the DBN metadata"
+            )));
+        }
+        let mut metadata = self.metadata;
+        metadata.extend(self.extra_metadata);
         let batch_size = self.batch_size.get();
         let (mut fields, rows) = schema_dispatch!(
             schema,
@@ -162,7 +181,7 @@ impl<B: ColumnarWriter> EncoderBuilder<B> {
             fields.push(Field::new("symbol", DataType::Utf8, true));
             StringBuilder::with_capacity(batch_size, 0)
         });
-        let schema = Arc::new(ArrowSchema::new_with_metadata(fields, self.metadata));
+        let schema = Arc::new(ArrowSchema::new_with_metadata(fields, metadata));
         let writer = B::open(self.writer, schema.clone(), self.compression)?;
         Ok(Encoder {
             writer,

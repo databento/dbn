@@ -47,6 +47,7 @@ impl Transcoder {
         schema = None,
         input_version = None,
         upgrade_policy = VersionUpgradePolicy::default(),
+        extra_columnar_metadata = None,
     ))]
     fn new(
         file: PyFileLike,
@@ -61,6 +62,7 @@ impl Transcoder {
         schema: Option<Schema>,
         input_version: Option<u8>,
         upgrade_policy: VersionUpgradePolicy,
+        extra_columnar_metadata: Option<HashMap<String, String>>,
     ) -> PyResult<Self> {
         let symbol_map = if let Some(symbol_interval_map) = symbol_interval_map {
             let mut symbol_map = TsSymbolMap::new();
@@ -136,6 +138,7 @@ impl Transcoder {
                 schema,
                 input_version,
                 upgrade_policy,
+                extra_columnar_metadata.unwrap_or_default(),
             )?),
         })))
     }
@@ -439,6 +442,7 @@ struct ColumnarInner {
     map_symbols: bool,
     symbol_map: SymbolMap,
     schema: Option<Schema>,
+    extra_columnar_metadata: HashMap<String, String>,
 }
 
 enum ColumnarState {
@@ -500,6 +504,7 @@ impl ColumnarInner {
         schema: Option<Schema>,
         input_version: Option<u8>,
         upgrade_policy: VersionUpgradePolicy,
+        extra_columnar_metadata: HashMap<String, String>,
     ) -> PyResult<Self> {
         if !has_metadata {
             return Err(PyValueError::new_err(
@@ -521,6 +526,7 @@ impl ColumnarInner {
             map_symbols: map_symbols.unwrap_or(true),
             symbol_map: symbol_map.map(SymbolMap::Historical).unwrap_or_default(),
             schema,
+            extra_columnar_metadata,
         })
     }
 
@@ -557,6 +563,7 @@ impl ColumnarInner {
         let encoder = DynEncoder::builder(writer, self.encoding, self.compression, &metadata)
             .use_pretty_px(self.use_pretty_px)
             .with_symbol(self.map_symbols)
+            .extra_columnar_metadata(mem::take(&mut self.extra_columnar_metadata))
             .build()
             .map_err(to_py_err)?;
         self.state = ColumnarState::Encoding {
@@ -697,6 +704,7 @@ mod tests {
                 None,
                 Some(DBN_VERSION),
                 VersionUpgradePolicy::default(),
+                None,
             )
             .unwrap()
         });
@@ -755,6 +763,7 @@ mod tests {
                 None,
                 Some(DBN_VERSION),
                 VersionUpgradePolicy::default(),
+                None,
             )
             .unwrap()
         });
@@ -824,6 +833,7 @@ mod tests {
                 None,
                 Some(DBN_VERSION),
                 VersionUpgradePolicy::default(),
+                None,
             )
             .unwrap()
         });
@@ -895,6 +905,7 @@ mod tests {
                 None,
                 None,
                 VersionUpgradePolicy::default(),
+                None,
             )
             .unwrap()
         });
@@ -1022,6 +1033,7 @@ mod tests {
                 Some(Schema::Ohlcv1S),
                 None,
                 VersionUpgradePolicy::default(),
+                None,
             )
             .unwrap()
         });
@@ -1153,6 +1165,7 @@ mod tests {
                 Some(schema),
                 None,
                 VersionUpgradePolicy::default(),
+                None,
             )
             .unwrap()
         });
@@ -1195,6 +1208,7 @@ mod tests {
                 Some(Schema::Definition),
                 Some(3),
                 VersionUpgradePolicy::default(),
+                None,
             )
             .unwrap()
         });
@@ -1234,6 +1248,7 @@ mod tests {
                 None,
                 None,
                 VersionUpgradePolicy::default(),
+                None,
             )
             .unwrap()
         });
@@ -1288,6 +1303,7 @@ mod tests {
                 None,
                 None,
                 VersionUpgradePolicy::default(),
+                None,
             )
             .unwrap()
         });
@@ -1321,12 +1337,76 @@ mod tests {
                 Some(Schema::Ohlcv1S),
                 Some(DBN_VERSION),
                 VersionUpgradePolicy::default(),
+                None,
             )
             .err()
             .unwrap();
             assert!(err.is_instance_of::<PyValueError>(py));
             assert!(err.to_string().contains("has_metadata=False"));
         });
+    }
+
+    #[rstest]
+    fn test_extra_columnar_metadata(_python: (), #[values("arrow", "parquet")] name: &str) {
+        let file = MockPyFile::new();
+        let output_buf = file.inner();
+        let mut transcoder = Python::attach(|py| {
+            Transcoder::new(
+                Py::new(py, file).unwrap().extract(py).unwrap(),
+                EncodingArg::Columnar(name.to_owned()),
+                Compression::None,
+                true,
+                true,
+                None,
+                true,
+                false,
+                None,
+                None,
+                None,
+                VersionUpgradePolicy::default(),
+                Some(HashMap::from([(
+                    "pandas".to_owned(),
+                    "{\"index_columns\":[\"ts_event\"]}".to_owned(),
+                )])),
+            )
+            .unwrap()
+        });
+        Python::attach(|py| transcoder.write(py, &ohlcv_dbn(false))).unwrap();
+        Python::attach(|py| transcoder.finish(py)).unwrap();
+        let output = output_buf.lock().unwrap().get_ref().clone();
+        let (metadata, _) = read_file(name, output).unwrap();
+        assert_eq!(metadata["pandas"], "{\"index_columns\":[\"ts_event\"]}");
+        assert!(metadata["databento:metadata"].contains("\"dataset\":\"XNAS.ITCH\""));
+    }
+
+    #[rstest]
+    fn test_extra_columnar_metadata_ignored_by_other_encodings(
+        _python: (),
+        #[values(Encoding::Dbn, Encoding::Csv, Encoding::Json)] encoding: Encoding,
+    ) {
+        let file = MockPyFile::new();
+        let output_buf = file.inner();
+        let mut transcoder = Python::attach(|py| {
+            Transcoder::new(
+                Py::new(py, file).unwrap().extract(py).unwrap(),
+                EncodingArg::Encoding(encoding),
+                Compression::None,
+                true,
+                true,
+                Some(false),
+                true,
+                false,
+                None,
+                None,
+                None,
+                VersionUpgradePolicy::default(),
+                Some(HashMap::from([("pandas".to_owned(), "{}".to_owned())])),
+            )
+            .unwrap()
+        });
+        Python::attach(|py| transcoder.write(py, &ohlcv_dbn(false))).unwrap();
+        Python::attach(|py| transcoder.finish(py)).unwrap();
+        assert!(!output_buf.lock().unwrap().get_ref().is_empty());
     }
 
     #[rstest]
@@ -1345,6 +1425,7 @@ mod tests {
                 None,
                 None,
                 VersionUpgradePolicy::default(),
+                None,
             )
             .err()
             .unwrap();

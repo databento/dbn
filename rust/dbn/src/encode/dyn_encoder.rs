@@ -1,3 +1,5 @@
+#[cfg(feature = "arrow")]
+use std::collections::HashMap;
 use std::io;
 
 use fallible_streaming_iterator::FallibleStreamingIterator;
@@ -50,6 +52,8 @@ where
     use_pretty_ts: bool,
     with_symbol: bool,
     delimiter: u8,
+    #[cfg(feature = "arrow")]
+    extra_columnar_metadata: HashMap<String, String>,
 }
 
 impl<'m, W> DynEncoderBuilder<'m, W>
@@ -75,6 +79,8 @@ where
             use_pretty_ts: false,
             with_symbol: false,
             delimiter: b',',
+            #[cfg(feature = "arrow")]
+            extra_columnar_metadata: HashMap::new(),
         }
     }
 
@@ -142,6 +148,19 @@ where
         self
     }
 
+    /// Sets additional key-value pairs to embed in the schema metadata of Parquet and
+    /// Arrow output. Ignored by other encodings. Defaults to none.
+    ///
+    /// [`build()`](Self::build) returns an error if any key is `databento:metadata`.
+    #[cfg(feature = "arrow")]
+    pub fn extra_columnar_metadata(
+        mut self,
+        extra_columnar_metadata: HashMap<String, String>,
+    ) -> Self {
+        self.extra_columnar_metadata = extra_columnar_metadata;
+        self
+    }
+
     /// Creates the new encoder with the previously specified settings and if
     /// `write_header` is `true`, encodes the header row.
     ///
@@ -152,7 +171,8 @@ where
     /// # Errors
     /// This function returns an error if it fails to write the CSV header row, the
     /// DBN metadata, or the Parquet or Arrow file header, or if the metadata has no
-    /// schema with a columnar encoding.
+    /// schema or an `extra_columnar_metadata` key is `databento:metadata` with a columnar
+    /// encoding.
     pub fn build<'a>(self) -> crate::Result<DynEncoder<'a, W>> {
         Ok(DynEncoder(match self.encoding {
             OutputEncoding::Dbn => DynEncoderImpl::Dbn(DbnEncoder::new(
@@ -184,6 +204,7 @@ where
                     .pretty_px(self.use_pretty_px)
                     .with_symbol(self.with_symbol)
                     .metadata(self.metadata)
+                    .extra_metadata(self.extra_columnar_metadata)
                     .compression(self.compression)
                     .build()?,
             ),
@@ -193,6 +214,7 @@ where
                     .pretty_px(self.use_pretty_px)
                     .with_symbol(self.with_symbol)
                     .metadata(self.metadata)
+                    .extra_metadata(self.extra_columnar_metadata)
                     .compression(self.compression)
                     .build()?,
             ),

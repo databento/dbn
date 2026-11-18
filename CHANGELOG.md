@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.75.0 - Upcoming
+
+### Enhancements
+- Added `ColumnarEncoderBuilder::extra_metadata()`,
+  `DynEncoderBuilder::extra_columnar_metadata()`, and an `extra_columnar_metadata`
+  parameter to the Python `Transcoder` for adding custom metadata to Arrow and Parquet
+  output
+
+### Breaking changes
+- Changed Arrow and Parquet encoding of empty fixed-length string fields from null to an
+  empty string. These columns are no longer nullable
+
 ## 0.74.0 - 2026-11-17
 
 ### Enhancements

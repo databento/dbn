@@ -10048,6 +10048,11 @@ class Transcoder:
         metadata.
     upgrade_policy : VersionUpgradePolicy, default UPGRADE
         How to decode data from prior DBN versions. Defaults to upgrade decoding.
+    extra_columnar_metadata : dict[str, str] | None, default None
+        Additional key-value pairs to embed in the schema metadata of the "arrow" and
+        "parquet" encodings. The `databento:metadata` key is reserved for the DBN
+        metadata. Ignored by other encodings.
+        Defaults to `None`.
     """
 
     def __init__(
@@ -10064,6 +10069,7 @@ class Transcoder:
         schema: Schema | None = None,
         input_version: int | None = None,
         upgrade_policy: VersionUpgradePolicy | None = None,
+        extra_columnar_metadata: dict[str, str] | None = None,
     ): ...
     def buffer(self) -> bytes:
         """
