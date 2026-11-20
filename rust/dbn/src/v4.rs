@@ -44,7 +44,7 @@ pub type RecordBuf<const CAP: usize = MAX_RECORD_LEN> = crate::RecordBuf<CAP, Re
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct RecordHeader {
     /// The number of bytes following the header.
-    length: u16,
+    pub(crate) length: u16,
     /// The record type. Record types implement the trait [`HasRType`], and the
     /// [`has_rtype`][HasRType::has_rtype] function can be used to check if that type can
     /// be used to decode a message with a given rtype. The set of possible values is

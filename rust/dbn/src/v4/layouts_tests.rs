@@ -369,6 +369,7 @@ mod decoded_layout {
             DynFieldAccess, RecordLayoutBuilder, RecordLayoutDesc, StreamLayout,
             StreamLayoutBuilder, Verdict,
         },
+        record::{RecordHeaderMut, RecordMut},
         v4::{
             fields::{self, Field, FieldType},
             rtype,
@@ -432,9 +433,9 @@ mod decoded_layout {
     fn trade_with_ext(layout: &StreamLayout, ext: &[u8]) -> RecordBuf<128> {
         let total = layout.record_layout(rtype::MBP_0).unwrap().record_size() as usize;
         let mut buf = RecordBuf::<128>::from(trade());
-        let raw = buf.raw_buf_mut();
-        raw[size_of::<TradeMsg>()..][..ext.len()].copy_from_slice(ext);
-        raw[..2].copy_from_slice(&((total - size_of::<RecordHeader>()) as u16).to_le_bytes());
+        buf.raw_buf_mut()[size_of::<TradeMsg>()..][..ext.len()].copy_from_slice(ext);
+        // SAFETY: the layout's records fit in the 128-byte buffer
+        unsafe { buf.header_mut().set_record_size(total) };
         buf
     }
 

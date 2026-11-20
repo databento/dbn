@@ -551,7 +551,7 @@ mod tests {
             types::{CStr, Char, Decimal, OpenEnum},
             MboMsg, RecordHeader, StatMsg, TradeMsg,
         },
-        Action, FlagSet, Side, StatType, StatUpdateAction,
+        Action, FlagSet, RecordHeaderMut, RecordMut, Side, StatType, StatUpdateAction,
     };
 
     pub(super) fn mbo_layout() -> StreamLayout {
@@ -768,9 +768,9 @@ mod tests {
 
     fn trade_with_ext<const TOTAL: usize>(ext: &[u8]) -> v4::RecordBuf<TOTAL> {
         let mut buf = v4::RecordBuf::<TOTAL>::from(sample_trade());
-        let raw = buf.raw_buf_mut();
-        raw[size_of::<v4::TradeMsg>()..][..ext.len()].copy_from_slice(ext);
-        raw[..2].copy_from_slice(&((TOTAL - size_of::<RecordHeader>()) as u16).to_le_bytes());
+        buf.raw_buf_mut()[size_of::<v4::TradeMsg>()..][..ext.len()].copy_from_slice(ext);
+        // SAFETY: the buffer holds `TOTAL` bytes
+        unsafe { buf.header_mut().set_record_size(TOTAL) };
         buf
     }
 

@@ -7,6 +7,10 @@
   `DynEncoderBuilder::extra_columnar_metadata()`, and an `extra_columnar_metadata`
   parameter to the Python `Transcoder` for adding custom metadata to Arrow and Parquet
   output
+- Added `leg_count()`, `leg_index()`, and `group()` to `InstrumentDefRec`, including for
+  DBN version 4 definitions through `ResolvedInstrumentDefRef`
+- Added `RecordHeaderMut` trait for setting record header fields for any DBN version
+- Added `RType` and `InstrumentId` associated types to `RecordHeaderKind`
 
 ### Breaking changes
 - Changed Arrow and Parquet encoding of empty fixed-length string fields from null to an

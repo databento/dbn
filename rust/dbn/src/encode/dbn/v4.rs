@@ -612,8 +612,8 @@ mod tests {
     use crate::{
         layout::{RecordLayoutDesc, StreamLayoutBuilder},
         v4::{fields, rtype},
-        Action, Dataset, FlagSet, MetadataBuilder, Record, SType, Schema, Side, UNDEF_PRICE,
-        UNDEF_TIMESTAMP,
+        Action, Dataset, FlagSet, MetadataBuilder, Record, RecordHeaderMut, RecordMut, SType,
+        Schema, Side, UNDEF_PRICE, UNDEF_TIMESTAMP,
     };
 
     const TS_EVENT: u64 = 1_609_160_400_000_000_000;
@@ -803,9 +803,9 @@ mod tests {
         assert_eq!(encoder.get_ref().len(), metadata_len);
 
         let mut buf = v4::RecordBuf::<64>::from(trade());
-        let raw = buf.raw_buf_mut();
-        raw[size_of::<v4::TradeMsg>()..].copy_from_slice(&777u64.to_le_bytes());
-        raw[..2].copy_from_slice(&((64 - size_of::<v4::RecordHeader>()) as u16).to_le_bytes());
+        buf.raw_buf_mut()[size_of::<v4::TradeMsg>()..].copy_from_slice(&777u64.to_le_bytes());
+        // SAFETY: the buffer holds 64 bytes
+        unsafe { buf.header_mut().set_record_size(64) };
         encoder.encode_ref(buf.as_rec_ref()).unwrap();
         assert_eq!(&encoder.get_ref()[metadata_len..], buf.as_ref());
     }

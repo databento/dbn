@@ -659,7 +659,7 @@ mod tests {
     use rstest::*;
 
     use crate::{
-        record::{as_u8_slice, HasRType},
+        record::{as_u8_slice, HasRType, RecordHeaderMut},
         rtype, Mbp1Msg, RecordRef,
     };
 
@@ -709,30 +709,32 @@ mod tests {
 
     fn noop<T: HasRType>(_rec: &T) {}
 
-    const MBP1_WORDS: u8 = (mem::size_of::<Mbp1Msg>() / 4) as u8;
+    const MBP1_SIZE: usize = mem::size_of::<Mbp1Msg>();
 
     #[rstest]
-    #[case::complete(MBP1_WORDS, true)]
-    #[case::undersized(4, false)]
-    fn test_rtype_dispatch_length(#[case] length: u8, #[case] is_ok: bool) {
+    #[case::complete(MBP1_SIZE, true)]
+    #[case::undersized(16, false)]
+    fn test_rtype_dispatch_length(#[case] size: usize, #[case] is_ok: bool) {
         let mut rec = Mbp1Msg::default();
-        rec.hd.length = length;
+        // SAFETY: `size` is at most the size of `rec`
+        unsafe { rec.hd.set_record_size(size) };
         // `RecordRef::from` debug-asserts the length, so alias the full struct instead
         let rec_ref = unsafe { RecordRef::new(as_u8_slice(&rec)) };
         assert_eq!(rtype_dispatch!(rec_ref, noop()).is_ok(), is_ok);
     }
 
     #[rstest]
-    #[case::complete(MBP1_WORDS, false, true)]
-    #[case::undersized(4, false, false)]
-    #[case::missing_ts_out(MBP1_WORDS, true, false)]
+    #[case::complete(MBP1_SIZE, false, true)]
+    #[case::undersized(16, false, false)]
+    #[case::missing_ts_out(MBP1_SIZE, true, false)]
     fn test_rtype_dispatch_ts_out_length(
-        #[case] length: u8,
+        #[case] size: usize,
         #[case] ts_out: bool,
         #[case] is_ok: bool,
     ) {
         let mut rec = Mbp1Msg::default();
-        rec.hd.length = length;
+        // SAFETY: `size` is at most the size of `rec`
+        unsafe { rec.hd.set_record_size(size) };
         // `RecordRef::from` debug-asserts the length, so alias the full struct instead
         let rec_ref = unsafe { RecordRef::new(as_u8_slice(&rec)) };
         assert_eq!(

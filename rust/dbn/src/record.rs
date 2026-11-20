@@ -35,7 +35,7 @@ pub use conv::{
     transmute_record_bytes, transmute_record_mut, ts_to_dt,
 };
 pub use rec_traits::*;
-pub use traits::{HasRType, Record, RecordHeaderKind, RecordMut};
+pub use traits::{HasRType, Record, RecordHeaderKind, RecordHeaderMut, RecordMut};
 
 /// Common data for all Databento records. Always found at the beginning of a record
 /// struct.

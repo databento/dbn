@@ -577,8 +577,8 @@ mod tests {
     use crate::{
         enums::rtype,
         test_utils::{mbo_v4, trade_v4},
-        v1, v3, FlagSet, MboMsg, RecordHeader, RecordRef, RecordRefEnum, RecordRefMut, TradeMsg,
-        MAX_RECORD_LEN,
+        v1, v3, FlagSet, MboMsg, RecordHeader, RecordHeaderMut, RecordRef, RecordRefEnum,
+        RecordRefMut, TradeMsg, MAX_RECORD_LEN,
     };
 
     use super::*;
@@ -835,8 +835,8 @@ mod tests {
     #[test]
     fn v4_dispatch_on_short_record_falls_back() {
         let mut buf: crate::v4::RecordBuf = RecordBuf::from(trade_v4());
-        buf.raw_buf_mut()[0..2]
-            .copy_from_slice(&((48 - size_of::<crate::v4::RecordHeader>()) as u16).to_le_bytes());
+        // SAFETY: 48 bytes is within the buffer
+        unsafe { buf.header_mut().set_record_size(48) };
         assert_eq!(buf.raw_index_ts(), trade_v4().hd.ts_event);
         assert_eq!(buf.as_rec_ref().raw_index_ts(), trade_v4().hd.ts_event);
         let rendered = format!("{buf:?}");

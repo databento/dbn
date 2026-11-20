@@ -5,6 +5,7 @@ use fallible_streaming_iterator::FallibleStreamingIterator;
 use crate::{
     decode::{dbn::tests::metadata_v4, private::LastRecord, DecodeRecordRef},
     layout::{RecordLayoutDesc, StreamLayoutBuilder},
+    record::{as_u8_slice, RecordHeaderMut},
     v3,
     v4::{self, fields},
     BidAskPair, Error, FlagSet, Metadata, RecordRef, SType, Schema,
@@ -172,14 +173,15 @@ pub fn mbp10_v3() -> v3::Mbp10Msg {
 }
 
 pub fn symbol_mapping_v4() -> Vec<u64> {
-    let mapping = symbol_mapping();
+    let mut mapping = symbol_mapping();
     let layout = v4::layouts::default_layout();
     let rec = layout.record_layout(v4::rtype::SYMBOL_MAPPING).unwrap();
     let mut bytes = vec![0; usize::from(rec.record_size())];
-    bytes[..size_of::<v4::SymbolMappingMsg>()].copy_from_slice(RecordRef::from(&mapping).as_ref());
-    // v4 `length` counts the bytes after the header
-    let length = u16::try_from(bytes.len() - size_of::<v4::RecordHeader>()).unwrap();
-    bytes[..2].copy_from_slice(&length.to_le_bytes());
+    // SAFETY: `bytes` holds the whole record, and `mapping` is plain old data
+    unsafe {
+        mapping.hd.set_record_size(bytes.len());
+        bytes[..size_of::<v4::SymbolMappingMsg>()].copy_from_slice(as_u8_slice(&mapping));
+    }
     for (field, symbol) in [
         (fields::STYPE_IN_SYMBOL, "ESZ6"),
         (fields::STYPE_OUT_SYMBOL, "5482"),
@@ -229,11 +231,13 @@ pub fn trades_with_sale_condition<T: fields::FixedWidth>() -> Metadata {
 
 pub fn trade_v4_with_sale_condition(metadata: &Metadata, sale_condition: &[u8]) -> Vec<u64> {
     let rec = &metadata.layout.as_ref().unwrap().record_layouts[0];
-    let trade = trade_v4();
+    let mut trade = trade_v4();
     let mut bytes = vec![0; usize::from(rec.record_size())];
-    bytes[..size_of::<v4::TradeMsg>()].copy_from_slice(RecordRef::from(&trade).as_ref());
-    let length = u16::try_from(bytes.len() - size_of::<v4::RecordHeader>()).unwrap();
-    bytes[..2].copy_from_slice(&length.to_le_bytes());
+    // SAFETY: `bytes` holds the whole record, and `trade` is plain old data
+    unsafe {
+        trade.hd.set_record_size(bytes.len());
+        bytes[..size_of::<v4::TradeMsg>()].copy_from_slice(as_u8_slice(&trade));
+    }
     let start = size_of::<v4::TradeMsg>();
     bytes[start..start + sale_condition.len()].copy_from_slice(sale_condition);
     aligned(&bytes)

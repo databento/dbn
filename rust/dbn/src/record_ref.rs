@@ -915,7 +915,7 @@ mod tests {
 
     use crate::{
         enums::rtype, v1, v3, ErrorMsg, FlagSet, InstrumentDefMsg, MboMsg, Mbp10Msg, Mbp1Msg,
-        OhlcvMsg, TradeMsg, WithTsOut,
+        OhlcvMsg, RecordHeaderMut, TradeMsg, WithTsOut,
     };
 
     use super::*;
@@ -1000,7 +1000,8 @@ mod tests {
     #[test]
     fn test_get_too_short() {
         let mut src = SOURCE_RECORD;
-        src.hd.length -= 1;
+        // SAFETY: shrinks the length within the record
+        unsafe { src.hd.set_record_size(src.record_size() - 4) };
         let target = RecordRef::from(&src);
         // panic due to unexpected length
         target.get::<MboMsg>();

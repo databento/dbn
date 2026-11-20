@@ -1277,6 +1277,9 @@ mod tests {
         let leg = v3::InstrumentDefMsg {
             leg_side: Side::Ask as c_char,
             leg_price: 1_250_000_000,
+            leg_count: 2,
+            leg_index: 1,
+            group: str_to_c_chars("ES").unwrap(),
             ..es_call_v3()
         };
         let encoded = definitions(3, &[leg]);
@@ -1303,6 +1306,9 @@ mod tests {
         assert_eq!(def.activation(), None);
         assert!(def.high_limit_price_f64().unwrap().is_nan());
         assert_eq!(def.leg_side()?, Some(Side::Ask));
+        assert_eq!(def.leg_count(), Some(2));
+        assert_eq!(def.leg_index(), Some(1));
+        assert_eq!(def.group()?, Some("ES"));
         Ok(())
     }
 

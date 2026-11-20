@@ -31,7 +31,8 @@ use dbn::{
         types::Decimal,
         MboMsg, RecordHeader, TradeMsg,
     },
-    Action, Dataset, FlagSet, HasRType, Metadata, RType, Record, SType, Schema, Side,
+    Action, Dataset, FlagSet, HasRType, Metadata, RType, Record, RecordHeaderMut, RecordMut, SType,
+    Schema, Side,
 };
 
 const TS_EVENT: u64 = 1_609_160_400_000_000_000; // 2020-12-28T13:00:00Z
@@ -259,9 +260,12 @@ fn decoder(encoded: &[u8]) -> dbn::Result<Decoder<&[u8]>> {
 // offsets the layout declares, as a producer populating fields past the compiled
 // struct does
 fn write_record(rec: &mut v4::RecordBuf, layout: &RecordLayout, values: &[(u16, &[u8])]) {
+    // SAFETY: `v4::RecordBuf` holds the largest record a layout can describe
+    unsafe {
+        rec.header_mut()
+            .set_record_size(usize::from(layout.record_size()))
+    };
     let raw = rec.raw_buf_mut();
-    let length = layout.record_size() - size_of::<RecordHeader>() as u16;
-    raw[..2].copy_from_slice(&length.to_le_bytes());
     for &(field_id, value) in values {
         let at = usize::from(
             layout

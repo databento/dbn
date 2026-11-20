@@ -1032,6 +1032,19 @@ pub trait InstrumentDefRec: Record {
     /// [`Side`](crate::Side).
     fn leg_side(&self) -> Result<Option<Side>>;
 
+    /// The leg count, or `None` if the record doesn't hold `leg_count`.
+    fn leg_count(&self) -> Option<u16>;
+
+    /// The leg index, or `None` if the record doesn't hold `leg_index`.
+    fn leg_index(&self) -> Option<u16>;
+
+    /// Parses the security group code into a `&str`, or `None` if the record
+    /// doesn't hold `group`.
+    ///
+    /// # Errors
+    /// This function returns an error if `group` contains invalid UTF-8.
+    fn group(&self) -> Result<Option<&str>>;
+
     /// Parses the capture-server-received timestamp into a datetime.
     /// Returns `None` if `ts_recv` contains the sentinel for a null timestamp.
     fn ts_recv(&self) -> Option<time::OffsetDateTime> {
