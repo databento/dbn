@@ -790,7 +790,7 @@ mod tests {
         record::str_to_c_chars,
         v4::{
             fields,
-            types::{Decimal, TimestampNs},
+            types::{Char, Decimal, TimestampNs},
         },
         InstrumentClass, MatchAlgorithm, Side,
     };
@@ -929,6 +929,66 @@ mod tests {
             }
         }
         assert_eq!(reencoded, encoded);
+        Ok(())
+    }
+
+    #[rstest]
+    #[cfg(feature = "zstd")]
+    fn test_dbn_identity_v4_file(
+        #[values(
+            Schema::Mbo,
+            Schema::Trades,
+            Schema::Tbbo,
+            Schema::Mbp1,
+            Schema::Cmbp1,
+            Schema::Cbbo1S,
+            Schema::Bbo1S,
+            Schema::Bbo1M,
+            Schema::Mbp10,
+            Schema::Ohlcv1D,
+            Schema::Ohlcv1H,
+            Schema::Ohlcv1M,
+            Schema::Ohlcv1S,
+            Schema::Definition,
+            Schema::Imbalance,
+            Schema::Statistics,
+            Schema::Status
+        )]
+        schema: Schema,
+    ) -> Result<()> {
+        fn collect(
+            reader: impl io::Read,
+        ) -> Result<(
+            Metadata,
+            Vec<RecordBuf<{ crate::MAX_RECORD_LEN }, crate::v4::RecordHeader>>,
+        )> {
+            let mut decoder = crate::decode::dbn::v4::Decoder::with_fsm(reader, fsm_v4()?)?;
+            let metadata = decoder.metadata().clone();
+            let mut records = Vec::new();
+            while let Some(rec) = decoder.decode_ref()? {
+                records.push(RecordBuf::try_from(rec)?);
+            }
+            Ok((metadata, records))
+        }
+        let (file_metadata, file_records) = collect(DynReader::from_file(format!(
+            "{TEST_DATA_PATH}/test_data.{schema}.v4.dbn.zst"
+        ))?)?;
+        assert_eq!(file_records.is_empty(), schema == Schema::Ohlcv1D);
+
+        let mut buffer = Vec::new();
+        {
+            let mut encoder = crate::encode::dbn::v4::Encoder::new(
+                DynWriter::new(&mut buffer, Compression::Zstd)?,
+                &file_metadata,
+            )?;
+            for rec in &file_records {
+                encoder.encode_ref(rec.as_rec_ref())?;
+            }
+        }
+        let (buf_metadata, buf_records) =
+            collect(DynReader::inferred_with_buffer(buffer.as_slice())?)?;
+        assert_eq!(buf_metadata, file_metadata);
+        assert_eq!(buf_records, file_records);
         Ok(())
     }
 
@@ -1339,6 +1399,123 @@ mod tests {
         let trade = rec.try_get::<crate::v4::TradeMsg>()?;
         assert_eq!(trade.price, trade_v4().price);
         assert_eq!(rec.field(&index, fields::TS_OUT), Some(TimestampNs(TS_OUT)));
+        Ok(())
+    }
+
+    #[cfg(feature = "zstd")]
+    #[test]
+    fn test_v4_opra_cmbp1_extension_fields() -> Result<()> {
+        let mut decoder = crate::decode::dbn::v4::Decoder::with_fsm(
+            DynReader::from_file(format!("{TEST_DATA_PATH}/opra_test_data.cmbp-1.v4.dbn.zst"))?,
+            fsm_v4()?,
+        )?;
+        let index = decoder.metadata().layout_index().unwrap();
+        let trade_id = index
+            .offset_of(crate::v4::rtype::CMBP_1, fields::TRADE_ID)
+            .unwrap();
+        let sale_cond = index
+            .offset_of(crate::v4::rtype::CMBP_1, fields::SALE_CONDITION)
+            .unwrap();
+        assert!(trade_id.is_extension());
+        assert_eq!(
+            usize::from(trade_id.offset()),
+            size_of::<crate::v4::Cmbp1Msg>()
+        );
+        assert!(!index
+            .offset_of(crate::v4::rtype::CMBP_1, fields::PRICE)
+            .unwrap()
+            .is_extension());
+        assert!(index
+            .offset_of(crate::v4::rtype::CMBP_1, fields::TS_OUT)
+            .is_none());
+
+        let quote = decoder.decode_ref()?.unwrap();
+        assert_eq!(
+            quote.try_get::<crate::v4::Cmbp1Msg>()?.action,
+            b'A' as c_char
+        );
+        assert_eq!(quote.field_at(trade_id).unwrap(), 0);
+        assert_eq!(
+            quote.field(&index, fields::SALE_CONDITION).unwrap(),
+            Char(0)
+        );
+        assert_eq!(quote.field_at(sale_cond), Some(Char(0)));
+        assert!(quote.field(&index, fields::TS_OUT).is_none());
+
+        let trade = decoder.decode_ref()?.unwrap();
+        let trade_msg = trade.try_get::<crate::v4::Cmbp1Msg>()?;
+        assert_eq!(trade_msg.action, b'T' as c_char);
+        assert_eq!(
+            trade.field(&index, fields::PRICE),
+            Some(Decimal {
+                raw: trade_msg.price,
+                scale: -9
+            })
+        );
+        assert_eq!(trade.field_at(trade_id).unwrap(), 4_118_203);
+        assert_eq!(trade.field_at(sale_cond).unwrap().0, b'I' as c_char);
+        assert!(trade.field(&index, fields::TS_OUT).is_none());
+        assert!(decoder.decode_ref()?.is_none());
+        Ok(())
+    }
+
+    #[cfg(feature = "zstd")]
+    #[test]
+    fn test_v4_opra_definition_extension_fields() -> Result<()> {
+        let mut decoder = crate::decode::dbn::v4::Decoder::with_fsm(
+            DynReader::from_file(format!(
+                "{TEST_DATA_PATH}/opra_test_data.definition.v4.dbn.zst"
+            ))?,
+            fsm_v4()?,
+        )?;
+        let index = decoder.metadata().layout_index().unwrap();
+        let raw_symbol = index
+            .offset_of(crate::v4::rtype::INSTRUMENT_DEF, fields::RAW_SYMBOL)
+            .unwrap();
+        assert!(!raw_symbol.is_extension());
+        assert_eq!(raw_symbol.size(), 22);
+        let expiration = index
+            .offset_of(crate::v4::rtype::INSTRUMENT_DEF, fields::EXPIRATION)
+            .unwrap();
+        assert!(expiration.is_extension());
+        assert!(index
+            .field_by_name(crate::v4::rtype::INSTRUMENT_DEF, "strike_price")
+            .unwrap()
+            .def()
+            .is_extension());
+        assert!(index
+            .offset_of(crate::v4::rtype::INSTRUMENT_DEF, fields::TS_OUT)
+            .is_none());
+        assert!(index
+            .field_by_name(crate::v4::rtype::INSTRUMENT_DEF, "ts_out")
+            .is_none());
+
+        for (instrument_id, symbol) in [
+            (1_358_954_914, "SPY   251219P00670000"),
+            (1_291_846_498, "SPY   251219C00670000"),
+        ] {
+            let rec = decoder.decode_ref()?.unwrap();
+            assert_eq!(rec.instrument_id(), instrument_id);
+            assert_eq!(rec.field_at(raw_symbol), Some(symbol));
+            assert_eq!(
+                rec.field_at(expiration),
+                Some(TimestampNs(1_766_102_400_000_000_000))
+            );
+            assert_eq!(
+                rec.field(&index, fields::STRIKE_PRICE),
+                Some(Decimal {
+                    raw: 670_000_000_000,
+                    scale: -9
+                })
+            );
+            assert_eq!(rec.field(&index, fields::UNDERLYING_ID), Some(13));
+            assert_eq!(rec.field(&index, fields::ASSET), Some("SPY"));
+            assert_eq!(rec.field(&index, fields::UNDERLYING), Some("SPY"));
+            assert_eq!(rec.field(&index, fields::SECURITY_TYPE), Some("OPT"));
+            assert_eq!(rec.field(&index, fields::EXCHANGE), Some("OPRA"));
+            assert_eq!(rec.field(&index, fields::TS_OUT), None);
+        }
+        assert!(decoder.decode_ref()?.is_none());
         Ok(())
     }
 
