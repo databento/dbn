@@ -184,14 +184,12 @@ impl InstrumentDefRec for ResolvedInstrumentDefRef<'_> {
         self.offsets
             .expiration
             .and_then(|offset| self.rec.field_at(offset))
-            .map(|ts| ts.0)
     }
 
     fn raw_activation(&self) -> Option<u64> {
         self.offsets
             .activation
             .and_then(|offset| self.rec.field_at(offset))
-            .map(|ts| ts.0)
     }
 
     fn high_limit_price(&self) -> Option<i64> {
@@ -416,7 +414,6 @@ impl ImbalanceRec for ResolvedImbalanceRef<'_> {
         self.offsets
             .auction_time
             .and_then(|offset| self.rec.field_at(offset))
-            .map(|ts| ts.0)
     }
 
     fn ssr_filling_price(&self) -> Option<i64> {

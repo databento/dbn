@@ -1,11 +1,11 @@
 //! Types for fields with no direct Rust primitive, used by the v4 field registry.
 
-use std::{ffi::c_char, marker::PhantomData};
+use std::marker::PhantomData;
 
-/// Nanosecond-precision UNIX epoch timestamp.
-#[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct TimestampNs(pub u64);
+/// Marker for nanosecond-precision UNIX epoch timestamp fields, which decode as `u64`.
+/// Uninhabited as it's only used as a type parameter.
+#[derive(Debug, Clone, Copy)]
+pub enum TimestampNs {}
 
 /// The dynamic-access carrier for a fixed-point value: a raw integer and its
 /// scale. `Fixed` is the wire `type_id` (`FieldDef.scale` gives the exponent);
@@ -80,11 +80,11 @@ where
     }
 }
 
-/// New type wrapper to differentiate between C char and the numeric type it's aliased
-/// to, e.g. `i8` on Linux.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[repr(transparent)]
-pub struct Char(pub c_char);
+/// Marker for C char fields, which decode as `c_char`. Distinct from the integer type
+/// `c_char` aliases, e.g. `i8` on x86_64 Linux, so it can carry its own type ID.
+/// Uninhabited as it's only used as a type parameter.
+#[derive(Debug, Clone, Copy)]
+pub enum Char {}
 
 /// Marker for null-terminated string fields. Uninhabited as it's only
 /// used as a type parameter. Width is declared in the `FieldDef`.

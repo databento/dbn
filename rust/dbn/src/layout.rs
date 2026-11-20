@@ -637,7 +637,7 @@ mod tests {
             rec.field(&index, fields::FLAGS).map(|f| f.raw()),
             Some(0b1010)
         );
-        assert_eq!(rec.field(&index, fields::TS_RECV).map(|t| t.0), Some(222));
+        assert_eq!(rec.field(&index, fields::TS_RECV), Some(222));
         assert_eq!(rec.field(&index, fields::SEQUENCE), Some(88u32));
         assert_eq!(rec.field(&index, fields::TS_IN_DELTA), Some(9i32));
         assert!(rec.field(&index, fields::DEPTH).is_none());
@@ -854,7 +854,7 @@ mod tests {
 
         assert_eq!(rec.record_size(), 64);
         assert_eq!(rec.get::<v4::TradeMsg>().unwrap().price, 123_000_000_000);
-        assert_eq!(rec.field(&index, fields::TS_OUT).map(|t| t.0), Some(777));
+        assert_eq!(rec.field(&index, fields::TS_OUT), Some(777));
     }
 
     #[test]
@@ -873,14 +873,14 @@ mod tests {
         let rec = trade_with_ext::<64>(b"@");
         assert_eq!(
             rec.field(&opra_idx, sale_condition::<Char>()),
-            Some(Char(b'@' as c_char))
+            Some(b'@' as c_char)
         );
 
         let sip_idx = LayoutIndex::new(&trades_sip_sale_condition(), default_layout());
         let rec = trade_with_ext::<64>(b"@ TI");
         assert_eq!(
             rec.field(&sip_idx, sale_condition::<[Char; 4]>()),
-            Some((*b"@ TI").map(|b| Char(b as c_char)))
+            Some((*b"@ TI").map(|b| b as c_char))
         );
         assert!(rec.field(&sip_idx, sale_condition::<Char>()).is_none());
         assert!(rec

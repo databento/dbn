@@ -44,7 +44,7 @@
 //! let rec = decoder.decode_ref()?.unwrap();
 //!
 //! assert_eq!(rec.try_get::<v4::TradeMsg>()?.price, PRICE);
-//! assert_eq!(rec.field(&index, fields::TS_OUT).unwrap().0, TS_OUT);
+//! assert_eq!(rec.field(&index, fields::TS_OUT), Some(TS_OUT));
 //! # Ok::<_, dbn::Error>(())
 //! ```
 

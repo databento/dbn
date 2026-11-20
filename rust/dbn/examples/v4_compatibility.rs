@@ -28,7 +28,7 @@ use dbn::{
         fields::{self, Field},
         layouts::default_layout,
         rtype,
-        types::{Char, Decimal},
+        types::Decimal,
         MboMsg, RecordHeader, TradeMsg,
     },
     Action, Dataset, FlagSet, HasRType, Metadata, RType, Record, SType, Schema, Side,
@@ -92,7 +92,7 @@ fn forward_compatible() -> dbn::Result<()> {
     let channel_id = rec.field(&index, fields::CHANNEL_ID).unwrap();
     let sale_condition = rec.field(&index, fields::SALE_CONDITION).unwrap();
     assert_eq!(channel_id, 3);
-    assert_eq!(sale_condition, Char(b'@' as c_char));
+    assert_eq!(sale_condition, b'@' as c_char);
     println!(
         "  record {} bytes, base {} (compiled {})",
         rec.record_size(),
@@ -102,13 +102,13 @@ fn forward_compatible() -> dbn::Result<()> {
     println!(
         "  base cast price {}, grown base channel_id {channel_id}, extension sale_condition {:?}",
         Px(base.price),
-        sale_condition.0 as u8 as char
+        sale_condition as u8 as char
     );
     Ok(())
 }
 
 fn ts_out(rec: v4::RecordRef, index: &LayoutIndex) -> Option<u64> {
-    rec.field(index, fields::TS_OUT).map(|t| t.0)
+    rec.field(index, fields::TS_OUT)
 }
 
 fn price(rec: v4::RecordRef, index: &LayoutIndex) -> Option<Decimal> {

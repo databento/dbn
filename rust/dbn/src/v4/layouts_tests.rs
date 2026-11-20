@@ -478,13 +478,13 @@ mod decoded_layout {
         match ext.len() {
             1 => assert_eq!(
                 rec.field(&index, sale_condition::<Char>()),
-                Some(Char(b'@' as c_char))
+                Some(b'@' as c_char)
             ),
             4 => assert_eq!(
                 rec.field(&index, sale_condition::<[Char; 4]>()),
-                Some((*b"@ TI").map(|b| Char(b as c_char)))
+                Some((*b"@ TI").map(|b| b as c_char))
             ),
-            _ => assert_eq!(rec.field(&index, fields::TS_OUT).map(|t| t.0), Some(TS_OUT)),
+            _ => assert_eq!(rec.field(&index, fields::TS_OUT), Some(TS_OUT)),
         }
         if ts_out {
             assert!(rec.field(&index, sale_condition::<Char>()).is_none());

@@ -788,10 +788,7 @@ mod tests {
     use crate::{
         layout::{DynFieldAccess, Verdict},
         record::str_to_c_chars,
-        v4::{
-            fields,
-            types::{Char, Decimal, TimestampNs},
-        },
+        v4::{fields, types::Decimal},
         InstrumentClass, MatchAlgorithm, Side,
     };
     use std::ffi::c_char;
@@ -1211,7 +1208,7 @@ mod tests {
         );
         assert_eq!(
             rec.field(&index, fields::EXPIRATION),
-            Some(TimestampNs(1_766_154_600_000_000_000))
+            Some(1_766_154_600_000_000_000)
         );
         assert_eq!(rec.field(&index, fields::CURRENCY), Some("USD"));
         assert_eq!(rec.field(&index, fields::EXCHANGE), Some("XCME"));
@@ -1398,7 +1395,7 @@ mod tests {
 
         let trade = rec.try_get::<crate::v4::TradeMsg>()?;
         assert_eq!(trade.price, trade_v4().price);
-        assert_eq!(rec.field(&index, fields::TS_OUT), Some(TimestampNs(TS_OUT)));
+        assert_eq!(rec.field(&index, fields::TS_OUT), Some(TS_OUT));
         Ok(())
     }
 
@@ -1435,11 +1432,8 @@ mod tests {
             b'A' as c_char
         );
         assert_eq!(quote.field_at(trade_id).unwrap(), 0);
-        assert_eq!(
-            quote.field(&index, fields::SALE_CONDITION).unwrap(),
-            Char(0)
-        );
-        assert_eq!(quote.field_at(sale_cond), Some(Char(0)));
+        assert_eq!(quote.field(&index, fields::SALE_CONDITION).unwrap(), 0);
+        assert_eq!(quote.field_at(sale_cond), Some(0));
         assert!(quote.field(&index, fields::TS_OUT).is_none());
 
         let trade = decoder.decode_ref()?.unwrap();
@@ -1453,7 +1447,7 @@ mod tests {
             })
         );
         assert_eq!(trade.field_at(trade_id).unwrap(), 4_118_203);
-        assert_eq!(trade.field_at(sale_cond).unwrap().0, b'I' as c_char);
+        assert_eq!(trade.field_at(sale_cond).unwrap(), b'I' as c_char);
         assert!(trade.field(&index, fields::TS_OUT).is_none());
         assert!(decoder.decode_ref()?.is_none());
         Ok(())
@@ -1497,10 +1491,7 @@ mod tests {
             let rec = decoder.decode_ref()?.unwrap();
             assert_eq!(rec.instrument_id(), instrument_id);
             assert_eq!(rec.field_at(raw_symbol), Some(symbol));
-            assert_eq!(
-                rec.field_at(expiration),
-                Some(TimestampNs(1_766_102_400_000_000_000))
-            );
+            assert_eq!(rec.field_at(expiration), Some(1_766_102_400_000_000_000));
             assert_eq!(
                 rec.field(&index, fields::STRIKE_PRICE),
                 Some(Decimal {
@@ -1536,7 +1527,7 @@ mod tests {
             crate::v4::layouts::default_layout(),
         );
 
-        assert_eq!(rec.field(&index, fields::TS_OUT), Some(TimestampNs(TS_OUT)));
+        assert_eq!(rec.field(&index, fields::TS_OUT), Some(TS_OUT));
         Ok(())
     }
 

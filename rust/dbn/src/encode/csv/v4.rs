@@ -365,8 +365,8 @@ fn write_scalar<W: io::Write, const PRETTY_PX: bool, const PRETTY_TS: bool>(
         ScalarValue::F32(v) => writer.write_field(v.to_string()),
         ScalarValue::F64(v) => writer.write_field(v.to_string()),
         ScalarValue::Decimal(px) => write_px_field::<_, PRETTY_PX>(writer, px.raw),
-        ScalarValue::Timestamp(ts) => write_ts_field::<_, PRETTY_TS>(writer, ts.0),
-        ScalarValue::Char(c) => write_c_char_field(writer, c.0),
+        ScalarValue::Timestamp(ts) => write_ts_field::<_, PRETTY_TS>(writer, ts),
+        ScalarValue::Char(c) => write_c_char_field(writer, c),
         ScalarValue::Str(s) => writer.write_field(s),
     }
 }
