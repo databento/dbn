@@ -551,7 +551,7 @@ mod tests {
             types::{CStr, Char, Decimal, OpenEnum},
             MboMsg, RecordHeader, StatMsg, TradeMsg,
         },
-        Action, FlagSet, Side, StatType, StatUpdateAction,
+        Action, FlagSet, RecordHeaderMut, RecordMut, Side, StatType, StatUpdateAction,
     };
 
     pub(super) fn mbo_layout() -> StreamLayout {
@@ -637,7 +637,7 @@ mod tests {
             rec.field(&index, fields::FLAGS).map(|f| f.raw()),
             Some(0b1010)
         );
-        assert_eq!(rec.field(&index, fields::TS_RECV).map(|t| t.0), Some(222));
+        assert_eq!(rec.field(&index, fields::TS_RECV), Some(222));
         assert_eq!(rec.field(&index, fields::SEQUENCE), Some(88u32));
         assert_eq!(rec.field(&index, fields::TS_IN_DELTA), Some(9i32));
         assert!(rec.field(&index, fields::DEPTH).is_none());
@@ -768,9 +768,9 @@ mod tests {
 
     fn trade_with_ext<const TOTAL: usize>(ext: &[u8]) -> v4::RecordBuf<TOTAL> {
         let mut buf = v4::RecordBuf::<TOTAL>::from(sample_trade());
-        let raw = buf.raw_buf_mut();
-        raw[size_of::<v4::TradeMsg>()..][..ext.len()].copy_from_slice(ext);
-        raw[..2].copy_from_slice(&((TOTAL - size_of::<RecordHeader>()) as u16).to_le_bytes());
+        buf.raw_buf_mut()[size_of::<v4::TradeMsg>()..][..ext.len()].copy_from_slice(ext);
+        // SAFETY: the buffer holds `TOTAL` bytes
+        unsafe { buf.header_mut().set_record_size(TOTAL) };
         buf
     }
 
@@ -854,7 +854,7 @@ mod tests {
 
         assert_eq!(rec.record_size(), 64);
         assert_eq!(rec.get::<v4::TradeMsg>().unwrap().price, 123_000_000_000);
-        assert_eq!(rec.field(&index, fields::TS_OUT).map(|t| t.0), Some(777));
+        assert_eq!(rec.field(&index, fields::TS_OUT), Some(777));
     }
 
     #[test]
@@ -873,14 +873,14 @@ mod tests {
         let rec = trade_with_ext::<64>(b"@");
         assert_eq!(
             rec.field(&opra_idx, sale_condition::<Char>()),
-            Some(Char(b'@' as c_char))
+            Some(b'@' as c_char)
         );
 
         let sip_idx = LayoutIndex::new(&trades_sip_sale_condition(), default_layout());
         let rec = trade_with_ext::<64>(b"@ TI");
         assert_eq!(
             rec.field(&sip_idx, sale_condition::<[Char; 4]>()),
-            Some((*b"@ TI").map(|b| Char(b as c_char)))
+            Some((*b"@ TI").map(|b| b as c_char))
         );
         assert!(rec.field(&sip_idx, sale_condition::<Char>()).is_none());
         assert!(rec

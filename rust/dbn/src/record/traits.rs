@@ -6,6 +6,7 @@
 //!   associates a static `rtype` used for downcasting via [`RecordRef`](crate::RecordRef).
 //! - [`RecordHeaderKind`]: the header layouts a record can begin with, abstracted so
 //!   framing and downcasting work on any DBN version.
+//! - [`RecordHeaderMut`]: setters for the fields of any record header.
 
 use std::ops::RangeInclusive;
 
@@ -106,6 +107,11 @@ pub trait HasRType: Record {
 /// [`RecordRef`](crate::RecordRef) can frame a record and downcast it without knowing
 /// which DBN version it came from.
 pub trait RecordHeaderKind: private::Sealed + Copy + std::fmt::Debug + 'static {
+    /// The integer type of the header's `rtype`.
+    type RType: Copy + Into<u16>;
+    /// The integer type of the header's `instrument_id`.
+    type InstrumentId: Copy + Into<u64>;
+
     /// The width of the header in bytes.
     const HEADER_LEN: usize = size_of::<Self>();
 
@@ -126,7 +132,35 @@ pub trait RecordHeaderKind: private::Sealed + Copy + std::fmt::Debug + 'static {
     fn raw_rtype(&self) -> u16;
 }
 
+/// Mutable access to the fields of a record header.
+pub trait RecordHeaderMut: RecordHeaderKind {
+    /// Sets the record type.
+    fn set_rtype(&mut self, rtype: Self::RType);
+
+    /// Sets the publisher ID.
+    fn set_publisher_id(&mut self, publisher_id: u16);
+
+    /// Sets the instrument ID.
+    fn set_instrument_id(&mut self, instrument_id: Self::InstrumentId);
+
+    /// Sets the matching-engine-received timestamp.
+    fn set_ts_event(&mut self, ts_event: u64);
+
+    /// Sets `length` so the header describes a record of `size` bytes.
+    ///
+    /// # Safety
+    /// At least `size` bytes must follow the start of this header, because readers trust
+    /// it to frame and downcast the record.
+    ///
+    /// # Panics
+    /// This function panics if `length` can't represent `size`.
+    unsafe fn set_record_size(&mut self, size: usize);
+}
+
 impl RecordHeaderKind for RecordHeader {
+    type RType = u8;
+    type InstrumentId = u32;
+
     const DBN_VERSIONS: RangeInclusive<u8> = 1..=3;
 
     fn frame_len(data: &[u8]) -> crate::Result<usize> {
@@ -149,6 +183,9 @@ impl RecordHeaderKind for RecordHeader {
 }
 
 impl RecordHeaderKind for crate::v4::RecordHeader {
+    type RType = u16;
+    type InstrumentId = u64;
+
     const DBN_VERSIONS: RangeInclusive<u8> = 4..=4;
 
     fn frame_len(data: &[u8]) -> crate::Result<usize> {
@@ -168,6 +205,60 @@ impl RecordHeaderKind for crate::v4::RecordHeader {
 
     fn raw_rtype(&self) -> u16 {
         self.rtype
+    }
+}
+
+impl RecordHeaderMut for RecordHeader {
+    fn set_rtype(&mut self, rtype: u8) {
+        self.rtype = rtype;
+    }
+
+    fn set_publisher_id(&mut self, publisher_id: u16) {
+        self.publisher_id = publisher_id;
+    }
+
+    fn set_instrument_id(&mut self, instrument_id: u32) {
+        self.instrument_id = instrument_id;
+    }
+
+    fn set_ts_event(&mut self, ts_event: u64) {
+        self.ts_event = ts_event;
+    }
+
+    unsafe fn set_record_size(&mut self, size: usize) {
+        assert!(
+            size >= Self::HEADER_LEN && size.is_multiple_of(RecordHeader::LENGTH_MULTIPLIER),
+            "record size {size} isn't a multiple of {} at least the header size",
+            RecordHeader::LENGTH_MULTIPLIER
+        );
+        self.length = u8::try_from(size / RecordHeader::LENGTH_MULTIPLIER)
+            .unwrap_or_else(|_| panic!("record size {size} overflows `length`"));
+    }
+}
+
+impl RecordHeaderMut for crate::v4::RecordHeader {
+    fn set_rtype(&mut self, rtype: u16) {
+        self.rtype = rtype;
+    }
+
+    fn set_publisher_id(&mut self, publisher_id: u16) {
+        self.publisher_id = publisher_id;
+    }
+
+    fn set_instrument_id(&mut self, instrument_id: u64) {
+        self.instrument_id = instrument_id;
+    }
+
+    fn set_ts_event(&mut self, ts_event: u64) {
+        self.ts_event = ts_event;
+    }
+
+    unsafe fn set_record_size(&mut self, size: usize) {
+        let body = size
+            .checked_sub(Self::HEADER_LEN)
+            .unwrap_or_else(|| panic!("record size {size} is shorter than the header"));
+        self.length =
+            u16::try_from(body).unwrap_or_else(|_| panic!("record size {size} overflows `length`"));
     }
 }
 

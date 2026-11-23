@@ -329,8 +329,8 @@ fn write_scalar<S: Slot, const PRETTY_PX: bool, const PRETTY_TS: bool>(
         ScalarValue::F32(v) => v.write_json(slot.begin()),
         ScalarValue::F64(v) => v.write_json(slot.begin()),
         ScalarValue::Decimal(px) => write_px::<_, PRETTY_PX>(slot, px.raw),
-        ScalarValue::Timestamp(ts) => write_ts::<_, PRETTY_TS>(slot, ts.0),
-        ScalarValue::Char(c) => write_c_char(slot, c.0),
+        ScalarValue::Timestamp(ts) => write_ts::<_, PRETTY_TS>(slot, ts),
+        ScalarValue::Char(c) => write_c_char(slot, c),
         ScalarValue::Str(s) => s.write_json(slot.begin()),
     }
 }

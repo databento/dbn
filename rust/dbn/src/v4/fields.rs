@@ -114,15 +114,15 @@ impl DecodeField for Decimal {
     }
 }
 impl DecodeField for TimestampNs {
-    type Value<'a> = TimestampNs;
-    fn decode(bytes: &[u8], scale: i8) -> Option<TimestampNs> {
-        u64::decode(bytes, scale).map(TimestampNs)
+    type Value<'a> = u64;
+    fn decode(bytes: &[u8], scale: i8) -> Option<u64> {
+        u64::decode(bytes, scale)
     }
 }
 impl DecodeField for Char {
-    type Value<'a> = Char;
-    fn decode(bytes: &[u8], scale: i8) -> Option<Char> {
-        u8::decode(bytes, scale).map(|c| Char(c as c_char))
+    type Value<'a> = c_char;
+    fn decode(bytes: &[u8], scale: i8) -> Option<c_char> {
+        u8::decode(bytes, scale).map(|c| c as c_char)
     }
 }
 impl DecodeField for FlagSet {
@@ -152,12 +152,12 @@ where
 }
 impl<T, const N: usize> DecodeField for [T; N]
 where
-    T: FixedWidth + for<'x> DecodeField<Value<'x> = T>,
+    T: FixedWidth + DecodeField,
 {
-    type Value<'a> = [T; N];
-    fn decode(bytes: &[u8], scale: i8) -> Option<[T; N]> {
+    type Value<'a> = [T::Value<'a>; N];
+    fn decode(bytes: &[u8], scale: i8) -> Option<[T::Value<'_>; N]> {
         let width = usize::from(T::WIRE_SIZE);
-        let mut out: [Option<T>; N] = [const { None }; N];
+        let mut out: [Option<T::Value<'_>>; N] = [const { None }; N];
         for (i, slot) in out.iter_mut().enumerate() {
             *slot = Some(T::decode(bytes.get(i * width..(i + 1) * width)?, scale)?);
         }
@@ -198,8 +198,8 @@ pub(crate) enum ScalarValue<'a> {
     F32(f32),
     F64(f64),
     Decimal(Decimal),
-    Timestamp(TimestampNs),
-    Char(Char),
+    Timestamp(u64),
+    Char(c_char),
     Str(&'a str),
 }
 
@@ -497,7 +497,7 @@ mod tests {
     };
 
     #[rstest]
-    #[case::enum_char(ENUM_CHAR_ID, b"B", Some(ScalarValue::Char(Char(b'B' as c_char))))]
+    #[case::enum_char(ENUM_CHAR_ID, b"B", Some(ScalarValue::Char(b'B' as c_char)))]
     #[case::bit_set_16(BIT_SET_16_ID, &[0x01, 0x02], Some(ScalarValue::U16(0x0201)))]
     #[case::price(
         <Decimal as FieldType>::TYPE_ID,

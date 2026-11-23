@@ -214,7 +214,7 @@ impl_arrow_field_char_enum!(SecurityUpdateAction, UserDefinedInstrument);
 
 impl<const N: usize> ArrowField for [c_char; N] {
     fn fields(name: &str, _pretty_px: bool, out: &mut Vec<Field>) {
-        out.push(Field::new(name, DataType::Utf8, true));
+        out.push(Field::new(name, DataType::Utf8, false));
     }
 
     fn columns<R>(
@@ -223,11 +223,10 @@ impl<const N: usize> ArrowField for [c_char; N] {
         _pretty_px: bool,
         out: &mut Vec<ArrayRef>,
     ) {
-        let values = rows.iter().map(|r| match c_chars_to_str(get(r)) {
-            Ok("") | Err(_) => None,
-            Ok(s) => Some(s),
-        });
-        out.push(Arc::new(StringArray::from_iter(values)));
+        let values = rows
+            .iter()
+            .map(|r| c_chars_to_str(get(r)).unwrap_or_default());
+        out.push(Arc::new(StringArray::from_iter_values(values)));
     }
 }
 
@@ -541,6 +540,21 @@ mod tests {
             assert!(batch.column_by_name("ts_recv").unwrap().is_null(0));
             assert!(!batch.column_by_name("ts_event").unwrap().is_null(0));
         }
+    }
+
+    #[test]
+    fn test_empty_strings_are_not_null() {
+        let mut record = decode::<InstrumentDefMsg>("test_data.definition.v3.dbn.zst").remove(0);
+        record.currency = [0; 4];
+        let batch = to_record_batch(std::slice::from_ref(&record), false).unwrap();
+        let currency = batch.column_by_name("currency").unwrap();
+        assert!(!batch
+            .schema()
+            .field_with_name("currency")
+            .unwrap()
+            .is_nullable());
+        assert!(!currency.is_null(0));
+        assert_eq!(currency.as_string::<i32>().value(0), "");
     }
 
     #[test]

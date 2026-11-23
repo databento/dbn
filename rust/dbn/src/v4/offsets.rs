@@ -34,6 +34,9 @@ pub struct InstrumentDefOffsets {
     user_defined_instrument: Option<FieldOffset<OpenEnum<UserDefinedInstrument>>>,
     leg_instrument_class: Option<FieldOffset<OpenEnum<InstrumentClass>>>,
     leg_side: Option<FieldOffset<OpenEnum<Side>>>,
+    leg_count: Option<FieldOffset<u16>>,
+    leg_index: Option<FieldOffset<u16>>,
+    group: Option<FieldOffset<CStr>>,
 }
 
 impl InstrumentDefOffsets {
@@ -71,6 +74,9 @@ impl InstrumentDefOffsets {
             leg_instrument_class: index
                 .offset_of(rtype::INSTRUMENT_DEF, fields::LEG_INSTRUMENT_CLASS),
             leg_side: index.offset_of(rtype::INSTRUMENT_DEF, fields::LEG_SIDE),
+            leg_count: index.offset_of(rtype::INSTRUMENT_DEF, fields::LEG_COUNT),
+            leg_index: index.offset_of(rtype::INSTRUMENT_DEF, fields::LEG_INDEX),
+            group: index.offset_of(rtype::INSTRUMENT_DEF, fields::GROUP),
         })
     }
 }
@@ -184,14 +190,12 @@ impl InstrumentDefRec for ResolvedInstrumentDefRef<'_> {
         self.offsets
             .expiration
             .and_then(|offset| self.rec.field_at(offset))
-            .map(|ts| ts.0)
     }
 
     fn raw_activation(&self) -> Option<u64> {
         self.offsets
             .activation
             .and_then(|offset| self.rec.field_at(offset))
-            .map(|ts| ts.0)
     }
 
     fn high_limit_price(&self) -> Option<i64> {
@@ -278,6 +282,29 @@ impl InstrumentDefRec for ResolvedInstrumentDefRef<'_> {
             .leg_side
             .and_then(|offset| self.rec.field_at(offset))
             .map(|value| value.get())
+            .transpose()
+    }
+
+    fn leg_count(&self) -> Option<u16> {
+        self.offsets
+            .leg_count
+            .and_then(|offset| self.rec.field_at(offset))
+    }
+
+    fn leg_index(&self) -> Option<u16> {
+        self.offsets
+            .leg_index
+            .and_then(|offset| self.rec.field_at(offset))
+    }
+
+    fn group(&self) -> Result<Option<&str>> {
+        self.offsets
+            .group
+            .map(|offset| {
+                self.rec
+                    .field_at(offset)
+                    .ok_or_else(|| Error::conversion::<&str>("`group`"))
+            })
             .transpose()
     }
 }
@@ -416,7 +443,6 @@ impl ImbalanceRec for ResolvedImbalanceRef<'_> {
         self.offsets
             .auction_time
             .and_then(|offset| self.rec.field_at(offset))
-            .map(|ts| ts.0)
     }
 
     fn ssr_filling_price(&self) -> Option<i64> {

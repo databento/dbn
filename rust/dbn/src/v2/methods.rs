@@ -202,4 +202,16 @@ impl InstrumentDefRec for InstrumentDefMsg {
     fn leg_side(&self) -> Result<Option<Side>> {
         Ok(None)
     }
+
+    fn leg_count(&self) -> Option<u16> {
+        None
+    }
+
+    fn leg_index(&self) -> Option<u16> {
+        None
+    }
+
+    fn group(&self) -> Result<Option<&str>> {
+        c_chars_to_str(&self.group).map(Some)
+    }
 }

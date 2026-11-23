@@ -411,6 +411,47 @@ fn test_metadata_embedding_empty_lists<F: Format>(#[case] _format: F) {
     }
 }
 
+#[rstest]
+#[case::arrow(Arrow)]
+#[cfg_attr(feature = "parquet", case::parquet(Parquet))]
+fn test_extra_metadata<F: Format>(#[case] _format: F) {
+    let metadata = test_metadata();
+    let mut buf = Vec::new();
+    {
+        let mut encoder = builder::<F>(&mut buf)
+            .extra_metadata(HashMap::from([(
+                "pandas".to_owned(),
+                "{\"index_columns\":[\"ts_recv\"]}".to_owned(),
+            )]))
+            .metadata(&metadata)
+            .build()
+            .unwrap();
+        encoder.encode_record(&make_mbo(1, 100)).unwrap();
+        encoder.close().unwrap();
+    }
+    let kv = F::metadata(&buf);
+    assert_eq!(kv.len(), 2);
+    assert_eq!(kv["pandas"], "{\"index_columns\":[\"ts_recv\"]}");
+    assert_eq!(kv[METADATA_KEY], metadata_json(&metadata));
+}
+
+#[rstest]
+#[case::arrow(Arrow)]
+#[cfg_attr(feature = "parquet", case::parquet(Parquet))]
+fn test_extra_metadata_reserved_key_errors<F: Format>(
+    #[case] _format: F,
+    #[values(false, true)] with_metadata: bool,
+) {
+    let mut buf = Vec::new();
+    let mut builder = builder::<F>(&mut buf)
+        .extra_metadata(HashMap::from([(METADATA_KEY.to_owned(), "{}".to_owned())]));
+    if with_metadata {
+        builder = builder.metadata(&test_metadata());
+    }
+    let err = builder.build().map(|_| ()).unwrap_err();
+    assert!(err.to_string().contains(METADATA_KEY), "{err}");
+}
+
 /// Both formats carry the DBN metadata on the Arrow schema, and Parquet also as
 /// plain key-value pairs, so every reader sees the same keys and values.
 #[cfg(feature = "parquet")]

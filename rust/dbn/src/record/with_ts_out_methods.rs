@@ -1,6 +1,8 @@
 use std::mem;
 
-use crate::{record::as_u8_slice, v3, HasRType, Record, RecordHeader, RecordMut, WithTsOut};
+use crate::{
+    record::as_u8_slice, v3, HasRType, Record, RecordHeader, RecordHeaderMut, RecordMut, WithTsOut,
+};
 
 impl<T: v3::HasRType> Record for WithTsOut<T> {
     type Header = RecordHeader;
@@ -64,7 +66,9 @@ impl<T: v3::HasRType + RecordMut> WithTsOut<T> {
     /// [`RecordHeader`] to ensure the additional field is accounted for.
     pub fn new(rec: T, ts_out: u64) -> Self {
         let mut res = Self { rec, ts_out };
-        res.header_mut().length = (mem::size_of_val(&res) / RecordHeader::LENGTH_MULTIPLIER) as u8;
+        let size = mem::size_of_val(&res);
+        // SAFETY: `size` is the size of `res`
+        unsafe { res.header_mut().set_record_size(size) };
         res
     }
 }

@@ -1494,6 +1494,66 @@ mod tests {
         Ok(())
     }
 
+    #[rstest]
+    #[tokio::test]
+    async fn test_dbn_identity_v4_file(
+        #[values(
+            Schema::Mbo,
+            Schema::Trades,
+            Schema::Tbbo,
+            Schema::Mbp1,
+            Schema::Cmbp1,
+            Schema::Cbbo1S,
+            Schema::Bbo1S,
+            Schema::Bbo1M,
+            Schema::Mbp10,
+            Schema::Ohlcv1D,
+            Schema::Ohlcv1H,
+            Schema::Ohlcv1M,
+            Schema::Ohlcv1S,
+            Schema::Definition,
+            Schema::Imbalance,
+            Schema::Statistics,
+            Schema::Status
+        )]
+        schema: Schema,
+    ) -> Result<()> {
+        async fn collect(
+            reader: impl io::AsyncRead + Unpin,
+        ) -> Result<(
+            crate::Metadata,
+            Vec<crate::RecordBuf<{ crate::MAX_RECORD_LEN }, crate::v4::RecordHeader>>,
+        )> {
+            let mut decoder =
+                crate::decode::dbn::v4::AsyncDecoder::with_fsm(reader, fsm_v4()?).await?;
+            let metadata = decoder.metadata().clone();
+            let mut records = Vec::new();
+            while let Some(rec) = decoder.decode_record_ref().await? {
+                records.push(crate::RecordBuf::try_from(rec)?);
+            }
+            Ok((metadata, records))
+        }
+        let (file_metadata, file_records) = collect(
+            AsyncDynReader::from_file(format!("{TEST_DATA_PATH}/test_data.{schema}.v4.dbn.zst"))
+                .await?,
+        )
+        .await?;
+        assert_eq!(file_records.is_empty(), schema == Schema::Ohlcv1D);
+
+        let mut buffer = Vec::new();
+        let mut encoder =
+            crate::encode::dbn::v4::AsyncEncoder::with_zstd(&mut buffer, &file_metadata).await?;
+        for rec in &file_records {
+            encoder.encode_ref(rec.as_rec_ref()).await?;
+        }
+        encoder.shutdown().await?;
+        let (buf_metadata, buf_records) =
+            collect(AsyncDynReader::inferred_with_buffer(buffer.as_slice()).await?).await?;
+        assert_eq!(buf_metadata, file_metadata);
+        assert_eq!(buf_records, file_records);
+        Ok(())
+    }
+
     #[tokio::test]
     async fn test_v4_record_decoder_skip_bytes() -> Result<()> {
         let mut encoded = Vec::new();

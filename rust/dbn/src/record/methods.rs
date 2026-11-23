@@ -662,6 +662,18 @@ impl InstrumentDefRec for InstrumentDefMsg {
             .map(Some)
             .map_err(|_| Error::conversion::<Side>(format_args!("{:#04X}", self.leg_side as u8)))
     }
+
+    fn leg_count(&self) -> Option<u16> {
+        Some(self.leg_count)
+    }
+
+    fn leg_index(&self) -> Option<u16> {
+        Some(self.leg_index)
+    }
+
+    fn group(&self) -> Result<Option<&str>> {
+        c_chars_to_str(&self.group).map(Some)
+    }
 }
 
 impl ImbalanceRec for ImbalanceMsg {

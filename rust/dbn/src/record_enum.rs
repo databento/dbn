@@ -686,7 +686,8 @@ mod tests {
         rtype: u8,
     ) {
         let mut hd = RecordHeader::new::<MboMsg>(rtype, 0, 0, 0);
-        hd.length = (std::mem::size_of::<RecordHeader>() / RecordHeader::LENGTH_MULTIPLIER) as u8;
+        // SAFETY: the header covers only itself
+        unsafe { hd.set_record_size(std::mem::size_of::<RecordHeader>()) };
         // Safety: `hd` is an aligned `RecordHeader` and its `length` covers only itself
         let rec_ref = unsafe { RecordRef::unchecked_from_header(&hd) };
         assert!(rec_ref.as_enum().is_err());

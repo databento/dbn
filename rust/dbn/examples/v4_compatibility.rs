@@ -28,10 +28,11 @@ use dbn::{
         fields::{self, Field},
         layouts::default_layout,
         rtype,
-        types::{Char, Decimal},
+        types::Decimal,
         MboMsg, RecordHeader, TradeMsg,
     },
-    Action, Dataset, FlagSet, HasRType, Metadata, RType, Record, SType, Schema, Side,
+    Action, Dataset, FlagSet, HasRType, Metadata, RType, Record, RecordHeaderMut, RecordMut, SType,
+    Schema, Side,
 };
 
 const TS_EVENT: u64 = 1_609_160_400_000_000_000; // 2020-12-28T13:00:00Z
@@ -92,7 +93,7 @@ fn forward_compatible() -> dbn::Result<()> {
     let channel_id = rec.field(&index, fields::CHANNEL_ID).unwrap();
     let sale_condition = rec.field(&index, fields::SALE_CONDITION).unwrap();
     assert_eq!(channel_id, 3);
-    assert_eq!(sale_condition, Char(b'@' as c_char));
+    assert_eq!(sale_condition, b'@' as c_char);
     println!(
         "  record {} bytes, base {} (compiled {})",
         rec.record_size(),
@@ -102,13 +103,13 @@ fn forward_compatible() -> dbn::Result<()> {
     println!(
         "  base cast price {}, grown base channel_id {channel_id}, extension sale_condition {:?}",
         Px(base.price),
-        sale_condition.0 as u8 as char
+        sale_condition as u8 as char
     );
     Ok(())
 }
 
 fn ts_out(rec: v4::RecordRef, index: &LayoutIndex) -> Option<u64> {
-    rec.field(index, fields::TS_OUT).map(|t| t.0)
+    rec.field(index, fields::TS_OUT)
 }
 
 fn price(rec: v4::RecordRef, index: &LayoutIndex) -> Option<Decimal> {
@@ -259,9 +260,12 @@ fn decoder(encoded: &[u8]) -> dbn::Result<Decoder<&[u8]>> {
 // offsets the layout declares, as a producer populating fields past the compiled
 // struct does
 fn write_record(rec: &mut v4::RecordBuf, layout: &RecordLayout, values: &[(u16, &[u8])]) {
+    // SAFETY: `v4::RecordBuf` holds the largest record a layout can describe
+    unsafe {
+        rec.header_mut()
+            .set_record_size(usize::from(layout.record_size()))
+    };
     let raw = rec.raw_buf_mut();
-    let length = layout.record_size() - size_of::<RecordHeader>() as u16;
-    raw[..2].copy_from_slice(&length.to_le_bytes());
     for &(field_id, value) in values {
         let at = usize::from(
             layout
