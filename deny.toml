@@ -1,0 +1,6 @@
+[advisories]
+yanked = "deny"
+ignore = [
+  { id = "RUSTSEC-2026-0595", reason = "parquet: encryption feature is off; fix 60.2.0 is in cooldown until 2026-11-28" },
+  { id = "RUSTSEC-2026-0543", reason = "chrono: arrow and parquet depend on it" },
+]
