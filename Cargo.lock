@@ -544,7 +544,7 @@ dependencies = [
 
 [[package]]
 name = "databento-dbn"
-version = "0.74.0"
+version = "0.75.0"
 dependencies = [
  "arrow",
  "bytes",
@@ -559,7 +559,7 @@ dependencies = [
 
 [[package]]
 name = "dbn"
-version = "0.74.0"
+version = "0.75.0"
 dependencies = [
  "arrow",
  "async-compression",
@@ -587,7 +587,7 @@ dependencies = [
 
 [[package]]
 name = "dbn-c"
-version = "0.74.0"
+version = "0.75.0"
 dependencies = [
  "anyhow",
  "cbindgen",
@@ -599,7 +599,7 @@ dependencies = [
 
 [[package]]
 name = "dbn-cli"
-version = "0.74.0"
+version = "0.75.0"
 dependencies = [
  "anyhow",
  "arrow",
@@ -616,7 +616,7 @@ dependencies = [
 
 [[package]]
 name = "dbn-macros"
-version = "0.74.0"
+version = "0.75.0"
 dependencies = [
  "csv",
  "dbn",
@@ -1512,7 +1512,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "once_cell",
  "rustix",
  "windows-sys",
@@ -1701,9 +1701,9 @@ checksum = "06bdbd8cfc056b8d2e2e85f29b56a3bdbecb527cef81eb39e3e7b98af4652770"
 
 [[package]]
 name = "trybuild"
-version = "1.0.122"
+version = "1.0.125"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62db9c92d704393fbf2132041720cc80b689f2d3f28521015c2ac866223c11b8"
+checksum = "9838b494ee14d28f1eeea490e8f4f10248fa6dd371d4bc874b635de499408245"
 dependencies = [
  "glob",
  "serde",

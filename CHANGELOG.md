@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.75.0 - Upcoming
+## 0.75.0 - 2026-11-23
 
 ### Enhancements
 - Added `ColumnarEncoderBuilder::extra_metadata()`,
@@ -15,6 +15,8 @@
 ### Breaking changes
 - Changed Arrow and Parquet encoding of empty fixed-length string fields from null to an
   empty string. These columns are no longer nullable
+- Changed `DynFieldAccess::field()` and `field_at()` to return `u64` for timestamp
+  fields and `c_char` for character fields instead of `TimestampNs` and `Char`
 
 ## 0.74.0 - 2026-11-17
 
