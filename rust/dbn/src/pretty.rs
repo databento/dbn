@@ -100,7 +100,9 @@ impl fmt::Display for Px {
             let px_integer = px_abs / FIXED_PRICE_SCALE;
             let px_fraction = px_abs % FIXED_PRICE_SCALE;
             match f.precision() {
-                Some(0) => f.pad_integral(is_nonnegative, "", itoa::Buffer::new().format(px_abs)),
+                Some(0) => {
+                    f.pad_integral(is_nonnegative, "", itoa::Buffer::new().format(px_integer))
+                }
                 Some(precision @ ..9) => f.pad_integral(
                     is_nonnegative,
                     "",
@@ -199,6 +201,8 @@ mod tests {
     #[case::leading_zero(101_005_000_000, 5, "101.00500")]
     #[case::leading_zero(75_000_000, 6, "0.075000")]
     #[case::trunc(32_123_456_789, 2, "32.12")]
+    #[case::zero_precision(32_500_000_000, 0, "32")]
+    #[case::zero_precision_negative(-4_512_250_000_000, 0, "-4512")]
     fn test_precision(#[case] num: i64, #[case] precision: usize, #[case] exp: &str) {
         let num = Px(num);
         assert_eq!(format!("{num:.precision$}"), exp);

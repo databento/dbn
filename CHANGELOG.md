@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.75.1 - Upcoming
+
+### Bug fixes
+- Fixed formatting `Px` with a precision of 0, which printed the raw fixed-precision
+  value instead of the integer part of the price
+
 ## 0.75.0 - 2026-11-23
 
 ### Enhancements
